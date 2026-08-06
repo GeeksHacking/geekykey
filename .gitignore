@@ -9,3 +9,9 @@
 # https://docs.deno.com/runtime/reference/cli/coverage/
 coverage/
 *.lcov
+
+node_modules/
+dist/
+.DS_Store
+
+.gram/

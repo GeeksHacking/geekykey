@@ -1,0 +1,15 @@
+{
+  "name": "@geekykey/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "deno task dev",
+    "start": "deno task start",
+    "test": "deno task test"
+  },
+  "dependencies": {
+    "hono": "^4.12.31"
+  },
+  "devDependencies": {}
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@geekykey/backend",
+  "version": "0.1.0",
+  "exports": "./mod.ts",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "tasks": {
+    "dev": "deno run --watch --allow-net src/index.ts",
+    "start": "deno run --allow-net src/index.ts",
+    "test": "deno test -A"
+  },
+  "nodeModulesDir": "auto",
+  "license": "MIT"
+}

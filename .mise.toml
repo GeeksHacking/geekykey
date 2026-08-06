@@ -1,0 +1,14 @@
+[tools]
+pnpm = "11.17.0"
+node = "22.15.0"
+deno = "2.9.3"
+
+[tasks.install]
+description = "Install JS deps (pnpm)"
+run = "pnpm install"
+
+[tasks.dev]
+run = "pnpm dev:backend"
+
+[tasks.test]
+run = "pnpm test:backend"
