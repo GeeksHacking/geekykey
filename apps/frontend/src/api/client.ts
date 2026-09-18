@@ -1,0 +1,56 @@
+import type {
+  CreateStationRequest,
+  CreateStationResponse,
+  FallbackTapRequest,
+  FallbackTapResponse,
+  ListStationsResponse,
+  ListTapsQuery,
+  ListTapsResponse,
+  MeResponse,
+  StatsResponse,
+  Token,
+} from "@/api/types";
+
+/*
+  The one interface every feature consumes. Two implementations:
+  - src/api/mock: in-memory data shaped like the agreement (current phase)
+  - src/api/http: fetch against /api/v1 with credentials (integration phase)
+  Screens never know which one they are talking to.
+*/
+export interface ApiClient {
+  /** GET /api/v1/me. Rejects with `unauthenticated` when there is no session. */
+  me(): Promise<MeResponse>;
+
+  /** POST /auth/dev-login. Local development only. */
+  devLogin(userId: string): Promise<void>;
+
+  /** POST /auth/logout */
+  logout(): Promise<void>;
+
+  /** Where to send the browser to start the portal login. GET /auth/login?return_to=... */
+  loginUrl(returnTo: string): string;
+
+  /** POST /api/v1/tokens/pair. `created` is true on 201, false on the idempotent 200. */
+  pairToken(uid: string): Promise<{ token: Token; created: boolean }>;
+
+  /** DELETE /api/v1/tokens/{uid} */
+  unpairToken(uid: string): Promise<void>;
+
+  /** GET /api/v1/admin/stations */
+  listStations(): Promise<ListStationsResponse>;
+
+  /** POST /api/v1/admin/stations. The key in the response is shown once. */
+  createStation(input: CreateStationRequest): Promise<CreateStationResponse>;
+
+  /** GET /api/v1/admin/taps */
+  listTaps(query?: ListTapsQuery): Promise<ListTapsResponse>;
+
+  /** POST /api/v1/admin/taps */
+  createFallbackTap(input: FallbackTapRequest): Promise<FallbackTapResponse>;
+
+  /** GET /api/v1/admin/stats */
+  stats(): Promise<StatsResponse>;
+
+  /** GET /api/v1/admin/export.csv as a file the browser can save. */
+  exportCsv(): Promise<Blob>;
+}
