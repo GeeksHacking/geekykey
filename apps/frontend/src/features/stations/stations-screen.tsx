@@ -15,12 +15,11 @@ export function StationsScreen() {
 
   let body;
   if (!list) {
-    body =
-      stations.status === "error" ? (
-        <ErrorState error={stations.error} onRetry={() => void stations.refetch()} />
-      ) : (
-        <StationBoardSkeleton />
-      );
+    body = stations.isError ? (
+      <ErrorState error={stations.error} onRetry={() => void stations.refetch()} />
+    ) : (
+      <StationBoardSkeleton />
+    );
   } else if (list.length === 0) {
     body = (
       <EmptyState
@@ -38,7 +37,7 @@ export function StationsScreen() {
             <span className="font-mono text-foreground">{list.length}</span> stations,{" "}
             <span className="font-mono text-foreground">{online}</span> online
           </span>
-          <LiveStamp updatedAt={stations.updatedAt} refreshing={stations.refreshing} />
+          <LiveStamp updatedAt={stations.dataUpdatedAt} refreshing={stations.isFetching} />
         </div>
         <StationBoard stations={list} />
       </div>
@@ -50,7 +49,7 @@ export function StationsScreen() {
       <PageHeader
         title="Stations"
         description="Every reader station and whether it has checked in within the last two minutes. Refreshes every 12 seconds."
-        actions={<AddStationDialog onCreated={() => void stations.refetch()} />}
+        actions={<AddStationDialog />}
       />
       {body}
     </div>

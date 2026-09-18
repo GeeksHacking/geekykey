@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { useApi } from "@/api/context";
 import { describeError, isApiError } from "@/api/errors";
 import type { CreateStationResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useCreateStation } from "@/features/stations/use-create-station";
 import { applyApiIssues } from "@/lib/form-errors";
 
 const schema = z.object({
@@ -30,7 +30,7 @@ const schema = z.object({
 type StationValues = z.infer<typeof schema>;
 
 export function AddStationForm({ onCreated }: { onCreated: (result: CreateStationResponse) => void }) {
-  const api = useApi();
+  const createStation = useCreateStation();
   const form = useForm<StationValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", location: "", points: "1" },
@@ -40,7 +40,7 @@ export function AddStationForm({ onCreated }: { onCreated: (result: CreateStatio
   async function onSubmit(values: StationValues) {
     setFormError(null);
     try {
-      const result = await api.createStation({
+      const result = await createStation.mutateAsync({
         name: values.name,
         location: values.location || undefined,
         points: Number(values.points),

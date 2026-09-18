@@ -8,7 +8,7 @@ export function FallbackScreen() {
   const stations = useFallbackStations();
 
   let body;
-  if (stations.status === "loading") {
+  if (stations.isPending) {
     body = (
       <div className="space-y-5" role="status" aria-label="Loading form">
         <Skeleton className="h-10 w-full" />
@@ -16,7 +16,7 @@ export function FallbackScreen() {
         <Skeleton className="h-10 w-full" />
       </div>
     );
-  } else if (stations.status === "error" || !stations.data) {
+  } else if (stations.isError || !stations.data) {
     body = <ErrorState error={stations.error} onRetry={() => void stations.refetch()} />;
   } else {
     body = <FallbackForm stations={stations.data.stations} />;

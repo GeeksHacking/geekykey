@@ -1,6 +1,8 @@
 /** Polling intervals from API-AGREEMENT.md. No websockets in the MVP. */
 export const POLL_STATIONS_MS = 12_000;
 export const POLL_TAPS_MS = 5_000;
+/** The participant's own stamps and points. Not in the agreement's table; chosen so a tap shows up within one poll. */
+export const POLL_ME_MS = 10_000;
 
 /** A station counts as online when it was seen within this window. Backend computes it; the mock mirrors it. */
 export const STATION_ONLINE_WINDOW_MS = 120_000;

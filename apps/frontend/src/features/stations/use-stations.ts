@@ -1,9 +1,15 @@
+import { useQuery } from "@tanstack/react-query";
+
 import { useApi } from "@/api/context";
+import { queryKeys } from "@/api/keys";
 import { POLL_STATIONS_MS } from "@/lib/constants";
-import { useRequest } from "@/lib/use-request";
 
 /** Station board data, polled so the online indicator moves without a refresh. */
 export function useStations() {
   const api = useApi();
-  return useRequest(() => api.listStations(), { key: "stations", pollMs: POLL_STATIONS_MS });
+  return useQuery({
+    queryKey: queryKeys.stations,
+    queryFn: () => api.listStations(),
+    refetchInterval: POLL_STATIONS_MS,
+  });
 }

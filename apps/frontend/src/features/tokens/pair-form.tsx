@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { useApi } from "@/api/context";
 import { describeError, isApiError, isApiErrorCode } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { usePairToken } from "@/features/tokens/use-pair-token";
 import { applyApiIssues } from "@/lib/form-errors";
 import { formatUid, normaliseUid } from "@/lib/format";
 
@@ -34,20 +34,19 @@ const schema = z.object({
 
 type PairValues = z.infer<typeof schema>;
 
-export function PairForm({ onPaired }: { onPaired: () => Promise<void> | void }) {
-  const api = useApi();
+export function PairForm() {
+  const pairToken = usePairToken();
   const form = useForm<PairValues>({ resolver: zodResolver(schema), defaultValues: { uid: "" } });
   const [formError, setFormError] = useState<string | null>(null);
 
   async function onSubmit(values: PairValues) {
     setFormError(null);
     try {
-      const { token, created } = await api.pairToken(values.uid);
+      const { token, created } = await pairToken.mutateAsync(values.uid);
       toast.success(created ? "Token paired" : "Already paired to you", {
         description: formatUid(token.uid),
       });
       form.reset();
-      await onPaired();
     } catch (error) {
       if (isApiErrorCode(error, "uid_already_paired")) {
         form.setError("uid", {

@@ -19,9 +19,9 @@ export function TapsScreen() {
   const filtered = filters.station_id !== undefined || filters.status !== undefined;
 
   let body;
-  if (log.status === "loading") {
+  if (log.isPending) {
     body = <ScanLogSkeleton />;
-  } else if (log.status === "error" && log.taps.length === 0) {
+  } else if (log.isError && log.taps.length === 0) {
     body = <ErrorState error={log.error} onRetry={() => void log.refetch()} />;
   } else if (log.taps.length === 0) {
     body = (
@@ -42,7 +42,7 @@ export function TapsScreen() {
           <span>
             Showing <span className="font-mono text-foreground">{log.taps.length}</span> taps
           </span>
-          <LiveStamp updatedAt={log.updatedAt} refreshing={log.refreshing} />
+          <LiveStamp updatedAt={log.dataUpdatedAt} refreshing={log.isFetching} />
         </div>
         <ScanLogTable taps={log.taps} />
         {log.hasMore ? (

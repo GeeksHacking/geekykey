@@ -8,7 +8,7 @@ import { AddStationForm } from "@/features/stations/add-station-form";
 import { StationKeyReveal } from "@/features/stations/station-key-reveal";
 
 /** Two steps in one dialog: the form, then the one-time key. Closing clears the key from memory. */
-export function AddStationDialog({ onCreated }: { onCreated: () => void }) {
+export function AddStationDialog() {
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<CreateStationResponse | null>(null);
 
@@ -29,12 +29,7 @@ export function AddStationDialog({ onCreated }: { onCreated: () => void }) {
         {created ? (
           <StationKeyReveal result={created} onDone={() => handleOpenChange(false)} />
         ) : (
-          <AddStationForm
-            onCreated={(result) => {
-              setCreated(result);
-              onCreated();
-            }}
-          />
+          <AddStationForm onCreated={setCreated} />
         )}
       </DialogContent>
     </Dialog>

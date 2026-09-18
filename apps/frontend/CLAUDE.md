@@ -57,7 +57,7 @@ Rules that make this possible:
 | Styling | Tailwind CSS 3.4 | Deliberately v3, not v4. Pin `tailwindcss@^3.4`. Use `tailwind.config.ts` + PostCSS, not the v4 Vite plugin |
 | Components | shadcn/ui, Tailwind v3 style, CSS-variable theme | Generated into `src/components/ui`. We own and customise the code. Never left in default state |
 | Routing | TanStack Router, file-based | Typed links, params, and search. `routeTree.gen.ts` is generated and committed; never hand-edit it |
-| Server state | TanStack Query | Introduced when API wiring starts. Not used in the mockup phase |
+| Server state | TanStack Query 5 | Queries and mutations live in feature hooks; keys in `src/api/keys.ts`; the session is the `["me"]` query. See "Server state" |
 | Tables | TanStack Table 8 | Organiser scan log only. Pinned to v8; v9 changed its API |
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default `weight="regular"` |
 | Fonts | Geist, Geist Mono via `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
@@ -74,6 +74,31 @@ matters for a team learning React. To keep the router swappable anyway: screens 
 `features/`, get data from hooks, and never depend on router loaders. Route files only map
 a URL to a feature. That keeps a migration in either direction to route files plus
 `Link` and `useNavigate` imports.
+
+### Server state
+
+TanStack Query owns everything that comes from the API. The pattern, shown once:
+
+- A feature hook wraps `useQuery` with a key from `src/api/keys.ts` and a `queryFn` that
+  calls the `ApiClient`. Polled views pass `refetchInterval` with the constant from
+  `lib/constants.ts`. Example: `features/stations/use-stations.ts`.
+- Writes are `useMutation` hooks whose `onSuccess` invalidates the keys they change, so
+  screens never pass "refetch me" callbacks around. Example:
+  `features/tokens/use-pair-token.ts` invalidates `["me"]`.
+- Screens read `isPending`, `isError`, `isFetching`, `dataUpdatedAt`, and `data`. They do
+  not hold copies of server data in `useState`.
+- The session is the `["me"]` query in `lib/session-provider.tsx`. A 401 is a normal
+  answer, so the query function returns `null` for it instead of throwing; `undefined`
+  means not fetched yet, an object means signed in. Sign-out sets it to `null` and drops
+  every other cached query so nothing leaks to the next person at a shared laptop.
+- The scan log is two queries: a polled head with no cursor, merged by `id` with an
+  infinite query for older pages that only fetches on "Load older taps". This is the
+  agreement's live-feed recipe, not a plain `useInfiniteQuery` with polling, which would
+  refetch every loaded page each tick.
+- Cache policy is in `lib/query-client.ts`: an `ApiError` is never retried, a network
+  failure twice. Tests build the client with retries off through `test/providers.tsx`.
+
+The mock client needs nothing special: Query only wants async functions.
 
 ### TypeScript version
 
@@ -181,6 +206,7 @@ apps/frontend/
     api/
       types.ts              # mirrors API-AGREEMENT.md exactly
       client.ts             # the interface every feature consumes
+      keys.ts               # every TanStack Query key, in one place
       context.ts            # useApi()
       provider.tsx
       errors.ts             # ApiError, NetworkError, describeError()
@@ -191,13 +217,14 @@ apps/frontend/
       session-provider.tsx
       theme.ts              # system preference, dark fallback, manual override
       theme-provider.tsx
-      use-request.ts        # small fetch-state hook with polling; TanStack Query replaces it later
+      query-client.ts       # TanStack Query cache and retry policy
       form-errors.ts        # maps validation_failed issues onto react-hook-form fields
       format.ts             # dates, UIDs, points, counts
       constants.ts          # poll intervals, seeded user IDs
       utils.ts              # cn()
     styles/globals.css      # Tailwind layers + CSS-variable tokens for both themes
     test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia stub
+    test/providers.tsx      # the app's provider stack for tests
 ```
 
 Rules:
@@ -224,7 +251,8 @@ Rules:
   where the agreement says so (QR fallback).
 - The frontend never computes stamps, points, or cooldown. Display what the backend returns.
 - Poll, do not stream. Stations every 10 to 15 s. Scan log every 5 s with no cursor,
-  merged by `id`. No websockets.
+  merged by `id`. Polling is Query's `refetchInterval`, which already pauses in hidden
+  tabs. No websockets.
 - Scan log pagination is cursor-based via `before_id` and `next_before_id`.
 - Timestamps arrive as UTC ISO strings. Format for display in the user's local zone, in
   the mono font. Never parse IDs. Only `taps.id` is numeric, and only for the cursor.
@@ -329,8 +357,8 @@ change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`.
 - Strict TypeScript with `noUncheckedIndexedAccess`. No `any`; use `unknown` and narrow.
 - Tailwind classes only. No CSS modules, no CSS-in-JS, no `.css` files beyond
   `globals.css`. Compose class names with `cn()`.
-- Data enters components through hooks in `features/*`. Never `useEffect` plus `fetch`
-  inside a component.
+- Server data enters components through TanStack Query hooks in `features/*`. Never
+  `useEffect` plus `fetch`, and never a `useState` copy of something the cache holds.
 - Derive, do not sync: no state that duplicates props or server data.
 - Formatting rules for dates, UIDs, and points live in `lib/format.ts` and nowhere else.
 - Colocate tests as `*.test.tsx`. Test behaviour through the DOM, not implementation.

@@ -23,7 +23,7 @@ export default defineConfig([
   {
     // Route files export a Route object, and shadcn files export variant helpers.
     // Neither is a component, and both are fine for Fast Refresh in practice.
-    files: ["src/routes/**/*.tsx", "src/components/ui/*.tsx"],
+    files: ["src/routes/**/*.tsx", "src/components/ui/*.tsx", "src/test/**/*.tsx"],
     rules: { "react-refresh/only-export-components": "off" },
   },
 ]);

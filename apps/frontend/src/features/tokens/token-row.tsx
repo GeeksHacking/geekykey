@@ -1,8 +1,6 @@
 import { Key } from "@phosphor-icons/react";
-import { useState } from "react";
 import { toast } from "sonner";
 
-import { useApi } from "@/api/context";
 import { describeError, isApiErrorCode } from "@/api/errors";
 import type { Token } from "@/api/types";
 import {
@@ -17,29 +15,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useUnpairToken } from "@/features/tokens/use-unpair-token";
 import { formatUid, formatWhen } from "@/lib/format";
 
-interface TokenRowProps {
-  token: Token;
-  onUnpaired: () => Promise<void> | void;
-}
-
-export function TokenRow({ token, onUnpaired }: TokenRowProps) {
-  const api = useApi();
-  const [pending, setPending] = useState(false);
+export function TokenRow({ token }: { token: Token }) {
+  const unpairToken = useUnpairToken();
 
   async function unpair() {
-    setPending(true);
     try {
-      await api.unpairToken(token.uid);
+      await unpairToken.mutateAsync(token.uid);
       toast.success("Token unpaired");
-      await onUnpaired();
     } catch (error) {
       toast.error(
         isApiErrorCode(error, "not_found") ? "That token is no longer paired to you." : describeError(error),
       );
-    } finally {
-      setPending(false);
     }
   }
 
@@ -56,7 +45,7 @@ export function TokenRow({ token, onUnpaired }: TokenRowProps) {
       </div>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="sm" disabled={pending}>
+          <Button variant="ghost" size="sm" disabled={unpairToken.isPending}>
             Unpair
           </Button>
         </AlertDialogTrigger>

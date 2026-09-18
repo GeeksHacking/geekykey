@@ -4,12 +4,7 @@ import type { Token } from "@/api/types";
 import { EmptyState } from "@/components/layout/empty-state";
 import { TokenRow } from "@/features/tokens/token-row";
 
-interface TokenListProps {
-  tokens: Token[];
-  onUnpaired: () => Promise<void> | void;
-}
-
-export function TokenList({ tokens, onUnpaired }: TokenListProps) {
+export function TokenList({ tokens }: { tokens: Token[] }) {
   if (tokens.length === 0) {
     return (
       <EmptyState
@@ -22,7 +17,7 @@ export function TokenList({ tokens, onUnpaired }: TokenListProps) {
   return (
     <ul className="divide-y rounded-lg border" aria-label="Paired tokens">
       {tokens.map((token) => (
-        <TokenRow key={token.uid} token={token} onUnpaired={onUnpaired} />
+        <TokenRow key={token.uid} token={token} />
       ))}
     </ul>
   );

@@ -1,7 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
+
 import { useApi } from "@/api/context";
-import { useRequest } from "@/lib/use-request";
+import { queryKeys } from "@/api/keys";
 
 export function useStats() {
   const api = useApi();
-  return useRequest(() => api.stats(), { key: "stats" });
+  return useQuery({ queryKey: queryKeys.stats, queryFn: () => api.stats() });
 }

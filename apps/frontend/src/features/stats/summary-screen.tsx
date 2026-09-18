@@ -13,7 +13,7 @@ export function SummaryScreen() {
   const stats = useStats();
 
   let body;
-  if (stats.status === "loading") {
+  if (stats.isPending) {
     body = (
       <div className="space-y-8" role="status" aria-label="Loading summary">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -27,7 +27,7 @@ export function SummaryScreen() {
         <Skeleton className="h-48 w-full" />
       </div>
     );
-  } else if (stats.status === "error" || !stats.data) {
+  } else if (stats.isError || !stats.data) {
     body = <ErrorState error={stats.error} onRetry={() => void stats.refetch()} />;
   } else {
     const data = stats.data;

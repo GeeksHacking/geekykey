@@ -1,9 +1,15 @@
-import { useApi } from "@/api/context";
-import { useRequest } from "@/lib/use-request";
+import { useQuery } from "@tanstack/react-query";
 
-/** Station names for the filter and the fallback form. Fetched once; stations rarely change mid-event. */
+import { useApi } from "@/api/context";
+import { queryKeys } from "@/api/keys";
+
+/** Station names for the filter. Shares the board's cache entry, so it is free when the board is loaded. */
 export function useStationOptions() {
   const api = useApi();
-  const request = useRequest(() => api.listStations(), { key: "station-options" });
-  return { stations: request.data?.stations ?? [], status: request.status };
+  const query = useQuery({
+    queryKey: queryKeys.stations,
+    queryFn: () => api.listStations(),
+    staleTime: 60_000,
+  });
+  return { stations: query.data?.stations ?? [], isPending: query.isPending };
 }

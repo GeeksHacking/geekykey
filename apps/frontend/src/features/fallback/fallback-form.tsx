@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { useApi } from "@/api/context";
 import { describeError, isApiError, isApiErrorCode } from "@/api/errors";
 import type { FallbackTapRequest, FallbackTapResponse, Station } from "@/api/types";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FallbackResult } from "@/features/fallback/fallback-result";
+import { useLogFallbackTap } from "@/features/fallback/use-log-fallback-tap";
 import { applyApiIssues } from "@/lib/form-errors";
 
 const schema = z.object({
@@ -36,7 +36,7 @@ const MODES = [
 ] as const;
 
 export function FallbackForm({ stations }: { stations: Station[] }) {
-  const api = useApi();
+  const logTap = useLogFallbackTap();
   const form = useForm<FallbackValues>({
     resolver: zodResolver(schema),
     defaultValues: { station_id: "", mode: "user_id", identifier: "" },
@@ -53,7 +53,7 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
         ? { station_id: values.station_id, user_id: values.identifier }
         : { station_id: values.station_id, uid: values.identifier };
     try {
-      const response = await api.createFallbackTap(input);
+      const response = await logTap.mutateAsync(input);
       setResult(response.result);
     } catch (error) {
       if (isApiErrorCode(error, "not_found")) {
