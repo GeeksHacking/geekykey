@@ -1,14 +1,46 @@
+# Tool versions and task shortcuts for the whole monorepo.
+# this file is the source of truth for tool versions. `packageManager` in
+# package.json must match the pnpm pin here.
+#
+#   mise install            install the pinned tools
+#   mise run <task>         run a task with those tools on PATH, even if the
+#                           shell is not activated
+#   mise tasks              list tasks
+
 [tools]
-pnpm = "11.17.0"
 node = "22.15.0"
-deno = "2.9.3"
+pnpm = "11.17.0"
+deno = "2.9.6"
 
 [tasks.install]
-description = "Install JS deps (pnpm)"
+description = "Install every workspace package (run from anywhere)"
 run = "pnpm install"
 
-[tasks.dev]
+# Frontend
+
+[tasks."dev:frontend"]
+description = "Vite dev server on http://localhost:5173"
+run = "pnpm dev:frontend"
+
+[tasks."test:frontend"]
+description = "Frontend unit tests (Vitest)"
+run = "pnpm test:frontend"
+
+[tasks."build:frontend"]
+description = "Typecheck, then production build to apps/frontend/dist"
+run = "pnpm build:frontend"
+
+# Backend
+
+[tasks."dev:backend"]
+description = "Hono on Deno with file watching, on http://localhost:8000"
 run = "pnpm dev:backend"
 
-[tasks.test]
+[tasks."test:backend"]
+description = "Backend tests (deno test)"
 run = "pnpm test:backend"
+
+[tasks."seed:backend"]
+description = "Create a dev station and participant in the local database"
+dir = "apps/backend"
+run = "deno task seed"
