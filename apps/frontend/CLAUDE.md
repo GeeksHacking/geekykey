@@ -58,7 +58,7 @@ Rules that make this possible:
 | Components | shadcn/ui, Tailwind v3 style, CSS-variable theme | Generated into `src/components/ui`. We own and customise the code. Never left in default state |
 | Routing | TanStack Router, file-based | Typed links, params, and search. `routeTree.gen.ts` is generated and committed; never hand-edit it |
 | Server state | TanStack Query 5 | Queries and mutations live in feature hooks; keys in `src/api/keys.ts`; the session is the `["me"]` query. See "Server state" |
-| Tables | TanStack Table 8 | Organiser scan log only. Pinned to v8; v9 changed its API |
+| Tables | TanStack Table 9 | Organiser scan log only. Features are opt-in through `tableFeatures()`; row, cell, and header methods live on prototypes, so call them on the instance and never spread one |
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default `weight="regular"` |
 | Fonts | Geist, Geist Mono via `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
 | Motion | `motion/react` | Feedback and state transitions only |
@@ -123,6 +123,11 @@ Verified when the app was scaffolded:
 - The `react-hooks` lint plugin (v7) flags components looked up during render and
   react-hook-form's `watch()`. Use `useWatch` and render looked-up icons through a small
   component (see `features/passport/station-glyph.tsx`).
+- TanStack Table moved from v8 to v9 on 18 Sep 2026 while the scan log was the only table.
+  v9 is `useTable({ features, columns, data })` with `tableFeatures({})`; there is no
+  `getCoreRowModel`, and `<table.FlexRender cell={cell} />` replaces `flexRender`. Most
+  tutorials and the shadcn data-table recipe still show v8; the package ships its own
+  migration notes under `node_modules/@tanstack/react-table/skills`.
 - Never redirect with a `<Navigate />` element from a component that re-renders. It
   navigates again whenever its props object changes, which is every render, and the router
   never commits, so the page freezes on the loading view. Redirect from a `useEffect` with

@@ -1,4 +1,4 @@
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 
 import type { AdminTap } from "@/api/types";
 import { TapStatusLabel } from "@/components/tap-status";
@@ -6,8 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime, formatTimeWithSeconds, formatUid } from "@/lib/format";
 
-const columns: ColumnDef<AdminTap>[] = [
-  {
+/*
+  TanStack Table 9. Features are opt-in; the scan log only needs the core row
+  model, so the feature set is empty. Row, cell, and header methods live on
+  prototypes in v9: call them on the instance, never spread or destructure one.
+*/
+const features = tableFeatures({});
+const column = createColumnHelper<typeof features, AdminTap>();
+
+const columns = column.columns([
+  column.display({
     id: "time",
     header: "Time",
     cell: ({ row }) => (
@@ -19,13 +27,13 @@ const columns: ColumnDef<AdminTap>[] = [
         {formatTimeWithSeconds(row.original.received_at)}
       </time>
     ),
-  },
-  {
+  }),
+  column.display({
     id: "station",
     header: "Station",
     cell: ({ row }) => <span className="font-medium">{row.original.station.name}</span>,
-  },
-  {
+  }),
+  column.display({
     id: "participant",
     header: "Participant",
     cell: ({ row }) =>
@@ -34,8 +42,8 @@ const columns: ColumnDef<AdminTap>[] = [
       ) : (
         <span className="text-muted-foreground">Unknown token</span>
       ),
-  },
-  {
+  }),
+  column.display({
     id: "token",
     header: "Token",
     cell: ({ row }) => (
@@ -43,28 +51,26 @@ const columns: ColumnDef<AdminTap>[] = [
         {row.original.token_uid ? formatUid(row.original.token_uid) : "None"}
       </span>
     ),
-  },
-  {
+  }),
+  column.display({
     id: "status",
     header: "Status",
     cell: ({ row }) => <TapStatusLabel status={row.original.status} />,
-  },
-  {
+  }),
+  column.display({
     id: "source",
     header: "Source",
     cell: ({ row }) => (
       <Badge variant="muted">{row.original.source === "qr_fallback" ? "Organiser" : "Station"}</Badge>
     ),
-  },
-];
+  }),
+]);
 
 export function ScanLogTable({ taps }: { taps: AdminTap[] }) {
-  // The React Compiler cannot memoise TanStack Table's instance. We do not run the compiler, so this is only informational.
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
-    data: taps,
+  const table = useTable({
+    features,
     columns,
-    getCoreRowModel: getCoreRowModel(),
+    data: taps,
     getRowId: (row) => String(row.id),
   });
 
@@ -75,7 +81,7 @@ export function ScanLogTable({ taps }: { taps: AdminTap[] }) {
           <TableRow key={group.id}>
             {group.headers.map((header) => (
               <TableHead key={header.id}>
-                {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                {header.isPlaceholder ? null : <table.FlexRender header={header} />}
               </TableHead>
             ))}
           </TableRow>
@@ -84,8 +90,10 @@ export function ScanLogTable({ taps }: { taps: AdminTap[] }) {
       <TableBody>
         {table.getRowModel().rows.map((row) => (
           <TableRow key={row.id}>
-            {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+            {row.getAllCells().map((cell) => (
+              <TableCell key={cell.id}>
+                <table.FlexRender cell={cell} />
+              </TableCell>
             ))}
           </TableRow>
         ))}

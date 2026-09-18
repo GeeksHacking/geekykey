@@ -28,7 +28,7 @@
     "@radix-ui/react-tabs": "^1.1.21",
     "@tanstack/react-query": "^5.103.1",
     "@tanstack/react-router": "^1.170.38",
-    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-table": "^9.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "^19.3.0",
