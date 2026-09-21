@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Every step inherits GITHUB_TOKEN, including anything a dependency decides to
+# run. CI only needs to read the repo, so drop the write permissions it is
+# given by default.
+permissions:
+  contents: read
+
+# A second push to the same branch cancels the run still in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to a commit SHA rather than a tag, because a tag can
+      # be moved to point at different code and a SHA cannot. The trailing
+      # comment records which release each SHA is.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # mise installs node, pnpm and deno at the versions pinned in .mise.toml,
+      # so CI runs the same toolchain we do and those version numbers live in
+      # exactly one place. It verifies GitHub artifact attestations on what it
+      # downloads.
+      #
+      # This deliberately does not use corepack. pnpm 12 ships its CLI as a
+      # per-platform native binary (the @pnpm/exe.* packages) and corepack --
+      # including the current 0.36.0 -- still looks for the old bin/pnpm.cjs,
+      # so `corepack enable` cannot launch the pnpm this repo pins.
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.7.12
+        env:
+          # Only so mise is not rate-limited fetching tools from GitHub. The
+          # workflow permissions above make this token read-only.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --frozen-lockfile fails rather than rewriting the lockfile, so nothing
+      # reaches the build that is not already in the reviewed pnpm-lock.yaml.
+      # It also runs pnpm's supply-chain policy check across every entry:
+      # release age, trust downgrades, integrity, and exotic sources. The
+      # policy itself lives in pnpm-workspace.yaml.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter @geekykey/frontend lint
+
+      - name: Test
+        run: pnpm test:frontend
+
+      # `build` runs the typecheck first.
+      - name: Build
+        run: pnpm build:frontend
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.7.12
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The backend's dependencies are resolved twice: by pnpm into
+      # pnpm-lock.yaml and by Deno into apps/backend/deno.lock. Checking both
+      # against the same package.json is what stops the two from drifting
+      # apart. --frozen-lockfile errors instead of rewriting deno.lock.
+      - name: Check deno.lock is current
+        working-directory: apps/backend
+        run: deno install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: apps/backend
+        run: deno task check
+
+      - name: Test
+        run: pnpm test:backend
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.7.12
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # `pnpm audit` reads pnpm-lock.yaml directly, so this job does not need
+      # to install anything.
+      #
+      # This fails the build on high and critical advisories only. Moderates
+      # are printed but do not block, because one is currently unavoidable:
+      # esbuild@0.18.20 reaches us through drizzle-kit's deprecated
+      # @esbuild-kit/esm-loader, drizzle-kit is already on its latest release,
+      # and the advisory only affects esbuild's dev server, which nothing here
+      # runs. Read the printed output rather than trusting the exit code alone.
+      - name: Audit
+        run: pnpm audit --audit-level=high
