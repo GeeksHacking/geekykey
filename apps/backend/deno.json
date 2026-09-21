@@ -10,9 +10,12 @@
     "noUnusedParameters": true
   },
   "tasks": {
-    "dev": "deno run --watch --allow-net src/index.ts",
-    "start": "deno run --allow-net src/index.ts",
-    "test": "deno test -A"
+    "dev": "deno run --watch --allow-net --allow-read --allow-write --allow-env --allow-ffi src/index.ts",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi src/index.ts",
+    "seed": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi scripts/seed.ts",
+    "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-ffi",
+    "check": "deno check src scripts drizzle.config.ts",
+    "db:generate": "deno run -A npm:drizzle-kit generate"
   },
   "nodeModulesDir": "auto",
   "license": "MIT"

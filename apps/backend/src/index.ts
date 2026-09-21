@@ -1,20 +1,12 @@
-import { Hono } from "hono";
+import { createApp } from "./app.ts";
+import { loadConfig } from "./config.ts";
+import { createDb, ensureLocalDbDir } from "./db/client.ts";
+import { migrate } from "./db/migrate.ts";
 
-const app = new Hono();
+const config = loadConfig();
+await ensureLocalDbDir(config.databaseUrl);
+const db = createDb(config.databaseUrl, config.databaseAuthToken);
+await migrate(db);
 
-// Root health check route
-app.get("/", (c) => {
-  return c.text("App is running");
-});
-
-// Sample JSON API endpoint
-app.get("/api/health", (c) => {
-  return c.json({
-    status: "ok",
-    service: "geekykey-backend",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Start server on default Deno port (8000)
-Deno.serve(app.fetch);
+const app = createApp({ db, config });
+Deno.serve({ port: config.port }, app.fetch);
