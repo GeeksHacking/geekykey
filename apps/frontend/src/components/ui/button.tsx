@@ -6,12 +6,30 @@ import { cn } from "@/lib/utils"
 
 /*
   Customised from shadcn new-york:
-  - 40px default height so buttons are comfortable thumb targets on a phone
   - press feedback with scale, no shadows (they turn to mud on the dark theme)
   - 2px focus ring offset from the background for keyboard users
+  The 40px default height that makes buttons comfortable thumb targets on a
+  phone lives in the `size` variants below (h-10), not in these base styles.
 */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,background-color,border-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  [
+    // Layout and type.
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium",
+    // `transform` is in the transition list so the active: press below eases
+    // instead of snapping.
+    "transition-[color,background-color,border-color,transform] duration-150",
+    // Focus ring is scoped to focus-visible throughout, so it paints for
+    // keyboard users without ringing every mouse click.
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    // The house press feedback, applied to every button for consistency.
+    "active:scale-[0.98]",
+    "disabled:pointer-events-none disabled:opacity-50",
+    // `[&_svg]` is a Tailwind arbitrary variant meaning "any <svg> descendant of
+    // this element". Icons passed as children are pinned to 16px, kept from
+    // shrinking in the flex row, and made click-through so a press always
+    // registers on the button rather than on the icon.
+    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  ],
   {
     variants: {
       variant: {
