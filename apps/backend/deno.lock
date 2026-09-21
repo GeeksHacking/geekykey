@@ -1,12 +1,12 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@hono/zod-validator@~0.7.6": "0.7.6_hono@4.12.31_zod@4.6.5",
+    "npm:@hono/zod-validator@~0.7.6": "0.7.6_hono@4.13.8_zod@4.6.5",
     "npm:@libsql/client@~0.15.15": "0.15.15",
     "npm:drizzle-kit@*": "0.31.10",
     "npm:drizzle-kit@~0.31.10": "0.31.10",
-    "npm:drizzle-orm@~0.44.7": "0.44.7_@libsql+client@0.15.15",
-    "npm:hono@^4.12.31": "4.12.31",
+    "npm:drizzle-orm@~0.45.2": "0.45.2_@libsql+client@0.15.15",
+    "npm:hono@^4.13.8": "4.13.8",
     "npm:zod@^4.6.5": "4.6.5"
   },
   "npm": {
@@ -399,7 +399,7 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "@hono/zod-validator@0.7.6_hono@4.12.31_zod@4.6.5": {
+    "@hono/zod-validator@0.7.6_hono@4.13.8_zod@4.6.5": {
       "integrity": "sha512-Io1B6d011Gj1KknV4rXYz4le5+5EubcWEU/speUjuw9XMMIaP3n78yXLhjd2A3PXaXaUwEAluOiAyLqhBEJgsw==",
       "dependencies": [
         "hono",
@@ -520,8 +520,8 @@
       ],
       "bin": true
     },
-    "drizzle-orm@0.44.7_@libsql+client@0.15.15": {
-      "integrity": "sha512-quIpnYznjU9lHshEOAYLoZ9s3jweleHlZIAWR/jX9gAWNg/JhQ1wj0KGRf7/Zm+obRrYd9GjPVJg790QY9N5AQ==",
+    "drizzle-orm@0.45.2_@libsql+client@0.15.15": {
+      "integrity": "sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==",
       "dependencies": [
         "@libsql/client"
       ],
@@ -648,8 +648,8 @@
         "resolve-pkg-maps"
       ]
     },
-    "hono@4.12.31": {
-      "integrity": "sha512-zJIHFrl6bq3RDd2YusFNCDlM8qUprxKswyi/OPzPyzKDdyBXDqWx8bZlZ7R+saTdSTatUmb3O7K4SspGPaEOQg=="
+    "hono@4.13.8": {
+      "integrity": "sha512-/Gng7NfoykZl2pjukW5Z6+8Yxm3BPRf86GTbQnt0SbySkvax4fyL4H3HhY1cCpBGmiW9XDRFzRV+CXK2W8QudQ=="
     },
     "js-base64@3.9.3": {
       "integrity": "sha512-uwYQp+VJ38FVvtim6qNbit6e9uT6dwWQ4Y1+H9TxhW5hcHjpHwoxlR0nMpqUmIFOmu4VqMxwdJA88gIVuZJQ/g=="
@@ -731,8 +731,8 @@
         "npm:@hono/zod-validator@~0.7.6",
         "npm:@libsql/client@~0.15.15",
         "npm:drizzle-kit@~0.31.10",
-        "npm:drizzle-orm@~0.44.7",
-        "npm:hono@^4.12.31",
+        "npm:drizzle-orm@~0.45.2",
+        "npm:hono@^4.13.8",
         "npm:zod@^4.6.5"
       ]
     }

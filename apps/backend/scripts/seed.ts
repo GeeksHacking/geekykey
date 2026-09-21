@@ -1,6 +1,8 @@
 /**
- * Local development seed: creates a station and a participant with one paired
- * token, then prints the station key and a curl command to try the tap endpoint.
+ * Local development seed: creates a station, a participant with one paired
+ * token, and an organizer, then prints the station key and a curl command to
+ * try the tap endpoint. The two user IDs are the ones the frontend's dev-login
+ * form offers, so both views can be developed against DEV_AUTH_ENABLED=true.
  *
  *   deno task seed
  *   deno task seed --station "Booth 3" --uid 04:A1:B2:C3:D4:E5:F6
@@ -18,7 +20,9 @@ const { values } = parseArgs({
   options: {
     station: { type: "string", default: "Dev Station" },
     uid: { type: "string", default: "04A1B2C3D4E5F6" },
-    name: { type: "string", default: "Dev Participant" },
+    // Names match the frontend's mock fixtures so a screen reads the same either way.
+    name: { type: "string", default: "Alex Tan" },
+    organizer: { type: "string", default: "Priya Raman" },
   },
 });
 
@@ -47,12 +51,24 @@ await db
   .onConflictDoNothing();
 await db.insert(tokens).values({ uid, userId }).onConflictDoNothing();
 
+const organizerId = "dev-organizer-1";
+await db
+  .insert(users)
+  .values({
+    id: organizerId,
+    portalUserId: "dev-portal-2",
+    displayName: values.organizer,
+    role: "organizer",
+  })
+  .onConflictDoNothing();
+
 console.log(`Database:     ${config.databaseUrl}`);
 console.log(`Station:      ${values.station} (${stationId})`);
 console.log(
   `Station key:  ${stationKey}   <- shown once, only the hash is stored`,
 );
 console.log(`Participant:  ${values.name} (${userId}) paired to token ${uid}`);
+console.log(`Organizer:    ${values.organizer} (${organizerId})`);
 console.log();
 console.log("Try it:");
 console.log(`curl -s -X POST http://localhost:${config.port}/api/v1/taps \\

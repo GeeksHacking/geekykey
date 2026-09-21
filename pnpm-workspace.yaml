@@ -2,5 +2,44 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# --- Supply-chain settings -------------------------------------------------
+# https://pnpm.io/supply-chain-security
+#
+# Most of these match pnpm 11's own defaults. They are written down anyway so
+# the protection does not silently disappear when someone installs with an
+# older pnpm: before v11, `minimumReleaseAge` defaulted to 0.
+
+# Wait 24 hours (1440 minutes) before installing a newly published version, so
+# a compromised release has time to be reported and yanked first. Applies to
+# transitive dependencies too.
+minimumReleaseAge: 1440
+
+# Fail the install if a package's trust level drops -- e.g. a release that
+# previously shipped provenance or signatures suddenly ships without them,
+# which is what a hijacked publishing account tends to look like.
+trustPolicy: no-downgrade
+
+# Two lockfile entries trip `no-downgrade` today. Both are signed by the
+# registry but were published before their projects adopted provenance
+# attestations, so they look like a downgrade against their newer releases.
+# Checked 2026-09-21: both are dev-only, not deprecated, and come from their
+# projects' real repos. Drop an entry once its parent is upgraded past it.
+trustPolicyExclude:
+  - "semver@6.3.1"         # via @babel/core, @babel/helper-compilation-targets
+  - "undici-types@6.21.0"  # via @types/node, type definitions only
+
+# Only our own direct dependencies may come from a git repo or a tarball URL.
+# A transitive dependency must resolve from the registry or the workspace.
+blockExoticSubdeps: true
+
+# Dependencies may not run install scripts (preinstall/install/postinstall)
+# unless they are listed here. Listing the exact versions, rather than a bare
+# package name, means a new version of an already-approved package still has
+# to be looked at by a human before its script may run.
+#
+# esbuild ships a postinstall that fetches its platform binary. 0.28.2 is
+# Vite's, 0.25.12 is drizzle-kit's, and 0.18.20 arrives under drizzle-kit via
+# the deprecated @esbuild-kit/esm-loader -- that last one should drop out when
+# drizzle-kit is upgraded.
 allowBuilds:
-  esbuild: true
+  "esbuild@0.28.2 || 0.25.12 || 0.18.20": true

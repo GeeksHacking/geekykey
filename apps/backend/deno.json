@@ -10,12 +10,13 @@
     "noUnusedParameters": true
   },
   "tasks": {
-    "dev": "deno run --watch --allow-net --allow-read --allow-write --allow-env --allow-ffi src/index.ts",
-    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi src/index.ts",
-    "seed": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi scripts/seed.ts",
-    "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-ffi",
+    "dev": "DEV_AUTH_ENABLED=true deno run --watch --allow-net --allow-read --allow-write --allow-env --allow-ffi --allow-sys=cpus,networkInterfaces,hostname src/index.ts",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --allow-sys=cpus,networkInterfaces,hostname src/index.ts",
+    "seed": "DEV_AUTH_ENABLED=true deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi --allow-sys=cpus,networkInterfaces,hostname scripts/seed.ts",
+    "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-ffi --allow-sys=cpus,networkInterfaces,hostname",
     "check": "deno check src scripts drizzle.config.ts",
-    "db:generate": "deno run -A npm:drizzle-kit generate"
+    "deps:lock": "deno install --min-dep-age=1440",
+    "db:generate": "deno run --allow-read --allow-write=./drizzle --allow-env --allow-sys=homedir npm:drizzle-kit generate"
   },
   "nodeModulesDir": "auto",
   "license": "MIT"

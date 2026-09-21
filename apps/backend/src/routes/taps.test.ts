@@ -11,6 +11,9 @@ const config: Config = {
   databaseAuthToken: undefined,
   tapCooldownSeconds: 300,
   maxTapsPerRequest: 3,
+  devAuthEnabled: true,
+  sessionSecret: "test-secret-at-least-16",
+  sessionCookieSecure: false,
 };
 
 async function harness() {
