@@ -9,7 +9,7 @@
 
 [tools]
 node = "22.15.0"
-pnpm = "11.17.0"
+pnpm = "12.5.1"
 deno = "2.9.6"
 
 [tasks.install]
@@ -39,6 +39,11 @@ run = "pnpm dev:backend"
 [tasks."test:backend"]
 description = "Backend tests (deno test)"
 run = "pnpm test:backend"
+
+[tasks."deps:backend"]
+description = "Re-resolve apps/backend/deno.lock, skipping npm releases under 24h old"
+dir = "apps/backend"
+run = "deno task deps:lock"
 
 [tasks."seed:backend"]
 description = "Create a dev station and participant in the local database"
