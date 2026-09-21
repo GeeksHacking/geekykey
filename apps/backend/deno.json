@@ -15,7 +15,8 @@
     "seed": "DEV_AUTH_ENABLED=true deno run --allow-net --allow-read --allow-write --allow-env --allow-ffi scripts/seed.ts",
     "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-ffi",
     "check": "deno check src scripts drizzle.config.ts",
-    "db:generate": "deno run -A npm:drizzle-kit generate"
+    "deps:lock": "deno install --min-dep-age=1440",
+    "db:generate": "deno run --allow-read --allow-write=./drizzle --allow-env --allow-sys=homedir npm:drizzle-kit generate"
   },
   "nodeModulesDir": "auto",
   "license": "MIT"
