@@ -28,7 +28,8 @@ Do not copy content from the agreement or the skill into this file. Link to it.
 
 Every screen is built against **mock data shaped exactly like the API agreement** before
 any real request is wired. Later, each screen is connected one at a time by swapping the
-mock data source for a fetch, with no change to the screen itself.
+mock data source for a fetch, with no change to the screen itself. How that swap is done
+is in "Wiring an endpoint to the real backend" below.
 
 Rules that make this possible:
 
@@ -45,6 +46,61 @@ Rules that make this possible:
   fails the next call with that code, or with `"network"`; tests use it. With
   `simulate: true` (the default in `app.tsx`) a station simulator keeps the online stations'
   heartbeat fresh and drips in new taps, so polling has something to show.
+
+## Wiring an endpoint to the real backend
+
+No screen, hook, or query key changes when an endpoint goes live. `src/api/create-client.ts`
+changes, and nothing else. It is worth reading that file before the first slice; it is
+about thirty lines.
+
+`pnpm dev` is unchanged and still runs entirely on the mock, so nobody doing UI work is
+blocked on a running backend. `pnpm dev:live` sets `VITE_LIVE_API=1`, which sends the
+methods listed in `liveMethods()` to the real backend and leaves every other method on the
+mock. On Windows PowerShell, `$env:VITE_LIVE_API="1"; pnpm dev`.
+
+Migrate in slices, not one method at a time. The session slice in particular has to move
+as a unit: a live `me()` with a mock `devLogin()` means nobody can sign in.
+
+| # | Slice | Methods | Screens it makes real |
+|---|---|---|---|
+| 1 | Session | `devLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
+| 2 | Pairing | `pairToken` | `/pair` |
+| 3 | Stations | `listStations`, `createStation` | `/admin/stations`, the picker on `/admin/fallback` |
+| 4 | Scan log | `listTaps` | `/admin/taps` |
+| 5 | MVP tail | `createFallbackTap`, `stats`, `exportCsv`, `unpairToken` | `/admin/summary`, `/admin/fallback`, unpair |
+
+One slice, start to finish:
+
+1. The endpoint is live in `apps/backend` with tests, and its row in the agreement says
+   `Implemented`. Until then, leave it on the mock.
+2. Start the backend: `cd apps/backend`, `deno task seed`, then
+   `DEV_AUTH_ENABLED=true deno task dev`.
+3. Add one line per method to `liveMethods()` in `src/api/create-client.ts`.
+4. `pnpm dev:live`, then work through each screen in the slice: populated, loading, empty,
+   and every error path. Force the errors for real now rather than with `failNext`. Stop
+   the backend for a network failure, sign out for a 401, and sign in as `dev-user-1` and
+   open `/admin/stations` for a 403.
+5. Compare the real JSON against `src/api/types.ts` field by field, for example
+   `curl -s localhost:8000/api/v1/admin/stations | jq`. If they differ, the agreement wins
+   and the backend is fixed. Never widen `types.ts` to match a backend that drifted.
+6. `pnpm typecheck`, `pnpm lint` and `pnpm test` still pass with the flag off.
+
+`send()` in `src/api/http/client.ts` is deliberately not written. It is the only real logic
+in that file, every screen's error handling rests on it behaving exactly like the mock, and
+under the working agreement that makes it a frontend owner's job to write by hand. Its
+requirements are listed in a comment above the stub. Everything else in that file is a
+path, a body, and a cast, and needs no thought. Keep it that way: no per-screen logic, no
+reshaping of responses, no computing of stamps, points, or cooldown.
+
+Two things that look like bugs and are not:
+
+- The mock session is a `sessionStorage` key called `gk-mock-session`, and the real one is
+  an HttpOnly cookie. Neither knows about the other. Sign out before switching modes, or
+  use a fresh tab.
+- Between slices the data does not line up. After slice 1 you are signed in as the real
+  `dev-user-1` while stations and taps still come from fixtures, so IDs will not match
+  across screens. That is expected and it goes away as the next slice lands. Do not chase
+  it, and do not patch fixtures to paper over it.
 
 ## Stack
 
@@ -138,7 +194,8 @@ Verified when the app was scaffolded:
 Run from `apps/frontend`.
 
 ```
-pnpm dev          # Vite dev server on http://localhost:5173
+pnpm dev          # Vite dev server on http://localhost:5173, fully mocked
+pnpm dev:live     # same, but the live slices in src/api/create-client.ts hit the backend
 pnpm build        # typecheck, then production build to dist/
 pnpm preview      # serve dist/ locally
 pnpm typecheck    # tsc --noEmit
@@ -216,7 +273,8 @@ apps/frontend/
       provider.tsx
       errors.ts             # ApiError, NetworkError, describeError()
       mock/                 # fixtures + mock client (current phase)
-      http/                 # fetch client (integration phase, not written yet)
+      http/                 # fetch client. send() is the only real logic and is not written yet
+      create-client.ts      # the mock, or the mock with the live slices swapped in
     lib/                    # shared infrastructure, safe to import from any feature
       session.ts            # "am I logged in": useSession(), useMe()
       session-provider.tsx

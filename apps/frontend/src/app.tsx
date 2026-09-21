@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 
-import { createMockClient } from "@/api/mock/client";
+import { createAppClient } from "@/api/create-client";
 import { ApiProvider } from "@/api/provider";
 import { routeTree } from "@/routeTree.gen";
 import { createQueryClient } from "@/lib/query-client";
@@ -20,9 +20,8 @@ declare module "@tanstack/react-router" {
   }
 }
 
-// Mockup phase: every screen talks to the in-memory client. Swapping this for
-// the HTTP client is the only change needed to go live.
-const api = createMockClient({ simulate: true });
+// Mock client, or the mock with the live slices swapped in. src/api/create-client.ts decides.
+const api = createAppClient();
 const queryClient = createQueryClient();
 
 export function App() {
