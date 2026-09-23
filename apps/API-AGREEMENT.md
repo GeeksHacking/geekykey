@@ -132,7 +132,7 @@ routes and the frontend code is identical whichever one set it:
 
 - `GET /auth/callback` after the GeeksHacking portal OIDC round trip. `MVP`, blocked on the
   portal integration meeting.
-- `POST /auth/dev-login` in local development only. `Sprint 1`. This exists so the frontend can
+- `POST /auth/dev-login` in local development only. `Implemented`. This exists so the frontend can
   build every screen before the portal integration lands, without any code that has to be
   removed later.
 
@@ -196,7 +196,7 @@ Derived by the backend from accepted taps. The frontend displays them and never 
 |---|---|---|---|---|
 | GET | `/api/health` | anyone | `Implemented` | Liveness check |
 | POST | `/api/v1/taps` | Station | `Implemented` | Ingest one or many taps |
-| POST | `/auth/dev-login` | anyone, dev only | `Sprint 1` | Set a session for a seeded user |
+| POST | `/auth/dev-login` | anyone, dev only | `Implemented` | Set a session for a seeded user |
 | GET | `/api/v1/me` | Participant, Organizer | `Sprint 1` | Profile, tokens, stamps, points, history |
 | POST | `/api/v1/tokens/pair` | Participant | `Sprint 1` | Bind a UID to the current user |
 | POST | `/api/v1/admin/stations` | Organizer | `Sprint 1` | Create a station, returns its key once |
@@ -209,7 +209,7 @@ Derived by the backend from accepted taps. The frontend displays them and never 
 | GET | `/api/v1/admin/export.csv` | Organizer | `MVP` | Raw tap export for the A/B analysis |
 | GET | `/auth/login` | browser | `MVP` | Start portal OIDC |
 | GET | `/auth/callback` | browser | `MVP` | Finish portal OIDC, set cookie |
-| POST | `/auth/logout` | browser | `MVP` | Clear cookie |
+| POST | `/auth/logout` | browser | `Implemented` | Clear cookie |
 
 ---
 
@@ -295,7 +295,7 @@ last request of any kind was within 120 seconds.
 
 ## 7. Auth endpoints
 
-### 7.1 `POST /auth/dev-login` — `Sprint 1`
+### 7.1 `POST /auth/dev-login` — `Implemented`
 
 Only mounted when the backend runs with `DEV_AUTH_ENABLED=true`. Never enabled in production.
 
@@ -309,8 +309,8 @@ Only mounted when the backend runs with `DEV_AUTH_ENABLED=true`. Never enabled i
 
 **Errors:** `not_found` if the user does not exist.
 
-The seed script creates `dev-user-1` (participant). It will also create `dev-organizer-1`
-(organizer) so both views can be developed.
+The seed script creates `dev-user-1` (participant) and `dev-organizer-1` (organizer) so both
+views can be developed.
 
 ### 7.2 `GET /auth/login?return_to=/passport` — `MVP`
 
@@ -322,7 +322,7 @@ origin. Details depend on the portal integration meeting.
 Portal redirect target. Sets `gk_session`, then redirects to `return_to`. On first login the
 backend creates the local user row from the portal identity.
 
-### 7.4 `POST /auth/logout` — `MVP`
+### 7.4 `POST /auth/logout` — `Implemented`
 
 **Response `204`**, clears the cookie.
 
@@ -581,3 +581,4 @@ call works with `credentials: "include"`.
 | Date | Change |
 |---|---|
 | 2026-09-18 | Initial draft. `POST /api/v1/taps` and `GET /api/health` reflect the implemented backend; everything else is proposed. |
+| 2026-09-21 | `POST /auth/dev-login` and `POST /auth/logout` are implemented with tests. Shapes are unchanged from the draft; logout moves up from `MVP` because it shares the session cookie helpers with dev-login. |
