@@ -39,20 +39,8 @@ echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
 You can skip that step. Every command in this guide is written as `mise run <task>`,
 which works without shell activation.
 
-<details>
-<summary>Without mise</summary>
-
-Install **Node.js 22** yourself, then get pnpm through Corepack, which ships with Node:
-
-```bash
-corepack enable
-corepack prepare pnpm@11.17.0 --activate
-```
-
-Then replace `mise run <task>` with `pnpm <task>` in the rest of this guide. Deno is only
-needed for the backend.
-
-</details>
+mise is the only supported setup. Do not install pnpm through Corepack: this repo pins
+pnpm 12, which ships as a native binary that Corepack cannot launch.
 
 ### 2. Install dependencies
 

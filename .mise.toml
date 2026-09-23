@@ -30,6 +30,18 @@ run = "pnpm test:frontend"
 description = "Typecheck, then production build to apps/frontend/dist"
 run = "pnpm build:frontend"
 
+# Updates site. Astro sends anonymous usage data unless told not to.
+
+[tasks."dev:updates"]
+description = "Updates site dev server on http://localhost:4321"
+run = "pnpm dev:updates"
+env = { ASTRO_TELEMETRY_DISABLED = "1" }
+
+[tasks."build:updates"]
+description = "Build the updates site to apps/updates/dist"
+run = "pnpm build:updates"
+env = { ASTRO_TELEMETRY_DISABLED = "1" }
+
 # Backend
 
 [tasks."dev:backend"]
