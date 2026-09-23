@@ -1,0 +1,66 @@
+---
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
+import "../styles/global.css";
+
+import { formatList } from "../lib/format";
+import { TEAM } from "../lib/project";
+
+interface Props {
+  /** The page's own title. Leave it out on the home page. */
+  title?: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const siteName = "GeekyKey updates";
+
+// The app's favicon shape (a tile with a dot) in the brand colours. The charcoal stroke
+// keeps the yellow visible on a light browser tab, like the app's --primary-edge.
+const favicon =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="0.5" y="0.5" width="31" height="31" rx="7" fill="#F9F668" stroke="#34343a"/><circle cx="16" cy="16" r="6" fill="#18181b"/></svg>`,
+  );
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title ? `${title} | ${siteName}` : siteName}</title>
+    <meta name="description" content={description} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title ?? siteName} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={title ? "article" : "website"} />
+    <link rel="icon" href={favicon} />
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:rounded-md focus:bg-card focus:px-4 focus:py-2"
+    >
+      Skip to content
+    </a>
+    <div class="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-5 md:px-8">
+      <header class="flex h-16 items-center justify-between gap-6">
+        <a href="/" class="text-lg">
+          <span class="font-extrabold tracking-[0.06em]">GeekyKey</span>
+          <span class="ml-1 text-muted-foreground">Updates</span>
+        </a>
+        <slot name="header-end" />
+      </header>
+      <main id="main" class="flex-1 pb-20">
+        <slot />
+      </main>
+      <footer class="border-t border-border py-8 text-sm text-muted-foreground">
+        <p class="max-w-[70ch]">
+          GeekyKey is an SST Di’SPARK capstone project with Ngee Ann Polytechnic and
+          GeeksHacking, built by {formatList(Object.values(TEAM))}.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

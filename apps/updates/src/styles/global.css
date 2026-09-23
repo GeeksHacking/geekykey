@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Tokens copied from apps/frontend/src/styles/globals.css, so the app and this site share
+  one palette: zinc neutrals and the GeeksHacking yellow. Only the tokens this site uses
+  are here. If the app's values change, change them here too.
+
+  The yellow is a fill colour. Text in the accent colour uses --primary-text, and a yellow
+  fill on the light theme gets a 1px --primary-edge, exactly as in the app.
+
+  One difference from the app: it switches themes with a .dark class and a toggle. This
+  site ships no JavaScript, so it follows the reader's system setting instead.
+*/
+@layer base {
+  :root {
+    color-scheme: light dark;
+
+    --background: 240 5% 96.5%;
+    --foreground: 240 10% 5%;
+    --card: 240 5% 99%;
+    --muted: 240 5% 91%;
+    --muted-foreground: 240 4% 38%;
+    --border: 240 6% 85%;
+
+    --primary: 59 92% 69%;
+    --primary-foreground: 240 10% 6%;
+    --primary-text: 50 100% 24%;
+    --primary-edge: 240 6% 22%;
+
+    --radius: 0.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: 240 6% 7%;
+      --foreground: 240 5% 93%;
+      --card: 240 5% 10%;
+      --muted: 240 4% 15%;
+      --muted-foreground: 240 5% 66%;
+      --border: 240 4% 18%;
+
+      --primary-text: 59 92% 69%;
+      --primary-edge: 59 92% 69%;
+    }
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Dates line up. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary-text));
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+}
+
+@layer components {
+  /* The one filled button. Yellow with near-black text, as in the app. */
+  .button-primary {
+    @apply inline-flex h-11 items-center whitespace-nowrap rounded-md border border-primary-edge bg-primary px-5 font-medium text-primary-foreground transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.98];
+  }
+
+  /* An entry's Markdown body. Entries are plain Markdown, so their styling lives here. */
+  .entry-body {
+    @apply text-[1.0625rem] leading-[1.75];
+  }
+  .entry-body > * + * {
+    @apply mt-4;
+  }
+  .entry-body h2 {
+    @apply mt-14 scroll-mt-8 border-t border-border pt-10 text-2xl font-semibold tracking-tight;
+  }
+  .entry-body h2:first-child {
+    @apply mt-0 border-t-0 pt-0;
+  }
+  .entry-body h3 {
+    @apply mt-9 scroll-mt-8 text-lg font-semibold tracking-tight;
+  }
+  .entry-body :is(h2, h3) + * {
+    @apply mt-3;
+  }
+  .entry-body ul {
+    @apply list-disc space-y-2 pl-5;
+  }
+  .entry-body li::marker {
+    color: hsl(var(--muted-foreground));
+  }
+  .entry-body strong {
+    @apply font-semibold;
+  }
+  .entry-body code {
+    @apply rounded-md bg-muted px-1.5 py-0.5 font-mono text-[0.875em];
+  }
+  .entry-body a {
+    @apply text-primary-text underline decoration-1 underline-offset-[3px] hover:decoration-2;
+  }
+  .entry-body img {
+    @apply my-8 h-auto max-w-full rounded-lg border border-border;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

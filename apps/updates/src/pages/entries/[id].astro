@@ -1,0 +1,105 @@
+---
+import { render } from "astro:content";
+
+import Asks from "../../components/Asks.astro";
+import Base from "../../layouts/Base.astro";
+import { getEntries, type Entry } from "../../lib/entries";
+import { formatList, formatRange, isoDay } from "../../lib/format";
+import { TEAM } from "../../lib/project";
+
+export async function getStaticPaths() {
+  const entries = await getEntries(); // newest first
+  return entries.map((entry, i) => ({
+    params: { id: entry.id },
+    props: { entry, later: entries[i - 1], earlier: entries[i + 1] },
+  }));
+}
+
+interface Props {
+  entry: Entry;
+  later?: Entry;
+  earlier?: Entry;
+}
+
+const { entry, later, earlier } = Astro.props;
+const { title, summary, sprint, authors, asks } = entry.data;
+const { Content, headings } = await render(entry);
+const sections = headings.filter((h) => h.depth === 2);
+---
+
+<Base title={title} description={summary}>
+  <a
+    slot="header-end"
+    href="/"
+    class="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+  >
+    All updates
+  </a>
+
+  <article class="grid gap-x-12 gap-y-6 pt-8 md:grid-cols-[11rem_minmax(0,1fr)] md:pt-14">
+    <aside class="text-sm md:sticky md:top-10 md:self-start">
+      <p class="font-mono">
+        <time datetime={isoDay(entry.data.window.to)}>
+          {formatRange(entry.data.window.from, entry.data.window.to)}
+        </time>
+      </p>
+      {sprint && <p class="font-mono text-muted-foreground">Sprint {sprint}</p>}
+      <p class="mt-3 text-muted-foreground">
+        Written by {formatList(authors.map((a) => TEAM[a]))}
+      </p>
+      {
+        sections.length > 0 && (
+          <nav aria-labelledby="toc-title" class="mt-10 hidden md:block">
+            <p id="toc-title" class="text-muted-foreground">
+              On this page
+            </p>
+            <ul class="mt-3 space-y-2">
+              {sections.map((h) => (
+                <li>
+                  <a href={`#${h.slug}`} class="hover:text-primary-text">
+                    {h.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+    </aside>
+
+    <div class="min-w-0 max-w-[68ch]">
+      <h1 class="text-3xl font-semibold leading-tight tracking-tight md:text-4xl">{title}</h1>
+      <p class="mt-5 text-lg leading-relaxed text-muted-foreground">{summary}</p>
+      {asks && <Asks asks={asks} class="mt-10" />}
+      <div class="entry-body mt-14">
+        <Content />
+      </div>
+
+      {
+        (earlier || later) && (
+          <nav
+            aria-label="More updates"
+            class="mt-20 grid gap-6 border-t border-border pt-8 md:grid-cols-2"
+          >
+            {earlier && (
+              <a href={`/entries/${earlier.id}/`} class="group">
+                <span class="block text-sm text-muted-foreground">Earlier</span>
+                <span class="mt-1 block font-medium group-hover:underline">
+                  {earlier.data.title}
+                </span>
+              </a>
+            )}
+            {later && (
+              <a href={`/entries/${later.id}/`} class="group md:col-start-2 md:text-right">
+                <span class="block text-sm text-muted-foreground">Later</span>
+                <span class="mt-1 block font-medium group-hover:underline">
+                  {later.data.title}
+                </span>
+              </a>
+            )}
+          </nav>
+        )
+      }
+    </div>
+  </article>
+</Base>

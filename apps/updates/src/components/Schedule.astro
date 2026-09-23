@@ -1,0 +1,61 @@
+---
+import { formatDay, formatRange } from "../lib/format";
+import { SHOWCASE, SPRINTS } from "../lib/project";
+
+interface Props {
+  /**
+   * The latest entry's date. The schedule marks where the project was when the latest
+   * update was written, which is what the rest of the page describes, not today.
+   */
+  asOf?: Date;
+}
+
+const { asOf } = Astro.props;
+const current = asOf ? SPRINTS.find((s) => asOf >= s.from && asOf <= s.to) : undefined;
+const showcaseIsCurrent = !!asOf && asOf > SPRINTS[SPRINTS.length - 1].to;
+
+const bar = (state: "done" | "current" | "upcoming") =>
+  state === "current"
+    ? "border border-primary-edge bg-primary"
+    : state === "done"
+      ? "bg-muted-foreground"
+      : "bg-border";
+---
+
+<section aria-labelledby="schedule-title">
+  <h2 id="schedule-title" class="sr-only">Schedule</h2>
+
+  {/* Phones get one sentence. Five columns do not fit at 360px. */}
+  <p class="text-sm md:hidden">
+    {
+      current &&
+        `Sprint ${current.number} of ${SPRINTS.length}: ${current.focus} (${formatRange(current.from, current.to)}). `
+    }
+    Showcase on {formatDay(SHOWCASE)}.
+  </p>
+
+  <ol class="hidden gap-4 md:grid md:grid-cols-5">
+    {
+      SPRINTS.map((s) => {
+        const state = s === current ? "current" : asOf && s.to < asOf ? "done" : "upcoming";
+        return (
+          <li aria-current={state === "current" ? "step" : undefined}>
+            <div class:list={["h-1.5 rounded-md", bar(state)]} />
+            <p class="mt-3 text-sm font-medium">{s.focus}</p>
+            <p class="mt-0.5 font-mono text-xs text-muted-foreground">
+              Sprint {s.number}, {formatRange(s.from, s.to, { year: false })}
+            </p>
+            {state === "current" && <p class="mt-1 text-xs text-primary-text">Current sprint</p>}
+          </li>
+        );
+      })
+    }
+    <li aria-current={showcaseIsCurrent ? "step" : undefined}>
+      <div class:list={["h-1.5 rounded-md", bar(showcaseIsCurrent ? "current" : "upcoming")]} />
+      <p class="mt-3 text-sm font-medium">Showcase at NP</p>
+      <p class="mt-0.5 font-mono text-xs text-muted-foreground">
+        {formatDay(SHOWCASE, { year: false })}
+      </p>
+    </li>
+  </ol>
+</section>
