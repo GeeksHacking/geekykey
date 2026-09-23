@@ -12,8 +12,13 @@ coverage/
 
 node_modules/
 dist/
+# Types Astro generates for apps/updates
+.astro/
 .DS_Store
 
 .gram/
 
 Centralised-Capstone-Folder/
+
+# Firmware credentials (template: firmware/*/secrets.example.h)
+firmware/**/secrets.h

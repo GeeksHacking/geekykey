@@ -1,7 +1,7 @@
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../db/client.ts";
+import { jsonBody } from "../lib/validate.ts";
 import { stationAuth, type StationEnv } from "../middleware/station-auth.ts";
 import { normaliseUid } from "../services/identity.ts";
 import type { TapPipeline } from "../services/taps.ts";
@@ -50,15 +50,7 @@ export function tapsRoutes({ db, pipeline, maxTapsPerRequest }: TapsRouteDeps) {
   return new Hono<StationEnv>().post(
     "/",
     stationAuth(db),
-    zValidator(
-      "json",
-      schema,
-      (result, c) =>
-        result.success ? undefined : c.json(
-          { error: "validation_failed", issues: result.error.issues },
-          400,
-        ),
-    ),
+    jsonBody(schema),
     async (c) => {
       const { taps } = c.req.valid("json");
       const results = await pipeline.ingest(

@@ -107,3 +107,18 @@ Deno.test("health endpoints still respond", async () => {
   assert.equal(res.status, 200);
   assert.equal((await res.json()).status, "ok");
 });
+
+Deno.test("treats an unparseable body as a 400, not a backend error", async () => {
+  // A station that retried this as a 5xx would resend the same broken payload forever.
+  const { app, stationKey } = await harness();
+  const res = await app.request("/api/v1/taps", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${stationKey}`,
+    },
+    body: '{"taps":[{',
+  });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, "validation_failed");
+});
