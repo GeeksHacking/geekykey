@@ -3,7 +3,14 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import type { AdminTap } from "@/api/types";
 import { TapStatusLabel } from "@/components/tap-status";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatDateTime, formatTimeWithSeconds, formatUid } from "@/lib/format";
 
 /*
@@ -61,7 +68,9 @@ const columns = column.columns([
     id: "source",
     header: "Source",
     cell: ({ row }) => (
-      <Badge variant="muted">{row.original.source === "qr_fallback" ? "Organiser" : "Station"}</Badge>
+      <Badge variant="muted">
+        {row.original.source === "qr_fallback" ? "Organiser" : "Station"}
+      </Badge>
     ),
   }),
 ]);

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDayLabel, formatPoints, formatRelative, formatUid, normaliseUid } from "@/lib/format";
+import {
+  formatDayLabel,
+  formatPoints,
+  formatRelative,
+  formatUid,
+  normaliseUid,
+} from "@/lib/format";
 
 describe("formatUid", () => {
   it("groups a normalised UID into byte pairs", () => {

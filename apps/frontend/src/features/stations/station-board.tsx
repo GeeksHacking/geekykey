@@ -1,6 +1,13 @@
 import type { Station } from "@/api/types";
 import { OnlineStatus } from "@/components/online-status";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatDateTime, formatRelative } from "@/lib/format";
 
 export function StationBoard({ stations }: { stations: Station[] }) {

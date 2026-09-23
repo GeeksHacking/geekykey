@@ -36,7 +36,11 @@ export function StationKeyReveal({ result, onDone }: StationKeyRevealProps) {
         </DialogDescription>
       </DialogHeader>
       <div className="flex items-start gap-2 rounded-lg border border-status-cooldown/40 bg-status-cooldown/10 p-3 text-sm">
-        <Warning weight="fill" className="mt-0.5 h-4 w-4 shrink-0 text-status-cooldown" aria-hidden />
+        <Warning
+          weight="fill"
+          className="mt-0.5 h-4 w-4 shrink-0 text-status-cooldown"
+          aria-hidden
+        />
         <p>Copy it now. It is shown once, and closing this dialog hides it for good.</p>
       </div>
       <div className="space-y-2">

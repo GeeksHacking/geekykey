@@ -7,7 +7,10 @@ import { createQueryClient } from "@/lib/query-client";
 import { SessionProvider } from "@/lib/session-provider";
 
 /** The app's provider stack for tests, with retries off so a deliberate failure surfaces at once. */
-export function createTestProviders(api: ApiClient, { session = false }: { session?: boolean } = {}) {
+export function createTestProviders(
+  api: ApiClient,
+  { session = false }: { session?: boolean } = {},
+) {
   const queryClient = createQueryClient({ retry: false });
   function Providers({ children }: { children: ReactNode }) {
     return (

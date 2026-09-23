@@ -27,7 +27,9 @@ export function TokenRow({ token }: { token: Token }) {
       toast.success("Token unpaired");
     } catch (error) {
       toast.error(
-        isApiErrorCode(error, "not_found") ? "That token is no longer paired to you." : describeError(error),
+        isApiErrorCode(error, "not_found")
+          ? "That token is no longer paired to you."
+          : describeError(error),
       );
     }
   }
@@ -53,8 +55,8 @@ export function TokenRow({ token }: { token: Token }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Unpair this token?</AlertDialogTitle>
             <AlertDialogDescription>
-              Your stamps and history stay. Someone else can pair this token afterwards, so only do this
-              if it is lost.
+              Your stamps and history stay. Someone else can pair this token afterwards, so only do
+              this if it is lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

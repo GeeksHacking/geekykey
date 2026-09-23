@@ -1,7 +1,13 @@
 import type { Station, TapStatus } from "@/api/types";
 import { TAP_STATUS_META, TAP_STATUSES } from "@/components/tap-status-meta";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ScanLogFilters as Filters } from "@/features/taps/use-scan-log";
 
 const ALL = "all";
@@ -19,7 +25,9 @@ export function ScanLogFilters({ filters, onChange, stations }: ScanLogFiltersPr
         <Label htmlFor="filter-station">Station</Label>
         <Select
           value={filters.station_id ?? ALL}
-          onValueChange={(value) => onChange({ ...filters, station_id: value === ALL ? undefined : value })}
+          onValueChange={(value) =>
+            onChange({ ...filters, station_id: value === ALL ? undefined : value })
+          }
         >
           <SelectTrigger id="filter-station">
             <SelectValue placeholder="All stations" />

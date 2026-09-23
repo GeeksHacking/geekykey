@@ -1,5 +1,12 @@
 import type { StationStats } from "@/api/types";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatCount } from "@/lib/format";
 
 /**
@@ -24,7 +31,9 @@ export function StationBreakdown({ stations }: { stations: StationStats[] }) {
             <TableCell className="font-medium">{station.name}</TableCell>
             <TableCell>
               <div className="flex items-center gap-3">
-                <span className="w-12 shrink-0 text-right font-mono">{formatCount(station.accepted_taps)}</span>
+                <span className="w-12 shrink-0 text-right font-mono">
+                  {formatCount(station.accepted_taps)}
+                </span>
                 <div className="h-1.5 flex-1">
                   <div
                     className="h-full rounded-r bg-primary ring-1 ring-inset ring-primary-edge"
@@ -34,7 +43,9 @@ export function StationBreakdown({ stations }: { stations: StationStats[] }) {
                 </div>
               </div>
             </TableCell>
-            <TableCell className="text-right font-mono">{formatCount(station.unique_participants)}</TableCell>
+            <TableCell className="text-right font-mono">
+              {formatCount(station.unique_participants)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

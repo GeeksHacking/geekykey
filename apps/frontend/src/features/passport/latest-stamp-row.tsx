@@ -15,7 +15,9 @@ export function LatestStampRow({ stamp }: { stamp: Stamp }) {
       </div>
       <div className="shrink-0 text-right font-mono text-xs text-muted-foreground">
         <p className="text-foreground">{formatPoints(stamp.points)}</p>
-        {stamp.earned_at ? <time dateTime={stamp.earned_at}>{formatWhen(stamp.earned_at)}</time> : null}
+        {stamp.earned_at ? (
+          <time dateTime={stamp.earned_at}>{formatWhen(stamp.earned_at)}</time>
+        ) : null}
       </div>
     </li>
   );

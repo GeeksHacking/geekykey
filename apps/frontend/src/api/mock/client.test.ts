@@ -116,7 +116,11 @@ describe("QR fallback", () => {
   it("returns 404 for a station that does not exist", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    await expectApiError(api.createFallbackTap({ station_id: "nope", user_id: "u_2e8b" }), "not_found", 404);
+    await expectApiError(
+      api.createFallbackTap({ station_id: "nope", user_id: "u_2e8b" }),
+      "not_found",
+      404,
+    );
   });
 });
 

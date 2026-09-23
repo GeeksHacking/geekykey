@@ -5,7 +5,10 @@ export function StationBoardSkeleton() {
   return (
     <div className="divide-y rounded-lg border" role="status" aria-label="Loading stations">
       {Array.from({ length: 5 }, (_, index) => (
-        <div key={index} className="grid grid-cols-[1fr_5rem_10rem_9rem] items-center gap-4 px-2 py-3">
+        <div
+          key={index}
+          className="grid grid-cols-[1fr_5rem_10rem_9rem] items-center gap-4 px-2 py-3"
+        >
           <div className="space-y-2">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-3 w-16" />

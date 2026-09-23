@@ -101,11 +101,13 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     listStations: () => sendJson<ListStationsResponse>("/api/v1/admin/stations"),
 
-    createStation: (input) => sendJson<CreateStationResponse>("/api/v1/admin/stations", postJson(input)),
+    createStation: (input) =>
+      sendJson<CreateStationResponse>("/api/v1/admin/stations", postJson(input)),
 
     listTaps: (query) => sendJson<ListTapsResponse>(`/api/v1/admin/taps${toSearch(query)}`),
 
-    createFallbackTap: (input) => sendJson<FallbackTapResponse>("/api/v1/admin/taps", postJson(input)),
+    createFallbackTap: (input) =>
+      sendJson<FallbackTapResponse>("/api/v1/admin/taps", postJson(input)),
 
     stats: () => sendJson<StatsResponse>("/api/v1/admin/stats"),
 

@@ -21,7 +21,11 @@ import { useCreateStation } from "@/features/stations/use-create-station";
 import { applyApiIssues } from "@/lib/form-errors";
 
 const schema = z.object({
-  name: z.string().trim().min(1, "Give the station a name.").max(80, "Keep it under 80 characters."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Give the station a name.")
+    .max(80, "Keep it under 80 characters."),
   location: z.string().trim().max(80, "Keep it under 80 characters."),
   // Kept as text so the input stays controlled; converted on submit.
   points: z.string().trim().regex(/^\d+$/, "Whole numbers only, 0 or more."),
@@ -29,7 +33,11 @@ const schema = z.object({
 
 type StationValues = z.infer<typeof schema>;
 
-export function AddStationForm({ onCreated }: { onCreated: (result: CreateStationResponse) => void }) {
+export function AddStationForm({
+  onCreated,
+}: {
+  onCreated: (result: CreateStationResponse) => void;
+}) {
   const createStation = useCreateStation();
   const form = useForm<StationValues>({
     resolver: zodResolver(schema),

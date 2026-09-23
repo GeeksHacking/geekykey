@@ -12,23 +12,39 @@ export function StampTile({ stamp }: { stamp: Stamp }) {
     <li
       className={cn(
         "flex min-h-[9.5rem] flex-col rounded-lg border p-4",
-        earned ? "border-primary-text/40 bg-primary/15 dark:bg-primary/10" : "border-dashed text-muted-foreground",
+        earned
+          ? "border-primary-text/40 bg-primary/15 dark:bg-primary/10"
+          : "border-dashed text-muted-foreground",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <span
           className={cn(
             "grid h-10 w-10 place-items-center rounded-md",
-            earned ? "border border-primary-edge bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+            earned
+              ? "border border-primary-edge bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground",
           )}
         >
-          <StationGlyph name={stamp.name} weight={earned ? "fill" : "regular"} className="h-5 w-5" aria-hidden />
+          <StationGlyph
+            name={stamp.name}
+            weight={earned ? "fill" : "regular"}
+            className="h-5 w-5"
+            aria-hidden
+          />
         </span>
         <span className="font-mono text-xs">{formatPoints(stamp.points)}</span>
       </div>
-      <p className={cn("mt-4 font-medium leading-snug", earned && "text-foreground")}>{stamp.name}</p>
+      <p className={cn("mt-4 font-medium leading-snug", earned && "text-foreground")}>
+        {stamp.name}
+      </p>
       {stamp.location ? <p className="text-xs text-muted-foreground">{stamp.location}</p> : null}
-      <div className={cn("mt-auto pt-3 text-xs", earned ? "text-primary-text" : "text-muted-foreground")}>
+      <div
+        className={cn(
+          "mt-auto pt-3 text-xs",
+          earned ? "text-primary-text" : "text-muted-foreground",
+        )}
+      >
         {stamp.earned_at ? (
           <>
             <p className="inline-flex items-center gap-1 font-medium">

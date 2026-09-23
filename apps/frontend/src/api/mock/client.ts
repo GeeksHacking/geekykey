@@ -122,7 +122,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   }
 
   const activeToken = (uid: string) => data.tokens.find((t) => t.uid === uid && !t.revoked_at);
-  const userToken = (userId: string) => data.tokens.find((t) => t.user_id === userId && !t.revoked_at);
+  const userToken = (userId: string) =>
+    data.tokens.find((t) => t.user_id === userId && !t.revoked_at);
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
   const userById = (id: string) => data.users.find((u) => u.id === id);
 
@@ -192,7 +193,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             earned_at: first?.received_at ?? null,
           };
         });
-        const points = accepted.reduce((sum, t) => sum + (stationById(t.station_id)?.points ?? 0), 0);
+        const points = accepted.reduce(
+          (sum, t) => sum + (stationById(t.station_id)?.points ?? 0),
+          0,
+        );
         const recent_taps = [...mine]
           .sort((a, b) => b.id - a.id)
           .slice(0, 50)
@@ -251,7 +255,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call(() => {
         const user = currentUser();
         const uid = normaliseUid(raw);
-        const token = data.tokens.find((t) => t.uid === uid && t.user_id === user.id && !t.revoked_at);
+        const token = data.tokens.find(
+          (t) => t.uid === uid && t.user_id === user.id && !t.revoked_at,
+        );
         if (!token) fail("not_found");
         token.revoked_at = iso(now());
       }),
@@ -267,9 +273,11 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         currentOrganizer();
         const issues: ApiIssue[] = [];
         const name = input.name.trim();
-        if (name.length < 1 || name.length > 80) issues.push({ path: ["name"], message: "name must be 1 to 80 characters" });
+        if (name.length < 1 || name.length > 80)
+          issues.push({ path: ["name"], message: "name must be 1 to 80 characters" });
         const points = input.points ?? 1;
-        if (!Number.isInteger(points) || points < 0) issues.push({ path: ["points"], message: "points must be an integer of 0 or more" });
+        if (!Number.isInteger(points) || points < 0)
+          issues.push({ path: ["points"], message: "points must be an integer of 0 or more" });
         if (issues.length) fail("validation_failed", issues);
         const station: MockStation = {
           id: crypto.randomUUID(),
@@ -333,7 +341,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call((): StatsResponse => {
         currentOrganizer();
         const accepted = data.taps.filter((t) => t.status === "accepted");
-        const unique = (taps: MockTap[]) => new Set(taps.map((t) => t.user_id).filter(Boolean)).size;
+        const unique = (taps: MockTap[]) =>
+          new Set(taps.map((t) => t.user_id).filter(Boolean)).size;
         return {
           total_taps: data.taps.length,
           accepted_taps: accepted.length,
@@ -371,7 +380,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               tap.received_at,
             ];
           });
-        const lines = [EXPORT_CSV_COLUMNS.join(","), ...rows.map((row) => row.map(csvCell).join(","))];
+        const lines = [
+          EXPORT_CSV_COLUMNS.join(","),
+          ...rows.map((row) => row.map(csvCell).join(",")),
+        ];
         return new Blob([lines.join("\n") + "\n"], { type: "text/csv;charset=utf-8" });
       }),
   };
@@ -392,7 +404,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         if (!station || !participant) return;
         const unknown = Math.random() < 0.05;
         const userId = unknown ? null : participant.id;
-        const uid = unknown ? "04DEADBEEF2201" : (userToken(participant.id)?.uid ?? "04DEADBEEF0000");
+        const uid = unknown
+          ? "04DEADBEEF2201"
+          : (userToken(participant.id)?.uid ?? "04DEADBEEF0000");
         appendTap({
           station_id: station.id,
           client_tap_id: `tap-${String(nextTapId + 100_000).padStart(6, "0")}`,

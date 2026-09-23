@@ -17,7 +17,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FallbackResult } from "@/features/fallback/fallback-result";
 import { useLogFallbackTap } from "@/features/fallback/use-log-fallback-tap";
 import { applyApiIssues } from "@/lib/form-errors";
@@ -57,7 +63,9 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
       setResult(response.result);
     } catch (error) {
       if (isApiErrorCode(error, "not_found")) {
-        setFormError("No station or participant matched. Check the station is still listed and the ID is right.");
+        setFormError(
+          "No station or participant matched. Check the station is still listed and the ID is right.",
+        );
       } else if (isApiError(error) && error.code === "validation_failed") {
         const leftover = applyApiIssues(form, error.issues);
         if (leftover.length) setFormError(leftover.join(" "));
@@ -111,7 +119,11 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
             <FormItem>
               <FormLabel>Identify the participant by</FormLabel>
               <FormControl>
-                <RadioGroup onValueChange={field.onChange} value={field.value} className="grid gap-2 sm:grid-cols-2">
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  className="grid gap-2 sm:grid-cols-2"
+                >
                   {MODES.map((option) => (
                     <label
                       key={option.value}

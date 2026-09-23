@@ -36,7 +36,8 @@ export const TAP_STATUS_META: Record<TapStatus, TapStatusMeta> = {
     textClass: "text-status-cooldown",
     bgClass: "bg-status-cooldown/10",
     participantReason: "Tapped again within the cooldown window. Not counted.",
-    organiserNote: "The same participant tapped here within the cooldown window. Recorded, not counted.",
+    organiserNote:
+      "The same participant tapped here within the cooldown window. Recorded, not counted.",
   },
   unknown_token: {
     label: "Unknown token",
