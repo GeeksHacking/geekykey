@@ -30,6 +30,10 @@ run = "pnpm test:frontend"
 description = "Typecheck, then production build to apps/frontend/dist"
 run = "pnpm build:frontend"
 
+[tasks."format:frontend"]
+description = "Format the frontend code in place (oxfmt)"
+run = "pnpm format:frontend"
+
 # Updates site. Astro sends anonymous usage data unless told not to.
 
 [tasks."dev:updates"]

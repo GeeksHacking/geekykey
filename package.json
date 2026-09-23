@@ -9,6 +9,7 @@
     "dev:frontend": "pnpm --filter @geekykey/frontend dev",
     "build:frontend": "pnpm --filter @geekykey/frontend build",
     "test:frontend": "pnpm --filter @geekykey/frontend test",
+    "format:frontend": "pnpm --filter @geekykey/frontend format",
     "dev:updates": "pnpm --filter @geekykey/updates dev",
     "build:updates": "pnpm --filter @geekykey/updates build"
   },

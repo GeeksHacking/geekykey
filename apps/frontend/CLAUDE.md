@@ -106,7 +106,7 @@ Two things that look like bugs and are not:
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Runtime, package manager | Node 22, pnpm 11 | Workspace package `@geekykey/frontend` |
+| Runtime, package manager | Node 22, pnpm 12 | Workspace package `@geekykey/frontend`. Exact versions are pinned in the root `.mise.toml` |
 | Framework | React 19 | Function components only |
 | Language | TypeScript 6.0, strict | Pin `typescript@~6.0.3`. See "TypeScript version" |
 | Build | Vite 8 + `@vitejs/plugin-react` | |
@@ -121,6 +121,7 @@ Two things that look like bugs and are not:
 | Forms | react-hook-form + zod through shadcn `Form` | Three forms in the MVP: pair token, add station, QR fallback |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | ESLint flat config + typescript-eslint | |
+| Format | oxfmt | Prettier-compatible and fast. Settings in `.oxfmtrc.jsonc`; Markdown and `routeTree.gen.ts` are skipped. Pinned to an exact version, because a new release can change the output and everyone must format the same way |
 
 ### Why TanStack Router
 
@@ -200,12 +201,15 @@ pnpm build        # typecheck, then production build to dist/
 pnpm preview      # serve dist/ locally
 pnpm typecheck    # tsc --noEmit
 pnpm lint         # eslint .
+pnpm format       # oxfmt, rewrites files in place
+pnpm format:check # oxfmt --check, lists files that are not formatted
 pnpm test         # vitest run
 pnpm test:watch   # vitest
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
 ```
 
-Root-level equivalents: `pnpm dev:frontend`, `pnpm build:frontend`, `pnpm test:frontend`.
+Root-level equivalents: `pnpm dev:frontend`, `pnpm build:frontend`, `pnpm test:frontend`,
+`pnpm format:frontend`.
 
 Sign in on the login page with a seeded account. Alex Tan is a participant, Priya Raman is
 an organiser. The mock session survives a reload but not a new tab.

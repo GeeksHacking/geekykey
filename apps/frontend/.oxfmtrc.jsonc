@@ -1,0 +1,11 @@
+// Formatter settings. Every option not set here is oxfmt's default, which already matches
+// how this code is written: double quotes, semicolons, trailing commas, 100-character lines.
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    // The router plugin rewrites this on every dev run, in its own style.
+    "src/routeTree.gen.ts",
+    // Docs are wrapped by hand, and the formatter would pad every table cell to line up.
+    "*.md",
+  ],
+}
