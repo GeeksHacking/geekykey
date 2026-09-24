@@ -39,6 +39,8 @@
 #define SCK_PIN  12
 #define MISO_PIN 13
 #define MOSI_PIN 11
+#define LED_PIN 4
+
 
 const char* ssid       = WIFI_SSID;
 const char* password   = WIFI_PASSWORD;
@@ -54,6 +56,7 @@ uint32_t nextTapId = 0;
 void setup() {
   Serial.begin(115200);
   delay(1000);
+  pinMode(LED_PIN, OUTPUT);
 
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
   rfid.PCD_Init();
@@ -105,6 +108,23 @@ void loop() {
     Serial.println(clientTapId + " -> FAILED, tap not recorded");
   } else {
     Serial.println(clientTapId + " -> " + status);
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN, LOW);
+    delay(500); 
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN, LOW);
+    delay(500);
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN, LOW);
+    delay(500);
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN, LOW);
+    delay(500);
+    
   }
 
   delay(1000);
