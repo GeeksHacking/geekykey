@@ -22,3 +22,5 @@ Centralised-Capstone-Folder/
 
 # Firmware credentials (template: firmware/*/secrets.example.h)
 firmware/**/secrets.h
+
+.kilo/plans
