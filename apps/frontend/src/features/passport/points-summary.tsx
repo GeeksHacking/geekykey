@@ -14,7 +14,9 @@ export function PointsSummary({ points, stamps }: PointsSummaryProps) {
     <section aria-label="Points and stamps" className="grid gap-6 sm:grid-cols-2 sm:gap-8">
       <div>
         <p className="text-sm text-muted-foreground">Points</p>
-        <p className="mt-1 font-mono text-5xl font-semibold tracking-tight">{formatCount(points)}</p>
+        <p className="mt-1 font-mono text-5xl font-semibold tracking-tight">
+          {formatCount(points)}
+        </p>
       </div>
       <div>
         <p className="text-sm text-muted-foreground">Stamps</p>
@@ -27,7 +29,10 @@ export function PointsSummary({ points, stamps }: PointsSummaryProps) {
             <li
               key={stamp.station_id}
               title={stamp.name}
-              className={cn("h-2.5 w-6 rounded-sm", stamp.earned_at ? "border border-primary-edge bg-primary" : "bg-muted")}
+              className={cn(
+                "h-2.5 w-6 rounded-sm",
+                stamp.earned_at ? "border border-primary-edge bg-primary" : "bg-muted",
+              )}
             >
               <span className="sr-only">
                 {stamp.name}: {stamp.earned_at ? "stamped" : "not yet"}

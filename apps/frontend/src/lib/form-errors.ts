@@ -6,7 +6,10 @@ import type { ApiIssue } from "@/api/types";
  * Puts each `validation_failed` issue under the field named by its path.
  * Returns the messages that had no matching field, for a form-level line.
  */
-export function applyApiIssues<T extends FieldValues>(form: UseFormReturn<T>, issues: ApiIssue[]): string[] {
+export function applyApiIssues<T extends FieldValues>(
+  form: UseFormReturn<T>,
+  issues: ApiIssue[],
+): string[] {
   const unmatched: string[] = [];
   const fields = Object.keys(form.getValues());
   for (const issue of issues) {

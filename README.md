@@ -146,6 +146,7 @@ These work from any folder in the repo:
 ```bash
 mise run test:frontend     # unit tests (Vitest)
 mise run build:frontend    # typecheck, then production build to apps/frontend/dist
+mise run format:frontend   # format the code in place (oxfmt)
 ```
 
 For the rest, `cd apps/frontend` first. If your shell is activated, you can leave off
@@ -154,6 +155,7 @@ For the rest, `cd apps/frontend` first. If your shell is activated, you can leav
 ```bash
 mise exec -- pnpm typecheck        # tsc, no emit
 mise exec -- pnpm lint             # eslint
+mise exec -- pnpm format:check     # list files that are not formatted, without changing them
 mise exec -- pnpm test:watch       # tests in watch mode
 mise exec -- pnpm preview          # serve the production build locally
 mise exec -- pnpm dlx shadcn@latest add <component>   # add a shadcn/ui component
@@ -198,6 +200,7 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `dev:frontend` | Frontend dev server on http://localhost:5173 |
 | `test:frontend` | Frontend unit tests, run once |
 | `build:frontend` | Typecheck the frontend, then build it to `apps/frontend/dist` |
+| `format:frontend` | Format the frontend code in place with oxfmt |
 | `dev:backend` | Backend on http://localhost:8000, restarting when a file changes, with dev sign-in turned on |
 | `test:backend` | Backend tests |
 | `seed:backend` | Add a station and the two dev users to the local database |

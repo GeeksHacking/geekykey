@@ -47,7 +47,11 @@ export function TapsScreen() {
         <ScanLogTable taps={log.taps} />
         {log.hasMore ? (
           <div className="flex justify-center pt-2">
-            <Button variant="outline" onClick={() => void log.loadMore()} disabled={log.loadingMore}>
+            <Button
+              variant="outline"
+              onClick={() => void log.loadMore()}
+              disabled={log.loadingMore}
+            >
               {log.loadingMore ? "Loading" : "Load older taps"}
             </Button>
           </div>

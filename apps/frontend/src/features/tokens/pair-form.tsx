@@ -50,7 +50,8 @@ export function PairForm() {
     } catch (error) {
       if (isApiErrorCode(error, "uid_already_paired")) {
         form.setError("uid", {
-          message: "This token is paired to someone else. Ask an organiser at the desk if that is wrong.",
+          message:
+            "This token is paired to someone else. Ask an organiser at the desk if that is wrong.",
         });
       } else if (isApiError(error) && error.code === "validation_failed") {
         const leftover = applyApiIssues(form, error.issues);
@@ -81,7 +82,8 @@ export function PairForm() {
                 />
               </FormControl>
               <FormDescription>
-                Printed on the token, or an organiser can read it for you. Any separator style works.
+                Printed on the token, or an organiser can read it for you. Any separator style
+                works.
               </FormDescription>
               <FormMessage />
             </FormItem>

@@ -38,7 +38,10 @@ export function DashboardTokenStatus({ tokens }: { tokens: Token[] }) {
           </span>
         )}
       </span>
-      <Link to="/pair" className="shrink-0 font-medium text-primary-text underline-offset-4 hover:underline">
+      <Link
+        to="/pair"
+        className="shrink-0 font-medium text-primary-text underline-offset-4 hover:underline"
+      >
         Manage
       </Link>
     </p>

@@ -32,7 +32,9 @@ export function DashboardScreen() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No stamps yet. Find a station and tap your token.</p>
+          <p className="text-sm text-muted-foreground">
+            No stamps yet. Find a station and tap your token.
+          </p>
         )}
       </section>
 

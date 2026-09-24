@@ -37,7 +37,8 @@ export function useScanLog(filters: ScanLogFilters) {
 
   const older = useInfiniteQuery({
     queryKey: queryKeys.tapsOlder(filters),
-    queryFn: ({ pageParam }) => api.listTaps({ limit: PAGE_SIZE, before_id: pageParam, ...filters }),
+    queryFn: ({ pageParam }) =>
+      api.listTaps({ limit: PAGE_SIZE, before_id: pageParam, ...filters }),
     initialPageParam: firstCursor,
     getNextPageParam: (lastPage) => lastPage.next_before_id ?? undefined,
     enabled: false,

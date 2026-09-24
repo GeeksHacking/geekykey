@@ -34,9 +34,21 @@ export function SummaryScreen() {
     body = (
       <div className="space-y-10">
         <div className="grid gap-4 sm:grid-cols-3 sm:gap-0 sm:divide-x">
-          <StatTile label="Total taps" value={data.total_taps} hint="Every status, including ones that did not count" />
-          <StatTile label="Accepted taps" value={data.accepted_taps} hint="Counted for stamps and points" />
-          <StatTile label="Unique participants" value={data.unique_participants} hint="With at least one accepted tap" />
+          <StatTile
+            label="Total taps"
+            value={data.total_taps}
+            hint="Every status, including ones that did not count"
+          />
+          <StatTile
+            label="Accepted taps"
+            value={data.accepted_taps}
+            hint="Counted for stamps and points"
+          />
+          <StatTile
+            label="Unique participants"
+            value={data.unique_participants}
+            hint="With at least one accepted tap"
+          />
         </div>
         <section className="space-y-3">
           <h2 className="text-base font-semibold">By station</h2>

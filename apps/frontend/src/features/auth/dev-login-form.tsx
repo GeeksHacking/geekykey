@@ -3,7 +3,13 @@ import { useState, type FormEvent } from "react";
 import { describeError, isApiErrorCode } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useGoAfterLogin } from "@/features/auth/use-go-after-login";
 import { SEEDED_USERS } from "@/lib/constants";
 import { useSession } from "@/lib/session";
