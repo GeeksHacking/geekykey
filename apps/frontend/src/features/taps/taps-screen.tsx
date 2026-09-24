@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { ErrorState } from "@/components/layout/error-state";
+import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { LiveStamp } from "@/components/layout/live-stamp";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,13 @@ export function TapsScreen() {
   } else {
     body = (
       <div className="space-y-3">
+        {log.error ? (
+          <InlineQueryError
+            error={log.error}
+            onRetry={() => void log.refetch()}
+            title="Live updates are delayed."
+          />
+        ) : null}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
             Showing <span className="font-mono text-foreground">{log.taps.length}</span> taps
@@ -45,6 +53,13 @@ export function TapsScreen() {
           <LiveStamp updatedAt={log.dataUpdatedAt} refreshing={log.isFetching} />
         </div>
         <ScanLogTable taps={log.taps} />
+        {log.loadMoreError ? (
+          <InlineQueryError
+            error={log.loadMoreError}
+            onRetry={log.retryLoadMore}
+            title="Older taps could not load."
+          />
+        ) : null}
         {log.hasMore ? (
           <div className="flex justify-center pt-2">
             <Button

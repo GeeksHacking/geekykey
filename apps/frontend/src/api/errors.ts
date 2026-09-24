@@ -21,6 +21,15 @@ export class NetworkError extends Error {
   }
 }
 
+export const AUTH_ERROR_EVENT = "geekykey:auth-error";
+
+export function publishAuthError(error: unknown): void {
+  // The session provider owns the global reaction; individual forms still receive the same error.
+  if (!isApiErrorCode(error, "unauthenticated") && !isApiErrorCode(error, "forbidden")) return;
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(AUTH_ERROR_EVENT, { detail: error }));
+}
+
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }

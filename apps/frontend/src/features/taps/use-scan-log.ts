@@ -56,8 +56,16 @@ export function useScanLog(filters: ScanLogFilters) {
   async function loadMore() {
     if (!hasMore || older.isFetching) return;
     // The first older page starts from the head's cursor; later ones follow next_before_id.
-    if (olderPages) await older.fetchNextPage();
-    else await older.refetch();
+    try {
+      if (olderPages) await older.fetchNextPage();
+      else await older.refetch();
+    } catch {
+      // The query exposes older.error; the screen renders it instead of leaving an unhandled rejection.
+    }
+  }
+
+  function retryLoadMore() {
+    void loadMore();
   }
 
   return {
@@ -70,6 +78,8 @@ export function useScanLog(filters: ScanLogFilters) {
     taps,
     hasMore,
     loadMore,
+    retryLoadMore,
+    loadMoreError: older.error,
     loadingMore: older.isFetching,
   };
 }

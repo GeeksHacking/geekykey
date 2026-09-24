@@ -34,7 +34,7 @@ export interface MockTap {
   id: number;
   station_id: string;
   client_tap_id: string;
-  token_uid: string;
+  token_uid: string | null;
   user_id: string | null;
   source: TapSource;
   status: TapStatus;
@@ -249,7 +249,7 @@ export function createFixtures(now: number = Date.now()): MockData {
   const pushTap = (
     stationId: string,
     userId: string | null,
-    uid: string,
+    uid: string | null,
     at: number,
     source: TapSource,
   ) => {
@@ -313,14 +313,14 @@ export function createFixtures(now: number = Date.now()): MockData {
     pushTap(
       careers.id,
       "u_44c7",
-      activeTokenByUser.get("u_44c7") ?? "",
+      activeTokenByUser.get("u_44c7") ?? null,
       eventStart + minutes(55),
       "qr_fallback",
     );
     pushTap(
       careers.id,
       "u_3b7d",
-      activeTokenByUser.get("u_3b7d") ?? "",
+      activeTokenByUser.get("u_3b7d") ?? null,
       eventStart + minutes(96),
       "qr_fallback",
     );

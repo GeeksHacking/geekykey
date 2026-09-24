@@ -2,6 +2,7 @@ import { HandTap } from "@phosphor-icons/react";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { ErrorState } from "@/components/layout/error-state";
+import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/features/stats/export-button";
@@ -27,12 +28,19 @@ export function SummaryScreen() {
         <Skeleton className="h-48 w-full" />
       </div>
     );
-  } else if (stats.isError || !stats.data) {
+  } else if (!stats.data) {
     body = <ErrorState error={stats.error} onRetry={() => void stats.refetch()} />;
   } else {
     const data = stats.data;
     body = (
       <div className="space-y-10">
+        {stats.isError ? (
+          <InlineQueryError
+            error={stats.error}
+            onRetry={() => void stats.refetch()}
+            title="Summary updates are delayed."
+          />
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-3 sm:gap-0 sm:divide-x">
           <StatTile
             label="Total taps"

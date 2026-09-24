@@ -32,6 +32,25 @@ describe("useScanLog", () => {
     expect(result.current.hasMore).toBe(false);
   });
 
+  it("exposes a failed older page and can retry it", async () => {
+    const { api, result } = setup({});
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    expect(result.current.hasMore).toBe(true);
+
+    api.mock.failNext("internal_error");
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    await waitFor(() => expect(result.current.loadMoreError).toBeDefined());
+    expect(result.current.taps).toHaveLength(50);
+
+    await act(async () => {
+      result.current.retryLoadMore();
+    });
+    await waitFor(() => expect(result.current.loadMoreError).toBeNull());
+    expect(result.current.taps.length).toBeGreaterThan(50);
+  });
+
   it("applies the status filter to every page", async () => {
     const { result } = setup({ status: "cooldown" });
     await waitFor(() => expect(result.current.isPending).toBe(false));

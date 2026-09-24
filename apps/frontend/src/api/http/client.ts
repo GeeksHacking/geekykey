@@ -1,6 +1,9 @@
 import type { ApiClient } from "@/api/client";
+import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import type {
+  ApiIssue,
   CreateStationResponse,
+  ErrorCode,
   FallbackTapResponse,
   ListStationsResponse,
   ListTapsQuery,
@@ -25,38 +28,34 @@ export interface HttpClientOptions {
   src/api/types.ts. send() itself is the part that has to be right.
 */
 export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
-  const baseUrl = options.baseUrl ?? "";
+  const baseUrl = (options.baseUrl ?? "").replace(/\/+$/, "");
 
-  /*
-    NOT WRITTEN YET. This is the one piece of real logic in the file, and every
-    screen's error handling depends on it, so a frontend owner writes it by hand
-    rather than generating it. Whoever takes the first slice takes this.
-
-    It must:
-
-    1. Call fetch on `${baseUrl}${path}` with `credentials: "include"`. Without
-       that the session cookie is not sent and every call comes back 401.
-    2. Return the Response untouched on any 2xx. Callers decide what to read from
-       it, and the 204 replies (logout, unpair) have no body to read at all.
-    3. On a non-2xx, read the `{ error, issues? }` body from the agreement and
-       throw `new ApiError(response.status, body.error, body.issues)`.
-    4. Still throw a sensible ApiError when there is no body, or the body is not
-       JSON. A proxy failure or an HTML error page must not turn into a parse
-       crash. Fall back to a code picked from the status, and to "internal_error"
-       when the status says nothing useful. The 401 case matters most:
-       lib/session-provider.tsx reads the code "unauthenticated" as "signed out"
-       and treats every other error as a broken app.
-    5. Throw `new NetworkError()` when fetch itself rejects. That is what a
-       stopped backend looks like from here.
-
-    Import ApiError and NetworkError from "@/api/errors". The assertions in
-    src/api/mock/client.test.ts are the behaviour to match, code for code.
-  */
   async function send(path: string, init?: RequestInit): Promise<Response> {
-    throw new Error(
-      `send() in src/api/http/client.ts is not written yet, so ${init?.method ?? "GET"} ` +
-        `${baseUrl}${path} cannot run. Write it, or unset VITE_LIVE_API to go back to the mock client.`,
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}${path}`, { ...init, credentials: "include" });
+    } catch {
+      throw new NetworkError();
+    }
+
+    if (response.ok || (response.status >= 200 && response.status < 300)) {
+      return response;
+    }
+
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      body = undefined;
+    }
+    const parsed = parseErrorBody(body);
+    const error = new ApiError(
+      response.status,
+      parsed.code ?? errorCodeForStatus(response.status),
+      parsed.issues,
     );
+    publishAuthError(error);
+    throw error;
   }
 
   async function sendJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -113,6 +112,47 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     exportCsv: async () => (await send("/api/v1/admin/export.csv")).blob(),
   };
+}
+
+const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
+  "validation_failed",
+  "unauthenticated",
+  "missing_station_key",
+  "invalid_station_key",
+  "forbidden",
+  "not_found",
+  "uid_already_paired",
+  "internal_error",
+]);
+
+function errorCodeForStatus(status: number): ErrorCode {
+  if (status === 400 || status === 422) return "validation_failed";
+  if (status === 401) return "unauthenticated";
+  if (status === 403) return "forbidden";
+  if (status === 404) return "not_found";
+  if (status === 409) return "uid_already_paired";
+  return "internal_error";
+}
+
+function parseErrorBody(body: unknown): { code?: ErrorCode; issues: ApiIssue[] } {
+  if (!body || typeof body !== "object") return { issues: [] };
+  const record = body as Record<string, unknown>;
+  const code =
+    typeof record.error === "string" && ERROR_CODES.has(record.error as ErrorCode)
+      ? (record.error as ErrorCode)
+      : undefined;
+  const issues = Array.isArray(record.issues)
+    ? record.issues.flatMap((issue): ApiIssue[] => {
+        if (!issue || typeof issue !== "object") return [];
+        const value = issue as Record<string, unknown>;
+        if (!Array.isArray(value.path) || typeof value.message !== "string") return [];
+        const path = value.path.filter(
+          (part): part is string | number => typeof part === "string" || typeof part === "number",
+        );
+        return [{ path, message: value.message }];
+      })
+    : [];
+  return { code, issues };
 }
 
 /** Only the filters that are set. An absent one must not travel as the string "undefined". */

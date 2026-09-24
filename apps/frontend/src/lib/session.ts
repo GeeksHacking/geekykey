@@ -14,6 +14,8 @@ export interface SessionState {
   /** Kept during background refreshes and errors so screens do not blank out. */
   me: MeResponse | null;
   error: unknown;
+  /** A recent 403 from an identity-scoped request, consumed by the role gate. */
+  authorizationError?: unknown;
   /** Re-fetch /me. Call after anything that changes tokens, stamps, or points. */
   refresh: () => Promise<void>;
   /** Dev-login with a seeded user ID. Resolves with the fresh /me payload. */

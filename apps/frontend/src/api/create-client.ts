@@ -25,14 +25,15 @@ function liveMethods(http: ApiClient): Partial<ApiClient> {
     // same string. It sits here as the worked example of the pattern.
     loginUrl: (returnTo) => http.loginUrl(returnTo),
 
-    // Slice 1, the session: devLogin, logout, me.
-    // Slice 2: pairToken. Slice 3: listStations, createStation. Slice 4: listTaps.
-    // Slice 5: createFallbackTap, stats, exportCsv, unpairToken.
+    // The backend session and resource routes are not available yet. Keep the
+    // live slice empty rather than mixing a live me() with mock login methods.
   };
 }
 
 export function createAppClient(): ApiClient {
-  const mock = createMockClient({ simulate: true });
+  const mock = createMockClient({ simulate: !LIVE_API });
   if (!LIVE_API) return mock;
+  // Do not let a previous mock sign-in survive a reload into live mode.
+  mock.mock.setSession(null);
   return { ...mock, ...liveMethods(createHttpClient()) };
 }

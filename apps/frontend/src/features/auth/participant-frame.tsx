@@ -1,7 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 
+import { describeError } from "@/api/errors";
 import { ParticipantShell } from "@/components/layout/participant-shell";
+import { SessionErrorBanner } from "@/components/layout/session-error-banner";
 import { useMe, useSession } from "@/lib/session";
 
 /** Joins the session to the participant shell. Route files stay one line. */
@@ -10,15 +13,22 @@ export function ParticipantFrame({ children }: { children: ReactNode }) {
   const session = useSession();
   const navigate = useNavigate();
 
-  // A deliberate sign-out lands on a clean /login with no return_to. The next person at a
-  // shared desk laptop should not be bounced into the previous user's page.
   async function signOut() {
-    await session.signOut();
-    await navigate({ to: "/login", replace: true });
+    try {
+      await session.signOut();
+      await navigate({ to: "/login", replace: true });
+    } catch (error) {
+      // The session provider has already cleared identity data; keep the failure visible without
+      // leaving an unhandled promise rejection from the shell callback.
+      toast.error(describeError(error));
+    }
   }
 
   return (
     <ParticipantShell user={me.user} onSignOut={() => void signOut()}>
+      {session.me && session.error ? (
+        <SessionErrorBanner error={session.error} onRetry={() => void session.refresh()} />
+      ) : null}
       {children}
     </ParticipantShell>
   );

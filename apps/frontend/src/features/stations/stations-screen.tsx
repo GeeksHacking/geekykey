@@ -2,6 +2,7 @@ import { Broadcast } from "@phosphor-icons/react";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { ErrorState } from "@/components/layout/error-state";
+import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { LiveStamp } from "@/components/layout/live-stamp";
 import { PageHeader } from "@/components/layout/page-header";
 import { AddStationDialog } from "@/features/stations/add-station-dialog";
@@ -32,6 +33,13 @@ export function StationsScreen() {
     const online = list.filter((station) => station.online).length;
     body = (
       <div className="space-y-3">
+        {stations.isError ? (
+          <InlineQueryError
+            error={stations.error}
+            onRetry={() => void stations.refetch()}
+            title="Station updates are delayed."
+          />
+        ) : null}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
             <span className="font-mono text-foreground">{list.length}</span> stations,{" "}
