@@ -41,7 +41,10 @@ export function TokenRow({ token }: { token: Token }) {
         <div className="min-w-0">
           <p className="truncate font-mono text-sm">{formatUid(token.uid)}</p>
           <p className="text-xs text-muted-foreground">
-            Paired <time dateTime={token.paired_at}>{formatWhen(token.paired_at)}</time>
+            Paired{" "}
+            <time dateTime={token.paired_at} className="font-mono">
+              {formatWhen(token.paired_at)}
+            </time>
           </p>
         </div>
       </div>

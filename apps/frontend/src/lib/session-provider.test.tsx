@@ -1,16 +1,17 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
-import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import { SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { useSession } from "@/lib/session";
 import { createTestProviders } from "@/test/providers";
 
 function setup(prepare?: (api: MockApiClient) => void) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   prepare?.(api);
-  const { Providers } = createTestProviders(api, { session: true });
-  return { api, ...renderHook(() => useSession(), { wrapper: Providers }) };
+  const { Providers, queryClient } = createTestProviders(api, { session: true });
+  return { api, queryClient, ...renderHook(() => useSession(), { wrapper: Providers }) };
 }
 
 describe("SessionProvider", () => {
@@ -44,6 +45,75 @@ describe("SessionProvider", () => {
       await result.current.refresh();
     });
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
+  });
+
+  it("retries a transient network failure before reporting an error", async () => {
+    const { result } = setup((api) => api.mock.failNext("network"));
+    await waitFor(() => expect(result.current.status).toBe("anonymous"), { timeout: 5_000 });
+  });
+
+  it("keeps authenticated data visible when a background refresh fails", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    api.mock.failNext("internal_error");
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    await waitFor(() => expect(result.current.error).toBeDefined());
+    expect(result.current.status).toBe("authenticated");
+    expect(result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID);
+  });
+
+  it("clears identity queries even when logout fails", async () => {
+    const { api, queryClient, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    queryClient.setQueryData(queryKeys.stations, { stations: [] });
+    api.mock.failNext("internal_error");
+
+    await expect(result.current.signOut()).rejects.toBeDefined();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    expect(result.current.me).toBeNull();
+    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+  });
+
+  it("keeps a 403 available to the role gate", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_ORGANIZER_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    api.mock.failNext("forbidden");
+    await expect(api.listStations()).rejects.toBeDefined();
+    await waitFor(() => expect(result.current.authorizationError).toBeDefined());
+    expect(result.current.me?.user.role).toBe("organizer");
+  });
+
+  it("clears the session when an identity-scoped request returns 401", async () => {
+    const { api, queryClient, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    queryClient.setQueryData(queryKeys.stations, { stations: [] });
+
+    api.mock.failNext("unauthenticated");
+    await expect(api.pairToken("04AABBCCDDEEFF00")).rejects.toBeDefined();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    expect(result.current.me).toBeNull();
+    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
   });
 
   it("refresh picks up a change made behind its back", async () => {

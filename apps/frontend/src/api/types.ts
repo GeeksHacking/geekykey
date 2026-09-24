@@ -93,7 +93,8 @@ export interface AdminTap {
   station: { id: string; name: string };
   /** null for unknown_token taps. */
   user: { id: string; display_name: string } | null;
-  token_uid: string;
+  /** null when a QR user_id fallback has no active NFC token. */
+  token_uid: string | null;
   status: TapStatus;
   source: TapSource;
   tapped_at: string | null;

@@ -1,5 +1,5 @@
 import type { ApiClient } from "@/api/client";
-import { ApiError, NetworkError } from "@/api/errors";
+import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import {
   createFixtures,
   type MockData,
@@ -95,14 +95,18 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       const failure = pendingFailure;
       pendingFailure = null;
       if (failure === "network") throw new NetworkError();
-      throw new ApiError(HTTP_STATUS[failure], failure);
+      const error = new ApiError(HTTP_STATUS[failure], failure);
+      publishAuthError(error);
+      throw error;
     }
     return work();
   }
 
   // Explicit type so TypeScript treats a bare `fail(...)` statement as the end of that path.
   const fail: (code: ErrorCode, issues?: ApiIssue[]) => never = (code, issues) => {
-    throw new ApiError(HTTP_STATUS[code], code, issues);
+    const error = new ApiError(HTTP_STATUS[code], code, issues);
+    publishAuthError(error);
+    throw error;
   };
 
   function currentUser(): MockUser {
@@ -315,11 +319,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         if (!stationById(input.station_id)) fail("not_found");
         const at = now();
         let userId: string | null;
-        let uid: string;
+        let uid: string | null;
         if ("user_id" in input) {
           if (!userById(input.user_id)) fail("not_found");
           userId = input.user_id;
-          uid = userToken(userId)?.uid ?? "";
+          // A QR user_id is a valid identity even when the participant has no active NFC token.
+          uid = userToken(userId)?.uid ?? null;
         } else {
           uid = normaliseUid(input.uid);
           userId = activeToken(uid)?.user_id ?? null;
@@ -373,7 +378,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               stationById(tap.station_id)?.name ?? "",
               tap.user_id ?? "",
               user?.display_name ?? "",
-              tap.token_uid,
+              tap.token_uid ?? "",
               tap.status,
               tap.source,
               tap.tapped_at ?? "",

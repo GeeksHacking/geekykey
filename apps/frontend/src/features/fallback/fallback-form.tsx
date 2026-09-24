@@ -67,7 +67,14 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
           "No station or participant matched. Check the station is still listed and the ID is right.",
         );
       } else if (isApiError(error) && error.code === "validation_failed") {
-        const leftover = applyApiIssues(form, error.issues);
+        // The API names the wire field user_id or uid; the form intentionally calls both modes
+        // identifier so the validation message stays attached to the visible input.
+        const issues = error.issues.map((issue) =>
+          issue.path[0] === "user_id" || issue.path[0] === "uid"
+            ? { ...issue, path: ["identifier"] }
+            : issue,
+        );
+        const leftover = applyApiIssues(form, issues);
         if (leftover.length) setFormError(leftover.join(" "));
       } else {
         setFormError(describeError(error));

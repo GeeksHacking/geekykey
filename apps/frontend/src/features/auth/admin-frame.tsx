@@ -1,7 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 
+import { describeError } from "@/api/errors";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { SessionErrorBanner } from "@/components/layout/session-error-banner";
 import { useMe, useSession } from "@/lib/session";
 
 export function AdminFrame({ children }: { children: ReactNode }) {
@@ -9,15 +12,22 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   const session = useSession();
   const navigate = useNavigate();
 
-  // A deliberate sign-out lands on a clean /login with no return_to. The next person at a
-  // shared desk laptop should not be bounced into the previous user's page.
   async function signOut() {
-    await session.signOut();
-    await navigate({ to: "/login", replace: true });
+    try {
+      await session.signOut();
+      await navigate({ to: "/login", replace: true });
+    } catch (error) {
+      // Identity data is cleared before the request; report a failed cookie clear without an
+      // unhandled rejection from the account menu.
+      toast.error(describeError(error));
+    }
   }
 
   return (
     <AdminShell user={me.user} onSignOut={() => void signOut()}>
+      {session.me && session.error ? (
+        <SessionErrorBanner error={session.error} onRetry={() => void session.refresh()} />
+      ) : null}
       {children}
     </AdminShell>
   );

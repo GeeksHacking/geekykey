@@ -10,14 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useGoAfterLogin } from "@/features/auth/use-go-after-login";
 import { SEEDED_USERS } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 
 /** Local development only. Same session cookie as the portal login, so every screen after this is identical. */
-export function DevLoginForm({ returnTo }: { returnTo?: string }) {
+export function DevLoginForm() {
   const session = useSession();
-  const goAfterLogin = useGoAfterLogin();
   const [userId, setUserId] = useState<string>(SEEDED_USERS[0].id);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +25,8 @@ export function DevLoginForm({ returnTo }: { returnTo?: string }) {
     setPending(true);
     setError(null);
     try {
-      const me = await session.signIn(userId);
-      goAfterLogin(returnTo, me.user.role);
+      // LoginScreen owns navigation; this form only changes the session state.
+      await session.signIn(userId);
     } catch (err) {
       setError(
         isApiErrorCode(err, "not_found")

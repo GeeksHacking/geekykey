@@ -105,6 +105,18 @@ describe("QR fallback", () => {
     expect(second.result.status).toBe("cooldown");
   });
 
+  it("accepts a known user_id fallback without an active token", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    api.mock.data.tokens = api.mock.data.tokens.filter((token) => token.user_id !== "u_2e8b");
+    const station = api.mock.data.stations.find((s) => s.name === "Photo Wall")!;
+    const result = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
+    const stored = api.mock.data.taps.find((tap) => tap.id === result.result.id)!;
+    expect(result.result.status).toBe("accepted");
+    expect(stored.user_id).toBe("u_2e8b");
+    expect(stored.token_uid).toBeNull();
+  });
+
   it("records an unpaired UID as unknown_token rather than failing", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
@@ -144,6 +156,17 @@ describe("station keys and export", () => {
     expect(text.split("\n")[0]).toBe(
       "tap_id,client_tap_id,station_id,station_name,user_id,display_name,token_uid,status,source,tapped_at,received_at",
     );
+  });
+
+  it("writes an empty CSV token cell for a user_id fallback without a token", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    api.mock.data.tokens = api.mock.data.tokens.filter((token) => token.user_id !== "u_2e8b");
+    const station = api.mock.data.stations.find((s) => s.name === "Photo Wall")!;
+    const result = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
+    const text = await (await api.exportCsv()).text();
+    const row = text.split("\n").find((line) => line.startsWith(`${result.result.id},`));
+    expect(row?.split(",")[6]).toBe("");
   });
 
   it("can be told to fail once", async () => {

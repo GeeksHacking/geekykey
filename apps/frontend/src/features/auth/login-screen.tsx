@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useApi } from "@/api/context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -12,11 +12,19 @@ export function LoginScreen({ returnTo }: { returnTo?: string }) {
   const api = useApi();
   const session = useSession();
   const goAfterLogin = useGoAfterLogin();
+  const navigated = useRef(false);
 
-  // Already signed in (for example, pressed back after logging in): skip the form.
+  // LoginScreen is the only owner of post-login navigation. The ref prevents the effect from
+  // navigating again when the session query publishes the same user more than once.
   const signedInRole = session.status === "authenticated" ? session.me?.user.role : undefined;
   useEffect(() => {
-    if (signedInRole) goAfterLogin(returnTo, signedInRole);
+    if (!signedInRole) {
+      navigated.current = false;
+      return;
+    }
+    if (navigated.current) return;
+    navigated.current = true;
+    goAfterLogin(returnTo, signedInRole);
   }, [signedInRole, returnTo, goAfterLogin]);
 
   return (
@@ -34,7 +42,7 @@ export function LoginScreen({ returnTo }: { returnTo?: string }) {
       <Button asChild size="lg" className="mt-8 w-full">
         <a href={api.loginUrl(returnTo ?? "/")}>Sign in with GeeksHacking</a>
       </Button>
-      {import.meta.env.DEV ? <DevLoginForm returnTo={returnTo} /> : null}
+      {import.meta.env.DEV ? <DevLoginForm /> : null}
     </main>
   );
 }
