@@ -33,6 +33,8 @@
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include "secrets.h"
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 
 #define SS_PIN 10
 #define RST_PIN 9
@@ -41,8 +43,10 @@
 #define MOSI_PIN 11
 #define LED_PIN_BLUE 4
 #define LED_PIN_RED 5
+#define I2C_SDA 7
+#define I2C_SCL 6
 
-
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
@@ -60,6 +64,9 @@ void setup() {
   delay(1000);
   pinMode(LED_PIN_BLUE, OUTPUT);
   pinMode(LED_PIN_RED, OUTPUT);
+  Wire.begin(I2C_SDA, I2C_SCL);
+  lcd.init();
+  lcd.backlight();
 
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
   rfid.PCD_Init();
@@ -113,11 +120,24 @@ void loop() {
     for (byte i = 0; i < 5; i++) {
       blinkLEDRED();
     }
+    lcd.setCursor(0, 0);
+    lcd.print("FAILED");
+    lcd.setCursor(0, 1);
+    lcd.print("Tap not recorded");
+    delay(2000);
+    lcd.clear();
+
   } else {
     Serial.println(clientTapId + " -> " + status);
     for (byte i = 0; i < 5; i++) {
       blinkLEDBLUE();
     }
+    lcd.setCursor(0, 0);
+    lcd.print("PASSED");
+    lcd.setCursor(0, 1);
+    lcd.print("Tap recorded");
+    delay(2000);
+    lcd.clear();
   }
 
   delay(1000);
