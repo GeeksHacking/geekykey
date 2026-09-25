@@ -79,6 +79,8 @@ export const taps = sqliteTable(
     ),
     index("taps_station_user_status_idx").on(t.stationId, t.userId, t.status),
     index("taps_received_at_idx").on(t.receivedAt),
+    // GET /api/v1/me reads one participant's taps on every poll.
+    index("taps_user_received_at_idx").on(t.userId, t.receivedAt),
     check("taps_source_check", sql`${t.source} IN ('nfc', 'qr_fallback')`),
     check(
       "taps_status_check",

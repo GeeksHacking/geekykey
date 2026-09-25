@@ -4,6 +4,7 @@ import type { Config } from "./config.ts";
 import type { Db } from "./db/client.ts";
 import type { SessionOptions } from "./middleware/session-auth.ts";
 import { authRoutes } from "./routes/auth.ts";
+import { meRoutes } from "./routes/me.ts";
 import { tapsRoutes } from "./routes/taps.ts";
 import { LocalTokenResolver } from "./services/identity.ts";
 import { TapPipeline } from "./services/taps.ts";
@@ -56,6 +57,8 @@ export function createApp({ db, config }: AppDeps) {
     "/auth",
     authRoutes({ db, session, devAuthEnabled: config.devAuthEnabled }),
   );
+
+  app.route("/api/v1/me", meRoutes({ db, session }));
 
   app.route(
     "/api/v1/taps",
