@@ -1,5 +1,5 @@
 import { Check, Copy, Warning } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { CreateStationResponse } from "@/api/types";
@@ -16,12 +16,24 @@ interface StationKeyRevealProps {
 /** The agreement returns the key exactly once. Nothing here stores it; it lives only in this dialog. */
 export function StationKeyReveal({ result, onDone }: StationKeyRevealProps) {
   const [copied, setCopied] = useState(false);
+  const copiedResetTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copiedResetTimer.current !== null) window.clearTimeout(copiedResetTimer.current);
+    },
+    [],
+  );
 
   async function copyKey() {
     try {
       await navigator.clipboard.writeText(result.api_key);
+      if (copiedResetTimer.current !== null) window.clearTimeout(copiedResetTimer.current);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      copiedResetTimer.current = window.setTimeout(() => {
+        copiedResetTimer.current = null;
+        setCopied(false);
+      }, 2000);
     } catch {
       toast.error("Could not copy. Select the key and copy it by hand.");
     }

@@ -8,18 +8,27 @@ import type { ApiIssue } from "@/api/types";
  */
 export function applyApiIssues<T extends FieldValues>(
   form: UseFormReturn<T>,
-  issues: ApiIssue[],
+  issues: readonly ApiIssue[],
 ): string[] {
   const unmatched: string[] = [];
   const fields = Object.keys(form.getValues());
   for (const issue of issues) {
+    if (!isUsableIssue(issue)) continue;
+    const message = issue.message.trim();
     const name = issue.path.join(".");
     if (name && fields.includes(name)) {
-      // The path came from the API and was just checked against the form's own fields.
-      form.setError(name as Path<T>, { type: "server", message: issue.message });
+      form.setError(name as Path<T>, { type: "server", message });
     } else {
-      unmatched.push(issue.message);
+      unmatched.push(message);
     }
   }
   return unmatched;
+}
+
+function isUsableIssue(issue: ApiIssue): issue is ApiIssue {
+  if (!issue || typeof issue !== "object" || !Array.isArray(issue.path)) return false;
+  if (!issue.path.every((part) => typeof part === "string" || typeof part === "number")) {
+    return false;
+  }
+  return typeof issue.message === "string" && issue.message.trim().length > 0;
 }

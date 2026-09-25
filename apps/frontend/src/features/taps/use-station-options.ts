@@ -11,5 +11,10 @@ export function useStationOptions() {
     queryFn: () => api.listStations(),
     staleTime: 60_000,
   });
-  return { stations: query.data?.stations ?? [], isPending: query.isPending };
+  return {
+    stations: query.data?.stations ?? [],
+    isPending: query.isPending,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }

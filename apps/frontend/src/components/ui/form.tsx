@@ -60,12 +60,16 @@ const useFormField = () => {
     formItemId: `${id}-form-item`,
     formDescriptionId: `${id}-form-item-description`,
     formMessageId: `${id}-form-item-message`,
+    hasDescription: itemContext.hasDescription,
+    setHasDescription: itemContext.setHasDescription,
     ...fieldState,
   };
 };
 
 type FormItemContextValue = {
   id: string;
+  hasDescription: boolean;
+  setHasDescription: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const FormItemContext = React.createContext<FormItemContextValue | null>(null);
@@ -73,9 +77,10 @@ const FormItemContext = React.createContext<FormItemContextValue | null>(null);
 const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => {
     const id = React.useId();
+    const [hasDescription, setHasDescription] = React.useState(false);
 
     return (
-      <FormItemContext.Provider value={{ id }}>
+      <FormItemContext.Provider value={{ id, hasDescription, setHasDescription }}>
         <div ref={ref} className={cn("space-y-2", className)} {...props} />
       </FormItemContext.Provider>
     );
@@ -104,13 +109,16 @@ const FormControl = React.forwardRef<
   React.ComponentRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
 >(({ ...props }, ref) => {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+  const { error, formItemId, formDescriptionId, formMessageId, hasDescription } = useFormField();
+  const describedBy = [hasDescription && formDescriptionId, error && formMessageId]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <Slot
       ref={ref}
       id={formItemId}
-      aria-describedby={!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
+      aria-describedby={describedBy || undefined}
       aria-invalid={!!error}
       {...props}
     />
@@ -122,7 +130,12 @@ const FormDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => {
-  const { formDescriptionId } = useFormField();
+  const { formDescriptionId, setHasDescription } = useFormField();
+
+  React.useEffect(() => {
+    setHasDescription(true);
+    return () => setHasDescription(false);
+  }, [setHasDescription]);
 
   return (
     <p

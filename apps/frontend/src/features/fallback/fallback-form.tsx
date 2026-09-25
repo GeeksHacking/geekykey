@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -27,12 +27,33 @@ import {
 import { FallbackResult } from "@/features/fallback/fallback-result";
 import { useLogFallbackTap } from "@/features/fallback/use-log-fallback-tap";
 import { applyApiIssues } from "@/lib/form-errors";
+import { normaliseUid } from "@/lib/format";
 
-const schema = z.object({
-  station_id: z.string().min(1, "Choose a station."),
-  mode: z.enum(["user_id", "uid"]),
-  identifier: z.string().trim().min(1, "Enter the participant's ID or token UID."),
-});
+const UID_PATTERN = /^(?:[0-9A-F]{2}){4,10}$/;
+const MAX_PORTAL_USER_ID_LENGTH = 128;
+
+const schema = z
+  .object({
+    station_id: z.string().min(1, "Choose a station."),
+    mode: z.enum(["user_id", "uid"]),
+    identifier: z.string().trim().min(1, "Enter the participant's ID or token UID."),
+  })
+  .superRefine((values, context) => {
+    if (values.mode === "uid" && !UID_PATTERN.test(normaliseUid(values.identifier))) {
+      context.addIssue({
+        code: "custom",
+        path: ["identifier"],
+        message: "A UID is 4 to 10 hex bytes, for example 04:A1:B2:C3:D4:E5:F6.",
+      });
+    }
+    if (values.mode === "user_id" && values.identifier.length > MAX_PORTAL_USER_ID_LENGTH) {
+      context.addIssue({
+        code: "custom",
+        path: ["identifier"],
+        message: "Portal user IDs must be 128 characters or fewer.",
+      });
+    }
+  });
 
 type FallbackValues = z.infer<typeof schema>;
 
@@ -49,6 +70,7 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [result, setResult] = useState<FallbackTapResponse["result"] | null>(null);
+  const modeLabelId = useId();
   const mode = useWatch({ control: form.control, name: "mode" });
 
   async function onSubmit(values: FallbackValues) {
@@ -69,13 +91,16 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
       } else if (isApiError(error) && error.code === "validation_failed") {
         // The API names the wire field user_id or uid; the form intentionally calls both modes
         // identifier so the validation message stays attached to the visible input.
-        const issues = error.issues.map((issue) =>
-          issue.path[0] === "user_id" || issue.path[0] === "uid"
-            ? { ...issue, path: ["identifier"] }
-            : issue,
-        );
+        const issues = Array.isArray(error.issues)
+          ? error.issues.map((issue) => {
+              if (!Array.isArray(issue?.path)) return issue;
+              return issue.path[0] === "user_id" || issue.path[0] === "uid"
+                ? { ...issue, path: ["identifier", ...issue.path.slice(1)] }
+                : issue;
+            })
+          : [];
         const leftover = applyApiIssues(form, issues);
-        if (leftover.length) setFormError(leftover.join(" "));
+        setFormError(leftover.length ? leftover.join(" ") : describeError(error));
       } else {
         setFormError(describeError(error));
       }
@@ -124,10 +149,14 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
           name="mode"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Identify the participant by</FormLabel>
+              <FormLabel id={modeLabelId}>Identify the participant by</FormLabel>
               <FormControl>
                 <RadioGroup
-                  onValueChange={field.onChange}
+                  aria-labelledby={modeLabelId}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.resetField("identifier");
+                  }}
                   value={field.value}
                   className="grid gap-2 sm:grid-cols-2"
                 >

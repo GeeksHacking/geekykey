@@ -1,6 +1,11 @@
+import { Broadcast } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
+
+import { EmptyState } from "@/components/layout/empty-state";
 import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FallbackForm } from "@/features/fallback/fallback-form";
 import { useFallbackStations } from "@/features/fallback/use-fallback-stations";
@@ -19,6 +24,19 @@ export function FallbackScreen() {
     );
   } else if (!stations.data) {
     body = <ErrorState error={stations.error} onRetry={() => void stations.refetch()} />;
+  } else if (stations.data.stations.length === 0) {
+    body = (
+      <EmptyState
+        icon={Broadcast}
+        title="No stations to log for"
+        description="Add a station before using QR fallback to record a tap."
+        action={
+          <Button asChild>
+            <Link to="/admin/stations">Add a station</Link>
+          </Button>
+        }
+      />
+    );
   } else {
     body = (
       <div className="space-y-4">

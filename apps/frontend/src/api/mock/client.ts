@@ -327,6 +327,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           uid = userToken(userId)?.uid ?? null;
         } else {
           uid = normaliseUid(input.uid);
+          if (!UID_PATTERN.test(uid)) {
+            fail("validation_failed", [{ path: ["uid"], message: "A UID is 4 to 10 hex bytes." }]);
+          }
           userId = activeToken(uid)?.user_id ?? null;
         }
         const tap = appendTap({
@@ -407,11 +410,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const station = online[Math.floor(Math.random() * online.length)];
         const participant = participants[Math.floor(Math.random() * participants.length)];
         if (!station || !participant) return;
-        const unknown = Math.random() < 0.05;
+        const token = participant ? userToken(participant.id) : undefined;
+        const unknown = Math.random() < 0.05 || !token;
         const userId = unknown ? null : participant.id;
-        const uid = unknown
-          ? "04DEADBEEF2201"
-          : (userToken(participant.id)?.uid ?? "04DEADBEEF0000");
+        const uid = unknown ? "04DEADBEEF2201" : (token?.uid ?? "04DEADBEEF0000");
         appendTap({
           station_id: station.id,
           client_tap_id: `tap-${String(nextTapId + 100_000).padStart(6, "0")}`,

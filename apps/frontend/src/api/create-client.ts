@@ -14,6 +14,11 @@ import { createMockClient } from "@/api/mock/client";
 */
 const LIVE_API = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
 
+export interface AppClientOptions {
+  /** Overrides VITE_LIVE_API in tests; application code uses the environment default. */
+  live?: boolean;
+}
+
 /**
  * The methods that talk to the real backend. Add a line here when a slice is
  * done, and only then: an endpoint that is not live in apps/backend yet will
@@ -21,19 +26,55 @@ const LIVE_API = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
  */
 function liveMethods(http: ApiClient): Partial<ApiClient> {
   return {
+    // Session endpoints are now implemented and tested on the backend. Keep the
+    // resource methods mocked until their corresponding routes land as a complete slice.
+    me: () => http.me(),
+    devLogin: (userId) => http.devLogin(userId),
+    logout: () => http.logout(),
+
     // loginUrl builds a URL and sends no request, so both clients return the
     // same string. It sits here as the worked example of the pattern.
     loginUrl: (returnTo) => http.loginUrl(returnTo),
-
-    // The backend session and resource routes are not available yet. Keep the
-    // live slice empty rather than mixing a live me() with mock login methods.
   };
 }
 
-export function createAppClient(): ApiClient {
-  const mock = createMockClient({ simulate: !LIVE_API });
-  if (!LIVE_API) return mock;
-  // Do not let a previous mock sign-in survive a reload into live mode.
+export function createAppClient({ live = LIVE_API }: AppClientOptions = {}): ApiClient {
+  const mock = createMockClient({ simulate: !live });
+  if (!live) return mock;
+
+  // Keep the mock resource methods usable during the staged live slice. The HTTP
+  // cookie remains authoritative; this mirror is only for methods whose backend
+  // route has not been enabled yet.
   mock.mock.setSession(null);
-  return { ...mock, ...liveMethods(createHttpClient()) };
+  const http = createHttpClient({ baseUrl: import.meta.env.VITE_API_BASE_URL });
+  return {
+    ...mock,
+    ...liveMethods(http),
+    me: async () => {
+      try {
+        const me = await http.me();
+        mock.mock.setSession(me.user.id);
+        return me;
+      } catch (error) {
+        mock.mock.setSession(null);
+        throw error;
+      }
+    },
+    devLogin: async (userId) => {
+      try {
+        await http.devLogin(userId);
+        mock.mock.setSession(userId);
+      } catch (error) {
+        mock.mock.setSession(null);
+        throw error;
+      }
+    },
+    logout: async () => {
+      try {
+        await http.logout();
+      } finally {
+        mock.mock.setSession(null);
+      }
+    },
+  };
 }
