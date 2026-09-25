@@ -117,26 +117,26 @@ void loop() {
   String status = sendTap(clientTapId, uid);
   if (status.length() == 0) {
     Serial.println(clientTapId + " -> FAILED, tap not recorded");
-    for (byte i = 0; i < 5; i++) {
-      blinkLEDRED();
-    }
     lcd.setCursor(0, 0);
     lcd.print("FAILED");
     lcd.setCursor(0, 1);
     lcd.print("Tap not recorded");
     delay(2000);
+    for (byte i = 0; i < 5; i++) {
+      blinkLEDRED();
+    }
     lcd.clear();
 
   } else {
     Serial.println(clientTapId + " -> " + status);
-    for (byte i = 0; i < 5; i++) {
-      blinkLEDBLUE();
-    }
     lcd.setCursor(0, 0);
     lcd.print("PASSED");
     lcd.setCursor(0, 1);
     lcd.print("Tap recorded");
     delay(2000);
+    for (byte i = 0; i < 5; i++) {
+      blinkLEDBLUE();
+    }
     lcd.clear();
   }
 
