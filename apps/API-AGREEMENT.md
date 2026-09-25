@@ -149,6 +149,9 @@ about a participant beyond a tap status, in line with the privacy row of the ris
 
 ## 4. Shared vocabulary
 
+Domain terms such as participant, passport, stamp slot and station points are defined in
+[`CONTEXT.md`](../CONTEXT.md). This section covers the values that travel on the wire.
+
 ### Token UID
 
 The NFC tag's hardware UID as hex. The backend normalises on input by stripping anything that
@@ -197,7 +200,7 @@ Derived by the backend from accepted taps. The frontend displays them and never 
 | GET | `/api/health` | anyone | `Implemented` | Liveness check |
 | POST | `/api/v1/taps` | Station | `Implemented` | Ingest one or many taps |
 | POST | `/auth/dev-login` | anyone, dev only | `Implemented` | Set a session for a seeded user |
-| GET | `/api/v1/me` | Participant, Organizer | `Sprint 1` | Profile, tokens, stamps, points, history |
+| GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, tokens, stamps, points, history |
 | POST | `/api/v1/tokens/pair` | Participant | `Sprint 1` | Bind a UID to the current user |
 | POST | `/api/v1/admin/stations` | Organizer | `Sprint 1` | Create a station, returns its key once |
 | GET | `/api/v1/admin/stations` | Organizer | `Sprint 1` | List stations with online state |
@@ -330,7 +333,7 @@ backend creates the local user row from the portal identity.
 
 ## 8. Participant endpoints
 
-### 8.1 `GET /api/v1/me` — `Sprint 1`
+### 8.1 `GET /api/v1/me` — `Implemented`
 
 Everything the participant dashboard and passport view need in one call.
 
@@ -346,7 +349,7 @@ Everything the participant dashboard and passport view need in one call.
   ],
   "points": 3,
   "stamps": [
-    { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "earned_at": "2026-10-10T09:00:00.000Z" },
+    { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "earned_at": "2026-10-10T09:00:01.250Z" },
     { "station_id": "…", "name": "Cloud Sponsor",     "location": "Hall B", "points": 2, "earned_at": null }
   ],
   "recent_taps": [
@@ -355,11 +358,18 @@ Everything the participant dashboard and passport view need in one call.
 }
 ```
 
-- `stamps` lists **every** station, so the passport can render empty slots. `earned_at` is
-  `null` until the user has an accepted tap there.
-- `recent_taps` is the user's last 50 taps of any status, newest first. Statuses other than
-  `accepted` are included so a participant can see "that tap didn't count".
-- `tokens` excludes revoked tokens.
+- `stamps` lists **every** station, so the passport can render empty slots. They come in the
+  order the stations were created, oldest first, so adding a station never moves the others.
+- `earned_at` is `null` until the user has an accepted tap at that station. After that it is
+  when the backend **received** their first accepted tap there. For a station that was offline,
+  that is when it sent the tap, not when it read the token.
+- `stamps[].points` is what one accepted tap at that station is worth, not what this user has
+  earned there. The user's total is `points`.
+- `recent_taps` is the user's last 50 taps of any status, newest first by when the backend
+  received them. Statuses other than `accepted` are included so a participant can see "that
+  tap didn't count".
+- `tokens` excludes revoked tokens and lists the oldest pairing first. Taps made with a token
+  before it was revoked still count.
 
 **Errors:** `unauthenticated`.
 
@@ -582,3 +592,4 @@ call works with `credentials: "include"`.
 |---|---|
 | 2026-09-18 | Initial draft. `POST /api/v1/taps` and `GET /api/health` reflect the implemented backend; everything else is proposed. |
 | 2026-09-21 | `POST /auth/dev-login` and `POST /auth/logout` are implemented with tests. Shapes are unchanged from the draft; logout moves up from `MVP` because it shares the session cookie helpers with dev-login. |
+| 2026-09-25 | `GET /api/v1/me` is implemented with tests. The shape is unchanged from the draft. Section 8.1 now states the order of `stamps` (oldest station first), `recent_taps` (newest arrival first) and `tokens` (oldest pairing first), that `earned_at` is when the backend received the tap, and that `stamps[].points` is the station's points. The example's `earned_at` now matches its tap's `received_at`. Section 4 links to the new `CONTEXT.md` glossary. |
