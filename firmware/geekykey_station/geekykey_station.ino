@@ -34,16 +34,18 @@
 #include <ArduinoJson.h>
 #include "secrets.h"
 
-#define SS_PIN   10
-#define RST_PIN  9
-#define SCK_PIN  12
+#define SS_PIN 10
+#define RST_PIN 9
+#define SCK_PIN 12
 #define MISO_PIN 13
 #define MOSI_PIN 11
-#define LED_PIN 4
+#define LED_PIN_BLUE 4
+#define LED_PIN_RED 5
 
 
-const char* ssid       = WIFI_SSID;
-const char* password   = WIFI_PASSWORD;
+
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 const char* stationKey = STATION_KEY;
 
 // "http://<ip>:<port>" once SERVER_HOST has been looked up; empty until then.
@@ -56,7 +58,8 @@ uint32_t nextTapId = 0;
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  pinMode(LED_PIN, OUTPUT);
+  pinMode(LED_PIN_BLUE, OUTPUT);
+  pinMode(LED_PIN_RED, OUTPUT);
 
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
   rfid.PCD_Init();
@@ -100,31 +103,21 @@ void loop() {
   rfid.PCD_StopCrypto1();
 
   Serial.println("UID: " + uid);
-  if (tagText.length() > 0) Serial.println("Text: " + tagText);
 
+  if (tagText.length() > 0) Serial.println("Text: " + tagText);
+  
   String clientTapId = takeClientTapId();
   String status = sendTap(clientTapId, uid);
   if (status.length() == 0) {
     Serial.println(clientTapId + " -> FAILED, tap not recorded");
+    for (byte i = 0; i < 5; i++) {
+      blinkLEDRED();
+    }
   } else {
     Serial.println(clientTapId + " -> " + status);
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
-    delay(500); 
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
-    delay(500);
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
-    delay(500);
-    digitalWrite(LED_PIN, HIGH);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
-    delay(500);
-    
+    for (byte i = 0; i < 5; i++) {
+      blinkLEDBLUE();
+    }
   }
 
   delay(1000);
@@ -205,6 +198,20 @@ String sendTap(const String& clientTapId, const String& uid) {
   return "";
 }
 
+void blinkLEDBLUE() {
+  digitalWrite(LED_PIN_BLUE, HIGH);
+  delay(500);
+  digitalWrite(LED_PIN_BLUE, LOW);
+  delay(500);
+}
+
+void blinkLEDRED() {
+  digitalWrite(LED_PIN_RED, HIGH);
+  delay(500);
+  digitalWrite(LED_PIN_RED, LOW);
+  delay(500);
+}
+
 // Turns SERVER_HOST into serverBase. A name ending in .local is looked up with
 // mDNS, which asks the local network "who is A-Mac?" and gets the laptop's
 // current IP back. A plain IP address is used as it is.
@@ -212,11 +219,10 @@ bool resolveServer() {
   String host = SERVER_HOST;
   IPAddress ip;
   if (host.endsWith(".local")) {
-    host.remove(host.length() - 6); // mDNS queries take the name without .local
+    host.remove(host.length() - 6);  // mDNS queries take the name without .local
     ip = MDNS.queryHost(host.c_str(), 3000);
     if (ip == IPAddress(0, 0, 0, 0)) {
-      Serial.println("Could not find " + String(SERVER_HOST) +
-                     " on this network. Is the laptop on the same WiFi?");
+      Serial.println("Could not find " + String(SERVER_HOST) + " on this network. Is the laptop on the same WiFi?");
       return false;
     }
   } else if (!ip.fromString(host)) {
@@ -247,7 +253,7 @@ void checkBackend() {
 // Reads user memory pages (starting at page 4) from an NTAG213 and returns
 // the text payload of the first NDEF Text Record it finds.
 String readNtag213Text() {
-  byte fullBuffer[144]; // NTAG213 user memory is roughly 144 bytes
+  byte fullBuffer[144];  // NTAG213 user memory is roughly 144 bytes
   int bytesRead = 0;
   byte page = 4;
 
@@ -277,22 +283,25 @@ String parseNdefText(byte* data, int len) {
   while (i < len) {
     byte tlvType = data[i];
 
-    if (tlvType == 0x00) { i++; continue; } // NULL TLV, skip
-    if (tlvType == 0xFE) break;              // Terminator TLV, end of memory
+    if (tlvType == 0x00) {
+      i++;
+      continue;
+    }                            // NULL TLV, skip
+    if (tlvType == 0xFE) break;  // Terminator TLV, end of memory
 
     if (i + 1 >= len) break;
-    int tlvLength  = data[i + 1];
+    int tlvLength = data[i + 1];
     int valueStart = i + 2;
 
-    if (tlvType == 0x03 && valueStart < len) { // NDEF Message TLV
+    if (tlvType == 0x03 && valueStart < len) {  // NDEF Message TLV
       int p = valueStart;
       int messageEnd = valueStart + tlvLength;
 
       // Step through each record inside this one NDEF message
       while (p < messageEnd) {
         byte header = data[p];
-        bool shortRecord = header & 0x10; // SR flag: payload length is 1 byte, not 4
-        bool idPresent    = header & 0x08; // IL flag: an ID field is present
+        bool shortRecord = header & 0x10;  // SR flag: payload length is 1 byte, not 4
+        bool idPresent = header & 0x08;    // IL flag: an ID field is present
 
         byte typeLength = data[p + 1];
         int offset = p + 2;
@@ -302,8 +311,7 @@ String parseNdefText(byte* data, int len) {
           payloadLength = data[offset];
           offset += 1;
         } else {
-          payloadLength = ((long)data[offset] << 24) | ((long)data[offset + 1] << 16) |
-                           ((long)data[offset + 2] << 8) | data[offset + 3];
+          payloadLength = ((long)data[offset] << 24) | ((long)data[offset + 1] << 16) | ((long)data[offset + 2] << 8) | data[offset + 3];
           offset += 4;
         }
 
@@ -313,17 +321,17 @@ String parseNdefText(byte* data, int len) {
           offset += 1;
         }
 
-        byte typeField = data[offset]; // 'T' = 0x54 (Text), 'U' = 0x55 (URI)
+        byte typeField = data[offset];  // 'T' = 0x54 (Text), 'U' = 0x55 (URI)
         offset += typeLength;
-        if (idPresent) offset += idLength; // skip past the ID field, if any
+        if (idPresent) offset += idLength;  // skip past the ID field, if any
 
         if (typeField == 0x54) {
           // Found the Text record -- extract it and stop, ignoring any
           // URI or other records elsewhere in the message.
           byte statusByte = data[offset];
-          int langCodeLen = statusByte & 0x3F; // low 6 bits = language code length
-          int textStart   = offset + 1 + langCodeLen;
-          int textLen     = payloadLength - 1 - langCodeLen;
+          int langCodeLen = statusByte & 0x3F;  // low 6 bits = language code length
+          int textStart = offset + 1 + langCodeLen;
+          int textLen = payloadLength - 1 - langCodeLen;
 
           String text = "";
           for (int j = 0; j < textLen; j++) {
@@ -338,7 +346,7 @@ String parseNdefText(byte* data, int len) {
       }
     }
 
-    i = valueStart + tlvLength; // move to next TLV entry
+    i = valueStart + tlvLength;  // move to next TLV entry
   }
-  return ""; // no Text record found anywhere on the tag
+  return "";  // no Text record found anywhere on the tag
 }
