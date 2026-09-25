@@ -13,7 +13,7 @@ summary: >-
   Hardware materials get decided at Thursday's check-in and ordered by Friday.
 areas: [backend, frontend, hardware, design, tooling, admin]
 asks:
-  - who: Qing Yuan
+  - who: Qing Guan
     what: >-
       30 minutes on the portal user schema and the OIDC callback shape. Everything
       auth-related past dev login is blocked on this.
@@ -135,7 +135,7 @@ to Cloudflare Pages on its own domain; public, with no participant data on it.
   in-person check-in, now moved to Thu 24 Sep at 11:30, and the order goes in after that.
 - **Portal integration is the critical path.** `GET /auth/callback` cannot be built without
   the portal's user schema and OIDC details, and nothing that needs a real logged-in user
-  can follow until it exists. This needs a meeting with Qing Yuan.
+  can follow until it exists. This needs a meeting with Qing Guan.
 - **The A/B test needs a date before it needs a build.** Sprint 2 (5-18 Oct) is the test
   window, and the 4 Jul mentor meeting put the lead time for booking an SSTInc or CCA
   session at about a month.

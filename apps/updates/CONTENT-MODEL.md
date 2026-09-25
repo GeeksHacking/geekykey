@@ -33,7 +33,7 @@ summary: >-
   decision or the blocker here, not the commit count.
 areas: [backend, frontend, hardware, tooling]   # backend | frontend | firmware | hardware | design | research | tooling | admin
 asks:                     # pulled to the top of the page; drop the key if there are none
-  - who: Qing Yuan
+  - who: Qing Guan
     what: 30 minutes on the portal user schema and the OIDC callback shape
 ---
 ```
