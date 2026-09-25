@@ -15,6 +15,13 @@ interface Props {
 const { title, description } = Astro.props;
 const siteName = "GeekyKey updates";
 
+// Entry pages count as Updates, so the nav still says where you are inside one.
+const path = Astro.url.pathname;
+const nav = [
+  { href: "/", label: "Updates", here: path === "/" || path.startsWith("/entries/") },
+  { href: "/changelog/", label: "Changelog", here: path.startsWith("/changelog") },
+];
+
 // The app's favicon shape (a tile with a dot) in the brand colours. The charcoal stroke
 // keeps the yellow visible on a light browser tab, like the app's --primary-edge.
 const favicon =
@@ -50,7 +57,22 @@ const favicon =
           <span class="font-extrabold tracking-[0.06em]">GeekyKey</span>
           <span class="ml-1 text-muted-foreground">Updates</span>
         </a>
-        <slot name="header-end" />
+        <nav aria-label="Site" class="flex gap-6 text-sm">
+          {
+            nav.map((link) => (
+              <a
+                href={link.href}
+                aria-current={link.here ? "page" : undefined}
+                class:list={[
+                  "underline-offset-4 hover:text-foreground hover:underline",
+                  link.here ? "text-foreground" : "text-muted-foreground",
+                ]}
+              >
+                {link.label}
+              </a>
+            ))
+          }
+        </nav>
       </header>
       <main id="main" class="flex-1 pb-20">
         <slot />

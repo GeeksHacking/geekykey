@@ -1,0 +1,58 @@
+---
+import ChangeList from "../components/ChangeList.astro";
+import Base from "../layouts/Base.astro";
+import { getChangelog } from "../lib/changelog";
+import { formatRange, isoDay } from "../lib/format";
+
+// Newest first, like the timeline. Stretches with no lines are left out: an update that
+// shipped nothing visible still has its page, but it would only be an empty row here.
+const stretches = (await getChangelog()).toReversed().filter((s) => s.changes.length > 0);
+---
+
+<Base
+  title="Changelog"
+  description="Every shipped change to GeekyKey, one line each, grouped by the update that covers it."
+>
+  <section class="pb-12 pt-10 md:pb-16 md:pt-20">
+    <h1 class="text-4xl font-semibold leading-[1.1] tracking-tight md:text-5xl">Changelog</h1>
+    <p class="mt-5 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
+      Every change you could see or use, one line each, newest first. The updates tell the
+      story behind them.
+    </p>
+  </section>
+
+  {
+    stretches.map(({ entry, changes }) => (
+      <section
+        aria-label={entry ? entry.data.title : "Since the last update"}
+        class="border-t border-border pb-6 pt-8"
+      >
+        <div class="grid gap-x-12 gap-y-1 md:grid-cols-[11rem_minmax(0,1fr)]">
+          {entry ? (
+            <>
+              <p class="font-mono text-sm">
+                <time datetime={isoDay(entry.data.date)}>
+                  {formatRange(entry.data.window.from, entry.data.window.to)}
+                </time>
+                {entry.data.sprint && (
+                  <span class="block text-muted-foreground">Sprint {entry.data.sprint}</span>
+                )}
+              </p>
+              <h2 class="max-w-[68ch] font-semibold">
+                <a href={`/entries/${entry.id}/`} class="underline-offset-4 hover:underline">
+                  {entry.data.title}
+                </a>
+              </h2>
+            </>
+          ) : (
+            <>
+              <p class="font-mono text-sm text-muted-foreground">Next update</p>
+              <h2 class="font-semibold">Since the last update</h2>
+            </>
+          )}
+        </div>
+        <ChangeList changes={changes} class="mt-2" />
+      </section>
+    ))
+  }
+</Base>
