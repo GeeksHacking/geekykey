@@ -44,21 +44,30 @@ export function formatPoints(points: number): string {
   return points === 1 ? "1 pt" : `${points} pts`;
 }
 
+function parseDate(iso: string): Date | null {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function formatTime(iso: string): string {
-  return timeFormat.format(new Date(iso));
+  const date = parseDate(iso);
+  return date ? timeFormat.format(date) : "—";
 }
 
 export function formatTimeWithSeconds(iso: string): string {
-  return timeWithSecondsFormat.format(new Date(iso));
+  const date = parseDate(iso);
+  return date ? timeWithSecondsFormat.format(date) : "—";
 }
 
 export function formatDate(iso: string): string {
-  return fullDateFormat.format(new Date(iso));
+  const date = parseDate(iso);
+  return date ? fullDateFormat.format(date) : "—";
 }
 
 /** "10 Oct, 09:00" */
 export function formatDateTime(iso: string): string {
-  const date = new Date(iso);
+  const date = parseDate(iso);
+  if (!date) return "—";
   return `${dateFormat.format(date)}, ${timeFormat.format(date)}`;
 }
 
@@ -72,7 +81,8 @@ export function isSameLocalDay(a: Date, b: Date): boolean {
 
 /** "Today", "Yesterday", or "10 Oct 2026". Used as list group headings. */
 export function formatDayLabel(iso: string, now: Date = new Date()): string {
-  const date = new Date(iso);
+  const date = parseDate(iso);
+  if (!date) return "Unknown date";
   if (isSameLocalDay(date, now)) return "Today";
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
@@ -82,7 +92,9 @@ export function formatDayLabel(iso: string, now: Date = new Date()): string {
 
 /** Short relative time for status boards: "just now", "45 s ago", "3 min ago", "2 h ago". */
 export function formatRelative(iso: string, now: Date = new Date()): string {
-  const seconds = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 1000));
+  const date = parseDate(iso);
+  if (!date) return "Unknown";
+  const seconds = Math.max(0, Math.round((now.getTime() - date.getTime()) / 1000));
   if (seconds < 10) return "just now";
   if (seconds < 60) return `${seconds} s ago`;
   const minutes = Math.round(seconds / 60);
@@ -94,7 +106,8 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
 
 /** "Today, 09:00" or "10 Oct, 09:00". Used on stamps and activity rows. */
 export function formatWhen(iso: string, now: Date = new Date()): string {
-  const date = new Date(iso);
+  const date = parseDate(iso);
+  if (!date) return "Unknown";
   if (isSameLocalDay(date, now)) return `Today, ${timeFormat.format(date)}`;
   return formatDateTime(iso);
 }

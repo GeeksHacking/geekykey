@@ -13,8 +13,8 @@ export function ForbiddenView() {
         <Prohibit className="mt-8 h-10 w-10 text-muted-foreground" aria-hidden />
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">Organisers only</h1>
         <p className="mt-2 text-muted-foreground">
-          This console is for the event team. Your account is a participant account. If you are
-          helping run the event, ask the lead organiser to change your role.
+          This console is for the event team. Your account does not have organiser access. If you
+          are helping run the event, ask the lead organiser to update your role.
         </p>
         <Button asChild className="mt-6">
           <Link to="/">Back to your passport</Link>

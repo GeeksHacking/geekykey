@@ -15,7 +15,7 @@ import { useStationOptions } from "@/features/taps/use-station-options";
 
 export function TapsScreen() {
   const [filters, setFilters] = useState<Filters>({});
-  const { stations } = useStationOptions();
+  const { stations, error: stationError, refetch: refetchStations } = useStationOptions();
   const log = useScanLog(filters);
   const filtered = filters.station_id !== undefined || filters.status !== undefined;
 
@@ -81,6 +81,13 @@ export function TapsScreen() {
         title="Scan log"
         description="Every tap from every station, newest first, including the ones that did not count. Refreshes every 5 seconds."
       />
+      {stationError ? (
+        <InlineQueryError
+          error={stationError}
+          onRetry={() => void refetchStations()}
+          title="Station filters are delayed."
+        />
+      ) : null}
       <ScanLogFilters filters={filters} onChange={setFilters} stations={stations} />
       {body}
     </div>

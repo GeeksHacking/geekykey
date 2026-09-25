@@ -19,7 +19,10 @@ import { SessionContext, type SessionStatus } from "@/lib/session";
 export function SessionProvider({ children }: { children: ReactNode }) {
   const api = useApi();
   const queryClient = useQueryClient();
-  const [authorizationError, setAuthorizationError] = useState<unknown>();
+  const [authorizationFailure, setAuthorizationFailure] = useState<{
+    error: unknown;
+    at: number;
+  }>();
 
   const me = useQuery({
     queryKey: queryKeys.me,
@@ -48,7 +51,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         queryClient.setQueryData(queryKeys.me, null);
         clearIdentityQueries();
       } else if (isApiErrorCode(error, "forbidden")) {
-        setAuthorizationError(error);
+        setAuthorizationFailure({ error, at: Date.now() });
       }
     };
     window.addEventListener(AUTH_ERROR_EVENT, onAuthError);
@@ -61,9 +64,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return api.me();
     },
     onMutate: () => {
+      // Cancel a pre-login poll so its late response cannot overwrite the new identity.
+      void queryClient.cancelQueries({ queryKey: queryKeys.me });
       // Clear before the request so a failed sign-in cannot leave the old account visible.
       queryClient.setQueryData(queryKeys.me, null);
-      setAuthorizationError(undefined);
+      setAuthorizationFailure(undefined);
       clearIdentityQueries();
     },
     onSuccess: (data) => queryClient.setQueryData(queryKeys.me, data),
@@ -72,9 +77,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signOut = useMutation({
     mutationFn: () => api.logout(),
     onMutate: () => {
+      // Cancel a poll that could otherwise restore the old identity after logout starts.
+      void queryClient.cancelQueries({ queryKey: queryKeys.me });
       // Hide cached identity data even if the network request later fails.
       queryClient.setQueryData(queryKeys.me, null);
-      setAuthorizationError(undefined);
+      setAuthorizationFailure(undefined);
       clearIdentityQueries();
     },
     onSuccess: () => {
@@ -88,8 +95,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
 
   const refresh = useCallback(async () => {
+    setAuthorizationFailure(undefined);
     await queryClient.invalidateQueries({ queryKey: queryKeys.me });
   }, [queryClient]);
+
+  const authorizationError =
+    authorizationFailure && me.dataUpdatedAt <= authorizationFailure.at
+      ? authorizationFailure.error
+      : undefined;
 
   // While a session transition is running, report "loading" rather than the stale state. A query
   // hands the null session to React on a later tick than the mutation promise, and a screen mounted

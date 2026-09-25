@@ -98,6 +98,10 @@ describe("SessionProvider", () => {
     await expect(api.listStations()).rejects.toBeDefined();
     await waitFor(() => expect(result.current.authorizationError).toBeDefined());
     expect(result.current.me?.user.role).toBe("organizer");
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.authorizationError).toBeUndefined();
   });
 
   it("clears the session when an identity-scoped request returns 401", async () => {

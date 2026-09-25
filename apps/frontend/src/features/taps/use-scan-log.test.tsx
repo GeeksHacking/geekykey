@@ -51,6 +51,45 @@ describe("useScanLog", () => {
     expect(result.current.taps.length).toBeGreaterThan(50);
   });
 
+  it("rebases older pages when a new head record arrives", async () => {
+    const { api, result } = setup({});
+    await waitFor(() => expect(result.current.isPending).toBe(false));
+    while (result.current.hasMore) {
+      await act(async () => {
+        await result.current.loadMore();
+      });
+    }
+
+    const station = api.mock.data.stations[0]!;
+    const token = api.mock.data.tokens.find((item) => item.user_id === api.mock.data.users[0]!.id);
+    const newId = Math.max(...api.mock.data.taps.map((tap) => tap.id)) + 1;
+    api.mock.data.taps.unshift({
+      id: newId,
+      station_id: station.id,
+      client_tap_id: `new-${newId}`,
+      token_uid: token?.uid ?? null,
+      user_id: token?.user_id ?? null,
+      source: "nfc",
+      status: "accepted",
+      tapped_at: null,
+      received_at: new Date().toISOString(),
+    });
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+    await waitFor(() => expect(result.current.taps).toHaveLength(50));
+    expect(result.current.taps).toHaveLength(50);
+    while (result.current.hasMore) {
+      await act(async () => {
+        await result.current.loadMore();
+      });
+    }
+
+    expect(new Set(result.current.taps.map((tap) => tap.id)).size).toBe(api.mock.data.taps.length);
+    expect(result.current.taps.some((tap) => tap.id === newId)).toBe(true);
+  });
+
   it("applies the status filter to every page", async () => {
     const { result } = setup({ status: "cooldown" });
     await waitFor(() => expect(result.current.isPending).toBe(false));

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "VITE_LIVE_API=0 vite",
     "dev:live": "VITE_LIVE_API=1 vite",
     "build": "pnpm typecheck && vite build",
     "preview": "vite preview",

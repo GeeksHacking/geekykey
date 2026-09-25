@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useApi } from "@/api/context";
 import { queryKeys, type TapsFilters } from "@/api/keys";
@@ -21,8 +21,9 @@ function mergeById(head: AdminTap[], older: AdminTap[]): AdminTap[] {
  * The agreement's live-feed recipe in two queries. The head is the newest page
  * with no cursor, polled every 5 s and merged by id. Older history is an
  * infinite query that only fetches when the organiser asks for more, starting
- * from the head's cursor. Both keys include the filters, so changing a filter
- * starts both over.
+ * from the head's cursor. Both keys include the filters, and the older key
+ * also includes the current head cursor, so a new head page starts a fresh
+ * history chain instead of skipping the row between the two boundaries.
  */
 export function useScanLog(filters: ScanLogFilters) {
   const api = useApi();
@@ -36,7 +37,9 @@ export function useScanLog(filters: ScanLogFilters) {
   const firstCursor = head.data?.next_before_id ?? undefined;
 
   const older = useInfiniteQuery({
-    queryKey: queryKeys.tapsOlder(filters),
+    // The cursor is part of the key: a new head page must start a fresh older
+    // chain instead of reusing a boundary that can now skip one row.
+    queryKey: queryKeys.tapsOlder(filters, firstCursor),
     queryFn: ({ pageParam }) =>
       api.listTaps({ limit: PAGE_SIZE, before_id: pageParam, ...filters }),
     initialPageParam: firstCursor,
@@ -46,19 +49,41 @@ export function useScanLog(filters: ScanLogFilters) {
 
   const headTaps = head.data?.taps;
   const olderPages = older.data?.pages;
+  const [olderLoad, setOlderLoad] = useState<{
+    filterKey: string;
+    headVersion: number | undefined;
+    cursor: number;
+    loaded: boolean;
+  }>();
+  const filterKey = JSON.stringify(filters);
+  const headVersion = headTaps?.[0]?.id;
+  const currentOlderPages =
+    olderLoad?.filterKey === filterKey &&
+    olderLoad.headVersion === headVersion &&
+    olderLoad.cursor === firstCursor &&
+    olderLoad.loaded
+      ? olderPages
+      : undefined;
   const taps = useMemo(
-    () => mergeById(headTaps ?? [], olderPages?.flatMap((page) => page.taps) ?? []),
-    [headTaps, olderPages],
+    () => mergeById(headTaps ?? [], currentOlderPages?.flatMap((page) => page.taps) ?? []),
+    [headTaps, currentOlderPages],
   );
 
-  const hasMore = olderPages ? older.hasNextPage : firstCursor !== undefined;
+  const hasMore = currentOlderPages ? older.hasNextPage : firstCursor !== undefined;
 
   async function loadMore() {
     if (!hasMore || older.isFetching) return;
     // The first older page starts from the head's cursor; later ones follow next_before_id.
     try {
-      if (olderPages) await older.fetchNextPage();
-      else await older.refetch();
+      if (currentOlderPages) {
+        await older.fetchNextPage();
+      } else {
+        const cursor = firstCursor;
+        if (cursor === undefined) return;
+        setOlderLoad({ filterKey, headVersion, cursor, loaded: false });
+        await older.refetch();
+        setOlderLoad({ filterKey, headVersion, cursor, loaded: true });
+      }
     } catch {
       // The query exposes older.error; the screen renders it instead of leaving an unhandled rejection.
     }
@@ -79,7 +104,12 @@ export function useScanLog(filters: ScanLogFilters) {
     hasMore,
     loadMore,
     retryLoadMore,
-    loadMoreError: older.error,
+    loadMoreError:
+      olderLoad?.filterKey === filterKey &&
+      olderLoad.headVersion === headVersion &&
+      olderLoad.cursor === firstCursor
+        ? older.error
+        : undefined,
     loadingMore: older.isFetching,
   };
 }

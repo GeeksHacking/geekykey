@@ -54,8 +54,9 @@ export function PairForm() {
             "This token is paired to someone else. Ask an organiser at the desk if that is wrong.",
         });
       } else if (isApiError(error) && error.code === "validation_failed") {
-        const leftover = applyApiIssues(form, error.issues);
-        if (leftover.length) setFormError(leftover.join(" "));
+        const issues = Array.isArray(error.issues) ? error.issues : [];
+        const leftover = applyApiIssues(form, issues);
+        setFormError(leftover.length ? leftover.join(" ") : describeError(error));
       } else {
         setFormError(describeError(error));
       }

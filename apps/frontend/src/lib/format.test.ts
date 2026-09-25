@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatDayLabel,
+  formatDate,
   formatPoints,
   formatRelative,
   formatUid,
+  formatWhen,
   normaliseUid,
 } from "@/lib/format";
 
@@ -36,6 +38,13 @@ describe("formatRelative", () => {
     expect(formatRelative("2026-10-10T08:59:20.000Z", now)).toBe("40 s ago");
     expect(formatRelative("2026-10-10T08:46:00.000Z", now)).toBe("14 min ago");
     expect(formatRelative("2026-10-10T06:00:00.000Z", now)).toBe("3 h ago");
+  });
+
+  it("does not throw for an invalid API timestamp", () => {
+    expect(formatRelative("not-a-date", now)).toBe("Unknown");
+    expect(formatDayLabel("not-a-date", now)).toBe("Unknown date");
+    expect(formatWhen("not-a-date", now)).toBe("Unknown");
+    expect(formatDate("not-a-date")).toBe("—");
   });
 });
 

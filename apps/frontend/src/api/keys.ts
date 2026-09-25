@@ -12,6 +12,7 @@ export const queryKeys = {
   me: ["me"] as const,
   stations: ["stations"] as const,
   taps: (filters: TapsFilters) => ["taps", filters] as const,
-  tapsOlder: (filters: TapsFilters) => ["taps", filters, "older"] as const,
+  tapsOlder: (filters: TapsFilters, cursor: number | undefined) =>
+    ["taps", filters, "older", cursor] as const,
   stats: ["stats"] as const,
 };

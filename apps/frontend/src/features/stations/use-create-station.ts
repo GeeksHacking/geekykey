@@ -10,6 +10,11 @@ export function useCreateStation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateStationRequest) => api.createStation(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.stations }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.stations }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.stats }),
+      ]);
+    },
   });
 }

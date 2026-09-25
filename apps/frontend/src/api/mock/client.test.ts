@@ -125,6 +125,17 @@ describe("QR fallback", () => {
     expect(result.result.status).toBe("unknown_token");
   });
 
+  it("rejects a malformed UID instead of recording unknown_token", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const station = api.mock.data.stations[0]!;
+    await expectApiError(
+      api.createFallbackTap({ station_id: station.id, uid: "zz" }),
+      "validation_failed",
+      400,
+    );
+  });
+
   it("returns 404 for a station that does not exist", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);

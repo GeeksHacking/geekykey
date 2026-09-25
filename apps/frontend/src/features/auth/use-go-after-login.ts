@@ -15,7 +15,7 @@ export function useGoAfterLogin() {
   return useCallback(
     (returnTo: string | undefined, role: Role) => {
       if (isSafeReturnTo(returnTo) && returnTo !== "/login") {
-        router.history.push(returnTo);
+        router.history.replace(returnTo);
       } else {
         void navigate({ to: homePathFor(role), replace: true });
       }

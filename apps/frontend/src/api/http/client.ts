@@ -17,7 +17,11 @@ import { normaliseUid } from "@/lib/format";
 export interface HttpClientOptions {
   /** Prefix for every path. Empty in dev: Vite proxies /api and /auth to the backend on :8000. */
   baseUrl?: string;
+  /** Maximum time to wait for one HTTP exchange. */
+  requestTimeoutMs?: number;
 }
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 /*
   The real client. Same interface and the same thrown errors as the mock, so no
@@ -29,13 +33,30 @@ export interface HttpClientOptions {
 */
 export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
   const baseUrl = (options.baseUrl ?? "").replace(/\/+$/, "");
+  const requestTimeoutMs = Math.max(1, options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
 
   async function send(path: string, init?: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const callerSignal = init?.signal;
+    const abortFromCaller = () => controller.abort();
+    if (callerSignal) {
+      if (callerSignal.aborted) controller.abort();
+      else callerSignal.addEventListener("abort", abortFromCaller, { once: true });
+    }
+    const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
+
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}${path}`, { ...init, credentials: "include" });
+      response = await fetch(`${baseUrl}${path}`, {
+        ...init,
+        credentials: "include",
+        signal: controller.signal,
+      });
     } catch {
       throw new NetworkError();
+    } finally {
+      clearTimeout(timeoutId);
+      callerSignal?.removeEventListener("abort", abortFromCaller);
     }
 
     if (response.ok || (response.status >= 200 && response.status < 300)) {
@@ -54,13 +75,17 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       parsed.code ?? errorCodeForStatus(response.status),
       parsed.issues,
     );
-    publishAuthError(error);
+    if (path !== "/api/v1/me") publishAuthError(error);
     throw error;
   }
 
   async function sendJson<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await send(path, init);
-    return (await response.json()) as T;
+    try {
+      return (await response.json()) as T;
+    } catch {
+      throw new NetworkError("The server returned an invalid response");
+    }
   }
 
   function postJson(body: unknown): RequestInit {
@@ -88,7 +113,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     pairToken: async (uid) => {
       // The backend normalises the UID, so send whatever the participant typed.
       const response = await send("/api/v1/tokens/pair", postJson({ uid }));
-      const body = (await response.json()) as PairTokenResponse;
+      let body: PairTokenResponse;
+      try {
+        body = (await response.json()) as PairTokenResponse;
+      } catch {
+        throw new NetworkError("The server returned an invalid response");
+      }
       // 201 is a new pairing, 200 is the idempotent repeat. The pair screen words them differently.
       return { token: body.token, created: response.status === 201 };
     },

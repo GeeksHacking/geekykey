@@ -39,7 +39,10 @@ describe("HTTP client transport", () => {
     const api = createHttpClient();
 
     await expect(api.me()).resolves.toEqual(me);
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/me", { credentials: "include" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/me",
+      expect.objectContaining({ credentials: "include" }),
+    );
   });
 
   it("uses the configured base URL for every request", async () => {
@@ -48,9 +51,10 @@ describe("HTTP client transport", () => {
 
     await api.me();
 
-    expect(fetchMock).toHaveBeenCalledWith("https://example.test/api/v1/me", {
-      credentials: "include",
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.test/api/v1/me",
+      expect.objectContaining({ credentials: "include" }),
+    );
   });
 
   it("does not read a 204 response body", async () => {
@@ -82,6 +86,16 @@ describe("HTTP client transport", () => {
         credentials: "include",
       }),
     );
+  });
+
+  it("maps an idempotent 200 pairing response to created false", async () => {
+    const body = { token: { uid: "04A1B2C3D4E5F6", paired_at: "2026-09-24T00:00:00.000Z" } };
+    fetchMock.mockResolvedValue(response(body, 200));
+
+    await expect(createHttpClient().pairToken("04A1B2C3D4E5F6")).resolves.toEqual({
+      token: body.token,
+      created: false,
+    });
   });
 
   it("maps structured validation errors and keeps their field paths", async () => {
@@ -145,6 +159,31 @@ describe("HTTP client transport", () => {
     fetchMock.mockRejectedValue(new TypeError("connection refused"));
 
     const error = await createHttpClient()
+      .me()
+      .catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(NetworkError);
+  });
+
+  it("turns malformed successful JSON into a NetworkError", async () => {
+    fetchMock.mockResolvedValue(new Response("<html>not json</html>", { status: 200 }));
+
+    const error = await createHttpClient()
+      .me()
+      .catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(NetworkError);
+  });
+
+  it("aborts a request that exceeds the configured timeout", async () => {
+    fetchMock.mockImplementation(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+
+    const error = await createHttpClient({ requestTimeoutMs: 5 })
       .me()
       .catch((reason: unknown) => reason);
     expect(error).toBeInstanceOf(NetworkError);
