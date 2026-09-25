@@ -1,0 +1,92 @@
+# One line per shipped, visible change. Oldest first: add new lines at the bottom.
+# CONTENT-MODEL.md, "Adding a changelog line", has the rules.
+
+- id: mvp-screens-on-mock-data
+  date: 2026-09-18
+  area: frontend
+  change: >-
+    Every MVP screen runs in the web app against mock data shaped exactly like the API
+    agreement, from the participant dashboard to the organiser's scan log.
+
+- id: api-agreement
+  date: 2026-09-18
+  area: backend
+  change: >-
+    The API agreement is written down: every endpoint the web app, backend and reader
+    stations use, with its shapes, errors and when it is due.
+
+- id: toolchain-pinned
+  date: 2026-09-18
+  area: tooling
+  change: >-
+    Node, pnpm and Deno versions are pinned in one file, so every laptop and CI run the same
+    toolchain.
+
+- id: taps-endpoint
+  date: 2026-09-21
+  area: backend
+  change: >-
+    A reader station can send taps to the backend, one at a time or in a batch, and the
+    backend records them.
+
+- id: dev-login
+  date: 2026-09-21
+  area: backend
+  change: >-
+    Development login and logout work, behind a flag that keeps them out of production.
+
+- id: http-client-switch
+  date: 2026-09-21
+  area: frontend
+  change: >-
+    The web app has a real HTTP client, and each endpoint moves from mock data to the live
+    backend by changing one line.
+
+- id: ci
+  date: 2026-09-21
+  area: tooling
+  change: >-
+    Every pull request runs lint, tests, a production build and a dependency audit.
+
+- id: supply-chain-policy
+  date: 2026-09-21
+  area: tooling
+  change: >-
+    Dependencies are clear of known security advisories apart from one that only affects a
+    development server we do not run, and a newly published version waits 24 hours before
+    it can be installed.
+
+- id: updates-site
+  date: 2026-09-23
+  area: admin
+  change: >-
+    This updates site goes up, with its first entry.
+  closes: 2026-09-23-sprint-1-opens
+
+- id: first-end-to-end-tap
+  date: 2026-09-23
+  area: firmware
+  change: >-
+    A real tag tapped on the reader is recorded by the backend over WiFi, with the verdict
+    back on the reader in about 0.2 seconds.
+
+- id: frontend-live-api-ready
+  date: 2026-09-24
+  area: frontend
+  change: >-
+    The web app is ready for the live backend: it keeps showing the last good data when a
+    refresh fails, and sends anyone whose session has ended back to the login page.
+
+- id: station-leds
+  date: 2026-09-25
+  area: firmware
+  change: >-
+    The reader blinks blue when the backend answers a tap and red when the tap could not be
+    recorded, so a failed tap shows without a laptop plugged in.
+
+- id: api-v1-me
+  date: 2026-09-25
+  area: backend
+  change: >-
+    The participant dashboard and passport can read from the real backend: a user's profile,
+    paired tokens, points, stamps and last 50 taps.

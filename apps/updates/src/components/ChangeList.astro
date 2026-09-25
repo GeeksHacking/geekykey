@@ -1,0 +1,52 @@
+---
+import type { Change } from "../lib/changelog";
+import { formatDay, isoDay } from "../lib/format";
+
+interface Props {
+  /** Oldest first, as getChangelog() returns them. Shown newest first, grouped by day. */
+  changes: Change[];
+  /** Inside an entry's text column, where the timeline's 11rem date column is too wide. */
+  narrow?: boolean;
+  class?: string;
+}
+
+const { changes, narrow = false, class: className } = Astro.props;
+
+const days: { day: Date; changes: Change[] }[] = [];
+for (const change of changes.toReversed()) {
+  const last = days.at(-1);
+  if (last && isoDay(last.day) === isoDay(change.data.date)) last.changes.push(change);
+  else days.push({ day: change.data.date, changes: [change] });
+}
+
+const label = (area: string) => area[0].toUpperCase() + area.slice(1);
+---
+
+<ol class:list={["divide-y divide-border", className]}>
+  {
+    days.map(({ day, changes }) => (
+      <li
+        class:list={[
+          "grid gap-y-2 py-4",
+          narrow
+            ? "gap-x-6 md:grid-cols-[4.5rem_minmax(0,1fr)]"
+            : "gap-x-12 md:grid-cols-[11rem_minmax(0,1fr)]",
+        ]}
+      >
+        <p class="font-mono text-sm text-muted-foreground">
+          <time datetime={isoDay(day)}>{formatDay(day, { year: false })}</time>
+        </p>
+        <ul class="max-w-[68ch] space-y-3">
+          {changes.map((change) => (
+            <li id={change.id} class="scroll-mt-8 leading-relaxed">
+              <span class="mr-2 text-sm font-medium text-muted-foreground">
+                {label(change.data.area)}
+              </span>
+              {change.data.change}
+            </li>
+          ))}
+        </ul>
+      </li>
+    ))
+  }
+</ol>

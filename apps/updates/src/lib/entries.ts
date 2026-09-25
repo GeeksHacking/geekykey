@@ -1,5 +1,6 @@
 import { getCollection, type CollectionEntry } from "astro:content";
 
+import { checkText, failer } from "./checks";
 import { isoDay, smartQuotes } from "./format";
 
 export type Entry = CollectionEntry<"entries">;
@@ -7,13 +8,20 @@ export type Entry = CollectionEntry<"entries">;
 /**
  * Every entry, newest first, after the checks the schema cannot make on its own. Pages
  * call this rather than getCollection, so no page can skip the checks.
+ *
+ * Two entries can end on the same day when one continues the other. The one whose window
+ * starts later is the continuation, so it sorts as the newer of the two.
  */
 export async function getEntries(): Promise<Entry[]> {
   const entries = await getCollection("entries");
   for (const entry of entries) check(entry);
   return entries
     .map(typeset)
-    .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+    .sort(
+      (a, b) =>
+        b.data.date.getTime() - a.data.date.getTime() ||
+        b.data.window.from.getTime() - a.data.window.from.getTime(),
+    );
 }
 
 /** Curly quotes in the front matter a reader sees. The body gets them from the renderer. */
@@ -30,38 +38,21 @@ function typeset(entry: Entry): Entry {
   };
 }
 
-// The design rules (apps/frontend/.agents/skills/design-taste-frontend/SKILL.md, 9.G) ban
-// en and em dashes anywhere a reader can see them. Entries are where one would slip in.
-const BANNED_DASH = /[–—]/;
-
 function check(entry: Entry) {
-  const file = entry.filePath ?? entry.id;
-  const fail = (problem: string): never => {
-    throw new Error(`${file}: ${problem}`);
-  };
+  const fail = failer(entry.filePath ?? entry.id);
 
   const date = isoDay(entry.data.date);
   if (!entry.id.startsWith(date)) {
     fail(`the file name should start with the entry's date, ${date}.`);
   }
 
-  const text = [
-    entry.data.title,
-    entry.data.summary,
-    ...(entry.data.asks ?? []).flatMap((ask) => [ask.who, ask.what]),
-    ...(entry.body ?? "").split("\n"),
-  ];
-
-  const dashed = text.find((line) => BANNED_DASH.test(line));
-  if (dashed) {
-    fail(
-      `this line has an en or em dash, which the design rules ban. Use a comma, a colon, ` +
-        `brackets or a full stop instead:\n\n  ${dashed.trim()}\n`,
-    );
-  }
-
-  // A draft can carry TODO( markers while it is being written. The published site cannot.
-  if (import.meta.env.PROD && text.some((line) => line.includes("TODO("))) {
-    fail(`it still has a TODO( marker. Finish it or take it out before publishing.`);
-  }
+  checkText(
+    [
+      entry.data.title,
+      entry.data.summary,
+      ...(entry.data.asks ?? []).flatMap((ask) => [ask.who, ask.what]),
+      ...(entry.body ?? "").split("\n"),
+    ],
+    fail,
+  );
 }

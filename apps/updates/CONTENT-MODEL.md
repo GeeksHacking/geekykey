@@ -33,7 +33,7 @@ summary: >-
   decision or the blocker here, not the commit count.
 areas: [backend, frontend, hardware, tooling]   # backend | frontend | firmware | hardware | design | research | tooling | admin
 asks:                     # pulled to the top of the page; drop the key if there are none
-  - who: Qing Yuan
+  - who: Qing Guan
     what: 30 minutes on the portal user schema and the OIDC callback shape
 ---
 ```
@@ -113,7 +113,60 @@ build that publishes the site refuses an entry that still has one.
 1. Copy the most recent file in `src/content/entries/` to a new dated filename.
 2. Update the front matter. `window.from` is the day after the last entry's `window.to`.
 3. Run the commit collector for your window (arriving in a later checkpoint) and edit its
-   output into `## What moved`.
+   output into `## What moved`, and into changelog lines for anything that shipped.
 4. Preview it: `mise run dev:updates`, then open http://localhost:4321. The page reloads
    as you save.
 5. Open a PR. The entry ships in the same PR as the work it describes where possible.
+
+# How to add a changelog line
+
+The changelog runs alongside the entries. An entry tells the story of a window: what we
+decided and why. The changelog is the plain list of what shipped, one line per change, so a
+mentor can see at a glance what exists now. The site shows it at `/changelog`, and each
+entry page ends with the lines from its own window.
+
+All of it lives in one file, `src/content/changelog.yaml`, oldest first. Add new lines at
+the bottom:
+
+```yaml
+- id: api-v1-me            # lowercase words and hyphens; becomes /changelog#api-v1-me
+  date: 2026-09-25         # the day it shipped
+  area: backend            # one of the entry areas: backend | frontend | firmware | ...
+  change: >-
+    The participant dashboard and passport can read from the real backend: a user's
+    profile, paired tokens, points, stamps and last 50 taps.
+```
+
+## What gets a line
+
+One line per change someone could see or use: an endpoint that works, a screen that moved
+onto real data, the reader doing something new, a prototype printed, a test session booked.
+Hardware and design count as much as code. Chores that change nothing visible (formatting,
+lockfile bumps, renames) do not get a line.
+
+Write it as one or two plain sentences in the present tense, saying what is now true. No
+Markdown, no commit or PR links (the repo is private), and the house rules above still
+apply: no PII, no en or em dashes.
+
+## Which entry a line belongs to
+
+Nobody links lines to entries by hand. Each entry covers the lines dated inside its window,
+and lines after the latest entry show at the top of the changelog as "Since the last
+update", ready for whoever writes the next one.
+
+The one exception is two entries that end on the same day. Then the file has to say where
+that day splits: add `closes:` with the earlier entry's id to the last line it covers.
+Every line after it belongs to the next entry.
+
+```yaml
+- id: updates-site
+  date: 2026-09-23
+  area: admin
+  change: >-
+    This updates site goes up, with its first entry.
+  closes: 2026-09-23-sprint-1-opens
+```
+
+The build checks the file and stops with a message saying what to fix when: two lines share
+an id, a line does not start with `- id:`, lines are out of date order, a line is dated before
+any entry's window starts, or two entries end on the same day with no `closes:` between them.
