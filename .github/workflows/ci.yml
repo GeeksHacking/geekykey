@@ -83,12 +83,47 @@ jobs:
         working-directory: apps/backend
         run: deno install --frozen-lockfile
 
+      # Neither of these is part of the typecheck or the tests, so without them
+      # lint errors and unformatted files pile up unnoticed. deno.json leaves
+      # drizzle/ out of the format check, because drizzle-kit rewrites those
+      # files in its own style on every generate.
+      - name: Lint
+        working-directory: apps/backend
+        run: deno lint
+
+      - name: Format
+        working-directory: apps/backend
+        run: deno fmt --check
+
       - name: Typecheck
         working-directory: apps/backend
         run: deno task check
 
       - name: Test
         run: pnpm test:backend
+
+  updates:
+    name: Updates site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.7.12
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The build is also the site's content check: it stops on a bad entry
+      # file name, a banned dash, a changelog line out of order, or a leftover
+      # TODO( marker. Running it here catches those on the PR that adds them.
+      - name: Build
+        run: pnpm build:updates
+        env:
+          # Astro sends anonymous usage data unless told not to.
+          ASTRO_TELEMETRY_DISABLED: "1"
 
   audit:
     name: Dependency audit
