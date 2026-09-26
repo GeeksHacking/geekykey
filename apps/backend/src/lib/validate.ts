@@ -10,9 +10,13 @@ import type { ZodType } from "zod";
  * field.
  */
 export function jsonBody<T extends ZodType>(schema: T) {
-  return zValidator("json", schema, (result, c) =>
-    result.success ? undefined : c.json(
-      { error: "validation_failed", issues: result.error.issues },
-      400,
-    ));
+  return zValidator(
+    "json",
+    schema,
+    (result, c) =>
+      result.success ? undefined : c.json(
+        { error: "validation_failed", issues: result.error.issues },
+        400,
+      ),
+  );
 }

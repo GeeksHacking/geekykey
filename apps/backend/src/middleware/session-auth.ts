@@ -131,6 +131,6 @@ export function requireSession(
 export function requireRole(role: Role): MiddlewareHandler<SessionEnv> {
   return async (c, next) => {
     if (c.var.user.role !== role) return c.json({ error: "forbidden" }, 403);
-    return next();
+    return await next();
   };
 }

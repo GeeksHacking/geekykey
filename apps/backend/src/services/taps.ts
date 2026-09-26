@@ -2,8 +2,8 @@ import { and, between, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.ts";
 import {
   type NewTap,
-  STORED_TAP_STATUSES,
-  TAP_SOURCES,
+  type STORED_TAP_STATUSES,
+  type TAP_SOURCES,
   taps,
 } from "../db/schema.ts";
 import { normaliseUid, type TokenResolver } from "./identity.ts";
