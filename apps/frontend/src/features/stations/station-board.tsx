@@ -36,7 +36,8 @@ export function StationBoard({ stations }: { stations: Station[] }) {
             <TableCell className="font-mono text-xs text-muted-foreground">
               {station.last_seen_at ? (
                 <time dateTime={station.last_seen_at} title={formatDateTime(station.last_seen_at)}>
-                  {formatRelative(station.last_seen_at)}
+                  <span className="sm:hidden">{formatDateTime(station.last_seen_at)}</span>
+                  <span className="hidden sm:inline">{formatRelative(station.last_seen_at)}</span>
                 </time>
               ) : (
                 "Never"

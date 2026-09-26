@@ -25,4 +25,6 @@ firmware/**/secrets.h
 
 .kilo/plans
 
-reports
+reports/
+playwright-report/
+test-results/
