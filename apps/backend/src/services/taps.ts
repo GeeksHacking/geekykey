@@ -151,8 +151,9 @@ export class TapPipeline {
       accepted.set(p.userId, times);
     }
 
-    // 4. One write round trip. #oneAtATime already stops a replay from this process racing
-    //    this request; conflict-ignore is the backstop for one arriving at another instance.
+    // 4. One write round trip. Conflict-ignore keeps (station, client_tap_id) unique, but it
+    //    does not correct the statuses decided above: a replay racing in on another instance
+    //    would still come back `accepted`. That is why #oneAtATime notes the database lock.
     const rows: NewTap[] = pending.map((p) => ({
       stationId,
       clientTapId: p.clientTapId,
