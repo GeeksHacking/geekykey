@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 
 import type { User } from "@/api/types";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { NavLink } from "@/components/layout/nav-link";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { useRouteHeadingFocus } from "@/lib/use-route-heading-focus";
 import { Wordmark } from "@/components/layout/wordmark";
 
 const NAV = [
@@ -23,8 +25,16 @@ interface AdminShellProps {
 
 /** Laptop first: sidebar from lg up, a scrolling tab row under the header below that. */
 export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
+  useRouteHeadingFocus();
+
   return (
     <div className="min-h-[100dvh] lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow"
+      >
+        Skip to content
+      </a>
       <aside className="hidden border-r lg:sticky lg:top-0 lg:flex lg:h-[100dvh] lg:flex-col">
         <div className="flex h-14 items-center gap-2 border-b px-4">
           <Link to="/admin/stations" aria-label="Organiser console home">
@@ -61,8 +71,15 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
             ))}
           </nav>
         </header>
-        <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
-          <div className="mx-auto w-full max-w-7xl">{children}</div>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 px-4 py-6 outline-none lg:px-8 lg:py-8"
+        >
+          <div className="mx-auto w-full max-w-7xl">
+            <DataSourceNotice scope="admin" />
+            {children}
+          </div>
         </main>
       </div>
     </div>
