@@ -108,6 +108,15 @@ Deno.test("health endpoints still respond", async () => {
   assert.equal((await res.json()).status, "ok");
 });
 
+Deno.test("unknown routes and methods return the JSON not_found error", async () => {
+  const { app } = await harness();
+  for (const [method, path] of [["GET", "/nope"], ["GET", "/api/v1/taps"]]) {
+    const res = await app.request(path, { method });
+    assert.equal(res.status, 404, `${method} ${path}`);
+    assert.deepEqual(await res.json(), { error: "not_found" });
+  }
+});
+
 Deno.test("treats an unparseable body as a 400, not a backend error", async () => {
   // A station that retried this as a 5xx would resend the same broken payload forever.
   const { app, stationKey } = await harness();

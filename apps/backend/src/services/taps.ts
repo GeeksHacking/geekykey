@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, between, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.ts";
 import {
   type NewTap,
@@ -32,6 +32,15 @@ export interface TapPipelineOptions {
   now?: () => Date;
 }
 
+/**
+ * A device tapped_at further than this from the server's clock is treated as
+ * absent, and the tap is judged by its receipt time instead. An ESP32 that
+ * never synced its clock reports 1970, and one wild timestamp would otherwise
+ * skew that participant's cooldown at the station for good.
+ */
+const MAX_TAP_AGE_MS = 7 * 24 * 60 * 60 * 1000; // an offline buffer may wait days to flush
+const MAX_CLOCK_AHEAD_MS = 5 * 60 * 1000; // a synced clock can still run a little fast
+
 interface PendingTap {
   index: number;
   clientTapId: string;
@@ -56,6 +65,8 @@ export class TapPipeline {
   #tokens: TokenResolver;
   #cooldownMs: number;
   #now: () => Date;
+  /** The last ingest queued for each station. See #oneAtATime. */
+  #queues = new Map<string, Promise<unknown>>();
 
   constructor(db: Db, tokens: TokenResolver, options: TapPipelineOptions) {
     this.#db = db;
@@ -64,13 +75,25 @@ export class TapPipeline {
     this.#now = options.now ?? (() => new Date());
   }
 
-  async ingest(
+  ingest(
     stationId: string,
     incoming: IncomingTap[],
     source: TapSource = "nfc",
   ): Promise<TapResult[]> {
+    return this.#oneAtATime(
+      stationId,
+      () => this.#ingest(stationId, incoming, source),
+    );
+  }
+
+  async #ingest(
+    stationId: string,
+    incoming: IncomingTap[],
+    source: TapSource,
+  ): Promise<TapResult[]> {
     if (incoming.length === 0) return [];
-    const receivedAt = this.#now().toISOString();
+    const now = this.#now();
+    const receivedAt = now.toISOString();
     const results: TapResult[] = new Array(incoming.length);
 
     // 1. Replays: client IDs already stored for this station, or repeated within this request.
@@ -90,9 +113,7 @@ export class TapPipeline {
         return;
       }
       seen.add(tap.clientTapId);
-      const tappedAt = tap.tappedAt
-        ? new Date(tap.tappedAt).toISOString()
-        : null;
+      const tappedAt = this.#trustedTappedAt(tap.tappedAt, now);
       pending.push({
         index,
         clientTapId: tap.clientTapId,
@@ -111,27 +132,27 @@ export class TapPipeline {
     ]);
     for (const p of pending) p.userId = users.get(p.uid) ?? null;
 
-    // 3. Cooldown: compare each known user's tap with their latest accepted tap at this station,
-    //    then walk this batch in time order so offline flushes are judged by when taps happened.
-    const knownUserIds = [
-      ...new Set(pending.flatMap((p) => (p.userId ? [p.userId] : []))),
-    ];
-    const lastAccepted = await this.#lastAcceptedAt(stationId, knownUserIds);
+    // 3. Cooldown: a known user's tap is `cooldown` when one of their accepted taps at this
+    //    station, stored or earlier in this batch, is inside the window on either side of it.
+    //    Walking the batch in time order means an offline flush is judged by when taps happened.
+    const accepted = await this.#acceptedTimes(stationId, pending);
     const inTimeOrder = [...pending].sort((a, b) =>
       a.effectiveAt.localeCompare(b.effectiveAt)
     );
     for (const p of inTimeOrder) {
       if (p.userId === null) continue;
-      const last = lastAccepted.get(p.userId);
-      if (last !== undefined && this.#withinCooldown(last, p.effectiveAt)) {
+      const times = accepted.get(p.userId) ?? [];
+      if (times.some((at) => this.#withinCooldown(at, p.effectiveAt))) {
         p.status = "cooldown";
         continue;
       }
       p.status = "accepted";
-      lastAccepted.set(p.userId, p.effectiveAt);
+      times.push(p.effectiveAt);
+      accepted.set(p.userId, times);
     }
 
-    // 4. One write round trip. Conflict-ignore absorbs a concurrent replay racing this request.
+    // 4. One write round trip. #oneAtATime already stops a replay from this process racing
+    //    this request; conflict-ignore is the backstop for one arriving at another instance.
     const rows: NewTap[] = pending.map((p) => ({
       stationId,
       clientTapId: p.clientTapId,
@@ -152,6 +173,43 @@ export class TapPipeline {
       };
     }
     return results;
+  }
+
+  /**
+   * Runs one station's ingests one after another. Each ingest reads, decides,
+   * then writes, so two overlapping requests from the same station would miss
+   * each other's rows: a retry racing its original would get `accepted` twice,
+   * and two taps by one participant would both beat the cooldown.
+   *
+   * This only orders requests inside one process. Once the backend runs on
+   * several Workers instances, the same guarantee needs a database lock, such
+   * as `SELECT ... FOR UPDATE` on the station row inside a transaction.
+   */
+  async #oneAtATime<T>(stationId: string, run: () => Promise<T>): Promise<T> {
+    const previous = this.#queues.get(stationId) ?? Promise.resolve();
+    const current = previous.then(run);
+    // The next ingest waits for this one, whether it succeeds or fails.
+    const tail = current.catch(() => {});
+    this.#queues.set(stationId, tail);
+    try {
+      return await current;
+    } finally {
+      // Nothing queued behind this one, so drop the entry rather than keep one per station forever.
+      if (this.#queues.get(stationId) === tail) this.#queues.delete(stationId);
+    }
+  }
+
+  /** The device time as ISO 8601, or null when it is missing or too far from the server's clock. */
+  #trustedTappedAt(tappedAt: string | undefined, now: Date): string | null {
+    if (!tappedAt) return null;
+    const at = Date.parse(tappedAt);
+    const drift = at - now.getTime();
+    if (
+      Number.isNaN(at) || drift > MAX_CLOCK_AHEAD_MS || -drift > MAX_TAP_AGE_MS
+    ) {
+      return null;
+    }
+    return new Date(at).toISOString();
   }
 
   #withinCooldown(a: string, b: string): boolean {
@@ -175,31 +233,45 @@ export class TapPipeline {
     return new Set(rows.map((row) => row.clientTapId));
   }
 
-  async #lastAcceptedAt(
+  /**
+   * Times of the stored accepted taps at this station, per user, that are
+   * close enough to some tap in `pending` to put it in cooldown. Fetching
+   * every nearby tap, not just the latest, matters for a late offline flush:
+   * its taps sit between ones already stored.
+   */
+  async #acceptedTimes(
     stationId: string,
-    userIds: string[],
-  ): Promise<Map<string, string>> {
-    if (userIds.length === 0) return new Map();
+    pending: PendingTap[],
+  ): Promise<Map<string, string[]>> {
+    const known = pending.flatMap((p) =>
+      p.userId ? [{ userId: p.userId, at: Date.parse(p.effectiveAt) }] : []
+    );
+    if (known.length === 0 || this.#cooldownMs <= 0) return new Map();
+
+    const times = known.map((k) => k.at);
+    const from = new Date(Math.min(...times) - this.#cooldownMs).toISOString();
+    const to = new Date(Math.max(...times) + this.#cooldownMs).toISOString();
+    const effectiveAt = sql<
+      string
+    >`coalesce(${taps.tappedAt}, ${taps.receivedAt})`;
+
     const rows = await this.#db
-      .select({
-        userId: taps.userId,
-        lastAt: sql<
-          string
-        >`max(coalesce(${taps.tappedAt}, ${taps.receivedAt}))`,
-      })
+      .select({ userId: taps.userId, at: effectiveAt })
       .from(taps)
       .where(
         and(
           eq(taps.stationId, stationId),
           eq(taps.status, "accepted"),
-          inArray(taps.userId, userIds),
+          inArray(taps.userId, [...new Set(known.map((k) => k.userId))]),
+          between(effectiveAt, from, to),
         ),
-      )
-      .groupBy(taps.userId);
-    return new Map(
-      rows.flatMap((
-        row,
-      ) => (row.userId ? [[row.userId, row.lastAt] as const] : [])),
-    );
+      );
+
+    const byUser = new Map<string, string[]>();
+    for (const row of rows) {
+      if (!row.userId) continue;
+      byUser.set(row.userId, [...(byUser.get(row.userId) ?? []), row.at]);
+    }
+    return byUser;
   }
 }
