@@ -28,6 +28,9 @@ export function createApp({ db, config }: AppDeps) {
 
   const app = new Hono();
 
+  // Hono's default is a plain-text body; the agreement puts every error in the JSON envelope.
+  app.notFound((c) => c.json({ error: "not_found" }, 404));
+
   app.onError((err, c) => {
     // Hono raises a 400 HTTPException when a body will not parse as JSON. That is
     // the client's fault, so it must not surface as 5xx: the firmware contract
