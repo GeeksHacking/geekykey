@@ -23,7 +23,7 @@ Centralised-Capstone-Folder/
 # Firmware credentials (template: firmware/*/secrets.example.h)
 firmware/**/secrets.h
 
-.kilo
+.kilo/
 
 reports/
 playwright-report/
