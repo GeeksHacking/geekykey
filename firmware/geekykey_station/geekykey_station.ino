@@ -143,19 +143,6 @@ void loop() {
     Serial.println(clientTapId + " -> FAILED, tap not recorded");
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("FAILED");
-    lcd.setCursor(0, 1);
-    lcd.print("Tap not recorded");
-    delay(2000);
-    for (byte i = 0; i < 5; i++) {
-      blinkLEDRED();
-    }
-    lcd.clear(); 
-
-  } else {
-    Serial.println(clientTapId + " -> " + status);
-    lcd.clear();
-    lcd.setCursor(0, 0);
     lcd.print("PASSED");
     lcd.setCursor(0, 1);
     lcd.print("Tap recorded");
@@ -163,6 +150,27 @@ void loop() {
     for (byte i = 0; i < 5; i++) {
       blinkLEDBLUE();
     }
+    lcd.clear(); 
+
+  } else {
+    Serial.println(clientTapId + " -> " + status);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("COOLDOWN");
+
+  } else if (status == "unknown_token") {
+    lcd.setCursor(0, 0);
+    lcd.print("Unknown");
+    lcd.setCursor(0, 1);
+    lcd.print("token");
+    delay(2000);
+    for (byte i = 0; i < 5; i++) {
+      blinkLEDRED();
+    }
+    lcd.clear(); 
+
+  } else {
+    Serial.println(clientTapId + " -> FAILED, tap not recorded");
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("COOLDOWN");
@@ -176,9 +184,9 @@ void loop() {
     lcd.print("for scanning");
   }
 
-  delay(1000);
+  }
+  
 }
-
 // Formats the hardware UID as uppercase hex with no separators, e.g. 04A1B2C3D4E5F6.
 String uidToHex(const MFRC522::Uid& uid) {
   String hex = "";
