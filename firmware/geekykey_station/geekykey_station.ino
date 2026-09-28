@@ -43,6 +43,7 @@
 #define MOSI_PIN 11
 #define LED_PIN_BLUE 4
 #define LED_PIN_RED 5
+#define LED_PIN_YELLOW 3
 #define I2C_SDA 7
 #define I2C_SCL 6
 
@@ -64,6 +65,7 @@ void setup() {
   delay(1000);
   pinMode(LED_PIN_BLUE, OUTPUT);
   pinMode(LED_PIN_RED, OUTPUT);
+  pinMode(LED_PIN_YELLOW, OUTPUT);
   Wire.begin(I2C_SDA, I2C_SCL);
   lcd.init();
   lcd.backlight();
@@ -82,17 +84,39 @@ void setup() {
 
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
+  lcd.setCursor(0, 0);
+  lcd.print("Connecting");
+  lcd.setCursor(0, 1);
+  lcd.print("to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+  lcd.clear();
   Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+  lcd.print("Connected!");
+  delay(2000);
+  lcd.clear();
 
   // mDNS must be running before this station can look up a .local name.
-  if (!MDNS.begin("geekykey-station")) Serial.println("mDNS failed to start");
+  if (!MDNS.begin("geekykey-station")) {
+    Serial.println("mDNS failed to start");
+    lcd.setCursor(0, 0);
+    lcd.print("mDNS");
+    lcd.setCursor(0, 1);
+    lcd.print("failed to start");
+    delay(2000);
+    lcd.clear();
+  }
   if (resolveServer()) checkBackend();
 
   Serial.println("Ready. Tap an NTAG213 tag...");
+  lcd.setCursor(0, 0);
+  lcd.print("Ready");
+  lcd.setCursor(0, 1);
+  lcd.print("Tap a tag");
+  delay(2000);
+
 }
 
 void loop() {
@@ -125,7 +149,7 @@ void loop() {
     for (byte i = 0; i < 5; i++) {
       blinkLEDRED();
     }
-    lcd.clear();
+    lcd.clear(); 
 
   } else {
     Serial.println(clientTapId + " -> " + status);
@@ -137,6 +161,12 @@ void loop() {
     for (byte i = 0; i < 5; i++) {
       blinkLEDBLUE();
     }
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("COOLDOWN");
+    digitalWrite(LED_PIN_YELLOW, HIGH);
+    delay(10000);
+    digitalWrite(LED_PIN_YELLOW, LOW);
     lcd.clear();
   }
 
