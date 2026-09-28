@@ -28,8 +28,8 @@
 #define MISO_PIN 13
 #define MOSI_PIN 11
 
-const char* ssid       = "Aegon";
-const char* password   = "123abcde";
+const char* ssid       = WIFI_SSID;
+const char* password   = WIFI_PASSWORD;
 const char* serverUrl  = "http://YOUR_SERVER_URL/api/tag"; // update once your server is ready
 
 MFRC522 rfid(SS_PIN, RST_PIN);
