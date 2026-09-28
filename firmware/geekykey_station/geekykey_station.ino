@@ -141,6 +141,7 @@ void loop() {
   String status = sendTap(clientTapId, uid);
   if (status.length() == 0) {
     Serial.println(clientTapId + " -> FAILED, tap not recorded");
+    lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("FAILED");
     lcd.setCursor(0, 1);
@@ -153,6 +154,7 @@ void loop() {
 
   } else {
     Serial.println(clientTapId + " -> " + status);
+    lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("PASSED");
     lcd.setCursor(0, 1);
@@ -168,6 +170,10 @@ void loop() {
     delay(10000);
     digitalWrite(LED_PIN_YELLOW, LOW);
     lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Ready");
+    lcd.setCursor(0, 1);
+    lcd.print("for scanning");
   }
 
   delay(1000);
