@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/layout/page-header";
+import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { PairForm } from "@/features/tokens/pair-form";
 import { TokenList } from "@/features/tokens/token-list";
 import { useMe } from "@/lib/session";
@@ -7,6 +8,7 @@ export function PairScreen() {
   const { me } = useMe();
   return (
     <div className="space-y-8">
+      <DataSourceNotice scope="pair" />
       <PageHeader
         title="Your token"
         description="The physical NFC token linked to your account. You can pair more than one."

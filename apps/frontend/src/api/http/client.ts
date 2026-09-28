@@ -8,11 +8,11 @@ import type {
   ListStationsResponse,
   ListTapsQuery,
   ListTapsResponse,
-  MeResponse,
   PairTokenResponse,
   StatsResponse,
 } from "@/api/types";
 import { normaliseUid } from "@/lib/format";
+import { parseMeResponse } from "@/api/schemas";
 
 export interface HttpClientOptions {
   /** Prefix for every path. Empty in dev: Vite proxies /api and /auth to the backend on :8000. */
@@ -97,7 +97,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
   }
 
   return {
-    me: () => sendJson<MeResponse>("/api/v1/me"),
+    me: () => sendJson<unknown>("/api/v1/me").then(parseMeResponse),
 
     devLogin: async (userId) => {
       await send("/auth/dev-login", postJson({ user_id: userId }));

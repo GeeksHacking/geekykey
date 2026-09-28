@@ -31,7 +31,8 @@ const columns = column.columns([
         title={formatDateTime(row.original.received_at)}
         className="font-mono text-xs"
       >
-        {formatTimeWithSeconds(row.original.received_at)}
+        <span className="sm:hidden">{formatDateTime(row.original.received_at)}</span>
+        <span className="hidden sm:inline">{formatTimeWithSeconds(row.original.received_at)}</span>
       </time>
     ),
   }),

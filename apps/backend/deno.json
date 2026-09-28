@@ -18,6 +18,9 @@
     "deps:lock": "deno install --min-dep-age=1440",
     "db:generate": "deno run --allow-read --allow-write=./drizzle --allow-env --allow-sys=homedir npm:drizzle-kit generate"
   },
+  "fmt": {
+    "exclude": ["drizzle/"]
+  },
   "nodeModulesDir": "auto",
   "license": "MIT"
 }
