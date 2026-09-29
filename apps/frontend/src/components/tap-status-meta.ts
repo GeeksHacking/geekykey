@@ -48,6 +48,30 @@ export const TAP_STATUS_META: Record<TapStatus, TapStatusMeta> = {
     participantReason: "This token was not paired at the time. Not counted.",
     organiserNote: "No account is paired to that token. Recorded, not counted.",
   },
+  no_event: {
+    label: "No event",
+    participantLabel: "No active event",
+    icon: Question,
+    textClass: "text-status-unknown",
+    bgClass: "bg-status-unknown/10",
+    participantReason: "No event is accepting taps right now.",
+    organiserNote: "The station is not linked to an event that is accepting taps.",
+  },
+  no_game: {
+    label: "No game",
+    participantLabel: "Not in this game",
+    icon: Question,
+    textClass: "text-status-unknown",
+    bgClass: "bg-status-unknown/10",
+    participantReason: "This station is not part of the current game.",
+    organiserNote: "The station is not part of the current event game.",
+  },
 };
 
-export const TAP_STATUSES: TapStatus[] = ["accepted", "cooldown", "unknown_token"];
+export const TAP_STATUSES: TapStatus[] = [
+  "accepted",
+  "cooldown",
+  "unknown_token",
+  "no_event",
+  "no_game",
+];

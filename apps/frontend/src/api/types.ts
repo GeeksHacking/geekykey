@@ -6,8 +6,8 @@
 
 export type Role = "participant" | "organizer";
 
-/** Stored tap statuses. `duplicate` exists in the agreement but is only ever returned to stations. */
-export type TapStatus = "accepted" | "cooldown" | "unknown_token";
+/** Stored tap statuses. `duplicate` is station-only and is not part of the admin/Event log. */
+export type TapStatus = "accepted" | "cooldown" | "unknown_token" | "no_event" | "no_game";
 
 export type TapSource = "nfc" | "qr_fallback";
 
@@ -150,7 +150,13 @@ export type ErrorCode =
   | "invalid_station_key"
   | "forbidden"
   | "not_found"
+  | "token_taken"
+  | "token_limit_reached"
   | "uid_already_paired"
+  | "rate_limited"
+  | "invalid_event_service_key"
+  | "event_service_unavailable"
+  | "portal_unavailable"
   | "internal_error";
 
 export interface ApiIssue {
