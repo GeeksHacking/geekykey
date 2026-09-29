@@ -38,6 +38,11 @@ function liveMethods(http: ApiClient): Partial<ApiClient> {
   };
 }
 
+/** The names in liveMethods(). The "Demo data" notice reads this, so it never needs its own list. */
+export const LIVE_METHODS: ReadonlySet<keyof ApiClient> = new Set(
+  Object.keys(liveMethods({} as ApiClient)) as (keyof ApiClient)[],
+);
+
 export function createAppClient({ live = LIVE_API }: AppClientOptions = {}): ApiClient {
   const mock = createMockClient({ simulate: !live });
   if (!live) return mock;

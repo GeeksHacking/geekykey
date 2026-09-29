@@ -74,6 +74,13 @@ bundle for new code. Do not move a route to that bundle until its backend endpoi
 response contract are implemented; the bundle is organizational preparation, not a second
 live switch.
 
+`GET /api/v1/admin/stations` is on both services with different responses. The GeekyKey
+Service's (agreement 10.1) is the station registry behind `/admin/stations`, next to
+`createStation` (10.2), which only the GeekyKey Service has. The Event Service's (9.2) is the
+Organizer's station board, which the fallback picker and the scan-log filter need. The bundle
+names them `geekykey.listStations` and `event.listStationBoard`; both still call the one
+`listStations()` until the services split.
+
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
 | 1 | Session | `devLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
