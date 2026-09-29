@@ -121,9 +121,7 @@ describe("HTTP client transport", () => {
     [401, "unauthenticated"],
     [403, "forbidden"],
     [404, "not_found"],
-    [409, "token_taken"],
-    [429, "rate_limited"],
-    [503, "event_service_unavailable"],
+    [409, "uid_already_paired"],
     [500, "internal_error"],
     [418, "internal_error"],
   ])("maps status %i to %s when the error body is unusable", async (status, code) => {
@@ -140,14 +138,6 @@ describe("HTTP client transport", () => {
 
     const error = await apiError(createHttpClient().me());
     expect(error.code).toBe("forbidden");
-  });
-
-  it("keeps new contract error codes from the response", async () => {
-    fetchMock.mockResolvedValue(response({ error: "event_service_unavailable" }, 503));
-
-    const error = await apiError(createHttpClient().listTaps());
-    expect(error.code).toBe("event_service_unavailable");
-    expect(error.status).toBe(503);
   });
 
   it("ignores malformed issue entries without losing valid ones", async () => {

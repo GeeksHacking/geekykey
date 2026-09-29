@@ -51,17 +51,7 @@ export function describeError(error: unknown): string {
       case "not_found":
         return "That was not found. It may have been removed.";
       case "uid_already_paired":
-      case "token_taken":
         return "This token is already paired to another account.";
-      case "token_limit_reached":
-        return "You have reached the token limit for this account.";
-      case "rate_limited":
-        return "Too many requests. Wait a minute and try again.";
-      case "invalid_event_service_key":
-        return "The event service key is missing or invalid.";
-      case "event_service_unavailable":
-      case "portal_unavailable":
-        return "A required service is unavailable. Try again shortly.";
       case "missing_station_key":
       case "invalid_station_key":
         return "The station key is missing or invalid.";

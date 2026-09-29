@@ -1,10 +1,8 @@
 import { Info } from "@phosphor-icons/react";
 
-import { dataSourceMessage, isMockData, type DataSourceScope } from "@/api/mode";
+import { dataSourceMessage, type DataSourceScope } from "@/api/mode";
 
 export function DataSourceNotice({ scope }: { scope: DataSourceScope }) {
-  if (!isMockData(scope)) return null;
-
   return (
     <div
       role="status"

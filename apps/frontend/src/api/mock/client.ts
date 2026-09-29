@@ -47,13 +47,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   invalid_station_key: 401,
   forbidden: 403,
   not_found: 404,
-  token_taken: 409,
-  token_limit_reached: 409,
   uid_already_paired: 409,
-  rate_limited: 429,
-  invalid_event_service_key: 401,
-  event_service_unavailable: 503,
-  portal_unavailable: 503,
   internal_error: 500,
 };
 

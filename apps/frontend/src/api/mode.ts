@@ -1,25 +1,6 @@
-import type { ApiClient } from "@/api/client";
-
 export type DataSourceScope = "admin" | "pair";
 
 export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
-
-export const LIVE_METHODS: ReadonlySet<keyof ApiClient> = new Set([
-  "me",
-  "devLogin",
-  "logout",
-  "loginUrl",
-]);
-
-const SCOPE_METHOD: Record<DataSourceScope, keyof ApiClient> = {
-  admin: "listStations",
-  pair: "pairToken",
-};
-
-export function isMockData(scope: DataSourceScope, live: boolean = isLiveApiEnabled): boolean {
-  if (!live) return true;
-  return !LIVE_METHODS.has(SCOPE_METHOD[scope]);
-}
 
 export function dataSourceMessage(
   scope: DataSourceScope,

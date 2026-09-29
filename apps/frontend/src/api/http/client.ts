@@ -151,13 +151,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "invalid_station_key",
   "forbidden",
   "not_found",
-  "token_taken",
-  "token_limit_reached",
   "uid_already_paired",
-  "rate_limited",
-  "invalid_event_service_key",
-  "event_service_unavailable",
-  "portal_unavailable",
   "internal_error",
 ]);
 
@@ -166,9 +160,7 @@ function errorCodeForStatus(status: number): ErrorCode {
   if (status === 401) return "unauthenticated";
   if (status === 403) return "forbidden";
   if (status === 404) return "not_found";
-  if (status === 409) return "token_taken";
-  if (status === 429) return "rate_limited";
-  if (status === 503) return "event_service_unavailable";
+  if (status === 409) return "uid_already_paired";
   return "internal_error";
 }
 
