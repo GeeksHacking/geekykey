@@ -60,6 +60,22 @@ MFRC522 rfid(SS_PIN, RST_PIN);
 Preferences prefs;
 uint32_t nextTapId = 0;
 
+#define QUEUE_CAPACITY 100
+#define QUEUE_RETRY_INITIAL_MS 2000UL
+#define QUEUE_RETRY_MAX_MS 60000UL
+#define QUEUE_FLUSH_PER_PASS 1
+
+struct QueuedTap {
+  String clientTapId;
+  String uid;
+  String tappedAt;
+};
+
+uint8_t queueHead = 0;
+uint8_t queueCount = 0;
+unsigned long nextQueueAttemptAt = 0;
+unsigned long queueRetryDelayMs = QUEUE_RETRY_INITIAL_MS;
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -81,6 +97,7 @@ void setup() {
   // `duplicate` and silently discarded by the backend.
   prefs.begin("geekykey", false);
   nextTapId = prefs.getUInt("tap_id", 0);
+  loadQueueState();
 
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
@@ -120,6 +137,8 @@ void setup() {
 }
 
 void loop() {
+  flushQueue();
+
   if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
     delay(50);
     return;
@@ -138,65 +157,205 @@ void loop() {
   if (tagText.length() > 0) Serial.println("Text: " + tagText);
   
   String clientTapId = takeClientTapId();
-  String status = sendTap(clientTapId, uid);
-  if (status == "accepted") {
-    Serial.println(clientTapId + " -> " + status);
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("PASSED");
-    lcd.setCursor(0, 1);
-    lcd.print("Tap recorded");
-    delay(2000);
-    for (byte i = 0; i < 5; i++) {
-      blinkLEDBLUE();
-    }
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("COOLDOWN");
-    digitalWrite(LED_PIN_YELLOW, HIGH);
-    delay(10000);
-    digitalWrite(LED_PIN_YELLOW, LOW);
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Ready");
-    lcd.setCursor(0, 1);
-    lcd.print("for scanning");
-
-  } else if (status == "cooldown") {
-    lcd.setCursor(0, 0);
-    lcd.print("COOLDOWN");
-
-  } else if (status == "unknown_token") {
-    lcd.setCursor(0, 0);
-    lcd.print("Unknown");
-    lcd.setCursor(0, 1);
-    lcd.print("token");
-    delay(2000);
-    for (byte i = 0; i < 5; i++) {
+  bool queueWasEmpty = queueCount == 0;
+  QueuedTap tap = {clientTapId, uid, ""};
+  if (!enqueueTap(tap)) {
+    if (queueCount >= QUEUE_CAPACITY) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("QUEUE FULL");
+      lcd.setCursor(0, 1);
+      lcd.print("Station storage full");
+      delay(2000);
+      blinkLEDRED();
+    } else {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("STORAGE ERROR");
+      lcd.setCursor(0, 1);
+      lcd.print("Check station");
+      delay(2000);
       blinkLEDRED();
     }
-    lcd.clear(); 
+    return;
+  }
 
+  String status;
+  if (queueWasEmpty && WiFi.status() == WL_CONNECTED) {
+    status = sendQueuedHead();
+  }
+
+  if (status.length() > 0) {
+    showTapStatus(status);
   } else {
-    Serial.println(clientTapId + " -> FAILED, tap not recorded");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("QUEUED");
+    lcd.setCursor(0, 1);
+    lcd.print("Offline " + String(queueCount));
+    delay(1000);
+  }
+
+  delay(250);
+}
+String queueSlotKey(uint8_t slot) {
+  return "q_" + String(slot);
+}
+
+bool saveQueueState(uint8_t head, uint8_t count) {
+  JsonDocument state;
+  state["head"] = head;
+  state["count"] = count;
+  String payload;
+  if (serializeJson(state, payload) == 0) return false;
+  return prefs.putString("q_meta", payload) == payload.length();
+}
+
+void loadQueueState() {
+  String payload = prefs.getString("q_meta", "");
+  if (payload.length() > 0) {
+    JsonDocument state;
+    if (!deserializeJson(state, payload)) {
+      int head = state["head"].as<int>();
+      int count = state["count"].as<int>();
+      if (head >= 0 && head < QUEUE_CAPACITY && count >= 0 && count <= QUEUE_CAPACITY) {
+        queueHead = (uint8_t)head;
+        queueCount = (uint8_t)count;
+        Serial.println("Restored " + String(queueCount) + " queued tap(s)");
+        return;
+      }
+    }
+  }
+  queueHead = 0;
+  queueCount = 0;
+  saveQueueState(queueHead, queueCount);
+}
+
+bool storeQueuedTap(uint8_t slot, const QueuedTap &tap) {
+  JsonDocument entry;
+  entry["client_tap_id"] = tap.clientTapId;
+  entry["uid"] = tap.uid;
+  if (tap.tappedAt.length() > 0) entry["tapped_at"] = tap.tappedAt;
+  String payload;
+  if (serializeJson(entry, payload) == 0) return false;
+  const String key = queueSlotKey(slot);
+  return prefs.putString(key.c_str(), payload) == payload.length();
+}
+
+bool loadQueuedTap(uint8_t slot, QueuedTap &tap) {
+  const String key = queueSlotKey(slot);
+  String payload = prefs.getString(key.c_str(), "");
+  if (payload.length() == 0) return false;
+  JsonDocument entry;
+  if (deserializeJson(entry, payload)) return false;
+  const char *clientTapId = entry["client_tap_id"];
+  const char *uid = entry["uid"];
+  if (!clientTapId || !uid) return false;
+  tap.clientTapId = clientTapId;
+  tap.uid = uid;
+  const char *tappedAt = entry["tapped_at"];
+  tap.tappedAt = tappedAt ? tappedAt : "";
+  return true;
+}
+
+bool enqueueTap(const QueuedTap &tap) {
+  if (queueCount >= QUEUE_CAPACITY) return false;
+  if (!storeQueuedTap(queueHead, tap)) return false;
+  const uint8_t nextHead = (queueHead + 1) % QUEUE_CAPACITY;
+  const uint8_t nextCount = queueCount + 1;
+  if (!saveQueueState(nextHead, nextCount)) return false;
+  queueHead = nextHead;
+  queueCount = nextCount;
+  Serial.println(tap.clientTapId + " queued (" + String(queueCount) + ")");
+  return true;
+}
+
+void removeQueuedHead() {
+  if (queueCount == 0) return;
+  const uint8_t removedSlot = queueHead;
+  const uint8_t nextHead = (queueHead + 1) % QUEUE_CAPACITY;
+  const uint8_t nextCount = queueCount - 1;
+  if (!saveQueueState(nextHead, nextCount)) return;
+  queueHead = nextHead;
+  queueCount = nextCount;
+  prefs.remove(queueSlotKey(removedSlot).c_str());
+}
+
+String sendQueuedHead() {
+  if (queueCount == 0) return "";
+  QueuedTap tap;
+  if (!loadQueuedTap(queueHead, tap)) {
+    Serial.println("Discarding unreadable queue entry");
+    removeQueuedHead();
+    return "";
+  }
+  const String status = sendTap(tap.clientTapId, tap.uid, tap.tappedAt);
+  if (status.length() > 0) {
+    removeQueuedHead();
+    queueRetryDelayMs = QUEUE_RETRY_INITIAL_MS;
+    Serial.println(tap.clientTapId + " -> " + status);
+  }
+  return status;
+}
+
+void flushQueue() {
+  if (WiFi.status() != WL_CONNECTED || queueCount == 0 || millis() < nextQueueAttemptAt) return;
+  for (byte i = 0; i < QUEUE_FLUSH_PER_PASS && queueCount > 0; i++) {
+    if (sendQueuedHead().length() == 0) {
+      nextQueueAttemptAt = millis() + queueRetryDelayMs;
+      queueRetryDelayMs = min(queueRetryDelayMs * 2, QUEUE_RETRY_MAX_MS);
+      return;
+    }
+    queueRetryDelayMs = QUEUE_RETRY_INITIAL_MS;
+    nextQueueAttemptAt = millis();
+  }
+}
+
+void showTapStatus(const String &status) {
+  if (status == "accepted") {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("ACCEPTED");
+    lcd.setCursor(0, 1);
+    lcd.print("Points added");
+    delay(2000);
+    blinkLEDBLUE();
+    blinkLEDBLUE();
+  } else if (status == "cooldown") {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("COOLDOWN");
+    lcd.setCursor(0, 1);
+    lcd.print("Try again later");
+    delay(2000);
+    blinkLEDYELLOW();
+  } else if (status == "unknown_token") {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("UNKNOWN TAG");
+    lcd.setCursor(0, 1);
+    lcd.print("Pair this token");
+    delay(2000);
+    blinkLEDRED();
+    blinkLEDRED();
+  } else if (status == "duplicate") {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("DUPLICATE");
+    lcd.setCursor(0, 1);
+    lcd.print("Already recorded");
+    delay(2000);
+  } else {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("FAILED");
     lcd.setCursor(0, 1);
-    lcd.print("Tap not recorded");
+    lcd.print("Tap not saved");
     delay(2000);
-    for (byte i = 0; i < 5; i++) {
-      blinkLEDRED();
-    }
-    lcd.clear(); 
-    lcd.setCursor(0, 0);
-    lcd.print("Ready");
-    lcd.setCursor(0, 1);
-    lcd.print("for scanning");
-
+    blinkLEDRED();
   }
-  
 }
+
 // Formats the hardware UID as uppercase hex with no separators, e.g. 04A1B2C3D4E5F6.
 String uidToHex(const MFRC522::Uid& uid) {
   String hex = "";
@@ -217,12 +376,17 @@ String takeClientTapId() {
   return "tap-" + String(id);
 }
 
+bool isValidTapStatus(const String &status) {
+  return status == "accepted" || status == "cooldown" ||
+         status == "unknown_token" || status == "duplicate";
+}
+
 // POSTs one tap. Returns its status ("accepted", "cooldown", "unknown_token",
 // or "duplicate"), or an empty string if the request failed.
 //
 // A 200 does NOT mean the tap was accepted. The verdict for each tap is in
 // results[].status, so always read it.
-String sendTap(const String& clientTapId, const String& uid) {
+String sendTap(const String& clientTapId, const String& uid, const String& tappedAt) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi is down");
     return "";
@@ -234,11 +398,12 @@ String sendTap(const String& clientTapId, const String& uid) {
   JsonObject tap = taps.add<JsonObject>();
   tap["client_tap_id"] = clientTapId;
   tap["uid"] = uid;
+  if (tappedAt.length() > 0) tap["tapped_at"] = tappedAt;
   String body;
-  serializeJson(request, body);
+  if (serializeJson(request, body) == 0) return "";
 
   HTTPClient http;
-  http.begin(serverBase + "/api/v1/taps");
+  if (!http.begin(serverBase + "/api/v1/taps")) return "";
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", String("Bearer ") + stationKey);
@@ -266,7 +431,9 @@ String sendTap(const String& clientTapId, const String& uid) {
   }
   for (JsonObject r : result["results"].as<JsonArray>()) {
     if (clientTapId == r["client_tap_id"].as<const char*>()) {
-      return r["status"].as<String>();
+      const String status = r["status"].as<String>();
+      if (isValidTapStatus(status)) return status;
+      return "";
     }
   }
   return "";
@@ -283,6 +450,13 @@ void blinkLEDRED() {
   digitalWrite(LED_PIN_RED, HIGH);
   delay(500);
   digitalWrite(LED_PIN_RED, LOW);
+  delay(500);
+}
+
+void blinkLEDYELLOW() {
+  digitalWrite(LED_PIN_YELLOW, HIGH);
+  delay(500);
+  digitalWrite(LED_PIN_YELLOW, LOW);
   delay(500);
 }
 
