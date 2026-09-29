@@ -90,3 +90,227 @@
   change: >-
     The participant dashboard and passport can read from the real backend: a user's profile,
     paired tokens, points, stamps and last 50 taps.
+
+- id: updates-changelog
+  date: 2026-09-25
+  area: admin
+  change: >-
+    This site has a changelog: one line per shipped change, on its own page and at the end
+    of each update.
+
+- id: tidb-reachable
+  date: 2026-09-25
+  area: backend
+  change: >-
+    GeeksHacking has set up a TiDB database for GeekyKey, and a read-only check from our side
+    confirms we can reach it and that it fits the backend.
+
+- id: frontend-live-session
+  date: 2026-09-25
+  area: frontend
+  change: >-
+    The web app logs in, loads the dashboard and logs out against the live backend. Screens
+    whose endpoints are not built yet stay on mock data.
+
+- id: station-lcd
+  date: 2026-09-25
+  area: firmware
+  change: >-
+    The reader has a small screen that says whether each tap was recorded, at the same
+    moment as the light.
+
+- id: frontend-reliability
+  date: 2026-09-26
+  area: frontend
+  change: >-
+    A crash in the web app shows an error page with a Try again button instead of a blank
+    screen, and screens still on mock data are labelled "Demo data".
+
+- id: tap-fixes
+  date: 2026-09-26
+  area: backend
+  change: >-
+    Taps are judged correctly in more cases: a late offline tap is checked against the taps
+    around it, a station clock that never synced is ignored, and a retry that races its
+    original counts once.
+
+- id: ci-wider
+  date: 2026-09-26
+  area: tooling
+  change: >-
+    Every pull request also checks the backend's lint and formatting, and builds this site.
+
+- id: backend-split-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now splits today's backend in two: the GeekyKey Service checks each
+    station and passes every tap on as a user and a station, and the showcase's Event Service
+    keeps the taps, stamps and points. For now both share one TiDB database.
+
+- id: database-setup-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says how the services use TiDB: through Cloudflare's Hyperdrive, with
+    a login that can only read and write data, and database changes run as their own step
+    before each deploy. Hyperdrive stays provisional until a deployed service reaches TiDB
+    through it, and a test on a throwaway database confirms TiDB does what the plan relies on.
+
+- id: dev-test-ci-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says how laptops and CI run the backend: Deno leaves, Cloudflare's own
+    runtime runs it locally and in tests, and a local copy of TiDB in Docker, the same version as
+    the real database, stands in for it so the tests check what production runs. That copy is
+    light enough for an 8 GB laptop: measured on one, it is an 843 MB download once, ready about
+    1.5 seconds after starting, and under 500 MB of memory in use.
+
+- id: token-id-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says what identifies a token: its chip's built-in ID, which the chip
+    also fills into the web address written on every token, so every token is written the same
+    way and only we can rewrite it. The trade-off we accept: someone could type another token's
+    address and claim it before its holder does, and the real holder can then get it released.
+
+- id: stations-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says how reader stations talk to the GeekyKey Service: over HTTPS at
+    an address of their own, sending the same taps as today, with a check-in every minute that
+    keeps the connection open and sets the station's clock. If the event's service is down, the
+    station keeps its taps and sends them again later, and each result shows for about two
+    seconds, amber for a repeat tap that does not count, with no pause between people. The
+    trade-offs we accept: a tap at a station not yet linked to an event is turned away rather
+    than saved, and stations trust a fixed list of the certificate authorities Cloudflare uses,
+    so they need new firmware if Cloudflare ever adds one.
+
+- id: event-service-handoff-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says how the GeekyKey Service hands taps to an event's service: one web
+    request, the same for our showcase and for any other team's event, checked by a key the two
+    services share. Only GeeksHacking admins link a station to an event, adding a new event's
+    service is a reviewed change, and a station in an event but in none of its games now says so
+    on its screen instead of looking like a counted tap. The trade-offs we accept: organizers ask
+    an admin to move a station, a service slower than three seconds makes the station ask for a
+    second tap even when the first one counted, and a station unlinked by mistake loses the taps
+    it had saved.
+
+- id: screens-and-login-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says which screens belong to which service, and how each knows who is
+    logged in. The passport and organizer screens stay with the showcase's Event Service, on an
+    address of its own still being agreed with GeeksHacking. The page a phone opens when it taps
+    a token, a page listing your tokens where a lost one can be released, and the admins' station
+    screens become a second small app on geekykey.geekshacking.com. Each service logs people in
+    through the GeeksHacking Portal itself. A phone that can't read NFC can still claim a token by
+    typing its code, and if a reader fails, an organizer can log a tap by scanning the
+    participant's Portal QR code. The trade-offs we accept: someone who uses both services logs
+    in twice, there is a second app to build and look after, and adding an organizer is a
+    reviewed change rather than a button.
+
+- id: ab-export-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says what the organizers' CSV export, the data for the A/B test, keeps
+    once the backend splits in two. Joshua, who writes the report, confirmed the analysis needs
+    neither each token's hardware ID nor the taps by tokens nobody has claimed yet. So the export
+    keeps one row per tap the event stores, with who tapped, at which station and when, and
+    nothing about unclaimed tokens is saved. The trade-off we accept: the data can't show how
+    many people tapped before claiming their token, so a confusing claim step would only show up
+    in the survey or by watching people at the event.
+
+- id: deploys-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says how GeekyKey gets deployed and where its passwords and keys live,
+    agreed with Julian and Qing Guan at GeeksHacking. Cloudflare builds each part straight from
+    our code once it has passed its checks, and database changes are applied separately, before
+    the code that needs them is merged. The code will go public, so GitHub can enforce those
+    checks. There is one live copy, with no separate test copy and no preview of each change.
+    Every merge goes live, except from the evening before the showcase until it ends, and a bad
+    release is undone one service at a time. Keys are kept only in Cloudflare, set by Adam, with
+    no spare copy. We start on Cloudflare's free plan, measure real use on the first deploy, and
+    decide on the paid plan by 11 November, a week before the showcase. The stations' address
+    becomes geekykey-api.geekshacking.com, on Qing Guan's advice. The trade-offs we accept: we
+    test on the live system and clear the test data before the doors open, a database change
+    takes an extra step before merging, and the free plan may not last a busy day, which we will
+    only know once we measure.
+
+- id: token-claims-planned
+  date: 2026-09-28
+  area: research
+  change: >-
+    The hosting plan now says how GeekyKey will work with the token features Qing Guan has
+    started building into the GeeksHacking Portal, which will eventually record whose each token
+    is. The Portal currently answers one request at a time, and every tap at a station would wait
+    on it. So for the showcase we propose keeping our own record of who claimed each token, and
+    moving it into the Portal straight after the event, if Julian agrees. We also listed what
+    GeekyKey needs from the Portal: finding tokens by their hardware ID, looking up many at once,
+    claiming, releasing, and listing a person's tokens. Only each token's current owner is kept,
+    and a GeeksHacking admin can release a token someone else claimed by tapping it with their
+    phone. The trade-offs we accept: the Portal version waits until after the showcase, nobody
+    can see who owned a token before, and people who never open the passport appear without a
+    name in the organizers' records.
+
+- id: backups-planned
+  date: 2026-09-29
+  area: research
+  change: >-
+    The hosting plan now says how GeekyKey's data is backed up, recovered on the day and wiped of
+    test data before the showcase. TiDB's free backup runs once a day at a time it picks and is
+    kept for only a day, so we take copies of our own: a few megabytes, made in seconds before
+    every database change, before the test data is cleared and at the end of the day, and kept
+    on Adam's laptop because they hold who tapped where. On the day nobody changes the database
+    structure, only Adam changes data, with Ethan checking first, and each recorded tap is also
+    written to the logs so taps lost to a restore can be put back. The test data is cleared the
+    evening before, and the morning check uses unclaimed tokens so it stores nothing. The
+    trade-offs we accept: recovery depends on Adam being reachable, test taps and claims made
+    after the evening clear would count, and clearing every claim assumes participants claim
+    their tokens at check-in, which is still being discussed.
+
+- id: public-addresses-planned
+  date: 2026-09-29
+  area: research
+  change: >-
+    The hosting plan now says how GeekyKey's public addresses are protected from abuse without
+    shutting out the reader stations. The limits live in our own code and count per station, per
+    logged-in person and per event service, never per internet address, because a whole venue of
+    phones and stations can share one. A station may send 60 requests a minute, about twice what
+    a busy queue needs. A person may make 60, of which 20 can be token lookups or claims: enough
+    for the check-in desk, too few for a script guessing token codes. Each person can hold at
+    most three tokens, stations retry at most once a minute while the service is down, and
+    requests with made-up station keys are turned away before they reach the database.
+    GeeksHacking admins can switch off a station that goes missing, and its key is replaced
+    before it is used again. The trade-offs we accept: on Cloudflare's free plan, a flood from
+    many addresses could still use up the day's allowance, which now counts toward the paid-plan
+    decision; a new or changed station key takes up to a minute to work; and a Cloudflare setting
+    that keeps security challenges away from the stations waits until we next talk to Qing Guan.
+
+- id: event-day-monitoring-planned
+  date: 2026-09-29
+  area: research
+  change: >-
+    The hosting plan now says how we notice trouble at the showcase and who deals with it.
+    Cloudflare's and TiDB's free plans offer no uptime checks or error alerts we could use, and
+    the team is in the room all day, so people watch instead of waiting for an alert. Adam
+    watches the services, Zi Tao the reader stations and Ethan the screens, and Adam or Ethan is
+    always at the desk. The organizers' station screen puts any station that needs attention at
+    the top in red: one that has gone offline, can't get its taps through, isn't in the passport
+    yet, or, if Zi Tao's firmware can report it, has a card reader that stopped working. A
+    one-page sheet at the desk lists each likely fault, what it looks like, who fixes it and who
+    to call at GeeksHacking. We will rehearse the whole day on the live system by 7 November,
+    in time for the paid-plan decision. The trade-offs we accept: before the rehearsal, a fault
+    is noticed only if someone happens to be using the system; a fault waits if Adam and Ethan
+    both leave the desk without handing over; and on the free plan, a sudden rush could use up
+    the day's allowance between two hourly checks.
