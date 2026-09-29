@@ -19,18 +19,12 @@
 
 #include <SPI.h>
 #include <MFRC522.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
 
 #define SS_PIN   10
 #define RST_PIN  9
 #define SCK_PIN  12
 #define MISO_PIN 13
 #define MOSI_PIN 11
-
-const char* ssid       = WIFI_SSID;
-const char* password   = WIFI_PASSWORD;
-const char* serverUrl  = "http://YOUR_SERVER_URL/api/tag"; // update once your server is ready
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
@@ -44,14 +38,6 @@ void setup() {
   Serial.println("--- RC522 self-test ---");
   rfid.PCD_DumpVersionToSerial(); // if this prints 0x00 or 0xFF, SPI wiring is broken
   Serial.println("------------------------");
-
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
 
   Serial.println("Ready. Tap an NTAG213 tag...");
 }

@@ -61,9 +61,8 @@ Preferences prefs;
 uint32_t nextTapId = 0;
 
 #define QUEUE_CAPACITY 100
-#define QUEUE_RETRY_INITIAL_MS 2000UL
-#define QUEUE_RETRY_MAX_MS 60000UL
-#define QUEUE_FLUSH_PER_PASS 1
+#define QUEUE_RETRY_INTERVAL_MS 60000UL
+#define QUEUE_BATCH_MAX QUEUE_CAPACITY
 
 struct QueuedTap {
   String clientTapId;
@@ -71,10 +70,17 @@ struct QueuedTap {
   String tappedAt;
 };
 
+struct QueueAttempt {
+  bool completed[QUEUE_BATCH_MAX];
+  String newTapStatus;
+  bool newTapDropped = false;
+  bool retryable = false;
+  int httpCode = 0;
+};
+
 uint8_t queueHead = 0;
 uint8_t queueCount = 0;
 unsigned long nextQueueAttemptAt = 0;
-unsigned long queueRetryDelayMs = QUEUE_RETRY_INITIAL_MS;
 
 void setup() {
   Serial.begin(115200);
@@ -157,7 +163,6 @@ void loop() {
   if (tagText.length() > 0) Serial.println("Text: " + tagText);
   
   String clientTapId = takeClientTapId();
-  bool queueWasEmpty = queueCount == 0;
   QueuedTap tap = {clientTapId, uid, ""};
   if (!enqueueTap(tap)) {
     if (queueCount >= QUEUE_CAPACITY) {
@@ -180,19 +185,31 @@ void loop() {
     return;
   }
 
-  String status;
-  if (queueWasEmpty && WiFi.status() == WL_CONNECTED) {
-    status = sendQueuedHead();
-  }
-
-  if (status.length() > 0) {
-    showTapStatus(status);
+  QueueAttempt attempt = flushQueue(clientTapId);
+  if (attempt.newTapStatus.length() > 0) {
+    showTapStatus(attempt.newTapStatus);
+  } else if (attempt.newTapDropped) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("DROPPED");
+    lcd.setCursor(0, 1);
+    lcd.print("Bad tap request");
+    delay(2000);
+    blinkLEDRED();
+  } else if (attempt.httpCode == 401) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("SETUP ERROR");
+    lcd.setCursor(0, 1);
+    lcd.print("Tell organizer");
+    delay(2000);
+    blinkLEDRED();
   } else {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("QUEUED");
     lcd.setCursor(0, 1);
-    lcd.print("Offline " + String(queueCount));
+    lcd.print("Will send later");
     delay(1000);
   }
 
@@ -200,6 +217,13 @@ void loop() {
 }
 String queueSlotKey(uint8_t slot) {
   return "q_" + String(slot);
+}
+
+String readStoredString(const char *key) {
+  char value[512];
+  value[0] = '\0';
+  if (prefs.getString(key, value, sizeof(value)) == 0) return "";
+  return String(value);
 }
 
 bool saveQueueState(uint8_t head, uint8_t count) {
@@ -212,7 +236,7 @@ bool saveQueueState(uint8_t head, uint8_t count) {
 }
 
 void loadQueueState() {
-  String payload = prefs.getString("q_meta", "");
+  String payload = readStoredString("q_meta");
   if (payload.length() > 0) {
     JsonDocument state;
     if (!deserializeJson(state, payload)) {
@@ -244,7 +268,7 @@ bool storeQueuedTap(uint8_t slot, const QueuedTap &tap) {
 
 bool loadQueuedTap(uint8_t slot, QueuedTap &tap) {
   const String key = queueSlotKey(slot);
-  String payload = prefs.getString(key.c_str(), "");
+  String payload = readStoredString(key.c_str());
   if (payload.length() == 0) return false;
   JsonDocument entry;
   if (deserializeJson(entry, payload)) return false;
@@ -281,34 +305,109 @@ void removeQueuedHead() {
   prefs.remove(queueSlotKey(removedSlot).c_str());
 }
 
-String sendQueuedHead() {
-  if (queueCount == 0) return "";
-  QueuedTap tap;
-  if (!loadQueuedTap(queueHead, tap)) {
-    Serial.println("Discarding unreadable queue entry");
-    removeQueuedHead();
-    return "";
+QueueAttempt sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
+                       QueueAttempt &result) {
+  result = QueueAttempt{};
+  if (WiFi.status() != WL_CONNECTED) {
+    result.retryable = true;
+    return;
   }
-  const String status = sendTap(tap.clientTapId, tap.uid, tap.tappedAt);
-  if (status.length() > 0) {
-    removeQueuedHead();
-    queueRetryDelayMs = QUEUE_RETRY_INITIAL_MS;
-    Serial.println(tap.clientTapId + " -> " + status);
+  if (serverBase.length() == 0 && !resolveServer()) {
+    result.retryable = true;
+    return;
   }
-  return status;
+
+  JsonDocument request;
+  JsonArray taps = request["taps"].to<JsonArray>();
+  for (uint8_t i = 0; i < count; i++) {
+    JsonObject tap = taps.add<JsonObject>();
+    tap["client_tap_id"] = batch[i].clientTapId;
+    tap["uid"] = batch[i].uid;
+    if (batch[i].tappedAt.length() > 0) tap["tapped_at"] = batch[i].tappedAt;
+  }
+
+  String body;
+  if (serializeJson(request, body) == 0) {
+    result.retryable = true;
+    return;
+  }
+
+  HTTPClient http;
+  if (!http.begin(serverBase + "/api/v1/taps")) {
+    result.retryable = true;
+    return;
+  }
+  http.setTimeout(5000);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", String("Bearer ") + stationKey);
+  const int code = http.POST(body);
+  const String response = code > 0 ? http.getString() : "";
+  http.end();
+  result.httpCode = code;
+
+  if (code == 400) {
+    // A malformed request must not block every tap behind it.
+    for (uint8_t i = 0; i < count; i++) {
+      Serial.println("Dropping invalid tap " + batch[i].clientTapId + " uid=" + batch[i].uid);
+      result.completed[i] = true;
+      if (newTapId == batch[i].clientTapId) result.newTapDropped = true;
+    }
+    return;
+  }
+  if (code <= 0 || code == 401 || code == 429 || code >= 500 || code != 200) {
+    result.retryable = true;
+    return;
+  }
+
+  JsonDocument responseJson;
+  if (deserializeJson(responseJson, response)) {
+    result.retryable = true;
+    return;
+  }
+  JsonArray results = responseJson["results"].as<JsonArray>();
+  if (results.isNull()) {
+    result.retryable = true;
+    return;
+  }
+
+  for (JsonObject item : results) {
+    const char *id = item["client_tap_id"];
+    const char *statusText = item["status"];
+    if (!id || !statusText) continue;
+    for (uint8_t i = 0; i < count; i++) {
+      if (batch[i].clientTapId != id) continue;
+      // Any returned status is definitive, including statuses added in future.
+      result.completed[i] = true;
+      if (newTapId == batch[i].clientTapId) result.newTapStatus = statusText;
+    }
+  }
+  return;
 }
 
-void flushQueue() {
-  if (WiFi.status() != WL_CONNECTED || queueCount == 0 || millis() < nextQueueAttemptAt) return;
-  for (byte i = 0; i < QUEUE_FLUSH_PER_PASS && queueCount > 0; i++) {
-    if (sendQueuedHead().length() == 0) {
-      nextQueueAttemptAt = millis() + queueRetryDelayMs;
-      queueRetryDelayMs = min(queueRetryDelayMs * 2, QUEUE_RETRY_MAX_MS);
-      return;
-    }
-    queueRetryDelayMs = QUEUE_RETRY_INITIAL_MS;
-    nextQueueAttemptAt = millis();
+QueueAttempt flushQueue(const String &newTapId = "") {
+  static QueuedTap batch[QUEUE_BATCH_MAX];
+  QueueAttempt result{};
+  if (WiFi.status() != WL_CONNECTED || queueCount == 0) {
+    result.retryable = true;
+    return result;
   }
+  if (newTapId.length() == 0 && millis() < nextQueueAttemptAt) return result;
+
+  uint8_t count = 0;
+  while (count < QUEUE_BATCH_MAX && queueCount > 0) {
+    QueuedTap tap;
+    if (!loadQueuedTap(queueHead, tap)) {
+      Serial.println("Discarding unreadable queue entry");
+      removeQueuedHead();
+      continue;
+    }
+    batch[count++] = tap;
+  }
+
+  sendBatch(batch, count, newTapId, result);
+  for (uint8_t i = 0; i < count && result.completed[i]; i++) removeQueuedHead();
+  nextQueueAttemptAt = millis() + QUEUE_RETRY_INTERVAL_MS;
+  return result;
 }
 
 void showTapStatus(const String &status) {
@@ -338,6 +437,22 @@ void showTapStatus(const String &status) {
     delay(2000);
     blinkLEDRED();
     blinkLEDRED();
+  } else if (status == "no_event") {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("NO EVENT");
+    lcd.setCursor(0, 1);
+    lcd.print("Tell organizer");
+    delay(2000);
+    blinkLEDRED();
+  } else if (status == "no_game") {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("NO GAME");
+    lcd.setCursor(0, 1);
+    lcd.print("Tell organizer");
+    delay(2000);
+    blinkLEDRED();
   } else if (status == "duplicate") {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -348,11 +463,11 @@ void showTapStatus(const String &status) {
   } else {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("FAILED");
+    lcd.print("TAP RECEIVED");
     lcd.setCursor(0, 1);
-    lcd.print("Tap not saved");
+    lcd.print("Check your phone");
     delay(2000);
-    blinkLEDRED();
+    blinkLEDBLUE();
   }
 }
 
@@ -374,69 +489,6 @@ String takeClientTapId() {
   uint32_t id = nextTapId++;
   prefs.putUInt("tap_id", nextTapId);
   return "tap-" + String(id);
-}
-
-bool isValidTapStatus(const String &status) {
-  return status == "accepted" || status == "cooldown" ||
-         status == "unknown_token" || status == "duplicate";
-}
-
-// POSTs one tap. Returns its status ("accepted", "cooldown", "unknown_token",
-// or "duplicate"), or an empty string if the request failed.
-//
-// A 200 does NOT mean the tap was accepted. The verdict for each tap is in
-// results[].status, so always read it.
-String sendTap(const String& clientTapId, const String& uid, const String& tappedAt) {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi is down");
-    return "";
-  }
-  if (serverBase.length() == 0 && !resolveServer()) return "";
-
-  JsonDocument request;
-  JsonArray taps = request["taps"].to<JsonArray>();
-  JsonObject tap = taps.add<JsonObject>();
-  tap["client_tap_id"] = clientTapId;
-  tap["uid"] = uid;
-  if (tappedAt.length() > 0) tap["tapped_at"] = tappedAt;
-  String body;
-  if (serializeJson(request, body) == 0) return "";
-
-  HTTPClient http;
-  if (!http.begin(serverBase + "/api/v1/taps")) return "";
-  http.setTimeout(5000);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", String("Bearer ") + stationKey);
-  int code = http.POST(body);
-  String response = code > 0 ? http.getString() : "";
-  http.end();
-
-  if (code <= 0) {
-    // Could not reach the server at all: server not running, firewall, or the
-    // laptop got a new IP. Forget the address so the next tap looks it up again.
-    Serial.println("Network error: " + HTTPClient::errorToString(code));
-    serverBase = "";
-    return "";
-  }
-  if (code != 200) {
-    // 401 = key missing or wrong, 400 = bad body, 5xx = backend problem.
-    Serial.println("HTTP " + String(code) + ": " + response);
-    return "";
-  }
-
-  JsonDocument result;
-  if (deserializeJson(result, response)) {
-    Serial.println("Could not parse response: " + response);
-    return "";
-  }
-  for (JsonObject r : result["results"].as<JsonArray>()) {
-    if (clientTapId == r["client_tap_id"].as<const char*>()) {
-      const String status = r["status"].as<String>();
-      if (isValidTapStatus(status)) return status;
-      return "";
-    }
-  }
-  return "";
 }
 
 void blinkLEDBLUE() {
