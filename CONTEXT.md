@@ -1,48 +1,123 @@
 # GeekyKey
 
-Participants at a GeeksHacking event tap NFC tokens at stations to collect stamps and points.
+Users claim NFC tokens and tap them at stations during GeeksHacking events. Each event runs one or
+more games, such as the passport, where participants collect stamps and points.
 This file names the domain. The wire format, field names and status codes live in
 `apps/API-AGREEMENT.md`.
 
 ## Language
 
-### Event
+### Services
+
+**Portal**:
+GeeksHacking's identity service. It knows every user and which tokens each user has claimed.
+
+**GeekyKey Service**:
+The service that stations and tokens talk to. It knows each station and which event it feeds,
+asks the Portal whose token was tapped, and hands the tap to that event's Event Service.
+_Avoid_: NFC Key service, backend
+
+**Event Service**:
+The service that runs one event's games. It receives each tap as a user and a station, and
+decides what the tap counts for.
+_Avoid_: backend
+
+**Hand-off**:
+The GeekyKey Service passing a station's taps, as users, to the Event Service the station is linked
+to. The Event Service answers with a status for each tap.
+_Avoid_: trigger, forward
+
+**Event Service key**:
+The secret one Event Service shares with the GeekyKey Service, proving each to the other.
+_Avoid_: API key
+
+### Users, tokens and stations
+
+**User**:
+A person with a GeeksHacking Portal account. At an event, a user is a participant or an organizer.
+_Avoid_: portal user, account
+
+**GeekyKey admin**:
+A GeeksHacking person who creates stations and changes their links, lending the readers to events.
+Not a role at any one event.
+_Avoid_: admin, organizer
+
+**Token**:
+A physical NFC tag claimed by one user and identified by its hardware UID. It stays theirs across
+events, and a user may hold a few, up to a set number.
+_Avoid_: tag, card
+
+**Claim**:
+Binding an unclaimed token to yourself by tapping it with your phone, or typing its UID, and logging
+in through the Portal.
+_Avoid_: pair, register
+
+**Release**:
+Giving up a claim on a token, for example a lost one, so anyone can claim it again.
+_Avoid_: unpair, revoke
+
+**Owner**:
+The user who has claimed a token, who may not be the person holding it.
+_Avoid_: holder
+
+**Token page**:
+The GeekyKey Service's page that a phone opens when it taps a token. It lets a user claim an
+unclaimed token and shows the owner their own token. Anyone else sees only that the token is taken.
+
+**My tokens**:
+The GeekyKey Service's page listing the tokens a user has claimed, where they can release one they
+can no longer tap, such as a lost token.
+
+**Station**:
+One tap point, a physical NFC reader with its own station key. It feeds at most one event at a
+time, through its link. What a tap there counts for, such as its station points, is set by the event's games, not by
+the station. A GeekyKey admin can disable a station, turning away everything it sends until it is enabled again.
+_Avoid_: reader, device
+
+**Station key**:
+The secret a station sends with every request to prove which station it is. It is shown once, when
+the station is created or its key is replaced. Replacing the key keeps it the same station.
+_Avoid_: API key, bearer key
+
+**Link**:
+Which Event Service a station feeds, and since when. Moving a station to another event is changing
+its link.
+_Avoid_: binding, assignment
+
+**Tap**:
+One reading of a token at a station. A tap by a claimed token reaches the station's event, which
+records it with a status whether or not it counts. A tap by an unclaimed token, or at a station
+that feeds no event, is turned away before it reaches any event.
+
+### Events
+
+**Event**:
+One GeeksHacking event, such as the capstone showcase, running one or more games.
+
+**Game**:
+One activity inside an event that stations feed, such as the passport or a treasure hunt.
+_Avoid_: experience
 
 **Participant**:
 A person attending the event who collects stamps by tapping a token at stations.
 
 **Organizer**:
-Event staff who run the stations and can log a tap on a participant's behalf.
+Event staff who look after the event's stations on the day and can log a tap on a participant's
+behalf. A role at one event,
+not a kind of user: an organizer at the showcase can be a participant at the next event.
 
-**Station**:
-One tap point at the event, a physical NFC reader with its own station key, worth a fixed number
-of station points.
-_Avoid_: reader, device
-
-**Station key**:
-The secret a station sends with every request to prove which station it is, shown once when the
-station is created.
-_Avoid_: API key, bearer key
-
-**Token**:
-A physical NFC tag paired to one participant and identified by its hardware UID. A participant
-may hold several.
-_Avoid_: tag, card
-
-**Tap**:
-One reading of a token at a station, recorded with a status whether or not it counts.
+**Station board**:
+The organizers' screen showing each station linked to their event, whether it is working, and when
+it was last tapped. The GeekyKey admins' list of every station is not a station board.
+_Avoid_: station list
 
 **Accepted tap**:
-A tap that counts toward stamps and points.
-
-**Cooldown**:
-The window after an accepted tap during which the same participant's taps at the same station
-are recorded but do not count.
+A tap that counts in at least one of the event's games, such as toward passport stamps and points.
 
 ### Passport
 
 **Passport**:
-All of one participant's stamp slots, one per station.
+All of one participant's stamp slots, one for each station the passport counts.
 _Avoid_: stamp book
 
 **Stamp slot**:
@@ -53,9 +128,14 @@ _Avoid_: empty stamp
 What fills a stamp slot, earned by the participant's first accepted tap at that station.
 
 **Station points**:
-What one accepted tap at a station is worth.
+What one accepted tap at a station is worth in the passport. The passport sets it per station, so
+one station can be worth different points at different events.
 
 **Points**:
 A participant's total: station points summed over all their accepted taps, so a repeat visit
 after the cooldown earns again.
 _Avoid_: score
+
+**Cooldown**:
+The passport's window after an accepted tap during which the same participant's taps at the same
+station are recorded but do not count.
