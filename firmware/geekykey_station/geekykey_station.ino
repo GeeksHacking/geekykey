@@ -139,8 +139,8 @@ void loop() {
   
   String clientTapId = takeClientTapId();
   String status = sendTap(clientTapId, uid);
-  if (status.length() == 0) {
-    Serial.println(clientTapId + " -> FAILED, tap not recorded");
+  if (status == "accepted") {
+    Serial.println(clientTapId + " -> " + status);
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("PASSED");
@@ -150,11 +150,19 @@ void loop() {
     for (byte i = 0; i < 5; i++) {
       blinkLEDBLUE();
     }
-    lcd.clear(); 
-
-  } else {
-    Serial.println(clientTapId + " -> " + status);
     lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("COOLDOWN");
+    digitalWrite(LED_PIN_YELLOW, HIGH);
+    delay(10000);
+    digitalWrite(LED_PIN_YELLOW, LOW);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Ready");
+    lcd.setCursor(0, 1);
+    lcd.print("for scanning");
+
+  } else if (status == "cooldown") {
     lcd.setCursor(0, 0);
     lcd.print("COOLDOWN");
 
@@ -173,16 +181,18 @@ void loop() {
     Serial.println(clientTapId + " -> FAILED, tap not recorded");
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("COOLDOWN");
-    digitalWrite(LED_PIN_YELLOW, HIGH);
-    delay(10000);
-    digitalWrite(LED_PIN_YELLOW, LOW);
-    lcd.clear();
+    lcd.print("FAILED");
+    lcd.setCursor(0, 1);
+    lcd.print("Tap not recorded");
+    delay(2000);
+    for (byte i = 0; i < 5; i++) {
+      blinkLEDRED();
+    }
+    lcd.clear(); 
     lcd.setCursor(0, 0);
     lcd.print("Ready");
     lcd.setCursor(0, 1);
     lcd.print("for scanning");
-  }
 
   }
   
