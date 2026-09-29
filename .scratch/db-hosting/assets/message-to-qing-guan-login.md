@@ -1,0 +1,27 @@
+# Message to Qing Guan: logging in through the Portal
+
+Draft for Adam to edit and send, formatted for WhatsApp like [the message to Julian](message-to-julian-redirect-urls.md). Written 29 Sep 2026 by "Write the migration spec", from sections 9 and 12 of [the spec](../spec.md). It gathers what checkpoint 5, logging in through the Portal, waits on. It replaces the OAuth paragraph of part 2 of the message to Julian: since 28 Sep the Portal takes several redirect URLs per app ([PR #193](https://github.com/GeeksHacking/portal/pull/193)), so each app gets its `localhost` URL too.
+
+The Portal's user IDs are GUIDs (from "What does the GeekyKey Service need from the Portal's tag APIs?"). Whether `sub` carries that ID, and whether the Portal accepts plain `http` for `localhost`, haven't been checked.
+
+---
+
+```text
+Hi Qing Guan! What GeekyKey needs to log people in through the Portal. No rush: the login comes after our first deploy.
+
+*1. Two OAuth apps, one per service.* Each service logs users in itself, with its own redirect URLs:
+- *GeekyKey Service* (the token page and "My tokens"): `https://geekykey.geekshacking.com/auth/callback`, and `http://localhost:5174/auth/callback` for local dev
+- *Showcase* (the passport and the organizers' screens): `https://showcase.geekshacking.com/auth/callback`, and `http://localhost:5173/auth/callback` for local dev
+Does the Portal accept plain `http` for localhost?
+Later, the GeekyKey Service's app will also use client credentials for the tag APIs, as in our tag APIs message.
+
+*2. What we need to build the login:*
+- the issuer URL, or the OIDC discovery document
+- each app's client ID, and whether there's a client secret. If there is, could you send it to Adam privately rather than in the group?
+- the scopes to ask for
+- which claim carries the user's display name, and whether `sub` is the Portal user ID
+
+*3. The participant QR code.* What does the Portal's QR code hold? Our organizers' fallback scans it to log a tap, and needs the Portal user ID. If it holds something else, we'll change the scanner.
+
+Thanks!
+```
