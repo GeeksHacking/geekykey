@@ -1,15 +1,9 @@
 import type { ApiClient } from "@/api/client";
+import { LIVE_METHODS } from "@/api/create-client";
 
 export type DataSourceScope = "admin" | "pair";
 
 export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
-
-export const LIVE_METHODS: ReadonlySet<keyof ApiClient> = new Set([
-  "me",
-  "devLogin",
-  "logout",
-  "loginUrl",
-]);
 
 const SCOPE_METHOD: Record<DataSourceScope, keyof ApiClient> = {
   admin: "listStations",

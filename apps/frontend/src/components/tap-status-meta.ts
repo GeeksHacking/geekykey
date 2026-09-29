@@ -68,10 +68,5 @@ export const TAP_STATUS_META: Record<TapStatus, TapStatusMeta> = {
   },
 };
 
-export const TAP_STATUSES: TapStatus[] = [
-  "accepted",
-  "cooldown",
-  "unknown_token",
-  "no_event",
-  "no_game",
-];
+/** The statuses the tap log can hold, for its filter. `no_event` is never stored, so it is not here. */
+export const TAP_STATUSES: TapStatus[] = ["accepted", "cooldown", "unknown_token", "no_game"];

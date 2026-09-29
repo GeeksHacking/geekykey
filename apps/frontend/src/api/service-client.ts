@@ -3,14 +3,26 @@ import type { ApiClient } from "@/api/client";
 /** Session calls are shared by both services during the staged migration. */
 export type SessionApi = Pick<ApiClient, "me" | "devLogin" | "logout" | "loginUrl">;
 
-/** The GeekyKey Service owns token claims/releases in the current client surface. */
-export type GeekyKeyApi = Pick<ApiClient, "pairToken" | "unpairToken">;
-
-/** The Event Service owns the current event board, history, stats, export, and fallback. */
-export type EventApi = Pick<
+/**
+ * The GeekyKey Service owns token claims and releases, and the station registry:
+ * listing every station (agreement 10.1) and creating one (10.2).
+ */
+export type GeekyKeyApi = Pick<
   ApiClient,
-  "listStations" | "createStation" | "listTaps" | "createFallbackTap" | "stats" | "exportCsv"
+  "pairToken" | "unpairToken" | "listStations" | "createStation"
 >;
+
+/** The Event Service owns the station board, the tap log, stats, export, and fallback. */
+export interface EventApi extends Pick<
+  ApiClient,
+  "listTaps" | "createFallbackTap" | "stats" | "exportCsv"
+> {
+  /**
+   * The Organizer's station board (agreement 9.2). Same path as the GeekyKey list, different
+   * response. Backed by the single listStations() until the services split.
+   */
+  listStationBoard: ApiClient["listStations"];
+}
 
 export interface ServiceClientBundle {
   session: SessionApi;
@@ -33,10 +45,11 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
     geekykey: {
       pairToken: api.pairToken.bind(api),
       unpairToken: api.unpairToken.bind(api),
-    },
-    event: {
       listStations: api.listStations.bind(api),
       createStation: api.createStation.bind(api),
+    },
+    event: {
+      listStationBoard: api.listStations.bind(api),
       listTaps: api.listTaps.bind(api),
       createFallbackTap: api.createFallbackTap.bind(api),
       stats: api.stats.bind(api),
