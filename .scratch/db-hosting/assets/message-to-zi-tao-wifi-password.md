@@ -1,3 +1,4 @@
+SETTLED
 # Message to Zi Tao: the Wi-Fi password in the repo
 
 Draft for Adam to edit and send, from the replies recorded in "How do deploys and secrets work?", 28 Sep 2026. It has to be sorted before the repo goes public, because git history can't be taken back once it's public. Formatted for WhatsApp.
