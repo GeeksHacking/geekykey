@@ -24,12 +24,16 @@ Showcase is 17 Nov 2026. Scope down before adding features.
 
 Do not copy content from the agreement or the skill into this file. Link to it.
 
-## Current phase: mockup, not integration
+## Current phase: staged live session, mock resources
 
-Every screen is built against **mock data shaped exactly like the API agreement** before
-any real request is wired. Later, each screen is connected one at a time by swapping the
-mock data source for a fetch, with no change to the screen itself. How that swap is done
-is in "Wiring an endpoint to the real backend" below.
+The screens are built against the mock and the first live session slice is now enabled:
+`me`, `devLogin`, and `logout` use the backend in live mode. Pairing, admin, fallback, stats,
+and export remain mock-backed until their service routes are implemented. The mock/live split
+is intentional; screens never need to know which client supplied a value.
+
+`src/api/create-client.ts` is still the only file that changes when an endpoint goes live.
+`src/api/service-client.ts` prepares the future GeekyKey/Event Service split without changing
+screen contracts yet.
 
 Rules that make this possible:
 
@@ -38,9 +42,9 @@ Rules that make this possible:
   field the agreement does not have. If a screen needs something missing, propose a change
   to the agreement instead of inventing it.
 - `src/api/mock/` holds fixtures and a mock client with the same interface as the future
-  HTTP client. Fixtures use the seeded IDs (`dev-user-1`, `dev-organizer-1`), cover every
-  `tap_status`, include stamps with `earned_at: null`, and use realistic, uneven data. No
-  round numbers, no "John Doe".
+  HTTP client. Fixtures use the seeded IDs (`dev-user-1`, `dev-organizer-1`), cover the
+  statuses currently used by the mock, include stamps with `earned_at: null`, and use realistic,
+  uneven data. No round numbers, no "John Doe".
 - The mock client simulates latency and can be told to fail with any error code from the
   agreement, so loading and error states are real from day one. `api.mock.failNext(code)`
   fails the next call with that code, or with `"network"`; tests use it. With
@@ -60,6 +64,15 @@ mock. On Windows PowerShell, `$env:VITE_LIVE_API="1"; pnpm dev`.
 
 Migrate in slices, not one method at a time. The session slice in particular has to move
 as a unit: a live `me()` with a mock `devLogin()` means nobody can sign in.
+
+### Two-service preparation
+
+`apps/API-AGREEMENT.md` v0.2 separates the GeekyKey Service from the Event Service. The
+current screens still consume one `ApiClient` so existing hooks do not change during the
+staged migration. `src/api/service-client.ts` provides a non-breaking session/GeekyKey/Event
+bundle for new code. Do not move a route to that bundle until its backend endpoint and
+response contract are implemented; the bundle is organizational preparation, not a second
+live switch.
 
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
@@ -85,12 +98,10 @@ One slice, start to finish:
    and the backend is fixed. Never widen `types.ts` to match a backend that drifted.
 6. `pnpm typecheck`, `pnpm lint` and `pnpm test` still pass with the flag off.
 
-`send()` in `src/api/http/client.ts` is deliberately not written. It is the only real logic
-in that file, every screen's error handling rests on it behaving exactly like the mock, and
-under the working agreement that makes it a frontend owner's job to write by hand. Its
-requirements are listed in a comment above the stub. Everything else in that file is a
-path, a body, and a cast, and needs no thought. Keep it that way: no per-screen logic, no
-reshaping of responses, no computing of stamps, points, or cooldown.
+`send()` in `src/api/http/client.ts` is implemented. It sends credentialed requests, handles
+2xx/204 responses, parses the JSON error envelope, and turns transport or malformed-success
+failures into the shared `ApiError`/`NetworkError` types. Keep transport behavior there; do
+not add per-screen reshaping, points, stamp, or cooldown calculations.
 
 Two things that look like bugs and are not:
 
@@ -117,7 +128,7 @@ Two things that look like bugs and are not:
 | Tables | TanStack Table 9 | Organiser scan log only. Features are opt-in through `tableFeatures()`; row, cell, and header methods live on prototypes, so call them on the instance and never spread one |
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default `weight="regular"` |
 | Fonts | Geist, Geist Mono via `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
-| Motion | `motion/react` | Feedback and state transitions only |
+| Motion | CSS/shadcn transitions | No motion library is currently required; do not add one without agreeing it in the stack |
 | Forms | react-hook-form + zod through shadcn `Form` | Three forms in the MVP: pair token, add station, QR fallback |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | ESLint flat config + typescript-eslint | |
@@ -205,6 +216,7 @@ pnpm format       # oxfmt, rewrites files in place
 pnpm format:check # oxfmt --check, lists files that are not formatted
 pnpm test         # vitest run
 pnpm test:watch   # vitest
+pnpm test:e2e     # playwright Chromium smoke suite against the mock dev server
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
 ```
 
@@ -277,8 +289,10 @@ apps/frontend/
       provider.tsx
       errors.ts             # ApiError, NetworkError, describeError()
       mock/                 # fixtures + mock client (current phase)
-      http/                 # fetch client. send() is the only real logic and is not written yet
+      http/                 # fetch client, credentialed transport, error envelope, response validation
       create-client.ts      # the mock, or the mock with the live slices swapped in
+      service-client.ts     # non-breaking preparation for the GeekyKey/Event Service split
+      mode.ts               # mock/live data-source indicator rules
     lib/                    # shared infrastructure, safe to import from any feature
       session.ts            # "am I logged in": useSession(), useMe()
       session-provider.tsx
@@ -324,12 +338,16 @@ Rules:
 - Timestamps arrive as UTC ISO strings. Format for display in the user's local zone, in
   the mono font. Never parse IDs. Only `taps.id` is numeric, and only for the cursor.
 - Every non-2xx body is `{ error, issues? }`. Switch on `error`:
-  - `validation_failed`: show each `issues[].message` inline under the field at `issues[].path`.
-  - `unauthenticated`: go to login and remember `return_to`.
-  - `forbidden`: render the 403 view in place. Do not redirect.
-  - `not_found`: inline message on the action that caused it.
-  - `uid_already_paired`: inline message on the pair form.
-  - `internal_error` or a network failure: generic error state with a retry button.
+   - `validation_failed`: show each `issues[].message` inline under the field at `issues[].path`.
+   - `unauthenticated`: go to login and remember `return_to`.
+   - `forbidden`: render the 403 view in place. Do not redirect.
+   - `not_found`: inline message on the action that caused it.
+   - `token_taken` / `uid_already_paired`: inline message on the token action.
+   - `token_limit_reached`: explain the account token limit and stop the action.
+   - `rate_limited`: show a wait-and-retry message; do not loop immediately.
+   - `event_service_unavailable` / `portal_unavailable`: show a service-availability message.
+   - `invalid_event_service_key` / station-key errors: setup/configuration message.
+   - `internal_error` or a network failure: generic error state with a retry button.
 - Out of scope, do not build UI for it: leaderboards, dual-tap, archetype quests, event
   CRUD, editing or deleting taps, profile editing, station key rotation, reading a key
   back, Web Serial or USB device configuration.
@@ -463,7 +481,8 @@ trigger and then click the option; and headless Arc crashes after a few navigati
 
 ## Do not
 
-- Do not call the real backend from screens during the mockup phase. Mock client only.
+- Do not call the real backend from screens during mock mode. The only allowed live calls
+  are the session methods listed in `create-client.ts`, and only in `VITE_LIVE_API=1`.
 - Do not invent API fields or endpoints. Change the agreement first.
 - Do not build leaderboards, dual-tap, quests, event CRUD, tap editing, or device
   configuration UI.
