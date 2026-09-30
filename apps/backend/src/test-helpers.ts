@@ -1,7 +1,4 @@
-import {
-  createExecutionContext,
-  waitOnExecutionContext,
-} from "cloudflare:test";
+import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { onTestFinished } from "vitest";
 import { createRequestDb, type Db } from "./db/hyperdrive.ts";

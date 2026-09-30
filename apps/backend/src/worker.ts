@@ -46,10 +46,7 @@ export function createWorkerApp(settings: object) {
     }
   });
 
-  app.route(
-    "/auth",
-    authRoutes({ session, devAuthEnabled: config.devAuthEnabled }),
-  );
+  app.route("/auth", authRoutes({ session, devAuthEnabled: config.devAuthEnabled }));
   app.route("/api/v1/me", meRoutes({ session }));
   app.route("/api/v1/taps", tapsRoutes());
 

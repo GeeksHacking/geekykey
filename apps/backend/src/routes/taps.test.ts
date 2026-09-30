@@ -29,10 +29,7 @@ test("rejects requests without a station key", async () => {
 
 test("rejects an unknown station key", async () => {
   const { post, uid } = await harness();
-  const res = await post(
-    { taps: [{ client_tap_id: "t1", uid }] },
-    "gk_sta_not-a-real-key",
-  );
+  const res = await post({ taps: [{ client_tap_id: "t1", uid }] }, "gk_sta_not-a-real-key");
   assert.equal(res.status, 401);
   assert.deepEqual(await res.json(), { error: "invalid_station_key" });
 });
@@ -81,22 +78,17 @@ test("updates the station's last_seen_at on a successful request", async () => {
 
 test("validates the body shape", async () => {
   const { post, uid } = await harness();
-  for (
-    const body of [
-      {},
-      { taps: [] },
-      { taps: [{ uid }] },
-      { taps: [{ client_tap_id: "t1", uid: "zz" }] },
-      { taps: [{ client_tap_id: "t1", uid, tapped_at: "yesterday" }] },
-      // One more than MAX_TAPS_PER_REQUEST in wrangler.jsonc.
-      {
-        taps: Array.from(
-          { length: 501 },
-          (_, i) => ({ client_tap_id: `t${i}`, uid }),
-        ),
-      },
-    ]
-  ) {
+  for (const body of [
+    {},
+    { taps: [] },
+    { taps: [{ uid }] },
+    { taps: [{ client_tap_id: "t1", uid: "zz" }] },
+    { taps: [{ client_tap_id: "t1", uid, tapped_at: "yesterday" }] },
+    // One more than MAX_TAPS_PER_REQUEST in wrangler.jsonc.
+    {
+      taps: Array.from({ length: 501 }, (_, i) => ({ client_tap_id: `t${i}`, uid })),
+    },
+  ]) {
     const res = await post(body);
     assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(body).slice(0, 80)}`);
     const json = await res.json<{ error: string }>();
@@ -105,7 +97,10 @@ test("validates the body shape", async () => {
 });
 
 test("unknown routes and methods return the JSON not_found error", async () => {
-  for (const [method, path] of [["GET", "/nope"], ["GET", "/api/v1/taps"]]) {
+  for (const [method, path] of [
+    ["GET", "/nope"],
+    ["GET", "/api/v1/taps"],
+  ]) {
     const res = await exports.default.fetch(`http://localhost${path}`, { method });
     assert.equal(res.status, 404, `${method} ${path}`);
     assert.deepEqual(await res.json(), { error: "not_found" });

@@ -3,11 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { users } from "../db/schema.ts";
 import { jsonBody } from "../lib/validate.ts";
-import {
-  clearSession,
-  issueSession,
-  type SessionOptions,
-} from "../middleware/session-auth.ts";
+import { clearSession, issueSession, type SessionOptions } from "../middleware/session-auth.ts";
 import type { WorkerEnv } from "../worker.ts";
 
 const devLoginSchema = z.object({
