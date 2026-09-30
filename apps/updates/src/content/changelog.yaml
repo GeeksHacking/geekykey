@@ -453,3 +453,14 @@
     trade-offs we accept: the backend's code was reformatted once to match the website's style,
     so many older lines show a change in the history; and downloading the database adds time to
     every run of the checks.
+
+- id: move-step-1-readme
+  date: 2026-09-30
+  area: tooling
+  change: >-
+    The README now explains the backend as it runs after the move, on Cloudflare's own runtime
+    with a local copy of TiDB, so a teammate can go from a fresh copy of the code to a stored tap
+    by following it alone. It covers installing Docker, starting the database, adding the
+    practice station and users, starting the backend and sending a practice tap. It also shows
+    how to change a setting on a laptop without changing what gets deployed, and says to quit
+    Docker when not working on the backend, since it can use 4 GiB of memory.
