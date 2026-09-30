@@ -5,14 +5,18 @@ export type DataSourceScope = "admin" | "pair";
 
 export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
 
-const SCOPE_METHOD: Record<DataSourceScope, keyof ApiClient> = {
-  admin: "listStations",
-  pair: "pairToken",
+const SCOPE_METHODS: Record<DataSourceScope, readonly (keyof ApiClient)[]> = {
+  admin: ["listStations", "createStation", "listTaps", "createFallbackTap", "stats", "exportCsv"],
+  pair: ["pairToken", "unpairToken"],
 };
 
-export function isMockData(scope: DataSourceScope, live: boolean = isLiveApiEnabled): boolean {
+export function isMockData(
+  scope: DataSourceScope,
+  live: boolean = isLiveApiEnabled,
+  liveMethods: ReadonlySet<keyof ApiClient> = LIVE_METHODS,
+): boolean {
   if (!live) return true;
-  return !LIVE_METHODS.has(SCOPE_METHOD[scope]);
+  return SCOPE_METHODS[scope].some((method) => !liveMethods.has(method));
 }
 
 export function dataSourceMessage(
