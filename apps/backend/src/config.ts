@@ -1,8 +1,4 @@
 export interface Config {
-  port: number;
-  /** libSQL URL. `file:` for local SQLite, `libsql://` for Turso. */
-  databaseUrl: string;
-  databaseAuthToken: string | undefined;
   /** Seconds a user must wait before a second tap at the same station counts. 0 disables. */
   tapCooldownSeconds: number;
   maxTapsPerRequest: number;
@@ -25,6 +21,22 @@ const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
 
 interface EnvReader {
   get(key: string): string | undefined;
+}
+
+/**
+ * Reads settings by name from a Worker's `env`, which gets them from
+ * wrangler.jsonc, .dev.vars or `wrangler secret put`, or from
+ * `Deno.env.toObject()`.
+ */
+function readerFor(settings: object): EnvReader {
+  const values = settings as Record<string, unknown>;
+  return {
+    get(key) {
+      const value = values[key];
+      // wrangler.jsonc can hold a number or a boolean; everything else holds strings.
+      return value === undefined ? undefined : String(value);
+    },
+  };
 }
 
 function intFromEnv(env: EnvReader, key: string, fallback: number): number {
@@ -58,17 +70,36 @@ function sessionSecretFromEnv(env: EnvReader, devAuthEnabled: boolean): string {
   throw new Error("SESSION_SECRET is required unless DEV_AUTH_ENABLED is true");
 }
 
-export function loadConfig(env: EnvReader = Deno.env): Config {
+export function loadConfig(settings: object): Config {
+  const env = readerFor(settings);
   const devAuthEnabled = boolFromEnv(env, "DEV_AUTH_ENABLED", false);
   return {
-    port: intFromEnv(env, "PORT", 8000),
-    databaseUrl: env.get("DATABASE_URL") ?? "file:./data/geekykey.db",
-    databaseAuthToken: env.get("DATABASE_AUTH_TOKEN") || undefined,
     tapCooldownSeconds: intFromEnv(env, "TAP_COOLDOWN_SECONDS", 300),
     maxTapsPerRequest: intFromEnv(env, "MAX_TAPS_PER_REQUEST", 500),
     devAuthEnabled,
     sessionSecret: sessionSecretFromEnv(env, devAuthEnabled),
     // Dev auth means a developer on http://localhost, where a Secure cookie never comes back.
     sessionCookieSecure: !devAuthEnabled,
+  };
+}
+
+/**
+ * Where today's Deno server listens, and which database it opens. The Worker
+ * needs neither: `wrangler dev` sets the port, and the Hyperdrive binding the
+ * database. Both go when Deno leaves the backend.
+ */
+export interface DenoServerConfig {
+  port: number;
+  /** libSQL URL. `file:` for local SQLite, `libsql://` for Turso. */
+  databaseUrl: string;
+  databaseAuthToken: string | undefined;
+}
+
+export function loadDenoServerConfig(settings: object): DenoServerConfig {
+  const env = readerFor(settings);
+  return {
+    port: intFromEnv(env, "PORT", 8000),
+    databaseUrl: env.get("DATABASE_URL") ?? "file:./data/geekykey.db",
+    databaseAuthToken: env.get("DATABASE_AUTH_TOKEN") || undefined,
   };
 }

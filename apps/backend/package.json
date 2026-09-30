@@ -6,16 +6,25 @@
   "scripts": {
     "dev": "deno task dev",
     "start": "deno task start",
-    "test": "deno task test"
+    "test": "deno task test",
+    "dev:worker": "wrangler dev",
+    "test:worker": "vitest run",
+    "typecheck:worker": "wrangler types && tsc"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
     "@libsql/client": "^0.15.15",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.8",
+    "mysql2": "^3.24.4",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10"
+    "@cloudflare/vitest-plugin": "^1.3.1",
+    "@types/node": "^22.20.3",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.143.0"
   }
 }
