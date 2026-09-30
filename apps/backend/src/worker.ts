@@ -1,6 +1,7 @@
 import { createBaseApp } from "./base-app.ts";
 import { type Config, loadConfig } from "./config.ts";
 import { createRequestDb, type Db } from "./db/hyperdrive.ts";
+import { tapsRoutes } from "./routes/taps.ts";
 
 export type WorkerEnv = {
   Bindings: Env;
@@ -8,9 +9,9 @@ export type WorkerEnv = {
 };
 
 /**
- * The GeekyKey Service as a Cloudflare Worker. So far it answers only what
- * base-app.ts sets up; the other routes move over from today's Deno server one
- * at a time.
+ * The GeekyKey Service as a Cloudflare Worker. So far it answers what
+ * base-app.ts sets up and the stations' taps; the other routes move over from
+ * today's Deno server one at a time.
  */
 export function createWorkerApp() {
   const app = createBaseApp<WorkerEnv>();
@@ -29,6 +30,8 @@ export function createWorkerApp() {
       c.executionCtx.waitUntil(requestDb.close());
     }
   });
+
+  app.route("/api/v1/taps", tapsRoutes());
 
   return app;
 }

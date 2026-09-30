@@ -67,7 +67,12 @@ export default defineConfig({
   test: {
     // Only the Worker's tests. The others still run on Deno until each one
     // moves over.
-    include: ["src/worker.test.ts", "src/test-helpers.test.ts"],
+    include: [
+      "src/worker.test.ts",
+      "src/test-helpers.test.ts",
+      "src/routes/taps.test.ts",
+      "src/services/taps.test.ts",
+    ],
     // Brings geekykey_test up to date once per run, on Node.
     globalSetup: ["./test-support/global-setup.ts"],
     // Empties every table before each test, inside workerd.

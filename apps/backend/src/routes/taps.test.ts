@@ -1,23 +1,15 @@
 import assert from "node:assert/strict";
+import { exports } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
-import { createApp } from "../app.ts";
-import type { Config } from "../config.ts";
-import { stations } from "../db/schema.ts";
+import { test } from "vitest";
+import { stations, taps } from "../db/schema.ts";
 import { setupFixture } from "../test-helpers.ts";
 
-const config: Config = {
-  tapCooldownSeconds: 300,
-  maxTapsPerRequest: 3,
-  devAuthEnabled: true,
-  sessionSecret: "test-secret-at-least-16",
-  sessionCookieSecure: false,
-};
-
+/** The fixture, and a way to post to the Worker as its station. */
 async function harness() {
   const fx = await setupFixture();
-  const app = createApp({ db: fx.db, config });
   const post = (body: unknown, key: string | null = fx.stationKey) =>
-    app.request("/api/v1/taps", {
+    exports.default.fetch("http://localhost/api/v1/taps", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -25,17 +17,17 @@ async function harness() {
       },
       body: JSON.stringify(body),
     });
-  return { ...fx, app, post };
+  return { ...fx, post };
 }
 
-Deno.test("rejects requests without a station key", async () => {
+test("rejects requests without a station key", async () => {
   const { post, uid } = await harness();
   const res = await post({ taps: [{ client_tap_id: "t1", uid }] }, null);
   assert.equal(res.status, 401);
   assert.deepEqual(await res.json(), { error: "missing_station_key" });
 });
 
-Deno.test("rejects an unknown station key", async () => {
+test("rejects an unknown station key", async () => {
   const { post, uid } = await harness();
   const res = await post(
     { taps: [{ client_tap_id: "t1", uid }] },
@@ -45,7 +37,7 @@ Deno.test("rejects an unknown station key", async () => {
   assert.deepEqual(await res.json(), { error: "invalid_station_key" });
 });
 
-Deno.test("ingests a batch and returns a status per tap without user details", async () => {
+test("ingests a batch and returns a status per tap without user details", async () => {
   const { post, uid, stationId } = await harness();
   const res = await post({
     taps: [
@@ -63,18 +55,31 @@ Deno.test("ingests a batch and returns a status per tap without user details", a
   });
 });
 
-Deno.test("updates the station's last_seen_at on a successful request", async () => {
+test("accepts a full batch of 500 taps", async () => {
+  // The most a station sends at once, when it flushes its saved taps.
+  const { post, db } = await harness();
+  const res = await post({
+    taps: Array.from({ length: 500 }, (_, i) => ({
+      client_tap_id: `t${i}`,
+      uid: "DEADBEEF",
+    })),
+  });
+  assert.equal(res.status, 200);
+  assert.equal((await db.select({ id: taps.id }).from(taps)).length, 500);
+});
+
+test("updates the station's last_seen_at on a successful request", async () => {
   const { post, uid, db, stationId } = await harness();
   await post({ taps: [{ client_tap_id: "t1", uid }] });
-  const row = await db
+  const [row] = await db
     .select({ lastSeenAt: stations.lastSeenAt })
     .from(stations)
     .where(eq(stations.id, stationId))
-    .get();
+    .limit(1);
   assert.ok(row?.lastSeenAt);
 });
 
-Deno.test("validates the body shape", async () => {
+test("validates the body shape", async () => {
   const { post, uid } = await harness();
   for (
     const body of [
@@ -83,41 +88,34 @@ Deno.test("validates the body shape", async () => {
       { taps: [{ uid }] },
       { taps: [{ client_tap_id: "t1", uid: "zz" }] },
       { taps: [{ client_tap_id: "t1", uid, tapped_at: "yesterday" }] },
+      // One more than MAX_TAPS_PER_REQUEST in wrangler.jsonc.
       {
         taps: Array.from(
-          { length: 4 },
+          { length: 501 },
           (_, i) => ({ client_tap_id: `t${i}`, uid }),
         ),
       },
     ]
   ) {
     const res = await post(body);
-    assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(body)}`);
-    const json = await res.json();
+    assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(body).slice(0, 80)}`);
+    const json = await res.json<{ error: string }>();
     assert.equal(json.error, "validation_failed");
   }
 });
 
-Deno.test("health endpoints still respond", async () => {
-  const { app } = await harness();
-  const res = await app.request("/api/health");
-  assert.equal(res.status, 200);
-  assert.equal((await res.json()).status, "ok");
-});
-
-Deno.test("unknown routes and methods return the JSON not_found error", async () => {
-  const { app } = await harness();
+test("unknown routes and methods return the JSON not_found error", async () => {
   for (const [method, path] of [["GET", "/nope"], ["GET", "/api/v1/taps"]]) {
-    const res = await app.request(path, { method });
+    const res = await exports.default.fetch(`http://localhost${path}`, { method });
     assert.equal(res.status, 404, `${method} ${path}`);
     assert.deepEqual(await res.json(), { error: "not_found" });
   }
 });
 
-Deno.test("treats an unparseable body as a 400, not a backend error", async () => {
+test("treats an unparseable body as a 400, not a backend error", async () => {
   // A station that retried this as a 5xx would resend the same broken payload forever.
-  const { app, stationKey } = await harness();
-  const res = await app.request("/api/v1/taps", {
+  const { stationKey } = await harness();
+  const res = await exports.default.fetch("http://localhost/api/v1/taps", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -126,5 +124,5 @@ Deno.test("treats an unparseable body as a 400, not a backend error", async () =
     body: '{"taps":[{',
   });
   assert.equal(res.status, 400);
-  assert.equal((await res.json()).error, "validation_failed");
+  assert.equal((await res.json<{ error: string }>()).error, "validation_failed");
 });

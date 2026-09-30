@@ -25,6 +25,8 @@
     "src/worker.ts",
     "src/worker.test.ts",
     "src/test-helpers.test.ts",
+    "src/routes/taps.test.ts",
+    "src/services/taps.test.ts",
     "scripts/create-databases.ts",
     "scripts/migrate.ts",
     "scripts/seed.ts",

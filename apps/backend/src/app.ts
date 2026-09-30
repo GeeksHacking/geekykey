@@ -4,9 +4,6 @@ import type { Db } from "./db/hyperdrive.ts";
 import type { SessionOptions } from "./middleware/session-auth.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { meRoutes } from "./routes/me.ts";
-import { tapsRoutes } from "./routes/taps.ts";
-import { LocalTokenResolver } from "./services/identity.ts";
-import { TapPipeline } from "./services/taps.ts";
 
 export interface AppDeps {
   db: Db;
@@ -14,10 +11,6 @@ export interface AppDeps {
 }
 
 export function createApp({ db, config }: AppDeps) {
-  const pipeline = new TapPipeline(db, new LocalTokenResolver(db), {
-    cooldownSeconds: config.tapCooldownSeconds,
-  });
-
   // Built once and shared, so every route that reads or writes a session agrees on it.
   const session: SessionOptions = {
     db,
@@ -33,11 +26,6 @@ export function createApp({ db, config }: AppDeps) {
   );
 
   app.route("/api/v1/me", meRoutes({ db, session }));
-
-  app.route(
-    "/api/v1/taps",
-    tapsRoutes({ db, pipeline, maxTapsPerRequest: config.maxTapsPerRequest }),
-  );
 
   return app;
 }
