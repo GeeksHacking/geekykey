@@ -18,15 +18,9 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  // Only the Worker and what it imports, while the rest of the backend still
-  // runs on Deno.
   "include": [
     "worker-configuration.d.ts",
-    "src/worker.ts",
-    "src/worker.test.ts",
-    "src/test-helpers.test.ts",
-    "src/routes/taps.test.ts",
-    "src/services/taps.test.ts",
+    "src",
     "scripts/create-databases.ts",
     "scripts/migrate.ts",
     "scripts/seed.ts",

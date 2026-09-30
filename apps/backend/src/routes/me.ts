@@ -1,14 +1,13 @@
 import { Hono } from "hono";
-import type { Db } from "../db/hyperdrive.ts";
 import {
   requireSession,
   type SessionEnv,
   type SessionOptions,
 } from "../middleware/session-auth.ts";
 import { loadMe } from "../services/me.ts";
+import type { WorkerEnv } from "../worker.ts";
 
 export interface MeRouteDeps {
-  db: Db;
   session: SessionOptions;
 }
 
@@ -19,14 +18,14 @@ export interface MeRouteDeps {
  * signed-in user of any role. A 401 is how the frontend learns that nobody is
  * signed in.
  */
-export function meRoutes({ db, session }: MeRouteDeps) {
-  return new Hono<SessionEnv>().get(
+export function meRoutes({ session }: MeRouteDeps) {
+  return new Hono<WorkerEnv & SessionEnv>().get(
     "/",
     requireSession(session),
     async (c) => {
       // The session already loaded the profile, so only the rest is read here.
       const user = c.var.user;
-      const me = await loadMe(db, user.id);
+      const me = await loadMe(c.var.db, user.id);
       return c.json({
         user: { id: user.id, display_name: user.displayName, role: user.role },
         tokens: me.tokens.map((t) => ({ uid: t.uid, paired_at: t.pairedAt })),

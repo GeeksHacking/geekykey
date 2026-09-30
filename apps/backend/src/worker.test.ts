@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
-import {
-  createExecutionContext,
-  waitOnExecutionContext,
-} from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { sql } from "drizzle-orm";
 import { test } from "vitest";
+import { requestWorker } from "./test-helpers.ts";
 import { createWorkerApp } from "./worker.ts";
 
 test("health answers with the same body as on Deno", async () => {
@@ -24,23 +21,19 @@ test("every /api and /auth response says not to cache it, even an error", async 
   }
 });
 
-test("a request gets its settings and its database from the Worker's environment", async () => {
+test("a request gets the settings the Worker started with, and a database of its own", async () => {
   // A route only this test has, to look at what a real route would be handed.
-  const app = createWorkerApp();
-  app.get("/probe", async (c) => {
+  const worker = createWorkerApp({ ...env, TAP_COOLDOWN_SECONDS: "7" });
+  worker.get("/probe", async (c) => {
     const [rows] = await c.var.db.execute(sql`SELECT DATABASE() AS name`);
-    return c.json({ rows, devAuthEnabled: c.var.config.devAuthEnabled });
+    return c.json({ rows, tapCooldownSeconds: c.var.config.tapCooldownSeconds });
   });
 
-  const ctx = createExecutionContext();
-  const res = await app.request("/probe", {}, env, ctx);
-  await waitOnExecutionContext(ctx);
-
+  const res = await requestWorker(worker, "/probe");
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), {
     // Through the Hyperdrive binding, to the tests' own database.
     rows: [{ name: "geekykey_test" }],
-    // vitest.config.ts sets DEV_AUTH_ENABLED. Without it, this would be false.
-    devAuthEnabled: true,
+    tapCooldownSeconds: 7,
   });
 });

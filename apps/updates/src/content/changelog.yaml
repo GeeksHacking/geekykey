@@ -426,3 +426,17 @@
     needs, which costs nothing while one station's requests take turns anyway; and the dev server
     now listens on the whole local network, not only the laptop, because stations call it by the
     laptop's name.
+
+- id: move-step-1-dashboard
+  date: 2026-09-30
+  area: backend
+  change: >-
+    The participant dashboard and passport now work against the backend on Cloudflare's own
+    runtime and the local copy of TiDB, with the same requests and answers as before and no change
+    to the website. Signed in through the development sign-in, the seeded participant sees their
+    points, stamps and recent taps; the seeded organizer can sign in and out too, though their own
+    screens still show demo data until those endpoints exist. The backend now reads its settings
+    once, when it starts, so the development sign-in is left out of production altogether rather
+    than switched off. The trade-offs we accept: this relies on Cloudflare handing the backend its
+    secrets at start-up, which its documentation says it does but only the first deploy will
+    confirm.

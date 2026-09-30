@@ -20,10 +20,10 @@ export interface SessionUser {
   role: Role;
 }
 
-export type SessionEnv = { Variables: { user: SessionUser } };
+/** Reads the request's `db`, and sets `user` for the handlers after it. */
+export type SessionEnv = { Variables: { db: Db; user: SessionUser } };
 
 export interface SessionOptions {
-  db: Db;
   /** From config.sessionSecret. */
   secret: string;
   /** From config.sessionCookieSecure. */
@@ -83,7 +83,7 @@ export function clearSession(
  * and one naming a user who no longer exists.
  */
 export async function readSession(
-  c: Context,
+  c: Context<SessionEnv>,
   options: SessionOptions,
 ): Promise<SessionUser | null> {
   // false means the signature did not verify, undefined means there was no cookie.
@@ -99,7 +99,7 @@ export async function readSession(
   // The browser already drops the cookie at max-age. This is what expires a copy of it.
   if (expiresAt <= Date.now()) return null;
 
-  const user = await options.db
+  const [user] = await c.var.db
     .select({
       id: users.id,
       displayName: users.displayName,
@@ -107,7 +107,7 @@ export async function readSession(
     })
     .from(users)
     .where(eq(users.id, userId))
-    .get();
+    .limit(1);
   return user ?? null;
 }
 
