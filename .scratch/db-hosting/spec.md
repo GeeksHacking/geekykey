@@ -294,7 +294,7 @@ GitHub holds only the migration login. No Cloudflare API token is kept in GitHub
 | Event screens | Vite on 5173, proxying `/api` and `/auth` to 8000 until the split, then to 8001 |
 | GeekyKey screens | Vite on 5174, proxying to 8000 |
 | Database | TiDB v8.5.3 in Docker from the root `compose.yaml`, with `geekykey_dev` and `geekykey_test`. The Hyperdrive binding's local connection string points at it |
-| Secrets | A gitignored `.dev.vars` per service: `SESSION_SECRET`, `DEV_AUTH_ENABLED=true` and a local Event Service key. Never in a deployed config |
+| Secrets | A gitignored `.dev.vars` per service: `SESSION_SECRET` and a local Event Service key. Never in a deployed config. Each service's `pnpm dev` turns dev-login on itself with `wrangler dev --var DEV_AUTH_ENABLED:true`, so a fresh clone runs with no `.dev.vars`, and `secrets.required`, which makes `wrangler dev` read only the listed keys from `.dev.vars`, can't drop it |
 | Logging in | dev-login signs in seeded users. The Portal works too, once the `localhost` redirect URLs join their OAuth apps |
 
 One root `pnpm dev` starts all four. Each service runs its own `wrangler dev`, because one command with two configs gives the second Worker no HTTP port. Mock mode stays for work on screens.
@@ -344,7 +344,7 @@ Today's five endpoints (`/api/health`, `POST /api/v1/taps`, `GET /api/v1/me`, `P
 - **The cooldown's lock.** `#oneAtATime` goes. Each ingest is one short transaction that first locks the station's row in `stations` with `SELECT ... FOR UPDATE`.
 - **`Cache-Control: no-store`** on every `/api/*` and `/auth/*` response, from one middleware.
 - **Tests.** Vitest with `@cloudflare/vitest-plugin` runs the suite inside workerd against `geekykey_test`. The database is migrated once per run, test files run one at a time, every row is deleted before each test, and no test assumes an id value. `Deno.test` becomes `test`, and `node:assert` stays. A new test proves the lock: two overlapping ingests from one station, on two connections.
-- **Tooling.** `deno.json`, `deno.lock`, Deno in `.mise.toml` and the `deps:backend` task go. ESLint, oxfmt and `tsc` replace `deno lint`, `deno fmt` and `deno check`, as in the frontend, with the Workers types from `wrangler types`. `allowBuilds` in `pnpm-workspace.yaml` gains the approved `workerd` version, and each Wrangler upgrade needs a person to approve the new one.
+- **Tooling.** `deno.json`, `deno.lock`, Deno in `.mise.toml` and the `deps:backend` task go. ESLint, oxfmt and `tsc` replace `deno lint`, `deno fmt` and `deno check`, as in the frontend, with the Workers types from `wrangler types`. `allowBuilds` in `pnpm-workspace.yaml` gains the approved `workerd` version, and each Wrangler upgrade needs a person to approve the new one. `pnpm dev` runs `wrangler dev --var DEV_AUTH_ENABLED:true`, as the Deno dev task set it, so a fresh clone needs no `.dev.vars`. `wrangler.jsonc` turns off Wrangler's usage data (`send_metrics: false`), as the updates site does for Astro's. `check:build` and `check:migrations` are package scripts, so CI's two new checks also run on a laptop, and `format:backend` mirrors `format:frontend`.
 - **CI's backend job:** mise installs Node and pnpm; `pnpm install --frozen-lockfile`; lint, format check and `tsc`; `db:up` from `compose.yaml`; the tests; `wrangler deploy --dry-run`, which needs no Cloudflare login and proves the Worker builds; and `drizzle-kit generate`, which must write nothing. The "Check deno.lock is current" step goes.
 - **The README's backend sections** (section 8.1).
 
@@ -707,11 +707,11 @@ Each change lands with the checkpoint that makes it true.
 - "How the pieces connect": SQLite becomes TiDB.
 - "Inside the backend": the entry point exports the Worker; add `wrangler.jsonc` and the scripts; `data/` goes.
 - "Install the tools": mise installs Node and pnpm.
-- The task table: `deps:backend` goes; add `db:up`, `db:reset`, `db:down`, `db:migrate` and `seed`; `dev:backend` runs `wrangler dev`, and `test:backend` runs Vitest.
+- The task table: `deps:backend` goes; add `db:up`, `db:reset`, `db:down`, `db:migrate`, `seed` and `format:backend`; `dev:backend` runs `wrangler dev` with dev-login on, and `test:backend` runs Vitest.
 - "Where a task's command comes from": the backend tasks no longer end in a `deno task`.
 - "Running the backend," rewritten: install Docker, then `mise run db:up`, `mise run seed` and `mise run dev:backend`. Quit Docker Desktop when you're not working on the backend: it can use 4 GiB of memory.
 - "Settings": settings live in `wrangler.jsonc`, and local secrets in `.dev.vars`. The `DATABASE_URL` row goes.
-- "Other backend commands": lint, typecheck and `drizzle-kit generate`.
+- "Other backend commands": lint, format check, typecheck, `drizzle-kit generate`, and CI's two checks, `check:build` and `check:migrations`.
 - "Changing backend dependencies" goes: there is no second lockfile.
 - CI: the backend job's new steps.
 - "Where to read next": add `CONTEXT.md` and `docs/adr/`.

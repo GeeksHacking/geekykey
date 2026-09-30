@@ -1210,12 +1210,10 @@ mise run seed          # prints a station key, and creates dev-user-1 and dev-or
 mise run dev:backend   # the service on http://localhost:8000
 ```
 
-`DEV_AUTH_ENABLED=true` goes in the service's gitignored `.dev.vars`. From checkpoint 4, one
-`pnpm dev` at the repo root starts both services and both sets of screens. Then
+`mise run dev:backend` turns on `DEV_AUTH_ENABLED` by itself, so no `.dev.vars` is needed. From
+checkpoint 4, one `pnpm dev` at the repo root starts both services and both sets of screens. Then
 `POST /auth/dev-login` with `{"user_id":"dev-user-1"}` from the screens, and every other call on
 that service works.
-
-Until checkpoint 1: `cd apps/backend`, `deno task seed`, then `DEV_AUTH_ENABLED=true deno task dev`.
 
 ---
 
