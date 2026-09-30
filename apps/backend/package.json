@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "deno task dev",
-    "start": "deno task start",
-    "test": "deno task test",
-    "dev:worker": "wrangler dev",
-    "test:worker": "vitest run",
-    "typecheck:worker": "wrangler types && tsc",
+    "dev": "wrangler dev --var DEV_AUTH_ENABLED:true",
+    "test": "vitest run",
+    "typecheck": "wrangler types && tsc",
+    "lint": "eslint .",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.ts",
     "seed": "node scripts/seed.ts"
@@ -23,9 +23,13 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.3.1",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.3",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^10.10.0",
+    "oxfmt": "0.70.0",
     "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0",
     "vitest": "^4.1.11",
     "wrangler": "^4.143.0"
   }

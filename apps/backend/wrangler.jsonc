@@ -11,6 +11,8 @@
   "compatibility_date": "2026-09-26",
   // mysql2 needs Node's networking APIs.
   "compatibility_flags": ["nodejs_compat"],
+  // Wrangler sends anonymous usage data unless told not to.
+  "send_metrics": false,
 
   // No workers.dev address and no preview URLs: the custom domain, added at
   // the first deploy, is the only way in.

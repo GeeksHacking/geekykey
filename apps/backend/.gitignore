@@ -1,5 +1,4 @@
 .gram/
-data/
 # Local secrets for `wrangler dev` (template: .dev.vars.example)
 .dev.vars
 .dev.vars.*

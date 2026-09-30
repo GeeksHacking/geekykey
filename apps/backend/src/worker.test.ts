@@ -5,7 +5,7 @@ import { test } from "vitest";
 import { requestWorker } from "./test-helpers.ts";
 import { createWorkerApp } from "./worker.ts";
 
-test("health answers with the same body as on Deno", async () => {
+test("health says the service is up, with the time", async () => {
   const res = await exports.default.fetch("http://localhost/api/health");
   assert.equal(res.status, 200);
 

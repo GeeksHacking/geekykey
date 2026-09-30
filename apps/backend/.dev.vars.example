@@ -2,7 +2,8 @@
 # which git ignores. Never move them into wrangler.jsonc, which is deployed.
 
 # Mounts POST /auth/dev-login, which signs in a seeded user without the Portal.
-# Local development only.
+# Local development only. `mise run dev:backend` turns it on by itself, so this
+# line only matters when you run `wrangler dev` some other way.
 DEV_AUTH_ENABLED=true
 
 # Signs the gk_session cookie. Locally it can stay unset while DEV_AUTH_ENABLED
