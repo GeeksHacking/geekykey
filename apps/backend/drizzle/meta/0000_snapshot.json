@@ -1,7 +1,7 @@
 {
-  "version": "6",
-  "dialect": "sqlite",
-  "id": "09f85bed-f7d1-4c6a-9609-046a2ec8b85a",
+  "version": "5",
+  "dialect": "mysql",
+  "id": "b45ace8b-56a5-41b0-a342-c3f037da9dac",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "stations": {
@@ -9,8 +9,8 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "text",
-          "primaryKey": true,
+          "type": "varchar(64)",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -30,14 +30,14 @@
         },
         "api_key_hash": {
           "name": "api_key_hash",
-          "type": "text",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "points": {
           "name": "points",
-          "type": "integer",
+          "type": "int",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -45,75 +45,80 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "varchar(24)",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+          "autoincrement": false
         },
         "last_seen_at": {
           "name": "last_seen_at",
-          "type": "text",
+          "type": "varchar(24)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         }
       },
-      "indexes": {
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "stations_id": {
+          "name": "stations_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
         "stations_api_key_hash_unique": {
           "name": "stations_api_key_hash_unique",
           "columns": [
             "api_key_hash"
-          ],
-          "isUnique": true
+          ]
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraint": {}
     },
     "taps": {
       "name": "taps",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
-          "primaryKey": true,
+          "type": "int",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": true
         },
         "station_id": {
           "name": "station_id",
-          "type": "text",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "client_tap_id": {
           "name": "client_tap_id",
-          "type": "text",
+          "type": "varchar(128)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "token_uid": {
           "name": "token_uid",
-          "type": "text",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "user_id": {
           "name": "user_id",
-          "type": "text",
+          "type": "varchar(128)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "source": {
           "name": "source",
-          "type": "text",
+          "type": "enum('nfc','qr_fallback')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -121,21 +126,21 @@
         },
         "status": {
           "name": "status",
-          "type": "text",
+          "type": "enum('accepted','cooldown','unknown_token')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "tapped_at": {
           "name": "tapped_at",
-          "type": "text",
+          "type": "varchar(24)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "received_at": {
           "name": "received_at",
-          "type": "text",
+          "type": "varchar(24)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -162,6 +167,14 @@
         "taps_received_at_idx": {
           "name": "taps_received_at_idx",
           "columns": [
+            "received_at"
+          ],
+          "isUnique": false
+        },
+        "taps_user_received_at_idx": {
+          "name": "taps_user_received_at_idx",
+          "columns": [
+            "user_id",
             "received_at"
           ],
           "isUnique": false
@@ -195,47 +208,44 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "taps_source_check": {
-          "name": "taps_source_check",
-          "value": "\"taps\".\"source\" IN ('nfc', 'qr_fallback')"
-        },
-        "taps_status_check": {
-          "name": "taps_status_check",
-          "value": "\"taps\".\"status\" IN ('accepted', 'cooldown', 'unknown_token')"
+      "compositePrimaryKeys": {
+        "taps_id": {
+          "name": "taps_id",
+          "columns": [
+            "id"
+          ]
         }
-      }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
     },
     "tokens": {
       "name": "tokens",
       "columns": {
         "uid": {
           "name": "uid",
-          "type": "text",
-          "primaryKey": true,
+          "type": "varchar(20)",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "user_id": {
           "name": "user_id",
-          "type": "text",
+          "type": "varchar(128)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "paired_at": {
           "name": "paired_at",
-          "type": "text",
+          "type": "varchar(24)",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+          "autoincrement": false
         },
         "revoked_at": {
           "name": "revoked_at",
-          "type": "text",
+          "type": "varchar(24)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -265,23 +275,30 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "tokens_uid": {
+          "name": "tokens_uid",
+          "columns": [
+            "uid"
+          ]
+        }
+      },
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraint": {}
     },
     "users": {
       "name": "users",
       "columns": {
         "id": {
           "name": "id",
-          "type": "text",
-          "primaryKey": true,
+          "type": "varchar(128)",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "portal_user_id": {
           "name": "portal_user_id",
-          "type": "text",
+          "type": "varchar(128)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -295,7 +312,7 @@
         },
         "role": {
           "name": "role",
-          "type": "text",
+          "type": "enum('participant','organizer')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -303,41 +320,41 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "varchar(24)",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+          "autoincrement": false
         }
       },
-      "indexes": {
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "users_id": {
+          "name": "users_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
         "users_portal_user_id_unique": {
           "name": "users_portal_user_id_unique",
           "columns": [
             "portal_user_id"
-          ],
-          "isUnique": true
+          ]
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "users_role_check": {
-          "name": "users_role_check",
-          "value": "\"users\".\"role\" IN ('participant', 'organizer')"
-        }
-      }
+      "checkConstraint": {}
     }
   },
   "views": {},
-  "enums": {},
   "_meta": {
     "schemas": {},
     "tables": {},
     "columns": {}
   },
   "internal": {
+    "tables": {},
     "indexes": {}
   }
 }

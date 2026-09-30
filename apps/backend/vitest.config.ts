@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import type { Plugin } from "vitest/config";
 import { defineConfig } from "vitest/config";
+import { localDatabaseUrl } from "./scripts/local-tidb.ts";
 
 const nodeProcessStandIn = fileURLToPath(
   new URL("./test-support/node-process.cjs", import.meta.url),
@@ -56,7 +57,7 @@ export default defineConfig({
         // The tests' own database, so running them never touches the data in
         // geekykey_dev that `wrangler dev` uses.
         hyperdrives: {
-          HYPERDRIVE: "mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test",
+          HYPERDRIVE: localDatabaseUrl("geekykey_test"),
         },
         // What .dev.vars sets on a laptop, here too because CI has no .dev.vars.
         bindings: { DEV_AUTH_ENABLED: "true" },
@@ -66,6 +67,13 @@ export default defineConfig({
   test: {
     // Only the Worker's tests. The others still run on Deno until each one
     // moves over.
-    include: ["src/worker.test.ts"],
+    include: ["src/worker.test.ts", "src/test-helpers.test.ts"],
+    // Brings geekykey_test up to date once per run, on Node.
+    globalSetup: ["./test-support/global-setup.ts"],
+    // Empties every table before each test, inside workerd.
+    setupFiles: ["./test-support/empty-tables.ts"],
+    // All the files share geekykey_test, so one file emptying the tables
+    // mustn't pull the rows out from under another.
+    fileParallelism: false,
   },
 });

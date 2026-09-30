@@ -82,24 +82,3 @@ export function loadConfig(settings: object): Config {
     sessionCookieSecure: !devAuthEnabled,
   };
 }
-
-/**
- * Where today's Deno server listens, and which database it opens. The Worker
- * needs neither: `wrangler dev` sets the port, and the Hyperdrive binding the
- * database. Both go when Deno leaves the backend.
- */
-export interface DenoServerConfig {
-  port: number;
-  /** libSQL URL. `file:` for local SQLite, `libsql://` for Turso. */
-  databaseUrl: string;
-  databaseAuthToken: string | undefined;
-}
-
-export function loadDenoServerConfig(settings: object): DenoServerConfig {
-  const env = readerFor(settings);
-  return {
-    port: intFromEnv(env, "PORT", 8000),
-    databaseUrl: env.get("DATABASE_URL") ?? "file:./data/geekykey.db",
-    databaseAuthToken: env.get("DATABASE_AUTH_TOKEN") || undefined,
-  };
-}

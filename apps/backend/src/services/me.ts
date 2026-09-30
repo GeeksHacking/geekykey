@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, isNull, min } from "drizzle-orm";
-import type { Db } from "../db/client.ts";
+import type { Db } from "../db/hyperdrive.ts";
 import { stations, taps, tokens } from "../db/schema.ts";
 import type { StoredTapStatus, TapSource } from "./taps.ts";
 

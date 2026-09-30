@@ -24,7 +24,12 @@
     "worker-configuration.d.ts",
     "src/worker.ts",
     "src/worker.test.ts",
+    "src/test-helpers.test.ts",
     "scripts/create-databases.ts",
+    "scripts/migrate.ts",
+    "scripts/seed.ts",
+    "test-support/*.ts",
+    "drizzle.config.ts",
     "vitest.config.ts"
   ]
 }

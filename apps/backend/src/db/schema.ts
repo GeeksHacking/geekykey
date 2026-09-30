@@ -1,91 +1,94 @@
-import { sql } from "drizzle-orm";
 import {
-  check,
   index,
-  integer,
-  sqliteTable,
+  int,
+  mysqlEnum,
+  mysqlTable,
   text,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+  varchar,
+} from "drizzle-orm/mysql-core";
 
-/** ISO 8601 UTC with milliseconds, matching `Date.prototype.toISOString()`. */
-const isoNow = sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`;
+/**
+ * Timestamps are ISO 8601 UTC strings with milliseconds, as
+ * `Date.prototype.toISOString()` writes them, not DATETIME. They were strings
+ * on SQLite, so the code, the sort order and what the API sends stay the same
+ * after the move. A string can't have a database default, so the code sets it.
+ */
+const isoTimestamp = (name: string) => varchar(name, { length: 24 });
+const isoNow = () => new Date().toISOString();
+
+// Lengths for keys and indexed columns, which MySQL needs.
+/** The longest `user_id` dev-login accepts. Portal user IDs are GUIDs. */
+const userId = (name: string) => varchar(name, { length: 128 });
+/** `crypto.randomUUID()` in the seed. */
+const stationId = (name: string) => varchar(name, { length: 64 });
+/** The taps route accepts UIDs of 4 to 10 bytes, in hex. */
+const tokenUid = (name: string) => varchar(name, { length: 20 });
 
 export const USER_ROLES = ["participant", "organizer"] as const;
 
-export const users = sqliteTable(
-  "users",
-  {
-    id: text("id").primaryKey(),
-    portalUserId: text("portal_user_id").unique(),
-    displayName: text("display_name").notNull(),
-    role: text("role", { enum: USER_ROLES }).notNull().default("participant"),
-    createdAt: text("created_at").notNull().default(isoNow),
-  },
-  (
-    t,
-  ) => [
-    check("users_role_check", sql`${t.role} IN ('participant', 'organizer')`),
-  ],
-);
+export const users = mysqlTable("users", {
+  id: userId("id").primaryKey(),
+  portalUserId: userId("portal_user_id").unique(),
+  displayName: text("display_name").notNull(),
+  role: mysqlEnum("role", USER_ROLES).notNull().default("participant"),
+  createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
+});
 
-export const tokens = sqliteTable(
+export const tokens = mysqlTable(
   "tokens",
   {
-    uid: text("uid").primaryKey(),
-    userId: text("user_id").notNull().references(() => users.id),
-    pairedAt: text("paired_at").notNull().default(isoNow),
-    revokedAt: text("revoked_at"),
+    uid: tokenUid("uid").primaryKey(),
+    userId: userId("user_id")
+      .notNull()
+      .references(() => users.id),
+    pairedAt: isoTimestamp("paired_at").notNull().$defaultFn(isoNow),
+    revokedAt: isoTimestamp("revoked_at"),
   },
   (t) => [index("tokens_user_id_idx").on(t.userId)],
 );
 
-export const stations = sqliteTable("stations", {
-  id: text("id").primaryKey(),
+export const stations = mysqlTable("stations", {
+  id: stationId("id").primaryKey(),
   name: text("name").notNull(),
   location: text("location"),
-  apiKeyHash: text("api_key_hash").notNull().unique(),
-  points: integer("points").notNull().default(1),
-  createdAt: text("created_at").notNull().default(isoNow),
-  lastSeenAt: text("last_seen_at"),
+  /** SHA-256 of the key, in hex. */
+  apiKeyHash: varchar("api_key_hash", { length: 64 }).notNull().unique(),
+  points: int("points").notNull().default(1),
+  createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
+  lastSeenAt: isoTimestamp("last_seen_at"),
 });
 
 export const TAP_SOURCES = ["nfc", "qr_fallback"] as const;
-export const STORED_TAP_STATUSES = [
-  "accepted",
-  "cooldown",
-  "unknown_token",
-] as const;
+export const STORED_TAP_STATUSES = ["accepted", "cooldown", "unknown_token"] as const;
 
-export const taps = sqliteTable(
+/**
+ * The migration adds `AUTO_ID_CACHE=1` to this table by hand, since Drizzle
+ * can't declare it, so a newer tap always has a higher `id`.
+ */
+export const taps = mysqlTable(
   "taps",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    stationId: text("station_id").notNull().references(() => stations.id),
+    id: int("id").autoincrement().primaryKey(),
+    stationId: stationId("station_id")
+      .notNull()
+      .references(() => stations.id),
     /** Station-generated ID that makes retries idempotent. Unique per station. */
-    clientTapId: text("client_tap_id").notNull(),
-    tokenUid: text("token_uid").notNull(),
-    userId: text("user_id").references(() => users.id),
-    source: text("source", { enum: TAP_SOURCES }).notNull().default("nfc"),
-    status: text("status", { enum: STORED_TAP_STATUSES }).notNull(),
+    clientTapId: varchar("client_tap_id", { length: 128 }).notNull(),
+    tokenUid: tokenUid("token_uid").notNull(),
+    userId: userId("user_id").references(() => users.id),
+    source: mysqlEnum("source", TAP_SOURCES).notNull().default("nfc"),
+    status: mysqlEnum("status", STORED_TAP_STATUSES).notNull(),
     /** Device clock time of the tap. Nullable because ESP32 clocks are unreliable. */
-    tappedAt: text("tapped_at"),
-    receivedAt: text("received_at").notNull(),
+    tappedAt: isoTimestamp("tapped_at"),
+    receivedAt: isoTimestamp("received_at").notNull(),
   },
   (t) => [
-    uniqueIndex("taps_station_client_tap_id_uidx").on(
-      t.stationId,
-      t.clientTapId,
-    ),
+    uniqueIndex("taps_station_client_tap_id_uidx").on(t.stationId, t.clientTapId),
     index("taps_station_user_status_idx").on(t.stationId, t.userId, t.status),
     index("taps_received_at_idx").on(t.receivedAt),
     // GET /api/v1/me reads one participant's taps on every poll.
     index("taps_user_received_at_idx").on(t.userId, t.receivedAt),
-    check("taps_source_check", sql`${t.source} IN ('nfc', 'qr_fallback')`),
-    check(
-      "taps_status_check",
-      sql`${t.status} IN ('accepted', 'cooldown', 'unknown_token')`,
-    ),
   ],
 );
 

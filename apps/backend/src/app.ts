@@ -1,6 +1,6 @@
 import { createBaseApp } from "./base-app.ts";
 import type { Config } from "./config.ts";
-import type { Db } from "./db/client.ts";
+import type { Db } from "./db/hyperdrive.ts";
 import type { SessionOptions } from "./middleware/session-auth.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { meRoutes } from "./routes/me.ts";

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import type { Db } from "../db/client.ts";
+import type { Db } from "../db/hyperdrive.ts";
 import { jsonBody } from "../lib/validate.ts";
 import { stationAuth, type StationEnv } from "../middleware/station-auth.ts";
 import { normaliseUid } from "../services/identity.ts";

@@ -1,5 +1,5 @@
 import { and, inArray, isNull } from "drizzle-orm";
-import type { Db } from "../db/client.ts";
+import type { Db } from "../db/hyperdrive.ts";
 import { tokens } from "../db/schema.ts";
 
 /**

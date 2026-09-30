@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Db } from "../db/client.ts";
+import type { Db } from "../db/hyperdrive.ts";
 import {
   requireSession,
   type SessionEnv,

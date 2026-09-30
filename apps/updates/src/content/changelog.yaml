@@ -326,3 +326,15 @@
     Cloudflare's test tool loads the database driver wrongly in two small ways, so our test
     settings work around both until Cloudflare fixes them, and working on the backend now means
     installing Docker.
+
+- id: move-step-1-tables
+  date: 2026-09-30
+  area: backend
+  change: >-
+    Today's four tables now live in the local copy of TiDB, made by one fresh set of database
+    changes that replaces the SQLite ones, and the seed fills it with the usual station, participant
+    and organizer. Every test now starts from empty tables with the same small set of test data.
+    The trade-offs we accept: times stay stored as text, as before, so nothing that reads them
+    changes but the database can't fill them in itself; two lines of the database changes are
+    edited by hand, because our database tool can't express them; and on the move's branch the
+    old Deno server no longer starts, since its database driver is gone.
