@@ -6,9 +6,6 @@ import { type NewTap, stations, taps, tokens, users } from "../db/schema.ts";
 import { setupFixture } from "../test-helpers.ts";
 
 const config: Config = {
-  port: 0,
-  databaseUrl: ":memory:",
-  databaseAuthToken: undefined,
   tapCooldownSeconds: 300,
   maxTapsPerRequest: 3,
   devAuthEnabled: true,

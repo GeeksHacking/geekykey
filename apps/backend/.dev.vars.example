@@ -1,0 +1,11 @@
+# Local settings and secrets for `wrangler dev`. Copy this file to .dev.vars,
+# which git ignores. Never move them into wrangler.jsonc, which is deployed.
+
+# Mounts POST /auth/dev-login, which signs in a seeded user without the Portal.
+# Local development only.
+DEV_AUTH_ENABLED=true
+
+# Signs the gk_session cookie. Locally it can stay unset while DEV_AUTH_ENABLED
+# is true, which uses a stand-in. Production sets its own with
+# `wrangler secret put`.
+# SESSION_SECRET=

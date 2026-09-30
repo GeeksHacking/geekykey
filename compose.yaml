@@ -1,0 +1,23 @@
+# TiDB for local development and CI, at the version the TiDB Cloud cluster
+# runs. Start it with `mise run db:up`, not by hand: that task also creates the
+# databases.
+#
+# There is no volume on purpose. The data lives inside the container, so
+# `db:down` keeps it, and `db:reset` throws it away and starts again.
+
+name: geekykey
+
+services:
+  tidb:
+    image: pingcap/tidb:v8.5.3
+    ports:
+      # Only this machine can reach it. The root login has no password, so
+      # the database must never be open to the local network.
+      - "127.0.0.1:4000:4000"
+    # TiDB answers on its status port once it can take SQL, which is what
+    # `docker compose up --wait` waits for.
+    healthcheck:
+      test: ["CMD", "curl", "--silent", "--fail", "http://127.0.0.1:10080/status"]
+      interval: 1s
+      timeout: 3s
+      retries: 60

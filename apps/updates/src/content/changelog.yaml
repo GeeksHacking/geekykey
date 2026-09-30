@@ -314,3 +314,15 @@
     is noticed only if someone happens to be using the system; a fault waits if Adam and Ethan
     both leave the desk without handing over; and on the free plan, a sudden rush could use up
     the day's allowance between two hourly checks.
+
+- id: move-step-1-proof
+  date: 2026-09-30
+  area: backend
+  change: >-
+    The first proof of the move passes. On a laptop, the backend now runs on Cloudflare's own
+    runtime and reaches a local copy of TiDB through the same kind of connection it will use in
+    production, and its tests run on that runtime too. So far the new version answers only the
+    health check; the other endpoints move over in the next tasks. The trade-offs we accept:
+    Cloudflare's test tool loads the database driver wrongly in two small ways, so our test
+    settings work around both until Cloudflare fixes them, and working on the backend now means
+    installing Docker.
