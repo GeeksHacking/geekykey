@@ -18,8 +18,11 @@
   "preview_urls": false,
 
   // The port today's backend uses, so the frontend's Vite proxy and the
-  // stations don't change.
+  // stations don't change. Every network interface, not only localhost,
+  // because real stations call this laptop by name, such as
+  // http://A-Mac.local:8000.
   "dev": {
+    "ip": "0.0.0.0",
     "port": 8000
   },
 

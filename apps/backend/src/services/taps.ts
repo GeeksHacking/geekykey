@@ -3,6 +3,7 @@ import type { Db } from "../db/hyperdrive.ts";
 import {
   type NewTap,
   type STORED_TAP_STATUSES,
+  stations,
   type TAP_SOURCES,
   taps,
 } from "../db/schema.ts";
@@ -41,6 +42,9 @@ export interface TapPipelineOptions {
 const MAX_TAP_AGE_MS = 7 * 24 * 60 * 60 * 1000; // an offline buffer may wait days to flush
 const MAX_CLOCK_AHEAD_MS = 5 * 60 * 1000; // a synced clock can still run a little fast
 
+/** The database inside one ingest's transaction. */
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
 interface PendingTap {
   index: number;
   clientTapId: string;
@@ -55,18 +59,17 @@ interface PendingTap {
 /**
  * Ingests a batch of taps from one station.
  *
- * Designed for a remote database: one read for existing IDs, one for tokens,
- * one for cooldown state, then a single multi-row insert. Every non-duplicate
- * tap is stored, including rejected ones, so organisers can see unknown tags
- * and repeat taps in the log.
+ * Designed for a remote database: one read for tokens, then one short
+ * transaction that locks the station's row, reads existing IDs and cooldown
+ * state, and makes a single multi-row insert. Every non-duplicate tap is
+ * stored, including rejected ones, so organisers can see unknown tags and
+ * repeat taps in the log.
  */
 export class TapPipeline {
   #db: Db;
   #tokens: TokenResolver;
   #cooldownMs: number;
   #now: () => Date;
-  /** The last ingest queued for each station. See #oneAtATime. */
-  #queues = new Map<string, Promise<unknown>>();
 
   constructor(db: Db, tokens: TokenResolver, options: TapPipelineOptions) {
     this.#db = db;
@@ -75,129 +78,124 @@ export class TapPipeline {
     this.#now = options.now ?? (() => new Date());
   }
 
-  ingest(
+  async ingest(
     stationId: string,
     incoming: IncomingTap[],
     source: TapSource = "nfc",
   ): Promise<TapResult[]> {
-    return this.#oneAtATime(
-      stationId,
-      () => this.#ingest(stationId, incoming, source),
-    );
-  }
-
-  async #ingest(
-    stationId: string,
-    incoming: IncomingTap[],
-    source: TapSource,
-  ): Promise<TapResult[]> {
     if (incoming.length === 0) return [];
     const now = this.#now();
     const receivedAt = now.toISOString();
-    const results: TapResult[] = new Array(incoming.length);
 
-    // 1. Replays: client IDs already stored for this station, or repeated within this request.
-    const existing = await this.#existingClientTapIds(
-      stationId,
-      incoming.map((t) => t.clientTapId),
-    );
-    const seen = new Set<string>();
-    const pending: PendingTap[] = [];
-    incoming.forEach((tap, index) => {
-      if (existing.has(tap.clientTapId) || seen.has(tap.clientTapId)) {
-        results[index] = {
-          clientTapId: tap.clientTapId,
-          status: "duplicate",
-          userId: null,
-        };
-        return;
-      }
-      seen.add(tap.clientTapId);
-      const tappedAt = this.#trustedTappedAt(tap.tappedAt, now);
-      pending.push({
-        index,
-        clientTapId: tap.clientTapId,
-        uid: normaliseUid(tap.uid),
-        tappedAt,
-        effectiveAt: tappedAt ?? receivedAt,
-        userId: null,
-        status: "unknown_token",
-      });
-    });
-    if (pending.length === 0) return results;
-
-    // 2. Token to user.
+    // Token to user, before the transaction, so the station's lock never waits on it.
     const users = await this.#tokens.resolveMany([
-      ...new Set(pending.map((p) => p.uid)),
+      ...new Set(incoming.map((t) => normaliseUid(t.uid))),
     ]);
-    for (const p of pending) p.userId = users.get(p.uid) ?? null;
 
-    // 3. Cooldown: a known user's tap is `cooldown` when one of their accepted taps at this
-    //    station, stored or earlier in this batch, is inside the window on either side of it.
-    //    Walking the batch in time order means an offline flush is judged by when taps happened.
-    const accepted = await this.#acceptedTimes(stationId, pending);
-    const inTimeOrder = [...pending].sort((a, b) =>
-      a.effectiveAt.localeCompare(b.effectiveAt)
-    );
-    for (const p of inTimeOrder) {
-      if (p.userId === null) continue;
-      const times = accepted.get(p.userId) ?? [];
-      if (times.some((at) => this.#withinCooldown(at, p.effectiveAt))) {
-        p.status = "cooldown";
-        continue;
+    return await this.#db.transaction(async (tx) => {
+      await this.#lockStation(tx, stationId);
+      const results: TapResult[] = new Array(incoming.length);
+
+      // 1. Replays: client IDs already stored for this station, or repeated within this request.
+      const existing = await this.#existingClientTapIds(
+        tx,
+        stationId,
+        incoming.map((t) => t.clientTapId),
+      );
+      const seen = new Set<string>();
+      const pending: PendingTap[] = [];
+      incoming.forEach((tap, index) => {
+        if (existing.has(tap.clientTapId) || seen.has(tap.clientTapId)) {
+          results[index] = {
+            clientTapId: tap.clientTapId,
+            status: "duplicate",
+            userId: null,
+          };
+          return;
+        }
+        seen.add(tap.clientTapId);
+        const uid = normaliseUid(tap.uid);
+        const tappedAt = this.#trustedTappedAt(tap.tappedAt, now);
+        pending.push({
+          index,
+          clientTapId: tap.clientTapId,
+          uid,
+          tappedAt,
+          effectiveAt: tappedAt ?? receivedAt,
+          userId: users.get(uid) ?? null,
+          status: "unknown_token",
+        });
+      });
+      if (pending.length === 0) return results;
+
+      // 2. Cooldown: a known user's tap is `cooldown` when one of their accepted taps at this
+      //    station, stored or earlier in this batch, is inside the window on either side of it.
+      //    Walking the batch in time order means an offline flush is judged by when taps happened.
+      const accepted = await this.#acceptedTimes(tx, stationId, pending);
+      const inTimeOrder = [...pending].sort((a, b) =>
+        a.effectiveAt.localeCompare(b.effectiveAt)
+      );
+      for (const p of inTimeOrder) {
+        if (p.userId === null) continue;
+        const times = accepted.get(p.userId) ?? [];
+        if (times.some((at) => this.#withinCooldown(at, p.effectiveAt))) {
+          p.status = "cooldown";
+          continue;
+        }
+        p.status = "accepted";
+        times.push(p.effectiveAt);
+        accepted.set(p.userId, times);
       }
-      p.status = "accepted";
-      times.push(p.effectiveAt);
-      accepted.set(p.userId, times);
-    }
 
-    // 4. One write round trip. Conflict-ignore keeps (station, client_tap_id) unique, but it
-    //    does not correct the statuses decided above: a replay racing in on another instance
-    //    would still come back `accepted`. That is why #oneAtATime notes the database lock.
-    const rows: NewTap[] = pending.map((p) => ({
-      stationId,
-      clientTapId: p.clientTapId,
-      tokenUid: p.uid,
-      userId: p.userId,
-      source,
-      status: p.status,
-      tappedAt: p.tappedAt,
-      receivedAt,
-    }));
-    await this.#db.insert(taps).values(rows).onConflictDoNothing();
-
-    for (const p of pending) {
-      results[p.index] = {
+      // 3. One write round trip. With the lock held, no row here can already exist; the no-op
+      //    update is only so that one never fails the batch. Never INSERT IGNORE, which would
+      //    also store bad values without a word.
+      const rows: NewTap[] = pending.map((p) => ({
+        stationId,
         clientTapId: p.clientTapId,
-        status: p.status,
+        tokenUid: p.uid,
         userId: p.userId,
-      };
-    }
-    return results;
+        source,
+        status: p.status,
+        tappedAt: p.tappedAt,
+        receivedAt,
+      }));
+      await tx.insert(taps).values(rows).onDuplicateKeyUpdate({
+        set: { id: sql`id` },
+      });
+
+      for (const p of pending) {
+        results[p.index] = {
+          clientTapId: p.clientTapId,
+          status: p.status,
+          userId: p.userId,
+        };
+      }
+      return results;
+    });
   }
 
   /**
-   * Runs one station's ingests one after another. Each ingest reads, decides,
-   * then writes, so two overlapping requests from the same station would miss
-   * each other's rows: a retry racing its original would get `accepted` twice,
-   * and two taps by one participant would both beat the cooldown.
+   * Makes one station's ingests take turns, even across Workers instances:
+   * each reads, decides, then writes, so two at once would miss each other's
+   * rows. A resend racing its original would get `accepted` twice, and two
+   * taps by one participant would both beat the cooldown. The lock is held
+   * until the transaction ends.
    *
-   * This only orders requests inside one process. Once the backend runs on
-   * several Workers instances, the same guarantee needs a database lock, such
-   * as `SELECT ... FOR UPDATE` on the station row inside a transaction.
+   * Taking turns isn't enough on its own. On TiDB, a plain read inside a
+   * transaction sees the database as it was before the lock was waited for,
+   * so it would still miss the taps the ingest before stored. That's why the
+   * reads after the lock are locking reads (`FOR UPDATE`) too: a locking read
+   * sees the latest rows. (READ COMMITTED would also do it, but Drizzle sets it
+   * with a statement of its own before BEGIN, and Hyperdrive resets a
+   * connection after any statement outside a transaction.)
    */
-  async #oneAtATime<T>(stationId: string, run: () => Promise<T>): Promise<T> {
-    const previous = this.#queues.get(stationId) ?? Promise.resolve();
-    const current = previous.then(run);
-    // The next ingest waits for this one, whether it succeeds or fails.
-    const tail = current.catch(() => {});
-    this.#queues.set(stationId, tail);
-    try {
-      return await current;
-    } finally {
-      // Nothing queued behind this one, so drop the entry rather than keep one per station forever.
-      if (this.#queues.get(stationId) === tail) this.#queues.delete(stationId);
-    }
+  async #lockStation(tx: Tx, stationId: string): Promise<void> {
+    await tx
+      .select({ id: stations.id })
+      .from(stations)
+      .where(eq(stations.id, stationId))
+      .for("update");
   }
 
   /** The device time as ISO 8601, or null when it is missing or too far from the server's clock. */
@@ -219,10 +217,11 @@ export class TapPipeline {
   }
 
   async #existingClientTapIds(
+    tx: Tx,
     stationId: string,
     clientTapIds: string[],
   ): Promise<Set<string>> {
-    const rows = await this.#db
+    const rows = await tx
       .select({ clientTapId: taps.clientTapId })
       .from(taps)
       .where(
@@ -230,7 +229,9 @@ export class TapPipeline {
           eq(taps.stationId, stationId),
           inArray(taps.clientTapId, [...new Set(clientTapIds)]),
         ),
-      );
+      )
+      // To see the latest rows. See #lockStation.
+      .for("update");
     return new Set(rows.map((row) => row.clientTapId));
   }
 
@@ -241,6 +242,7 @@ export class TapPipeline {
    * its taps sit between ones already stored.
    */
   async #acceptedTimes(
+    tx: Tx,
     stationId: string,
     pending: PendingTap[],
   ): Promise<Map<string, string[]>> {
@@ -256,7 +258,7 @@ export class TapPipeline {
       string
     >`coalesce(${taps.tappedAt}, ${taps.receivedAt})`;
 
-    const rows = await this.#db
+    const rows = await tx
       .select({ userId: taps.userId, at: effectiveAt })
       .from(taps)
       .where(
@@ -266,7 +268,9 @@ export class TapPipeline {
           inArray(taps.userId, [...new Set(known.map((k) => k.userId))]),
           between(effectiveAt, from, to),
         ),
-      );
+      )
+      // To see the latest rows. See #lockStation.
+      .for("update");
 
     const byUser = new Map<string, string[]>();
     for (const row of rows) {

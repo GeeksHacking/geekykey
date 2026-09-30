@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { test } from "vitest";
 import type { Db } from "../db/hyperdrive.ts";
 import { stations, taps, tokens } from "../db/schema.ts";
-import { fakeClock, setupFixture } from "../test-helpers.ts";
+import { fakeClock, setupFixture, testDb } from "../test-helpers.ts";
 import { LocalTokenResolver } from "./identity.ts";
-import { TapPipeline } from "./taps.ts";
+import { type IncomingTap, TapPipeline } from "./taps.ts";
 
 async function pipeline(cooldownSeconds = 300) {
   const fx = await setupFixture();
@@ -23,7 +24,7 @@ function statuses(db: Db) {
     .orderBy(taps.id);
 }
 
-Deno.test("accepts a tap from a paired token and stores it", async () => {
+test("accepts a tap from a paired token and stores it", async () => {
   const { p, db, stationId, uid, userId } = await pipeline();
   const results = await p.ingest(stationId, [{ clientTapId: "t1", uid }]);
   assert.deepEqual(results, [{
@@ -38,7 +39,7 @@ Deno.test("accepts a tap from a paired token and stores it", async () => {
   }]);
 });
 
-Deno.test("records an unknown token instead of dropping it", async () => {
+test("records an unknown token instead of dropping it", async () => {
   const { p, db, stationId } = await pipeline();
   const results = await p.ingest(stationId, [{
     clientTapId: "t1",
@@ -52,7 +53,7 @@ Deno.test("records an unknown token instead of dropping it", async () => {
   }]);
 });
 
-Deno.test("normalises reader UID formats before lookup", async () => {
+test("normalises reader UID formats before lookup", async () => {
   const { p, stationId } = await pipeline();
   const results = await p.ingest(stationId, [{
     clientTapId: "t1",
@@ -61,7 +62,7 @@ Deno.test("normalises reader UID formats before lookup", async () => {
   assert.equal(results[0].status, "accepted");
 });
 
-Deno.test("replaying a client_tap_id returns duplicate and writes nothing new", async () => {
+test("replaying a client_tap_id returns duplicate and writes nothing new", async () => {
   const { p, db, stationId, uid } = await pipeline();
   await p.ingest(stationId, [{ clientTapId: "t1", uid }]);
   const replay = await p.ingest(stationId, [{ clientTapId: "t1", uid }]);
@@ -69,7 +70,7 @@ Deno.test("replaying a client_tap_id returns duplicate and writes nothing new", 
   assert.equal((await statuses(db)).length, 1);
 });
 
-Deno.test("repeated client_tap_id within one request is a duplicate", async () => {
+test("repeated client_tap_id within one request is a duplicate", async () => {
   const { p, db, stationId, uid } = await pipeline();
   const results = await p.ingest(stationId, [
     { clientTapId: "t1", uid },
@@ -79,7 +80,7 @@ Deno.test("repeated client_tap_id within one request is a duplicate", async () =
   assert.equal((await statuses(db)).length, 1);
 });
 
-Deno.test("second tap inside the cooldown window is recorded as cooldown", async () => {
+test("second tap inside the cooldown window is recorded as cooldown", async () => {
   const { p, db, stationId, uid, clock } = await pipeline(300);
   await p.ingest(stationId, [{ clientTapId: "t1", uid }]);
   clock.advanceSeconds(60);
@@ -95,7 +96,7 @@ Deno.test("second tap inside the cooldown window is recorded as cooldown", async
   ]);
 });
 
-Deno.test("cooldown of zero disables the check", async () => {
+test("cooldown of zero disables the check", async () => {
   const { p, stationId, uid } = await pipeline(0);
   const results = await p.ingest(stationId, [
     { clientTapId: "t1", uid },
@@ -104,7 +105,7 @@ Deno.test("cooldown of zero disables the check", async () => {
   assert.deepEqual(results.map((r) => r.status), ["accepted", "accepted"]);
 });
 
-Deno.test("offline flush is judged by device tapped_at, not arrival order", async () => {
+test("offline flush is judged by device tapped_at, not arrival order", async () => {
   const { p, stationId, uid, clock } = await pipeline(300);
   // The station comes back online at 10:00 and flushes its buffer.
   clock.advanceSeconds(3600);
@@ -124,7 +125,7 @@ Deno.test("offline flush is judged by device tapped_at, not arrival order", asyn
   });
 });
 
-Deno.test("an older buffered tap does not reset the cooldown for later taps", async () => {
+test("an older buffered tap does not reset the cooldown for later taps", async () => {
   const { p, stationId, uid, clock } = await pipeline(300);
   await p.ingest(stationId, [{
     clientTapId: "live",
@@ -139,7 +140,7 @@ Deno.test("an older buffered tap does not reset the cooldown for later taps", as
   assert.deepEqual(results.map((r) => r.status), ["accepted", "cooldown"]);
 });
 
-Deno.test("a tap that arrives late is judged by the accepted tap nearest in time", async () => {
+test("a tap that arrives late is judged by the accepted tap nearest in time", async () => {
   const { p, stationId, uid } = await pipeline(300);
   await p.ingest(stationId, [
     { clientTapId: "t0800", uid, tappedAt: "2026-10-10T08:00:00Z" },
@@ -154,7 +155,7 @@ Deno.test("a tap that arrives late is judged by the accepted tap nearest in time
   assert.equal(late[0].status, "cooldown");
 });
 
-Deno.test("a tapped_at from a clock that never synced is ignored", async () => {
+test("a tapped_at from a clock that never synced is ignored", async () => {
   const { p, db, stationId, uid, clock } = await pipeline(300);
   const first = await p.ingest(stationId, [{
     clientTapId: "t1",
@@ -171,7 +172,7 @@ Deno.test("a tapped_at from a clock that never synced is ignored", async () => {
   assert.equal(stored.tappedAt, null);
 });
 
-Deno.test("a tapped_at far in the future cannot open a gap in the cooldown", async () => {
+test("a tapped_at far in the future cannot open a gap in the cooldown", async () => {
   const { p, db, stationId, uid, clock } = await pipeline(300);
   await p.ingest(stationId, [{
     clientTapId: "t1",
@@ -196,7 +197,7 @@ Deno.test("a tapped_at far in the future cannot open a gap in the cooldown", asy
   assert.equal(stored.tappedAt, null);
 });
 
-Deno.test("keeps a tapped_at that is a little fast or days old", async () => {
+test("keeps a tapped_at that is a little fast or days old", async () => {
   const { p, db, stationId, uid } = await pipeline(300);
   await p.ingest(stationId, [
     { clientTapId: "fast", uid, tappedAt: "2026-10-10T09:04:00Z" },
@@ -212,56 +213,7 @@ Deno.test("keeps a tapped_at that is a little fast or days old", async () => {
   );
 });
 
-Deno.test("overlapping requests replaying one client_tap_id store it once and report one duplicate", async () => {
-  const { p, db, stationId, uid } = await pipeline();
-  const results = await Promise.all([
-    p.ingest(stationId, [{ clientTapId: "t1", uid }]),
-    p.ingest(stationId, [{ clientTapId: "t1", uid }]),
-  ]);
-  assert.deepEqual(results.map((r) => r[0].status).sort(), [
-    "accepted",
-    "duplicate",
-  ]);
-  assert.equal((await statuses(db)).length, 1);
-});
-
-Deno.test("overlapping requests for one participant still respect the cooldown", async () => {
-  const { p, db, stationId, uid } = await pipeline(300);
-  const results = await Promise.all([
-    p.ingest(stationId, [{ clientTapId: "t1", uid }]),
-    p.ingest(stationId, [{ clientTapId: "t2", uid }]),
-  ]);
-  assert.deepEqual(results.map((r) => r[0].status).sort(), [
-    "accepted",
-    "cooldown",
-  ]);
-  assert.deepEqual((await statuses(db)).map((r) => r.status).sort(), [
-    "accepted",
-    "cooldown",
-  ]);
-});
-
-Deno.test("a failed ingest does not hold up the station's next request", async () => {
-  const fx = await setupFixture();
-  let failNext = true;
-  const real = new LocalTokenResolver(fx.db);
-  const p = new TapPipeline(fx.db, {
-    resolveMany(uids) {
-      if (!failNext) return real.resolveMany(uids);
-      failNext = false;
-      return Promise.reject(new Error("database unreachable"));
-    },
-  }, { cooldownSeconds: 300 });
-  const [failed, next] = await Promise.allSettled([
-    p.ingest(fx.stationId, [{ clientTapId: "t1", uid: fx.uid }]),
-    p.ingest(fx.stationId, [{ clientTapId: "t2", uid: fx.uid }]),
-  ]);
-  assert.equal(failed.status, "rejected");
-  assert.equal(next.status, "fulfilled");
-  assert.equal(next.value[0].status, "accepted");
-});
-
-Deno.test("results come back in request order", async () => {
+test("results come back in request order", async () => {
   const { p, stationId, uid } = await pipeline();
   const results = await p.ingest(stationId, [
     { clientTapId: "a", uid: "DEADBEEF" },
@@ -276,7 +228,7 @@ Deno.test("results come back in request order", async () => {
   ]);
 });
 
-Deno.test("cooldown is per station", async () => {
+test("cooldown is per station", async () => {
   const { p, db, stationId, uid } = await pipeline(300);
   await db.insert(stations).values({
     id: "station-2",
@@ -288,11 +240,127 @@ Deno.test("cooldown is per station", async () => {
   assert.equal(other[0].status, "accepted");
 });
 
-Deno.test("revoked tokens resolve as unknown", async () => {
+test("revoked tokens resolve as unknown", async () => {
   const { p, db, stationId, uid } = await pipeline();
   await db.update(tokens).set({ revokedAt: "2026-10-01T00:00:00Z" }).where(
     eq(tokens.uid, uid),
   );
   const results = await p.ingest(stationId, [{ clientTapId: "t1", uid }]);
   assert.equal(results[0].status, "unknown_token");
+});
+
+// Two ingests from one station at once, each on a connection of its own, as
+// when a station's requests land on two Workers instances.
+
+/** A pipeline with a database connection of its own. */
+function pipelineOnItsOwnConnection(): TapPipeline {
+  const db = testDb();
+  return new TapPipeline(db, new LocalTokenResolver(db), {
+    cooldownSeconds: 300,
+  });
+}
+
+/**
+ * Holds the station's row lock on a connection of its own, as a slow ingest
+ * would. Returns a function that lets go of it.
+ */
+async function holdStationLock(stationId: string): Promise<() => Promise<void>> {
+  const db = testDb();
+  let letGo!: () => void;
+  const lettingGo = new Promise<void>((resolve) => (letGo = resolve));
+  let locked!: () => void;
+  const isLocked = new Promise<void>((resolve) => (locked = resolve));
+  const held = db.transaction(async (tx) => {
+    await tx
+      .select({ id: stations.id })
+      .from(stations)
+      .where(eq(stations.id, stationId))
+      .for("update");
+    locked();
+    await lettingGo;
+  });
+  await Promise.race([isLocked, held]);
+  return async () => {
+    letGo();
+    await held;
+  };
+}
+
+/** How many other connections are waiting for a station's row lock. */
+async function waitingForStationLock(db: Db): Promise<number> {
+  // Each connection's current statement, as TiDB shows it to the same login.
+  const [rows] = await db.execute(sql`
+    SELECT COUNT(*) AS n FROM information_schema.processlist
+    WHERE id <> CONNECTION_ID() AND info LIKE '%from \`stations\`%for update%'
+  `);
+  const [row] = rows as unknown as { n: number | string }[];
+  return Number(row!.n);
+}
+
+/**
+ * Runs two ingests from one station, one tap each, so that they overlap: both
+ * start while the station's lock is held elsewhere, and once it's let go, one
+ * runs while the other is still waiting. Returns each tap's status, and
+ * whether both really did wait.
+ */
+async function overlappingIngests(
+  stationId: string,
+  both: [IncomingTap, IncomingTap],
+): Promise<{ statuses: string[]; bothWaited: boolean }> {
+  const observer = testDb();
+  const letGo = await holdStationLock(stationId);
+  const ingests = both.map((tap) =>
+    pipelineOnItsOwnConnection().ingest(stationId, [tap])
+  );
+  let bothWaited = false;
+  try {
+    for (let i = 0; i < 100 && !bothWaited; i++) {
+      bothWaited = (await waitingForStationLock(observer)) === 2;
+      if (!bothWaited) await scheduler.wait(10);
+    }
+  } finally {
+    await letGo();
+  }
+  const results = await Promise.all(ingests);
+  return { statuses: results.map(([result]) => result!.status), bothWaited };
+}
+
+test("a resend racing its original on another connection comes back duplicate", async () => {
+  const { db, stationId, uid } = await setupFixture();
+  const overlap = await overlappingIngests(stationId, [
+    { clientTapId: "t1", uid },
+    { clientTapId: "t1", uid },
+  ]);
+  assert.deepEqual(overlap.statuses.sort(), ["accepted", "duplicate"]);
+  assert.deepEqual((await statuses(db)).map((r) => r.id), ["t1"]);
+  assert.ok(overlap.bothWaited, "both ingests should wait for the station's lock");
+});
+
+test("two taps by one participant on two connections give one accepted and one cooldown", async () => {
+  const { db, stationId, uid } = await setupFixture();
+  const overlap = await overlappingIngests(stationId, [
+    { clientTapId: "t1", uid },
+    { clientTapId: "t2", uid },
+  ]);
+  assert.deepEqual(overlap.statuses.sort(), ["accepted", "cooldown"]);
+  assert.deepEqual((await statuses(db)).map((r) => r.status).sort(), [
+    "accepted",
+    "cooldown",
+  ]);
+  assert.ok(overlap.bothWaited, "both ingests should wait for the station's lock");
+});
+
+test("a failed ingest lets go of the station's lock", async () => {
+  const { stationId, uid } = await setupFixture();
+  // Longer than the column allows, so the insert fails after the lock is taken.
+  await assert.rejects(
+    pipelineOnItsOwnConnection().ingest(stationId, [
+      { clientTapId: "x".repeat(129), uid },
+    ]),
+    /Failed query: insert into `taps`/,
+  );
+  const [next] = await pipelineOnItsOwnConnection().ingest(stationId, [
+    { clientTapId: "t2", uid },
+  ]);
+  assert.equal(next!.status, "accepted");
 });

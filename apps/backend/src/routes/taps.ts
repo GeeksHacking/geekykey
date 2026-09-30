@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import type { Db } from "../db/hyperdrive.ts";
 import { jsonBody } from "../lib/validate.ts";
 import { stationAuth, type StationEnv } from "../middleware/station-auth.ts";
-import { normaliseUid } from "../services/identity.ts";
-import type { TapPipeline } from "../services/taps.ts";
+import { LocalTokenResolver, normaliseUid } from "../services/identity.ts";
+import { TapPipeline } from "../services/taps.ts";
+import type { WorkerEnv } from "../worker.ts";
 
 /** 4 to 10 bytes of hex after normalisation, covering single, double, and triple size ISO 14443A UIDs. */
 const UID_PATTERN = /^(?:[0-9A-F]{2}){4,10}$/;
@@ -31,11 +31,18 @@ export function tapBodySchema(maxTaps: number) {
   });
 }
 
-export interface TapsRouteDeps {
-  db: Db;
-  pipeline: TapPipeline;
-  maxTapsPerRequest: number;
-}
+type TapsEnv = WorkerEnv & StationEnv;
+type TapBodySchema = ReturnType<typeof tapBodySchema>;
+
+/**
+ * Checks the body against this request's batch limit. The limit is a setting,
+ * and settings are read per request, so the check is built per request too.
+ */
+const tapBody: ReturnType<typeof jsonBody<TapBodySchema>> = (c, next) => {
+  // jsonBody's check doesn't know this route's variables, so they're named here.
+  const { config } = c.var as TapsEnv["Variables"];
+  return jsonBody(tapBodySchema(config.maxTapsPerRequest))(c, next);
+};
 
 /**
  * POST /  (mounted at /api/v1/taps)
@@ -44,17 +51,19 @@ export interface TapsRouteDeps {
  * and offline flushes share one code path. Returns a status per tap in request
  * order; firmware may drop a tap from its buffer once any status comes back.
  */
-export function tapsRoutes({ db, pipeline, maxTapsPerRequest }: TapsRouteDeps) {
-  const schema = tapBodySchema(maxTapsPerRequest);
-
-  return new Hono<StationEnv>().post(
+export function tapsRoutes() {
+  return new Hono<TapsEnv>().post(
     "/",
-    stationAuth(db),
-    jsonBody(schema),
+    stationAuth,
+    tapBody,
     async (c) => {
+      const { db, config, station } = c.var;
       const { taps } = c.req.valid("json");
+      const pipeline = new TapPipeline(db, new LocalTokenResolver(db), {
+        cooldownSeconds: config.tapCooldownSeconds,
+      });
       const results = await pipeline.ingest(
-        c.var.station.id,
+        station.id,
         taps.map((t) => ({
           clientTapId: t.client_tap_id,
           uid: t.uid,
@@ -63,7 +72,7 @@ export function tapsRoutes({ db, pipeline, maxTapsPerRequest }: TapsRouteDeps) {
       );
       // Deliberately no user details: readers must not hold PII (see RAMS, data privacy row).
       return c.json({
-        station_id: c.var.station.id,
+        station_id: station.id,
         results: results.map((r) => ({
           client_tap_id: r.clientTapId,
           status: r.status,

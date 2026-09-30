@@ -410,3 +410,19 @@
     changes but the database can't fill them in itself; two lines of the database changes are
     edited by hand, because our database tool can't express them; and on the move's branch the
     old Deno server no longer starts, since its database driver is gone.
+
+- id: move-step-1-taps
+  date: 2026-09-30
+  area: backend
+  change: >-
+    Taps sent the way a station sends them now reach the backend on Cloudflare's own runtime and
+    are stored in the local copy of TiDB, with the same requests and answers as before; a real
+    station hasn't tried it yet. One station's requests now take turns through a lock in the
+    database instead of a queue inside the server, so a resent tap still comes back as a duplicate,
+    and two quick taps by one participant still meet the cooldown, even when the requests land on
+    different copies of the backend. A test showed TiDB needs one more step than planned: after
+    waiting for the lock, a request must also read with a lock, or it still misses the taps the
+    request before it stored. The trade-offs we accept: those reads lock rows no other request
+    needs, which costs nothing while one station's requests take turns anyway; and the dev server
+    now listens on the whole local network, not only the laptop, because stations call it by the
+    laptop's name.
