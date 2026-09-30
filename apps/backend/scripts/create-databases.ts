@@ -1,8 +1,6 @@
 /**
- * Creates the two local databases in the TiDB that the root compose.yaml
- * starts: geekykey_dev for `wrangler dev`, and geekykey_test for the tests.
- * They are kept apart so that running the tests never wipes the data you
- * develop with.
+ * Creates the two local databases (LOCAL_DATABASES) in the TiDB that the root
+ * compose.yaml starts.
  *
  * It also creates the login the backend uses for both. Hyperdrive won't
  * connect without a password, and TiDB's root login has none. The password
@@ -12,8 +10,7 @@
  * TiDB with mysql2, not through Hyperdrive, and only ever to this machine.
  */
 import { createConnection } from "mysql2/promise";
-
-const DATABASES = ["geekykey_dev", "geekykey_test"];
+import { LOCAL_DATABASES } from "./local-tidb.ts";
 
 const connection = await createConnection({
   host: "127.0.0.1",
@@ -26,7 +23,7 @@ try {
   await connection.query(
     "CREATE USER IF NOT EXISTS 'geekykey'@'%' IDENTIFIED BY 'geekykey'",
   );
-  for (const name of DATABASES) {
+  for (const name of LOCAL_DATABASES) {
     await connection.query(`CREATE DATABASE IF NOT EXISTS ${name}`);
     await connection.query(`GRANT ALL PRIVILEGES ON ${name}.* TO 'geekykey'@'%'`);
     console.log(`${name} is ready`);

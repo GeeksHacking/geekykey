@@ -1,16 +1,26 @@
-import { migrate as runMigrations } from "drizzle-orm/libsql/migrator";
+import { drizzle } from "drizzle-orm/mysql2";
+import { migrate as runMigrations } from "drizzle-orm/mysql2/migrator";
 import { fileURLToPath } from "node:url";
-import type { Db } from "./client.ts";
+import { createConnection } from "mysql2/promise";
 
-/** Resolved relative to this module, not the working directory, so it holds inside a container. */
-const MIGRATIONS_FOLDER = fileURLToPath(
-  new URL("../../drizzle", import.meta.url),
-);
+/** Resolved relative to this module, not the working directory. */
+const MIGRATIONS_FOLDER = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 /**
- * Applies pending migrations from the drizzle/ folder.
- * Edit src/db/schema.ts, then run `deno task db:generate` to produce the next migration.
+ * Applies pending migrations from the drizzle/ folder to the database at
+ * `url`. Edit src/db/schema.ts, then run `pnpm db:generate` to write the next
+ * migration.
+ *
+ * Runs on Node, from `mise run db:migrate` and the tests' global setup, with
+ * mysql2 connecting straight to TiDB. Never inside a Worker.
  */
-export async function migrate(db: Db): Promise<void> {
-  await runMigrations(db, { migrationsFolder: MIGRATIONS_FOLDER });
+export async function migrate(url: string): Promise<void> {
+  const connection = await createConnection(url);
+  try {
+    await runMigrations(drizzle({ client: connection }), {
+      migrationsFolder: MIGRATIONS_FOLDER,
+    });
+  } finally {
+    await connection.end();
+  }
 }

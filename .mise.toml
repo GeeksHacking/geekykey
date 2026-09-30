@@ -64,21 +64,24 @@ description = "Re-resolve apps/backend/deno.lock, skipping npm releases under 24
 dir = "apps/backend"
 run = ["deno task deps:lock", "pnpm install --force"]
 
-[tasks."seed:backend"]
-description = "Create a dev station and participant in the local database"
-dir = "apps/backend"
-run = "deno task seed"
-
 # TiDB in Docker for apps/backend, from the root compose.yaml. Docker must be
 # running first.
 
 [tasks."db:up"]
-description = "Start TiDB on 127.0.0.1:4000 and create geekykey_dev and geekykey_test"
+description = "Start TiDB on 127.0.0.1:4000, then create and migrate geekykey_dev and geekykey_test"
 run = "pnpm db:up"
 
 [tasks."db:reset"]
-description = "Throw away all TiDB data, then start it again with empty databases"
+description = "Throw away all TiDB data, then start it again with empty, migrated databases"
 run = "pnpm db:reset"
+
+[tasks."db:migrate"]
+description = "Apply new migrations from apps/backend/drizzle to geekykey_dev and geekykey_test"
+run = "pnpm db:migrate"
+
+[tasks.seed]
+description = "Add a dev station, participant and organizer to geekykey_dev"
+run = "pnpm seed"
 
 [tasks."db:down"]
 description = "Stop TiDB, keeping its data for the next db:up"

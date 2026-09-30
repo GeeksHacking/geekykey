@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { MiddlewareHandler } from "hono";
-import type { Db } from "../db/client.ts";
+import type { Db } from "../db/hyperdrive.ts";
 import { stations } from "../db/schema.ts";
 import { hashStationKey } from "../lib/station-keys.ts";
 

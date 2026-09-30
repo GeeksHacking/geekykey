@@ -1,1 +1,0 @@
-CREATE INDEX `taps_user_received_at_idx` ON `taps` (`user_id`,`received_at`);

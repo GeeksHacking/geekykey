@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
-import type { Db } from "../db/client.ts";
+import type { Db } from "../db/hyperdrive.ts";
 import { stations, taps, tokens } from "../db/schema.ts";
 import { fakeClock, setupFixture } from "../test-helpers.ts";
 import { LocalTokenResolver } from "./identity.ts";

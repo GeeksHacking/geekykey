@@ -9,11 +9,13 @@
     "test": "deno task test",
     "dev:worker": "wrangler dev",
     "test:worker": "vitest run",
-    "typecheck:worker": "wrangler types && tsc"
+    "typecheck:worker": "wrangler types && tsc",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.ts",
+    "seed": "node scripts/seed.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
-    "@libsql/client": "^0.15.15",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.8",
     "mysql2": "^3.24.4",

@@ -1,5 +1,6 @@
-import { createDb, type Db } from "./db/client.ts";
-import { migrate } from "./db/migrate.ts";
+import { env } from "cloudflare:workers";
+import { onTestFinished } from "vitest";
+import { createRequestDb, type Db } from "./db/hyperdrive.ts";
 import { stations, tokens, users } from "./db/schema.ts";
 import { generateStationKey, hashStationKey } from "./lib/station-keys.ts";
 
@@ -12,10 +13,20 @@ export interface TestFixture {
   uid: string;
 }
 
-/** Fresh in-memory database with one station and one participant holding one token. */
+/**
+ * geekykey_test through the Hyperdrive binding, as a Worker's request sees
+ * its database. The connection closes when the test ends. Every table starts
+ * the test empty (test-support/empty-tables.ts).
+ */
+export function testDb(): Db {
+  const { db, close } = createRequestDb(env.HYPERDRIVE);
+  onTestFinished(close);
+  return db;
+}
+
+/** One station, and one participant holding one token. */
 export async function setupFixture(): Promise<TestFixture> {
-  const db = createDb(":memory:");
-  await migrate(db);
+  const db = testDb();
 
   const stationId = "station-1";
   const stationKey = generateStationKey();

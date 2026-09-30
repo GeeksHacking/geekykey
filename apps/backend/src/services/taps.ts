@@ -1,5 +1,5 @@
 import { and, between, eq, inArray, sql } from "drizzle-orm";
-import type { Db } from "../db/client.ts";
+import type { Db } from "../db/hyperdrive.ts";
 import {
   type NewTap,
   type STORED_TAP_STATUSES,
