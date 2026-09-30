@@ -3,7 +3,8 @@
 React single-page app for GeekyKey, an NFC stamp-collection system for hackathons.
 Participants tap a physical NFC token at ESP32 reader stations. This app is where they
 see their stamps and points, and where organisers watch the event. It is one package in
-the pnpm monorepo; the backend lives in `apps/backend` (Hono on Deno).
+the pnpm monorepo; the backend lives in `apps/backend` (Hono on Cloudflare Workers, Drizzle
+ORM, TiDB).
 
 Two audiences, two surfaces:
 
