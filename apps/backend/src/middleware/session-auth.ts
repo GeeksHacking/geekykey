@@ -54,26 +54,17 @@ export async function issueSession(
 ): Promise<void> {
   const maxAge = options.maxAgeSeconds ?? SESSION_MAX_AGE_SECONDS;
   const expiresAt = Date.now() + maxAge * 1000;
-  await setSignedCookie(
-    c,
-    SESSION_COOKIE,
-    `${expiresAt}:${userId}`,
-    options.secret,
-    {
-      httpOnly: true,
-      sameSite: "Lax",
-      path: "/",
-      secure: options.secure,
-      maxAge,
-    },
-  );
+  await setSignedCookie(c, SESSION_COOKIE, `${expiresAt}:${userId}`, options.secret, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    secure: options.secure,
+    maxAge,
+  });
 }
 
 /** Signs out the browser holding the cookie. Used by POST /auth/logout. */
-export function clearSession(
-  c: Context,
-  options: Pick<SessionOptions, "secure">,
-): void {
+export function clearSession(c: Context, options: Pick<SessionOptions, "secure">): void {
   deleteCookie(c, SESSION_COOKIE, { path: "/", secure: options.secure });
 }
 
@@ -116,9 +107,7 @@ export async function readSession(
  * `unauthenticated` otherwise, which the frontend reads as "signed out" rather
  * than as a failure.
  */
-export function requireSession(
-  options: SessionOptions,
-): MiddlewareHandler<SessionEnv> {
+export function requireSession(options: SessionOptions): MiddlewareHandler<SessionEnv> {
   return async (c, next) => {
     const user = await readSession(c, options);
     if (!user) return c.json({ error: "unauthenticated" }, 401);

@@ -45,12 +45,7 @@ async function harness(overrides: Partial<SessionOptions> = {}) {
       return c.body(null, 204);
     })
     .get("/me", requireSession(options), (c) => c.json({ user: c.var.user }))
-    .get(
-      "/admin",
-      requireSession(options),
-      requireRole("organizer"),
-      (c) => c.json({ ok: true }),
-    );
+    .get("/admin", requireSession(options), requireRole("organizer"), (c) => c.json({ ok: true }));
 
   const signIn = async (userId: string) => {
     const res = await app.request(`/login/${userId}`, { method: "POST" });

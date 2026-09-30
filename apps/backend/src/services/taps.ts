@@ -132,9 +132,7 @@ export class TapPipeline {
       //    station, stored or earlier in this batch, is inside the window on either side of it.
       //    Walking the batch in time order means an offline flush is judged by when taps happened.
       const accepted = await this.#acceptedTimes(tx, stationId, pending);
-      const inTimeOrder = [...pending].sort((a, b) =>
-        a.effectiveAt.localeCompare(b.effectiveAt)
-      );
+      const inTimeOrder = [...pending].sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt));
       for (const p of inTimeOrder) {
         if (p.userId === null) continue;
         const times = accepted.get(p.userId) ?? [];
@@ -160,9 +158,12 @@ export class TapPipeline {
         tappedAt: p.tappedAt,
         receivedAt,
       }));
-      await tx.insert(taps).values(rows).onDuplicateKeyUpdate({
-        set: { id: sql`id` },
-      });
+      await tx
+        .insert(taps)
+        .values(rows)
+        .onDuplicateKeyUpdate({
+          set: { id: sql`id` },
+        });
 
       for (const p of pending) {
         results[p.index] = {
@@ -203,9 +204,7 @@ export class TapPipeline {
     if (!tappedAt) return null;
     const at = Date.parse(tappedAt);
     const drift = at - now.getTime();
-    if (
-      Number.isNaN(at) || drift > MAX_CLOCK_AHEAD_MS || -drift > MAX_TAP_AGE_MS
-    ) {
+    if (Number.isNaN(at) || drift > MAX_CLOCK_AHEAD_MS || -drift > MAX_TAP_AGE_MS) {
       return null;
     }
     return new Date(at).toISOString();
@@ -225,10 +224,7 @@ export class TapPipeline {
       .select({ clientTapId: taps.clientTapId })
       .from(taps)
       .where(
-        and(
-          eq(taps.stationId, stationId),
-          inArray(taps.clientTapId, [...new Set(clientTapIds)]),
-        ),
+        and(eq(taps.stationId, stationId), inArray(taps.clientTapId, [...new Set(clientTapIds)])),
       )
       // To see the latest rows. See #lockStation.
       .for("update");
@@ -247,16 +243,14 @@ export class TapPipeline {
     pending: PendingTap[],
   ): Promise<Map<string, string[]>> {
     const known = pending.flatMap((p) =>
-      p.userId ? [{ userId: p.userId, at: Date.parse(p.effectiveAt) }] : []
+      p.userId ? [{ userId: p.userId, at: Date.parse(p.effectiveAt) }] : [],
     );
     if (known.length === 0 || this.#cooldownMs <= 0) return new Map();
 
     const times = known.map((k) => k.at);
     const from = new Date(Math.min(...times) - this.#cooldownMs).toISOString();
     const to = new Date(Math.max(...times) + this.#cooldownMs).toISOString();
-    const effectiveAt = sql<
-      string
-    >`coalesce(${taps.tappedAt}, ${taps.receivedAt})`;
+    const effectiveAt = sql<string>`coalesce(${taps.tappedAt}, ${taps.receivedAt})`;
 
     const rows = await tx
       .select({ userId: taps.userId, at: effectiveAt })

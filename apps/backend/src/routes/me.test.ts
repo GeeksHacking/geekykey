@@ -44,10 +44,7 @@ async function harness() {
     .update(stations)
     .set({ createdAt: BOOTH_CREATED_AT })
     .where(eq(stations.id, fx.stationId));
-  await fx.db
-    .update(tokens)
-    .set({ pairedAt: PAIRED_AT })
-    .where(eq(tokens.uid, fx.uid));
+  await fx.db.update(tokens).set({ pairedAt: PAIRED_AT }).where(eq(tokens.uid, fx.uid));
 
   const getMe = (cookie?: string) =>
     exports.default.fetch("http://localhost/api/v1/me", {
@@ -110,13 +107,15 @@ test("a participant who has not tapped yet gets an empty passport", async () => 
     user: { id: userId, display_name: "Alex", role: "participant" },
     tokens: [{ uid, paired_at: PAIRED_AT }],
     points: 0,
-    stamps: [{
-      station_id: stationId,
-      name: "Booth 1",
-      location: null,
-      points: 1,
-      earned_at: null,
-    }],
+    stamps: [
+      {
+        station_id: stationId,
+        name: "Booth 1",
+        location: null,
+        points: 1,
+        earned_at: null,
+      },
+    ],
     recent_taps: [],
   });
 });
@@ -147,10 +146,10 @@ test("a cooldown tap is listed but earns nothing", async () => {
   await addTap({ receivedAt: "2026-10-10T09:01:00.000Z", status: "cooldown" });
   const me = await meAs(userId);
   assert.equal(me.points, 1);
-  assert.deepEqual(me.recent_taps.map((t) => t.status), [
-    "cooldown",
-    "accepted",
-  ]);
+  assert.deepEqual(
+    me.recent_taps.map((t) => t.status),
+    ["cooldown", "accepted"],
+  );
 });
 
 test("points count every accepted tap, while a slot shows what its station is worth", async () => {
@@ -207,12 +206,10 @@ test("every station gets a slot, oldest station first", async () => {
     createdAt: "2026-10-10T07:00:00.000Z",
   });
   const me = await meAs(userId);
-  assert.deepEqual(me.stamps.map((s) => s.name), [
-    "Welcome Desk",
-    "Booth 1",
-    "Robotics Lab",
-    "AI Corner",
-  ]);
+  assert.deepEqual(
+    me.stamps.map((s) => s.name),
+    ["Welcome Desk", "Booth 1", "Robotics Lab", "AI Corner"],
+  );
 });
 
 test("recent taps are the latest 50, newest first", async () => {
@@ -302,20 +299,19 @@ test("a revoked token leaves the list, but the stamps it earned stay", async () 
   const { meAs, addTap, db, userId, uid } = await harness();
   await addTap({ receivedAt: "2026-10-10T09:00:00.000Z" });
   // Alex loses the token, unpairs it, and pairs a spare.
-  await db
-    .update(tokens)
-    .set({ revokedAt: "2026-10-10T10:00:00.000Z" })
-    .where(eq(tokens.uid, uid));
+  await db.update(tokens).set({ revokedAt: "2026-10-10T10:00:00.000Z" }).where(eq(tokens.uid, uid));
   await db.insert(tokens).values({
     uid: "04C9E1A27B3080",
     userId,
     pairedAt: "2026-10-10T10:05:00.000Z",
   });
   const me = await meAs(userId);
-  assert.deepEqual(me.tokens, [{
-    uid: "04C9E1A27B3080",
-    paired_at: "2026-10-10T10:05:00.000Z",
-  }]);
+  assert.deepEqual(me.tokens, [
+    {
+      uid: "04C9E1A27B3080",
+      paired_at: "2026-10-10T10:05:00.000Z",
+    },
+  ]);
   assert.equal(me.points, 1);
   assert.equal(me.stamps[0].earned_at, "2026-10-10T09:00:00.000Z");
 });
@@ -329,7 +325,10 @@ test("tokens are listed oldest pairing first", async () => {
     pairedAt: "2026-10-10T08:10:00.000Z",
   });
   const me = await meAs(userId);
-  assert.deepEqual(me.tokens.map((t) => t.uid), ["04C9E1A27B3080", uid]);
+  assert.deepEqual(
+    me.tokens.map((t) => t.uid),
+    ["04C9E1A27B3080", uid],
+  );
 });
 
 test("an organizer gets the same view of their own account", async () => {
@@ -343,13 +342,15 @@ test("an organizer gets the same view of their own account", async () => {
     user: { id: "organizer-1", display_name: "Priya", role: "organizer" },
     tokens: [],
     points: 0,
-    stamps: [{
-      station_id: stationId,
-      name: "Booth 1",
-      location: null,
-      points: 1,
-      earned_at: null,
-    }],
+    stamps: [
+      {
+        station_id: stationId,
+        name: "Booth 1",
+        location: null,
+        points: 1,
+        earned_at: null,
+      },
+    ],
     recent_taps: [],
   });
 });

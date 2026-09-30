@@ -20,9 +20,7 @@ const connection = await createConnection({
 try {
   // `%`, not `localhost`: Docker hands TiDB the connection from its own
   // network, not from this machine's.
-  await connection.query(
-    "CREATE USER IF NOT EXISTS 'geekykey'@'%' IDENTIFIED BY 'geekykey'",
-  );
+  await connection.query("CREATE USER IF NOT EXISTS 'geekykey'@'%' IDENTIFIED BY 'geekykey'");
   for (const name of LOCAL_DATABASES) {
     await connection.query(`CREATE DATABASE IF NOT EXISTS ${name}`);
     await connection.query(`GRANT ALL PRIVILEGES ON ${name}.* TO 'geekykey'@'%'`);

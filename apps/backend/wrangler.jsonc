@@ -25,12 +25,12 @@
   // http://A-Mac.local:8000.
   "dev": {
     "ip": "0.0.0.0",
-    "port": 8000
+    "port": 8000,
   },
 
   "vars": {
     "TAP_COOLDOWN_SECONDS": "300",
-    "MAX_TAPS_PER_REQUEST": "500"
+    "MAX_TAPS_PER_REQUEST": "500",
   },
 
   "hyperdrive": [
@@ -42,7 +42,7 @@
       // `wrangler dev` connects straight to the TiDB from `mise run db:up`,
       // and a deploy leaves this out. The login isn't a secret: it only works
       // on this machine. The tests use geekykey_test instead (vitest.config.ts).
-      "localConnectionString": "mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_dev"
-    }
-  ]
+      "localConnectionString": "mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_dev",
+    },
+  ],
 }

@@ -24,10 +24,13 @@ export function createBaseApp<E extends HonoEnv = BlankEnv>() {
     // same unparseable payload forever. Re-shaped rather than passed through,
     // because HTTPException's own response body is plain text.
     if (err instanceof HTTPException && err.status === 400) {
-      return c.json({
-        error: "validation_failed",
-        issues: [{ path: [], message: err.message }],
-      }, 400);
+      return c.json(
+        {
+          error: "validation_failed",
+          issues: [{ path: [], message: err.message }],
+        },
+        400,
+      );
     }
     console.error(`${c.req.method} ${c.req.path} failed:`, err);
     return c.json({ error: "internal_error" }, 500);
@@ -40,7 +43,8 @@ export function createBaseApp<E extends HonoEnv = BlankEnv>() {
       status: "ok",
       service: "geekykey-backend",
       timestamp: new Date().toISOString(),
-    }));
+    }),
+  );
 
   return app;
 }

@@ -93,14 +93,11 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
       .orderBy(desc(taps.receivedAt), desc(taps.id))
       .limit(RECENT_TAP_LIMIT),
   ]);
-  const visitsByStation = new Map(
-    visits.map((visit) => [visit.stationId, visit]),
-  );
+  const visitsByStation = new Map(visits.map((visit) => [visit.stationId, visit]));
 
   // Every accepted tap earns its station's points, so a repeat visit after the cooldown counts again.
   const points = allStations.reduce(
-    (sum, station) =>
-      sum + station.points * (visitsByStation.get(station.id)?.accepted ?? 0),
+    (sum, station) => sum + station.points * (visitsByStation.get(station.id)?.accepted ?? 0),
     0,
   );
 

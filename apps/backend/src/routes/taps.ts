@@ -20,9 +20,7 @@ export function tapBodySchema(maxTaps: number) {
             .min(1)
             .max(64)
             .transform(normaliseUid)
-            .pipe(
-              z.string().regex(UID_PATTERN, "uid must be 4 to 10 hex bytes"),
-            ),
+            .pipe(z.string().regex(UID_PATTERN, "uid must be 4 to 10 hex bytes")),
           tapped_at: z.iso.datetime({ offset: true }).optional(),
         }),
       )
@@ -52,32 +50,27 @@ const tapBody: ReturnType<typeof jsonBody<TapBodySchema>> = (c, next) => {
  * order; firmware may drop a tap from its buffer once any status comes back.
  */
 export function tapsRoutes() {
-  return new Hono<TapsEnv>().post(
-    "/",
-    stationAuth,
-    tapBody,
-    async (c) => {
-      const { db, config, station } = c.var;
-      const { taps } = c.req.valid("json");
-      const pipeline = new TapPipeline(db, new LocalTokenResolver(db), {
-        cooldownSeconds: config.tapCooldownSeconds,
-      });
-      const results = await pipeline.ingest(
-        station.id,
-        taps.map((t) => ({
-          clientTapId: t.client_tap_id,
-          uid: t.uid,
-          tappedAt: t.tapped_at,
-        })),
-      );
-      // Deliberately no user details: readers must not hold PII (see RAMS, data privacy row).
-      return c.json({
-        station_id: station.id,
-        results: results.map((r) => ({
-          client_tap_id: r.clientTapId,
-          status: r.status,
-        })),
-      });
-    },
-  );
+  return new Hono<TapsEnv>().post("/", stationAuth, tapBody, async (c) => {
+    const { db, config, station } = c.var;
+    const { taps } = c.req.valid("json");
+    const pipeline = new TapPipeline(db, new LocalTokenResolver(db), {
+      cooldownSeconds: config.tapCooldownSeconds,
+    });
+    const results = await pipeline.ingest(
+      station.id,
+      taps.map((t) => ({
+        clientTapId: t.client_tap_id,
+        uid: t.uid,
+        tappedAt: t.tapped_at,
+      })),
+    );
+    // Deliberately no user details: readers must not hold PII (see RAMS, data privacy row).
+    return c.json({
+      station_id: station.id,
+      results: results.map((r) => ({
+        client_tap_id: r.clientTapId,
+        status: r.status,
+      })),
+    });
+  });
 }
