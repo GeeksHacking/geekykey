@@ -315,6 +315,78 @@
     both leave the desk without handing over; and on the free plan, a sudden rush could use up
     the day's allowance between two hourly checks.
 
+- id: token-writer
+  date: 2026-09-29
+  area: firmware
+  change: >-
+    A first version of the token writer is in the code. Run on a spare reader station, it writes
+    the same web address onto every token, switches on the chip feature that fills in each token's
+    own ID when a phone reads it, and protects the token with one password so only we can rewrite
+    it. It then reads the token back to check all of that, including that the password works.
+
+- id: move-order-planned
+  date: 2026-09-29
+  area: research
+  change: >-
+    The hosting plan is finished, and Adam has approved the choices it had to make on its own.
+    It sets out the move in eight steps. Today's backend first moves unchanged onto Cloudflare
+    and TiDB and goes live. Then it is split into the GeekyKey Service and the showcase's Event
+    Service, and logging in through the GeeksHacking Portal, the new features and getting ready
+    for the day come after that. The rehearsal on the live system is due by 7 November, and the
+    showcase is on 18 November. The trade-offs we accept: new endpoints wait until the split, so
+    the screens that need them stay on demo data for longer; until GeeksHacking protects our main
+    branch, Adam deploys and changes the live database by hand from his laptop; and the plan
+    doesn't wait for the Sprint 2 A/B test, which isn't confirmed yet, so booking it early could
+    pull the Portal login forward.
+
+- id: api-agreement-v0-2
+  date: 2026-09-29
+  area: backend
+  change: >-
+    The API agreement is rewritten for the two services, as a draft of version 0.2. Each endpoint
+    now names the service that owns it and the step of the plan that builds it, pairing a token
+    becomes claiming it, with at most three per person, and two new answers let a station say it
+    isn't in an event, or is in one but in none of its games. The trade-off we accept: just this
+    once, the rewrite removes things the web app already reads, such as the list of tokens on the
+    dashboard, which the agreement otherwise never allows. It is safe only because nothing live
+    depends on them yet.
+
+- id: station-saved-taps
+  date: 2026-09-29
+  area: firmware
+  change: >-
+    The reader station's code now follows the hosting plan's rules for saved taps. It keeps up to
+    100 taps, in memory that survives a power cut, until the backend answers them, sends the saved
+    ones together at most once a minute, and sends a new tap at once along with them. Any answer
+    removes a tap, even one the station doesn't know yet, and the screen and light show the new
+    answers for a station outside an event or its games. Its own notes say it hasn't yet been
+    compiled or tried on a station.
+
+- id: frontend-api-v0-2
+  date: 2026-09-29
+  area: frontend
+  change: >-
+    The web app is ready for version 0.2 of the API agreement. It has a plain message for each new
+    error, such as a token someone else has claimed, the three-token limit or too many tries, and it
+    recognises the new tap answers for a station outside an event or its games. Its calls are also
+    grouped by the service each one will go to after the split, though every screen still talks to
+    today's backend.
+
+- id: move-step-1-planned
+  date: 2026-09-29
+  area: backend
+  change: >-
+    The first step of the move is planned as six tasks in the team's Linear, each saying which
+    must be finished first: today's backend runs on Cloudflare's own runtime against a local copy
+    of TiDB, with nothing changing for the web app or the reader stations, and Deno leaves. The
+    riskiest part comes first: a small test proving Cloudflare's test tools can reach the local
+    database, with a fallback ready if they can't. The trade-offs we accept: the six tasks share
+    one branch, where the automatic checks fail partway and pass again only once Deno is gone, so
+    the step reaches the main code in one piece; and the one real change in behaviour, a database
+    lock that makes one station's requests take turns so a resent tap can't count twice or beat
+    the cooldown, is built together with moving the tap code rather than on its own, so that task
+    is marked for a closer review.
+
 - id: move-step-1-proof
   date: 2026-09-30
   area: backend
