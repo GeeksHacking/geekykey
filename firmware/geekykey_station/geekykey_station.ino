@@ -82,6 +82,10 @@ uint8_t queueHead = 0;
 uint8_t queueCount = 0;
 unsigned long nextQueueAttemptAt = 0;
 
+// The Arduino builder skips functions with default arguments when it writes
+// prototypes, so flushQueue is declared here, before loop() calls it.
+QueueAttempt flushQueue(const String &newTapId = "");
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -305,8 +309,8 @@ void removeQueuedHead() {
   prefs.remove(queueSlotKey(removedSlot).c_str());
 }
 
-QueueAttempt sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
-                       QueueAttempt &result) {
+void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
+               QueueAttempt &result) {
   result = QueueAttempt{};
   if (WiFi.status() != WL_CONNECTED) {
     result.retryable = true;
@@ -384,7 +388,7 @@ QueueAttempt sendBatch(const QueuedTap *batch, uint8_t count, const String &newT
   return;
 }
 
-QueueAttempt flushQueue(const String &newTapId = "") {
+QueueAttempt flushQueue(const String &newTapId) {
   static QueuedTap batch[QUEUE_BATCH_MAX];
   QueueAttempt result{};
   if (WiFi.status() != WL_CONNECTED || queueCount == 0) {
