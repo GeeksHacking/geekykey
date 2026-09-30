@@ -26,8 +26,8 @@ jobs:
       # comment records which release each SHA is.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # mise installs node, pnpm and deno at the versions pinned in .mise.toml,
-      # so CI runs the same toolchain we do and those version numbers live in
+      # mise installs node and pnpm at the versions pinned in .mise.toml, so
+      # CI runs the same toolchain we do and those version numbers live in
       # exactly one place. It verifies GitHub artifact attestations on what it
       # downloads.
       #
@@ -75,32 +75,51 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # The backend's dependencies are resolved twice: by pnpm into
-      # pnpm-lock.yaml and by Deno into apps/backend/deno.lock. Checking both
-      # against the same package.json is what stops the two from drifting
-      # apart. --frozen-lockfile errors instead of rewriting deno.lock.
-      - name: Check deno.lock is current
-        working-directory: apps/backend
-        run: deno install --frozen-lockfile
-
       # Neither of these is part of the typecheck or the tests, so without them
-      # lint errors and unformatted files pile up unnoticed. deno.json leaves
-      # drizzle/ out of the format check, because drizzle-kit rewrites those
-      # files in its own style on every generate.
+      # lint errors and unformatted files pile up unnoticed. .oxfmtrc.jsonc
+      # leaves drizzle/ out of the format check, because drizzle-kit rewrites
+      # those files in its own style on every generate.
       - name: Lint
-        working-directory: apps/backend
-        run: deno lint
+        run: pnpm --filter @geekykey/backend lint
 
       - name: Format
-        working-directory: apps/backend
-        run: deno fmt --check
+        run: pnpm --filter @geekykey/backend format:check
 
+      # `wrangler types` writes the Workers types first, then tsc checks
+      # against them.
       - name: Typecheck
-        working-directory: apps/backend
-        run: deno task check
+        run: pnpm --filter @geekykey/backend typecheck
+
+      # TiDB in Docker from the root compose.yaml, with geekykey_dev and
+      # geekykey_test created and migrated, the same way as on a laptop.
+      - name: Start TiDB
+        run: pnpm db:up
 
       - name: Test
         run: pnpm test:backend
+
+      # Bundles the Worker the way a deploy does, then stops before uploading
+      # it, so it needs no Cloudflare login. This is what proves the Worker
+      # builds: the tests load the code a different way.
+      - name: Build the Worker
+        working-directory: apps/backend
+        run: pnpm exec wrangler deploy --dry-run
+
+      # Every change to src/db/schema.ts must come with the migration
+      # drizzle-kit writes for it. This passes only when generate says there is
+      # nothing to write, and wrote nothing. Its exit code alone isn't enough:
+      # when it needs to ask whether a column was renamed, it can't ask without
+      # a terminal, so it prints an error, writes nothing, and still exits 0.
+      - name: Check every schema change has its migration
+        run: |
+          output="$(pnpm --filter @geekykey/backend db:generate 2>&1)"
+          echo "$output"
+          if ! grep -q "No schema changes, nothing to migrate" <<<"$output" \
+            || [ -n "$(git status --porcelain -- apps/backend/drizzle)" ]; then
+            git status --short -- apps/backend/drizzle
+            echo "::error::src/db/schema.ts has changes with no migration. Run 'pnpm --filter @geekykey/backend db:generate' in a terminal, and commit what it writes."
+            exit 1
+          fi
 
   updates:
     name: Updates site

@@ -59,7 +59,7 @@ export default defineConfig({
         hyperdrives: {
           HYPERDRIVE: localDatabaseUrl("geekykey_test"),
         },
-        // What .dev.vars sets on a laptop, here too because CI has no .dev.vars.
+        // Dev-login on, as `mise run dev:backend` has it.
         bindings: { DEV_AUTH_ENABLED: "true" },
       },
     }),

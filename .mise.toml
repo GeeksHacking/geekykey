@@ -10,7 +10,6 @@
 [tools]
 node = "22.23.3"
 pnpm = "12.5.1"
-deno = "2.9.6"
 
 [tasks.install]
 description = "Install every workspace package (run from anywhere)"
@@ -49,20 +48,16 @@ env = { ASTRO_TELEMETRY_DISABLED = "1" }
 # Backend
 
 [tasks."dev:backend"]
-description = "Hono on Deno with file watching, on http://localhost:8000"
+description = "The Worker in wrangler dev (workerd) on http://localhost:8000, with dev-login on"
 run = "pnpm dev:backend"
 
 [tasks."test:backend"]
-description = "Backend tests (deno test)"
+description = "Backend tests (Vitest inside workerd, against geekykey_test)"
 run = "pnpm test:backend"
 
-# Deno points apps/backend/node_modules/.bin at its own copies, which breaks
-# `wrangler` and `vitest` there, so pnpm puts its own back afterwards. This goes
-# when Deno leaves the backend.
-[tasks."deps:backend"]
-description = "Re-resolve apps/backend/deno.lock, skipping npm releases under 24h old"
-dir = "apps/backend"
-run = ["deno task deps:lock", "pnpm install --force"]
+[tasks."format:backend"]
+description = "Format the backend code in place (oxfmt)"
+run = "pnpm format:backend"
 
 # TiDB in Docker for apps/backend, from the root compose.yaml. Docker must be
 # running first.

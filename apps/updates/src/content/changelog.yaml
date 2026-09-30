@@ -440,3 +440,16 @@
     than switched off. The trade-offs we accept: this relies on Cloudflare handing the backend its
     secrets at start-up, which its documentation says it does but only the first deploy will
     confirm.
+
+- id: move-step-1-no-deno
+  date: 2026-09-30
+  area: tooling
+  change: >-
+    The backend no longer uses Deno: it is now an ordinary package like the website, checked by
+    the same linter, formatter and type checker, and one command starts it with the development
+    sign-in on, with no settings file to copy first. Every pull request now also starts a copy of
+    TiDB and runs the backend's tests against it, builds the backend the way Cloudflare will
+    deploy it, and fails if a change to the database's tables has no migration with it. The
+    trade-offs we accept: the backend's code was reformatted once to match the website's style,
+    so many older lines show a change in the history; and downloading the database adds time to
+    every run of the checks.
