@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { Hono } from "hono";
+import { test } from "vitest";
 import { users } from "../db/schema.ts";
 import { setupFixture } from "../test-helpers.ts";
 import {
@@ -24,13 +25,17 @@ async function harness(overrides: Partial<SessionOptions> = {}) {
   });
 
   const options: SessionOptions = {
-    db: fx.db,
     secret: "test-secret-at-least-16",
     secure: false,
     ...overrides,
   };
 
   const app = new Hono<SessionEnv>()
+    // The request's database, as the Worker hands it to every route.
+    .use(async (c, next) => {
+      c.set("db", fx.db);
+      await next();
+    })
     .post("/login/:id", async (c) => {
       await issueSession(c, c.req.param("id"), options);
       return c.body(null, 204);
@@ -60,14 +65,14 @@ async function harness(overrides: Partial<SessionOptions> = {}) {
   return { ...fx, app, options, signIn, get };
 }
 
-Deno.test("answers 401 when there is no cookie", async () => {
+test("answers 401 when there is no cookie", async () => {
   const { get } = await harness();
   const res = await get("/me");
   assert.equal(res.status, 401);
   assert.deepEqual(await res.json(), { error: "unauthenticated" });
 });
 
-Deno.test("puts the signed-in user on the context", async () => {
+test("puts the signed-in user on the context", async () => {
   const { signIn, get, userId } = await harness();
   const res = await get("/me", await signIn(userId));
   assert.equal(res.status, 200);
@@ -76,7 +81,7 @@ Deno.test("puts the signed-in user on the context", async () => {
   });
 });
 
-Deno.test("issues an HttpOnly, SameSite=Lax cookie scoped to the whole site", async () => {
+test("issues an HttpOnly, SameSite=Lax cookie scoped to the whole site", async () => {
   const { app, userId } = await harness();
   const res = await app.request(`/login/${userId}`, { method: "POST" });
   const header = res.headers.get("Set-Cookie") ?? "";
@@ -88,39 +93,39 @@ Deno.test("issues an HttpOnly, SameSite=Lax cookie scoped to the whole site", as
   assert.doesNotMatch(header, /Secure/);
 });
 
-Deno.test("answers 401 for a cookie that has been edited", async () => {
+test("answers 401 for a cookie that has been edited", async () => {
   const { signIn, get, userId } = await harness();
   const res = await get("/me", `${await signIn(userId)}x`);
   assert.equal(res.status, 401);
   assert.deepEqual(await res.json(), { error: "unauthenticated" });
 });
 
-Deno.test("answers 401 once the session has expired", async () => {
+test("answers 401 once the session has expired", async () => {
   const { signIn, get, userId } = await harness({ maxAgeSeconds: 0 });
   const res = await get("/me", await signIn(userId));
   assert.equal(res.status, 401);
 });
 
-Deno.test("answers 401 when the session names a user who is gone", async () => {
+test("answers 401 when the session names a user who is gone", async () => {
   const { signIn, get } = await harness();
   const res = await get("/me", await signIn("deleted-user"));
   assert.equal(res.status, 401);
 });
 
-Deno.test("gives a participant 403 on an organiser route", async () => {
+test("gives a participant 403 on an organiser route", async () => {
   const { signIn, get, userId } = await harness();
   const res = await get("/admin", await signIn(userId));
   assert.equal(res.status, 403);
   assert.deepEqual(await res.json(), { error: "forbidden" });
 });
 
-Deno.test("lets an organizer through", async () => {
+test("lets an organizer through", async () => {
   const { signIn, get } = await harness();
   const res = await get("/admin", await signIn(ORGANIZER_ID));
   assert.equal(res.status, 200);
 });
 
-Deno.test("clearing the session removes the cookie from the browser", async () => {
+test("clearing the session removes the cookie from the browser", async () => {
   const { app } = await harness();
   const res = await app.request("/logout", { method: "POST" });
   const header = res.headers.get("Set-Cookie") ?? "";

@@ -1,30 +1,38 @@
 import assert from "node:assert/strict";
-import { createApp } from "../app.ts";
-import type { Config } from "../config.ts";
+import { env, exports } from "cloudflare:workers";
+import { test } from "vitest";
 import { SESSION_COOKIE } from "../middleware/session-auth.ts";
-import { setupFixture } from "../test-helpers.ts";
+import { requestWorker, setupFixture } from "../test-helpers.ts";
+import { createWorkerApp } from "../worker.ts";
 
-const config: Config = {
-  tapCooldownSeconds: 300,
-  maxTapsPerRequest: 3,
-  devAuthEnabled: true,
-  sessionSecret: "test-secret-at-least-16",
-  sessionCookieSecure: false,
-};
+/**
+ * The Worker as production starts it, where DEV_AUTH_ENABLED isn't true and
+ * SESSION_SECRET is set. The tests' own Worker has dev auth on, as
+ * `wrangler dev` does.
+ */
+const productionWorker = createWorkerApp({
+  ...env,
+  DEV_AUTH_ENABLED: "false",
+  SESSION_SECRET: "test-secret-at-least-16",
+});
 
-async function harness(overrides: Partial<Config> = {}) {
+/** The fixture, and a way to post to the Worker as a browser would. */
+async function harness({ production = false } = {}) {
   const fx = await setupFixture();
-  const app = createApp({ db: fx.db, config: { ...config, ...overrides } });
-  const post = (path: string, body?: unknown) =>
-    app.request(path, {
+  const post = (path: string, body?: unknown) => {
+    const init: RequestInit = {
       method: "POST",
       headers: body === undefined ? {} : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  return { ...fx, app, post };
+    };
+    return production
+      ? requestWorker(productionWorker, path, init)
+      : exports.default.fetch(`http://localhost${path}`, init);
+  };
+  return { ...fx, post };
 }
 
-Deno.test("dev-login signs in a seeded user and sets the session cookie", async () => {
+test("dev-login signs in a seeded user and sets the session cookie", async () => {
   const { post, userId } = await harness();
   const res = await post("/auth/dev-login", { user_id: userId });
   assert.equal(res.status, 204);
@@ -35,7 +43,7 @@ Deno.test("dev-login signs in a seeded user and sets the session cookie", async 
   assert.match(cookie, /SameSite=Lax/);
 });
 
-Deno.test("dev-login answers not_found for a user who was never seeded", async () => {
+test("dev-login answers not_found for a user who was never seeded", async () => {
   const { post } = await harness();
   const res = await post("/auth/dev-login", { user_id: "nobody" });
   assert.equal(res.status, 404);
@@ -43,25 +51,26 @@ Deno.test("dev-login answers not_found for a user who was never seeded", async (
   assert.equal(res.headers.get("Set-Cookie"), null);
 });
 
-Deno.test("dev-login validates the body", async () => {
+test("dev-login validates the body", async () => {
   const { post } = await harness();
   for (const body of [{}, { user_id: "" }, { user_id: 7 }]) {
     const res = await post("/auth/dev-login", body);
     assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(body)}`);
-    const json = await res.json();
+    const json = await res.json<{ error: string; issues: unknown[] }>();
     assert.equal(json.error, "validation_failed");
     assert.ok(json.issues.length > 0);
   }
 });
 
-Deno.test("dev-login does not exist unless dev auth is enabled", async () => {
-  const { post, userId } = await harness({ devAuthEnabled: false });
+test("dev-login does not exist unless dev auth is enabled", async () => {
+  const { post, userId } = await harness({ production: true });
   const res = await post("/auth/dev-login", { user_id: userId });
   assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: "not_found" });
   assert.equal(res.headers.get("Set-Cookie"), null);
 });
 
-Deno.test("logout clears the cookie, whether or not anyone was signed in", async () => {
+test("logout clears the cookie, whether or not anyone was signed in", async () => {
   const { post } = await harness();
   const res = await post("/auth/logout");
   assert.equal(res.status, 204);
@@ -71,8 +80,8 @@ Deno.test("logout clears the cookie, whether or not anyone was signed in", async
   assert.match(cookie, /Max-Age=0/);
 });
 
-Deno.test("logout stays mounted in production, where dev-login is gone", async () => {
-  const { post } = await harness({ devAuthEnabled: false });
+test("logout stays mounted in production, where dev-login is gone", async () => {
+  const { post } = await harness({ production: true });
   const res = await post("/auth/logout");
   assert.equal(res.status, 204);
 });

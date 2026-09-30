@@ -1,8 +1,13 @@
+import {
+  createExecutionContext,
+  waitOnExecutionContext,
+} from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { onTestFinished } from "vitest";
 import { createRequestDb, type Db } from "./db/hyperdrive.ts";
 import { stations, tokens, users } from "./db/schema.ts";
 import { generateStationKey, hashStationKey } from "./lib/station-keys.ts";
+import type { createWorkerApp } from "./worker.ts";
 
 export interface TestFixture {
   db: Db;
@@ -22,6 +27,23 @@ export function testDb(): Db {
   const { db, close } = createRequestDb(env.HYPERDRIVE);
   onTestFinished(close);
   return db;
+}
+
+/**
+ * Sends a request to a Worker a test started itself, such as one with other
+ * settings, the way `exports.default.fetch` sends one to the tests' own
+ * Worker. Waits for what the request left running, such as closing its
+ * database connection.
+ */
+export async function requestWorker(
+  worker: ReturnType<typeof createWorkerApp>,
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const ctx = createExecutionContext();
+  const res = await worker.request(path, init, env, ctx);
+  await waitOnExecutionContext(ctx);
+  return res;
 }
 
 /** One station, and one participant holding one token. */

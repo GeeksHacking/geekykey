@@ -25,8 +25,7 @@ interface EnvReader {
 
 /**
  * Reads settings by name from a Worker's `env`, which gets them from
- * wrangler.jsonc, .dev.vars or `wrangler secret put`, or from
- * `Deno.env.toObject()`.
+ * wrangler.jsonc, .dev.vars or `wrangler secret put`.
  */
 function readerFor(settings: object): EnvReader {
   const values = settings as Record<string, unknown>;

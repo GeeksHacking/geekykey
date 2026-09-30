@@ -1,17 +1,9 @@
 import assert from "node:assert/strict";
+import { exports } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
-import { createApp } from "../app.ts";
-import type { Config } from "../config.ts";
+import { test } from "vitest";
 import { type NewTap, stations, taps, tokens, users } from "../db/schema.ts";
 import { setupFixture } from "../test-helpers.ts";
-
-const config: Config = {
-  tapCooldownSeconds: 300,
-  maxTapsPerRequest: 3,
-  devAuthEnabled: true,
-  sessionSecret: "test-secret-at-least-16",
-  sessionCookieSecure: false,
-};
 
 /** Pinned so slot order and paired_at do not depend on the day the tests run. */
 const BOOTH_CREATED_AT = "2026-10-10T08:00:00.000Z";
@@ -56,14 +48,15 @@ async function harness() {
     .update(tokens)
     .set({ pairedAt: PAIRED_AT })
     .where(eq(tokens.uid, fx.uid));
-  const app = createApp({ db: fx.db, config });
 
   const getMe = (cookie?: string) =>
-    app.request("/api/v1/me", { headers: cookie ? { Cookie: cookie } : {} });
+    exports.default.fetch("http://localhost/api/v1/me", {
+      headers: cookie ? { Cookie: cookie } : {},
+    });
 
   /** Signs in through dev-login and returns the /me body, which must be a 200. */
   const meAs = async (userId: string): Promise<MeBody> => {
-    const login = await app.request("/auth/dev-login", {
+    const login = await exports.default.fetch("http://localhost/auth/dev-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId }),
@@ -73,7 +66,7 @@ async function harness() {
     const cookie = (login.headers.get("Set-Cookie") ?? "").split(";")[0];
     const res = await getMe(cookie);
     assert.equal(res.status, 200);
-    return await res.json();
+    return await res.json<MeBody>();
   };
 
   /** /me never reads station keys, so each extra station gets a placeholder hash. */
@@ -104,14 +97,14 @@ async function harness() {
   return { ...fx, getMe, meAs, addStation, addTap };
 }
 
-Deno.test("answers unauthenticated when nobody is signed in", async () => {
+test("answers unauthenticated when nobody is signed in", async () => {
   const { getMe } = await harness();
   const res = await getMe();
   assert.equal(res.status, 401);
   assert.deepEqual(await res.json(), { error: "unauthenticated" });
 });
 
-Deno.test("a participant who has not tapped yet gets an empty passport", async () => {
+test("a participant who has not tapped yet gets an empty passport", async () => {
   const { meAs, userId, uid, stationId } = await harness();
   assert.deepEqual(await meAs(userId), {
     user: { id: userId, display_name: "Alex", role: "participant" },
@@ -128,7 +121,7 @@ Deno.test("a participant who has not tapped yet gets an empty passport", async (
   });
 });
 
-Deno.test("the first accepted tap at a station earns its stamp", async () => {
+test("the first accepted tap at a station earns its stamp", async () => {
   const { meAs, addTap, userId } = await harness();
   await addTap({ receivedAt: "2026-10-10T09:00:00.000Z" });
   await addTap({ receivedAt: "2026-10-10T09:02:00.000Z", status: "cooldown" });
@@ -137,7 +130,7 @@ Deno.test("the first accepted tap at a station earns its stamp", async () => {
   assert.equal(me.stamps[0].earned_at, "2026-10-10T09:00:00.000Z");
 });
 
-Deno.test("a stamp is dated when its tap reached the backend, not when the station read it", async () => {
+test("a stamp is dated when its tap reached the backend, not when the station read it", async () => {
   // Booth 1 was offline: it read the token at 09:05 and sent the tap at 09:20.
   const { meAs, addTap, userId } = await harness();
   await addTap({
@@ -148,7 +141,7 @@ Deno.test("a stamp is dated when its tap reached the backend, not when the stati
   assert.equal(me.stamps[0].earned_at, "2026-10-10T09:20:00.000Z");
 });
 
-Deno.test("a cooldown tap is listed but earns nothing", async () => {
+test("a cooldown tap is listed but earns nothing", async () => {
   const { meAs, addTap, userId } = await harness();
   await addTap({ receivedAt: "2026-10-10T09:00:00.000Z" });
   await addTap({ receivedAt: "2026-10-10T09:01:00.000Z", status: "cooldown" });
@@ -160,7 +153,7 @@ Deno.test("a cooldown tap is listed but earns nothing", async () => {
   ]);
 });
 
-Deno.test("points count every accepted tap, while a slot shows what its station is worth", async () => {
+test("points count every accepted tap, while a slot shows what its station is worth", async () => {
   // Alex visits Booth 1 (1 point) three times, 10 minutes apart, and Cloud Sponsor (2 points) once.
   const { meAs, addStation, addTap, userId, stationId } = await harness();
   await addStation({
@@ -194,7 +187,7 @@ Deno.test("points count every accepted tap, while a slot shows what its station 
   ]);
 });
 
-Deno.test("every station gets a slot, oldest station first", async () => {
+test("every station gets a slot, oldest station first", async () => {
   // Neither name order nor insert order gives this sequence. Robotics Lab and
   // AI Corner were created in the same millisecond, so their ids break the tie.
   const { meAs, addStation, userId } = await harness();
@@ -222,7 +215,7 @@ Deno.test("every station gets a slot, oldest station first", async () => {
   ]);
 });
 
-Deno.test("recent taps are the latest 50, newest first", async () => {
+test("recent taps are the latest 50, newest first", async () => {
   const { meAs, addTap, userId } = await harness();
   // 55 taps, 10 minutes apart, from 09:10 to 18:10.
   const nineAm = Date.parse("2026-10-10T09:00:00.000Z");
@@ -237,7 +230,7 @@ Deno.test("recent taps are the latest 50, newest first", async () => {
   assert.deepEqual(times, [...times].sort().reverse());
 });
 
-Deno.test("recent taps are in the order the backend received them", async () => {
+test("recent taps are in the order the backend received them", async () => {
   // Booth 1 is offline when it reads Alex's token at 09:05. At 09:10 an
   // organizer logs a QR fallback tap for Alex at Cloud Sponsor. Booth 1 comes
   // back and sends its tap at 09:20, so that tap is listed first.
@@ -283,7 +276,7 @@ Deno.test("recent taps are in the order the backend received them", async () => 
   ]);
 });
 
-Deno.test("shows only the signed-in participant's own taps", async () => {
+test("shows only the signed-in participant's own taps", async () => {
   // One tap by another participant, and one by a token nobody had paired yet.
   const { meAs, addTap, db, userId } = await harness();
   await db.insert(users).values({ id: "user-2", displayName: "Wei Lin" });
@@ -305,7 +298,7 @@ Deno.test("shows only the signed-in participant's own taps", async () => {
   assert.deepEqual(me.recent_taps, []);
 });
 
-Deno.test("a revoked token leaves the list, but the stamps it earned stay", async () => {
+test("a revoked token leaves the list, but the stamps it earned stay", async () => {
   const { meAs, addTap, db, userId, uid } = await harness();
   await addTap({ receivedAt: "2026-10-10T09:00:00.000Z" });
   // Alex loses the token, unpairs it, and pairs a spare.
@@ -327,7 +320,7 @@ Deno.test("a revoked token leaves the list, but the stamps it earned stay", asyn
   assert.equal(me.stamps[0].earned_at, "2026-10-10T09:00:00.000Z");
 });
 
-Deno.test("tokens are listed oldest pairing first", async () => {
+test("tokens are listed oldest pairing first", async () => {
   // The spare was paired at 08:10, before the fixture token's 08:30, but stored after it.
   const { meAs, db, userId, uid } = await harness();
   await db.insert(tokens).values({
@@ -339,7 +332,7 @@ Deno.test("tokens are listed oldest pairing first", async () => {
   assert.deepEqual(me.tokens.map((t) => t.uid), ["04C9E1A27B3080", uid]);
 });
 
-Deno.test("an organizer gets the same view of their own account", async () => {
+test("an organizer gets the same view of their own account", async () => {
   const { meAs, db, stationId } = await harness();
   await db.insert(users).values({
     id: "organizer-1",
