@@ -203,7 +203,11 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `format:frontend` | Format the frontend code in place with oxfmt |
 | `dev:backend` | Backend on http://localhost:8000, restarting when a file changes, with dev sign-in turned on |
 | `test:backend` | Backend tests |
-| `seed:backend` | Add a station and the two dev users to the local database |
+| `db:up` | Start TiDB in Docker, then create and migrate `geekykey_dev` and `geekykey_test` |
+| `db:reset` | Throw away all TiDB data, then start again with empty, migrated databases |
+| `db:down` | Stop TiDB, keeping its data for the next `db:up` |
+| `db:migrate` | Apply new migrations to both local databases |
+| `seed` | Add a station and the two dev users to `geekykey_dev` |
 | `deps:backend` | Update `apps/backend/deno.lock` after backend dependencies change |
 | `dev:updates` | Updates site dev server on http://localhost:4321 |
 | `build:updates` | Build the updates site to `apps/updates/dist` |
@@ -230,7 +234,7 @@ Anything after `--` is passed on to the command at the bottom of the chain:
 ```bash
 mise run test:frontend -- format               # only test files with "format" in the name
 mise run dev:frontend -- --port 5174           # Vite on another port
-mise run seed:backend -- --station "Booth 3"   # give the new station a name
+mise run seed -- --station "Booth 3"           # give the new station a name
 ```
 
 Environment variables set in front of `mise run` reach the command too:
@@ -265,8 +269,11 @@ Add `dir = "apps/backend"` if the command has to run from a particular folder, a
 Do steps 1 and 2 of [Running the frontend](#running-the-frontend) first. The same
 `mise install` gives you Deno.
 
+Start Docker Desktop, then:
+
 ```bash
-mise run seed:backend    # once: creates the database, a station, and the two dev users
+mise run db:up           # TiDB in Docker, with both local databases created and migrated
+mise run seed            # once: a station and the two dev users
 mise run dev:backend     # http://localhost:8000
 ```
 
@@ -276,12 +283,14 @@ only its hash is stored. Each seed run adds another station with a new key, so r
 again whenever you need one, for example once per ESP32:
 
 ```bash
-mise run seed:backend -- --station "Booth 3"
+mise run seed -- --station "Booth 3"
 ```
 
-The database is a SQLite file at `apps/backend/data/geekykey.db`. Migrations run every
-time the server starts. To start over, stop the server, delete `apps/backend/data`, and
-seed again.
+The database is TiDB in Docker, from the root `compose.yaml`, at the version GeeksHacking's
+cluster runs. It holds two databases: `geekykey_dev` for the dev server and the seed, and
+`geekykey_test` for the tests, so running the tests never wipes your data. After pulling a
+new migration, run `mise run db:migrate`. `mise run db:down` stops TiDB and keeps the data.
+To start over, run `mise run db:reset`, then seed again.
 
 ### Settings
 
@@ -291,8 +300,9 @@ Every setting is an environment variable, listed with its default in
 | Variable | Default | Why you would change it |
 |---|---|---|
 | `TAP_COOLDOWN_SECONDS` | `300` | Set it to `0` so repeat taps at the same station count while you test |
-| `PORT` | `8000` | Something else is using 8000. The frontend's dev server and the stations also expect 8000, so change them to match |
-| `DATABASE_URL` | `file:./data/geekykey.db` | Use a different SQLite file, or a `libsql://` URL for a hosted database |
+
+The port, 8000, is set in `apps/backend/wrangler.jsonc`. The frontend's dev server and the
+stations expect 8000, so change them too if you move it.
 
 `mise run dev:backend` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`,
 which signs in a seeded user without the portal, and signs sessions with a built-in
@@ -305,7 +315,7 @@ secret. Never turn it on in production. Without it, the server refuses to start 
 
 ```bash
 mise exec -- deno task check          # typecheck, as CI does
-mise exec -- deno task db:generate    # write a new migration after editing src/db/schema.ts
+mise exec -- pnpm db:generate        # write a new migration after editing src/db/schema.ts
 ```
 
 ### Changing backend dependencies

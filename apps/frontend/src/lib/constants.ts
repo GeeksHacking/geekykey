@@ -7,7 +7,7 @@ export const POLL_ME_MS = 10_000;
 /** A station counts as online when it was seen within this window. Backend computes it; the mock mirrors it. */
 export const STATION_ONLINE_WINDOW_MS = 120_000;
 
-/** Seeded by `deno task seed`. Only used by the dev-login form. */
+/** Seeded by `mise run seed`. Only used by the dev-login form. */
 export const SEEDED_USERS = [
   { id: "dev-user-1", label: "Alex Tan", role: "participant" },
   { id: "dev-organizer-1", label: "Priya Raman", role: "organiser" },

@@ -14,6 +14,6 @@
 #define SERVER_HOST   "your-laptop.local"
 #define SERVER_PORT   8000
 
-// Printed once by `deno task seed` in apps/backend. Only its hash is stored,
+// Printed once by `mise run seed`. Only its hash is stored,
 // so if it is lost, run the seed again for a new one.
 #define STATION_KEY   "gk_sta_PASTE_THE_KEY_HERE"

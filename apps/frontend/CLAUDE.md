@@ -93,8 +93,8 @@ One slice, start to finish:
 
 1. The endpoint is live in `apps/backend` with tests, and its row in the agreement says
    `Implemented`. Until then, leave it on the mock.
-2. Start the backend: `cd apps/backend`, `deno task seed`, then
-   `DEV_AUTH_ENABLED=true deno task dev`.
+2. Start the backend: `mise run db:up` and `mise run seed` once (Docker must be running),
+   then `mise run dev:backend`.
 3. Add one line per method to `liveMethods()` in `src/api/create-client.ts`.
 4. `pnpm dev:live`, then work through each screen in the slice: populated, loading, empty,
    and every error path. Force the errors for real now rather than with `failNext`. Stop
@@ -236,9 +236,9 @@ an organiser. The mock session survives a reload but not a new tab.
 Backend, for the integration phase only:
 
 ```
-cd apps/backend
-deno task seed
-DEV_AUTH_ENABLED=true deno task dev
+mise run db:up         # once per session, with Docker running
+mise run seed          # once
+mise run dev:backend
 ```
 
 ## Directory layout
