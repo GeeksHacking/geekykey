@@ -59,7 +59,8 @@ export default defineConfig({
         hyperdrives: {
           HYPERDRIVE: localDatabaseUrl("geekykey_test"),
         },
-        // Dev-login on, as `mise run dev:backend` has it.
+        // Dev-login on, as `mise run dev:backend` has it: the tests sign in
+        // through it, and CI has no .dev.vars.
         bindings: { DEV_AUTH_ENABLED: "true" },
       },
     }),
