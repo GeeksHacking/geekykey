@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // Node's types for nodejs_compat and the scripts; the Workers runtime's
+    // come from worker-configuration.d.ts, which `wrangler types` writes.
+    "types": ["node", "@cloudflare/vitest-plugin/types"],
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  // Only the Worker and what it imports, while the rest of the backend still
+  // runs on Deno.
+  "include": [
+    "worker-configuration.d.ts",
+    "src/worker.ts",
+    "src/worker.test.ts",
+    "scripts/create-databases.ts",
+    "vitest.config.ts"
+  ]
+}

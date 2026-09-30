@@ -8,7 +8,7 @@
  *   deno task seed --station "Booth 3" --uid 04:A1:B2:C3:D4:E5:F6
  */
 import { parseArgs } from "node:util";
-import { loadConfig } from "../src/config.ts";
+import { loadDenoServerConfig } from "../src/config.ts";
 import { createDb, ensureLocalDbDir } from "../src/db/client.ts";
 import { migrate } from "../src/db/migrate.ts";
 import { stations, tokens, users } from "../src/db/schema.ts";
@@ -26,9 +26,9 @@ const { values } = parseArgs({
   },
 });
 
-const config = loadConfig();
-await ensureLocalDbDir(config.databaseUrl);
-const db = createDb(config.databaseUrl, config.databaseAuthToken);
+const serverConfig = loadDenoServerConfig(Deno.env.toObject());
+await ensureLocalDbDir(serverConfig.databaseUrl);
+const db = createDb(serverConfig.databaseUrl, serverConfig.databaseAuthToken);
 await migrate(db);
 
 const stationId = crypto.randomUUID();
@@ -62,7 +62,7 @@ await db
   })
   .onConflictDoNothing();
 
-console.log(`Database:     ${config.databaseUrl}`);
+console.log(`Database:     ${serverConfig.databaseUrl}`);
 console.log(`Station:      ${values.station} (${stationId})`);
 console.log(
   `Station key:  ${stationKey}   <- shown once, only the hash is stored`,
@@ -71,7 +71,9 @@ console.log(`Participant:  ${values.name} (${userId}) paired to token ${uid}`);
 console.log(`Organizer:    ${values.organizer} (${organizerId})`);
 console.log();
 console.log("Try it:");
-console.log(`curl -s -X POST http://localhost:${config.port}/api/v1/taps \\
+console.log(
+  `curl -s -X POST http://localhost:${serverConfig.port}/api/v1/taps \\
   -H "Authorization: Bearer ${stationKey}" \\
   -H "Content-Type: application/json" \\
-  -d '{"taps":[{"client_tap_id":"tap-1","uid":"${uid}"}]}'`);
+  -d '{"taps":[{"client_tap_id":"tap-1","uid":"${uid}"}]}'`,
+);

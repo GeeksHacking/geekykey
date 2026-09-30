@@ -1,5 +1,4 @@
-import { Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
+import { createBaseApp } from "./base-app.ts";
 import type { Config } from "./config.ts";
 import type { Db } from "./db/client.ts";
 import type { SessionOptions } from "./middleware/session-auth.ts";
@@ -26,35 +25,7 @@ export function createApp({ db, config }: AppDeps) {
     secure: config.sessionCookieSecure,
   };
 
-  const app = new Hono();
-
-  // Hono's default is a plain-text body; the agreement puts every error in the JSON envelope.
-  app.notFound((c) => c.json({ error: "not_found" }, 404));
-
-  app.onError((err, c) => {
-    // Hono raises a 400 HTTPException when a body will not parse as JSON. That is
-    // the client's fault, so it must not surface as 5xx: the firmware contract
-    // retries on 5xx, and a station that truncated its buffer would resend the
-    // same unparseable payload forever. Re-shaped rather than passed through,
-    // because HTTPException's own response body is plain text.
-    if (err instanceof HTTPException && err.status === 400) {
-      return c.json({
-        error: "validation_failed",
-        issues: [{ path: [], message: err.message }],
-      }, 400);
-    }
-    console.error(`${c.req.method} ${c.req.path} failed:`, err);
-    return c.json({ error: "internal_error" }, 500);
-  });
-
-  app.get("/", (c) => c.text("App is running"));
-
-  app.get("/api/health", (c) =>
-    c.json({
-      status: "ok",
-      service: "geekykey-backend",
-      timestamp: new Date().toISOString(),
-    }));
+  const app = createBaseApp();
 
   app.route(
     "/auth",

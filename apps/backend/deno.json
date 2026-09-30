@@ -21,6 +21,16 @@
   "fmt": {
     "exclude": ["drizzle/"]
   },
+  "exclude": [
+    "src/worker.ts",
+    "src/worker.test.ts",
+    "src/db/hyperdrive.ts",
+    "scripts/create-databases.ts",
+    "test-support/",
+    "vitest.config.ts",
+    "worker-configuration.d.ts",
+    ".wrangler/"
+  ],
   "nodeModulesDir": "auto",
   "license": "MIT"
 }
