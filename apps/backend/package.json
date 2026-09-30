@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
+    "check:build": "wrangler deploy --dry-run",
+    "check:migrations": "node scripts/check-migrations.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.ts",
     "seed": "node scripts/seed.ts"

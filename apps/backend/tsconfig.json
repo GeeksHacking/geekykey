@@ -21,6 +21,7 @@
   "include": [
     "worker-configuration.d.ts",
     "src",
+    "scripts/check-migrations.ts",
     "scripts/create-databases.ts",
     "scripts/migrate.ts",
     "scripts/seed.ts",
