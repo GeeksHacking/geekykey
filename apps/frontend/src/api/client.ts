@@ -8,7 +8,6 @@ import type {
   ListTapsResponse,
   MeResponse,
   StatsResponse,
-  Token,
 } from "@/api/types";
 
 /*
@@ -29,12 +28,6 @@ export interface ApiClient {
 
   /** Where to send the browser to start the portal login. GET /auth/login?return_to=... */
   loginUrl(returnTo: string): string;
-
-  /** POST /api/v1/tokens/pair. `created` is true on 201, false on the idempotent 200. */
-  pairToken(uid: string): Promise<{ token: Token; created: boolean }>;
-
-  /** DELETE /api/v1/tokens/{uid} */
-  unpairToken(uid: string): Promise<void>;
 
   /** GET /api/v1/admin/stations */
   listStations(): Promise<ListStationsResponse>;

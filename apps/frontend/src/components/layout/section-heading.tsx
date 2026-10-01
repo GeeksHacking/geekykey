@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 interface SectionHeadingProps {
   title: string;
-  linkTo?: "/passport" | "/activity" | "/pair";
+  linkTo?: "/passport" | "/activity";
   linkLabel?: string;
 }
 

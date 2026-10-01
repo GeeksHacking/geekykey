@@ -14,7 +14,6 @@ import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
-import { Route as AppPairRouteImport } from './routes/_app/pair'
 import { Route as AppPassportRouteImport } from './routes/_app/passport'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminFallbackRouteImport } from './routes/admin/fallback'
@@ -44,11 +43,6 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppActivityRoute = AppActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPairRoute = AppPairRouteImport.update({
-  id: '/pair',
-  path: '/pair',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPassportRoute = AppPassportRouteImport.update({
@@ -87,7 +81,6 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/activity': typeof AppActivityRoute
-  '/pair': typeof AppPairRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/stations': typeof AdminStationsRoute
@@ -98,7 +91,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/activity': typeof AppActivityRoute
-  '/pair': typeof AppPairRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/stations': typeof AdminStationsRoute
@@ -113,7 +105,6 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/activity': typeof AppActivityRoute
-  '/_app/pair': typeof AppPairRoute
   '/_app/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/stations': typeof AdminStationsRoute
@@ -129,7 +120,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/activity'
-    | '/pair'
     | '/passport'
     | '/admin/fallback'
     | '/admin/stations'
@@ -140,7 +130,6 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/activity'
-    | '/pair'
     | '/passport'
     | '/admin/fallback'
     | '/admin/stations'
@@ -154,7 +143,6 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/activity'
-    | '/_app/pair'
     | '/_app/passport'
     | '/admin/fallback'
     | '/admin/stations'
@@ -205,13 +193,6 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof AppActivityRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/pair': {
-      id: '/_app/pair'
-      path: '/pair'
-      fullPath: '/pair'
-      preLoaderRoute: typeof AppPairRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/passport': {
@@ -281,14 +262,12 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
-  AppPairRoute: typeof AppPairRoute
   AppPassportRoute: typeof AppPassportRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRoute,
-  AppPairRoute: AppPairRoute,
   AppPassportRoute: AppPassportRoute,
   AppIndexRoute: AppIndexRoute,
 }

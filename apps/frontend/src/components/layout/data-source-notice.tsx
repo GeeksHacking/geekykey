@@ -1,9 +1,9 @@
 import { Info } from "@phosphor-icons/react";
 
-import { dataSourceMessage, isMockData, type DataSourceScope } from "@/api/mode";
+import { dataSourceMessage, isMockData } from "@/api/mode";
 
-export function DataSourceNotice({ scope }: { scope: DataSourceScope }) {
-  if (!isMockData(scope)) return null;
+export function DataSourceNotice() {
+  if (!isMockData()) return null;
 
   return (
     <div
@@ -11,7 +11,7 @@ export function DataSourceNotice({ scope }: { scope: DataSourceScope }) {
       className="mb-6 flex items-start gap-2 rounded-lg border border-status-cooldown/40 bg-status-cooldown/10 px-4 py-3 text-sm"
     >
       <Info className="mt-0.5 h-4 w-4 shrink-0 text-status-cooldown" aria-hidden />
-      <span>{dataSourceMessage(scope)}</span>
+      <span>{dataSourceMessage()}</span>
     </div>
   );
 }

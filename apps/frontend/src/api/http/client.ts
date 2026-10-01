@@ -8,10 +8,8 @@ import type {
   ListStationsResponse,
   ListTapsQuery,
   ListTapsResponse,
-  PairTokenResponse,
   StatsResponse,
 } from "@/api/types";
-import { normaliseUid } from "@/lib/format";
 import { parseMeResponse } from "@/api/schemas";
 
 export interface HttpClientOptions {
@@ -110,24 +108,6 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     // A URL for the browser to visit, not a request, so this one needs no send().
     loginUrl: (returnTo) => `${baseUrl}/auth/login?return_to=${encodeURIComponent(returnTo)}`,
 
-    pairToken: async (uid) => {
-      // The backend normalises the UID, so send whatever the participant typed.
-      const response = await send("/api/v1/tokens/pair", postJson({ uid }));
-      let body: PairTokenResponse;
-      try {
-        body = (await response.json()) as PairTokenResponse;
-      } catch {
-        throw new NetworkError("The server returned an invalid response");
-      }
-      // 201 is a new pairing, 200 is the idempotent repeat. The pair screen words them differently.
-      return { token: body.token, created: response.status === 201 };
-    },
-
-    unpairToken: async (uid) => {
-      // Normalised here only because this UID goes in the path, where punctuation would have to be escaped.
-      await send(`/api/v1/tokens/${encodeURIComponent(normaliseUid(uid))}`, { method: "DELETE" });
-    },
-
     listStations: () => sendJson<ListStationsResponse>("/api/v1/admin/stations"),
 
     createStation: (input) =>
@@ -151,9 +131,6 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "invalid_station_key",
   "forbidden",
   "not_found",
-  "token_taken",
-  "token_limit_reached",
-  "uid_already_paired",
   "rate_limited",
   "invalid_event_service_key",
   "event_service_unavailable",
@@ -166,7 +143,6 @@ function errorCodeForStatus(status: number): ErrorCode {
   if (status === 401) return "unauthenticated";
   if (status === 403) return "forbidden";
   if (status === 404) return "not_found";
-  if (status === 409) return "token_taken";
   if (status === 429) return "rate_limited";
   if (status === 503) return "event_service_unavailable";
   return "internal_error";

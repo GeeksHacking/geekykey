@@ -12,9 +12,7 @@ describe("service client boundary", () => {
     expect(Object.keys(services.session).sort()).toEqual(
       ["devLogin", "loginUrl", "logout", "me"].sort(),
     );
-    expect(Object.keys(services.geekykey).sort()).toEqual(
-      ["createStation", "listStations", "pairToken", "unpairToken"].sort(),
-    );
+    expect(Object.keys(services.geekykey).sort()).toEqual(["createStation", "listStations"].sort());
     expect(Object.keys(services.event).sort()).toEqual(
       ["createFallbackTap", "exportCsv", "listStationBoard", "listTaps", "stats"].sort(),
     );

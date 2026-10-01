@@ -23,7 +23,6 @@ import {
   type Station,
   type StatsResponse,
   type TapStatus,
-  type Token,
 } from "@/api/types";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { normaliseUid } from "@/lib/format";
@@ -47,9 +46,6 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   invalid_station_key: 401,
   forbidden: 403,
   not_found: 404,
-  token_taken: 409,
-  token_limit_reached: 409,
-  uid_already_paired: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,
@@ -219,12 +215,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             tapped_at: t.tapped_at,
             received_at: t.received_at,
           }));
-        const tokens: Token[] = data.tokens
-          .filter((t) => t.user_id === user.id && !t.revoked_at)
-          .map((t) => ({ uid: t.uid, paired_at: t.paired_at }));
         return {
           user: { id: user.id, display_name: user.display_name, role: user.role },
-          tokens,
           points,
           stamps,
           recent_taps,
@@ -243,34 +235,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       }),
 
     loginUrl: (returnTo) => `/auth/login?return_to=${encodeURIComponent(returnTo)}`,
-
-    pairToken: (raw) =>
-      call(() => {
-        const user = currentUser();
-        const uid = normaliseUid(raw);
-        if (!UID_PATTERN.test(uid)) {
-          fail("validation_failed", [{ path: ["uid"], message: "uid must be 4 to 10 hex bytes" }]);
-        }
-        const existing = activeToken(uid);
-        if (existing) {
-          if (existing.user_id !== user.id) fail("uid_already_paired");
-          return { token: { uid: existing.uid, paired_at: existing.paired_at }, created: false };
-        }
-        const token = { uid, user_id: user.id, paired_at: iso(now()), revoked_at: null };
-        data.tokens.push(token);
-        return { token: { uid: token.uid, paired_at: token.paired_at }, created: true };
-      }),
-
-    unpairToken: (raw) =>
-      call(() => {
-        const user = currentUser();
-        const uid = normaliseUid(raw);
-        const token = data.tokens.find(
-          (t) => t.uid === uid && t.user_id === user.id && !t.revoked_at,
-        );
-        if (!token) fail("not_found");
-        token.revoked_at = iso(now());
-      }),
 
     listStations: () =>
       call((): ListStationsResponse => {

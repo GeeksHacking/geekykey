@@ -16,7 +16,7 @@ export interface SessionState {
   error: unknown;
   /** A recent 403 from an identity-scoped request, consumed by the role gate. */
   authorizationError?: unknown;
-  /** Re-fetch /me. Call after anything that changes tokens, stamps, or points. */
+  /** Re-fetch /me. Call after anything that changes stamps, points, or recent taps. */
   refresh: () => Promise<void>;
   /** Dev-login with a seeded user ID. Resolves with the fresh /me payload. */
   signIn: (userId: string) => Promise<MeResponse>;

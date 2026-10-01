@@ -77,7 +77,7 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
           className="flex-1 px-4 py-6 outline-none lg:px-8 lg:py-8"
         >
           <div className="mx-auto w-full max-w-7xl">
-            <DataSourceNotice scope="admin" />
+            <DataSourceNotice />
             {children}
           </div>
         </main>

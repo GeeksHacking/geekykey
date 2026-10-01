@@ -5,7 +5,6 @@ import { createHttpClient } from "@/api/http/client";
 
 const me = {
   user: { id: "dev-user-1", display_name: "Alex Tan", role: "participant" as const },
-  tokens: [],
   points: 0,
   stamps: [],
   recent_taps: [],
@@ -69,35 +68,6 @@ describe("HTTP client transport", () => {
     expect(noBody.json).not.toHaveBeenCalled();
   });
 
-  it("preserves a 2xx pairing response and derives created from its status", async () => {
-    const body = { token: { uid: "04A1B2C3D4E5F6", paired_at: "2026-09-24T00:00:00.000Z" } };
-    fetchMock.mockResolvedValue(response(body, 201));
-
-    await expect(createHttpClient().pairToken("04:a1:b2:c3:d4:e5:f6")).resolves.toEqual({
-      token: body.token,
-      created: true,
-    });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/tokens/pair",
-      expect.objectContaining({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: "04:a1:b2:c3:d4:e5:f6" }),
-        credentials: "include",
-      }),
-    );
-  });
-
-  it("maps an idempotent 200 pairing response to created false", async () => {
-    const body = { token: { uid: "04A1B2C3D4E5F6", paired_at: "2026-09-24T00:00:00.000Z" } };
-    fetchMock.mockResolvedValue(response(body, 200));
-
-    await expect(createHttpClient().pairToken("04A1B2C3D4E5F6")).resolves.toEqual({
-      token: body.token,
-      created: false,
-    });
-  });
-
   it("maps structured validation errors and keeps their field paths", async () => {
     fetchMock.mockResolvedValue(
       response(
@@ -109,7 +79,9 @@ describe("HTTP client transport", () => {
       ),
     );
 
-    const error = await apiError(createHttpClient().pairToken("bad"));
+    const error = await apiError(
+      createHttpClient().createFallbackTap({ station_id: "station-1", uid: "bad" }),
+    );
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(400);
     expect(error.code).toBe("validation_failed");
@@ -121,7 +93,7 @@ describe("HTTP client transport", () => {
     [401, "unauthenticated"],
     [403, "forbidden"],
     [404, "not_found"],
-    [409, "token_taken"],
+    [409, "internal_error"],
     [429, "rate_limited"],
     [503, "event_service_unavailable"],
     [500, "internal_error"],
