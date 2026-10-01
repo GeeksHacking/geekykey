@@ -1,6 +1,7 @@
 import type {
   CreateStationRequest,
   CreateStationResponse,
+  EventStationBoardResponse,
   FallbackTapRequest,
   FallbackTapResponse,
   ListStationsResponse,
@@ -29,8 +30,11 @@ export interface ApiClient {
   /** Where to send the browser to start the portal login. GET /auth/login?return_to=... */
   loginUrl(returnTo: string): string;
 
-  /** GET /api/v1/admin/stations */
+  /** GET /api/v1/admin/stations (GeekyKey station registry). */
   listStations(): Promise<ListStationsResponse>;
+
+  /** GET /api/v1/admin/stations (Event Service v0.2 board). Same path, different response. */
+  listStationBoard(): Promise<EventStationBoardResponse>;
 
   /** POST /api/v1/admin/stations. The key in the response is shown once. */
   createStation(input: CreateStationRequest): Promise<CreateStationResponse>;

@@ -11,6 +11,7 @@ export type TapsFilters = Omit<ListTapsQuery, "limit" | "before_id">;
 export const queryKeys = {
   me: ["me"] as const,
   stations: ["stations"] as const,
+  stationBoard: ["stationBoard"] as const,
   taps: (filters: TapsFilters) => ["taps", filters] as const,
   tapsOlder: (filters: TapsFilters, cursor: number | undefined) =>
     ["taps", filters, "older", cursor] as const,
