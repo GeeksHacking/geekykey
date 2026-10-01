@@ -27,33 +27,19 @@ describe("me response contract", () => {
     expect(parsed).not.toHaveProperty("legacy_field");
   });
 
-  it("accepts the Event no_event and no_game statuses", () => {
+  it("accepts no_game and rejects station-only statuses", () => {
     const base = {
       user: { id: "u", display_name: "U", role: "participant" },
       points: 0,
       stamps: [],
     };
-    const noEvent = parseMeResponse({
+    const noGame = parseMeResponse({
       ...base,
       recent_taps: [
         {
           id: 1,
           station_id: "s1",
           station_name: "Station 1",
-          status: "no_event",
-          source: "nfc",
-          tapped_at: null,
-          received_at: "2026-10-01T00:00:00.000Z",
-        },
-      ],
-    });
-    const noGame = parseMeResponse({
-      ...base,
-      recent_taps: [
-        {
-          id: 2,
-          station_id: "s2",
-          station_name: "Station 2",
           status: "no_game",
           source: "nfc",
           tapped_at: null,
@@ -61,9 +47,20 @@ describe("me response contract", () => {
         },
       ],
     });
-
-    expect(noEvent.recent_taps[0]?.status).toBe("no_event");
     expect(noGame.recent_taps[0]?.status).toBe("no_game");
+
+    expect(() =>
+      parseMeResponse({
+        ...base,
+        recent_taps: [{ ...noGame.recent_taps[0], status: "unknown_token" }],
+      }),
+    ).toThrow(NetworkError);
+    expect(() =>
+      parseMeResponse({
+        ...base,
+        recent_taps: [{ ...noGame.recent_taps[0], status: "no_event" }],
+      }),
+    ).toThrow(NetworkError);
   });
 
   it("rejects a response with a missing required field", () => {

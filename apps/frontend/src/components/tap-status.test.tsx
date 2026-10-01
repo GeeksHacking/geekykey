@@ -9,12 +9,12 @@ describe("TapStatusLabel", () => {
       <>
         <TapStatusLabel status="accepted" />
         <TapStatusLabel status="cooldown" />
-        <TapStatusLabel status="unknown_token" />
+        <TapStatusLabel status="no_game" />
       </>,
     );
     expect(screen.getByText("Accepted")).toBeInTheDocument();
     expect(screen.getByText("Cooldown")).toBeInTheDocument();
-    expect(screen.getByText("Unknown token")).toBeInTheDocument();
+    expect(screen.getByText("No game")).toBeInTheDocument();
   });
 
   it("uses plain-language wording for participants", () => {

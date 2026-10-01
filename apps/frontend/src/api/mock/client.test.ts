@@ -49,12 +49,12 @@ describe("scan log", () => {
     expect(second.taps.every((t) => t.id < first.next_before_id!)).toBe(true);
   });
 
-  it("filters by status and leaves user null on unknown tokens", async () => {
+  it("filters stored statuses and keeps the user on no_game taps", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const unknown = await api.listTaps({ status: "unknown_token" });
-    expect(unknown.taps.length).toBeGreaterThan(0);
-    expect(unknown.taps.every((t) => t.status === "unknown_token" && t.user === null)).toBe(true);
+    const noGame = await api.listTaps({ status: "no_game" });
+    expect(noGame.taps.length).toBeGreaterThan(0);
+    expect(noGame.taps.every((t) => t.status === "no_game" && t.user !== null)).toBe(true);
   });
 });
 
@@ -62,7 +62,7 @@ describe("QR fallback", () => {
   it("accepts once, then cooldown for the same participant at the same station", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations.find((s) => s.name === "Photo Wall")!;
+    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
     const first = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
     expect(first.result.status).toBe("accepted");
     const second = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
@@ -73,7 +73,7 @@ describe("QR fallback", () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     api.mock.data.tokens = api.mock.data.tokens.filter((token) => token.user_id !== "u_2e8b");
-    const station = api.mock.data.stations.find((s) => s.name === "Photo Wall")!;
+    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
     const result = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
     const stored = api.mock.data.taps.find((tap) => tap.id === result.result.id)!;
     expect(result.result.status).toBe("accepted");
@@ -81,15 +81,19 @@ describe("QR fallback", () => {
     expect(stored.token_uid).toBeNull();
   });
 
-  it("records an unpaired UID as unknown_token rather than failing", async () => {
+  it("rejects the temporary UID fallback mode without storing a tap", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const station = api.mock.data.stations[0]!;
-    const result = await api.createFallbackTap({ station_id: station.id, uid: "04FFFFFFFFFFFF" });
-    expect(result.result.status).toBe("unknown_token");
+    await expectApiError(
+      api.createFallbackTap({ station_id: station.id, uid: "04FFFFFFFFFFFF" }),
+      "validation_failed",
+      400,
+    );
+    expect(api.mock.data.taps.some((tap) => tap.token_uid === "04FFFFFFFFFFFF")).toBe(false);
   });
 
-  it("rejects a malformed UID instead of recording unknown_token", async () => {
+  it("rejects a UID in the temporary QR fallback mode", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const station = api.mock.data.stations[0]!;
@@ -137,7 +141,7 @@ describe("station keys and export", () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     api.mock.data.tokens = api.mock.data.tokens.filter((token) => token.user_id !== "u_2e8b");
-    const station = api.mock.data.stations.find((s) => s.name === "Photo Wall")!;
+    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
     const result = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
     const text = await (await api.exportCsv()).text();
     const row = text.split("\n").find((line) => line.startsWith(`${result.result.id},`));

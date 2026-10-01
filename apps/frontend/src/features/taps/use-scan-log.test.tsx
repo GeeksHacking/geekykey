@@ -68,7 +68,7 @@ describe("useScanLog", () => {
       station_id: station.id,
       client_tap_id: `new-${newId}`,
       token_uid: token?.uid ?? null,
-      user_id: token?.user_id ?? null,
+      user_id: token?.user_id ?? api.mock.data.users[0]!.id,
       source: "nfc",
       status: "accepted",
       tapped_at: null,
