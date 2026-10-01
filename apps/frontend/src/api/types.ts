@@ -132,8 +132,6 @@ export interface FallbackTapRequest {
 
 export type FallbackTapStatus = "accepted" | "cooldown";
 
-export type FallbackTapStatus = "accepted" | "cooldown";
-
 export interface FallbackTapResponse {
   result: { id: number; status: FallbackTapStatus };
 }
