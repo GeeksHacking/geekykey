@@ -286,7 +286,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           created_at: iso(now()),
           last_seen_at: null,
           simulate_online: false,
-          counts_toward_passport: false,
+          counts_toward_passport: true,
           label: name,
           linked: true,
           passport: null,
