@@ -99,10 +99,13 @@ export interface ListTapsResponse {
   next_before_id: number | null;
 }
 
-/** POST /api/v1/admin/taps. Exactly one of user_id or uid. */
-export type FallbackTapRequest =
-  | { station_id: string; user_id: string }
-  | { station_id: string; uid: string };
+/** POST /api/v1/admin/taps. The organiser supplies the Portal user ID. */
+export interface FallbackTapRequest {
+  station_id: string;
+  user_id: string;
+}
+
+export type FallbackTapStatus = "accepted" | "cooldown";
 
 export type FallbackTapStatus = "accepted" | "cooldown";
 

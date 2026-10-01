@@ -18,7 +18,7 @@ Object.defineProperty(globalThis, "ResizeObserver", {
 });
 
 const station: Station = {
-  id: "station-print",
+  id: "ca939e19-8216-4b95-8375-5b54e543c5f6",
   name: "Print Lab",
   location: "Hall A",
   points: 1,
@@ -27,53 +27,72 @@ const station: Station = {
   online: false,
 };
 
-function setup() {
+function setup(stations: Station[] = [station]) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_ORGANIZER_ID);
   const { Providers } = createTestProviders(api);
   const user = userEvent.setup();
   render(
     <Providers>
-      <FallbackForm stations={[station]} />
+      <FallbackForm stations={stations} />
     </Providers>,
   );
   return { api, user };
 }
 
+function chooseStation() {
+  const select = document.querySelector("select");
+  expect(select).not.toBeNull();
+  fireEvent.change(select!, { target: { value: station.id } });
+}
+
 describe("FallbackForm", () => {
-  it("names the radio group and clears the identifier when its meaning changes", async () => {
-    const { user } = setup();
-    expect(
-      screen.getByRole("radiogroup", { name: "Identify the participant by" }),
-    ).toBeInTheDocument();
+  it("shows only the Portal user ID field", () => {
+    setup();
 
-    await user.type(screen.getByLabelText("Portal user ID"), "dev-user-1");
-    await user.click(screen.getByRole("radio", { name: /Token UID/ }));
-
-    expect(screen.getByLabelText("Token UID")).toHaveValue("");
+    expect(screen.getByLabelText("Portal user ID")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    expect(screen.queryByText("Token UID")).not.toBeInTheDocument();
   });
 
-  it("rejects a malformed UID before calling the API", async () => {
-    const { user } = setup();
-    const select = document.querySelector("select");
-    fireEvent.change(select!, { target: { value: station.id } });
-    await user.click(screen.getByRole("radio", { name: /Token UID/ }));
-    await user.type(screen.getByLabelText("Token UID"), "zz");
+  it("accepts an unknown Portal user ID and logs accepted then cooldown", async () => {
+    const { api, user } = setup();
+    chooseStation();
+    await user.type(screen.getByLabelText("Portal user ID"), "new-user-123");
     await user.click(screen.getByRole("button", { name: "Log tap" }));
 
-    expect(await screen.findByText(/A UID is 4 to 10 hex bytes/)).toBeInTheDocument();
+    expect(await screen.findByText("Accepted")).toBeInTheDocument();
+    expect(api.mock.data.taps.some((tap) => tap.user_id === "new-user-123")).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: "Log another" }));
+    await user.type(screen.getByLabelText("Portal user ID"), "new-user-123");
+    await user.click(screen.getByRole("button", { name: "Log tap" }));
+
+    expect(await screen.findByText("Cooldown")).toBeInTheDocument();
+  });
+
+  it("explains when a station is not in the passport", async () => {
+    const photoWall: Station = {
+      ...station,
+      id: "71e5c3a8-2b9d-4f0e-8a6c-3d1f7b2e9c04",
+      name: "Photo Wall",
+      points: 0,
+    };
+    const { user } = setup([photoWall]);
+    const select = document.querySelector("select");
+    fireEvent.change(select!, { target: { value: photoWall.id } });
+    await user.type(screen.getByLabelText("Portal user ID"), "new-user-123");
+    await user.click(screen.getByRole("button", { name: "Log tap" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This station isn't in the passport yet.",
+    );
   });
 
   it("shows a form-level error when validation fails without issues", async () => {
     const { api, user } = setup();
     api.mock.failNext("validation_failed");
-
-    const select = document.querySelector("select");
-    expect(select).not.toBeNull();
-    fireEvent.change(select!, { target: { value: station.id } });
-    expect(screen.getByRole("combobox", { name: "Station" })).toHaveTextContent(
-      "Print Lab (offline)",
-    );
+    chooseStation();
     await user.type(screen.getByLabelText("Portal user ID"), "dev-user-1");
     await user.click(screen.getByRole("button", { name: "Log tap" }));
 

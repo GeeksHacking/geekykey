@@ -9,7 +9,7 @@ interface FallbackResultProps {
   onReset: () => void;
 }
 
-/** Same three outcomes as a station tap, read out loud to the organiser at the desk. */
+/** The two QR fallback outcomes, read out loud to the organiser at the desk. */
 export function FallbackResult({ result, onReset }: FallbackResultProps) {
   const meta = TAP_STATUS_META[result.status];
   return (
