@@ -35,7 +35,7 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 | Checkpoint | What it delivers |
 |---|---|
 | 1 | Today's backend on Cloudflare Workers and TiDB, unchanged on the wire |
-| 2 | The first deploy, at `https://geekykey-api.geekshacking.com` |
+| 2 | The first deploy, at `https://key-api.geekshacking.com` |
 | 3 | The GeekyKey Service and the Event Service drawn inside one Worker, talking only through the hand-off |
 | 4 | Two Workers, one per service |
 | 5 | Login through the Portal, and both sets of screens deployed |
@@ -70,9 +70,9 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 
 | Who | Local | Production |
 |---|---|---|
-| Stations and Event Services, to the GeekyKey Service | `http://localhost:8000` | `https://geekykey-api.geekshacking.com` |
-| Browsers, for the GeekyKey screens | `http://localhost:5174` | `https://geekykey.geekshacking.com` |
-| Browsers, for the Event Service's screens | `http://localhost:5173` | `https://showcase.geekshacking.com` (provisional) |
+| Stations and Event Services, to the GeekyKey Service | `http://localhost:8000` | `https://key-api.geekshacking.com` |
+| Browsers, for the GeekyKey screens | `http://localhost:5174` | `https://key.geekshacking.com` |
+| Browsers, for the Event Service's screens | `http://localhost:5173` | `https://event.geekshacking.com` |
 
 Browsers only ever use their screens' hostname, which forwards `/api/*` and `/auth/*` to its
 service: Vite's proxy locally, and a small Worker in front of each set of screens in
@@ -267,7 +267,7 @@ same token. After normalisation a UID must be 4 to 10 bytes, that is 8 to 20 hex
 since stations can read other cards. Our NTAG213 tokens have 7-byte UIDs, 14 characters. The
 services always return the normalised form.
 
-**The token address** is `https://geekykey.geekshacking.com/t/<UID>`, written on every token,
+**The token address** is `https://key.geekshacking.com/t/<UID>`, written on every token,
 where `<UID>` is the chip's own UID in 14 upper-case hex characters, for example
 `/t/04A1B2C3D4E5F6`. A phone that taps a token opens it, and lands on the token page. The
 address must keep working for as long as tokens are in use
@@ -373,7 +373,7 @@ Until checkpoint 4, one Worker built from `apps/backend` serves both tables.
 
 ## 6. Station endpoints
 
-On the GeekyKey Service, at `https://geekykey-api.geekshacking.com` in production.
+On the GeekyKey Service, at `https://key-api.geekshacking.com` in production.
 
 ### 6.1 `POST /api/v1/taps` — `Implemented, changes at checkpoint 3`
 
@@ -557,8 +557,8 @@ The Portal's redirect target. It checks `state`, sets the cookie, then redirects
 
 | Service | Redirect URL | Local |
 |---|---|---|
-| GeekyKey Service | `https://geekykey.geekshacking.com/auth/callback` | `http://localhost:5174/auth/callback` |
-| Event Service | `https://showcase.geekshacking.com/auth/callback` (provisional) | `http://localhost:5173/auth/callback` |
+| GeekyKey Service | `https://key.geekshacking.com/auth/callback` | `http://localhost:5174/auth/callback` |
+| Event Service | `https://event.geekshacking.com/auth/callback` | `http://localhost:5173/auth/callback` |
 
 On login, the Event Service creates or updates the user's row with their display name from the
 Portal. The GeekyKey Service keeps no users: its session holds only the Portal user ID.
@@ -665,7 +665,7 @@ Everything My tokens needs, and the "Am I logged in?" call for the GeekyKey scre
     { "uid": "04A1B2C3D4E5F6", "claimed_at": "2026-10-10T08:30:00.000Z" }
   ],
   "events": [
-    { "id": "showcase", "name": "Capstone Showcase", "url": "https://showcase.geekshacking.com" }
+    { "id": "showcase", "name": "Capstone Showcase", "url": "https://event.geekshacking.com" }
   ]
 }
 ```
@@ -1108,7 +1108,7 @@ GeekyKey Service sends it on the hand-off, and the Event Service sends it on the
 
 ### 11.5 The status call: `GET /api/v1/event-service/stations` — `Checkpoint 6`
 
-On the GeekyKey Service, at `https://geekykey-api.geekshacking.com`. An Event Service calls it
+On the GeekyKey Service, at `https://key-api.geekshacking.com`. An Event Service calls it
 with its key to show its stations' health. Ours calls it over HTTPS too, not through a binding.
 
 **Response `200`**
@@ -1172,7 +1172,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 
 ## 13. Screen to endpoint map
 
-**The GeekyKey screens** (`apps/geekykey-web`, `geekykey.geekshacking.com`)
+**The GeekyKey screens** (`apps/geekykey-web`, `key.geekshacking.com`)
 
 | Screen | Calls |
 |---|---|
@@ -1185,7 +1185,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | GeekyKey admin change link | `PUT /api/v1/admin/stations/{id}/link` |
 | GeekyKey admin disable or enable | `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
 
-**The Event screens** (`apps/frontend`, which becomes `apps/event-web`, `showcase.geekshacking.com`)
+**The Event screens** (`apps/frontend`, which becomes `apps/event-web`, `event.geekshacking.com`)
 
 | Screen | Calls |
 |---|---|
@@ -1223,13 +1223,16 @@ that service works.
 |---|---|---|
 | What does the Portal's participant QR code encode: user ID, or something else? Decides how the QR fallback scans | Adam with Qing Guan | Checkpoint 7 |
 | The Portal's login details: the issuer, each app's client ID, which claim carries the display name, and whether there is a client secret | Adam with Qing Guan | Checkpoint 5 |
-| The Event Service's hostname, `showcase.geekshacking.com`, is provisional | Adam with Julian | Checkpoint 5 |
 
 Closed in 0.2:
 
 - "Production origin for CORS": there is no CORS.
 - "Does the station firmware persist a tap counter across power loss?": yes. Since its first
   version on 23 Sep, the firmware has saved its counter in flash before each tap.
+
+Closed on 2026-10-01:
+
+- "The Event Service's hostname": `event.geekshacking.com`, chosen by Julian.
 
 ---
 
@@ -1242,3 +1245,4 @@ Closed in 0.2:
 | 2026-09-25 | `GET /api/v1/me` is implemented with tests. The shape is unchanged from the draft. Section 8.1 now states the order of `stamps` (oldest station first), `recent_taps` (newest arrival first) and `tokens` (oldest pairing first), that `earned_at` is when the backend received the tap, and that `stamps[].points` is the station's points. The example's `earned_at` now matches its tap's `received_at`. Section 4 links to the new `CONTEXT.md` glossary. |
 | 2026-09-26 | Fixes to `POST /api/v1/taps`, request and response shapes unchanged. A `tapped_at` more than 5 minutes ahead of the server or 7 days behind it is now ignored (section 6.1), so a clock that never synced (1970) cannot skew the cooldown. A late offline tap is judged against the accepted taps nearest it in time rather than only the newest. Overlapping requests from one station are handled one at a time, so a retry racing its original gets `duplicate` and two taps by one participant cannot both beat the cooldown. Unknown routes now return the `not_found` error body instead of plain text. |
 | 2026-09-29 | Version 0.2, rewritten for the move to Cloudflare Workers and TiDB and the split into the GeekyKey Service and the Event Service, as the [migration spec](../.scratch/db-hosting/spec.md) plans. Status tags now name the checkpoint that builds each endpoint, replacing `Sprint 1` and `MVP`. The endpoints are split by service. Pairing and unpairing become claim and release on the GeekyKey Service, with a 3-token limit, and `token_taken` replaces `uid_already_paired`. New: the GeekyKey Service's `/me` and token lookup, the GeekyKey admin endpoints (sections 10.1 to 10.5), passport settings (9.1), the hand-off and the status call (section 11), the heartbeat's `reader_ok`, and the statuses `no_event` and `no_game`. New errors: `invalid_event_service_key`, `token_limit_reached`, `rate_limited` (429), `event_service_unavailable` and `portal_unavailable` (503). No CORS; two cookies, `gk_session` and `event_session`. Base URLs for production. The station board is merged from the status call; the QR fallback takes `user_id` only. **One-off removals,** allowed once because nothing relies on them in production yet: `tokens` from the Event Service's `GET /api/v1/me`, `token_uid` from the tap log and the export, and stored `unknown_token` taps. Two open questions closed. |
+| 2026-10-01 | GeeksHacking's hostnames, chosen by Julian: stations and Event Services call `https://key-api.geekshacking.com` (was `geekykey-api`), the GeekyKey screens and the token address are on `key.geekshacking.com` (was `geekykey`), and the Event screens on `event.geekshacking.com` (was the provisional `showcase`). No endpoint or shape changes. |

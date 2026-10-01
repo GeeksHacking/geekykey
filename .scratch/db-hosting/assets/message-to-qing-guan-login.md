@@ -4,14 +4,16 @@ Draft for Adam to edit and send, formatted for WhatsApp like [the message to Jul
 
 The Portal's user IDs are GUIDs (from "What does the GeekyKey Service need from the Portal's tag APIs?"). Whether `sub` carries that ID, and whether the Portal accepts plain `http` for `localhost`, haven't been checked.
 
+On 1 Oct 2026 the redirect URLs moved to Julian's hostnames, `key.geekshacking.com` and `event.geekshacking.com`. The message hadn't been sent yet.
+
 ---
 
 ```text
 Hi Qing Guan! What GeekyKey needs to log people in through the Portal. No rush: the login comes after our first deploy.
 
 *1. Two OAuth apps, one per service.* Each service logs users in itself, with its own redirect URLs:
-- *GeekyKey Service* (the token page and "My tokens"): `https://geekykey.geekshacking.com/auth/callback`, and `http://localhost:5174/auth/callback` for local dev
-- *Showcase* (the passport and the organizers' screens): `https://showcase.geekshacking.com/auth/callback`, and `http://localhost:5173/auth/callback` for local dev
+- *GeekyKey Service* (the token page and "My tokens"): `https://key.geekshacking.com/auth/callback`, and `http://localhost:5174/auth/callback` for local dev
+- *Showcase* (the passport and the organizers' screens): `https://event.geekshacking.com/auth/callback`, and `http://localhost:5173/auth/callback` for local dev
 Does the Portal accept plain `http` for localhost?
 Later, the GeekyKey Service's app will also use client credentials for the tag APIs, as in our tag APIs message.
 

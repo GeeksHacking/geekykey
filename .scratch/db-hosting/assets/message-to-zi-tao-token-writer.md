@@ -2,6 +2,8 @@
 
 Draft for Adam to edit and send, from "What is a token's ID, and what URL is written on each token?", 28 Sep 2026. The byte values come from NXP's [NTAG213/215/216 datasheet](https://www.nxp.com/docs/en/data-sheet/NTAG213_215_216.pdf) (Rev. 3.2), sections 8.5.7 and 8.7, and the functions from the `MFRC522` library the station already uses.
 
+**Changed on 1 Oct 2026, after this was sent:** Julian chose `key.geekshacking.com`, so tokens carry `https://key.geekshacking.com/t/<UID>`. The address is 5 characters shorter, so `firmware/token_writer/` now writes it in bytes 12-34 and starts the UID mirror at byte 3 of page `0Ch` (`MIRROR` byte `74h`). The byte map below is the old one. HAR-12 says so too.
+
 ---
 
 Hi Zi Tao, we've decided how tokens are identified and what gets written on them. Could you build a small **token writer** sketch, `firmware/token_writer/`, to run on a spare station before the event?

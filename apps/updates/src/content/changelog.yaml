@@ -488,3 +488,45 @@
     by the cooldown. The station also now prints the backend's answer, so a wrong station key
     shows up straight away. A gap we found but haven't fixed: the station doesn't say when a
     saved tap was made, so taps sent together all look as if they happened at the same moment.
+
+- id: move-step-2-tickets
+  date: 2026-10-01
+  area: admin
+  change: >-
+    The first deploy is now planned as seven tickets. GeeksHacking creates the Cloudflare Workers
+    and the stations' address, we set up the production database with two logins that can do no
+    more than they need, and the backend goes live at that address and stores a practice tap,
+    including one held back by the cooldown, which is the first time the cooldown's lock runs
+    through Cloudflare's database connection pooling. After that we check that Cloudflare's logs
+    never show a station's key, write down what a tap costs against the free plan, explain
+    deploying in the README, and have a real station tap the live backend. The trade-offs we
+    accept: until the main branch is protected, Adam deploys by hand from his laptop, so every
+    deploy waits on one person.
+
+- id: screens-tickets-v02
+  date: 2026-10-01
+  area: admin
+  change: >-
+    The screens' work for the showcase is now 27 small tickets, in two groups. One brings the
+    current screens in line with the agreed contract: pairing leaves them, the tap log and export
+    lose token IDs, and organizers get the new station board and passport settings. The other
+    builds the new GeekyKey screens: the page a phone opens when it taps a token, My tokens, and
+    the station admin screens. Each ticket builds one change against demo data, so the screens
+    can go ahead before the backend's endpoints exist. Ethan leads them, and Joshua moves to the
+    ideas and the report full time. The trade-offs we accept: small tickets mean more of them to
+    track, and some, such as the one that removes station creation from the current screens, can
+    only start once the new screens have taken that job over.
+
+- id: hosting-without-infra-access
+  date: 2026-10-01
+  area: backend
+  change: >-
+    GeeksHacking now runs the live backend, and the team gets no access to their Cloudflare
+    account, which Julian says is normal in most companies. Julian sets up each part and connects
+    it to our code, so every merge to the main branch goes live. The stations' address becomes
+    key-api.geekshacking.com, tokens will carry key.geekshacking.com, and the showcase's event
+    service moves to a repo of its own when the backend splits. Alongside it, with Julian's
+    agreement, Adam runs a test copy on his own Cloudflare account against a separate test
+    database, to try each deploy before it goes live. The trade-offs we accept: we can't read the
+    live logs or undo a release ourselves, only revert our change or ask Julian, and the test copy
+    is one more thing to keep in step.
