@@ -77,7 +77,7 @@ apps/backend/
 ├── scripts/           Node scripts for the database tasks, the seed, and the migration check
 ├── test-support/      test setup: migrate geekykey_test once, empty every table before each test
 ├── wrangler.jsonc     the Worker's name, port, settings, and how it reaches the database
-├── vitest.config.ts   runs the tests inside workerd, the runtime Cloudflare runs Workers on
+├── vitest.config.ts   runs the Worker's tests inside workerd, the runtime Cloudflare runs Workers on
 └── .dev.vars.example  a template for .dev.vars, your own local settings and secrets
 ```
 
@@ -210,7 +210,7 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `build:frontend` | Typecheck the frontend, then build it to `apps/frontend/dist` |
 | `format:frontend` | Format the frontend code in place with oxfmt |
 | `dev:backend` | Backend in `wrangler dev` on http://localhost:8000, reloading when a file changes, with dev sign-in turned on |
-| `test:backend` | Backend tests (Vitest, inside workerd, against `geekykey_test`), run once |
+| `test:backend` | Backend tests (Vitest), run once: the Worker's inside workerd against `geekykey_test`, the database scripts' on Node |
 | `format:backend` | Format the backend code in place with oxfmt |
 | `db:up` | Start TiDB in Docker, then create and migrate `geekykey_dev` and `geekykey_test` |
 | `db:reset` | Throw away all TiDB data, then start again with empty, migrated databases |
@@ -419,6 +419,10 @@ mise exec -- pnpm check:migrations   # fail if src/db/schema.ts has a change wit
 `db:generate` runs `drizzle-kit generate`, which writes the new migration into `drizzle/`.
 Commit it, and run `mise run db:migrate` to apply it to both local databases. CI runs
 `check:build` and `check:migrations` on every pull request.
+
+Three more set up GeeksHacking's production database: `db:logins`, `db:test-station` and
+`db:migrate --production`. Only Adam runs them, since they need logins kept on his laptop.
+The comment at the top of each script in `scripts/` says what it does.
 
 ### With the frontend
 

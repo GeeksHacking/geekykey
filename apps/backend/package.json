@@ -14,6 +14,8 @@
     "check:migrations": "node scripts/check-migrations.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.ts",
+    "db:logins": "node scripts/create-logins.ts",
+    "db:test-station": "node scripts/create-test-station.ts",
     "seed": "node scripts/seed.ts"
   },
   "dependencies": {

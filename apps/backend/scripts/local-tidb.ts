@@ -9,6 +9,12 @@ export const LOCAL_DATABASES = ["geekykey_dev", "geekykey_test"] as const;
 export type LocalDatabase = (typeof LOCAL_DATABASES)[number];
 
 /**
+ * TiDB's own root login, which has no password. Only the database scripts and
+ * their tests use it, to create databases and logins.
+ */
+export const LOCAL_ROOT = { host: "127.0.0.1", port: 4000, user: "root" };
+
+/**
  * The backend's login to one of them, which create-databases.ts makes. The
  * password isn't a secret: TiDB only listens on this machine, and holds only
  * dev data. wrangler.jsonc spells out the geekykey_dev one again, since JSON
