@@ -288,11 +288,11 @@ bool loadQueuedTap(uint8_t slot, QueuedTap &tap) {
 
 bool enqueueTap(const QueuedTap &tap) {
   if (queueCount >= QUEUE_CAPACITY) return false;
-  if (!storeQueuedTap(queueHead, tap)) return false;
-  const uint8_t nextHead = (queueHead + 1) % QUEUE_CAPACITY;
+  // queueHead is the oldest tap, so the next free slot is queueCount past it.
+  const uint8_t slot = (queueHead + queueCount) % QUEUE_CAPACITY;
+  if (!storeQueuedTap(slot, tap)) return false;
   const uint8_t nextCount = queueCount + 1;
-  if (!saveQueueState(nextHead, nextCount)) return false;
-  queueHead = nextHead;
+  if (!saveQueueState(queueHead, nextCount)) return false;
   queueCount = nextCount;
   Serial.println(tap.clientTapId + " queued (" + String(queueCount) + ")");
   return true;
@@ -398,17 +398,24 @@ QueueAttempt flushQueue(const String &newTapId) {
   if (newTapId.length() == 0 && millis() < nextQueueAttemptAt) return result;
 
   uint8_t count = 0;
-  while (count < QUEUE_BATCH_MAX && queueCount > 0) {
+  while (count < QUEUE_BATCH_MAX && count < queueCount) {
     QueuedTap tap;
-    if (!loadQueuedTap(queueHead, tap)) {
+    if (!loadQueuedTap((queueHead + count) % QUEUE_CAPACITY, tap)) {
+      // Only the head can be removed, so send what we have and drop the bad
+      // entry next time, once it has reached the head.
+      if (count > 0) break;
       Serial.println("Discarding unreadable queue entry");
       removeQueuedHead();
       continue;
     }
     batch[count++] = tap;
   }
+  // An empty batch is a 400 from the backend, so don't send one.
+  if (count == 0) return result;
 
+  Serial.println("Sending " + String(count) + " queued tap(s)");
   sendBatch(batch, count, newTapId, result);
+  Serial.println("Backend answered HTTP " + String(result.httpCode));
   for (uint8_t i = 0; i < count && result.completed[i]; i++) removeQueuedHead();
   nextQueueAttemptAt = millis() + QUEUE_RETRY_INTERVAL_MS;
   return result;
