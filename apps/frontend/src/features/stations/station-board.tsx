@@ -1,4 +1,4 @@
-import type { Station } from "@/api/types";
+import type { EventStationBoardStation } from "@/api/types";
 import { OnlineStatus } from "@/components/online-status";
 import {
   Table,
@@ -8,9 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime, formatRelative } from "@/lib/format";
+import { formatDateTime, formatWhen } from "@/lib/format";
 
-export function StationBoard({ stations }: { stations: Station[] }) {
+export function StationBoard({ stations }: { stations: EventStationBoardStation[] }) {
   return (
     <Table>
       <TableHeader>
@@ -18,33 +18,39 @@ export function StationBoard({ stations }: { stations: Station[] }) {
           <TableHead>Station</TableHead>
           <TableHead className="w-20 text-right">Points</TableHead>
           <TableHead className="w-40">Status</TableHead>
-          <TableHead className="w-36">Last seen</TableHead>
-          <TableHead className="hidden w-36 md:table-cell">Added</TableHead>
+          <TableHead className="w-40">Last tap here</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {stations.map((station) => (
           <TableRow key={station.id}>
             <TableCell>
-              <p className="font-medium">{station.name}</p>
-              <p className="text-xs text-muted-foreground">{station.location ?? "No location"}</p>
+              <p className="font-medium">
+                {station.passport?.name ?? station.label ?? "Unnamed reader"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {station.passport
+                  ? (station.passport.location ?? "No location")
+                  : "Not in the passport"}
+              </p>
+              {station.linked === false ? (
+                <p className="mt-1 text-xs font-medium text-status-unknown">No longer linked</p>
+              ) : null}
             </TableCell>
-            <TableCell className="text-right font-mono">{station.points}</TableCell>
+            <TableCell className="text-right font-mono">
+              {station.passport?.points ?? "—"}
+            </TableCell>
             <TableCell>
-              <OnlineStatus online={station.online} lastSeenAt={station.last_seen_at} />
+              <OnlineStatus online={station.online ?? false} lastSeenAt={station.last_seen_at} />
             </TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">
-              {station.last_seen_at ? (
-                <time dateTime={station.last_seen_at} title={formatDateTime(station.last_seen_at)}>
-                  <span className="sm:hidden">{formatDateTime(station.last_seen_at)}</span>
-                  <span className="hidden sm:inline">{formatRelative(station.last_seen_at)}</span>
+              {station.last_tap_at ? (
+                <time dateTime={station.last_tap_at} title={formatDateTime(station.last_tap_at)}>
+                  {formatWhen(station.last_tap_at)}
                 </time>
               ) : (
                 "Never"
               )}
-            </TableCell>
-            <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-              {formatDateTime(station.created_at)}
             </TableCell>
           </TableRow>
         ))}

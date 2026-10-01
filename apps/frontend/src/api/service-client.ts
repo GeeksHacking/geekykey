@@ -10,16 +10,10 @@ export type SessionApi = Pick<ApiClient, "me" | "devLogin" | "logout" | "loginUr
 export type GeekyKeyApi = Pick<ApiClient, "listStations" | "createStation">;
 
 /** The Event Service owns the station board, the tap log, stats, export, and fallback. */
-export interface EventApi extends Pick<
+export type EventApi = Pick<
   ApiClient,
-  "listTaps" | "createFallbackTap" | "stats" | "exportCsv"
-> {
-  /**
-   * The Organizer's station board (agreement 9.2). Same path as the GeekyKey list, different
-   * response. Backed by the single listStations() until the services split.
-   */
-  listStationBoard: ApiClient["listStations"];
-}
+  "listStationBoard" | "listTaps" | "createFallbackTap" | "stats" | "exportCsv"
+>;
 
 export interface ServiceClientBundle {
   session: SessionApi;
@@ -44,7 +38,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       createStation: api.createStation.bind(api),
     },
     event: {
-      listStationBoard: api.listStations.bind(api),
+      listStationBoard: api.listStationBoard.bind(api),
       listTaps: api.listTaps.bind(api),
       createFallbackTap: api.createFallbackTap.bind(api),
       stats: api.stats.bind(api),

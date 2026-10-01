@@ -20,5 +20,6 @@ describe("useStationOptions", () => {
     await result.current.refetch();
     await waitFor(() => expect(result.current.error).toBeNull());
     expect(result.current.stations.length).toBeGreaterThan(0);
+    expect(result.current.stations.some((station) => station.name === "Reader 3")).toBe(true);
   });
 });

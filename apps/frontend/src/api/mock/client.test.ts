@@ -37,6 +37,24 @@ describe("sessions and roles", () => {
   });
 });
 
+describe("station board", () => {
+  it("covers linked, passport, offline, buffered, and reader states", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.listStationBoard();
+
+    expect(board.status_known).toBe(true);
+    expect(board.stations.some((station) => station.passport === null && station.linked)).toBe(
+      true,
+    );
+    expect(board.stations.some((station) => station.linked === false)).toBe(true);
+    expect(board.stations.some((station) => station.online === false)).toBe(true);
+    expect(board.stations.some((station) => (station.buffered_taps ?? 0) > 0)).toBe(true);
+    expect(board.stations.some((station) => station.reader_ok === false)).toBe(true);
+    expect(board.stations.some((station) => station.last_tap_at !== null)).toBe(true);
+  });
+});
+
 describe("scan log", () => {
   it("pages newest first with a before_id cursor and no overlap", async () => {
     const api = client();
