@@ -16,6 +16,7 @@ import {
   type ErrorCode,
   type FallbackTapRequest,
   type FallbackTapResponse,
+  type FallbackTapStatus,
   type ListStationsResponse,
   type ListTapsQuery,
   type ListTapsResponse,
@@ -25,7 +26,6 @@ import {
   type TapStatus,
 } from "@/api/types";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
-import { normaliseUid } from "@/lib/format";
 
 /*
   In-memory stand-in for apps/backend. Same interface as the future HTTP client,
@@ -35,7 +35,6 @@ import { normaliseUid } from "@/lib/format";
   computes these.
 */
 
-const UID_PATTERN = /^(?:[0-9A-F]{2}){4,10}$/;
 const COOLDOWN_MS = 300_000;
 const SESSION_KEY = "gk-mock-session";
 
@@ -127,15 +126,15 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     else storage?.removeItem(SESSION_KEY);
   }
 
-  const activeToken = (uid: string) => data.tokens.find((t) => t.uid === uid && !t.revoked_at);
   const userToken = (userId: string) =>
     data.tokens.find((t) => t.user_id === userId && !t.revoked_at);
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
   const userById = (id: string) => data.users.find((u) => u.id === id);
 
-  /** Backend rule mirrored for realism: a second accepted tap at the same station inside the window is a cooldown. */
-  function resolveStatus(userId: string | null, stationId: string, atMs: number): TapStatus {
-    if (!userId) return "unknown_token";
+  /** Event rule mirrored for realism: non-counting stations return no_game; repeated recent taps are cooldowns. */
+  function resolveStatus(userId: string, stationId: string, atMs: number): TapStatus {
+    const station = stationById(stationId);
+    if (!station?.counts_toward_passport) return "no_game";
     const recent = data.taps.some(
       (t) =>
         t.user_id === userId &&
@@ -172,7 +171,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       id: tap.id,
       client_tap_id: tap.client_tap_id,
       station: { id: tap.station_id, name: station?.name ?? "Removed station" },
-      user: user ? { id: user.id, display_name: user.display_name } : null,
+      user: { id: tap.user_id, display_name: user?.display_name ?? null },
       token_uid: tap.token_uid,
       status: tap.status,
       source: tap.source,
@@ -261,6 +260,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           created_at: iso(now()),
           last_seen_at: null,
           simulate_online: false,
+          counts_toward_passport: true,
         };
         data.stations.push(station);
         return { station: toStation(station), api_key: `gk_sta_${randomBase62(40)}` };
@@ -286,33 +286,31 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     createFallbackTap: (input: FallbackTapRequest) =>
       call((): FallbackTapResponse => {
         currentOrganizer();
-        if (!stationById(input.station_id)) fail("not_found");
+        const station = stationById(input.station_id);
+        if (!station || !station.counts_toward_passport) fail("not_found");
         const at = now();
-        let userId: string | null;
-        let uid: string | null;
-        if ("user_id" in input) {
-          if (!userById(input.user_id)) fail("not_found");
-          userId = input.user_id;
-          // A QR user_id is a valid identity even when the participant has no active NFC token.
-          uid = userToken(userId)?.uid ?? null;
-        } else {
-          uid = normaliseUid(input.uid);
-          if (!UID_PATTERN.test(uid)) {
-            fail("validation_failed", [{ path: ["uid"], message: "A UID is 4 to 10 hex bytes." }]);
-          }
-          userId = activeToken(uid)?.user_id ?? null;
+        const userId = input.user_id.trim();
+        if (!userId) {
+          fail("validation_failed", [
+            { path: ["user_id"], message: "Enter the participant's Portal user ID." },
+          ]);
         }
+        // A Portal user ID is valid even when the participant has never logged in or has no NFC token.
+        const uid = userToken(userId)?.uid ?? null;
+        const status = resolveStatus(userId, input.station_id, at);
+        if (status === "no_game") fail("not_found");
         const tap = appendTap({
           station_id: input.station_id,
           client_tap_id: crypto.randomUUID(),
           token_uid: uid,
           user_id: userId,
           source: "qr_fallback",
-          status: resolveStatus(userId, input.station_id, at),
+          status,
           tapped_at: null,
           received_at: iso(at),
         });
-        return { result: { id: tap.id, status: tap.status } };
+        const resultStatus: FallbackTapStatus = status === "cooldown" ? "cooldown" : "accepted";
+        return { result: { id: tap.id, status: resultStatus } };
       }),
 
     stats: () =>
@@ -380,17 +378,15 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const station = online[Math.floor(Math.random() * online.length)];
         const participant = participants[Math.floor(Math.random() * participants.length)];
         if (!station || !participant) return;
-        const token = participant ? userToken(participant.id) : undefined;
-        const unknown = Math.random() < 0.05 || !token;
-        const userId = unknown ? null : participant.id;
-        const uid = unknown ? "04DEADBEEF2201" : (token?.uid ?? "04DEADBEEF0000");
+        const token = userToken(participant.id);
+        const uid = token?.uid ?? "04DEADBEEF0000";
         appendTap({
           station_id: station.id,
           client_tap_id: `tap-${String(nextTapId + 100_000).padStart(6, "0")}`,
           token_uid: uid,
-          user_id: userId,
+          user_id: participant.id,
           source: "nfc",
-          status: resolveStatus(userId, station.id, at),
+          status: resolveStatus(participant.id, station.id, at),
           tapped_at: iso(at - 700),
           received_at: iso(at),
         });

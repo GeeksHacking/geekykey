@@ -44,12 +44,7 @@ const columns = column.columns([
   column.display({
     id: "participant",
     header: "Participant",
-    cell: ({ row }) =>
-      row.original.user ? (
-        row.original.user.display_name
-      ) : (
-        <span className="text-muted-foreground">Unknown token</span>
-      ),
+    cell: ({ row }) => row.original.user.display_name ?? "Unnamed participant",
   }),
   column.display({
     id: "token",

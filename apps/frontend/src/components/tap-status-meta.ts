@@ -39,24 +39,6 @@ export const TAP_STATUS_META: Record<TapStatus, TapStatusMeta> = {
     organiserNote:
       "The same participant tapped here within the cooldown window. Recorded, not counted.",
   },
-  unknown_token: {
-    label: "Unknown token",
-    participantLabel: "Unknown token",
-    icon: Question,
-    textClass: "text-status-unknown",
-    bgClass: "bg-status-unknown/10",
-    participantReason: "This token was not paired at the time. Not counted.",
-    organiserNote: "No account is paired to that token. Recorded, not counted.",
-  },
-  no_event: {
-    label: "No event",
-    participantLabel: "No active event",
-    icon: Question,
-    textClass: "text-status-unknown",
-    bgClass: "bg-status-unknown/10",
-    participantReason: "No event is accepting taps right now.",
-    organiserNote: "The station is not linked to an event that is accepting taps.",
-  },
   no_game: {
     label: "No game",
     participantLabel: "Not in this game",
@@ -68,5 +50,5 @@ export const TAP_STATUS_META: Record<TapStatus, TapStatusMeta> = {
   },
 };
 
-/** The statuses the tap log can hold, for its filter. `no_event` is never stored, so it is not here. */
-export const TAP_STATUSES: TapStatus[] = ["accepted", "cooldown", "unknown_token", "no_game"];
+/** The statuses the tap log can hold, for its filter. */
+export const TAP_STATUSES: TapStatus[] = ["accepted", "cooldown", "no_game"];

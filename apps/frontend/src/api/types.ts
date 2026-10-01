@@ -7,13 +7,13 @@
 export type Role = "participant" | "organizer";
 
 /** Stored tap statuses. `duplicate` is station-only and is not part of the admin/Event log. */
-export type TapStatus = "accepted" | "cooldown" | "unknown_token" | "no_event" | "no_game";
+export type TapStatus = "accepted" | "cooldown" | "no_game";
 
 export type TapSource = "nfc" | "qr_fallback";
 
 export interface User {
   id: string;
-  display_name: string;
+  display_name: string | null;
   role: Role;
 }
 
@@ -76,8 +76,8 @@ export interface AdminTap {
   id: number;
   client_tap_id: string;
   station: { id: string; name: string };
-  /** null for unknown_token taps. */
-  user: { id: string; display_name: string } | null;
+  /** Every stored Event tap has a user. */
+  user: { id: string; display_name: string | null };
   /** null when a QR user_id fallback has no active NFC token. */
   token_uid: string | null;
   status: TapStatus;
@@ -99,13 +99,16 @@ export interface ListTapsResponse {
   next_before_id: number | null;
 }
 
-/** POST /api/v1/admin/taps. Exactly one of user_id or uid. */
-export type FallbackTapRequest =
-  | { station_id: string; user_id: string }
-  | { station_id: string; uid: string };
+/** POST /api/v1/admin/taps. The organiser supplies the Portal user ID. */
+export interface FallbackTapRequest {
+  station_id: string;
+  user_id: string;
+}
+
+export type FallbackTapStatus = "accepted" | "cooldown";
 
 export interface FallbackTapResponse {
-  result: { id: number; status: TapStatus };
+  result: { id: number; status: FallbackTapStatus };
 }
 
 /** GET /api/v1/admin/stats */

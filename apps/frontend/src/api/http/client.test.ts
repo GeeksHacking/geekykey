@@ -73,19 +73,19 @@ describe("HTTP client transport", () => {
       response(
         {
           error: "validation_failed",
-          issues: [{ path: ["uid"], message: "uid is invalid" }],
+          issues: [{ path: ["user_id"], message: "user_id is invalid" }],
         },
         400,
       ),
     );
 
     const error = await apiError(
-      createHttpClient().createFallbackTap({ station_id: "station-1", uid: "bad" }),
+      createHttpClient().createFallbackTap({ station_id: "station-1", user_id: "" }),
     );
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(400);
     expect(error.code).toBe("validation_failed");
-    expect(error.issues).toEqual([{ path: ["uid"], message: "uid is invalid" }]);
+    expect(error.issues).toEqual([{ path: ["user_id"], message: "user_id is invalid" }]);
   });
 
   it.each([

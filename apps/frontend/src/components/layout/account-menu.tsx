@@ -19,7 +19,8 @@ interface AccountMenuProps {
   consoleLink?: "admin" | "participant";
 }
 
-function initialsOf(name: string): string {
+function initialsOf(name: string | null): string {
+  if (!name) return "";
   const parts = name.trim().split(/\s+/);
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
@@ -34,13 +35,13 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
           <span className="grid h-7 w-7 place-items-center rounded-md bg-secondary font-mono text-xs font-semibold text-secondary-foreground">
             {initialsOf(user.display_name)}
           </span>
-          <span className="hidden text-sm sm:inline">{user.display_name}</span>
+          <span className="hidden text-sm sm:inline">{user.display_name ?? "Participant"}</span>
           <CaretDown className="hidden sm:inline" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
-          <p className="text-sm font-medium">{user.display_name}</p>
+          <p className="text-sm font-medium">{user.display_name ?? "Participant"}</p>
           <p className="text-xs text-muted-foreground">
             {user.role === "organizer" ? "Organiser" : "Participant"}
           </p>
