@@ -8,7 +8,7 @@ import type { Role, TapSource, TapStatus } from "@/api/types";
 export interface MockUser {
   id: string;
   portal_user_id: string;
-  display_name: string;
+  display_name: string | null;
   role: Role;
 }
 
@@ -28,6 +28,8 @@ export interface MockStation {
   last_seen_at: string | null;
   /** Mock only: whether the simulator keeps this station's heartbeat alive. */
   simulate_online: boolean;
+  /** Mock only: whether this station counts taps toward a passport game. */
+  counts_toward_passport: boolean;
 }
 
 export interface MockTap {
@@ -35,7 +37,7 @@ export interface MockTap {
   station_id: string;
   client_tap_id: string;
   token_uid: string | null;
-  user_id: string | null;
+  user_id: string;
   source: TapSource;
   status: TapStatus;
   tapped_at: string | null;
@@ -187,6 +189,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(90)),
       last_seen_at: iso(now - 4_000),
       simulate_online: true,
+      counts_toward_passport: true,
     },
     {
       id: "5b1d2c70-0c7e-4f7a-9d2e-2b1f6c8a3e41",
@@ -196,6 +199,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(88)),
       last_seen_at: iso(now - 11_000),
       simulate_online: true,
+      counts_toward_passport: true,
     },
     {
       id: "e0f3a9b2-6c4d-4a1e-8f5b-7d2c9e1a0b63",
@@ -205,6 +209,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(85)),
       last_seen_at: iso(now - minutes(14)),
       simulate_online: false,
+      counts_toward_passport: true,
     },
     {
       id: "9a7c4e21-3f8b-4d6a-b2e5-1c0d8f7a6b59",
@@ -214,6 +219,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(80)),
       last_seen_at: iso(now - 27_000),
       simulate_online: true,
+      counts_toward_passport: true,
     },
     {
       id: "2d6b8f04-9e1a-4c3d-a7f2-5e4b0c9d1a86",
@@ -223,6 +229,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(70)),
       last_seen_at: iso(now - 8_000),
       simulate_online: true,
+      counts_toward_passport: true,
     },
     {
       id: "71e5c3a8-2b9d-4f0e-8a6c-3d1f7b2e9c04",
@@ -232,6 +239,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(30)),
       last_seen_at: null,
       simulate_online: false,
+      counts_toward_passport: false,
     },
   ];
 
@@ -248,14 +256,14 @@ export function createFixtures(now: number = Date.now()): MockData {
 
   const pushTap = (
     stationId: string,
-    userId: string | null,
+    userId: string,
     uid: string | null,
     at: number,
     source: TapSource,
   ) => {
-    let status: TapStatus = "accepted";
-    if (!userId) status = "unknown_token";
-    else {
+    const station = stations.find((item) => item.id === stationId);
+    let status: TapStatus = station?.counts_toward_passport ? "accepted" : "no_game";
+    if (station?.counts_toward_passport) {
       const key = `${userId}:${stationId}`;
       const previous = lastAccepted.get(key);
       if (previous !== undefined && at - previous < 300_000) status = "cooldown";
@@ -283,28 +291,26 @@ export function createFixtures(now: number = Date.now()): MockData {
     const participant = participants[Math.floor(random() * participants.length)] ?? participants[0];
     if (station && participant) {
       const roll = random();
-      if (roll < 0.06) {
-        pushTap(station.id, null, "04DEADBEEF2201", clock, "nfc");
-      } else {
-        const uid = activeTokenByUser.get(participant.id) ?? "04DEADBEEF0000";
-        pushTap(station.id, participant.id, uid, clock, "nfc");
-        // Occasionally the same person taps again straight away.
-        if (roll > 0.88) pushTap(station.id, participant.id, uid, clock + 4_000, "nfc");
-      }
+      const uid = activeTokenByUser.get(participant.id) ?? "04DEADBEEF0000";
+      pushTap(station.id, participant.id, uid, clock, "nfc");
+      // Occasionally the same person taps again straight away.
+      if (roll > 0.88) pushTap(station.id, participant.id, uid, clock + 4_000, "nfc");
     }
     clock += 40_000 + random() * 140_000;
   }
 
-  // The seeded participant has a deliberate story: two stamps, one cooldown, one unknown.
+  // The seeded participant has a deliberate story: two stamps, one cooldown, one no_game.
   const alexUid = "04A1B2C3D4E5F6";
   const printing = stations[0];
   const cloud = stations[1];
   const lounge = stations[3];
-  if (printing && cloud && lounge) {
+  const photoWall = stations[5];
+  if (printing && cloud && lounge && photoWall) {
     pushTap(printing.id, SEEDED_PARTICIPANT_ID, alexUid, eventStart + minutes(9), "nfc");
     pushTap(cloud.id, SEEDED_PARTICIPANT_ID, alexUid, eventStart + minutes(41), "nfc");
     pushTap(cloud.id, SEEDED_PARTICIPANT_ID, alexUid, eventStart + minutes(43), "nfc");
     pushTap(lounge.id, SEEDED_PARTICIPANT_ID, alexUid, now - minutes(6), "qr_fallback");
+    pushTap(photoWall.id, SEEDED_PARTICIPANT_ID, alexUid, now - minutes(4), "nfc");
   }
 
   // Two organiser fallbacks earlier in the day.

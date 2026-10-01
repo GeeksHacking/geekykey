@@ -5,12 +5,12 @@ import type { MeResponse } from "@/api/types";
 
 const isoTimestamp = z.iso.datetime({ offset: true });
 const role = z.enum(["participant", "organizer"]);
-const tapStatus = z.enum(["accepted", "cooldown", "unknown_token", "no_event", "no_game"]);
+const tapStatus = z.enum(["accepted", "cooldown", "no_game"]);
 const tapSource = z.enum(["nfc", "qr_fallback"]);
 
 const userSchema = z.object({
   id: z.string(),
-  display_name: z.string(),
+  display_name: z.string().nullable(),
   role,
 });
 
