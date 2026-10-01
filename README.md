@@ -256,7 +256,8 @@ mise run dev:backend -- --var TAP_COOLDOWN_SECONDS:0
 ```
 
 Setting it in front of the command, as in `TAP_COOLDOWN_SECONDS=0 mise run dev:backend`,
-does not work: `wrangler dev` does not hand your shell's environment to the backend.
+works only when you have no `apps/backend/.dev.vars`: `wrangler dev` reads your shell's
+environment only then. `--var` always works.
 
 ### `mise run` or `mise exec`?
 
@@ -381,9 +382,11 @@ TAP_COOLDOWN_SECONDS=0
 ```
 
 `.dev.vars` is for your laptop only: it overrides `wrangler.jsonc` there, and git ignores
-it. It is also where local secrets go, but you seldom need one. The only secret is
-`SESSION_SECRET`, and dev sign-in uses a built-in one instead. `.dev.vars.example` shows
-the format.
+it. `wrangler dev` takes only two kinds of line from it: settings already under `vars` in
+`wrangler.jsonc`, and the secrets listed under `secrets.required` there, which are the
+ones production can't run without. It ignores anything else, so a misspelt setting does
+nothing. The only secret is `SESSION_SECRET`, and you seldom need it, because dev sign-in
+uses a built-in one instead. `.dev.vars.example` shows the format.
 
 The port, 8000, is set in `apps/backend/wrangler.jsonc`. The frontend's dev server and the
 stations expect 8000, so change them too if you move it. The backend listens on your whole
@@ -393,7 +396,9 @@ anyone on the same Wi-Fi can reach it, dev sign-in included.
 `mise run dev:backend` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`,
 which signs in a seeded user without the portal, and signs sessions with a built-in
 secret. Never turn it on in production. Without it, the backend refuses to start unless
-`SESSION_SECRET` is set.
+`SESSION_SECRET` is set. Because production needs `SESSION_SECRET`, `wrangler dev` warns
+`Missing required secrets: SESSION_SECRET` every time it starts without one. On your
+laptop, that warning is expected.
 
 ### Other backend commands
 

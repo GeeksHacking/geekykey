@@ -69,7 +69,9 @@ export default defineConfig({
                 HYPERDRIVE: localDatabaseUrl("geekykey_test"),
               },
               // Dev-login on, as `mise run dev:backend` has it: the tests sign in
-              // through it, and CI has no .dev.vars.
+              // through it, and CI has no .dev.vars. It also means the Worker
+              // signs sessions with a stand-in, so the "Missing required
+              // secrets: SESSION_SECRET" warning for every test file is harmless.
               bindings: { DEV_AUTH_ENABLED: "true" },
             },
           }),

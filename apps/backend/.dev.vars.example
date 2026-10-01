@@ -1,12 +1,18 @@
-# Local settings and secrets for `wrangler dev`. Copy this file to .dev.vars,
-# which git ignores. Never move them into wrangler.jsonc, which is deployed.
+# Local secrets and settings for `wrangler dev`. Copy this file to .dev.vars,
+# which git ignores. Never move a secret into wrangler.jsonc, which is deployed.
+#
+# `wrangler dev` takes only two kinds of line from .dev.vars and ignores the
+# rest: the secrets listed under `secrets.required` in wrangler.jsonc, and
+# settings already under `vars` there. So DEV_AUTH_ENABLED does nothing here.
+# `mise run dev:backend` turns it on with --var instead.
 
-# Mounts POST /auth/dev-login, which signs in a seeded user without the Portal.
-# Local development only. `mise run dev:backend` turns it on by itself, so this
-# line only matters when you run `wrangler dev` some other way.
-DEV_AUTH_ENABLED=true
-
-# Signs the gk_session cookie. Locally it can stay unset while DEV_AUTH_ENABLED
-# is true, which uses a stand-in. Production sets its own with
-# `wrangler secret put`.
+# Signs the gk_session cookie. Locally it can stay unset, because dev-login
+# signs with a stand-in. `wrangler dev` then warns that it's missing, which is
+# harmless. Set it if you run `wrangler dev` without
+# `--var DEV_AUTH_ENABLED:true`, or the Worker won't start. Production's is set
+# on the Worker itself.
 # SESSION_SECRET=
+
+# Overrides the setting in wrangler.jsonc on this laptop only. 0 lets repeat
+# taps at the same station count while you test.
+# TAP_COOLDOWN_SECONDS=0
