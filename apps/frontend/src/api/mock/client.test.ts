@@ -49,7 +49,7 @@ describe("scan log", () => {
     expect(second.taps.every((t) => t.id < first.next_before_id!)).toBe(true);
   });
 
-  it("filters stored statuses and keeps the user on no_game taps", async () => {
+  it("filters stored no_game taps and keeps their user", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const noGame = await api.listTaps({ status: "no_game" });
@@ -81,24 +81,23 @@ describe("QR fallback", () => {
     expect(stored.token_uid).toBeNull();
   });
 
-  it("rejects the temporary UID fallback mode without storing a tap", async () => {
+  it("accepts a Portal user ID that has never logged in", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations[0]!;
-    await expectApiError(
-      api.createFallbackTap({ station_id: station.id, uid: "04FFFFFFFFFFFF" }),
-      "validation_failed",
-      400,
+    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
+    const result = await api.createFallbackTap({ station_id: station.id, user_id: "new-user-123" });
+    expect(result.result.status).toBe("accepted");
+    expect(api.mock.data.taps.find((tap) => tap.id === result.result.id)?.user_id).toBe(
+      "new-user-123",
     );
-    expect(api.mock.data.taps.some((tap) => tap.token_uid === "04FFFFFFFFFFFF")).toBe(false);
   });
 
-  it("rejects a UID in the temporary QR fallback mode", async () => {
+  it("rejects a blank Portal user ID", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations[0]!;
+    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
     await expectApiError(
-      api.createFallbackTap({ station_id: station.id, uid: "zz" }),
+      api.createFallbackTap({ station_id: station.id, user_id: " " }),
       "validation_failed",
       400,
     );

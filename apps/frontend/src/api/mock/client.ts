@@ -289,19 +289,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const station = stationById(input.station_id);
         if (!station || !station.counts_toward_passport) fail("not_found");
         const at = now();
-        let userId: string;
-        let uid: string | null;
-        if ("user_id" in input) {
-          if (!userById(input.user_id)) fail("not_found");
-          userId = input.user_id;
-          // A QR user_id is a valid identity even when the participant has no active NFC token.
-          uid = userToken(userId)?.uid ?? null;
-        } else {
-          // UID mode remains visible until the separate QR-fallback ticket removes it.
+        const userId = input.user_id.trim();
+        if (!userId) {
           fail("validation_failed", [
-            { path: ["uid"], message: "QR fallback requires a Portal user ID." },
+            { path: ["user_id"], message: "Enter the participant's Portal user ID." },
           ]);
         }
+        // A Portal user ID is valid even when the participant has never logged in or has no NFC token.
+        const uid = userToken(userId)?.uid ?? null;
         const status = resolveStatus(userId, input.station_id, at);
         if (status === "no_game") fail("not_found");
         const tap = appendTap({
