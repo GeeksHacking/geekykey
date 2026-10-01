@@ -114,7 +114,7 @@ describe("SessionProvider", () => {
     queryClient.setQueryData(queryKeys.stations, { stations: [] });
 
     api.mock.failNext("unauthenticated");
-    await expect(api.pairToken("04AABBCCDDEEFF00")).rejects.toBeDefined();
+    await expect(api.listStations()).rejects.toBeDefined();
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(result.current.me).toBeNull();
     expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
@@ -127,11 +127,11 @@ describe("SessionProvider", () => {
       await result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
-    const before = result.current.me?.tokens.length ?? 0;
-    await api.pairToken("04:AA:BB:CC:DD:EE:01");
+    const user = api.mock.data.users.find((item) => item.id === SEEDED_PARTICIPANT_ID);
+    user!.display_name = "Alex Updated";
     await act(async () => {
       await result.current.refresh();
     });
-    await waitFor(() => expect(result.current.me?.tokens).toHaveLength(before + 1));
+    expect(result.current.me?.user.display_name).toBe("Alex Updated");
   });
 });

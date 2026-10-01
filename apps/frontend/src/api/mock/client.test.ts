@@ -37,42 +37,6 @@ describe("sessions and roles", () => {
   });
 });
 
-describe("pairing", () => {
-  it("normalises the UID and is idempotent for the same user", async () => {
-    const api = client();
-    await api.devLogin(SEEDED_PARTICIPANT_ID);
-    const first = await api.pairToken("04:ab:cd:ef:01:23:45");
-    expect(first.created).toBe(true);
-    expect(first.token.uid).toBe("04ABCDEF012345");
-    const again = await api.pairToken("04ABCDEF012345");
-    expect(again.created).toBe(false);
-  });
-
-  it("rejects a token that belongs to someone else with 409", async () => {
-    const api = client();
-    await api.devLogin(SEEDED_ORGANIZER_ID);
-    await expectApiError(api.pairToken("04A1B2C3D4E5F6"), "uid_already_paired", 409);
-  });
-
-  it("returns validation issues with a field path", async () => {
-    const api = client();
-    await api.devLogin(SEEDED_PARTICIPANT_ID);
-    const error = (await api.pairToken("zz").catch((e: unknown) => e)) as ApiError;
-    expect(error.code).toBe("validation_failed");
-    expect(error.issues[0]?.path).toEqual(["uid"]);
-  });
-
-  it("lets a revoked token be paired again by anyone", async () => {
-    const api = client();
-    await api.devLogin(SEEDED_PARTICIPANT_ID);
-    await api.unpairToken("04A1B2C3D4E5F6");
-    await api.logout();
-    await api.devLogin(SEEDED_ORGANIZER_ID);
-    const paired = await api.pairToken("04A1B2C3D4E5F6");
-    expect(paired.created).toBe(true);
-  });
-});
-
 describe("scan log", () => {
   it("pages newest first with a before_id cursor and no overlap", async () => {
     const api = client();

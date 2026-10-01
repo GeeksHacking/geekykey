@@ -5,18 +5,13 @@ import type { MeResponse } from "@/api/types";
 
 const isoTimestamp = z.iso.datetime({ offset: true });
 const role = z.enum(["participant", "organizer"]);
-const tapStatus = z.enum(["accepted", "cooldown", "unknown_token"]);
+const tapStatus = z.enum(["accepted", "cooldown", "unknown_token", "no_event", "no_game"]);
 const tapSource = z.enum(["nfc", "qr_fallback"]);
 
 const userSchema = z.object({
   id: z.string(),
   display_name: z.string(),
   role,
-});
-
-const tokenSchema = z.object({
-  uid: z.string(),
-  paired_at: isoTimestamp,
 });
 
 const stampSchema = z.object({
@@ -39,7 +34,6 @@ const meTapSchema = z.object({
 
 export const meResponseSchema: z.ZodType<MeResponse> = z.object({
   user: userSchema,
-  tokens: z.array(tokenSchema),
   points: z.number().int().nonnegative(),
   stamps: z.array(stampSchema),
   recent_taps: z.array(meTapSchema),

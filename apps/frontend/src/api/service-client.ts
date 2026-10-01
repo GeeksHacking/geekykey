@@ -7,10 +7,7 @@ export type SessionApi = Pick<ApiClient, "me" | "devLogin" | "logout" | "loginUr
  * The GeekyKey Service owns token claims and releases, and the station registry:
  * listing every station (agreement 10.1) and creating one (10.2).
  */
-export type GeekyKeyApi = Pick<
-  ApiClient,
-  "pairToken" | "unpairToken" | "listStations" | "createStation"
->;
+export type GeekyKeyApi = Pick<ApiClient, "listStations" | "createStation">;
 
 /** The Event Service owns the station board, the tap log, stats, export, and fallback. */
 export interface EventApi extends Pick<
@@ -43,8 +40,6 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       loginUrl: api.loginUrl.bind(api),
     },
     geekykey: {
-      pairToken: api.pairToken.bind(api),
-      unpairToken: api.unpairToken.bind(api),
       listStations: api.listStations.bind(api),
       createStation: api.createStation.bind(api),
     },

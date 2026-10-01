@@ -16,7 +16,6 @@ vi.mock("@/features/auth/use-go-after-login", () => ({
 
 const me: MeResponse = {
   user: { id: "dev-user-1", display_name: "Alex Tan", role: "participant" },
-  tokens: [],
   points: 0,
   stamps: [],
   recent_taps: [],

@@ -1,6 +1,6 @@
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ParticipantTapList } from "@/components/participant-tap-list";
-import { DashboardTokenStatus } from "@/features/passport/dashboard-token-status";
+import { DashboardClaimHelp } from "@/features/passport/dashboard-claim-help";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
 import { PointsSummary } from "@/features/passport/points-summary";
 import { useMe } from "@/lib/session";
@@ -21,7 +21,7 @@ export function DashboardScreen() {
 
       <PointsSummary points={me.points} stamps={me.stamps} />
 
-      <DashboardTokenStatus tokens={me.tokens} />
+      {me.recent_taps.length === 0 ? <DashboardClaimHelp userId={me.user.id} /> : null}
 
       <section>
         <SectionHeading title="Latest stamps" linkTo="/passport" linkLabel="Open passport" />
@@ -32,9 +32,7 @@ export function DashboardScreen() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No stamps yet. Find a station and tap your token.
-          </p>
+          <p className="text-sm text-muted-foreground">No stamps yet.</p>
         )}
       </section>
 

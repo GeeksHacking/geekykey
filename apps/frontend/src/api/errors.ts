@@ -50,11 +50,6 @@ export function describeError(error: unknown): string {
         return "Your account is not allowed to do that.";
       case "not_found":
         return "That was not found. It may have been removed.";
-      case "uid_already_paired":
-      case "token_taken":
-        return "This token is already paired to another account.";
-      case "token_limit_reached":
-        return "You have reached the token limit for this account.";
       case "rate_limited":
         return "Too many requests. Wait a minute and try again.";
       case "invalid_event_service_key":

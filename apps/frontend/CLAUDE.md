@@ -12,7 +12,7 @@ Two audiences, two surfaces:
 - **Organisers** on a laptop at the registration desk or a booth. Desktop first, denser.
 
 Key dates: Sprint 1 is 21 Sep to 4 Oct 2026. The Sprint 2 A/B test runs 5 to 18 Oct.
-Showcase is 17 Nov 2026. Scope down before adding features.
+Showcase is 18 Nov 2026. Scope down before adding features.
 
 ## Sources of truth
 
@@ -28,8 +28,9 @@ Do not copy content from the agreement or the skill into this file. Link to it.
 ## Current phase: staged live session, mock resources
 
 The screens are built against the mock and the first live session slice is now enabled:
-`me`, `devLogin`, and `logout` use the backend in live mode. Pairing, admin, fallback, stats,
-and export remain mock-backed until their service routes are implemented. The mock/live split
+`me`, `devLogin`, and `logout` use the backend in live mode. Admin, fallback, stats,
+and export remain mock-backed until their service routes are implemented. Token claiming lives in
+the separate GeekyKey app, not in these Event screens. The mock/live split
 is intentional; screens never need to know which client supplied a value.
 
 `src/api/create-client.ts` is still the only file that changes when an endpoint goes live.
@@ -85,10 +86,9 @@ names them `geekykey.listStations` and `event.listStationBoard`; both still call
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
 | 1 | Session | `devLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
-| 2 | Pairing | `pairToken` | `/pair` |
-| 3 | Stations | `listStations`, `createStation` | `/admin/stations`, the picker on `/admin/fallback` |
-| 4 | Scan log | `listTaps` | `/admin/taps` |
-| 5 | MVP tail | `createFallbackTap`, `stats`, `exportCsv`, `unpairToken` | `/admin/summary`, `/admin/fallback`, unpair |
+| 2 | Stations | `listStations`, `createStation` | `/admin/stations`, the picker on `/admin/fallback` |
+| 3 | Scan log | `listTaps` | `/admin/taps` |
+| 4 | Event tail | `createFallbackTap`, `stats`, `exportCsv` | `/admin/summary`, `/admin/fallback` |
 
 One slice, start to finish:
 
@@ -137,7 +137,7 @@ Two things that look like bugs and are not:
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default `weight="regular"` |
 | Fonts | Geist, Geist Mono via `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
 | Motion | CSS/shadcn transitions | No motion library is currently required; do not add one without agreeing it in the stack |
-| Forms | react-hook-form + zod through shadcn `Form` | Three forms in the MVP: pair token, add station, QR fallback |
+| Forms | react-hook-form + zod through shadcn `Form` | Two forms in the Event screens: add station, QR fallback |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | ESLint flat config + typescript-eslint | |
 | Format | oxfmt | Prettier-compatible and fast. Settings in `.oxfmtrc.jsonc`; Markdown and `routeTree.gen.ts` are skipped. Pinned to an exact version, because a new release can change the output and everyone must format the same way |
@@ -160,7 +160,8 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
   `lib/constants.ts`. Example: `features/stations/use-stations.ts`.
 - Writes are `useMutation` hooks whose `onSuccess` invalidates the keys they change, so
   screens never pass "refetch me" callbacks around. Example:
-  `features/tokens/use-pair-token.ts` invalidates `["me"]`.
+  `features/fallback/use-log-fallback-tap.ts` invalidates `["me"]` after a successful QR
+  fallback.
 - Screens read `isPending`, `isError`, `isFetching`, `dataUpdatedAt`, and `data`. They do
   not hold copies of server data in `useState`.
 - The session is the `["me"]` query in `lib/session-provider.tsx`. A 401 is a normal
@@ -268,7 +269,6 @@ apps/frontend/
         index.tsx           # participant dashboard
         passport.tsx
         activity.tsx
-        pair.tsx
       admin/
         route.tsx           # session gate + organiser role gate + console shell
         index.tsx           # redirects to /admin/stations
@@ -279,7 +279,6 @@ apps/frontend/
     features/               # one folder per domain; the real UI lives here
       auth/                 # login screen, dev-login form, RequireSession, RequireRole, 403 view, shell wiring
       passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph
-      tokens/               # token list, unpair confirm, pair form
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
@@ -350,8 +349,6 @@ Rules:
    - `unauthenticated`: go to login and remember `return_to`.
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
-   - `token_taken` / `uid_already_paired`: inline message on the token action.
-   - `token_limit_reached`: explain the account token limit and stop the action.
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.
    - `event_service_unavailable` / `portal_unavailable`: show a service-availability message.
    - `invalid_event_service_key` / station-key errors: setup/configuration message.
@@ -365,10 +362,9 @@ Rules:
 | Route | Role | Reads | Writes | Must handle |
 |---|---|---|---|---|
 | `/login` | anyone | | `POST /auth/dev-login` (dev), `GET /auth/login` (prod) | `not_found` on a bad dev user |
-| `/` dashboard | participant, organiser | `GET /me` | | loading, no tokens yet, no stamps yet |
+| `/` dashboard | participant, organiser | `GET /me` | | claim help and Portal ID before the first tap; Event content only afterwards |
 | `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
-| `/pair` | participant, organiser | `GET /me` `tokens` | `POST /tokens/pair`, `DELETE /tokens/{uid}` | 200 vs 201, `uid_already_paired`, `validation_failed`, confirm before unpair |
 | `/admin` | organiser | | | participant sees the 403 view |
 | `/admin/stations` | organiser | `GET /admin/stations` polled | `POST /admin/stations` | one-time `api_key` reveal with copy button and warning; online and offline; empty board |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | `user` null on `unknown_token`; load more; empty log |

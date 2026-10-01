@@ -17,11 +17,6 @@ export interface User {
   role: Role;
 }
 
-export interface Token {
-  uid: string;
-  paired_at: string;
-}
-
 /** One entry per station. `earned_at` is null until the user has an accepted tap there. */
 export interface Stamp {
   station_id: string;
@@ -44,19 +39,9 @@ export interface MeTap {
 /** GET /api/v1/me */
 export interface MeResponse {
   user: User;
-  tokens: Token[];
   points: number;
   stamps: Stamp[];
   recent_taps: MeTap[];
-}
-
-/** POST /api/v1/tokens/pair */
-export interface PairTokenRequest {
-  uid: string;
-}
-
-export interface PairTokenResponse {
-  token: Token;
 }
 
 export interface Station {
@@ -150,9 +135,6 @@ export type ErrorCode =
   | "invalid_station_key"
   | "forbidden"
   | "not_found"
-  | "token_taken"
-  | "token_limit_reached"
-  | "uid_already_paired"
   | "rate_limited"
   | "invalid_event_service_key"
   | "event_service_unavailable"

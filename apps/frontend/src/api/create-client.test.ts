@@ -4,7 +4,6 @@ import { createAppClient } from "@/api/create-client";
 
 const me = {
   user: { id: "dev-user-1", display_name: "Alex", role: "participant" as const },
-  tokens: [],
   points: 0,
   stamps: [],
   recent_taps: [],

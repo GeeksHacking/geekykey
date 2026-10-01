@@ -1,31 +1,26 @@
 import type { ApiClient } from "@/api/client";
 import { LIVE_METHODS } from "@/api/create-client";
 
-export type DataSourceScope = "admin" | "pair";
-
 export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
 
-const SCOPE_METHODS: Record<DataSourceScope, readonly (keyof ApiClient)[]> = {
-  admin: ["listStations", "createStation", "listTaps", "createFallbackTap", "stats", "exportCsv"],
-  pair: ["pairToken", "unpairToken"],
-};
+const MOCKED_METHODS: readonly (keyof ApiClient)[] = [
+  "listStations",
+  "createStation",
+  "listTaps",
+  "createFallbackTap",
+  "stats",
+  "exportCsv",
+];
 
 export function isMockData(
-  scope: DataSourceScope,
   live: boolean = isLiveApiEnabled,
   liveMethods: ReadonlySet<keyof ApiClient> = LIVE_METHODS,
 ): boolean {
   if (!live) return true;
-  return SCOPE_METHODS[scope].some((method) => !liveMethods.has(method));
+  return MOCKED_METHODS.some((method) => !liveMethods.has(method));
 }
 
-export function dataSourceMessage(
-  scope: DataSourceScope,
-  live: boolean = isLiveApiEnabled,
-): string {
+export function dataSourceMessage(live: boolean = isLiveApiEnabled): string {
   if (!live) return "Demo data — this screen uses fixture data.";
-  if (scope === "pair") {
-    return "Demo data — token pairing is still mocked until the pairing API slice is live.";
-  }
   return "Demo data — organiser resource data is still mocked until those API slices are live.";
 }
