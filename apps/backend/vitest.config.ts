@@ -24,6 +24,10 @@ const nodeProcessStandIn = fileURLToPath(
  *
  * The "Failed to require ... cardinal" warning in every run is harmless:
  * mysql2 tries that optional package and carries on without it.
+ *
+ * It goes in the root config, not the "worker" project: the plugin resolves
+ * those `require()`s through Vitest's root server, which never sees a
+ * project's plugins.
  */
 const requireLikeNode: Plugin = {
   name: "geekykey:require-like-node",
@@ -46,33 +50,51 @@ const requireLikeNode: Plugin = {
   },
 };
 
-// The tests run inside workerd, the runtime the Worker runs on in production,
-// with the bindings from wrangler.jsonc plus the overrides below.
+// Two sets of tests, both against the TiDB from `mise run db:up`.
 export default defineConfig({
-  plugins: [
-    requireLikeNode,
-    cloudflareTest({
-      wrangler: { configPath: "./wrangler.jsonc" },
-      miniflare: {
-        // The tests' own database, so running them never touches the data in
-        // geekykey_dev that `wrangler dev` uses.
-        hyperdrives: {
-          HYPERDRIVE: localDatabaseUrl("geekykey_test"),
-        },
-        // Dev-login on, as `mise run dev:backend` has it: the tests sign in
-        // through it, and CI has no .dev.vars.
-        bindings: { DEV_AUTH_ENABLED: "true" },
-      },
-    }),
-  ],
+  plugins: [requireLikeNode],
   test: {
-    include: ["src/**/*.test.ts"],
-    // Brings geekykey_test up to date once per run, on Node.
-    globalSetup: ["./test-support/global-setup.ts"],
-    // Empties every table before each test, inside workerd.
-    setupFiles: ["./test-support/empty-tables.ts"],
-    // All the files share geekykey_test, so one file emptying the tables
-    // mustn't pull the rows out from under another.
+    projects: [
+      {
+        // The Worker's tests run inside workerd, the runtime the Worker runs on
+        // in production, with the bindings from wrangler.jsonc plus the
+        // overrides below.
+        plugins: [
+          cloudflareTest({
+            wrangler: { configPath: "./wrangler.jsonc" },
+            miniflare: {
+              // The tests' own database, so running them never touches the data in
+              // geekykey_dev that `wrangler dev` uses.
+              hyperdrives: {
+                HYPERDRIVE: localDatabaseUrl("geekykey_test"),
+              },
+              // Dev-login on, as `mise run dev:backend` has it: the tests sign in
+              // through it, and CI has no .dev.vars.
+              bindings: { DEV_AUTH_ENABLED: "true" },
+            },
+          }),
+        ],
+        test: {
+          name: "worker",
+          include: ["src/**/*.test.ts"],
+          // Brings geekykey_test up to date once per run, on Node.
+          globalSetup: ["./test-support/global-setup.ts"],
+          // Empties every table before each test, inside workerd.
+          setupFiles: ["./test-support/empty-tables.ts"],
+        },
+      },
+      {
+        // The database scripts' tests run on Node, as the scripts do, and
+        // connect straight to TiDB with mysql2.
+        test: {
+          name: "scripts",
+          include: ["scripts/**/*.test.ts"],
+          environment: "node",
+        },
+      },
+    ],
+    // One file at a time, across both sets: they share one TiDB, and a file
+    // emptying the tables mustn't pull the rows out from under another.
     fileParallelism: false,
   },
 });

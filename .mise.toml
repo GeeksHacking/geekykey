@@ -70,7 +70,7 @@ description = "The Worker in wrangler dev (workerd) on http://localhost:8000, wi
 run = "pnpm dev:backend"
 
 [tasks."test:backend"]
-description = "Backend tests (Vitest inside workerd, against geekykey_test)"
+description = "Backend tests (Vitest): the Worker's inside workerd against geekykey_test, the database scripts' on Node"
 run = "pnpm test:backend"
 
 [tasks."format:backend"]

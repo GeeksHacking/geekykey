@@ -10,13 +10,9 @@
  * TiDB with mysql2, not through Hyperdrive, and only ever to this machine.
  */
 import { createConnection } from "mysql2/promise";
-import { LOCAL_DATABASES } from "./local-tidb.ts";
+import { LOCAL_DATABASES, LOCAL_ROOT } from "./local-tidb.ts";
 
-const connection = await createConnection({
-  host: "127.0.0.1",
-  port: 4000,
-  user: "root",
-});
+const connection = await createConnection(LOCAL_ROOT);
 try {
   // `%`, not `localhost`: Docker hands TiDB the connection from its own
   // network, not from this machine's.
