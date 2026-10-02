@@ -1,0 +1,6 @@
+.env
+.env.*
+*.local
+.claude
+.tanstack/
+ONBOARDING.md

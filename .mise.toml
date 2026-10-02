@@ -33,6 +33,24 @@ run = "pnpm build:frontend"
 description = "Format the frontend code in place (oxfmt)"
 run = "pnpm format:frontend"
 
+# GeekyKey web
+
+[tasks."dev:geekykey-web"]
+description = "Vite dev server on http://localhost:5174"
+run = "pnpm dev:geekykey-web"
+
+[tasks."test:geekykey-web"]
+description = "GeekyKey web unit tests (Vitest)"
+run = "pnpm test:geekykey-web"
+
+[tasks."build:geekykey-web"]
+description = "Typecheck, then production build to apps/geekykey-web/dist"
+run = "pnpm build:geekykey-web"
+
+[tasks."format:geekykey-web"]
+description = "Format the GeekyKey web code in place (oxfmt)"
+run = "pnpm format:geekykey-web"
+
 # Updates site. Astro sends anonymous usage data unless told not to.
 
 [tasks."dev:updates"]
