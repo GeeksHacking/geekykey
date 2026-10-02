@@ -23,3 +23,6 @@ test-results/
 
 # Meeting notes are never committed (BAC-7).
 meeting-notes/
+
+# Local contributor handoff for Kilo sessions.
+docs/agents/contributor-handoff.md
