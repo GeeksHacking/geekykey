@@ -2,6 +2,8 @@
 
 The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), written on 29 Sep 2026 from its resolved tickets. The plan is due Wed 30 Sep 2026. **Adam reviews this spec before any code changes.**
 
+> **Being revised, 2 Oct 2026.** Checkpoint 2 couldn't be done as written: Hyperdrive can't reach TiDB Cloud. On 2 Oct the Event Service moved to Google Cloud Run with TiDB, and the GeekyKey Service stays on Workers with no database ([ADR 0003](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md)). Every section that assumes Hyperdrive, four Workers, or `stations` and `tokens` tables in the GeekyKey Service is out of date until the [redrawn map](map.md)'s last ticket, "Fold the answers into the spec", rewrites it. Checkpoint 1 and the decisions the map's "Decisions so far" doesn't list as overturned still hold.
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.

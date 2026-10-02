@@ -562,3 +562,14 @@
     to link the backend to TiDB, can't sign in to TiDB Cloud: TiDB asks every client to sign in a
     second time, a step Hyperdrive doesn't support, and the live backend would hit the same wall.
     The backend will connect to TiDB another way, chosen at the team meeting.
+
+- id: event-service-moves-to-cloud-run
+  date: 2026-10-02
+  area: backend
+  change: >-
+    After the mentor meeting, the backend plan changes shape. The Event Service, which keeps the
+    event's data, will run on Google Cloud Run next to TiDB, where it can keep its database
+    connections open. The GeekyKey Service, which stations and tokens talk to, stays on Cloudflare's
+    free plan and keeps no database of its own. A short round of planning now settles where token
+    owners and stations live, whether a station waits for its result, and how the Event Service is
+    deployed. The trade-off we accept: two hosting platforms to set up and watch instead of one.

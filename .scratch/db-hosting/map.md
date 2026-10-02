@@ -3,10 +3,13 @@
 Label: wayfinder:map
 Charted: 25 Sep 2026 by Adam, with Claude
 Redrawn: 27 Sep 2026, after Julian's architecture made us the builders of two services instead of one backend
+Redrawn again: 2 Oct 2026, after Hyperdrive couldn't reach TiDB Cloud and the mentor meeting moved the Event Service to Cloud Run ([ADR 0003](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md))
 
 ## Destination
 
-A hand-off spec for running the GeekyKey Service and a sample Event Service (the capstone showcase event and its games) on Cloudflare Workers, with TiDB for event data and the Portal for identity. Every decision is made, and the spec ends in an ordered migration plan from today's single backend, which Adam builds in checkpoints outside this map. Due Wednesday 30 Sep 2026; anything not firm by then is marked provisional.
+The answers that unstick the spec at checkpoint 2, folded into [spec.md](spec.md). The spec's checkpoint 2 couldn't be done: Hyperdrive can't reach TiDB Cloud, and on 2 Oct the Event Service moved to Google Cloud Run with TiDB, while the GeekyKey Service stays on Workers with no database. This redraw is deliberately small. It settles where token owners and stations live, what the GeekyKey Service caches, whether a station waits for its verdict, and how the Event Service is built, deployed and staged on Cloud Run. Its last ticket, "Fold the answers into the spec", rewrites the spec's affected sections and checkpoints, and the map is done when that's resolved. Anything not firm is marked provisional.
+
+*Reached on 29 Sep, before this redraw:* the hand-off spec, [spec.md](spec.md), for running both services on Workers.
 
 ## Notes
 
@@ -26,7 +29,7 @@ A hand-off spec for running the GeekyKey Service and a sample Event Service (the
 
 - TiDB is the database. Do not introduce Turso. (Mentors, 24 Sep)
 - The frontend and backend deploy separately, not in one container. (Mentors, 24 Sep)
-- The backend runs on Cloudflare Workers, not Cloud Run, and GeeksHacking owns the billing. (Julian, 25 Sep, replying to Adam's comparison of the two)
+- ~~The backend runs on Cloudflare Workers, not Cloud Run, and GeeksHacking owns the billing. (Julian, 25 Sep, replying to Adam's comparison of the two)~~ *Reversed on 2 Oct: see "Givens added on 2 Oct" below.*
 - The frontend is hosted on Cloudflare. (Adam, 25 Sep)
 - geekshacking.com's DNS is on Cloudflare, and GeeksHacking will set up our subdomain. (Julian, 25 Sep)
 - Julian will connect the repo to Cloudflare and set up the frontend and backend together once the backend runs on Workers, so he is waiting on this map. (Julian, 25 Sep) *Kept on 28 Sep: Cloudflare builds each Worker from the repo, and database migrations run separately on GitHub Actions (Qing Guan); see "How do deploys and secrets work?".*
@@ -40,6 +43,15 @@ A hand-off spec for running the GeekyKey Service and a sample Event Service (the
   - **An Event Service** runs one event's games, one or several. It calls a Portal API with the user ID when an action touches the Portal, for example food collection consuming a user's food resource.
 - Adam's team builds the GeekyKey Service and a sample Event Service: the capstone showcase event and its games, starting with the passport. Neither keeps a long-term database. (Julian and Adam, 27 Sep)
 - TiDB holds event data, not the long-lived mapping from tokens to users. The `tokens` table may stay in TiDB until the Portal's tag APIs exist, as long as switching to them later is not painful. (Julian and Adam, 27 Sep) The Portal stores which user each token belongs to, and the GeekyKey Service sets and queries it through the Portal's APIs. (Julian, 28 Sep)
+
+**Givens added on 2 Oct 2026** (the mentor meeting, `meeting-notes/[02 Oct 26] Capstone Mentor Meeting.md`, and the WhatsApp thread after it; recorded as [ADR 0003](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md))
+
+- **The Event Service runs on Google Cloud Run, with TiDB.** Julian: "we should try to use Cloud Run v1". GeeksHacking has a billing account. Qing Guan will advise on the setup, and said to manage it as infrastructure as code. (Julian and Qing Guan)
+- **The GeekyKey Service stays on Workers, on the free plan, and doesn't hit a database.** Julian: "Either it has to call Portal API, or it has to call Event API, or both, and you may want to think about whether it can be done without waiting for a response." It may keep a cache. (Julian; the free plan, Adam)
+- **Stations are registered by the Event Service,** and the tables the GeekyKey Service held move to the Event Service. Julian: storing copies in the GeekyKey Service creates sync and write-clash problems. (Julian and Adam, at the meeting)
+- **The token page** lets the user "register the token (which will redirect to portal)", shows "the token state (using the information from the portal)", or directs them "to the event service (which is then the event experience)". (Julian)
+- **Move first, split second, still.** Today's whole backend is deployed unchanged to Cloud Run at `event-api.geekshacking.com`, with an ordinary `mysql2` connection pool. Then the GeekyKey Service is cut out as a Worker with no database, and stations move to `key-api.` once it exists. (Adam)
+- **The event's screens stay a Worker** (`event-web`) that forwards `/api` and `/auth` to Cloud Run over HTTPS, so the browser still sees one address and there's no CORS. (Adam)
 
 **Facts**
 
@@ -58,10 +70,22 @@ A hand-off spec for running the GeekyKey Service and a sample Event Service (the
 - TiDB Starter's free backup, checked 29 Sep: one a day at a random time, kept one day, no manual backups, and a restore always makes a new cluster without our logins. Workers Logs on the free plan keep 200,000 events a day for 3 days. Sources in "How do we back up the database, recover it on event day, and clear the test data before the doors open?".
 - The free plan's security features, checked 29 Sep: the zone gets one rate limiting rule, which matches only the path, counts per IP address and blocks for 10 seconds, and five custom rules, which can match a hostname and skip Browser Integrity Check, Security Level and rate limiting. Browser Integrity Check is on by default; geekshacking.com lets the station's `ESP32HTTPClient` user agent through today. The Workers rate limiting binding counts any key we choose over 10 or 60 seconds, per Cloudflare location and roughly. Zone rules don't cover `workers.dev` or preview addresses. Sources in "How do we protect our public addresses without blocking the stations?".
 - Watching on the free plans, checked 29 Sep: Cloudflare's Health Checks start on Pro; the free plan allows 5 Cron Triggers for GeeksHacking's whole account; the day's request allowance resets at 08:00 Singapore time; the Workers Observability dashboard saves and shares queries but doesn't alert. TiDB Starter has no built-in alerting. The heartbeat proves a station's Wi-Fi and key, not its reader. Sources in "How do we notice trouble on event day, and who watches?".
+- **Hyperdrive can't reach TiDB Cloud** (BAC-15, 2 Oct). TiDB Cloud's gateway sends a MySQL AuthSwitchRequest at every sign-in, and Hyperdrive gives up on it. Changing the login's sign-in method didn't help. Without Hyperdrive, a tap from a Worker in Singapore cost about 20 ms of CPU with `mysql2` (which also needs the compatibility flag `no_throw_on_not_implemented_tls_options`), and about 7 ms with TiDB's serverless driver. Details in [research/hyperdrive-alternatives-benchmark.md](research/hyperdrive-alternatives-benchmark.md).
+- **Workers' limits by plan:** the free plan allows 10 ms of CPU per request; Workers Paid ($5 a month) allows 30 s by default and up to 5 minutes. Queues are on the free plan, with 10,000 operations a day and messages kept 24 h. KV's free plan allows 100,000 reads and 1,000 writes a day, and a write can take up to 60 s to be seen in other locations. (Cloudflare's docs, checked 2 Oct)
+- **The Portal's tag work,** read from its repo on 2 Oct: still only the `NfcTag` entity from 27 Sep, with no endpoints, branches or pull requests. Qing Guan merged 11 pull requests from 28 to 30 Sep, on workshops, profiles, OAuth redirect URLs and organizer roles.
+- **On `main` since 2 Oct:** the production database, `geekykey`, with today's tables, two limited logins and a test station (BAC-10), and the Worker's config for `key-api.` with a stand-in Hyperdrive ID (BAC-9). Workers Builds builds every push to `main` and fails on that stand-in. A staging database, `geekykey_staging`, with its own two logins, exists on the same cluster. BAC-11, 12, 13 and 15 (the first deploy, staging, the log check and the README's deploy section) are paused until this redraw is done.
 
 ## Decisions so far
 
 <!-- One line per resolved ticket: [ticket title](issues/NN-slug.md): gist of the answer. -->
+
+*Redrawn on 2 Oct 2026.* [ADR 0003](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md) overturns parts of these answers, and the open tickets settle what replaces them:
+
+- Hyperdrive, Workers for the Event Service, and the Vitest plugin and `wrangler dev` for its code, in "How is the database set up?", "How do local dev, tests and CI get a runtime and a database?" and "How do deploys and secrets work?". Replaced by "How is the Event Service built, deployed and staged on Cloud Run?".
+- The GeekyKey Service's `stations` table, its station key list and the link columns, in "Which parts of today's backend belong to the GeekyKey Service, and which to the Event Service?", "How does the GeekyKey Service trigger an Event Service, and know which one a station belongs to?" and "How do we protect our public addresses without blocking the stations?". Replaced by "Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?".
+- The `tokens` table in the GeekyKey Service through the showcase, in "What does the GeekyKey Service need from the Portal's tag APIs?". Replaced by "Where do token owners live until the Portal's tag APIs exist, and what does the token page do?".
+- The service binding from the GeekyKey Service to our Event Service, and from `event-web` to it, in "How is the frontend set up, and how does the browser reach the backend?" and "How does the GeekyKey Service trigger an Event Service, and know which one a station belongs to?". Both become HTTPS (the givens above).
+- Waiting 3 s for the Event Service's verdict, in "How do stations talk to the GeekyKey Service?" and "How does the GeekyKey Service trigger an Event Service, and know which one a station belongs to?". Reopened by "Does a station wait for the Event Service's verdict?".
 
 - [Does TiDB fit this backend?](issues/01-tidb-fit.md): nothing blocks the move; the TiDB serverless driver supports transactions and migrations run from outside the Worker; CHECK constraints, timestamp types and `taps.id` ordering are left to decide.
 - [What does running the backend on Workers involve?](issues/02-workers-runtime.md): a small port off Deno, migrations move out of the Worker, and whether a tap pays a cold database connection can only be measured on a deployed Worker.
@@ -86,10 +110,13 @@ A hand-off spec for running the GeekyKey Service and a sample Event Service (the
 
 ## Not yet specified
 
-The spec marks both of these provisional (Adam, 28 Sep), in its section 11.
+The spec marks the first two provisional (Adam, 28 Sep), in its section 11. The rest gathered on 2 Oct, when the redraw cleared some fog and raised more.
 
-- **Staying on the free plan.** The account is on the free plan until the numbers say otherwise, with the decision on Paid due by 11 Nov 2026, a week before the showcase ("How do deploys and secrets work?"). The first deploy measures what a passport poll and a tap cost in Hyperdrive queries, Workers requests and outside requests, to estimate the showcase's day against 100,000 queries, 100,000 requests and 50 outside requests per request. The passport alone could use up Hyperdrive's allowance in about 55 passport-hours. Ways to fit: fewer queries per poll, polling only while the passport is on screen, slower polling, or a push design through a Durable Object, which Qing Guan suggested; the mentors ruled out live sockets on 24 Sep unless a game needs them, so push would go back to them with cost as the reason. Or pay: Workers Paid starts at $5 a month. Also TiDB Starter's free allowance of 50 million Request Units a month, after which it refuses new connections: TiDB's console shows what a day of polling and station heartbeats costs after the first deploy. A TiDB spending limit above $0 would also keep backups up to 30 days at a chosen time, instead of one day at a random time. Rate limits stop one misbehaving caller but not a flood from many addresses, which could still use up the free day; that risk counts toward paying. A heartbeat costs one query, since the station's key is found in memory ("How do we protect our public addresses without blocking the stations?"). The rehearsal on production, by 7 Nov, gives a whole day's numbers before the decision, and comes out of November's TiDB allowance. If we're still on the free plan on 18 Nov, Adam checks the counters hourly from 08:00 and Julian upgrades at 70% ("How do we notice trouble on event day, and who watches?").
+- **Staying on the free plans.** *Redrawn on 2 Oct.* Hyperdrive's 100,000 queries a day no longer apply, and the Event Service's traffic, including the passport's polling, no longer counts against Workers' 100,000 requests a day. What still needs numbers at the first deploy: the GeekyKey Service's requests a day (taps, heartbeats, token pages) and its cache's reads and writes against the free limits; Cloud Run's free tier on a showcase day, and the cost of keeping one instance warm; and TiDB Starter's 50 million Request Units a month, which the passport's polling now reaches straight from Cloud Run. GeeksHacking's Cloudflare account stays on the free plan, so the 11 Nov decision on Workers Paid is likely moot. A flood from many addresses could still use up the GeekyKey Service's free day. The rehearsal on production, by 7 Nov, gives a whole day's numbers. The rest of the 29 Sep reasoning is in the spec's section 11.1.
 - **After the event.** What happens to an Event Service's data once its event ends. Julian suggested keeping a per-event copy of user details and deleting it afterwards. With one database for now, deleting the event's data also takes the `tokens` stand-in and the stations, so the claims must first be copied to the Portal, as planned in "What does the GeekyKey Service need from the Portal's tag APIs?". Unlinking the event's stations afterwards is a GeekyKey admin's job. The end-of-day copy on Adam's laptop feeds Joshua's analysis and the claims copy, and our copies are deleted along with the event's data.
+- **Event day on two platforms.** "How do we notice trouble on event day, and who watches?" assumed one Cloudflare dashboard. The Event Service's logs move to Google Cloud, and the station board's data may move with the stations. Who can read which logs, and the event-day sheet, follow from "How is the Event Service built, deployed and staged on Cloud Run?" and "Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?".
+- **Protecting `event-api.`** The limits in our own code still count per caller. Whether Cloudflare's zone rules cover a Cloud Run service depends on how its domain is set up ("What does Cloud Run "v1" mean, and what does running the Event Service there involve?"), and whether its `run.app` address must be closed to everything but Cloudflare.
+- **Two repos at the split.** Julian wants the Event Service in a repo of its own (1 Oct). How `packages/handoff` and the end-to-end smoke test work across two repos, now also across two platforms, is still open in the spec's section 12.
 
 ## Out of scope
 
@@ -102,5 +129,4 @@ The spec marks both of these provisional (Adam, 28 Sep), in its section 11.
 - **Renaming "barrel key" to "API key".** It has its own action item, and the code and docs keep "station key".
 - **Moving data from the dev database.** It only holds test data.
 - **Deploying the updates site.** The mentors' timeline isn't part of the destination. It can reuse whichever way Julian picks in "How do deploys and secrets work?".
-- **Hosting on GCP or Firebase.** Julian chose Workers on 25 Sep.
 - **Portal login details** (OIDC issuer, client ID, claims). Still an open question with Qing Guan in the API agreement. Only the redirect URLs are in scope here.
