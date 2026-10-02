@@ -535,7 +535,8 @@
   date: 2026-10-02
   area: firmware
   change: >-
-    The reader station no longer stalls when it is plugged into a laptop with no serial monitor
-    open. Its log lines used to wait for a reader that never came, which delayed every tap. It now
-    also finds the laptop again after the laptop's address changes, such as when a phone hotspot
-    restarts, where before it needed a restart to send taps again.
+    The reader station now sees tags after every start. Before, about half of its starts left the
+    card reader switched off, so the station showed it was ready but ignored every tag, which
+    looked like loose wiring. It also finds the laptop again after the laptop's address changes,
+    such as when a phone hotspot restarts, and no longer stalls when plugged into a laptop's USB
+    with no serial monitor open.

@@ -56,7 +56,8 @@ const char* stationKey = STATION_KEY;
 // "http://<ip>:<port>" once SERVER_HOST has been looked up; empty until then.
 String serverBase = "";
 
-MFRC522 rfid(SS_PIN, RST_PIN);
+// The library is not given RST_PIN: setup() drives it instead (see there).
+MFRC522 rfid(SS_PIN, MFRC522::UNUSED_PIN);
 Preferences prefs;
 uint32_t nextTapId = 0;
 
@@ -103,6 +104,15 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
+  // Hold the RC522's reset pin HIGH ourselves. Given the pin, the library
+  // leaves it a floating input whenever it happens to read HIGH, and the
+  // reader can then drift into power-down: it answers 0xFF and never sees a
+  // tag. A LOW pulse first gives it a clean hard reset on every boot.
+  pinMode(RST_PIN, OUTPUT);
+  digitalWrite(RST_PIN, LOW);
+  delay(10);
+  digitalWrite(RST_PIN, HIGH);
+  delay(50);
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
   rfid.PCD_Init();
   // Asks the RC522 for its chip version. 0x00 or 0xFF means the ESP32 cannot
