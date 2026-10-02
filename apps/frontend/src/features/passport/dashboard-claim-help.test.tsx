@@ -20,7 +20,7 @@ describe("DashboardClaimHelp", () => {
     expect(screen.getByText("portal-user-1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "My tokens" })).toHaveAttribute(
       "href",
-      "https://geekykey.geekshacking.com",
+      "http://localhost:5174/",
     );
   });
 
