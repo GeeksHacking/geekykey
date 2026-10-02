@@ -540,3 +540,15 @@
     looked like loose wiring. It also finds the laptop again after the laptop's address changes,
     such as when a phone hotspot restarts, and no longer stalls when plugged into a laptop's USB
     with no serial monitor open.
+
+- id: production-database-ready
+  date: 2026-10-02
+  area: backend
+  change: >-
+    The live database is now set up on GeeksHacking's TiDB, with today's tables and two logins
+    that can do no more than they need. The backend's login can read and write rows but can't
+    change tables, and a second login, kept only on Adam's laptop, applies changes to the tables.
+    A test station and a real test token are in it, so the first deploy can try every tap result.
+    The trade-offs we accept: the backend login's password is saved nowhere, so whoever connects
+    the live backend gets a new one when they need it, and until the main branch is protected
+    only Adam can change the tables.
