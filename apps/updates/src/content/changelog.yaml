@@ -552,3 +552,13 @@
     The trade-offs we accept: the backend login's password is saved nowhere, so whoever connects
     the live backend gets a new one when they need it, and until the main branch is protected
     only Adam can change the tables.
+
+- id: hyperdrive-cannot-reach-tidb
+  date: 2026-10-02
+  area: backend
+  change: >-
+    The test copy's own database is set up on GeeksHacking's TiDB, with two logins that can't
+    touch the live one. Connecting it showed that Hyperdrive, the Cloudflare service the plan used
+    to link the backend to TiDB, can't sign in to TiDB Cloud: TiDB asks every client to sign in a
+    second time, a step Hyperdrive doesn't support, and the live backend would hit the same wall.
+    The backend will connect to TiDB another way, chosen at the team meeting.
