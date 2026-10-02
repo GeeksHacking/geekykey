@@ -20,3 +20,6 @@ firmware/**/secrets.h
 reports/
 playwright-report/
 test-results/
+
+# Meeting notes are never committed (BAC-7).
+meeting-notes/
