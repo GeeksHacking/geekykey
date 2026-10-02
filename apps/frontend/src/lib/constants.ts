@@ -13,10 +13,5 @@ export const SEEDED_USERS = [
   { id: "dev-organizer-1", label: "Priya Raman", role: "organiser" },
 ] as const;
 
-/** Where the GeekyKey screens live. Same base URLs as API-AGREEMENT.md section 2. */
-export const GEEKYKEY_WEB_URL = import.meta.env.PROD
-  ? "https://geekykey.geekshacking.com/"
-  : "http://localhost:5174/";
-
 /** Simulated request latency for the mock client, in milliseconds. */
 export const MOCK_LATENCY_MS: readonly [number, number] = [180, 520];
