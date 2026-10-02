@@ -88,6 +88,13 @@ QueueAttempt flushQueue(const String &newTapId = "");
 
 void setup() {
   Serial.begin(115200);
+  // Plugged into a laptop with no Serial Monitor open, the USB port still
+  // looks connected, so each print would wait up to 2 seconds for a reader
+  // that never comes. Drop the output instead, as a plain charger does.
+  // Only the USB port has this wait; the UART Serial has no such setting.
+#if ARDUINO_USB_CDC_ON_BOOT
+  Serial.setTxTimeoutMs(0);
+#endif
   delay(1000);
   pinMode(LED_PIN_BLUE, OUTPUT);
   pinMode(LED_PIN_RED, OUTPUT);
@@ -348,6 +355,12 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
   const String response = code > 0 ? http.getString() : "";
   http.end();
   result.httpCode = code;
+
+  if (code <= 0) {
+    // The laptop may have a new IP since we looked it up (a hotspot restart,
+    // or waking from sleep), so look SERVER_HOST up again next time.
+    serverBase = "";
+  }
 
   if (code == 400) {
     // A malformed request must not block every tap behind it.

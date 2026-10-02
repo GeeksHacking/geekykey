@@ -530,3 +530,12 @@
     database, to try each deploy before it goes live. The trade-offs we accept: we can't read the
     live logs or undo a release ourselves, only revert our change or ask Julian, and the test copy
     is one more thing to keep in step.
+
+- id: station-runs-unwatched
+  date: 2026-10-02
+  area: firmware
+  change: >-
+    The reader station no longer stalls when it is plugged into a laptop with no serial monitor
+    open. Its log lines used to wait for a reader that never came, which delayed every tap. It now
+    also finds the laptop again after the laptop's address changes, such as when a phone hotspot
+    restarts, where before it needed a restart to send taps again.
