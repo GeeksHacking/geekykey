@@ -12,6 +12,11 @@
  * added once. The UID is made up, unless --uid gives a real token's:
  *
  *   mise exec -- pnpm db:test-station --production --env-file <file> --uid 04:A1:B2:C3:D4:E5:F6
+ *
+ * The login's URL names the database, so staging's file adds them to
+ * geekykey_staging instead:
+ *
+ *   mise exec -- pnpm db:test-station --production --env-file ~/.config/geekykey/tidb-staging-migration.env
  */
 import { randomBytes } from "node:crypto";
 import { parseArgs } from "node:util";
@@ -33,8 +38,9 @@ const { values } = parseArgs({
   },
 });
 
-const connection = values.production
-  ? await createConnection(migrationLogin(values["env-file"]))
+const login = values.production ? migrationLogin(values["env-file"]) : undefined;
+const connection = login
+  ? await createConnection(login)
   : await createConnection(localDatabaseUrl("geekykey_dev"));
 const db = drizzle({ client: connection });
 
@@ -51,7 +57,7 @@ try {
   await addParticipant(db, { ...participant, uid });
 
   console.log(
-    `Database:     ${values.production ? "geekykey on GeeksHacking's TiDB" : "geekykey_dev"}`,
+    `Database:     ${login ? `${login.database} on GeeksHacking's TiDB` : "geekykey_dev"}`,
   );
   console.log(`Station:      ${values.station} (${station.id})`);
   console.log(`Station key:  ${station.key}   <- shown once, only the hash is stored`);

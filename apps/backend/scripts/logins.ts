@@ -1,18 +1,40 @@
 /**
- * Creates the geekykey database on a TiDB cluster, and the two logins the
- * backend reaches it with, from a connection with the cluster's root login.
- * create-logins.ts runs it against GeeksHacking's cluster; logins.test.ts runs
- * it against the Docker TiDB.
+ * Creates a database on a TiDB cluster, production's or staging's, and the two
+ * logins the backend reaches it with, from a connection with the cluster's
+ * root login. create-logins.ts runs it against GeeksHacking's cluster;
+ * logins.test.ts runs it against the Docker TiDB.
  */
 import { randomBytes } from "node:crypto";
 import { access, mkdir, open, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { Connection, RowDataPacket } from "mysql2/promise";
 
-/** The one database both services' tables live in. */
-export const DATABASE = "geekykey";
+/** A database, and the names of its two logins, before the cluster's prefix. */
+export interface Target {
+  database: string;
+  app: string;
+  migration: string;
+}
 
-/** What each login may do in `geekykey`, and nowhere else. */
+/** The one database both services' tables live in. */
+export const PRODUCTION: Target = {
+  database: "geekykey",
+  app: "geekykey_app",
+  migration: "geekykey_migrate",
+};
+
+/**
+ * Staging's copy, on the same cluster, for event-service-staging on Cloud
+ * Run. Its logins can't touch `geekykey`, and production's can't touch
+ * this. Their names are short because TiDB Cloud's prefix leaves 16 characters.
+ */
+export const STAGING: Target = {
+  database: "geekykey_staging",
+  app: "geekykey_stg_app",
+  migration: "geekykey_stg_mig",
+};
+
+/** What each login may do in its own database, and nowhere else. */
 const APP_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE";
 const MIGRATION_PRIVILEGES = `${APP_PRIVILEGES}, CREATE, ALTER, DROP, INDEX, REFERENCES`;
 
@@ -28,12 +50,12 @@ export interface LoginNames {
  * `3pTAoNNegb47Uc8.root`, so ours carry the root login's prefix too. The
  * Docker TiDB's root login has none.
  */
-export function loginNames(rootUser: string): LoginNames {
+export function loginNames(rootUser: string, target: Target = PRODUCTION): LoginNames {
   const prefix = rootUser.slice(0, rootUser.lastIndexOf(".") + 1);
-  const names = { app: `${prefix}geekykey_app`, migration: `${prefix}geekykey_migrate` };
-  // With today's 16-character prefixes, the migration login's name is exactly
-  // as long as TiDB allows.
-  if (names.migration.length > 32) {
+  const names = { app: `${prefix}${target.app}`, migration: `${prefix}${target.migration}` };
+  // With today's 16-character prefixes, production's migration login's name is
+  // exactly as long as TiDB allows.
+  if (names.migration.length > 32 || names.app.length > 32) {
     throw new Error(
       `${names.migration} is longer than the 32 characters TiDB allows in a user name.`,
     );
@@ -42,6 +64,8 @@ export function loginNames(rootUser: string): LoginNames {
 }
 
 export interface LoginOptions {
+  /** The database and logins to create. Production's unless told. */
+  target?: Target;
   /** The env file the migration login is saved to, as TIDB_MIGRATION_URL. */
   savePath: string;
   /** Give the app login a new password, and hand the login back. */
@@ -63,7 +87,9 @@ export async function ensureLogins(
   root: Connection,
   options: LoginOptions,
 ): Promise<{ appUrl?: string }> {
-  const names = loginNames(root.config.user ?? "");
+  const target = options.target ?? PRODUCTION;
+  const { database } = target;
+  const names = loginNames(root.config.user ?? "", target);
   const migrationExists = await loginExists(root, names.migration);
   if (migrationExists && !options.newMigrationPassword && !(await fileExists(options.savePath))) {
     throw new Error(
@@ -74,7 +100,7 @@ export async function ensureLogins(
   }
 
   await root.query(
-    `CREATE DATABASE IF NOT EXISTS ${DATABASE} CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`,
+    `CREATE DATABASE IF NOT EXISTS ${database} CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`,
   );
 
   if (!migrationExists || options.newMigrationPassword) {
@@ -82,7 +108,7 @@ export async function ensureLogins(
     // Written beside the saved copy, and moved over it only once TiDB has the
     // password, so the saved copy never holds one the login doesn't have.
     const pending = `${options.savePath}.new`;
-    await writeMigrationLogin(loginUrl(root, names.migration, password), pending);
+    await writeMigrationLogin(loginUrl(root, database, names.migration, password), pending);
     try {
       await setPassword(root, names.migration, password, migrationExists);
     } catch (error) {
@@ -91,7 +117,7 @@ export async function ensureLogins(
     }
     await rename(pending, options.savePath);
   }
-  await root.query(`GRANT ${MIGRATION_PRIVILEGES} ON ${DATABASE}.* TO ?@'%'`, [names.migration]);
+  await root.query(`GRANT ${MIGRATION_PRIVILEGES} ON ${database}.* TO ?@'%'`, [names.migration]);
 
   // A new app login's password is thrown away unless it was asked for: the
   // first deploy asks for a new one, to put in DATABASE_URL.
@@ -100,9 +126,11 @@ export async function ensureLogins(
   if (!appExists || options.newAppPassword) {
     await setPassword(root, names.app, appPassword, appExists);
   }
-  await root.query(`GRANT ${APP_PRIVILEGES} ON ${DATABASE}.* TO ?@'%'`, [names.app]);
+  await root.query(`GRANT ${APP_PRIVILEGES} ON ${database}.* TO ?@'%'`, [names.app]);
 
-  return { appUrl: options.newAppPassword ? loginUrl(root, names.app, appPassword) : undefined };
+  return {
+    appUrl: options.newAppPassword ? loginUrl(root, database, names.app, appPassword) : undefined,
+  };
 }
 
 async function loginExists(root: Connection, name: string): Promise<boolean> {
@@ -138,10 +166,10 @@ function newPassword(): string {
   return randomBytes(32).toString("base64url");
 }
 
-/** A login to `geekykey`, on the cluster `root` is connected to. */
-function loginUrl(root: Connection, user: string, password: string): string {
+/** A login to `database`, on the cluster `root` is connected to. */
+function loginUrl(root: Connection, database: string, user: string, password: string): string {
   const { host, port } = root.config;
-  return `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${DATABASE}`;
+  return `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
 }
 
 /** Writes the login to `path`, readable only by its owner. */

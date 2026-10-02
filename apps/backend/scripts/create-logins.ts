@@ -1,6 +1,6 @@
 /**
- * Creates the geekykey database on GeeksHacking's TiDB cluster, and the two
- * logins the backend reaches it with (logins.ts says what each may do). Adam
+ * Creates the geekykey database on GeeksHacking's TiDB cluster (or, with
+ * --staging, geekykey_staging), and the two logins the backend reaches it with (logins.ts says what each may do). Adam
  * runs it from his laptop, because it needs the cluster's root login:
  *
  *   cd apps/backend
@@ -19,35 +19,47 @@
  *   --new-migration-password  give the migration login a new password, and
  *                             save that. Then add it to Secret Manager as a
  *                             new version, as infra/README.md says.
+ *   --staging                 make staging's database, geekykey_staging, and
+ *                             its two logins instead. The migration login is
+ *                             saved to ~/.config/geekykey/tidb-staging-migration.env,
+ *                             and the app login is for event-service-staging.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { createConnection } from "mysql2/promise";
-import { DATABASE, ensureLogins, loginNames } from "./logins.ts";
+import { ensureLogins, loginNames, PRODUCTION, STAGING } from "./logins.ts";
 import { rootLogin } from "./production-tidb.ts";
-
-const SAVE_PATH = join(homedir(), ".config", "geekykey", "tidb-migration.env");
 
 const { values } = parseArgs({
   options: {
     "env-file": { type: "string" },
     "new-app-password": { type: "boolean", default: false },
     "new-migration-password": { type: "boolean", default: false },
+    staging: { type: "boolean", default: false },
   },
 });
+
+const target = values.staging ? STAGING : PRODUCTION;
+const savePath = join(
+  homedir(),
+  ".config",
+  "geekykey",
+  values.staging ? "tidb-staging-migration.env" : "tidb-migration.env",
+);
 
 const root = await createConnection(rootLogin(values["env-file"]));
 try {
   const { appUrl } = await ensureLogins(root, {
-    savePath: SAVE_PATH,
+    savePath,
+    target,
     newAppPassword: values["new-app-password"],
     newMigrationPassword: values["new-migration-password"],
   });
-  const names = loginNames(root.config.user ?? "");
+  const names = loginNames(root.config.user ?? "", target);
 
-  console.log(`Database:         ${DATABASE}`);
-  console.log(`Migration login:  ${names.migration}, saved in ${SAVE_PATH}`);
+  console.log(`Database:         ${target.database}`);
+  console.log(`Migration login:  ${names.migration}, saved in ${savePath}`);
   if (appUrl) {
     console.log(`App login:        ${appUrl}`);
     console.log("                  <- shown once, for DATABASE_URL. Save it nowhere else.");
