@@ -7,10 +7,11 @@ import { type Connection, createConnection } from "mysql2/promise";
 import { afterAll, beforeAll, beforeEach, test } from "vitest";
 import { migrate } from "../src/db/migrate.ts";
 import { LOCAL_ROOT } from "./local-tidb.ts";
-import { ensureLogins, loginNames } from "./logins.ts";
+import { ensureLogins, loginNames, PRODUCTION, STAGING } from "./logins.ts";
 
 // The Docker TiDB stands in for GeeksHacking's cluster. Its root login has no
-// user-name prefix, so the logins are plain geekykey_app and geekykey_migrate.
+// user-name prefix, so the logins are plain geekykey_app and geekykey_migrate,
+// and staging's geekykey_stg_app and geekykey_stg_mig.
 let root: Connection;
 let configDir: string;
 let savePath: string;
@@ -26,16 +27,18 @@ afterAll(async () => {
 // Every test starts from a cluster that has never seen the script.
 beforeEach(async () => {
   await root.query(
-    "DROP USER IF EXISTS 'geekykey_app'@'%', 'geekykey_migrate'@'%', 'not_quite_root'@'%'",
+    "DROP USER IF EXISTS 'geekykey_app'@'%', 'geekykey_migrate'@'%', " +
+      "'geekykey_stg_app'@'%', 'geekykey_stg_mig'@'%', 'not_quite_root'@'%'",
   );
   await root.query("DROP DATABASE IF EXISTS geekykey");
+  await root.query("DROP DATABASE IF EXISTS geekykey_staging");
   configDir = await mkdtemp(join(tmpdir(), "geekykey-logins-"));
   savePath = join(configDir, "tidb-migration.env");
   return () => rm(configDir, { recursive: true, force: true });
 });
 
-async function savedMigrationUrl(): Promise<string> {
-  const url = parseEnv(await readFile(savePath, "utf8")).TIDB_MIGRATION_URL;
+async function savedMigrationUrl(path = savePath): Promise<string> {
+  const url = parseEnv(await readFile(path, "utf8")).TIDB_MIGRATION_URL;
   assert.ok(url, "the saved file holds TIDB_MIGRATION_URL");
   return url;
 }
@@ -137,6 +140,46 @@ test("the logins carry the user-name prefix of TiDB Cloud's root login", () => {
     app: "3pTAoNNegb47Uc8.geekykey_app",
     migration: "3pTAoNNegb47Uc8.geekykey_migrate",
   });
+});
+
+test("staging's logins carry the prefix too, and fit under TiDB's 32-character limit", () => {
+  assert.deepEqual(loginNames("3pTAoNNegb47Uc8.root", STAGING), {
+    app: "3pTAoNNegb47Uc8.geekykey_stg_app",
+    migration: "3pTAoNNegb47Uc8.geekykey_stg_mig",
+  });
+});
+
+test("staging's logins work only in geekykey_staging, and production's only in geekykey", async () => {
+  const stagingSavePath = join(configDir, "tidb-staging-migration.env");
+  const production = await ensureLogins(root, { savePath, newAppPassword: true });
+  const staging = await ensureLogins(root, {
+    savePath: stagingSavePath,
+    newAppPassword: true,
+    target: STAGING,
+  });
+  assert.ok(production.appUrl && staging.appUrl);
+  assert.equal(new URL(staging.appUrl).pathname, "/geekykey_staging");
+  assert.equal(new URL(await savedMigrationUrl(stagingSavePath)).pathname, "/geekykey_staging");
+  await migrate(await savedMigrationUrl());
+  await migrate(await savedMigrationUrl(stagingSavePath));
+
+  const logins = [
+    { url: staging.appUrl, other: PRODUCTION.database },
+    { url: await savedMigrationUrl(stagingSavePath), other: PRODUCTION.database },
+    { url: production.appUrl, other: STAGING.database },
+    { url: await savedMigrationUrl(), other: STAGING.database },
+  ];
+  for (const { url, other } of logins) {
+    const login = await createConnection(url);
+    try {
+      await login.query("SELECT COUNT(*) FROM users");
+      await assert.rejects(login.query(`SELECT COUNT(*) FROM ${other}.users`), {
+        code: "ER_TABLEACCESS_DENIED_ERROR",
+      });
+    } finally {
+      await login.end();
+    }
+  }
 });
 
 test("a prefix that leaves no room for the names under TiDB's 32-character limit is refused", () => {

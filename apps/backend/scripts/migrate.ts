@@ -12,6 +12,11 @@
  * from the file create-logins.ts saved:
  *
  *   mise run db:migrate -- --production --env-file ~/.config/geekykey/tidb-migration.env
+ *
+ * The login's URL names the database, so staging's file migrates staging's,
+ * geekykey_staging, the same way:
+ *
+ *   mise run db:migrate -- --production --env-file ~/.config/geekykey/tidb-staging-migration.env
  */
 import { parseArgs } from "node:util";
 import { migrate } from "../src/db/migrate.ts";
