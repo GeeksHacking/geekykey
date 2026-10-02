@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { NetworkError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
-import { meResponseSchema, parseMeResponse } from "@/api/schemas";
+import {
+  eventStationBoardResponseSchema,
+  meResponseSchema,
+  parseEventStationBoardResponse,
+  parseMeResponse,
+} from "@/api/schemas";
 
 describe("me response contract", () => {
   it("validates the participant fixture returned by the mock", async () => {
@@ -61,6 +66,29 @@ describe("me response contract", () => {
         recent_taps: [{ ...noGame.recent_taps[0], status: "no_event" }],
       }),
     ).toThrow(NetworkError);
+  });
+
+  it("validates the v0.2 station board", () => {
+    const board = {
+      status_known: true,
+      stations: [
+        {
+          id: "s1",
+          label: "Reader 1",
+          linked: true,
+          passport: null,
+          last_seen_at: null,
+          online: false,
+          firmware_version: null,
+          buffered_taps: 0,
+          reader_ok: null,
+          last_tap_at: null,
+        },
+      ],
+    };
+    expect(eventStationBoardResponseSchema.safeParse(board).success).toBe(true);
+    expect(parseEventStationBoardResponse(board)).toEqual(board);
+    expect(parseEventStationBoardResponse(board)).toEqual(board);
   });
 
   it("rejects a response with a missing required field", () => {

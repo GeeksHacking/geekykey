@@ -3,7 +3,7 @@
   Board: ESP32S3 Dev Module + RC522.   Run on a spare station before the event.
 
   Every token is written identically with:
-    https://geekykey.geekshacking.com/t/<14 placeholder zeros>
+    https://key.geekshacking.com/t/<14 placeholder zeros>
   and the chip's UID mirror swaps in the token's own UID each time it is read.
   Writes are protected by one password (secrets.h). Reads are open.
 
@@ -44,22 +44,24 @@ constexpr size_t  AREA_LEN   = (LAST_PAGE - FIRST_PAGE + 1) * 4;   // 56 bytes
 // bytes 0-11: lock control TLV (as delivered), NDEF TLV, record header, "https://"
 static const uint8_t NDEF_HEAD[] = {
   0x01, 0x03, 0xA0, 0x0C, 0x34,   // lock control TLV, kept as delivered
-  0x03, 0x2F,                     // NDEF message, 47 bytes
-  0xD1, 0x01, 0x2B, 0x55,         // one record, type "U", payload 43 bytes
+  0x03, 0x2A,                     // NDEF message, 42 bytes
+  0xD1, 0x01, 0x26, 0x55,         // one record, type "U", payload 38 bytes
   0x04                            // "https://"
 };
-static const char URL_TAIL[] = "geekykey.geekshacking.com/t/";   // 28 characters
+static const char URL_TAIL[] = "key.geekshacking.com/t/";   // 23 characters
 constexpr size_t  UID_CHARS  = 14;
-constexpr size_t  MIRROR_OFFSET = sizeof(NDEF_HEAD) + (sizeof(URL_TAIL) - 1);   // 40
+constexpr size_t  MIRROR_OFFSET = sizeof(NDEF_HEAD) + (sizeof(URL_TAIL) - 1);   // 35
 
 static_assert(sizeof(NDEF_HEAD) == 12, "head must be 12 bytes");
-static_assert(sizeof(URL_TAIL) - 1 == 28, "URL tail must be 28 characters");
-static_assert(0x2B == 1 + (sizeof(URL_TAIL) - 1) + UID_CHARS, "record payload length");
-static_assert(0x2F == 4 + 0x2B, "NDEF message length");
-static_assert(MIRROR_OFFSET == 40 && MIRROR_OFFSET % 4 == 0, "mirror must start at byte 0 of a page");
-static_assert(MIRROR_OFFSET + UID_CHARS + 2 == AREA_LEN, "FE + padding fill page 11h");
+static_assert(sizeof(URL_TAIL) - 1 == 23, "URL tail must be 23 characters");
+static_assert(0x26 == 1 + (sizeof(URL_TAIL) - 1) + UID_CHARS, "record payload length");
+static_assert(0x2A == 4 + 0x26, "NDEF message length");
+static_assert(MIRROR_OFFSET == 35, "mirror starts at byte 3 of page 0Ch");
+// The rest of page 11h stays 00, which also clears what an older, longer address left behind.
+static_assert(MIRROR_OFFSET + UID_CHARS + 1 <= AREA_LEN, "FE must fit before page 12h");
 
-constexpr uint8_t MIRROR_PAGE = FIRST_PAGE + MIRROR_OFFSET / 4;   // 0Eh
+constexpr uint8_t MIRROR_PAGE = FIRST_PAGE + MIRROR_OFFSET / 4;   // 0Ch
+constexpr uint8_t MIRROR_BYTE = MIRROR_OFFSET % 4;                // 3
 
 // ---- NTAG213 configuration pages ---------------------------------------------
 constexpr uint8_t PAGE_CC     = 0x03;
@@ -70,7 +72,8 @@ constexpr uint8_t PAGE_PACK   = 0x2C;
 constexpr uint8_t AUTH0_FRESH = 0xFF;
 constexpr uint8_t AUTH0_ON    = 0x04;   // protect writes from page 04h onwards
 constexpr uint8_t ACCESS_VAL  = 0x07;   // write-protect only, CFGLCK off, counter off, 7 tries
-constexpr uint8_t MIRROR_UID_STRONG = 0x44;  // UID ASCII mirror, byte 0, strong modulation on
+// UID ASCII mirror (bits 7-6 = 01), starting at MIRROR_BYTE (bits 5-4), strong modulation on (bit 2).
+constexpr uint8_t MIRROR_UID_STRONG = 0x40 | (MIRROR_BYTE << 4) | 0x04;   // 74h
 
 // -----------------------------------------------------------------------------
 
@@ -280,7 +283,7 @@ void loop() {
     }
   } else {
     snprintf(line1, sizeof(line1), "OK");
-    Serial.print("OK  https://geekykey.geekshacking.com/t/"); Serial.println(uid);
+    Serial.print("OK  https://key.geekshacking.com/t/"); Serial.println(uid);
   }
   showLines(line1, uid.c_str());
 

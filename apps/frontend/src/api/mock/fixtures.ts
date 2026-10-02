@@ -30,6 +30,18 @@ export interface MockStation {
   simulate_online: boolean;
   /** Mock only: whether this station counts taps toward a passport game. */
   counts_toward_passport: boolean;
+  /** Event board metadata (agreement 9.2). */
+  label: string | null;
+  linked: boolean | null;
+  passport: {
+    name: string;
+    location: string | null;
+    points: number;
+    added_at: string;
+  } | null;
+  firmware_version: string | null;
+  buffered_taps: number | null;
+  reader_ok: boolean | null;
 }
 
 export interface MockTap {
@@ -190,6 +202,17 @@ export function createFixtures(now: number = Date.now()): MockData {
       last_seen_at: iso(now - 4_000),
       simulate_online: true,
       counts_toward_passport: true,
+      label: "Reader 1",
+      linked: true,
+      passport: {
+        name: "3D Printing Booth",
+        location: "Hall A",
+        points: 1,
+        added_at: iso(eventStart - minutes(60)),
+      },
+      firmware_version: "0.3.1",
+      buffered_taps: 0,
+      reader_ok: true,
     },
     {
       id: "5b1d2c70-0c7e-4f7a-9d2e-2b1f6c8a3e41",
@@ -200,6 +223,17 @@ export function createFixtures(now: number = Date.now()): MockData {
       last_seen_at: iso(now - 11_000),
       simulate_online: true,
       counts_toward_passport: true,
+      label: "Reader 2",
+      linked: true,
+      passport: {
+        name: "Cloud Sponsor",
+        location: "Hall B",
+        points: 2,
+        added_at: iso(eventStart - minutes(70)),
+      },
+      firmware_version: "0.3.1",
+      buffered_taps: 0,
+      reader_ok: true,
     },
     {
       id: "e0f3a9b2-6c4d-4a1e-8f5b-7d2c9e1a0b63",
@@ -210,6 +244,12 @@ export function createFixtures(now: number = Date.now()): MockData {
       last_seen_at: iso(now - minutes(14)),
       simulate_online: false,
       counts_toward_passport: true,
+      label: "Reader 3",
+      linked: true,
+      passport: null,
+      firmware_version: "0.2.9",
+      buffered_taps: 0,
+      reader_ok: false,
     },
     {
       id: "9a7c4e21-3f8b-4d6a-b2e5-1c0d8f7a6b59",
@@ -220,6 +260,17 @@ export function createFixtures(now: number = Date.now()): MockData {
       last_seen_at: iso(now - 27_000),
       simulate_online: true,
       counts_toward_passport: true,
+      label: "Reader 4",
+      linked: true,
+      passport: {
+        name: "Mentor Lounge",
+        location: "Level 2",
+        points: 1,
+        added_at: iso(eventStart - minutes(55)),
+      },
+      firmware_version: "0.3.0",
+      buffered_taps: 0,
+      reader_ok: true,
     },
     {
       id: "2d6b8f04-9e1a-4c3d-a7f2-5e4b0c9d1a86",
@@ -230,6 +281,17 @@ export function createFixtures(now: number = Date.now()): MockData {
       last_seen_at: iso(now - 8_000),
       simulate_online: true,
       counts_toward_passport: true,
+      label: "Reader 5",
+      linked: false,
+      passport: {
+        name: "Careers Corner",
+        location: "Hall B",
+        points: 2,
+        added_at: iso(eventStart - minutes(45)),
+      },
+      firmware_version: "0.3.1",
+      buffered_taps: 3,
+      reader_ok: true,
     },
     {
       id: "71e5c3a8-2b9d-4f0e-8a6c-3d1f7b2e9c04",
@@ -240,6 +302,12 @@ export function createFixtures(now: number = Date.now()): MockData {
       last_seen_at: null,
       simulate_online: false,
       counts_toward_passport: false,
+      label: "Reader 6",
+      linked: true,
+      passport: null,
+      firmware_version: null,
+      buffered_taps: 0,
+      reader_ok: null,
     },
   ];
 

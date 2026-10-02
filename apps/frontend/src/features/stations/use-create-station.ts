@@ -13,6 +13,7 @@ export function useCreateStation() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.stations }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.stationBoard }),
         queryClient.invalidateQueries({ queryKey: queryKeys.stats }),
       ]);
     },

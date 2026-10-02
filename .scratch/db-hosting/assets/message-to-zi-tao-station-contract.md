@@ -2,6 +2,8 @@
 
 Draft for Adam to edit and send, from "How do stations talk to the GeekyKey Service?", 28 Sep 2026. The root list comes from [Cloudflare's certificate authorities page](https://developers.cloudflare.com/ssl/reference/certificate-authorities/) and [Mozilla's root store as published by curl](https://curl.se/ca/cacert.pem), both checked 28 Sep 2026. `no_game` and the station key rules added the same day by "How does the GeekyKey Service trigger an Event Service, and know which one a station belongs to?". The once-a-minute resend and the disabled station added on 29 Sep by "How do we protect our public addresses without blocking the stations?". The reader check added the same day by "How do we notice trouble on event day, and who watches?". Section 6, on the saved-taps queue that went into the firmware on 29 Sep (commit `71c8ada`), added the same day by "Write the migration spec".
 
+**Changed on 1 Oct 2026:** Julian renamed the stations' address to `key-api.geekshacking.com`. The text below still says `geekykey-api`. HAR-10 has the new name.
+
 ---
 
 Hi Zi Tao, we've planned how the stations talk to the backend once it moves to Cloudflare. The good news: the requests and answers stay the same as today. What changes is the address, HTTPS, and what the station does with each answer. Most of this isn't urgent until the new service is deployed, but the screen and LED part can start now, and section 6 is worth doing soon.

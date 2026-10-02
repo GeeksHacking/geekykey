@@ -10,7 +10,7 @@ import type {
   ListTapsResponse,
   StatsResponse,
 } from "@/api/types";
-import { parseMeResponse } from "@/api/schemas";
+import { parseEventStationBoardResponse, parseMeResponse } from "@/api/schemas";
 
 export interface HttpClientOptions {
   /** Prefix for every path. Empty in dev: Vite proxies /api and /auth to the backend on :8000. */
@@ -109,6 +109,9 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     loginUrl: (returnTo) => `${baseUrl}/auth/login?return_to=${encodeURIComponent(returnTo)}`,
 
     listStations: () => sendJson<ListStationsResponse>("/api/v1/admin/stations"),
+
+    listStationBoard: () =>
+      sendJson<unknown>("/api/v1/admin/stations").then(parseEventStationBoardResponse),
 
     createStation: (input) =>
       sendJson<CreateStationResponse>("/api/v1/admin/stations", postJson(input)),

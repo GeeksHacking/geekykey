@@ -4,7 +4,7 @@ Drafts for Adam to edit and send, formatted for WhatsApp (`*bold*`, backticks an
 
 - **Part 1:** sent to the group chat on 28 Sep 2026, kept below as sent. Julian and Qing Guan's replies follow it.
 - **Part 2, reply to Qing Guan:** send now. If you already sent the lines about ordering and preview builds, send only the rest. On 29 Sep its OAuth paragraph moved to [the message to Qing Guan about logging in](message-to-qing-guan-login.md), since the Portal now takes several redirect URLs per app.
-- **Part 3, in three messages** that follow the checkpoints in [the spec](../spec.md), rewritten on 29 Sep by "Write the migration spec" for "move first": 3a at the first deploy, when `geekykey-service` is ready; 3b at the split; 3c when the screens are ready. The TiDB access in 3a was added on 29 Sep by "How do we notice trouble on event day, and who watches?", and its item for Qing Guan by "How do we protect our public addresses without blocking the stations?".
+- **Part 3, in three messages** that follow the checkpoints in [the spec](../spec.md), rewritten on 29 Sep by "Write the migration spec" for "move first": 3a at the first deploy, when `geekykey-service` is ready; 3b at the split; 3c when the screens are ready. 3a was sent on 1 Oct 2026, with a follow-up giving `geekykey-service`'s build settings. Julian's replies, recorded in BAC-8, changed the plan: the team gets no Cloudflare access, the hostnames are now `key-api`, `key` and `event`, and the Event Service gets its own repo at the split. 3b and 3c below are updated for them. The TiDB access in 3a was added on 29 Sep by "How do we notice trouble on event day, and who watches?", and its item for Qing Guan by "How do we protect our public addresses without blocking the stations?".
 - **Part 4, before the showcase:** added on 29 Sep by "How do we notice trouble on event day, and who watches?". Send once the showcase's hours are known, and before the rehearsal on 7 Nov.
 
 ---
@@ -101,15 +101,15 @@ For now, attach only `geekykey-api.geekshacking.com`, to `geekykey-service`. The
 - build variables: `NODE_VERSION` = `22.23.3`, `PNPM_VERSION` = `12.5.1`
 - deploy command: `npx wrangler deploy`
 - *preview builds off*
-Until `main` is protected, Adam deploys it by hand.
+Until `main` is protected, I will deploy it by hand.
 
 3. *Give access:*
-- Adam (<Adam's Cloudflare email>): Editor on all 4, and permission to create a Hyperdrive config (it holds the TiDB login the Workers use, which Adam creates)
+- Adam (<Adam's Cloudflare email>): Editor on all 4, and permission to create a Hyperdrive config (it holds the TiDB login the Workers use, which I will create)
 - Ethan (<Ethan's Cloudflare email>): Editor on `event-web` and `geekykey-web`, Metadata Read-Only on the two services
 - Zi Tao (<Zi Tao's Cloudflare email>): Metadata Read-Only on `geekykey-service`, to read the stations' logs
 - On TiDB Cloud, Adam (<Adam's TiDB Cloud email>): read-only access to the project, to watch the Request Units we use against the free 50 million a month. No data access needed
 
-4. *On GitHub* (once the repo is public): protect `main` so it needs a PR with CI passing, and add a `production` environment with Adam as the required reviewer. Could Adam have admin on the repo, so he can add the database migration login to that environment and replace it later? If you'd rather not, Adam will send it to you however you prefer.
+4. *On GitHub* (once the repo is public): protect `main` so it needs a PR with CI passing, and add a `production` environment with me as the required reviewer. Could I have admin on the repo, so I can add the database migration login to that environment and replace it later? If you'd rather not, I will send it to you however you prefer.
 
 5. *FYI*: our Workers use the rate-limit namespace IDs `7101` to `7105`. Please keep other Workers in the account off them, since Workers that share one share their counts.
 
@@ -123,7 +123,7 @@ Until `main` is protected, Adam deploys it by hand.
 ```text
 Hi Julian / Qing Guan, GeekyKey is splitting into its two services. Could you:
 
-1. *Connect `event-service` to the repo* (Workers Builds): root directory `apps/event-service`, the same build variables and deploy command, preview builds off. It gets no domain: only our other Workers reach it.
+1. *Connect `event-service` to its new repo* (Workers Builds): <the new repo, and its root directory>, the same build variables and deploy command, preview builds off. It gets no domain: only our other Workers reach it. It also needs a Hyperdrive config (the same one is fine), its own `SESSION_SECRET`, and the Event Service key, the same value on both services.
 
 2. *Change `geekykey-service`'s root directory* to `apps/geekykey-service`, the same day.
 ```
@@ -136,17 +136,17 @@ Hi Julian / Qing Guan, GeekyKey is splitting into its two services. Could you:
 Hi Julian / Qing Guan, the GeekyKey screens and the showcase screens are ready to go live. Could you:
 
 1. *Attach the domains*:
-- `geekykey-web`: `geekykey.geekshacking.com`
-- `event-web`: `showcase.geekshacking.com`
+- `geekykey-web`: `key.geekshacking.com`
+- `event-web`: `event.geekshacking.com`
 
-2. *Connect both to the repo* (Workers Builds): root directories `apps/geekykey-web` and `apps/event-web`, the same build variables and deploy command, and on `event-web` also `VITE_LIVE_API` = `1`. Preview builds off.
+2. *Connect both* (Workers Builds): `geekykey-web` from this repo, root directory `apps/geekykey-web`, and `event-web` from the Event Service's repo, with `VITE_LIVE_API` = `1`. The same build variables and deploy command, preview builds off.
 ```
 
 ---
 
 ## Part 4: Before the showcase
 
-Fill in the hours first.
+Fill in the hours first. Since 1 Oct the team can't see production's logs or usage, so settle how we watch the day first (spec section 12): this may need one more ask of Julian.
 
 ```text
 Hi Julian and Qing Guan! For the showcase on 18 Nov (<start> to <end>), could you both be reachable by phone during those hours, in case something breaks that only you can fix? We'll only call if something's down:

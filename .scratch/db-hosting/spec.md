@@ -28,9 +28,10 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 ## 1. In short
 
 - **Three kinds of service.** The Portal, Qing Guan's, knows who every user is. The GeekyKey Service is what stations and tokens talk to: it knows each station and which event it feeds, finds each token's owner, and hands taps on. An Event Service runs one event's games. We build the GeekyKey Service, and one Event Service for the capstone showcase, whose first game is the passport.
-- **Four Workers** in GeeksHacking's Cloudflare account: the two services, and in front of each one a Worker that serves its screens.
+- **Four Workers** in GeeksHacking's Cloudflare account: the two services, and in front of each one a Worker that serves its screens. Julian sets each one up, and the team has no access to the account (1 Oct 2026).
+- **Staging** is one copy of `geekykey-service` on Adam's own free Cloudflare account, against its own database, where deploys are tried and logs read before production (section 3.2).
 - **One TiDB database** holds both services' tables, and each table belongs to one service. The Workers reach it through Hyperdrive.
-- **Three addresses.** Stations call `https://geekykey-api.geekshacking.com`. People open `https://geekykey.geekshacking.com` for the token page, My tokens and the GeekyKey admin screens, and `https://showcase.geekshacking.com` (provisional) for the passport and the organizers' screens.
+- **Three addresses,** chosen by Julian on 1 Oct 2026. Stations call `https://key-api.geekshacking.com`. People open `https://key.geekshacking.com` for the token page, My tokens and the GeekyKey admin screens, and `https://event.geekshacking.com` for the passport and the organizers' screens.
 - **Claims stay in our `tokens` table through the showcase,** behind one module, `Claims`, and move to the Portal's tag APIs after it, if Julian agrees.
 - **Move first, split second.** Today's backend moves unchanged onto one Worker and TiDB, and is deployed. Then the line between the two services is drawn inside it. Then it becomes two Workers. Login, the new features and getting ready for the day come after that. The whole move is eight checkpoints (section 6).
 - **Dates.** The showcase is on Wed 18 Nov 2026 at Ngee Ann Polytechnic, with setup there on Tue 17 Nov. The rehearsal on production is by Sat 7 Nov, and the decision on Workers Paid is due by Wed 11 Nov.
@@ -41,11 +42,11 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 No ticket settled these. The spec needed them to put the steps in order.
 
-1. **The single Worker is `geekykey-service` from its first deploy.** "How do deploys and secrets work?" left this to the spec. The Worker builds from `apps/backend` until the split renames that folder to `apps/geekykey-service`, and it gets `geekykey-api.geekshacking.com` at the first deploy. At the split, the Event Service is carved out as the new Worker, so neither the stations' address nor the Worker behind it ever moves. The two screens Workers first deploy at checkpoint 5, once login works, because production has no way to log in before then.
+1. **The single Worker is `geekykey-service` from its first deploy.** "How do deploys and secrets work?" left this to the spec. The Worker builds from `apps/backend` until the split renames that folder to `apps/geekykey-service`, and it gets `key-api.geekshacking.com` at the first deploy. At the split, the Event Service is carved out as the new Worker, so neither the stations' address nor the Worker behind it ever moves. The two screens Workers first deploy at checkpoint 5, once login works, because production has no way to log in before then.
 2. **The order of the checkpoints** in section 6, including the order of the split-stage work, which "How do local dev, tests and CI get a runtime and a database?" left to the spec.
 3. **New endpoints are built once, in the service that owns them.** Checkpoints 1 to 4 move today's five endpoints, and add only the hand-off and the heartbeat, which stations need early for their clock. Sprint 1's pairing and station endpoints, and the other `MVP` ones, wait for checkpoints 6 and 7, so the API agreement's `Sprint 1` and `MVP` tags change (section 7).
 4. **Reshaping the tables keeps the migration rule** from "How is the database set up?": add first, switch the code, drop later. Production holds only test data until the rehearsal, so rows that no longer fit are deleted, not converted.
-5. **Until `main` is protected,** Adam runs `db:migrate` against production from his laptop and deploys by hand with `wrangler deploy`, so the first deploy doesn't wait for the repo to go public. Workers Builds and "Migrate production" take over once `main` is protected.
+5. **Replaced on 1 Oct 2026.** The call was that Adam deploys by hand until `main` is protected. Julian gives the team no Cloudflare access, so production deploys only through Workers Builds, which Julian sets up, and Adam tries deploys on staging first (section 3.2). Adam still runs `db:migrate` against production from his laptop until "Migrate production" exists.
 6. **`Claims.claim` gains a fourth result, `limit_reached`** (section 4). "How do we protect our public addresses without blocking the stations?" put the 3-token cap in the module after its interface was written.
 7. **Paths for the new endpoints, and three names** (section 7.2). `GET /api/v1/me` on the GeekyKey Service returns the user, whether they're a GeekyKey admin, their tokens and the events to link to. `token_taken` replaces `uid_already_paired`. The Event Service's `/me` keeps `user.role`, now worked out from the organizer list.
 8. **Two table names,** `event_stations` and `passport_stations` (section 3.5).
@@ -85,22 +86,24 @@ Sources: [Which parts of today's backend belong to the GeekyKey Service, and whi
 
 | Worker | Package | Serves | Address | Reaches |
 |---|---|---|---|---|
-| `geekykey-service` | `apps/geekykey-service` (`apps/backend` until the split) | Stations, Event Services' status calls, and the GeekyKey screens' `/api` and `/auth` | `geekykey-api.geekshacking.com` | `event-service` through a service binding, for the hand-off. TiDB through Hyperdrive |
+| `geekykey-service` | `apps/geekykey-service` (`apps/backend` until the split) | Stations, Event Services' status calls, and the GeekyKey screens' `/api` and `/auth` | `key-api.geekshacking.com` | `event-service` through a service binding, for the hand-off. TiDB through Hyperdrive |
 | `event-service` | `apps/event-service` | The hand-off, and the Event screens' `/api` and `/auth` | None: only its two bindings reach it | The GeekyKey Service's status call over HTTPS. TiDB through Hyperdrive |
-| `geekykey-web` | `apps/geekykey-web` (new) | The token page, My tokens and the GeekyKey admin screens | `geekykey.geekshacking.com`, also written on every token | `geekykey-service` through a service binding |
-| `event-web` | `apps/event-web` (today's `apps/frontend`) | The dashboard, passport, activity and organizer screens | `showcase.geekshacking.com` (provisional) | `event-service` through a service binding |
+| `geekykey-web` | `apps/geekykey-web` (new) | The token page, My tokens and the GeekyKey admin screens | `key.geekshacking.com`, also written on every token | `geekykey-service` through a service binding |
+| `event-web` | `apps/event-web` (today's `apps/frontend`) | The dashboard, passport, activity and organizer screens | `event.geekshacking.com` | `event-service` through a service binding |
 
-- Every Worker sets `workers_dev = false` and `preview_urls = false`, so the three hostnames are the only way in.
+- Every production Worker sets `workers_dev = false` and `preview_urls = false`, so the three hostnames are the only way in.
 - Each screens Worker serves its files in single-page-app mode and forwards `/api/*` and `/auth/*` to its service, with `run_worker_first` for those paths. Browsers see one address per set of screens, so there is no CORS anywhere.
 - Every `/api/*` and `/auth/*` response carries `Cache-Control: no-store`.
-- Production is the only environment: no staging, and no preview builds.
+- **Production** is in GeeksHacking's Cloudflare account. Julian creates each Worker, connects it to its repo with Workers Builds, and sets its Hyperdrive config and secrets. Nobody on the team can deploy there, set its secrets or read its logs (Julian, 1 Oct 2026).
+- **Staging,** agreed with Julian on 1 Oct 2026, is one copy of `geekykey-service`, named `geekykey-service-staging`, on Adam's own free Cloudflare account. It answers at its `workers.dev` address, is deployed by hand with `deploy:staging` from an `env.staging` section of the same `wrangler.jsonc`, and uses its own database, `geekykey_staging` (BAC-15). It exists so deploys can be tried, and logs read, before production. There are no preview builds anywhere.
+- **At the split, the Event Service and its screens move to a repo of their own,** at Julian's suggestion (1 Oct 2026), so they're built and deployed apart from GeekyKey's. How `packages/handoff` and the smoke test work across two repos is open (section 12).
 
 Sources: [How is the frontend set up, and how does the browser reach the backend?](issues/05-frontend-setup-and-routing.md), [Which screens belong to which service, and how does each know who is logged in?](issues/15-screens-and-login.md), [How do deploys and secrets work?](issues/09-deploys-and-secrets.md), [How do we protect our public addresses without blocking the stations?](issues/18-protecting-public-addresses.md)
 
 ### 3.3 How a tap travels
 
 ```text
-station ──HTTPS──▶ geekykey-api.geekshacking.com ──▶ geekykey-service ──hand-off──▶ event-service ──▶ TiDB
+station ──HTTPS──▶ key-api.geekshacking.com ──▶ geekykey-service ──hand-off──▶ event-service ──▶ TiDB
                                                        │  (binding)
                                                        └─▶ tokens table (Claims), until the switch to the Portal
 ```
@@ -117,11 +120,11 @@ Sources: [How do stations talk to the GeekyKey Service?](issues/11-station-endpo
 
 ### 3.4 How a phone claims a token
 
-1. A phone taps a token and opens `https://geekykey.geekshacking.com/t/<UID>`. The chip writes its own UID into that address each time it is read.
+1. A phone taps a token and opens `https://key.geekshacking.com/t/<UID>`. The chip writes its own UID into that address each time it is read.
 2. Someone not logged in sees a login prompt, and nothing is looked up. They log in through the Portal and land back on `/t/<UID>`.
 3. The token page shows one of five things: a login prompt; **Claim** for a token nobody owns; your own token, with **Release**; "This token belongs to someone else", with no name; or, for a GeekyKey admin, that line with a **Release** button.
-4. My tokens, the home page of `geekykey.geekshacking.com`, lists your tokens with **Release**, has a form to claim a token by typing its UID, and links to each event with a public address, such as "Open Capstone Showcase".
-5. The passport, on `showcase.geekshacking.com`, logs in separately. If the Portal remembers the user, that second login is only a quick redirect.
+4. My tokens, the home page of `key.geekshacking.com`, lists your tokens with **Release**, has a form to claim a token by typing its UID, and links to each event with a public address, such as "Open Capstone Showcase".
+5. The passport, on `event.geekshacking.com`, logs in separately. If the Portal remembers the user, that second login is only a quick redirect.
 
 Sources: [What is a token's ID, and what URL is written on each token?](issues/13-token-id-and-url.md) ([ADR 0001](../../docs/adr/0001-token-id-is-the-hardware-uid.md)), [Which screens belong to which service, and how does each know who is logged in?](issues/15-screens-and-login.md) ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), [What does the GeekyKey Service need from the Portal's tag APIs?](issues/17-portal-tag-apis.md)
 
@@ -129,13 +132,14 @@ Sources: [What is a token's ID, and what URL is written on each token?](issues/1
 
 **Where it is.** GeeksHacking's TiDB Cloud Starter cluster, on Alibaba Cloud in Singapore, with one database, `geekykey`, for both services' tables. Neither service's code reads the other's tables, and each Worker imports only its own schema.
 
-**The connection.** The Workers reach TiDB through one Hyperdrive config, for production, which Adam creates with the app login and the query cache off. Drizzle stays the ORM, through its `mysql2` adapter; `mysql2` must be 3.13 or later and connect with `disableEval: true`. **Provisional** until checkpoint 2 shows a deployed Worker reaching TiDB through Hyperdrive. The fallback is TiDB's serverless driver.
+**The connection.** The Workers reach TiDB through one Hyperdrive config, for production, which Julian creates from the app login Adam sends him, with the query cache off. Staging has its own, in Adam's account. Drizzle stays the ORM, through its `mysql2` adapter; `mysql2` must be 3.13 or later and connect with `disableEval: true`. **Provisional** until staging or checkpoint 2 shows a deployed Worker reaching TiDB through Hyperdrive. The fallback is TiDB's serverless driver.
 
 **Logins.** Both carry the cluster's prefix:
 
 - The **app login** can only read and write rows in `geekykey`. Both Workers share it for now, and it lives only in the Hyperdrive config.
 - The **migration login** can also change tables. The `db:` tasks use it, from Adam's laptop and from GitHub's `production` environment.
 - The **root login** creates those two once and is never deployed.
+- **Staging** has its own database on the same cluster, `geekykey_staging`, with its own app and migration logins that can't touch `geekykey`. Its queries count against the same free 50 million Request Units a month.
 
 **Rules for the schema.**
 
@@ -202,7 +206,7 @@ Sources: [What does the GeekyKey Service need from the Portal's tag APIs?](issue
 
 ## 5. Settings, secrets and bindings
 
-Settings live in each Worker's `wrangler.jsonc` and change through a reviewed pull request. Secrets live only on the two services. The configs are the source of truth: a deploy overwrites settings and routes changed in the dashboard, but never touches secrets. Names marked "suggested" are the spec's.
+Settings live in each Worker's `wrangler.jsonc` and change through a reviewed pull request. Secrets live only on the two services: Julian sets production's, and Adam sets staging's. The configs are the source of truth: a deploy overwrites settings and routes changed in the dashboard, but never touches secrets. Names marked "suggested" are the spec's.
 
 ### 5.1 Each Worker
 
@@ -210,17 +214,17 @@ Settings live in each Worker's `wrangler.jsonc` and change through a reviewed pu
 
 | Kind | Name (suggested) | Value |
 |---|---|---|
-| Custom domain | `routes` | `geekykey-api.geekshacking.com`, added the day Julian or Qing Guan attaches it |
+| Custom domain | `routes` | `key-api.geekshacking.com`, which Julian attached on 1 Oct 2026 |
 | Side doors off | `workers_dev`, `preview_urls` | Both `false` |
 | Flag | `compatibility_flags` | `nodejs_compat`, which `mysql2` needs |
 | Binding | `HYPERDRIVE` | The production Hyperdrive config |
 | Binding | `SHOWCASE` | Service binding to `event-service`, from the split |
 | Binding | Rate limits | See the table below |
-| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, a binding name or an `https://` URL, and optionally a public address and name for the token page's link. For the showcase, one entry: `showcase`, "Capstone Showcase", binding `SHOWCASE`, `https://showcase.geekshacking.com` |
+| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, a binding name or an `https://` URL, and optionally a public address and name for the token page's link. For the showcase, one entry: `showcase`, "Capstone Showcase", binding `SHOWCASE`, `https://event.geekshacking.com` |
 | Setting | `GEEKYKEY_ADMINS` | Portal user IDs. Adam, Ethan and Zi Tao for the showcase |
 | Setting | `MAX_TOKENS_PER_USER` | `3` |
 | Setting | `MAX_TAPS_PER_REQUEST` | `500` |
-| Setting | `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URL` | Its own OAuth app, and `https://geekykey.geekshacking.com/auth/callback` |
+| Setting | `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URL` | Its own OAuth app, and `https://key.geekshacking.com/auth/callback` |
 | Setting | The Portal's login settings | Once Qing Guan gives them |
 | Secret | `SESSION_SECRET` | Signs `gk_session` |
 | Secret | `EVENT_SERVICE_KEY_SHOWCASE` | One for each entry in `EVENT_SERVICES` |
@@ -232,15 +236,15 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 
 | Kind | Name (suggested) | Value |
 |---|---|---|
-| Custom domain | | None. Only its two bindings reach it |
+| Custom domain | | None. Only its two bindings reach it. Julian offered `event-api.geekshacking.com` on 1 Oct, and it isn't needed |
 | Side doors off | `workers_dev`, `preview_urls` | Both `false` |
 | Flag | `compatibility_flags` | `nodejs_compat` |
 | Binding | `HYPERDRIVE` | The same Hyperdrive config |
 | Binding | Rate limit | See the table below |
 | Setting | `ORGANIZERS` | Portal user IDs. `dev-organizer-1` locally |
 | Setting | `TAP_COOLDOWN_SECONDS` | `300` |
-| Setting | `GEEKYKEY_API_URL` | `https://geekykey-api.geekshacking.com`, and `http://localhost:8000` locally |
-| Setting | `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URL` | Its own OAuth app, and `https://showcase.geekshacking.com/auth/callback` |
+| Setting | `GEEKYKEY_API_URL` | `https://key-api.geekshacking.com`, and `http://localhost:8000` locally |
+| Setting | `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URL` | Its own OAuth app, and `https://event.geekshacking.com/auth/callback` |
 | Setting | The Portal's login settings | Once Qing Guan gives them |
 | Secret | `SESSION_SECRET` | Signs `event_session` |
 | Secret | `EVENT_SERVICE_KEY` | Its own key, the same value as `EVENT_SERVICE_KEY_SHOWCASE` |
@@ -253,7 +257,7 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 | Static assets | The Vite build, in single-page-app mode |
 | `run_worker_first` | `["/api/*", "/auth/*"]`. Without it, a browser going to `/auth/login` gets `index.html` and login silently breaks |
 | Binding | A service binding to its service |
-| Custom domain | `geekykey.geekshacking.com` and `showcase.geekshacking.com` (provisional) |
+| Custom domain | `key.geekshacking.com` and `event.geekshacking.com` |
 | Side doors off | `workers_dev` and `preview_urls` both `false` |
 | Build variable | `VITE_LIVE_API=1` on `event-web`, set in Workers Builds. Without it the build ships the mock client |
 | Secrets | None |
@@ -273,17 +277,18 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 | Credential | Lives in | Set by | If it leaks or is lost |
 |---|---|---|---|
 | TiDB root login | `~/.config/geekykey/tidb.env` on Adam's laptop. Never deployed | Julian provided it | Ask Julian |
-| TiDB app login | Only the Hyperdrive config | Adam, with the root login | Adam resets it and updates the Hyperdrive config |
-| TiDB migration login | `~/.config/geekykey/` on Adam's laptop, and GitHub's `production` environment | Adam | Adam resets it and replaces both copies |
-| `SESSION_SECRET`, one per service | A Workers secret | Adam: `openssl rand`, then `wrangler secret put`, keeping no copy | A new one logs everyone out of that service |
-| Event Service key, one per Event Service | A Workers secret on both Workers | Adam, the same way | Set the new one on both outside the event. Hand-offs fail with `503` until both match, and stations resend |
-| Portal client secret, if issued | A Workers secret on each service | Adam | Replace it with Qing Guan |
+| TiDB app login | Only the Hyperdrive config | Adam creates it with the root login and sends the password to Julian privately, keeping no copy. Julian puts it in the Hyperdrive config | Adam resets it and sends the new one to Julian |
+| Staging's two TiDB logins | The app login only in staging's Hyperdrive config, in Adam's account. The migration login in `~/.config/geekykey/` | Adam | Adam resets them. Neither can touch `geekykey` |
+| TiDB migration login | `~/.config/geekykey/` on Adam's laptop, and GitHub's `production` environment | Adam creates it. Julian adds it to the environment | Adam resets it, and Julian replaces the environment's copy |
+| `SESSION_SECRET`, one per service | A Workers secret | Julian, as a random value nobody keeps. Adam sets staging's with `openssl rand` and `wrangler secret put --env staging` | A new one logs everyone out of that service |
+| Event Service key, one per Event Service | A Workers secret on both Workers | Julian, as 32 random bytes nobody keeps, for our own Event Service. Another team's key goes to that team as well | Set the new one on both outside the event. Hand-offs fail with `503` until both match, and stations resend |
+| Portal client secret, if issued | A Workers secret on each service | Qing Guan gives it to Julian, who sets it | Qing Guan and Julian replace it |
 | Station key | The station's gitignored `secrets.h`. Only its hash is in `stations` | A GeekyKey admin creates it, shown once | A GeekyKey admin replaces it, keeping the station's ID, and Zi Tao reflashes the station |
 | Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, tokens can never be rewritten |
 | Wi-Fi details | Each station's `secrets.h` | Zi Tao | Change the password |
 | Our database copies | Adam's laptop, outside the repo. Never GitHub, a workflow artifact or a chat | Adam | They hold Portal user IDs, names and who tapped where |
 
-GitHub holds only the migration login. No Cloudflare API token is kept in GitHub at all.
+GitHub holds only the migration login. No Cloudflare API token is kept in GitHub at all, and nobody on the team holds a production Cloudflare secret.
 
 ### 5.3 Local development
 
@@ -311,9 +316,9 @@ Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then
 |---|---|---|---|
 | 0 | The contract and the asks | Ethan has approved the API agreement pull request, and the messages are sent | Ethan's review |
 | 1 | Today's backend on workerd and TiDB | CI is green, the Vitest plugin is proven, and a station taps `wrangler dev` | Nothing outside the team |
-| 2 | The first deploy | A tap to `geekykey-api.geekshacking.com` is stored in TiDB through Hyperdrive, the log is checked, the first numbers are written down | Julian or Qing Guan: the Workers, the domain and the roles |
+| 2 | The first deploy | A tap to `key-api.geekshacking.com` is stored in TiDB through Hyperdrive, after staging, the log is checked, the first numbers are written down | Julian: the Worker, the Hyperdrive config, the secret and Workers Builds |
 | 3 | The line drawn inside | One Worker, with two services inside it that talk only through the hand-off, on the new tables | Nothing outside the team |
-| 4 | Two Workers | `event-service` runs behind its binding, and the smoke test runs on every pull request | Julian or Qing Guan: connecting `event-service` |
+| 4 | Two Workers | `event-service` runs behind its binding, in its own repo, and the smoke test runs on every pull request | Julian: the new repo, and connecting `event-service` |
 | 5 | Login, and the screens deployed | Both logins work, the passport shows on a phone, the cookies are checked, the passport poll is measured | Qing Guan: the login details and two OAuth apps. Julian or Qing Guan: two domains |
 | 6 | The GeekyKey Service's features | Stations are set up from the admin screens, tokens are claimed and released, the limits hold | Ethan's team: the `geekykey-web` screens |
 | 7 | The Event Service's features | Organizers set up the passport's stations and watch taps, and the export is right | Ethan's team: the `event-web` changes |
@@ -331,7 +336,7 @@ No code.
   - to Julian and Qing Guan: [part 2 of the hostnames message](assets/message-to-julian-redirect-urls.md), if it hasn't gone, and [the tag APIs message](assets/message-to-qing-guan-tag-apis.md), whose part 1 asks Julian to keep the showcase on the `tokens` table;
   - to Zi Tao: [the Wi-Fi password](assets/message-to-zi-tao-wifi-password.md) and [the station contract](assets/message-to-zi-tao-station-contract.md), with the notes on the 29 Sep firmware in section 9;
   - to Qing Guan: [logging in through the Portal](assets/message-to-qing-guan-login.md), for the two OAuth apps, the login details and the QR code.
-- **Adam raises with Julian himself** that `geekykey.geekshacking.com` and its `/t/` path must keep working for as long as tokens are in use.
+- **Adam raises with Julian himself** that `key.geekshacking.com` and its `/t/` path must keep working for as long as tokens are in use.
 - **Once the Sprint 2 A/B test is confirmed,** decide which setup runs it (section 12), since it may pull the Portal login earlier.
 
 ### Checkpoint 1. Today's backend on workerd and TiDB
@@ -356,26 +361,28 @@ Done when:
 
 ### Checkpoint 2. The first deploy
 
-Checkpoint 1's Worker is live at `https://geekykey-api.geekshacking.com` and stores taps in TiDB through Hyperdrive.
+Checkpoint 1's Worker is live at `https://key-api.geekshacking.com` and stores taps in TiDB through Hyperdrive.
+
+**Changed on 1 Oct 2026.** The team has no Cloudflare access, so Julian sets up production and deploys it through Workers Builds, and staging comes first (BAC-15). Julian's first try on 1 Oct stopped at the stand-in Hyperdrive ID, as expected.
 
 Before it, once:
 
-- Julian or Qing Guan creates the four Workers empty, gives out the roles and attaches `geekykey-api.geekshacking.com` to `geekykey-service` (part 3a of [the hostnames message](assets/message-to-julian-redirect-urls.md)). A pull request adds the domain to `routes` the same day.
-- Adam, with the root login from his laptop, creates the `geekykey` database, the app login and the migration login, and keeps the migration login in `~/.config/geekykey/`.
-- Adam creates the Hyperdrive config with the app login and the query cache off, and its ID goes in `wrangler.jsonc`.
-- Adam sets `SESSION_SECRET` with `wrangler secret put`, and `secrets.required` lists it.
+- Julian creates `geekykey-service` and attaches `key-api.geekshacking.com` (done on 1 Oct 2026). A pull request adds the domain to `routes`.
+- Adam, with the root login from his laptop, creates the `geekykey` database, the app login and the migration login, and keeps the migration login in `~/.config/geekykey/`. The same scripts make `geekykey_staging` and its two logins.
+- **Staging first.** Adam creates a Hyperdrive config in his own account for the staging app login, with the query cache off, sets staging's `SESSION_SECRET`, and deploys `env.staging` with `deploy:staging`. Every check below is tried there first, where Adam can read the logs.
+- Adam sends the production app login's password to Julian privately, keeping no copy. Julian creates the production Hyperdrive config with it and the query cache off, sets `SESSION_SECRET` to a random value nobody keeps, and sends back the config's ID, which goes in `wrangler.jsonc`. `secrets.required` lists `SESSION_SECRET`.
 
 The deploy:
 
 - Adam runs `db:migrate` against production from his laptop.
-- If `main` is protected by then, Workers Builds deploys `geekykey-service` from `main`: root directory `apps/backend`, `NODE_VERSION` `22.23.3`, `PNPM_VERSION` `12.5.1`, deploy command `npx wrangler deploy`, watch paths covering its folder, the shared packages and the lockfile, and preview builds off. That first build is the trial that confirms pnpm 12.5.1 works in Cloudflare's build image. Otherwise Adam deploys by hand with `wrangler deploy` from `main` until it is (the spec's call).
+- Julian deploys `geekykey-service` from `main` through Workers Builds: root directory `apps/backend`, no build command, deploy command `npx wrangler deploy`, `NODE_VERSION` `22.23.3`, `PNPM_VERSION` `12.5.1`, watch paths `apps/backend/*` and `pnpm-lock.yaml`, and preview builds off. The first build is the trial that confirms pnpm 12.5.1 works in Cloudflare's build image. **Once Workers Builds is connected, every merge to `main` deploys,** so migrate before you merge starts then, even if `main` isn't protected yet.
 - The GeekyKey admin screens don't exist yet, so Adam creates one test station with a script from his laptop, the seed's station part pointed at production, and keeps its key for testing.
 
 Done when:
 
-- **The second proof:** a tap sent with `curl` to `https://geekykey-api.geekshacking.com/api/v1/taps` is stored in TiDB through Hyperdrive. If Hyperdrive can't reach TiDB, switch to TiDB's serverless driver and update section 3.5.
-- **The log check:** open that request's invocation log in the Cloudflare dashboard. If the `Authorization` header, and so the station key, appears, set `observability.logs.invocation_logs = false` on `geekykey-service` and replace the key.
-- **The first numbers** are written down for "Staying on the free plan" (section 11.1): Hyperdrive queries per tap, the CPU time of a 500-tap batch, and TiDB's Request Units after a day.
+- **The second proof:** a tap sent with `curl` to `https://key-api.geekshacking.com/api/v1/taps` is stored in TiDB through Hyperdrive, after the same tap worked on staging. If Hyperdrive can't reach TiDB, switch to TiDB's serverless driver and update section 3.5.
+- **The log check,** on staging, where Adam can read the logs. If the `Authorization` header, and so the station key, appears, set `observability.logs.invocation_logs = false` in the config, for production and staging, before production's first tap, and replace the key. Julian looks at one production log at the first deploy to confirm.
+- **The first numbers** are written down for "Staying on the free plan" (section 11.1): Hyperdrive queries per tap and the CPU time of a 500-tap batch, measured on staging, and TiDB's Request Units after a day, which only Julian can see.
 - Once Zi Tao's firmware speaks HTTPS, a real station taps production.
 
 ### Checkpoint 3. The line drawn inside
@@ -409,17 +416,19 @@ Done when CI is green and, on production, a test station answers `no_event` unti
 
 `geekykey-service` and `event-service` are two Workers, joined by a service binding, and both are deployed.
 
+**Changed on 1 Oct 2026:** at Julian's suggestion, the Event Service and its screens move to a repo of their own at the split. The folders, CI, the smoke test and `packages/handoff` below were written for one repo, and need rethinking before this checkpoint starts (section 12).
+
 - **Folders.** `apps/backend` becomes `apps/geekykey-service`. The Event side moves to a new `apps/event-service`. Each has its own `package.json`, `wrangler.jsonc`, schema, tests and CI job. `apps/frontend` becomes `apps/event-web` now, not before, so Ethan's work in progress isn't disrupted.
 - **The binding.** `geekykey-service` sends the hand-off with `env.SHOWCASE.fetch(request)`, and the `EVENT_SERVICES` entry names the binding. Another team's Event Service gets the same request through `fetch(request)`, to an address that must start with `https://`. Every hand-off sets `redirect: "manual"`.
 - **Names.** The package names, root scripts, mise tasks and CI filters follow the new folder names.
-- **The Event Service key:** 32 random bytes, set with `wrangler secret put` on both Workers, and listed in both `secrets.required`.
+- **The Event Service key:** 32 random bytes, set by Julian on both Workers, and listed in both `secrets.required`.
 - **Local dev:** each service in its own `wrangler dev` on 8000 and 8001, started together by the root `pnpm dev`, with the Event screens' proxy now pointing at 8001.
 - **CI:** one job per service, plus the end-to-end smoke test on every pull request, which starts both Workers with `wrangler dev` and sends a station tap through to the database.
 - **The README's layout and diagram** for the new folders (section 8.1).
 
-The deploy, in this order the first time, because a Worker can't deploy with a binding to a Worker that doesn't exist yet: Julian or Qing Guan connects `event-service` to Workers Builds (root directory `apps/event-service`) and changes `geekykey-service`'s root directory to `apps/geekykey-service` the same day; `db:migrate` if the split needs it; `event-service` deploys, then `geekykey-service`.
+The deploy, in this order the first time, because a Worker can't deploy with a binding to a Worker that doesn't exist yet: Julian connects `event-service` to Workers Builds from its new repo and changes `geekykey-service`'s root directory to `apps/geekykey-service` the same day; `db:migrate` if the split needs it; `event-service` deploys, then `geekykey-service`.
 
-Done when the smoke test passes in CI, a station's tap on production goes through the binding, and **the log check** is done on `event-service` for the hand-off's `Authorization` header. If the Event Service key shows, turn invocation logs off there and replace the key on both Workers.
+Done when the smoke test passes in CI, a station's tap on production goes through the binding, and **the log check** is done with Julian on `event-service` for the hand-off's `Authorization` header. If the Event Service key shows, turn invocation logs off there and replace the key on both Workers.
 
 ### Checkpoint 5. Login, and the screens deployed
 
@@ -429,12 +438,12 @@ Waits on Qing Guan: the Portal's login details (the issuer, each app's client ID
 - **The forwarding Workers.** A small `worker/` folder in `apps/event-web` and in `apps/geekykey-web`, with its own Wrangler config (section 5.1). Adam writes them. Afterwards Ethan owns them, and Adam reviews any change to their list of paths.
 - **`apps/geekykey-web`** exists by now, from the screens track, with at least its login and shell.
 
-The deploy: Julian or Qing Guan attaches `showcase.geekshacking.com` to `event-web` and `geekykey.geekshacking.com` to `geekykey-web`, and connects both to Workers Builds (root directories `apps/event-web` and `apps/geekykey-web`, with `VITE_LIVE_API=1` on `event-web`). A pull request adds each domain to `routes` the same day.
+The deploy: Julian or Qing Guan attaches `event.geekshacking.com` to `event-web` and `key.geekshacking.com` to `geekykey-web`, and Julian connects both to Workers Builds (`apps/geekykey-web` in this repo, `event-web` in the Event Service's, with `VITE_LIVE_API=1` on `event-web`). A pull request adds each domain to `routes` the same day.
 
 Done when:
 
 - logging in and out works on both hostnames, and the passport shows on a phone;
-- **the log check** for `Cookie` is done on all four Workers: if a cookie shows, turn invocation logs off on that Worker and replace the service's `SESSION_SECRET`, which logs everyone out;
+- **the log check** for `Cookie` is done with Julian on all four Workers: if a cookie shows, turn invocation logs off on that Worker and replace the service's `SESSION_SECRET`, which logs everyone out;
 - **the passport poll is measured** for section 11.1: Hyperdrive queries, Workers requests and outside requests per poll.
 
 ### Checkpoint 6. The GeekyKey Service's features
@@ -496,11 +505,11 @@ Waits on Julian agreeing to keep the showcase on the `tokens` table, and on Qing
 1. Zi Tao changes the Wi-Fi password committed in `firmware/NFC_test/test.ino`, or confirms it's a throwaway hotspot, and moves it into a gitignored `secrets.h`.
 2. Adam decides whether `.scratch/` and `meeting-notes/` stay uncommitted or become public.
 3. Julian makes the repo public.
-4. Julian protects `main` (a pull request with CI passing), and creates a `production` environment with Adam as its required reviewer. Adam gets admin on the repo to add the migration login there; if Julian would rather not, Julian adds it.
+4. Julian protects `main` (a pull request with CI passing), and creates a `production` environment with Adam as its required reviewer. Julian adds the migration login there, from Adam.
 5. A manual "Migrate production" workflow on GitHub Actions, run on a pull request's branch through the `production` environment. From then on: **migrate before you merge**.
-6. From then on, merging deploys through Workers Builds, and Adam stops deploying by hand.
+6. With `main` protected, only a merge that passed CI can go live through Workers Builds.
 
-Until step 4, Adam runs `db:migrate` from his laptop before merging, and deploys by hand.
+Until step 5, Adam runs `db:migrate` against production from his laptop before merging. Production deploys are Julian's, through Workers Builds, and Adam tries them on staging first.
 
 **The screens** (Ethan's team). They build against the mock client as soon as the API agreement pull request is approved, and wire each screen as its endpoint lands, as `apps/frontend/CLAUDE.md` describes.
 
@@ -547,9 +556,9 @@ The first migration step, in one pull request that Ethan reviews. The agreement 
 
   | Who | Local | Production |
   |---|---|---|
-  | Stations and Event Services | `http://localhost:8000` | `https://geekykey-api.geekshacking.com` |
-  | Browsers, for the GeekyKey screens | `http://localhost:5174` | `https://geekykey.geekshacking.com` |
-  | Browsers, for the Event Service's screens | `http://localhost:5173` | `https://showcase.geekshacking.com` (provisional) |
+  | Stations and Event Services | `http://localhost:8000` | `https://key-api.geekshacking.com` |
+  | Browsers, for the GeekyKey screens | `http://localhost:5174` | `https://key.geekshacking.com` |
+  | Browsers, for the Event Service's screens | `http://localhost:5173` | `https://event.geekshacking.com` |
 
   Browsers only ever use their screens' hostname, which forwards `/api` and `/auth` to its service.
 - **Status codes:** add `429` and `503`, and update the `409` examples.
@@ -575,7 +584,7 @@ The first migration step, in one pull request that Ethan reviews. The agreement 
 
 **4. Shared vocabulary.**
 
-- **Token UID:** add the token address, `https://geekykey.geekshacking.com/t/<UID>`, whose UID is the chip's own, 14 upper-case hex characters for our NTAG213 tokens. The wider 4-to-10-byte rule stays, since stations can read other cards.
+- **Token UID:** add the token address, `https://key.geekshacking.com/t/<UID>`, whose UID is the chip's own, 14 upper-case hex characters for our NTAG213 tokens. The wider 4-to-10-byte rule stays, since stations can read other cards.
 - **`tap_status`:**
 
   | Value | Answered by | Stored | Meaning |
@@ -593,7 +602,7 @@ The first migration step, in one pull request that Ethan reviews. The agreement 
 
 **5. Endpoint index:** two tables, one per service (section 7.2).
 
-**6. Station endpoints,** now on the GeekyKey Service at `https://geekykey-api.geekshacking.com`.
+**6. Station endpoints,** now on the GeekyKey Service at `https://key-api.geekshacking.com`.
 
 - **6.1 `POST /api/v1/taps`:**
   - The request and the response don't change. The GeekyKey Service answers `unknown_token` and `no_event` itself, and passes back the Event Service's statuses unchanged. `no_event` is checked before the token.
@@ -646,7 +655,7 @@ The first migration step, in one pull request that Ethan reviews. The agreement 
 - "Production origin for CORS" closes: there is no CORS.
 - "Does the station firmware persist a tap counter across power loss?" closes: since its first version on 23 Sep, the firmware has saved its counter in flash before each tap.
 - The Portal's QR code and the Portal's login details stay open, with Qing Guan.
-- Add: the Event Service's hostname, `showcase.geekshacking.com`, is provisional.
+- The Event Service's hostname is `event.geekshacking.com`, chosen by Julian on 1 Oct 2026, so it isn't an open question.
 
 **13. Changelog:** one entry for the rewrite, naming the one-off removals.
 
@@ -716,19 +725,20 @@ Each change lands with the checkpoint that makes it true.
 - CI: the backend job's new steps.
 - "Where to read next": add `CONTEXT.md` and `docs/adr/`.
 
-**Checkpoint 2: a new "Deploying" section** with each Worker's folder and address, and the team's rules:
+**Checkpoint 2: a new "Deploying" section** with each Worker's folder and address, how production and staging are each deployed, and the team's rules:
 
 1. **Migrate before you merge.** A pull request that adds a migration runs "Migrate production" on its own branch first, and merges only once that succeeds. Every migration works with the version still running.
 2. **Every merge to `main` deploys.**
 3. **The freeze.** From the evening before the showcase until it ends, nothing merges to `main` except a fix Adam approves, announced in the team chat, and "Migrate production" doesn't run.
-4. **Rolling back.** One Worker at a time, one version back, from its Deployments page or with `wrangler rollback`, by anyone with Editor on it. Then revert the commit on `main`, or the next merge deploys it again. Never roll back past a key replacement. The database is never rolled back.
+4. **Rolling back.** One Worker at a time. The team reverts the commit on `main`, and Workers Builds deploys the revert in a few minutes. For an instant rollback, Julian rolls back one version from the Worker's Deployments page, and the commit is still reverted, or the next merge deploys it again. Never roll back past a key replacement. The database is never rolled back.
 5. **The hand-off.** A change to `packages/handoff` must work with the other service's previous version.
 6. **Copies.** Adam takes one with `db:backup` before every "Migrate production" run, just before the test data is cleared, and at the end of the event day. They stay on his laptop, never in GitHub or a chat.
 7. **On the event day,** only Adam changes data, with a fresh copy first and Ethan reading the query. A counting or display bug is fixed by rolling back, not by changing data.
+8. **Staging first.** A change to how the Worker starts, its config or its database access is deployed to staging with `deploy:staging` before it merges.
 
 **Checkpoint 4:** the layout, the stack table and the diagram for `apps/geekykey-service`, `apps/event-service`, `apps/geekykey-web`, `apps/event-web` and `packages/handoff`; the four local ports; and one `pnpm dev`.
 
-**When Zi Tao's HTTPS firmware lands:** "Station firmware" says the server setting is a full base URL, `http://A-Mac.local:8000` locally and `https://geekykey-api.geekshacking.com` in production.
+**When Zi Tao's HTTPS firmware lands:** "Station firmware" says the server setting is a full base URL, `http://A-Mac.local:8000` locally and `https://key-api.geekshacking.com` in production.
 
 ### 8.2 Other docs
 
@@ -742,19 +752,21 @@ Each change lands with the checkpoint that makes it true.
 ### Julian
 
 - **Now:** part 2 of [the hostnames message](assets/message-to-julian-redirect-urls.md) if it hasn't gone, and part 1 of [the tag APIs message](assets/message-to-qing-guan-tag-apis.md): may the showcase keep its claims in our `tokens` table and switch to the Portal after it?
-- **Adam raises himself:** `geekykey.geekshacking.com` and its `/t/` path must keep working for as long as tokens are in use.
-- **At checkpoint 2, part 3a of the hostnames message:**
-  - create the four Workers empty: `geekykey-service`, `event-service`, `geekykey-web` and `event-web`;
-  - attach `geekykey-api.geekshacking.com` to `geekykey-service` now. The other two domains come at checkpoint 5;
-  - connect only `geekykey-service` to Workers Builds for now, with root directory `apps/backend` until the split, and only once `main` is protected;
-  - give the roles as drafted, including permission for Adam to create the Hyperdrive config, and read-only access for Adam to the TiDB project;
+- **Adam raises himself:** `key.geekshacking.com` and its `/t/` path must keep working for as long as tokens are in use.
+- **At checkpoint 2, part 3a of the hostnames message and its follow-up,** both sent on 1 Oct 2026 (BAC-8):
+  - `geekykey-service` with `key-api.geekshacking.com` attached (done on 1 Oct);
+  - the production Hyperdrive config with the query cache off, from the app login Adam sends, and its ID back to us;
+  - `SESSION_SECRET`, as a random value nobody keeps;
+  - Workers Builds for `geekykey-service`, with the settings Adam sent: root directory `apps/backend` until the split;
+  - a screen share at the first deploy, for the log check;
   - note the five rate-limit namespace IDs we use (section 5.1);
-  - Qing Guan's custom rule for `geekykey-api.geekshacking.com` (below).
-- **For going public:** make the repo public once Zi Tao's Wi-Fi fix is in; protect `main`; create the `production` environment; give Adam admin on the repo.
-- **At checkpoint 4, part 3b:** connect `event-service` (root directory `apps/event-service`), and change `geekykey-service`'s root directory to `apps/geekykey-service`.
-- **At checkpoint 5, part 3c:** attach `geekykey.geekshacking.com` to `geekykey-web` and `showcase.geekshacking.com` to `event-web`, and connect both (`VITE_LIVE_API=1` on `event-web`).
-- **By 11 Nov:** the decision on Workers Paid, with our numbers from section 11.1.
-- **Before the showcase, part 4 of the hostnames message:** be reachable by phone during the event, with his number on the event-day sheet if he agrees; upgrade on the spot if we pass 70% of the free day; restore TiDB's backup if the cluster is lost.
+  - Qing Guan's custom rule for `key-api.geekshacking.com` (below).
+- **Dropped on 1 Oct:** the roles part 3a asked for. The team gets no access to the Cloudflare account.
+- **For going public:** make the repo public once Zi Tao's Wi-Fi fix is in; protect `main`; create the `production` environment, and add the migration login to it.
+- **At checkpoint 4, part 3b:** the Event Service's new repo; connect `event-service` from it; and change `geekykey-service`'s root directory to `apps/geekykey-service`.
+- **At checkpoint 5, part 3c:** attach `key.geekshacking.com` to `geekykey-web` and `event.geekshacking.com` to `event-web`, and connect both (`VITE_LIVE_API=1` on `event-web`).
+- **By 11 Nov:** the decision on Workers Paid, with our numbers from section 11.1, and TiDB's Request Units, which only he can see.
+- **Before the showcase, part 4 of the hostnames message:** be reachable by phone during the event, with his number on the event-day sheet if he agrees; upgrade on the spot if we pass 70% of the free day; roll a Worker back when we ask; restore TiDB's backup if the cluster is lost. How the team sees production's logs and usage on the day is still open (section 12).
 - **Keep off:** Bot Fight Mode on geekshacking.com, which could challenge every station.
 
 ### Qing Guan
@@ -763,13 +775,13 @@ Each change lands with the checkpoint that makes it true.
 
   | App | Redirect URLs |
   |---|---|
-  | The GeekyKey Service | `https://geekykey.geekshacking.com/auth/callback`, `http://localhost:5174/auth/callback` |
-  | The Event Service | `https://showcase.geekshacking.com/auth/callback` (provisional), `http://localhost:5173/auth/callback` |
+  | The GeekyKey Service | `https://key.geekshacking.com/auth/callback`, `http://localhost:5174/auth/callback` |
+  | The Event Service | `https://event.geekshacking.com/auth/callback`, `http://localhost:5173/auth/callback` |
 
 - **The login details:** the issuer, each app's client ID, which claim carries the display name, and whether there's a client secret.
 - **What the Portal's participant QR code holds,** which the QR fallback scans.
 - **The tag APIs:** part 2 of [the tag APIs message](assets/message-to-qing-guan-tag-apis.md).
-- **At checkpoint 2, in part 3a of the hostnames message:** one custom rule that skips Browser Integrity Check, Security Level and all rate limiting rules for `geekykey-api.geekshacking.com`, so "I'm Under Attack" on another site can't stop the stations. We ask for no rate limiting rule.
+- **At checkpoint 2, in part 3a of the hostnames message:** one custom rule that skips Browser Integrity Check, Security Level and all rate limiting rules for `key-api.geekshacking.com`, so "I'm Under Attack" on another site can't stop the stations. We ask for no rate limiting rule.
 - **On the day:** reachable by phone, for the Portal and the zone.
 
 ### Ethan
@@ -777,9 +789,9 @@ Each change lands with the checkpoint that makes it true.
 - **Review the API agreement pull request** (step 0).
 - **The screens track** in section 6, with his team, and the edits to `apps/frontend/CLAUDE.md` (section 8.2).
 - **Own the two forwarding Workers** once Adam has written them. Adam reviews any change to their list of paths.
-- **Access:** Editor on `event-web` and `geekykey-web`, and Metadata Read-Only on the two services, to read their logs.
+- **Access:** none, like the rest of the team (Julian, 1 Oct 2026). His screens deploy when his pull requests merge, and roll back by reverting.
 - **Install Docker** to run the backend locally.
-- **On the day:** watch the screens and roll them back; a second pair of eyes on the logs; read any query Adam runs to change data; at the desk whenever Adam isn't; a GeekyKey admin who only links, unlinks and disables stations.
+- **On the day:** watch the screens and roll them back by reverting; a second pair of eyes on whatever the team can see of production (section 12); read any query Adam runs to change data; at the desk whenever Adam isn't; a GeekyKey admin who only links, unlinks and disables stations.
 
 ### Zi Tao
 
@@ -789,9 +801,9 @@ Each change lands with the checkpoint that makes it true.
     - a `400` stays at the head of the queue in the same way, where the contract says to drop that batch;
     - retries start 2 seconds after a failure and double up to 60, where the contract says at most once a minute, alongside the heartbeat;
     - saved taps go one per request, where a single request can carry up to 500, which saves the free plan's requests.
-- **[The token writer](assets/message-to-zi-tao-token-writer.md):** the sketch is in `firmware/token_writer/`. Every token is written with it before the event, and Adam keeps a copy of the password.
+- **[The token writer](assets/message-to-zi-tao-token-writer.md):** the sketch is in `firmware/token_writer/`. Every token is written with it before the event, and Adam keeps a copy of the password. On 1 Oct the address became `key.geekshacking.com` and the sketch moved the UID mirror to match. It compiles but hasn't been tried on a token yet (HAR-12).
 - **[The Wi-Fi password](assets/message-to-zi-tao-wifi-password.md),** before the repo goes public.
-- **Access:** Metadata Read-Only on `geekykey-service`, to read the stations' logs.
+- **Access:** none (Julian, 1 Oct 2026). The station's own screen and serial output show the service's answers, and staging's logs are Adam's to read.
 - **On the day:** watch the stations and walk to any that turns red; a GeekyKey admin who only links, unlinks and disables stations; reflash a station whose key is replaced, with Adam's agreement.
 
 ### Joshua
@@ -808,22 +820,22 @@ The showcase is on Wed 18 Nov 2026 at Ngee Ann Polytechnic, with setup there on 
 
 ### 10.1 The run-up
 
-- **By Sat 7 Nov, the rehearsal on production.** It runs the evening-before steps (the freeze, a copy, the clear), the morning check, the team using passports and tapping stations for an hour, the one restore try, one rollback of a screens Worker, and pulling one station's power to watch it turn red on the board. The watchers use the saved queries and the sheet as they would on the day. Then the data is cleared again. Its numbers feed the decision on Paid, and it comes out of November's TiDB allowance, which the showcase also draws on.
+- **By Sat 7 Nov, the rehearsal on production.** It runs the evening-before steps (the freeze, a copy, the clear), the morning check, the team using passports and tapping stations for an hour, the one restore try, one rollback of a screens Worker by reverting, and pulling one station's power to watch it turn red on the board. The watchers use the saved queries and the sheet as they would on the day. Then the data is cleared again. Its numbers feed the decision on Paid, and it comes out of November's TiDB allowance, which the showcase also draws on.
 - **By Wed 11 Nov:** Paid or not (section 11.1).
-- **The evening before, Tue 17 Nov,** after the day's setup at the venue and straight after the last merge: the freeze starts, Adam runs `db:clear-test-data`, which takes its own copy first, and from then on nobody makes a test claim or taps a claimed token. If we're still on the free plan, Adam checks TiDB's Request Units: if less than twice what the rehearsal used is left, Julian raises TiDB's spending limit above $0.
+- **The evening before, Tue 17 Nov,** after the day's setup at the venue and straight after the last merge: the freeze starts, Adam runs `db:clear-test-data`, which takes its own copy first, and from then on nobody makes a test claim or taps a claimed token. If we're still on the free plan, Julian checks TiDB's Request Units, which only he can see: if less than twice what the rehearsal used is left, he raises TiDB's spending limit above $0.
 - **The morning,** before check-in: tap each station with an unclaimed token and expect `Not claimed yet`, which proves the station's Wi-Fi, key, certificate and link and stores nothing. The station board shows any station missing passport settings. The organizers' stats still show 0 taps.
 - **Check-in:** tokens are handed out and claimed (provisional). Team members who play claim again like everyone else.
 - **The end of the day:** Adam takes a copy, the source for Joshua's analysis and for "Copy claims to the Portal". The freeze ends when the showcase does.
 
 ### 10.2 Who watches
 
-- **Adam:** the services, through the saved queries. He decides on fixes, and he's the only one who changes data.
+- **Adam:** the services. He decides on fixes, and he's the only one who changes data. Since 1 Oct the team can't open production's logs or saved queries, so what he watches them through is open (section 12).
 - **Zi Tao:** the stations, walking to any that turns red.
 - **Ethan:** the screens, which he can roll back, and a second pair of eyes on the logs.
 - **Joshua:** runs the A/B study. Not a watcher.
 - **The desk:** one laptop keeps the station board open all day. Adam or Ethan is at the desk at every moment, and whoever leaves hands over first. Once an hour, the desk looks down the last-tap column. The rota's times stay blank until the programme is out.
 - **GeekyKey admins on the day:** Adam, Ethan and Zi Tao. They only link, unlink and disable stations. Replacing a key means reflashing, so it stays with Zi Tao, with Adam's agreement.
-- **If we're still on the free plan:** Adam checks the account's Workers requests and Hyperdrive queries every hour from 08:00, when both reset. If either passes 70% before the event ends, he calls Julian to upgrade on the spot.
+- **If we're still on the free plan:** someone checks the account's Workers requests and Hyperdrive queries every hour from 08:00, when both reset, and if either passes 70% before the event ends, Julian upgrades on the spot. Only Julian can see them today (section 12).
 
 ### 10.3 Rules for touching data
 
@@ -831,7 +843,7 @@ The showcase is on Wed 18 Nov 2026 at Ngee Ann Polytechnic, with setup there on 
 - A counting or display bug is fixed by rolling back the Worker, not by changing data. Stamps and points are worked out from taps every time they're read.
 - Only Adam decides to change data, with a repair query or `db:restore` for chosen tables. He takes a fresh copy first, and Ethan reads the query before it runs. If Adam can't be reached, nobody changes data, and Ethan can still roll back the screens.
 - If TiDB is down, nothing is restored. Stations keep their taps and resend them, and we wait.
-- If the whole cluster is lost: Julian restores TiDB's latest daily backup into a new cluster; Adam creates the two logins there and points the Hyperdrive config at it; then he restores our own copy on top, if it's newer. Probably under an hour.
+- If the whole cluster is lost: Julian restores TiDB's latest daily backup into a new cluster; Adam creates the two logins there and sends the app login to Julian, who points the Hyperdrive config at it; then he restores our own copy on top, if it's newer. Probably under an hour.
 - Taps lost to a restore come back from the `tap_stored` log lines, kept 3 days. The tool that replays them is written only if it's ever needed.
 
 ### 10.4 The event-day sheet
@@ -841,13 +853,13 @@ One page, printed and kept at the desk, with Julian's and Qing Guan's numbers if
 | What you see | Most likely | Who acts | What they do |
 |---|---|---|---|
 | A station red on the board: offline | Power or Wi-Fi | Zi Tao | Walks over. The station keeps its taps and resends them |
-| A station red: online, but holding saved taps | Hand-offs to the Event Service failing | Adam | Checks the failed hand-offs query. If a fix just went out, rolls back the Event Service |
+| A station red: online, but holding saved taps | Hand-offs to the Event Service failing | Adam | Checks the failed hand-offs (section 12 settles where). If a fix just went out, reverts it, or asks Julian to roll back the Event Service |
 | A station red: reader not responding | A dead or loose reader | Zi Tao | Swaps the station, or sends people to the next one. The QR fallback is at the desk |
 | A station shows `Setup error` | A wrong key, or the station is disabled | A GeekyKey admin | Checks the station on the admin screens |
 | A station shows `Not in an event` | The link is missing | A GeekyKey admin | Links the station |
 | Many `Not claimed yet` at stations | Participants haven't claimed their tokens | Whoever is at the desk | Helps them claim on their phones, or by typing the UID in My tokens |
 | A busy station's last tap is long ago | A fault the reader check can't catch, or older firmware | Zi Tao | As for a dead reader |
-| The passport or organizer screens are broken | A bad screens deploy | Ethan | Rolls back `event-web` or `geekykey-web` |
+| The passport or organizer screens are broken | A bad screens deploy | Ethan | Reverts the last screens merge, or asks Julian to roll back `event-web` or `geekykey-web` |
 | Logins fail, and people already logged in are fine | The Portal | Adam calls Qing Guan | Taps still count. New people try again later |
 | Error 1027 everywhere | The free day's requests are used up | Adam calls Julian | Julian upgrades to Paid |
 | Database errors from both services | TiDB is down, or its monthly allowance is used up | Adam calls Julian | Julian checks the TiDB console |
@@ -866,11 +878,11 @@ Sources for section 10: [How do we notice trouble on event day, and who watches?
 
 GeeksHacking's Cloudflare account is on the free plan until the numbers say otherwise, and the decision on Workers Paid, which starts at $5 a month, is due by 11 Nov.
 
-- **What we measure:** at checkpoint 2, what a tap costs; at checkpoint 5, what a passport poll costs; each in Hyperdrive queries, Workers requests and outside requests. Against the free plan's 100,000 queries a day, 100,000 requests a day and 50 outside requests per request. Two more, the spec's call: the CPU time of a 500-tap batch, against the free plan's 10 ms per request, which "What does running the backend on Workers involve?" found to be the tightest limit; and our log events against Workers Logs' 200,000 a day, since every stored tap writes one. TiDB's console shows what a day of polling and heartbeats costs against its 50 million Request Units a month, after which TiDB refuses new connections. The rehearsal gives a whole day's numbers.
+- **What we measure:** at checkpoint 2, on staging, what a tap costs; at checkpoint 5, what a passport poll costs; each in Hyperdrive queries, Workers requests and outside requests. Against the free plan's 100,000 queries a day, 100,000 requests a day and 50 outside requests per request. Two more, the spec's call: the CPU time of a 500-tap batch, against the free plan's 10 ms per request, which "What does running the backend on Workers involve?" found to be the tightest limit; and our log events against Workers Logs' 200,000 a day, since every stored tap writes one. TiDB's console, which only Julian can open, shows what a day of polling and heartbeats costs against its 50 million Request Units a month, after which TiDB refuses new connections. The rehearsal gives a whole day's numbers.
 - **What we know already:** the passport alone could use up Hyperdrive's day in about 55 passport-hours, polling every 10 seconds at about five queries a poll. A heartbeat costs one query, since station keys are found in memory; 20 stations over 10 hours make about 12,000 requests and 12,000 queries.
 - **Ways to fit, if the numbers say so:** fewer queries per poll; polling only while the passport is on screen; slower polling; or a push design through a Durable Object, as Qing Guan suggested. The mentors ruled out live sockets on 24 Sep unless a game needs them, so push would go back to them with cost as the reason.
 - **Or pay.** A flood from many addresses could still use up the free day, which the rate limits can't stop, and that risk counts toward paying. A TiDB spending limit above $0 would also keep backups for up to 30 days, at a time we choose, instead of one day at a random time.
-- **If we're still on the free plan on the day:** Adam's hourly check, and Julian upgrading at 70% (section 10.2).
+- **If we're still on the free plan on the day:** the hourly check, and Julian upgrading at 70% (section 10.2).
 
 ### 11.2 After the event
 
@@ -880,9 +892,8 @@ What happens to the showcase's data once it ends. Julian suggested keeping a per
 
 | Decision | Firm when | Fallback |
 |---|---|---|
-| Hyperdrive with `mysql2` | Checkpoint 2 shows a deployed Worker reaching TiDB | TiDB's serverless driver |
+| Hyperdrive with `mysql2` | Staging or checkpoint 2 shows a deployed Worker reaching TiDB | TiDB's serverless driver |
 | `@cloudflare/vitest-plugin` | Checkpoint 1 shows it reaching the Docker TiDB through the Hyperdrive binding | The same tests on Node, with `mysql2` connecting directly |
-| `showcase.geekshacking.com`, and its redirect URL | Adam agrees it with Julian | Another short first-level name |
 | The showcase on the `tokens` table | Julian agrees | Switch before the showcase only if the tag APIs are live by 28 Oct, with a warm Portal that takes several requests at once |
 | Tokens claimed at check-in | Adam decides ("still up to discussion") | Release only the team's own claims instead of emptying `tokens` |
 | The clear as a laptop task | Adam decides | A manual workflow like "Migrate production", once copies have a private home such as an R2 bucket |
@@ -899,6 +910,10 @@ What happens to the showcase's data once it ends. Julian suggested keeping a per
 - **The Portal's login details and its QR code,** with Qing Guan.
 
 **Open, for Adam:**
+
+- **Seeing production without access** (Julian, 1 Oct 2026). The team can't open production's logs, saved queries or usage numbers, which checkpoints 2, 4 and 5 and the event day relied on. Staging covers the checks before production. For the day, the choices are: ask Julian for read-only access to Workers Observability and the account's usage only; Julian, or someone he names, watches them on the day; or the GeekyKey admin and organizer screens show what the watchers need, such as failed hand-offs and the day's requests. Settle it before part 4 of the hostnames message.
+- **Two repos at the split** (Julian, 1 Oct 2026). Before checkpoint 4: who creates the Event Service's repo, and where; how both repos get the hand-off's Zod schemas, today planned as `packages/handoff`; whether the end-to-end smoke test still runs on every pull request, and in which repo; and the move of `apps/frontend`, which becomes `event-web` there, for Ethan's team.
+- **Whether the GeekyKey Service keeps its tables in TiDB.** Julian asked on 1 Oct why `geekykey-service` needs TiDB now. Until the split it is the whole backend. After the split it keeps `stations` and the `tokens` stand-in, and after the switch to the Portal, only `stations`, which could move to a store of its own, such as D1 (section 3.6, "Later").
 
 - **The Sprint 2 A/B test.** The roadmap runs the A/B/C test at an SSTInc or CCA event between 5 and 18 Oct, on a date Mr Pang gives. It isn't confirmed yet (Adam, 29 Sep), so nothing waits on it until it is. Condition A needs claimed tokens, stations and the passport; Condition B needs QR scanning and the passport; both feed the export. Participants see their passports only by logging in, and dev-login only signs in seeded users, so **the Portal login is on its path whichever setup runs it.** The choices, for Adam and Joshua:
   - **on production:** checkpoints 1 to 7 and the Portal login, within one to three weeks;

@@ -8,10 +8,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AddStationDialog } from "@/features/stations/add-station-dialog";
 import { StationBoard } from "@/features/stations/station-board";
 import { StationBoardSkeleton } from "@/features/stations/station-board-skeleton";
-import { useStations } from "@/features/stations/use-stations";
+import { useStationBoard } from "@/features/stations/use-station-board";
 
 export function StationsScreen() {
-  const stations = useStations();
+  const stations = useStationBoard();
   const list = stations.data?.stations;
 
   let body;
@@ -30,7 +30,7 @@ export function StationsScreen() {
       />
     );
   } else {
-    const online = list.filter((station) => station.online).length;
+    const online = list.filter((station) => station.online === true).length;
     body = (
       <div className="space-y-3">
         {stations.isError ? (

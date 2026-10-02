@@ -15,6 +15,10 @@
     "build:frontend": "pnpm --filter @geekykey/frontend build",
     "test:frontend": "pnpm --filter @geekykey/frontend test",
     "format:frontend": "pnpm --filter @geekykey/frontend format",
+    "dev:geekykey-web": "pnpm --filter @geekykey/geekykey-web dev",
+    "build:geekykey-web": "pnpm --filter @geekykey/geekykey-web build",
+    "test:geekykey-web": "pnpm --filter @geekykey/geekykey-web test",
+    "format:geekykey-web": "pnpm --filter @geekykey/geekykey-web format",
     "dev:updates": "pnpm --filter @geekykey/updates dev",
     "build:updates": "pnpm --filter @geekykey/updates build"
   },

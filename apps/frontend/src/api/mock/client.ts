@@ -14,6 +14,8 @@ import {
   type CreateStationRequest,
   type CreateStationResponse,
   type ErrorCode,
+  type EventStationBoardResponse,
+  type EventStationBoardStation,
   type FallbackTapRequest,
   type FallbackTapResponse,
   type FallbackTapStatus,
@@ -164,6 +166,24 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     };
   }
 
+  function toStationBoardStation(station: MockStation): EventStationBoardStation {
+    const lastTap = data.taps
+      .filter((tap) => tap.station_id === station.id && tap.source === "nfc")
+      .sort((a, b) => b.received_at.localeCompare(a.received_at))[0];
+    return {
+      id: station.id,
+      label: station.label,
+      linked: station.linked,
+      passport: station.passport,
+      last_seen_at: station.last_seen_at,
+      online: toStation(station).online,
+      firmware_version: station.firmware_version,
+      buffered_taps: station.buffered_taps,
+      reader_ok: station.reader_ok,
+      last_tap_at: lastTap?.received_at ?? null,
+    };
+  }
+
   function toAdminTap(tap: MockTap): AdminTap {
     const station = stationById(tap.station_id);
     const user = tap.user_id ? userById(tap.user_id) : undefined;
@@ -241,6 +261,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return { stations: data.stations.map(toStation) };
       }),
 
+    listStationBoard: () =>
+      call((): EventStationBoardResponse => {
+        currentOrganizer();
+        return { status_known: true, stations: data.stations.map(toStationBoardStation) };
+      }),
+
     createStation: (input: CreateStationRequest) =>
       call((): CreateStationResponse => {
         currentOrganizer();
@@ -261,6 +287,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           last_seen_at: null,
           simulate_online: false,
           counts_toward_passport: true,
+          label: name,
+          linked: true,
+          passport: null,
+          firmware_version: null,
+          buffered_taps: 0,
+          reader_ok: null,
         };
         data.stations.push(station);
         return { station: toStation(station), api_key: `gk_sta_${randomBase62(40)}` };

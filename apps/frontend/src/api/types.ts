@@ -54,6 +54,31 @@ export interface Station {
   online: boolean;
 }
 
+export interface EventStationPassport {
+  name: string;
+  location: string | null;
+  points: number;
+  added_at: string;
+}
+
+export interface EventStationBoardStation {
+  id: string;
+  label: string | null;
+  linked: boolean | null;
+  passport: EventStationPassport | null;
+  last_seen_at: string | null;
+  online: boolean | null;
+  firmware_version: string | null;
+  buffered_taps: number | null;
+  reader_ok: boolean | null;
+  last_tap_at: string | null;
+}
+
+export interface EventStationBoardResponse {
+  status_known: boolean;
+  stations: EventStationBoardStation[];
+}
+
 /** POST /api/v1/admin/stations */
 export interface CreateStationRequest {
   name: string;

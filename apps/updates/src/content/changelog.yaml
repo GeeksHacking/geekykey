@@ -441,6 +441,18 @@
     secrets at start-up, which its documentation says it does but only the first deploy will
     confirm.
 
+- id: tracker-showcase-plan
+  date: 2026-09-30
+  area: admin
+  change: >-
+    The team's issue tracker is now organised around the showcase on 18 Nov: one goal with five
+    projects (the move to Cloudflare, the screens, the stations, going public, and the report),
+    each with a lead, and the move's eight steps are laid out as milestones with what "done" means
+    for each and who they wait on. The station and going public work now has its own tickets with
+    checks to pass, stale tickets from June are closed, and the old Software team is folded into
+    Frontend, leaving one team each for the backend, the screens and the hardware. The trade-offs
+    we accept: the milestones repeat what the plan says, so the two have to be kept in step.
+
 - id: move-step-1-no-deno
   date: 2026-09-30
   area: tooling
@@ -464,3 +476,67 @@
     practice station and users, starting the backend and sending a practice tap. It also shows
     how to change a setting on a laptop without changing what gets deployed, and says to quit
     Docker when not working on the backend, since it can use 4 GiB of memory.
+
+- id: station-queue-fixed
+  date: 2026-10-01
+  area: firmware
+  change: >-
+    The first test of the reader station against the new backend found that none of its taps were
+    stored. The station saved each tap in one place and looked for it in another, so it threw the
+    tap away and sent the backend an empty list. That is fixed, and a real tag tapped on the
+    station now shows up in the database, the first tap accepted and the quick repeats held back
+    by the cooldown. The station also now prints the backend's answer, so a wrong station key
+    shows up straight away. A gap we found but haven't fixed: the station doesn't say when a
+    saved tap was made, so taps sent together all look as if they happened at the same moment.
+
+- id: move-step-2-tickets
+  date: 2026-10-01
+  area: admin
+  change: >-
+    The first deploy is now planned as seven tickets. GeeksHacking creates the Cloudflare Workers
+    and the stations' address, we set up the production database with two logins that can do no
+    more than they need, and the backend goes live at that address and stores a practice tap,
+    including one held back by the cooldown, which is the first time the cooldown's lock runs
+    through Cloudflare's database connection pooling. After that we check that Cloudflare's logs
+    never show a station's key, write down what a tap costs against the free plan, explain
+    deploying in the README, and have a real station tap the live backend. The trade-offs we
+    accept: until the main branch is protected, Adam deploys by hand from his laptop, so every
+    deploy waits on one person.
+
+- id: screens-tickets-v02
+  date: 2026-10-01
+  area: admin
+  change: >-
+    The screens' work for the showcase is now 27 small tickets, in two groups. One brings the
+    current screens in line with the agreed contract: pairing leaves them, the tap log and export
+    lose token IDs, and organizers get the new station board and passport settings. The other
+    builds the new GeekyKey screens: the page a phone opens when it taps a token, My tokens, and
+    the station admin screens. Each ticket builds one change against demo data, so the screens
+    can go ahead before the backend's endpoints exist. Ethan leads them, and Joshua moves to the
+    ideas and the report full time. The trade-offs we accept: small tickets mean more of them to
+    track, and some, such as the one that removes station creation from the current screens, can
+    only start once the new screens have taken that job over.
+
+- id: hosting-without-infra-access
+  date: 2026-10-01
+  area: backend
+  change: >-
+    GeeksHacking now runs the live backend, and the team gets no access to their Cloudflare
+    account, which Julian says is normal in most companies. Julian sets up each part and connects
+    it to our code, so every merge to the main branch goes live. The stations' address becomes
+    key-api.geekshacking.com, tokens will carry key.geekshacking.com, and the showcase's event
+    service moves to a repo of its own when the backend splits. Alongside it, with Julian's
+    agreement, Adam runs a test copy on his own Cloudflare account against a separate test
+    database, to try each deploy before it goes live. The trade-offs we accept: we can't read the
+    live logs or undo a release ourselves, only revert our change or ask Julian, and the test copy
+    is one more thing to keep in step.
+
+- id: station-runs-unwatched
+  date: 2026-10-02
+  area: firmware
+  change: >-
+    The reader station now sees tags after every start. Before, about half of its starts left the
+    card reader switched off, so the station showed it was ready but ignored every tag, which
+    looked like loose wiring. It also finds the laptop again after the laptop's address changes,
+    such as when a phone hotspot restarts, and no longer stalls when plugged into a laptop's USB
+    with no serial monitor open.
