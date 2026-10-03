@@ -7,7 +7,7 @@ Redrawn again: 2 Oct 2026, after Hyperdrive couldn't reach TiDB Cloud and the me
 
 ## Destination
 
-The answers that unstick the spec at checkpoint 2, folded into [spec.md](spec.md). The spec's checkpoint 2 couldn't be done: Hyperdrive can't reach TiDB Cloud, and on 2 Oct the Event Service moved to Google Cloud Run with TiDB, while the GeekyKey Service stays on Workers with no database. This redraw is deliberately small. It settles where token owners and stations live, what the GeekyKey Service caches, whether a station waits for its verdict, and how the Event Service is built, deployed and staged on Cloud Run. Its last ticket, "Fold the answers into the spec", rewrites the spec's affected sections and checkpoints, and the map is done when that's resolved. Anything not firm is marked provisional.
+The answers that unstick the spec at checkpoint 2, folded into [spec.md](spec.md). The spec's checkpoint 2 couldn't be done: Hyperdrive can't reach TiDB Cloud, and on 2 Oct the Event Service moved to Google Cloud Run with TiDB, while the GeekyKey Service stays on Workers with no database. This redraw is deliberately small. It settles where token owners and stations live, what the GeekyKey Service caches, whether a station waits for its verdict, and how the Event Service is built, deployed and staged on Cloud Run. Its last ticket, "Fold the answers into the spec", rewrites the spec's affected sections and checkpoints, and the map is done when that's resolved. Due Wed 7 Oct 2026, for Adam's review; anything not firm by then is marked provisional (Adam, 3 Oct).
 
 *Reached on 29 Sep, before this redraw:* the hand-off spec, [spec.md](spec.md), for running both services on Workers.
 
@@ -21,6 +21,7 @@ The answers that unstick the spec at checkpoint 2, folded into [spec.md](spec.md
 - Grilling tickets use the grilling and domain-modeling skills. Research tickets use the research skill.
 - For Cloudflare docs, search them through Cloudflare's docs MCP server (`https://docs.mcp.cloudflare.com/mcp`) rather than fetching web pages. (Adam, 27 Sep)
 - This map plans; it does not build. The TiDB migration and the Workers port happen after the spec.
+- Nothing is deployed before the redrawn spec is done. If the Sprint 2 A/B test is confirmed and needs a deployed backend sooner, the map is redrawn. (Adam, 3 Oct)
 - Never print, paste or commit the TiDB credentials. They live in `~/.config/geekykey/tidb.env`, outside the repo.
 - Write in plain English: the whole team reads these, including learners. Refer to tickets by their title, not their number.
 - Sources: glossary in [CONTEXT.md](../../CONTEXT.md), which gained event, game, user and claim on 27 Sep and was grouped by service on 28 Sep (say "token", not "tag", except when quoting Julian's diagrams); the API contract in [apps/API-AGREEMENT.md](../../apps/API-AGREEMENT.md), which wins over any other document; the meeting in `meeting-notes/[24 Sept 26] NFC token scanner design and interactive activity planning for showcase.md`.
@@ -130,3 +131,6 @@ The spec marks the first two provisional (Adam, 28 Sep), in its section 11. The 
 - **Moving data from the dev database.** It only holds test data.
 - **Deploying the updates site.** The mentors' timeline isn't part of the destination. It can reuse whichever way Julian picks in "How do deploys and secrets work?".
 - **Portal login details** (OIDC issuer, client ID, claims). Still an open question with Qing Guan in the API agreement. Only the redirect URLs are in scope here.
+- **Hyperdrive.** It can't sign in to TiDB Cloud (BAC-15, 2 Oct). The measurements behind dropping it are in [research/hyperdrive-alternatives-benchmark.md](research/hyperdrive-alternatives-benchmark.md).
+- **The games at the showcase.** Bingo, colour matching and quests were discussed at the 2 Oct meeting. Joshua owns them. This map only keeps room for what a game needs from hosting, as "Can the architecture carry the 24 Sep game ideas?" did. (Adam, 3 Oct)
+- **The scanner's physical form.** The handheld key shape, mounts and the token's shape, also from the 2 Oct meeting, are for Zi Tao and Joshua to decide. (Adam, 3 Oct)
