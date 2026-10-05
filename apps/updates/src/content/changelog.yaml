@@ -585,3 +585,15 @@
     never reaches the database. A station sends its taps to whichever event listed its key. The
     trade-off we accept: moving a station to another event means flashing it again with a new key,
     which we'll check with Julian on 8 Oct.
+
+- id: token-owners-until-the-portal
+  date: 2026-10-05
+  area: backend
+  change: >-
+    Until the Portal can store who owns each token, the showcase keeps that list on our own Cloud
+    Run server, next to the Event Service but separate from it. It answers the same questions the
+    Portal will, so after 18 Nov we copy the claims across and switch with no change to stations or
+    screens. Tapping your own token on a phone now shows a button into the event, and GeeksHacking
+    staff can still release a lost token someone else has found. The trade-off we accept: each
+    station request makes two calls to Cloud Run until the switch, which we'll check with Julian on
+    8 Oct.

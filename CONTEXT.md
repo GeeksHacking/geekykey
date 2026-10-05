@@ -10,13 +10,20 @@ This file names the domain. The wire format, field names and status codes live i
 ### Services
 
 **Portal**:
-GeeksHacking's identity service. It knows every user and which tokens each user has claimed.
+GeeksHacking's identity service. It knows every user, and will know which tokens each user has
+claimed. Until it can, the claims stand-in holds them.
 
 **GeekyKey Service**:
 The service that stations and tokens talk to. It checks each station's key against the stations
-the Event Services have registered, asks the Portal whose token was tapped, and hands the tap to
-the Event Service that registered the station.
+the Event Services have registered, asks who owns the token that was tapped (the claims stand-in,
+later the Portal), and hands the tap to the Event Service that registered the station.
 _Avoid_: NFC Key service, backend
+
+**Claims stand-in**:
+The temporary keeper of claims until the Portal can hold them. It answers the same questions the
+Portal will, and only the GeekyKey Service talks to it. It sits beside our Event Service but is not
+part of any Event Service.
+_Avoid_: tokens service
 
 **Event Service**:
 The service that runs one event's games. It receives each tap as a user and a station, and
@@ -39,8 +46,8 @@ A person with a GeeksHacking Portal account. At an event, a user is a participan
 _Avoid_: portal user, account
 
 **GeekyKey admin**:
-A GeeksHacking person who can release other people's tokens. Not a role at any one event, and
-not in charge of stations, which belong to each event's Event Service.
+A GeeksHacking person who can release other people's tokens, by tapping them. Not a role at any
+one event, and not in charge of stations, which belong to each event's Event Service.
 _Avoid_: admin, organizer
 
 **Token**:
@@ -63,7 +70,8 @@ _Avoid_: holder
 
 **Token page**:
 The GeekyKey Service's page that a phone opens when it taps a token. It lets a user claim an
-unclaimed token and shows the owner their own token. Anyone else sees only that the token is taken.
+unclaimed token, and shows the owner their own token with a way into each event. Anyone else sees
+only that the token is taken; a GeekyKey admin can also release it there.
 
 **My tokens**:
 The GeekyKey Service's page listing the tokens a user has claimed, where they can release one they

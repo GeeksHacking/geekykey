@@ -22,3 +22,5 @@ Decide, with Qing Guan's advice and the facts from "What does Cloud Run "v1" mea
 - **Cold starts and cost.** Minimum instances, region and CPU settings.
 - **Logs.** Who can read them, and the check for keys in request logs.
 - **What happens to the Workers config already on `main`** (`wrangler.jsonc` with `routes` for `key-api.` and a stand-in Hyperdrive ID), which makes every Workers Builds build of `main` fail.
+
+**Since "Where do token owners live until the Portal's tag APIs exist, and what does the token page do?" (5 Oct 2026):** our Cloud Run server also hosts the claims stand-in until the switch after 18 Nov: the `tokens` table and the four claim calls, in a folder of its own, under its own route prefix (for example `/claims-stand-in/v1/…`), and kept apart from the Event Service's code and tables. It isn't part of the Event Service contract. The GeekyKey Service calls it with its own secret, `CLAIMS_STAND_IN_KEY`, which joins the secrets to set. Staging and logs cover it along with the rest of the server.

@@ -2,15 +2,19 @@
 
 Draft for Adam to edit and send to the group chat, from "What does the GeekyKey Service need from the Portal's tag APIs?", 28 Sep 2026. The facts about the Portal come from its public repo, `GeeksHacking/portal`, read on `main` on 28 Sep 2026: the `NfcTag` entity, the Cloud Run settings in `GeeksHackingPortal.Infra/Stacks/DefaultStack.cs`, and the client-credentials flow in `GeeksHackingPortal.Api/Program.cs`. If it helps, Qing Guan can copy part 2 onto the Portal issue "nfc tag endpoitns".
 
+**Changed on 5 Oct 2026,** by "Where do token owners live until the Portal's tag APIs exist, and what does the token page do?". The GeekyKey Service keeps no database since 2 Oct (ADR 0003), so the showcase's claims move to a claims stand-in on our Cloud Run server instead of "our own `tokens` table". Part 1 is rewritten for that, and Adam asks Julian in person on Thu 8 Oct rather than sending it. Part 2 is unchanged apart from no longer pointing at part 1, and Adam sends it to Qing Guan now. The Portal still had no tag endpoints on 5 Oct.
+
 ---
 
-**Part 1, for Julian**
+**Part 1, for Julian** (to ask in person on Thu 8 Oct)
 
-Hi Julian! A proposal about the tags moving into the Portal. We'd like the showcase on 18 Nov to keep using our own `tokens` table, and switch to the Portal's tag APIs straight after it.
+Hi Julian! A proposal about the tags moving into the Portal. The Portal's tag endpoints haven't started yet, so for the showcase on 18 Nov we'd like to keep claims on our side, and switch to the Portal's tag APIs straight after it.
 
-Why: once we switch, every tap at a station waits on a Portal lookup, and a station gives up after 5 seconds. From its repo, the Portal runs as one Cloud Run instance that handles one request at a time and sleeps when idle, so a tap could queue behind people logging in, or wait for the Portal to wake up. Changing where claims live a few weeks before the showcase is a risk the showcase gains nothing from. On our side every claim already goes through one module, so switching afterwards is a copy and a deploy. We'd do it before the showcase's data is cleaned up.
+Since the GeekyKey Service keeps no database now, the claims would sit in a small "claims stand-in" on our Cloud Run server, next to the Event Service and in the same TiDB database. It offers exactly the calls we're asking Qing Guan for, only the GeekyKey Service can reach it, and it isn't part of what an Event Service has to build, so token IDs still never reach an Event Service. After the showcase we copy the claims to the Portal with the normal claim call, point the GeekyKey Service at the Portal, and delete the stand-in.
 
-Is that OK with you?
+Why not the Portal at the showcase: once we switch, every tap at a station waits on a Portal lookup, and a station gives up after 5 seconds. From its repo, the Portal runs as one Cloud Run instance that handles one request at a time and sleeps when idle, so a tap could queue behind people logging in, or wait for the Portal to wake up. Changing where claims live a few weeks before the showcase is a risk the showcase gains nothing from.
+
+Is that OK with you? If you'd rather have the Portal at the showcase, we'd switch before it only if the tag APIs are live by 28 Oct, with a Portal instance kept warm that takes more than one request at a time.
 
 **Part 2, for Qing Guan**
 
@@ -26,6 +30,6 @@ Hi Qing Guan! Saw the `NfcTag` entity and the tag issues, thanks for starting on
 4. **Claims change only through the GeekyKey Service.** Showing a user's tokens on Portal screens would be great, but changing them there would skip our checks.
 5. **Speed.** Our station path gives the lookup 1.5 seconds. For events that use the tag APIs, could the Portal keep an instance warm and take more than one request at a time? From the repo, one request at a time was needed when it ran on 0.08 of a CPU, and it has 4 CPUs now.
 
-Two questions: roughly when might the APIs be ready (no rush for the showcase, see part 1)? And what happens to a user's tags if their account is deleted?
+Two questions: roughly when might the APIs be ready? No rush for the showcase: we'll keep claims on our side until just after 18 Nov, then copy them across. And what happens to a user's tags if their account is deleted?
 
-We won't need an import. When we switch, the GeekyKey Service copies its table across using the normal claim call.
+We won't need an import. When we switch, the GeekyKey Service copies the showcase's claims across using the normal claim call.
