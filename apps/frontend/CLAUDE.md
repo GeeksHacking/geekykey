@@ -362,7 +362,7 @@ Rules:
 | Route | Role | Reads | Writes | Must handle |
 |---|---|---|---|---|
 | `/login` | anyone | | `POST /auth/dev-login` (dev), `GET /auth/login` (prod) | `not_found` on a bad dev user |
-| `/` dashboard | participant, organiser | `GET /me` | | claim help and Portal ID before the first tap; Event content only afterwards |
+| `/` dashboard | participant, organiser | `GET /me` | | Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
 | `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
