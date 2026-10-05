@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
 
 export function DashboardClaimHelp({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);
@@ -56,7 +57,7 @@ export function DashboardClaimHelp({ userId }: { userId: string }) {
             {copied ? "Copied" : "Copy"}
           </Button>
           <a
-            href="https://geekykey.geekshacking.com"
+            href={GEEKYKEY_SCREENS_URL}
             target="_blank"
             rel="noreferrer"
             className="text-sm font-medium text-primary-text underline-offset-4 hover:underline"

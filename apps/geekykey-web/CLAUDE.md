@@ -1,6 +1,6 @@
 # GeekyKey Web
 
-`apps/geekykey-web` is the GeekyKey screens app. It is deployed separately from the Event app at `https://geekykey.geekshacking.com` and runs at `http://localhost:5174` during development.
+`apps/geekykey-web` is the GeekyKey screens app. It is deployed separately from the Event app at `https://key.geekshacking.com` and runs at `http://localhost:5174` during development.
 
 ## Sources of truth
 

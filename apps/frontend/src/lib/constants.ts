@@ -15,3 +15,11 @@ export const SEEDED_USERS = [
 
 /** Simulated request latency for the mock client, in milliseconds. */
 export const MOCK_LATENCY_MS: readonly [number, number] = [180, 520];
+
+/**
+ * Where the GeekyKey screens live, per API agreement 2 ("Base URLs"). The Event
+ * screens link across sites, so this is an absolute URL, not a router path.
+ */
+export const GEEKYKEY_SCREENS_URL = import.meta.env.PROD
+  ? "https://key.geekshacking.com/"
+  : "http://localhost:5174/";
