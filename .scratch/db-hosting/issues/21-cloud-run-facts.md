@@ -1,9 +1,10 @@
 # What does Cloud Run "v1" mean, and what does running the Event Service there involve?
 
 Type: research
-Status: open
+Status: resolved
 Blocked by: none
 Part of: [Move GeekyKey to TiDB and Cloudflare](../map.md)
+Findings: [research/cloud-run.md](../research/cloud-run.md)
 
 ## Question
 
@@ -24,3 +25,19 @@ Find out, from Google's own docs where possible:
 - **Logs.** Where request logs go, and whether they record request headers such as `Authorization` (see "Check the first deployed Worker's logs for keys").
 
 Findings go in [research/cloud-run.md](../research/cloud-run.md), with a source for each fact.
+
+## Answer
+
+Resolved 3 Oct 2026 with targeted lookups in Google's and Cloudflare's docs; nothing was deployed. Full findings: [research/cloud-run.md](../research/cloud-run.md).
+
+- **"v1"** could be the first-generation execution environment (faster cold starts), the v1 Admin API and its Knative YAML (Terraform recommends the v2 resource instead), or a Cloud Run service rather than a function. A Node server with a `mysql2` pool works with any of them. Which one Julian meant goes to him as a question.
+- **Region:** `asia-southeast1` (Singapore), Google's Tier 2 price band. The round trip to TiDB is unmeasured.
+- **Cold starts** aren't documented. A cold start plus TiDB's first connection (about 1.2 s on 25 Sep) may use up the station's 3 s. One warm instance costs about US$10 a month with request-based billing and about US$49 with instance-based billing, at Iowa prices; Singapore costs more. The minimum can be 1 only around event days.
+- **Free tier:** 2 million requests and 180,000 vCPU-seconds a month, shared across GeeksHacking's billing account. A showcase day fits. Past it, usage is billed. A spend cap (preview) would stop the service instead.
+- **Connections:** up to 80 requests share an instance; CPU is cut between requests, so the pool's timers stall. Give connections a lifetime of a few minutes, retry once on a dead one, and close the pool on `SIGTERM` (10 s before `SIGKILL`).
+- **Deploys:** a Cloud Build trigger or GitHub Actions with Workload Identity Federation; neither keeps a secret in GitHub. Images go to Artifact Registry.
+- **Secrets:** Secret Manager, read into environment variables at instance start; the service's identity needs Secret Accessor.
+- **Custom domain:** Cloudflare's free plan can't rewrite `Host`, so `event-api.` can't simply proxy to `run.app`. The choices are a forwarding Worker (counts against Workers' 100,000 requests a day), domain mapping (a preview Google calls not production-ready), or a load balancer (about US$18 a month, and the only way to close `run.app` to everything but it).
+- **Infrastructure as code:** Terraform or OpenTofu with `google_cloud_run_v2_service`; the resource list is in the findings.
+- **Access:** Cloud Run Developer plus Service Account User to deploy, Logs Viewer for logs.
+- **Logs:** request logs keep no headers, so no `Authorization` or `Cookie`, but they do keep full URLs with query strings.

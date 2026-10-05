@@ -1,7 +1,7 @@
 # Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: none
 Part of: [Move GeekyKey to TiDB and Cloudflare](../map.md)
 
