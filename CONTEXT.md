@@ -13,8 +13,9 @@ This file names the domain. The wire format, field names and status codes live i
 GeeksHacking's identity service. It knows every user and which tokens each user has claimed.
 
 **GeekyKey Service**:
-The service that stations and tokens talk to. It knows each station and which event it feeds,
-asks the Portal whose token was tapped, and hands the tap to that event's Event Service.
+The service that stations and tokens talk to. It checks each station's key against the stations
+the Event Services have registered, asks the Portal whose token was tapped, and hands the tap to
+the Event Service that registered the station.
 _Avoid_: NFC Key service, backend
 
 **Event Service**:
@@ -23,8 +24,8 @@ decides what the tap counts for.
 _Avoid_: backend
 
 **Hand-off**:
-The GeekyKey Service passing a station's taps, as users, to the Event Service the station is linked
-to. The Event Service answers with a status for each tap.
+The GeekyKey Service passing a station's taps, as users, to the Event Service that registered the
+station. The Event Service answers with a status for each tap.
 _Avoid_: trigger, forward
 
 **Event Service key**:
@@ -38,8 +39,8 @@ A person with a GeeksHacking Portal account. At an event, a user is a participan
 _Avoid_: portal user, account
 
 **GeekyKey admin**:
-A GeeksHacking person who creates stations and changes their links, lending the readers to events.
-Not a role at any one event.
+A GeeksHacking person who can release other people's tokens. Not a role at any one event, and
+not in charge of stations, which belong to each event's Event Service.
 _Avoid_: admin, organizer
 
 **Token**:
@@ -69,25 +70,22 @@ The GeekyKey Service's page listing the tokens a user has claimed, where they ca
 can no longer tap, such as a lost token.
 
 **Station**:
-One tap point, a physical NFC reader with its own station key. It feeds at most one event at a
-time, through its link. What a tap there counts for, such as its station points, is set by the event's games, not by
-the station. A GeekyKey admin can disable a station, turning away everything it sends until it is enabled again.
+One tap point at one event, registered by that event's Event Service, with its own station key.
+Its hardware lent to another event becomes a new station there. What a tap there counts for, such as
+its station points, is set by the event's games, not by the station. An organizer can disable a
+station, turning away everything it sends until it is enabled again.
 _Avoid_: reader, device
 
 **Station key**:
-The secret a station sends with every request to prove which station it is. It is shown once, when
-the station is created or its key is replaced. Replacing the key keeps it the same station.
+The secret a station sends with every request to prove which station it is, issued by the Event
+Service that registered it. It is shown once, when the station is created or its key is replaced.
+Replacing the key keeps it the same station.
 _Avoid_: API key, bearer key
-
-**Link**:
-Which Event Service a station feeds, and since when. Moving a station to another event is changing
-its link.
-_Avoid_: binding, assignment
 
 **Tap**:
 One reading of a token at a station. A tap by a claimed token reaches the station's event, which
-records it with a status whether or not it counts. A tap by an unclaimed token, or at a station
-that feeds no event, is turned away before it reaches any event.
+records it with a status whether or not it counts. A tap by an unclaimed token is turned away
+before it reaches any event.
 
 ### Events
 
@@ -102,13 +100,14 @@ _Avoid_: experience
 A person attending the event who collects stamps by tapping a token at stations.
 
 **Organizer**:
-Event staff who look after the event's stations on the day and can log a tap on a participant's
-behalf. A role at one event,
-not a kind of user: an organizer at the showcase can be a participant at the next event.
+Event staff who create the event's stations, look after them on the day and can log a tap on a
+participant's behalf. A role at one event, not a kind of user: an organizer at the showcase can be
+a participant at the next event.
 
 **Station board**:
-The organizers' screen showing each station linked to their event, whether it is working, and when
-it was last tapped. The GeekyKey admins' list of every station is not a station board.
+The organizers' screen showing each of their event's stations, whether it is working, and when it
+was last tapped. Organizers also create stations there, replace their keys, and disable or enable
+them.
 _Avoid_: station list
 
 **Accepted tap**:

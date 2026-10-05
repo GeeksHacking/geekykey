@@ -16,3 +16,5 @@ Decide:
 - **How long entries live,** and who clears them: expiry, the claim and release paths, or the Event Service pushing changes.
 - **Which store,** from "Which cache can a Worker use for free?", against the free plan's limits on a showcase day.
 - **Local dev and tests** for the chosen store.
+
+**Since "Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?" (5 Oct 2026):** one thing to cache is settled. It's the station list each Event Service serves at `GET /geekykey/v1/stations` (station IDs and key hashes, enabled stations only). The GeekyKey Service refreshes its copy at most once a minute, and the truth lives in each Event Service. Still to decide here: which store holds the copy (memory per instance, as the 29 Sep key list did, or a shared store), what a tap does when the copy is empty, such as the first request after an instance starts while Cloud Run is cold, and whether a stale copy is kept when an Event Service fails to answer.

@@ -4,6 +4,12 @@ Draft for Adam to edit and send, from "How do stations talk to the GeekyKey Serv
 
 **Changed on 1 Oct 2026:** Julian renamed the stations' address to `key-api.geekshacking.com`. The text below still says `geekykey-api`. HAR-10 has the new name.
 
+**Changed on 5 Oct 2026,** by "Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?". Stations now belong to the Event Service, and no firmware change is needed. The requests, the key format and `401` stay as below. What's different:
+
+- `no_event` is retired, so the service won't send it. Removing a tap from the queue whatever status comes back (section 6) still matters for `no_game` and any status added later.
+- A new station's key comes from the event's organizers, on their station board, instead of a GeekyKey admin. It's still shown once, and you flash it as before.
+- To move a station to another event (provisional, until Julian answers on 8 Oct): let it send its saved taps to the old event, then flash it with "Erase All Flash Before Sketch Upload" turned on and the key from the new event. It becomes a new station there, and no taps from the old event go to the new one.
+
 ---
 
 Hi Zi Tao, we've planned how the stations talk to the backend once it moves to Cloudflare. The good news: the requests and answers stay the same as today. What changes is the address, HTTPS, and what the station does with each answer. Most of this isn't urgent until the new service is deployed, but the screen and LED part can start now, and section 6 is worth doing soon.

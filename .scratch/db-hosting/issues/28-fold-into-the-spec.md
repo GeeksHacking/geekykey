@@ -24,5 +24,6 @@ Also:
 - amend ADR 0003 if a ticket changed it;
 - list which Linear tickets need rewriting, with what, for BAC-11, 12, 13 and 15 (paused 2 Oct) and the HAR tickets;
 - add a changelog line if the plan visibly changed.
+- from "Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?" (5 Oct): in the API agreement, add the station list (`GET /geekykey/v1/stations`) and the heartbeat hand-off (`POST /geekykey/v1/heartbeats`) to the section for Event Service builders, and to `packages/handoff`; remove the status call (`GET /api/v1/event-service/stations`), its 120-a-minute limit, `no_event`, the link columns and the GeekyKey admins' station endpoints; and move creating a station, replacing its key, and disabling and enabling it to the Event Service's organizer endpoints and the station board;
 
 Resolved when the spec has no section that still assumes Hyperdrive, a `stations` or `tokens` table in the GeekyKey Service, or four Workers.

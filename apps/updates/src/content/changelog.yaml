@@ -573,3 +573,15 @@
     free plan and keeps no database of its own. A short round of planning now settles where token
     owners and stations live, whether a station waits for its result, and how the Event Service is
     deployed. The trade-off we accept: two hosting platforms to set up and watch instead of one.
+
+- id: stations-belong-to-the-event-service
+  date: 2026-10-05
+  area: backend
+  change: >-
+    Stations now belong to the event they're used at. Each Event Service creates its own stations
+    and gives out their keys, and the event's organizers add, disable and replace keys on their
+    station board. The GeekyKey Service still turns away an unknown station key straight away. It
+    checks keys against a list each Event Service shares and refreshes every minute, so a fake key
+    never reaches the database. A station sends its taps to whichever event listed its key. The
+    trade-off we accept: moving a station to another event means flashing it again with a new key,
+    which we'll check with Julian on 8 Oct.

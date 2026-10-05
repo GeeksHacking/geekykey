@@ -25,3 +25,5 @@ Decide:
 **Facts so far.** The Portal's repo (`GeeksHacking/portal`), read 2 Oct 2026: tag work is still only the `NfcTag` entity added on 27 Sep, with no endpoints, branches or pull requests. Qing Guan is very active (11 pull requests merged 28 to 30 Sep, all on workshops, profiles, OAuth redirect URLs and organizer roles), so it may be quick once asked. Message part 1 in [assets/message-to-qing-guan-tag-apis.md](../assets/message-to-qing-guan-tag-apis.md) was never sent.
 
 Start by asking Qing Guan whether the Portal can own claims before 7 Nov, and what he'd need from us. Then decide the fallback.
+
+**Since "Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?" (5 Oct 2026):** GeekyKey admins no longer create stations or change links; organizers manage their own event's stations. Whether GeekyKey admins still exist, to release other people's tokens, is decided here.
