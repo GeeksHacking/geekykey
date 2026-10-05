@@ -1,35 +1,12 @@
-import { Check, Copy, Key } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { Key } from "@phosphor-icons/react";
 
-import { Button } from "@/components/ui/button";
 import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
 
-export function DashboardClaimHelp({ userId }: { userId: string }) {
-  const [copied, setCopied] = useState(false);
-  const copiedResetTimer = useRef<number | null>(null);
-
-  useEffect(
-    () => () => {
-      if (copiedResetTimer.current !== null) window.clearTimeout(copiedResetTimer.current);
-    },
-    [],
-  );
-
-  async function copyUserId() {
-    try {
-      await navigator.clipboard.writeText(userId);
-      if (copiedResetTimer.current !== null) window.clearTimeout(copiedResetTimer.current);
-      setCopied(true);
-      copiedResetTimer.current = window.setTimeout(() => {
-        copiedResetTimer.current = null;
-        setCopied(false);
-      }, 2000);
-    } catch {
-      toast.error("Could not copy. Select the ID and copy it manually.");
-    }
-  }
-
+/*
+  Shown only until the participant has their first tap. Claiming now happens in
+  the GeekyKey app, so this points there rather than pairing on the Event screens.
+*/
+export function DashboardClaimHelp() {
   return (
     <section
       aria-labelledby="claim-token-title"
@@ -47,24 +24,15 @@ export function DashboardClaimHelp({ userId }: { userId: string }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-primary-text/20 pt-3">
-        <p className="text-sm">
-          Portal user ID: <code className="font-mono">{userId}</code>
-        </p>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => void copyUserId()}>
-            {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
-            {copied ? "Copied" : "Copy"}
-          </Button>
-          <a
-            href={GEEKYKEY_SCREENS_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-medium text-primary-text underline-offset-4 hover:underline"
-          >
-            My tokens
-          </a>
-        </div>
+      <div className="border-t border-primary-text/20 pt-3">
+        <a
+          href={GEEKYKEY_SCREENS_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-medium text-primary-text underline-offset-4 hover:underline"
+        >
+          My tokens
+        </a>
       </div>
     </section>
   );

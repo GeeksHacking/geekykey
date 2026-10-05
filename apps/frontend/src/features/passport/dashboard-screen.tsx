@@ -3,6 +3,7 @@ import { ParticipantTapList } from "@/components/participant-tap-list";
 import { DashboardClaimHelp } from "@/features/passport/dashboard-claim-help";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
 import { PointsSummary } from "@/features/passport/points-summary";
+import { UserIdRow } from "@/features/passport/user-id-row";
 import { useMe } from "@/lib/session";
 
 export function DashboardScreen() {
@@ -19,11 +20,12 @@ export function DashboardScreen() {
         <h1 className="text-2xl font-semibold tracking-tight">
           {me.user.display_name ?? "Welcome back"}
         </h1>
+        <UserIdRow userId={me.user.id} />
       </div>
 
       <PointsSummary points={me.points} stamps={me.stamps} />
 
-      {me.recent_taps.length === 0 ? <DashboardClaimHelp userId={me.user.id} /> : null}
+      {me.recent_taps.length === 0 ? <DashboardClaimHelp /> : null}
 
       <section>
         <SectionHeading title="Latest stamps" linkTo="/passport" linkLabel="Open passport" />

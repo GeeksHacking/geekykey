@@ -31,16 +31,15 @@ function renderDashboard() {
 }
 
 describe("DashboardScreen", () => {
-  it("shows the GeekyKey claim help and Portal ID before the first tap", () => {
+  it("shows the claim help before the first tap", () => {
     state.me = baseMe;
     renderDashboard();
 
     expect(screen.getByText("Tap your token with your phone to claim it")).toBeInTheDocument();
-    expect(screen.getByText("portal-user-1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "My tokens" })).toBeInTheDocument();
   });
 
-  it("removes the claim help and Portal ID after the first tap", () => {
+  it("keeps the user ID but removes the claim help after the first tap", () => {
     state.me = {
       ...baseMe,
       recent_taps: [
@@ -60,7 +59,7 @@ describe("DashboardScreen", () => {
     expect(
       screen.queryByText("Tap your token with your phone to claim it"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("portal-user-1")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
+    expect(screen.getByText("portal-user-1")).toBeInTheDocument();
   });
 });
