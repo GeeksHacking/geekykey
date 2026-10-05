@@ -128,8 +128,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     else storage?.removeItem(SESSION_KEY);
   }
 
-  const userToken = (userId: string) =>
-    data.tokens.find((t) => t.user_id === userId && !t.revoked_at);
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
   const userById = (id: string) => data.users.find((u) => u.id === id);
 
@@ -192,7 +190,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       client_tap_id: tap.client_tap_id,
       station: { id: tap.station_id, name: station?.name ?? "Removed station" },
       user: { id: tap.user_id, display_name: user?.display_name ?? null },
-      token_uid: tap.token_uid,
       status: tap.status,
       source: tap.source,
       tapped_at: tap.tapped_at,
@@ -327,14 +324,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             { path: ["user_id"], message: "Enter the participant's Portal user ID." },
           ]);
         }
-        // A Portal user ID is valid even when the participant has never logged in or has no NFC token.
-        const uid = userToken(userId)?.uid ?? null;
+        // A Portal user ID is valid even when the participant has never logged in.
         const status = resolveStatus(userId, input.station_id, at);
         if (status === "no_game") fail("not_found");
         const tap = appendTap({
           station_id: input.station_id,
           client_tap_id: crypto.randomUUID(),
-          token_uid: uid,
           user_id: userId,
           source: "qr_fallback",
           status,
@@ -381,7 +376,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               stationById(tap.station_id)?.name ?? "",
               tap.user_id ?? "",
               user?.display_name ?? "",
-              tap.token_uid ?? "",
               tap.status,
               tap.source,
               tap.tapped_at ?? "",
@@ -410,12 +404,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const station = online[Math.floor(Math.random() * online.length)];
         const participant = participants[Math.floor(Math.random() * participants.length)];
         if (!station || !participant) return;
-        const token = userToken(participant.id);
-        const uid = token?.uid ?? "04DEADBEEF0000";
         appendTap({
           station_id: station.id,
           client_tap_id: `tap-${String(nextTapId + 100_000).padStart(6, "0")}`,
-          token_uid: uid,
           user_id: participant.id,
           source: "nfc",
           status: resolveStatus(participant.id, station.id, at),

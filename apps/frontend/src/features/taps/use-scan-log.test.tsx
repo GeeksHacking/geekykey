@@ -61,14 +61,13 @@ describe("useScanLog", () => {
     }
 
     const station = api.mock.data.stations[0]!;
-    const token = api.mock.data.tokens.find((item) => item.user_id === api.mock.data.users[0]!.id);
+    const userId = api.mock.data.users[0]!.id;
     const newId = Math.max(...api.mock.data.taps.map((tap) => tap.id)) + 1;
     api.mock.data.taps.unshift({
       id: newId,
       station_id: station.id,
       client_tap_id: `new-${newId}`,
-      token_uid: token?.uid ?? null,
-      user_id: token?.user_id ?? api.mock.data.users[0]!.id,
+      user_id: userId,
       source: "nfc",
       status: "accepted",
       tapped_at: null,

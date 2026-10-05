@@ -1,6 +1,6 @@
 /*
   The only place display formatting rules live. Everything here takes the raw
-  API value (UTC ISO strings, normalised UIDs, integers) and returns text.
+  API value (UTC ISO strings, integers) and returns text.
 */
 
 const LOCALE = "en-GB";
@@ -28,17 +28,6 @@ const fullDateFormat = new Intl.DateTimeFormat(LOCALE, {
   month: "short",
   year: "numeric",
 });
-
-/** "04A1B2C3D4E5F6" becomes "04 A1 B2 C3 D4 E5 F6" for reading aloud at a desk. */
-export function formatUid(uid: string): string {
-  const pairs = uid.match(/.{1,2}/g);
-  return pairs ? pairs.join(" ") : uid;
-}
-
-/** Client-side mirror of the backend rule: strip non-hex, upper-case. */
-export function normaliseUid(raw: string): string {
-  return raw.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
-}
 
 export function formatPoints(points: number): string {
   return points === 1 ? "1 pt" : `${points} pts`;

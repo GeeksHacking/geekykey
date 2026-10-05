@@ -103,8 +103,6 @@ export interface AdminTap {
   station: { id: string; name: string };
   /** Every stored Event tap has a user. */
   user: { id: string; display_name: string | null };
-  /** null when a QR user_id fallback has no active NFC token. */
-  token_uid: string | null;
   status: TapStatus;
   source: TapSource;
   tapped_at: string | null;
@@ -180,7 +178,7 @@ export interface ErrorBody {
   issues?: ApiIssue[];
 }
 
-/** CSV columns of GET /api/v1/admin/export.csv, in order. */
+/** CSV columns of GET /api/v1/admin/export.csv, in order. Agreement 9.6. */
 export const EXPORT_CSV_COLUMNS = [
   "tap_id",
   "client_tap_id",
@@ -188,7 +186,6 @@ export const EXPORT_CSV_COLUMNS = [
   "station_name",
   "user_id",
   "display_name",
-  "token_uid",
   "status",
   "source",
   "tapped_at",

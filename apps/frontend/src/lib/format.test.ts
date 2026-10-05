@@ -1,27 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  formatDayLabel,
-  formatDate,
-  formatPoints,
-  formatRelative,
-  formatUid,
-  formatWhen,
-  normaliseUid,
-} from "@/lib/format";
-
-describe("formatUid", () => {
-  it("groups a normalised UID into byte pairs", () => {
-    expect(formatUid("04A1B2C3D4E5F6")).toBe("04 A1 B2 C3 D4 E5 F6");
-  });
-});
-
-describe("normaliseUid", () => {
-  it("mirrors the backend rule: strip separators, upper-case", () => {
-    expect(normaliseUid("04:a1:b2:c3:d4:e5:f6")).toBe("04A1B2C3D4E5F6");
-    expect(normaliseUid(" 04-a1 b2 ")).toBe("04A1B2");
-  });
-});
+import { formatDayLabel, formatDate, formatPoints, formatRelative, formatWhen } from "@/lib/format";
 
 describe("formatPoints", () => {
   it("pluralises", () => {
