@@ -12,13 +12,6 @@ export interface MockUser {
   role: Role;
 }
 
-export interface MockToken {
-  uid: string;
-  user_id: string;
-  paired_at: string;
-  revoked_at: string | null;
-}
-
 export interface MockStation {
   id: string;
   name: string;
@@ -48,7 +41,6 @@ export interface MockTap {
   id: number;
   station_id: string;
   client_tap_id: string;
-  token_uid: string | null;
   user_id: string;
   source: TapSource;
   status: TapStatus;
@@ -58,7 +50,6 @@ export interface MockTap {
 
 export interface MockData {
   users: MockUser[];
-  tokens: MockToken[];
   stations: MockStation[];
   taps: MockTap[];
 }
@@ -115,82 +106,6 @@ export function createFixtures(now: number = Date.now()): MockData {
   ];
 
   const eventStart = now - minutes(137);
-
-  const tokens: MockToken[] = [
-    {
-      uid: "04A1B2C3D4E5F6",
-      user_id: SEEDED_PARTICIPANT_ID,
-      paired_at: iso(eventStart - minutes(12)),
-      revoked_at: null,
-    },
-    {
-      uid: "04C9E1A27B3080",
-      user_id: "u_7f3a",
-      paired_at: iso(eventStart - minutes(9)),
-      revoked_at: null,
-    },
-    {
-      uid: "0455D2F1C83A91",
-      user_id: "u_9c21",
-      paired_at: iso(eventStart - minutes(8)),
-      revoked_at: null,
-    },
-    {
-      uid: "04B7702A1E4C33",
-      user_id: "u_2e8b",
-      paired_at: iso(eventStart - minutes(6)),
-      revoked_at: null,
-    },
-    {
-      uid: "043F8E5D22A710",
-      user_id: "u_b514",
-      paired_at: iso(eventStart - minutes(5)),
-      revoked_at: null,
-    },
-    {
-      uid: "04E23B9C71D058",
-      user_id: "u_d0a9",
-      paired_at: iso(eventStart - minutes(4)),
-      revoked_at: null,
-    },
-    {
-      uid: "0461A3C0F92B77",
-      user_id: "u_44c7",
-      paired_at: iso(eventStart - minutes(3)),
-      revoked_at: null,
-    },
-    {
-      uid: "04D8F04E6A1C29",
-      user_id: "u_e1f2",
-      paired_at: iso(eventStart + minutes(2)),
-      revoked_at: null,
-    },
-    {
-      uid: "04129BE7C3D6A4",
-      user_id: "u_3b7d",
-      paired_at: iso(eventStart + minutes(11)),
-      revoked_at: null,
-    },
-    {
-      uid: "04A77C1D0E5B92",
-      user_id: "u_8a05",
-      paired_at: iso(eventStart + minutes(19)),
-      revoked_at: null,
-    },
-    {
-      uid: "04F0C2A85D7E13",
-      user_id: "u_c6e3",
-      paired_at: iso(eventStart + minutes(24)),
-      revoked_at: null,
-    },
-    // A token that was lost and unpaired: stays in history, can be paired again.
-    {
-      uid: "04A1B2C3D4E5F7",
-      user_id: "u_7f3a",
-      paired_at: iso(eventStart - minutes(40)),
-      revoked_at: iso(eventStart - minutes(15)),
-    },
-  ];
 
   const stations: MockStation[] = [
     {
@@ -313,22 +228,13 @@ export function createFixtures(now: number = Date.now()): MockData {
 
   const onlineStations = stations.filter((s) => s.simulate_online);
   const participants = users.filter((u) => u.role === "participant");
-  const activeTokenByUser = new Map(
-    tokens.filter((t) => !t.revoked_at).map((t) => [t.user_id, t.uid]),
-  );
 
   const taps: MockTap[] = [];
   const lastAccepted = new Map<string, number>();
   let nextId = 1;
   let counter = 100;
 
-  const pushTap = (
-    stationId: string,
-    userId: string,
-    uid: string | null,
-    at: number,
-    source: TapSource,
-  ) => {
+  const pushTap = (stationId: string, userId: string, at: number, source: TapSource) => {
     const station = stations.find((item) => item.id === stationId);
     let status: TapStatus = station?.counts_toward_passport ? "accepted" : "no_game";
     if (station?.counts_toward_passport) {
@@ -342,7 +248,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       station_id: stationId,
       client_tap_id:
         source === "nfc" ? `tap-${String(counter++).padStart(6, "0")}` : crypto.randomUUID(),
-      token_uid: uid,
       user_id: userId,
       source,
       status,
@@ -359,45 +264,31 @@ export function createFixtures(now: number = Date.now()): MockData {
     const participant = participants[Math.floor(random() * participants.length)] ?? participants[0];
     if (station && participant) {
       const roll = random();
-      const uid = activeTokenByUser.get(participant.id) ?? "04DEADBEEF0000";
-      pushTap(station.id, participant.id, uid, clock, "nfc");
+      pushTap(station.id, participant.id, clock, "nfc");
       // Occasionally the same person taps again straight away.
-      if (roll > 0.88) pushTap(station.id, participant.id, uid, clock + 4_000, "nfc");
+      if (roll > 0.88) pushTap(station.id, participant.id, clock + 4_000, "nfc");
     }
     clock += 40_000 + random() * 140_000;
   }
 
   // The seeded participant has a deliberate story: two stamps, one cooldown, one no_game.
-  const alexUid = "04A1B2C3D4E5F6";
   const printing = stations[0];
   const cloud = stations[1];
   const lounge = stations[3];
   const photoWall = stations[5];
   if (printing && cloud && lounge && photoWall) {
-    pushTap(printing.id, SEEDED_PARTICIPANT_ID, alexUid, eventStart + minutes(9), "nfc");
-    pushTap(cloud.id, SEEDED_PARTICIPANT_ID, alexUid, eventStart + minutes(41), "nfc");
-    pushTap(cloud.id, SEEDED_PARTICIPANT_ID, alexUid, eventStart + minutes(43), "nfc");
-    pushTap(lounge.id, SEEDED_PARTICIPANT_ID, alexUid, now - minutes(6), "qr_fallback");
-    pushTap(photoWall.id, SEEDED_PARTICIPANT_ID, alexUid, now - minutes(4), "nfc");
+    pushTap(printing.id, SEEDED_PARTICIPANT_ID, eventStart + minutes(9), "nfc");
+    pushTap(cloud.id, SEEDED_PARTICIPANT_ID, eventStart + minutes(41), "nfc");
+    pushTap(cloud.id, SEEDED_PARTICIPANT_ID, eventStart + minutes(43), "nfc");
+    pushTap(lounge.id, SEEDED_PARTICIPANT_ID, now - minutes(6), "qr_fallback");
+    pushTap(photoWall.id, SEEDED_PARTICIPANT_ID, now - minutes(4), "nfc");
   }
 
   // Two organiser fallbacks earlier in the day.
   const careers = stations[4];
   if (careers) {
-    pushTap(
-      careers.id,
-      "u_44c7",
-      activeTokenByUser.get("u_44c7") ?? null,
-      eventStart + minutes(55),
-      "qr_fallback",
-    );
-    pushTap(
-      careers.id,
-      "u_3b7d",
-      activeTokenByUser.get("u_3b7d") ?? null,
-      eventStart + minutes(96),
-      "qr_fallback",
-    );
+    pushTap(careers.id, "u_44c7", eventStart + minutes(55), "qr_fallback");
+    pushTap(careers.id, "u_3b7d", eventStart + minutes(96), "qr_fallback");
   }
 
   taps.sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime());
@@ -405,5 +296,5 @@ export function createFixtures(now: number = Date.now()): MockData {
     tap.id = index + 1;
   });
 
-  return { users, tokens, stations, taps };
+  return { users, stations, taps };
 }

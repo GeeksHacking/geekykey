@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime, formatTimeWithSeconds, formatUid } from "@/lib/format";
+import { formatDateTime, formatTimeWithSeconds } from "@/lib/format";
 
 /*
   TanStack Table 9. Features are opt-in; the scan log only needs the core row
@@ -45,15 +45,6 @@ const columns = column.columns([
     id: "participant",
     header: "Participant",
     cell: ({ row }) => row.original.user.display_name ?? "Unnamed participant",
-  }),
-  column.display({
-    id: "token",
-    header: "Token",
-    cell: ({ row }) => (
-      <span className="whitespace-nowrap font-mono text-xs">
-        {row.original.token_uid ? formatUid(row.original.token_uid) : "None"}
-      </span>
-    ),
   }),
   column.display({
     id: "status",

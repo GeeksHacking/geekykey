@@ -307,7 +307,7 @@ apps/frontend/
       theme-provider.tsx
       query-client.ts       # TanStack Query cache and retry policy
       form-errors.ts        # maps validation_failed issues onto react-hook-form fields
-      format.ts             # dates, UIDs, points, counts
+      format.ts             # dates, points, counts
       constants.ts          # poll intervals, seeded user IDs
       utils.ts              # cn()
     styles/globals.css      # Tailwind layers + CSS-variable tokens for both themes
@@ -367,7 +367,7 @@ Rules:
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
 | `/admin/stations` | organiser | `GET /admin/stations` polled | `POST /admin/stations` | one-time `api_key` reveal with copy button and warning; online and offline; empty board |
-| `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | `user` null on `unknown_token`; load more; empty log |
+| `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv` as a download link | zero-tap event |
 
@@ -411,12 +411,12 @@ and a darkened yellow on light. Never `text-primary` for text. No pure `#000` or
 No gradients, no glows.
 
 **Status is never colour alone.** Every `tap_status` and every online/offline indicator
-renders icon plus text plus colour. Accepted green, cooldown orange, unknown_token red.
+renders icon plus text plus colour. Accepted green, cooldown orange, no_game red.
 Cooldown is orange on screen rather than the agreement's amber so it never reads as the
 brand yellow. Station LEDs stay amber.
 
-**Type:** Geist for UI. Geist Mono for points, token UIDs, station IDs, timestamps, and
-counts. `tracking-tight` on headings. No oversized display type. The wordmark alone echoes
+**Type:** Geist for UI. Geist Mono for points, station IDs, timestamps, and counts.
+`tracking-tight` on headings. No oversized display type. The wordmark alone echoes
 the GeeksHacking logo: Geist ExtraBold with `tracking-[0.06em]`, mixed case. Do not add a
 display face to the app; spend that on the showcase poster if wanted.
 
@@ -449,7 +449,7 @@ change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`.
 - Server data enters components through TanStack Query hooks in `features/*`. Never
   `useEffect` plus `fetch`, and never a `useState` copy of something the cache holds.
 - Derive, do not sync: no state that duplicates props or server data.
-- Formatting rules for dates, UIDs, and points live in `lib/format.ts` and nowhere else.
+- Formatting rules for dates and points live in `lib/format.ts` and nowhere else.
 - Colocate tests as `*.test.tsx`. Test behaviour through the DOM, not implementation.
 - Comments explain why, not what. Keep components under roughly 150 lines and split by
   responsibility, not by markup.
