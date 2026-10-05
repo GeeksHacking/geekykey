@@ -21,8 +21,6 @@ export interface MockStation {
   last_seen_at: string | null;
   /** Mock only: whether the simulator keeps this station's heartbeat alive. */
   simulate_online: boolean;
-  /** Mock only: whether this station counts taps toward a passport game. */
-  counts_toward_passport: boolean;
   /** Event board metadata (agreement 9.2). */
   label: string | null;
   linked: boolean | null;
@@ -116,7 +114,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(90)),
       last_seen_at: iso(now - 4_000),
       simulate_online: true,
-      counts_toward_passport: true,
       label: "Reader 1",
       linked: true,
       passport: {
@@ -137,7 +134,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(88)),
       last_seen_at: iso(now - 11_000),
       simulate_online: true,
-      counts_toward_passport: true,
       label: "Reader 2",
       linked: true,
       passport: {
@@ -158,7 +154,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(85)),
       last_seen_at: iso(now - minutes(14)),
       simulate_online: false,
-      counts_toward_passport: true,
       label: "Reader 3",
       linked: true,
       passport: null,
@@ -174,7 +169,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(80)),
       last_seen_at: iso(now - 27_000),
       simulate_online: true,
-      counts_toward_passport: true,
       label: "Reader 4",
       linked: true,
       passport: {
@@ -195,7 +189,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(70)),
       last_seen_at: iso(now - 8_000),
       simulate_online: true,
-      counts_toward_passport: true,
       label: "Reader 5",
       linked: false,
       passport: {
@@ -216,7 +209,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(30)),
       last_seen_at: iso(now - 20_000),
       simulate_online: true,
-      counts_toward_passport: false,
       label: "Reader 6",
       linked: true,
       passport: null,
@@ -236,8 +228,10 @@ export function createFixtures(now: number = Date.now()): MockData {
 
   const pushTap = (stationId: string, userId: string, at: number, source: TapSource) => {
     const station = stations.find((item) => item.id === stationId);
-    let status: TapStatus = station?.counts_toward_passport ? "accepted" : "no_game";
-    if (station?.counts_toward_passport) {
+    // A station without passport settings is not in the game (agreement 9.2).
+    const inGame = Boolean(station?.passport);
+    let status: TapStatus = inGame ? "accepted" : "no_game";
+    if (inGame) {
       const key = `${userId}:${stationId}`;
       const previous = lastAccepted.get(key);
       if (previous !== undefined && at - previous < 300_000) status = "cooldown";
@@ -262,8 +256,9 @@ export function createFixtures(now: number = Date.now()): MockData {
     const station =
       onlineStations[Math.floor(random() * onlineStations.length)] ?? onlineStations[0];
     const participant = participants[Math.floor(random() * participants.length)] ?? participants[0];
-    if (station && participant) {
-      const roll = random();
+    const roll = random();
+    // The seeded participant only has the story below, so their passport keeps an empty slot.
+    if (station && participant && participant.id !== SEEDED_PARTICIPANT_ID) {
       pushTap(station.id, participant.id, clock, "nfc");
       // Occasionally the same person taps again straight away.
       if (roll > 0.88) pushTap(station.id, participant.id, clock + 4_000, "nfc");
@@ -271,7 +266,7 @@ export function createFixtures(now: number = Date.now()): MockData {
     clock += 40_000 + random() * 140_000;
   }
 
-  // The seeded participant has a deliberate story: two stamps, one cooldown, one no_game.
+  // The seeded participant has a deliberate story: three stamps, one cooldown, one no_game.
   const printing = stations[0];
   const cloud = stations[1];
   const lounge = stations[3];

@@ -44,7 +44,7 @@ describe("me response contract", () => {
         {
           id: 1,
           station_id: "s1",
-          station_name: "Station 1",
+          station_name: null,
           status: "no_game",
           source: "nfc",
           tapped_at: null,
@@ -53,6 +53,7 @@ describe("me response contract", () => {
       ],
     });
     expect(noGame.recent_taps[0]?.status).toBe("no_game");
+    expect(noGame.recent_taps[0]?.station_name).toBeNull();
 
     expect(() =>
       parseMeResponse({

@@ -131,10 +131,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
   const userById = (id: string) => data.users.find((u) => u.id === id);
 
-  /** Event rule mirrored for realism: non-counting stations return no_game; repeated recent taps are cooldowns. */
+  /** Event rule mirrored for realism: stations without passport settings return no_game; repeated recent taps are cooldowns. */
   function resolveStatus(userId: string, stationId: string, atMs: number): TapStatus {
     const station = stationById(stationId);
-    if (!station?.counts_toward_passport) return "no_game";
+    if (!station?.passport) return "no_game";
     const recent = data.taps.some(
       (t) =>
         t.user_id === userId &&
@@ -203,20 +203,24 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const user = currentUser();
         const mine = data.taps.filter((t) => t.user_id === user.id);
         const accepted = mine.filter((t) => t.status === "accepted");
-        const stamps = data.stations.map((station) => {
-          const first = accepted
-            .filter((t) => t.station_id === station.id)
-            .sort((a, b) => a.received_at.localeCompare(b.received_at))[0];
-          return {
-            station_id: station.id,
-            name: station.name,
-            location: station.location,
-            points: station.points,
-            earned_at: first?.received_at ?? null,
-          };
-        });
+        // Only stations with passport settings are slots, oldest settings first (agreement 8.1).
+        const stamps = data.stations
+          .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
+          .sort((a, b) => a.added_at.localeCompare(b.added_at))
+          .map((passport) => {
+            const first = accepted
+              .filter((t) => t.station_id === passport.id)
+              .sort((a, b) => a.received_at.localeCompare(b.received_at))[0];
+            return {
+              station_id: passport.id,
+              name: passport.name,
+              location: passport.location,
+              points: passport.points,
+              earned_at: first?.received_at ?? null,
+            };
+          });
         const points = accepted.reduce(
-          (sum, t) => sum + (stationById(t.station_id)?.points ?? 0),
+          (sum, t) => sum + (stationById(t.station_id)?.passport?.points ?? 0),
           0,
         );
         const recent_taps = [...mine]
@@ -225,7 +229,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           .map((t) => ({
             id: t.id,
             station_id: t.station_id,
-            station_name: stationById(t.station_id)?.name ?? "Removed station",
+            station_name: stationById(t.station_id)?.passport?.name ?? null,
             status: t.status,
             source: t.source,
             tapped_at: t.tapped_at,
@@ -283,7 +287,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           created_at: iso(now()),
           last_seen_at: null,
           simulate_online: false,
-          counts_toward_passport: true,
           label: name,
           linked: true,
           passport: null,
@@ -316,7 +319,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call((): FallbackTapResponse => {
         currentOrganizer();
         const station = stationById(input.station_id);
-        if (!station || !station.counts_toward_passport) fail("not_found");
+        if (!station?.passport) fail("not_found");
         const at = now();
         const userId = input.user_id.trim();
         if (!userId) {

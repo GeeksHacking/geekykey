@@ -19,7 +19,7 @@ export function ParticipantTapRow({ tap }: { tap: MeTap }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="truncate font-medium">{tap.station_name}</p>
+          <p className="truncate font-medium">{tap.station_name ?? "Other station"}</p>
           <time
             dateTime={tap.received_at}
             className="shrink-0 font-mono text-xs text-muted-foreground"

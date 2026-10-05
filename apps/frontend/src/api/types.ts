@@ -17,7 +17,7 @@ export interface User {
   role: Role;
 }
 
-/** One entry per station. `earned_at` is null until the user has an accepted tap there. */
+/** One entry per station with passport settings. `earned_at` is null until the user has an accepted tap there. */
 export interface Stamp {
   station_id: string;
   name: string;
@@ -29,7 +29,8 @@ export interface Stamp {
 export interface MeTap {
   id: number;
   station_id: string;
-  station_name: string;
+  /** Null for a station without passport settings. */
+  station_name: string | null;
   status: TapStatus;
   source: TapSource;
   tapped_at: string | null;

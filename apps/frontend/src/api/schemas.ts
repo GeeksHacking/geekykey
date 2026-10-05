@@ -25,7 +25,7 @@ const stampSchema = z.object({
 const meTapSchema = z.object({
   id: z.number().int(),
   station_id: z.string(),
-  station_name: z.string(),
+  station_name: z.string().nullable(),
   status: tapStatus,
   source: tapSource,
   tapped_at: isoTimestamp.nullable(),

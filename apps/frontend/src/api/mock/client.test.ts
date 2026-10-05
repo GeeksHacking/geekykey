@@ -26,14 +26,26 @@ describe("sessions and roles", () => {
     await expectApiError(api.listStations(), "forbidden", 403);
   });
 
-  it("returns a stamp slot for every station, earned or not", async () => {
+  it("returns a stamp slot for each passport station, in the order settings were added", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);
     const me = await api.me();
-    expect(me.stamps).toHaveLength(api.mock.data.stations.length);
+    expect(me.stamps.map((s) => s.name)).toEqual([
+      "Cloud Sponsor",
+      "3D Printing Booth",
+      "Mentor Lounge",
+      "Careers Corner",
+    ]);
     expect(me.stamps.some((s) => s.earned_at === null)).toBe(true);
     expect(me.stamps.some((s) => s.earned_at !== null)).toBe(true);
     expect(me.recent_taps.length).toBeGreaterThan(0);
+  });
+
+  it("gives a tap at a station without passport settings no_game and a null name", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    const me = await api.me();
+    expect(me.recent_taps[0]).toMatchObject({ station_name: null, status: "no_game" });
   });
 });
 
