@@ -39,4 +39,37 @@ describe("StationsScreen", () => {
       await screen.findByRole("heading", { name: "Test Station is ready" }),
     ).toBeInTheDocument();
   });
+
+  it("puts the mock's problem stations first, so trouble is at the top", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    const { Providers } = createTestProviders(api);
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+
+    await screen.findAllByText("Not in the passport");
+
+    const names = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.textContent ?? "");
+    const problems = [
+      "Reader not responding",
+      "Holding saved taps",
+      "Not in the passport",
+      "Not responding",
+    ];
+    const isProblem = (name: string) => problems.some((problem) => name.includes(problem));
+    const flagged = names
+      .map((name, index) => (isProblem(name) ? index : -1))
+      .filter((i) => i >= 0);
+    const quiet = names.map((name, index) => (isProblem(name) ? -1 : index)).filter((i) => i >= 0);
+
+    expect(flagged.length).toBeGreaterThan(0);
+    expect(quiet.length).toBeGreaterThan(0);
+    expect(Math.max(...flagged)).toBeLessThan(Math.min(...quiet));
+  });
 });
