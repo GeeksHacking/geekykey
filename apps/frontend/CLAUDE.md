@@ -50,7 +50,7 @@ Rules that make this possible:
 - The mock client simulates latency and can be told to fail with any error code from the
   agreement, so loading and error states are real from day one. `api.mock.failNext(code)`
   fails the next call with that code, or with `"network"`; tests use it. With
-  `simulate: true` (the default in `app.tsx`) a station simulator keeps the online stations'
+  `simulate: true` (the default in `api/create-client.ts`) a station simulator keeps the online stations'
   heartbeat fresh and drips in new taps, so polling has something to show.
 
 ## Wiring an endpoint to the real backend
@@ -157,7 +157,7 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
 
 - A feature hook wraps `useQuery` with a key from `src/api/keys.ts` and a `queryFn` that
   calls the `ApiClient`. Polled views pass `refetchInterval` with the constant from
-  `lib/constants.ts`. Example: `features/stations/use-stations.ts`.
+  `lib/constants.ts`. Example: `features/stations/use-station-board.ts`.
 - Writes are `useMutation` hooks whose `onSuccess` invalidates the keys they change, so
   screens never pass "refetch me" callbacks around. Example:
   `features/fallback/use-log-fallback-tap.ts` invalidates `["me"]` after a successful QR
@@ -294,7 +294,8 @@ apps/frontend/
       keys.ts               # every TanStack Query key, in one place
       context.ts            # useApi()
       provider.tsx
-      errors.ts             # ApiError, NetworkError, describeError()
+      errors.ts             # ApiError, NetworkError, describeError(), publishAuthError()
+      schemas.ts            # Zod validation of the two responses we parse
       mock/                 # fixtures + mock client (current phase)
       http/                 # fetch client, credentialed transport, error envelope, response validation
       create-client.ts      # the mock, or the mock with the live slices swapped in
@@ -308,7 +309,9 @@ apps/frontend/
       query-client.ts       # TanStack Query cache and retry policy
       form-errors.ts        # maps validation_failed issues onto react-hook-form fields
       format.ts             # dates, points, counts
-      constants.ts          # poll intervals, seeded user IDs
+      constants.ts          # poll intervals, seeded user IDs, GEEKYKEY_SCREENS_URL
+      csv.ts                # the export's column order and cell escaping
+      use-route-heading-focus.ts
       utils.ts              # cn()
     styles/globals.css      # Tailwind layers + CSS-variable tokens for both themes
     test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia stub
@@ -366,10 +369,16 @@ Rules:
 | `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
-| `/admin/stations` | organiser | `GET /admin/stations` polled | `POST /admin/stations` | one-time `api_key` reveal with copy button and warning; online and offline; empty board |
+| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations` | one-time `api_key` reveal with copy button and warning; online and offline; empty board |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
-| `/admin/fallback` | organiser | `GET /admin/stations` | `POST /admin/taps` | `not_found`; result status shown after submit |
-| `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv` as a download link | zero-tap event |
+| `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
+| `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
+
+`/admin/stations` and `/admin/fallback` both read the Event board, from
+`listStationBoard()`, which shares the `GET /api/v1/admin/stations` path with the
+GeekyKey registry's `listStations()` but returns a different response type. The
+registry list is not on screen yet. The export is not a link: `features/stats/export-button.tsx`
+fetches it and hands the browser a Blob.
 
 Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens
 against `MVP` endpoints are still built now, against mocks.

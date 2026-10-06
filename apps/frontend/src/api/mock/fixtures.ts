@@ -114,7 +114,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(90)),
       last_seen_at: iso(now - 4_000),
       simulate_online: true,
-      label: "Reader 1",
+      label: "Station 1",
       linked: true,
       passport: {
         name: "3D Printing Booth",
@@ -134,7 +134,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(88)),
       last_seen_at: iso(now - 11_000),
       simulate_online: true,
-      label: "Reader 2",
+      label: "Station 2",
       linked: true,
       passport: {
         name: "Cloud Sponsor",
@@ -154,7 +154,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(85)),
       last_seen_at: iso(now - minutes(14)),
       simulate_online: false,
-      label: "Reader 3",
+      label: "Station 3",
       linked: true,
       passport: null,
       firmware_version: "0.2.9",
@@ -169,7 +169,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(80)),
       last_seen_at: iso(now - 27_000),
       simulate_online: true,
-      label: "Reader 4",
+      label: "Station 4",
       linked: true,
       passport: {
         name: "Mentor Lounge",
@@ -189,7 +189,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(70)),
       last_seen_at: iso(now - 8_000),
       simulate_online: true,
-      label: "Reader 5",
+      label: "Station 5",
       linked: false,
       passport: {
         name: "Careers Corner",
@@ -209,7 +209,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(30)),
       last_seen_at: iso(now - 20_000),
       simulate_online: true,
-      label: "Reader 6",
+      label: "Station 6",
       linked: true,
       passport: null,
       firmware_version: null,

@@ -6,8 +6,8 @@ import { StationBoard } from "@/features/stations/station-board";
 
 const stations: EventStationBoardStation[] = [
   {
-    id: "linked-reader",
-    label: "Reader 3",
+    id: "linked-station",
+    label: "Station 3",
     linked: true,
     passport: null,
     last_seen_at: "2026-10-10T09:00:00.000Z",
@@ -19,7 +19,7 @@ const stations: EventStationBoardStation[] = [
   },
   {
     id: "unlinked-passport",
-    label: "Reader 5",
+    label: "Station 5",
     linked: false,
     passport: {
       name: "Careers Corner",
@@ -40,7 +40,7 @@ describe("StationBoard", () => {
   it("shows passport, not-in-passport, unlinked, and last-tap states", () => {
     render(<StationBoard stations={stations} />);
 
-    expect(screen.getByText("Reader 3")).toBeInTheDocument();
+    expect(screen.getByText("Station 3")).toBeInTheDocument();
     expect(screen.getByText("Not in the passport")).toBeInTheDocument();
     expect(screen.getByText("Careers Corner")).toBeInTheDocument();
     expect(screen.getByText("No longer linked")).toBeInTheDocument();

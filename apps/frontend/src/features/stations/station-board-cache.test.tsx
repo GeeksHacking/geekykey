@@ -23,7 +23,7 @@ describe("station board query cache", () => {
     );
 
     await waitFor(() => expect(result.current.board.data?.stations.length).toBeGreaterThan(0));
-    expect(result.current.options.stations.some((station) => station.name === "Reader 3")).toBe(
+    expect(result.current.options.stations.some((station) => station.name === "Station 3")).toBe(
       true,
     );
     expect(

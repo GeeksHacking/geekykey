@@ -26,7 +26,7 @@ export function StationsScreen() {
       <EmptyState
         icon={Broadcast}
         title="No stations yet"
-        description="Add the first station to get a key for its reader."
+        description="Add the first station to get a key for it."
       />
     );
   } else {
@@ -56,7 +56,7 @@ export function StationsScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Stations"
-        description="Every reader station and whether it has checked in within the last two minutes. Refreshes every 12 seconds."
+        description="Every station and whether it has checked in within the last two minutes. Refreshes every 12 seconds."
         actions={<AddStationDialog />}
       />
       {body}

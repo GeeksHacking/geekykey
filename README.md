@@ -19,7 +19,8 @@ geekykey/
 ├── .github/workflows/ci.yml    lint, test, build, and audit on every push and pull request
 ├── apps/
 │   ├── API-AGREEMENT.md        the contract between the frontend, backend, and stations
-│   ├── frontend/               web app for participants and organisers
+│   ├── frontend/               Event screens for participants and organisers, port 5173
+│   ├── geekykey-web/           GeekyKey screens: the token page, My tokens, admin. Port 5174
 │   ├── backend/                the Worker that stations and the frontend call
 │   └── updates/                progress timeline for our mentors
 └── firmware/
@@ -29,9 +30,14 @@ geekykey/
 | Folder | Stack | Start reading at |
 |---|---|---|
 | `apps/frontend` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/frontend/CLAUDE.md` |
+| `apps/geekykey-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/geekykey-web/CLAUDE.md` |
 | `apps/backend` | Hono on Cloudflare Workers, Drizzle ORM, TiDB | `src/worker.ts`, then `src/routes/` |
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
+
+`apps/geekykey-web` is a scaffold so far: one placeholder page, and no screens yet. The
+two sets of screens are separate because they belong to separate services. See
+`apps/API-AGREEMENT.md`.
 
 `pnpm-workspace.yaml` also includes `packages/*`, for code shared between apps. There is
 nothing there yet.
@@ -141,7 +147,7 @@ The portal sign-in is not wired yet. Use a seeded account from the form on the l
 
 | Account | Role | What you get |
 |---|---|---|
-| Alex Tan | Participant | Dashboard, passport, activity, token pairing |
+| Alex Tan | Participant | Dashboard, passport, activity |
 | Priya Raman | Organiser | Stations, scan log, QR fallback, summary |
 
 The mock session survives a reload but not a new tab. A station simulator keeps adding
@@ -209,6 +215,10 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `test:frontend` | Frontend unit tests, run once |
 | `build:frontend` | Typecheck the frontend, then build it to `apps/frontend/dist` |
 | `format:frontend` | Format the frontend code in place with oxfmt |
+| `dev:geekykey-web` | GeekyKey screens dev server on http://localhost:5174 |
+| `test:geekykey-web` | GeekyKey screens unit tests, run once |
+| `build:geekykey-web` | Typecheck the GeekyKey screens, then build them |
+| `format:geekykey-web` | Format the GeekyKey screens code in place with oxfmt |
 | `dev:backend` | Backend in `wrangler dev` on http://localhost:8000, reloading when a file changes, with dev sign-in turned on |
 | `test:backend` | Backend tests (Vitest), run once: the Worker's inside workerd against `geekykey_test`, the database scripts' on Node |
 | `format:backend` | Format the backend code in place with oxfmt |
@@ -486,6 +496,11 @@ mise exec -- pnpm --filter @geekykey/frontend lint
 mise run test:frontend
 mise run build:frontend
 
+# GeekyKey screens job
+mise exec -- pnpm --filter @geekykey/geekykey-web lint
+mise run test:geekykey-web
+mise run build:geekykey-web
+
 # Dependency audit job
 mise exec -- pnpm audit --audit-level=high
 
@@ -512,9 +527,13 @@ and answer its question about the rename.
 
 ## Where to read next
 
-- `apps/frontend/CLAUDE.md` is the working agreement for the frontend: stack, layout,
+- `apps/API-AGREEMENT.md` is the contract every part of the system is built against. It
+  wins over the migration spec, the older plans, and the code when they disagree.
+- `apps/frontend/CLAUDE.md` is the working agreement for the Event screens: stack, layout,
   contract rules, and the definition of done for a screen.
-- `apps/API-AGREEMENT.md` is the contract every part of the system is built against.
+- `apps/geekykey-web/CLAUDE.md` is the same for the GeekyKey screens.
+- `docs/agents/` explains how work is tracked: the Linear workspace, the five triage labels,
+  and where domain docs live.
 - `apps/updates/CONTENT-MODEL.md` is the format for an updates entry.
 - `CONTEXT.md` names the things GeekyKey deals with, such as the GeekyKey Service, tokens,
   claims and stations, and says which words to use for them.

@@ -4,7 +4,7 @@ import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
 
 /*
   Shown only until the participant has their first tap. Claiming now happens in
-  the GeekyKey app, so this points there rather than pairing on the Event screens.
+  the GeekyKey app, so this points there rather than claiming on the Event screens.
 */
 export function DashboardClaimHelp() {
   return (

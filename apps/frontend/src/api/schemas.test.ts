@@ -75,7 +75,7 @@ describe("me response contract", () => {
       stations: [
         {
           id: "s1",
-          label: "Reader 1",
+          label: "Station 1",
           linked: true,
           passport: null,
           last_seen_at: null,

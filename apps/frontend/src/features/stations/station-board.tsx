@@ -26,7 +26,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
           <TableRow key={station.id}>
             <TableCell>
               <p className="font-medium">
-                {station.passport?.name ?? station.label ?? "Unnamed reader"}
+                {station.passport?.name ?? station.label ?? "Unnamed station"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {station.passport
