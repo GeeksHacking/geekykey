@@ -618,3 +618,13 @@
     reads the text on a token, only its ID, and a token tapped again straight after its result is
     skipped for 3 seconds rather than sent again. It also starts without WiFi and saves taps until it
     connects. It builds, but hasn't yet been tried on a station.
+
+- id: tailwind-4
+  date: 2026-10-06
+  area: tooling
+  change: >-
+    The web app, the GeekyKey screens and this site now use Tailwind CSS 4, so the dependency
+    audit on every pull request passes again. Tailwind 3 relied on a package with a security
+    advisory and no fixed version. Each screen was compared with the old build in both themes, on
+    a phone and a laptop, and looks the same. The trade-offs we accept: we upgraded three apps
+    instead of ignoring the advisory, and the web app downloads about 2.5 kB more styling.
