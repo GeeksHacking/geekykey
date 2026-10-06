@@ -628,3 +628,16 @@
     advisory and no fixed version. Each screen was compared with the old build in both themes, on
     a phone and a laptop, and looks the same. The trade-offs we accept: we upgraded three apps
     instead of ignoring the advisory, and the web app downloads about 2.5 kB more styling.
+
+- id: worker-cache-planned
+  date: 2026-10-07
+  area: research
+  change: >-
+    The hosting plan now says what the GeekyKey Service keeps on hand. It keeps each event's list
+    of stations in memory, fetched from the event and refreshed in the background once a minute,
+    and keeps the last good list when the event doesn't answer. It doesn't keep who owns each token
+    before the showcase, so a token claimed a moment ago counts at once. After the showcase, when
+    owners move to the Portal, it keeps claimed tokens' owners for up to five minutes in Cloudflare's
+    free cache. The trade-offs we accept: the first tap after a quiet spell may wait while the list
+    is fetched, and after the switch a token passed to someone else could count for its old owner
+    for a few minutes.

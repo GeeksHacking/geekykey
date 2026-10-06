@@ -90,6 +90,12 @@ Service that registered it. It is shown once, when the station is created or its
 Replacing the key keeps it the same station.
 _Avoid_: API key, bearer key
 
+**Registered stations**:
+What an Event Service tells the GeekyKey Service about its stations: each enabled station and the
+hash of its key, never the key itself. The GeekyKey Service checks station keys against its copy of
+every Event Service's registered stations, and a station feeds the Event Service that registered it.
+_Avoid_: station list
+
 **Tap**:
 One reading of a token at a station. A tap by a claimed token reaches the station's event, which
 records it with a status whether or not it counts. A tap by an unclaimed token is turned away
