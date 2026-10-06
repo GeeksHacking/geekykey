@@ -7,7 +7,7 @@ import { StationBoard } from "@/features/stations/station-board";
 function station(overrides: Partial<EventStationBoardStation> = {}): EventStationBoardStation {
   return {
     id: "station-1",
-    label: "Reader 1",
+    label: "Station 1",
     linked: true,
     passport: {
       name: "Careers Corner",
@@ -28,7 +28,7 @@ function station(overrides: Partial<EventStationBoardStation> = {}): EventStatio
 /** Two faults at once: a dead reader and taps it has not sent yet. */
 const unlinkedPassport = station({
   id: "unlinked-passport",
-  label: "Reader 5",
+  label: "Station 5",
   linked: false,
   online: false,
   buffered_taps: 3,
@@ -39,7 +39,7 @@ const unlinkedPassport = station({
 /** Two faults: its reader is not answering, and it has no passport settings. */
 const deadReader = station({
   id: "dead-reader",
-  label: "Reader 3",
+  label: "Station 3",
   passport: null,
   reader_ok: false,
 });
@@ -73,7 +73,7 @@ describe("StationBoard", () => {
 
     expect(screen.getByText("Careers Corner")).toBeInTheDocument();
     expect(screen.getByText("No longer linked")).toBeInTheDocument();
-    expect(screen.getByText("Reader 3")).toBeInTheDocument();
+    expect(screen.getByText("Station 3")).toBeInTheDocument();
     expect(screen.getByText("Not in the passport")).toBeInTheDocument();
     expect(screen.getByText("Never")).toBeInTheDocument();
   });
@@ -114,7 +114,7 @@ describe("StationBoard", () => {
       .slice(1)
       .map((row) => row.textContent ?? "");
 
-    expect(names[0]).toContain("Reader 3");
+    expect(names[0]).toContain("Station 3");
     expect(names[1]).toContain("Healthy Booth");
     expect(names[2]).toContain("Quiet Booth");
   });

@@ -12,7 +12,7 @@ import {
 function station(overrides: Partial<EventStationBoardStation> = {}): EventStationBoardStation {
   return {
     id: "station-1",
-    label: "Reader 1",
+    label: "Station 1",
     linked: true,
     passport: {
       name: "3D Printing Booth",
