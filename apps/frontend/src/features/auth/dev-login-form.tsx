@@ -46,7 +46,7 @@ export function DevLoginForm() {
       <p className="mt-1 text-sm text-muted-foreground">
         The portal sign-in is not wired yet. Use a seeded account instead.
       </p>
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 grid gap-2">
         <Label htmlFor="dev-user">Seeded account</Label>
         <Select value={userId} onValueChange={setUserId}>
           <SelectTrigger id="dev-user">

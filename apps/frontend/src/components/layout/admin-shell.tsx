@@ -31,7 +31,7 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
     <div className="min-h-[100dvh] lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-sm"
       >
         Skip to content
       </a>
@@ -55,7 +55,7 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
         </div>
       </aside>
       <div className="flex min-h-[100dvh] min-w-0 flex-col">
-        <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-sm lg:hidden">
           <div className="flex h-14 items-center justify-between px-4">
             <Link to="/admin/stations" aria-label="Organiser console home">
               <Wordmark />
@@ -74,7 +74,7 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 px-4 py-6 outline-none lg:px-8 lg:py-8"
+          className="flex-1 px-4 py-6 outline-hidden lg:px-8 lg:py-8"
         >
           <div className="mx-auto w-full max-w-7xl">
             <DataSourceNotice />
