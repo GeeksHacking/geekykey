@@ -46,6 +46,20 @@
 #define LED_PIN_YELLOW 3
 #define I2C_SDA 7
 #define I2C_SCL 6
+#define NO_LED -1
+
+// How long a tap's result stays on the screen, with its LED on.
+#define RESULT_SHOW_MS 2000UL
+
+// How long boot waits for WiFi before carrying on without it. The ESP32 keeps
+// trying in the background, and taps are saved until it connects.
+#define WIFI_BOOT_WAIT_MS 20000UL
+
+// A token that slips off the reader and back while its result shows is read
+// again straight after, and the server would only answer `cooldown`. So the
+// same token is skipped for this long once its result has gone. This is not
+// the cooldown: only the server decides whether a tap counts.
+#define SAME_TOKEN_IGNORE_MS 3000UL
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -60,6 +74,9 @@ String serverBase = "";
 MFRC522 rfid(SS_PIN, MFRC522::UNUSED_PIN);
 Preferences prefs;
 uint32_t nextTapId = 0;
+
+String lastUid = "";
+unsigned long lastResultEndedAt = 0;
 
 #define QUEUE_CAPACITY 100
 #define QUEUE_RETRY_INTERVAL_MS 60000UL
@@ -126,41 +143,36 @@ void setup() {
   nextTapId = prefs.getUInt("tap_id", 0);
   loadQueueState();
 
+  // The station runs on mains power, so keep the radio awake: WiFi's power
+  // saving adds 100-300 ms to every answer from the backend.
+  WiFi.setSleep(false);
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
-  lcd.setCursor(0, 0);
-  lcd.print("Connecting");
-  lcd.setCursor(0, 1);
-  lcd.print("to WiFi...");
-  while (WiFi.status() != WL_CONNECTED) {
+  showScreen("Connecting", "to WiFi...");
+  const unsigned long wifiStartedAt = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - wifiStartedAt < WIFI_BOOT_WAIT_MS) {
     delay(500);
     Serial.print(".");
   }
-  lcd.clear();
-  Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
-  lcd.print("Connected!");
-  delay(2000);
-  lcd.clear();
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+    showScreen("Connected!", "");
+  } else {
+    Serial.println("\nNo WiFi yet. Taps will be saved until it connects.");
+    showScreen("No WiFi yet", "Saving taps");
+  }
+  delay(1000);
 
   // mDNS must be running before this station can look up a .local name.
   if (!MDNS.begin("geekykey-station")) {
     Serial.println("mDNS failed to start");
-    lcd.setCursor(0, 0);
-    lcd.print("mDNS");
-    lcd.setCursor(0, 1);
-    lcd.print("failed to start");
+    showScreen("mDNS", "failed to start");
     delay(2000);
-    lcd.clear();
   }
-  if (resolveServer()) checkBackend();
+  if (WiFi.status() == WL_CONNECTED && resolveServer()) checkBackend();
 
   Serial.println("Ready. Tap an NTAG213 tag...");
-  lcd.setCursor(0, 0);
-  lcd.print("Ready");
-  lcd.setCursor(0, 1);
-  lcd.print("Tap a tag");
-  delay(2000);
-
+  showReady();
 }
 
 void loop() {
@@ -172,36 +184,32 @@ void loop() {
   }
 
   // The backend identifies a tag by its hardware UID, which is available as
-  // soon as PICC_ReadCardSerial succeeds. The NDEF text is only logged.
+  // soon as PICC_ReadCardSerial succeeds. Nothing else on the tag is read.
   String uid = uidToHex(rfid.uid);
-  String tagText = readNtag213Text();
-
   rfid.PICC_HaltA();
   rfid.PCD_StopCrypto1();
 
   Serial.println("UID: " + uid);
 
-  if (tagText.length() > 0) Serial.println("Text: " + tagText);
-  
+  if (uid == lastUid && millis() - lastResultEndedAt < SAME_TOKEN_IGNORE_MS) {
+    Serial.println("Skipped: the same tag again straight after its result");
+    return;
+  }
+
+  handleTap(uid);
+  lastUid = uid;
+  lastResultEndedAt = millis();
+}
+
+// Saves the tap, sends it with any saved taps, and shows the result.
+void handleTap(const String &uid) {
   String clientTapId = takeClientTapId();
   QueuedTap tap = {clientTapId, uid, ""};
   if (!enqueueTap(tap)) {
     if (queueCount >= QUEUE_CAPACITY) {
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("QUEUE FULL");
-      lcd.setCursor(0, 1);
-      lcd.print("Station storage full");
-      delay(2000);
-      blinkLEDRED();
+      showResult("QUEUE FULL", "Storage full", LED_PIN_RED);
     } else {
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("STORAGE ERROR");
-      lcd.setCursor(0, 1);
-      lcd.print("Check station");
-      delay(2000);
-      blinkLEDRED();
+      showResult("STORAGE ERROR", "Check station", LED_PIN_RED);
     }
     return;
   }
@@ -210,32 +218,15 @@ void loop() {
   if (attempt.newTapStatus.length() > 0) {
     showTapStatus(attempt.newTapStatus);
   } else if (attempt.newTapDropped) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("DROPPED");
-    lcd.setCursor(0, 1);
-    lcd.print("Bad tap request");
-    delay(2000);
-    blinkLEDRED();
+    showResult("DROPPED", "Bad tap request", LED_PIN_RED);
   } else if (attempt.httpCode == 401) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("SETUP ERROR");
-    lcd.setCursor(0, 1);
-    lcd.print("Tell organizer");
-    delay(2000);
-    blinkLEDRED();
+    showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED);
   } else {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("QUEUED");
-    lcd.setCursor(0, 1);
-    lcd.print("Will send later");
-    delay(1000);
+    // The tap is saved and will be sent again, so this is not an error.
+    showResult("QUEUED", "Will send later", NO_LED);
   }
-
-  delay(250);
 }
+
 String queueSlotKey(uint8_t slot) {
   return "q_" + String(slot);
 }
@@ -358,6 +349,10 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
     result.retryable = true;
     return;
   }
+  // A backend that has left the network would otherwise hold up the tap for
+  // 5 seconds before it is saved. Answers keep 5 seconds, because the backend
+  // can take up to 4 finding the token's owner and handing the tap on.
+  http.setConnectTimeout(2000);
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", String("Bearer ") + stationKey);
@@ -381,7 +376,8 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
     }
     return;
   }
-  if (code <= 0 || code == 401 || code == 429 || code >= 500 || code != 200) {
+  // No answer, 401, 429, 5xx: keep the taps and try again later.
+  if (code != 200) {
     result.retryable = true;
     return;
   }
@@ -446,63 +442,42 @@ QueueAttempt flushQueue(const String &newTapId) {
 
 void showTapStatus(const String &status) {
   if (status == "accepted") {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("ACCEPTED");
-    lcd.setCursor(0, 1);
-    lcd.print("Points added");
-    delay(2000);
-    blinkLEDBLUE();
-    blinkLEDBLUE();
+    showResult("ACCEPTED", "Points added", LED_PIN_BLUE);
   } else if (status == "cooldown") {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("COOLDOWN");
-    lcd.setCursor(0, 1);
-    lcd.print("Try again later");
-    delay(2000);
-    blinkLEDYELLOW();
+    showResult("COOLDOWN", "Try again later", LED_PIN_YELLOW);
   } else if (status == "unknown_token") {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("UNKNOWN TAG");
-    lcd.setCursor(0, 1);
-    lcd.print("Pair this token");
-    delay(2000);
-    blinkLEDRED();
-    blinkLEDRED();
+    showResult("UNKNOWN TAG", "Pair this token", LED_PIN_RED);
   } else if (status == "no_event") {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("NO EVENT");
-    lcd.setCursor(0, 1);
-    lcd.print("Tell organizer");
-    delay(2000);
-    blinkLEDRED();
+    showResult("NO EVENT", "Tell organizer", LED_PIN_RED);
   } else if (status == "no_game") {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("NO GAME");
-    lcd.setCursor(0, 1);
-    lcd.print("Tell organizer");
-    delay(2000);
-    blinkLEDRED();
+    showResult("NO GAME", "Tell organizer", LED_PIN_RED);
   } else if (status == "duplicate") {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("DUPLICATE");
-    lcd.setCursor(0, 1);
-    lcd.print("Already recorded");
-    delay(2000);
+    showResult("DUPLICATE", "Already recorded", NO_LED);
   } else {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("TAP RECEIVED");
-    lcd.setCursor(0, 1);
-    lcd.print("Check your phone");
-    delay(2000);
-    blinkLEDBLUE();
+    showResult("TAP RECEIVED", "Check your phone", LED_PIN_BLUE);
   }
+}
+
+// Shows a result for about 2 seconds with its LED on, then goes back to Ready.
+void showResult(const char *line1, const char *line2, int ledPin) {
+  showScreen(line1, line2);
+  if (ledPin != NO_LED) digitalWrite(ledPin, HIGH);
+  delay(RESULT_SHOW_MS);
+  if (ledPin != NO_LED) digitalWrite(ledPin, LOW);
+  showReady();
+}
+
+void showReady() {
+  showScreen("Ready", "Tap a tag");
+}
+
+// Each line fits 16 characters; anything longer is cut off.
+void showScreen(const char *line1, const char *line2) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(line1);
+  lcd.setCursor(0, 1);
+  lcd.print(line2);
 }
 
 // Formats the hardware UID as uppercase hex with no separators, e.g. 04A1B2C3D4E5F6.
@@ -523,27 +498,6 @@ String takeClientTapId() {
   uint32_t id = nextTapId++;
   prefs.putUInt("tap_id", nextTapId);
   return "tap-" + String(id);
-}
-
-void blinkLEDBLUE() {
-  digitalWrite(LED_PIN_BLUE, HIGH);
-  delay(500);
-  digitalWrite(LED_PIN_BLUE, LOW);
-  delay(500);
-}
-
-void blinkLEDRED() {
-  digitalWrite(LED_PIN_RED, HIGH);
-  delay(500);
-  digitalWrite(LED_PIN_RED, LOW);
-  delay(500);
-}
-
-void blinkLEDYELLOW() {
-  digitalWrite(LED_PIN_YELLOW, HIGH);
-  delay(500);
-  digitalWrite(LED_PIN_YELLOW, LOW);
-  delay(500);
 }
 
 // Turns SERVER_HOST into serverBase. A name ending in .local is looked up with
@@ -572,6 +526,7 @@ bool resolveServer() {
 void checkBackend() {
   HTTPClient http;
   http.begin(serverBase + "/api/health");
+  http.setConnectTimeout(2000);
   http.setTimeout(5000);
   int code = http.GET();
   http.end();
@@ -582,105 +537,4 @@ void checkBackend() {
   } else {
     Serial.println("Backend answered HTTP " + String(code));
   }
-}
-
-// Reads user memory pages (starting at page 4) from an NTAG213 and returns
-// the text payload of the first NDEF Text Record it finds.
-String readNtag213Text() {
-  byte fullBuffer[144];  // NTAG213 user memory is roughly 144 bytes
-  int bytesRead = 0;
-  byte page = 4;
-
-  // MIFARE_Read pulls 16 bytes (4 pages) per call, same command works on Ultralight/NTAG
-  while (page <= 39 && bytesRead < (int)sizeof(fullBuffer)) {
-    byte buffer[18];
-    byte size = sizeof(buffer);
-    MFRC522::StatusCode status = rfid.MIFARE_Read(page, buffer, &size);
-    if (status != MFRC522::STATUS_OK) break;
-
-    int toCopy = min(16, (int)sizeof(fullBuffer) - bytesRead);
-    memcpy(fullBuffer + bytesRead, buffer, toCopy);
-    bytesRead += toCopy;
-    page += 4;
-  }
-
-  return parseNdefText(fullBuffer, bytesRead);
-}
-
-// Walks the TLV structure to find an NDEF Message (type 0x03), then walks
-// EVERY record inside that message (a tag can hold a URI record AND a Text
-// record back to back) and returns only the payload of the Text record
-// (type byte 0x54 = 'T'), skipping URI records (type byte 0x55 = 'U') or
-// any other record type it encounters.
-String parseNdefText(byte* data, int len) {
-  int i = 0;
-  while (i < len) {
-    byte tlvType = data[i];
-
-    if (tlvType == 0x00) {
-      i++;
-      continue;
-    }                            // NULL TLV, skip
-    if (tlvType == 0xFE) break;  // Terminator TLV, end of memory
-
-    if (i + 1 >= len) break;
-    int tlvLength = data[i + 1];
-    int valueStart = i + 2;
-
-    if (tlvType == 0x03 && valueStart < len) {  // NDEF Message TLV
-      int p = valueStart;
-      int messageEnd = valueStart + tlvLength;
-
-      // Step through each record inside this one NDEF message
-      while (p < messageEnd) {
-        byte header = data[p];
-        bool shortRecord = header & 0x10;  // SR flag: payload length is 1 byte, not 4
-        bool idPresent = header & 0x08;    // IL flag: an ID field is present
-
-        byte typeLength = data[p + 1];
-        int offset = p + 2;
-
-        long payloadLength;
-        if (shortRecord) {
-          payloadLength = data[offset];
-          offset += 1;
-        } else {
-          payloadLength = ((long)data[offset] << 24) | ((long)data[offset + 1] << 16) | ((long)data[offset + 2] << 8) | data[offset + 3];
-          offset += 4;
-        }
-
-        byte idLength = 0;
-        if (idPresent) {
-          idLength = data[offset];
-          offset += 1;
-        }
-
-        byte typeField = data[offset];  // 'T' = 0x54 (Text), 'U' = 0x55 (URI)
-        offset += typeLength;
-        if (idPresent) offset += idLength;  // skip past the ID field, if any
-
-        if (typeField == 0x54) {
-          // Found the Text record -- extract it and stop, ignoring any
-          // URI or other records elsewhere in the message.
-          byte statusByte = data[offset];
-          int langCodeLen = statusByte & 0x3F;  // low 6 bits = language code length
-          int textStart = offset + 1 + langCodeLen;
-          int textLen = payloadLength - 1 - langCodeLen;
-
-          String text = "";
-          for (int j = 0; j < textLen; j++) {
-            text += (char)data[textStart + j];
-          }
-          return text;
-        }
-
-        // Not a Text record (e.g. it was a URI record) -- skip its payload
-        // and move on to the next record in this same message.
-        p = offset + payloadLength;
-      }
-    }
-
-    i = valueStart + tlvLength;  // move to next TLV entry
-  }
-  return "";  // no Text record found anywhere on the tag
 }
