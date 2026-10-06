@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /*
   Tokens copied from apps/frontend/src/styles/globals.css, so the app and this site share
@@ -13,6 +11,33 @@
   One difference from the app: it switches themes with a .dark class and a toggle. This
   site ships no JavaScript, so it follows the reader's system setting instead.
 */
+
+/*
+  Tailwind 4 has no config file. This block turns the tokens below into utilities:
+  --color-primary-text gives text-primary-text, --radius-md gives rounded-md, and so on.
+  `inline` makes each utility use the var() itself, so the dark values below still apply.
+*/
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-border: hsl(var(--border));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  /* For text in the accent colour. Yellow on dark, a darkened yellow on light. */
+  --color-primary-text: hsl(var(--primary-text));
+  /* 1px edge for yellow fills. Charcoal on light, invisible on dark. */
+  --color-primary-edge: hsl(var(--primary-edge));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+}
+
 @layer base {
   :root {
     color-scheme: light dark;
@@ -68,9 +93,13 @@
 }
 
 @layer components {
-  /* The one filled button. Yellow with near-black text, as in the app. */
+  /*
+    The one filled button. Yellow with near-black text, as in the app.
+    Tailwind 4 sets scale-* through the CSS `scale` property, not `transform`, so `scale`
+    is what the transition lists for the press to ease.
+  */
   .button-primary {
-    @apply inline-flex h-11 items-center whitespace-nowrap rounded-md border border-primary-edge bg-primary px-5 font-medium text-primary-foreground transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.98];
+    @apply inline-flex h-11 items-center whitespace-nowrap rounded-md border border-primary-edge bg-primary px-5 font-medium text-primary-foreground transition-[opacity,scale] duration-150 hover:opacity-90 active:scale-[0.98];
   }
 
   /* An entry's Markdown body. Entries are plain Markdown, so their styling lives here. */
