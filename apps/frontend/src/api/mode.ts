@@ -3,8 +3,14 @@ import { LIVE_METHODS } from "@/api/create-client";
 
 export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
 
+/**
+ * Every method create-client.ts still leaves on the mock client. Keep this list
+ * and liveMethods() in step: a method missing here loses the demo-data notice
+ * while it is still serving fixtures.
+ */
 const MOCKED_METHODS: readonly (keyof ApiClient)[] = [
   "listStations",
+  "listStationBoard",
   "createStation",
   "listTaps",
   "createFallbackTap",

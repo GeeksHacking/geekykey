@@ -21,11 +21,29 @@ describe("frontend data source mode", () => {
 
     expect(isMockData(true, liveMethods)).toBe(true);
 
+    liveMethods.add("listStationBoard");
     liveMethods.add("createStation");
     liveMethods.add("listTaps");
     liveMethods.add("createFallbackTap");
     liveMethods.add("stats");
     liveMethods.add("exportCsv");
     expect(isMockData(true, liveMethods)).toBe(false);
+  });
+
+  it("keeps the notice when only the station board is still mocked", () => {
+    const liveMethods = new Set<keyof ApiClient>([
+      "me",
+      "devLogin",
+      "logout",
+      "loginUrl",
+      "listStations",
+      "createStation",
+      "listTaps",
+      "createFallbackTap",
+      "stats",
+      "exportCsv",
+    ]);
+
+    expect(isMockData(true, liveMethods)).toBe(true);
   });
 });

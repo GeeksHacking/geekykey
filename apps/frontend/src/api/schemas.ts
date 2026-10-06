@@ -57,6 +57,16 @@ export const eventStationBoardResponseSchema: z.ZodType<EventStationBoardRespons
   stations: z.array(eventStationBoardStationSchema),
 });
 
+/**
+ * The Event Service's /me, matching MeResponse in api/types.ts.
+ *
+ * The backend still sends `tokens`, which version 0.2 removes from this
+ * endpoint as one of its one-off removals (API-AGREEMENT.md:58-61), and the
+ * backend keeps it until checkpoint 3. Zod strips unknown keys, so that field is
+ * dropped here on purpose. If it ever needs reading, it is on the GeekyKey
+ * Service's /me (API-AGREEMENT.md:8.4), which is a different service and a
+ * different session.
+ */
 export const meResponseSchema: z.ZodType<MeResponse> = z.object({
   user: userSchema,
   points: z.number().int().nonnegative(),

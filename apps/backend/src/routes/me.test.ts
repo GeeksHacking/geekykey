@@ -9,7 +9,11 @@ import { setupFixture } from "../test-helpers.ts";
 const BOOTH_CREATED_AT = "2026-10-10T08:00:00.000Z";
 const PAIRED_AT = "2026-10-10T08:30:00.000Z";
 
-/** GET /api/v1/me as API-AGREEMENT.md section 8.1 describes it. */
+/**
+ * GET /api/v1/me in today's shape, which is section 8.1 as it reads before
+ * checkpoint 3: section 8.1 (API-AGREEMENT.md:585-597) is the agreed shape,
+ * and :613-614 lists how today's backend still differs from it.
+ */
 interface MeBody {
   user: { id: string; display_name: string; role: string };
   tokens: { uid: string; paired_at: string }[];
