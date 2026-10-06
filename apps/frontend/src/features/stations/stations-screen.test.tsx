@@ -72,4 +72,72 @@ describe("StationsScreen", () => {
     expect(quiet.length).toBeGreaterThan(0);
     expect(Math.max(...flagged)).toBeLessThan(Math.min(...quiet));
   });
+
+  it("shows a notice and 'Status unknown' when the status call failed", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    api.mock.setStatusKnown(false);
+    const { Providers } = createTestProviders(api);
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+
+    expect(await screen.findByText(/Couldn't get the stations' status/)).toBeInTheDocument();
+    expect(screen.getAllByText("Status unknown").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Offline")).not.toBeInTheDocument();
+    expect(screen.queryByText("Never connected")).not.toBeInTheDocument();
+  });
+
+  it("still shows passport details and last taps when the status is unknown", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    api.mock.setStatusKnown(false);
+    const { Providers } = createTestProviders(api);
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+
+    // Passport names and locations come from the Event Service, so they survive.
+    expect(await screen.findByText("3D Printing Booth")).toBeInTheDocument();
+    expect(screen.getByText("Hall A")).toBeInTheDocument();
+  });
+
+  it("turns nothing red just because the status is unknown", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    api.mock.setStatusKnown(false);
+    const { Providers } = createTestProviders(api);
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+
+    await screen.findByText(/Couldn't get the stations' status/);
+
+    expect(screen.queryByText("Not responding")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reader not responding")).not.toBeInTheDocument();
+    expect(screen.queryByText("Holding saved taps")).not.toBeInTheDocument();
+  });
+
+  it("says nothing about the status when the status call worked", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    const { Providers } = createTestProviders(api);
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+
+    await screen.findAllByText("Not in the passport");
+
+    expect(screen.queryByText(/Couldn't get the stations' status/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Status unknown")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Online").length).toBeGreaterThan(0);
+  });
 });
