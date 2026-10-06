@@ -132,8 +132,8 @@ Two things that look like bugs and are not:
 | Framework | React 19 | Function components only |
 | Language | TypeScript 6.0, strict | Pin `typescript@~6.0.3`. See "TypeScript version" |
 | Build | Vite 8 + `@vitejs/plugin-react` | |
-| Styling | Tailwind CSS 3.4 | Deliberately v3, not v4. Pin `tailwindcss@^3.4`. Use `tailwind.config.ts` + PostCSS, not the v4 Vite plugin |
-| Components | shadcn/ui, Tailwind v3 style, CSS-variable theme | Generated into `src/components/ui`. We own and customise the code. Never left in default state |
+| Styling | Tailwind CSS 4 | The `@tailwindcss/vite` plugin, no config file and no PostCSS. The theme is the `@theme inline` block in `src/styles/globals.css`. Animations come from `tw-animate-css`. See "Tailwind 4 notes" |
+| Components | shadcn/ui, CSS-variable theme | Generated into `src/components/ui`. We own and customise the code. Never left in default state |
 | Routing | TanStack Router, file-based | Typed links, params, and search. `routeTree.gen.ts` is generated and committed; never hand-edit it |
 | Server state | TanStack Query 5 | Queries and mutations live in feature hooks; keys in `src/api/keys.ts`; the session is the `["me"]` query. See "Server state" |
 | Tables | TanStack Table 9 | Organiser scan log only. Features are opt-in through `tableFeatures()`; row, cell, and header methods live on prototypes, so call them on the instance and never spread one |
@@ -194,9 +194,9 @@ Verified when the app was scaffolded:
 
 - TypeScript 6.0.3 works with Vite 8.3, `@vitejs/plugin-react` 6.1, `@tanstack/router-plugin`
   1.168, typescript-eslint 8.70, and Vitest 5.
-- shadcn CLI 4.21 still generates Tailwind v3 components when `tailwind.config.ts` exists.
-  It resolves the `@/` alias from `tsconfig.json`, so the solution tsconfig must keep
-  `compilerOptions.paths`. Without it the CLI writes into a literal `@/` folder.
+- The shadcn CLI resolves the `@/` alias from `tsconfig.json`, so the solution tsconfig
+  must keep `compilerOptions.paths`. Without it the CLI writes into a literal `@/` folder.
+  (The app started on Tailwind 3.4; see "Tailwind 4 notes" for the move.)
 - pnpm 11 refuses to run esbuild's install script unless `allowBuilds` lists it in
   `pnpm-workspace.yaml`. Done at the repo root.
 - shadcn's `sonner` component imports `next-themes`. Ours reads `lib/theme` instead.
@@ -212,6 +212,35 @@ Verified when the app was scaffolded:
   navigates again whenever its props object changes, which is every render, and the router
   never commits, so the page freezes on the loading view. Redirect from a `useEffect` with
   stable dependencies instead (see `features/auth/require-session.tsx`).
+
+### Tailwind 4 notes (6 October 2026)
+
+The app moved from Tailwind 3.4 to 4 because Tailwind 3 depends on `braces`, which has a
+security advisory with no fixed version, and the CI dependency audit fails on it. Every
+screen was compared with the Tailwind 3 build, pixel by pixel, in both themes at 1280 and
+390 px. Two small differences were kept: a table header that wraps is 2px shorter, and
+the summary tiles' text moves 1px. What to know:
+
+- There is no `tailwind.config.ts`. A token lives in `src/styles/globals.css` twice: as HSL
+  channels in `:root` and `.dark`, and in the `@theme inline` block, which turns
+  `--color-primary-text` into `text-primary-text` and so on. `globals.css` is identical in
+  `apps/geekykey-web`, so change both together.
+- Wrap a label and its field in `grid gap-2`, not `space-y-2`. Tailwind 4's `space-y` puts
+  the margin on every child except the last, and an inline `<label>` ignores a vertical
+  margin. `FormItem` already does this. `Label` uses `leading-6` so fields sit where they
+  did on Tailwind 3.
+- Tailwind 4 sets `scale-*` and `translate-*` through their own CSS properties, not
+  `transform`. In a `transition-[...]` list, write `scale` (see `components/ui/button.tsx`).
+  Do not copy shadcn's Tailwind 3 dialog classes `slide-in-from-left-1/2` or
+  `slide-in-from-top-[48%]`: on Tailwind 4 they push the dialog off-centre.
+- Some class names changed meaning. When copying an older snippet, use `outline-hidden`
+  for `outline-none`, `shadow-xs` for `shadow-sm`, `shadow-sm` for `shadow`, `blur-xs` for
+  `blur-sm`, `blur-sm` for a bare `blur`, `ring-3` for a bare `ring`, and
+  `origin-(--radix-...)` for `origin-[--radix-...]`. `npx @tailwindcss/upgrade` does these
+  renames, but not the three fixes above.
+- `components.json` has an empty `tailwind.config`, so `pnpm dlx shadcn@latest add` writes
+  Tailwind 4 components. The existing ones started as Tailwind 3 components, so check a new
+  one's spacing against them.
 
 ## Commands
 
@@ -252,10 +281,8 @@ mise run dev:backend
 apps/frontend/
   CLAUDE.md
   index.html                # theme bootstrap script runs before first paint
-  vite.config.ts            # react plugin, router plugin, proxy /api and /auth to :8000
+  vite.config.ts            # react, router and tailwind plugins, proxy /api and /auth to :8000
   vitest.config.ts
-  tailwind.config.ts
-  postcss.config.js
   components.json           # shadcn config
   tsconfig.json             # solution file; also carries the @/ alias for the shadcn CLI
   tsconfig.app.json         # src
@@ -317,7 +344,7 @@ apps/frontend/
       csv.ts                # the export's column order and cell escaping
       use-route-heading-focus.ts
       utils.ts              # cn()
-    styles/globals.css      # Tailwind layers + CSS-variable tokens for both themes
+    styles/globals.css      # Tailwind import, @theme mapping, CSS-variable tokens for both themes
     test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia stub
     test/providers.tsx      # the app's provider stack for tests
 ```
@@ -399,8 +426,8 @@ accessibility, 8 dark mode protocol, 9 AI tells including the em-dash ban, and t
 pre-flight check as adapted in "Definition of done".
 
 **Do not apply:** hero rules, eyebrows, bento, marquee, GSAP scroll patterns, image
-generation requirements, and the Next.js, RSC, and Tailwind v4 defaults in 3.A. This is
-a Vite SPA on Tailwind 3.4.
+generation requirements, and the Next.js and RSC defaults in 3.A. This is a Vite SPA on
+Tailwind 4.
 
 **Design read:** mobile-first product UI for hackathon participants plus a denser desktop
 console for organisers, with a dark-capable, high-contrast tech-event language, leaning
@@ -503,7 +530,7 @@ trigger and then click the option; and headless Arc crashes after a few navigati
 - Do not invent API fields or endpoints. Change the agreement first.
 - Do not build leaderboards, dual-tap, quests, event CRUD, tap editing, or device
   configuration UI.
-- Do not add Next.js, server components, Tailwind v4, lucide, Inter, or a second icon or
+- Do not add Next.js, server components, lucide, Inter, or a second icon or
   component library.
 - Do not hand-edit `routeTree.gen.ts`. Do not add app logic under `components/ui`.
 - Do not commit `.env` files or any station key. Station keys are shown once in the UI
