@@ -118,4 +118,55 @@ describe("StationBoard", () => {
     expect(names[1]).toContain("Healthy Booth");
     expect(names[2]).toContain("Quiet Booth");
   });
+
+  describe("when the status call failed and every status field is null", () => {
+    /** What agreement 9.2 sends back: the GeekyKey Service's fields all null. */
+    const unknown = station({
+      label: null,
+      linked: null,
+      last_seen_at: null,
+      online: null,
+      firmware_version: null,
+      buffered_taps: null,
+      reader_ok: null,
+    });
+
+    it("reads the status as unknown, never as offline", () => {
+      render(<StationBoard stations={[unknown]} />);
+
+      expect(screen.getByText("Status unknown")).toBeInTheDocument();
+      expect(screen.queryByText("Offline")).not.toBeInTheDocument();
+      expect(screen.queryByText("Never connected")).not.toBeInTheDocument();
+    });
+
+    it("still shows the passport name, location and points", () => {
+      render(<StationBoard stations={[unknown]} />);
+
+      expect(screen.getByText("Careers Corner")).toBeInTheDocument();
+      expect(screen.getByText("Hall B")).toBeInTheDocument();
+    });
+
+    it("still shows the last tap", () => {
+      const tapped = station({ ...unknown, last_tap_at: "2026-10-10T08:58:00.000Z" });
+      render(<StationBoard stations={[tapped]} />);
+
+      expect(screen.queryByText("Never")).not.toBeInTheDocument();
+    });
+
+    it("does not flag a problem, so nothing turns red", () => {
+      render(<StationBoard stations={[unknown]} />);
+
+      expect(screen.queryByText("Not responding")).not.toBeInTheDocument();
+      expect(screen.queryByText("Reader not responding")).not.toBeInTheDocument();
+      expect(screen.queryByText("Holding saved taps")).not.toBeInTheDocument();
+    });
+
+    it("still flags a station that really is not in the passport", () => {
+      // Passport settings come from the Event Service, so they survive a failed status call.
+      render(<StationBoard stations={[{ ...unknown, passport: null }]} />);
+
+      expect(screen.getByText("Not in the passport")).toBeInTheDocument();
+      expect(screen.queryByText("Not responding")).not.toBeInTheDocument();
+    });
+  });
 });

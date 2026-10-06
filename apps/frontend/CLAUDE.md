@@ -49,7 +49,10 @@ Rules that make this possible:
   uneven data. No round numbers, no "John Doe".
 - The mock client simulates latency and can be told to fail with any error code from the
   agreement, so loading and error states are real from day one. `api.mock.failNext(code)`
-  fails the next call with that code, or with `"network"`; tests use it. With
+  fails the next call with that code, or with `"network"`; tests use it.
+  `api.mock.setStatusKnown(false)` makes the station board behave as if the GeekyKey
+  Service's status call failed, so every status field comes back null (agreement 9.2).
+  With
   `simulate: true` (the default in `api/create-client.ts`) a station simulator keeps the online stations'
   heartbeat fresh and drips in new taps, so polling has something to show.
 
@@ -288,6 +291,7 @@ apps/frontend/
       ui/                   # shadcn generated and customised. No app logic here.
       layout/               # shells, nav, page header, theme toggle, account menu, empty/error/loading views
       tap-status.tsx        # shared by several features, alongside online-status and participant-tap-list
+      online-status.tsx     # online, offline, never connected, or "Status unknown" (agreement 9.2)
     api/
       types.ts              # mirrors API-AGREEMENT.md exactly
       client.ts             # the interface every feature consumes
@@ -369,7 +373,7 @@ Rules:
 | `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
-| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations` | one-time `api_key` reveal with copy button and warning; online and offline; empty board |
+| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |

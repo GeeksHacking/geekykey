@@ -72,6 +72,11 @@ export interface MockControls {
   failNext(failure: MockFailure): void;
   /** Sign in without going through devLogin. Tests only. */
   setSession(userId: string | null): void;
+  /**
+   * Make the station board behave as if the GeekyKey Service's status call failed,
+   * so every status field comes back null (agreement 9.2). Tests and manual checks.
+   */
+  setStatusKnown(statusKnown: boolean): void;
   readonly data: MockData;
   stop(): void;
 }
@@ -86,6 +91,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;
   let pendingFailure: MockFailure | null = null;
+  let statusKnown = true;
   let nextTapId = data.taps.reduce((max, tap) => Math.max(max, tap.id), 0) + 1;
 
   const iso = (ms: number) => new Date(ms).toISOString();
@@ -168,7 +174,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     const lastTap = data.taps
       .filter((tap) => tap.station_id === station.id && tap.source === "nfc")
       .sort((a, b) => b.received_at.localeCompare(a.received_at))[0];
-    return {
+    const full = {
       id: station.id,
       label: station.label,
       linked: station.linked,
@@ -179,6 +185,22 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       buffered_taps: station.buffered_taps,
       reader_ok: station.reader_ok,
       last_tap_at: lastTap?.received_at ?? null,
+    };
+
+    // A failed status call nulls every field the GeekyKey Service owns. Passport
+    // settings and the last tap come from the Event Service, so they survive
+    // (agreement 9.2).
+    if (statusKnown) return full;
+
+    return {
+      ...full,
+      label: null,
+      linked: null,
+      last_seen_at: null,
+      online: null,
+      firmware_version: null,
+      buffered_taps: null,
+      reader_ok: null,
     };
   }
 
@@ -265,7 +287,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     listStationBoard: () =>
       call((): EventStationBoardResponse => {
         currentOrganizer();
-        return { status_known: true, stations: data.stations.map(toStationBoardStation) };
+        return {
+          status_known: statusKnown,
+          stations: data.stations.map(toStationBoardStation),
+        };
       }),
 
     createStation: (input: CreateStationRequest) =>
@@ -427,6 +452,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         pendingFailure = failure;
       },
       setSession,
+      setStatusKnown: (known) => {
+        statusKnown = known;
+      },
       data,
       stop: () => {
         if (timer) clearInterval(timer);

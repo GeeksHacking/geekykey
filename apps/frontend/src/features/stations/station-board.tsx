@@ -81,7 +81,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 {station.passport?.points ?? "—"}
               </TableCell>
               <TableCell>
-                <OnlineStatus online={station.online ?? false} lastSeenAt={station.last_seen_at} />
+                <OnlineStatus online={station.online} lastSeenAt={station.last_seen_at} />
               </TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">
                 {station.last_tap_at ? (
