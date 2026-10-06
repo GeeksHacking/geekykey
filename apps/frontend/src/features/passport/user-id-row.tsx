@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 /*
   The Portal user ID an organiser asks for when logging a QR fallback. It stays
-  small and always visible because a reader can fail at any point in the event,
+  small and always visible because a station can fail at any point in the event,
   not only for someone who has never tapped. Copied the same way as the station
   key reveal: write to the clipboard, then confirm briefly.
 */

@@ -13,7 +13,7 @@ export function useStationOptions() {
     select: (board: EventStationBoardResponse) => {
       const stations: Station[] = board.stations.map((station) => ({
         id: station.id,
-        name: station.passport?.name ?? station.label ?? "Unnamed reader",
+        name: station.passport?.name ?? station.label ?? "Unnamed station",
         location: station.passport?.location ?? null,
         points: station.passport?.points ?? 0,
         created_at: station.passport?.added_at ?? "",

@@ -35,9 +35,11 @@ export function productionConnection(url: string): ConnectionOptions {
 }
 
 /**
- * The migration login, from TIDB_MIGRATION_URL, which the "Migrate
- * production" workflow sets. On a laptop, `envFile` names a file to read it
- * from instead, such as the one create-logins.ts saves.
+ * The migration login, from TIDB_MIGRATION_URL. Nobody on the team has
+ * Cloudflare access (spec.md:99), so a "Migrate production" workflow can't be
+ * the thing that sets it: Adam runs db:migrate from his laptop until that
+ * workflow exists (spec.md:51), passing --env-file to name the file
+ * create-logins.ts saved.
  */
 export function migrationLogin(envFile?: string): ConnectionOptions {
   const url = readEnv(envFile).TIDB_MIGRATION_URL;

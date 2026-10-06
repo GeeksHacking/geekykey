@@ -71,7 +71,7 @@ export function AddStationForm({
         <DialogHeader>
           <DialogTitle>Add a station</DialogTitle>
           <DialogDescription>
-            Creates the station and returns its key, which the reader sends with every tap.
+            Creates the station and returns its key, which the station sends with every tap.
           </DialogDescription>
         </DialogHeader>
         <FormField
