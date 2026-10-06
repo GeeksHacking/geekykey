@@ -39,12 +39,21 @@ const columns = column.columns([
   column.display({
     id: "station",
     header: "Station",
-    cell: ({ row }) => <span className="font-medium">{row.original.station.name}</span>,
+    cell: ({ row }) => (
+      <span className="font-medium">{row.original.station.name ?? "Not in the passport"}</span>
+    ),
   }),
   column.display({
     id: "participant",
     header: "Participant",
-    cell: ({ row }) => row.original.user.display_name ?? "Unnamed participant",
+    // The user ID is always shown next to the name: a name can be missing, but
+    // the ID is what identifies who was tapped.
+    cell: ({ row }) => (
+      <span className="flex flex-col">
+        <span>{row.original.user.display_name ?? "Never logged in"}</span>
+        <code className="font-mono text-xs text-muted-foreground">{row.original.user.id}</code>
+      </span>
+    ),
   }),
   column.display({
     id: "status",
