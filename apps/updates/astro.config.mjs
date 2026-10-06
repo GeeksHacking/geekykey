@@ -1,5 +1,6 @@
 // @ts-check
 import { satteri } from "@astrojs/markdown-satteri";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
 // A static site: `astro build` writes plain HTML to dist/, which Cloudflare Pages serves.
@@ -16,4 +17,7 @@ export default defineConfig({
     // package.json pins @astrojs/markdown-satteri to the exact version astro uses.
     processor: satteri({ features: { smartPunctuation: { dashes: false } } }),
   },
+
+  // Tailwind 4 runs as a Vite plugin. Its theme lives in src/styles/global.css.
+  vite: { plugins: [tailwindcss()] },
 });
