@@ -286,6 +286,15 @@ export function createFixtures(now: number = Date.now()): MockData {
     pushTap(careers.id, "u_3b7d", eventStart + minutes(96), "qr_fallback");
   }
 
+  /*
+    Someone who has never logged in to this event. The Event Service only creates
+    a user row on login, so this ID is deliberately absent from `users` and the
+    scan log and export both show a null display name for it.
+  */
+  if (printing) {
+    pushTap(printing.id, "u_9d4f", now - minutes(9), "nfc");
+  }
+
   taps.sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime());
   taps.forEach((tap, index) => {
     tap.id = index + 1;

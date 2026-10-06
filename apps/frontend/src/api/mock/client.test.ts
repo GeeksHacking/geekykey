@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import { EXPORT_CSV_COLUMNS } from "@/api/types";
 
 function client() {
   return createMockClient({ latencyMs: [0, 0], storage: null });
@@ -154,14 +155,42 @@ describe("station keys and export", () => {
     expect(JSON.stringify(listed)).not.toContain(created.api_key);
   });
 
-  it("exports the agreed CSV columns in order", async () => {
+  it("exports the agreed ten CSV columns, in order", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const blob = await api.exportCsv();
-    const text = await blob.text();
-    expect(text.split("\n")[0]).toBe(
-      "tap_id,client_tap_id,station_id,station_name,user_id,display_name,status,source,tapped_at,received_at",
-    );
+    const text = await (await api.exportCsv()).text();
+    const [header, ...rows] = text.trim().split("\n");
+
+    expect(header).toBe(EXPORT_CSV_COLUMNS.join(","));
+    expect(EXPORT_CSV_COLUMNS).toHaveLength(10);
+    expect(rows.length).toBeGreaterThan(0);
+    // Guards the gap between the header constant and the hand-built row.
+    for (const row of rows) expect(row.split(",")).toHaveLength(EXPORT_CSV_COLUMNS.length);
+  });
+
+  it("leaves station_name and display_name empty when the tap has neither", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const text = await (await api.exportCsv()).text();
+    const header = text.trim().split("\n")[0]!.split(",");
+    const stationNameAt = header.indexOf("station_name");
+    const displayNameAt = header.indexOf("display_name");
+
+    const guestRow = text
+      .trim()
+      .split("\n")
+      .slice(1)
+      .find((line) =>
+        line.startsWith(`${api.mock.data.taps.find((t) => t.user_id === "u_9d4f")!.id},`),
+      );
+    expect(guestRow?.split(",")[displayNameAt]).toBe("");
+
+    const noGameRow = text
+      .trim()
+      .split("\n")
+      .slice(1)
+      .find((line) => line.split(",")[header.indexOf("status")] === "no_game");
+    expect(noGameRow?.split(",")[stationNameAt]).toBe("");
   });
 
   it("can be told to fail once", async () => {

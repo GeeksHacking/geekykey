@@ -44,8 +44,9 @@ describe("ExportButton", () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);
     const station = api.mock.data.stations.at(0);
-    if (!station) throw new Error("Expected a seeded station");
-    station.name = "=2+2";
+    if (!station?.passport) throw new Error("Expected a seeded passport station");
+    // The export writes the passport name, not the physical station name (agreement 9.6).
+    station.passport.name = "=2+2";
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
     render(

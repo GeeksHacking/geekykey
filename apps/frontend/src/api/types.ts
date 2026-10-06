@@ -101,7 +101,7 @@ export interface ListStationsResponse {
 export interface AdminTap {
   id: number;
   client_tap_id: string;
-  station: { id: string; name: string };
+  station: { id: string; name: string | null };
   /** Every stored Event tap has a user. */
   user: { id: string; display_name: string | null };
   status: TapStatus;
