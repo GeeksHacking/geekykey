@@ -597,3 +597,14 @@
     staff can still release a lost token someone else has found. The trade-off we accept: each
     station request makes two calls to Cloud Run until the switch, which we'll check with Julian on
     8 Oct.
+
+- id: stations-wait-for-their-result
+  date: 2026-10-06
+  area: backend
+  change: >-
+    A station keeps waiting for each tap's result, so it can still show amber when a tap is too soon
+    and tell an unclaimed token to claim on a phone. Nothing is lost when the event's server is slow:
+    the station already saves every tap first and sends it again later, showing "Will send later".
+    The station's heartbeat no longer waits at all, and the server is kept running on event days so
+    the first tap of the morning isn't slow. The trade-off we accept: when the server is slow, the
+    person tapping sees "Will send later" instead of their result.

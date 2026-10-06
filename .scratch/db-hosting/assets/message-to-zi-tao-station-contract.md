@@ -10,6 +10,8 @@ Draft for Adam to edit and send, from "How do stations talk to the GeekyKey Serv
 - A new station's key comes from the event's organizers, on their station board, instead of a GeekyKey admin. It's still shown once, and you flash it as before.
 - To move a station to another event (provisional, until Julian answers on 8 Oct): let it send its saved taps to the old event, then flash it with "Erase All Flash Before Sketch Upload" turned on and the key from the new event. It becomes a new station there, and no taps from the old event go to the new one.
 
+**Changed on 6 Oct 2026,** by "Does a station wait for the Event Service's verdict?". Still no firmware change. The station keeps waiting for each tap's status, as it does now. When no answer comes, the queue you built already does the right thing: keep the tap, say so, and resend. So the "no answer" row in section 4 now says `Tap saved` / `Will send later` (your `QUEUED` / `Will send later` is fine), not `Not recorded` / `Please tap again`: the tap isn't lost, so nobody needs to tap again. The heartbeat will be answered at once, even while the event's server is down, so the clock is always set.
+
 ---
 
 Hi Zi Tao, we've planned how the stations talk to the backend once it moves to Cloudflare. The good news: the requests and answers stay the same as today. What changes is the address, HTTPS, and what the station does with each answer. Most of this isn't urgent until the new service is deployed, but the screen and LED part can start now, and section 6 is worth doing soon.
@@ -73,7 +75,7 @@ A `200` has one `status` per tap in `results`. Please show them like this. Each 
 | `no_game` (new) | `Not in a game` / `Tell organizer` | red |
 | `duplicate` | nothing; it only happens when a saved tap is resent | none |
 | any status you don't recognise | `Tap received` | blue |
-| no answer, or HTTP `503` or `429` | `Not recorded` / `Please tap again` | red |
+| no answer, or HTTP `503` or `429` | `Tap saved` / `Will send later` | none |
 | HTTP `401` | `Setup error` / `Tell organizer` | red |
 | the reader stops answering (your own check, section 3) | `Reader error` / `Tell organizer` | red |
 
@@ -93,7 +95,6 @@ A `200` has one `status` per tap in `results`. Please show them like this. Each 
 - **On a `401`, keep the taps**, show the setup error and retry at the heartbeat's pace. Once the key is fixed, they still count. A station an admin has disabled also gets `401`, so this needs nothing extra; its taps count once it is enabled again.
 - **On a `400`, drop that batch** and print it on the serial port. It means the request itself is broken, so sending it again would never work and would block everything saved after it.
 - Send at most 500 taps per request. Smaller batches are fine.
-- While a tap is saved but not sent, the screen can say `Tap saved` / `Will send later` instead of `Not recorded`.
 
 **6. The saved-taps queue that went in on 29 Sep**
 
