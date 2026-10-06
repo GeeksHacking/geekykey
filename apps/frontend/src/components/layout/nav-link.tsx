@@ -34,7 +34,7 @@ export function NavLink({ to, icon: IconComponent, label, variant, exact = false
       to={to}
       activeOptions={{ exact }}
       className={cn(
-        "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
         VARIANTS[variant],
       )}
     >

@@ -15,12 +15,13 @@ const buttonVariants = cva(
   [
     // Layout and type.
     "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium",
-    // `transform` is in the transition list so the active: press below eases
-    // instead of snapping.
-    "transition-[color,background-color,border-color,transform] duration-150",
+    // `scale` is in the transition list so the active: press below eases
+    // instead of snapping. Tailwind 4 sets scale-* through the CSS `scale`
+    // property, not `transform`.
+    "transition-[color,background-color,border-color,scale] duration-150",
     // Focus ring is scoped to focus-visible throughout, so it paints for
     // keyboard users without ringing every mouse click.
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     // The house press feedback, applied to every button for consistency.
     "active:scale-[0.98]",
     "disabled:pointer-events-none disabled:opacity-50",

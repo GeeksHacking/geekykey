@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Dark mode follows the .dark class on <html>, set by the script in index.html. */
+@custom-variant dark (&:is(.dark *));
 
 /*
   Design tokens. shadcn convention: HSL channels without the hsl() wrapper.
@@ -13,6 +15,48 @@
   - --primary-text: what links, icons, and active labels use. Yellow on dark, a darkened
     yellow on light (5.2:1 on the background). Never yellow text on a light surface.
 */
+
+/*
+  Tailwind 4 has no config file. This block turns the tokens below into utilities:
+  --color-primary-text gives text-primary-text, --radius-md gives rounded-md, and so on.
+  `inline` makes each utility use the var() itself, so the .dark values still apply.
+*/
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  /* For text and icons in the accent colour. Same as the fill on dark, darkened on light. */
+  --color-primary-text: hsl(var(--primary-text));
+  /* 1px edge for accent fills. Charcoal on light, invisible on dark. */
+  --color-primary-edge: hsl(var(--primary-edge));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  /* Tap and station status. Always paired with an icon and text, never colour alone. */
+  --color-status-accepted: hsl(var(--status-accepted));
+  --color-status-cooldown: hsl(var(--status-cooldown));
+  --color-status-unknown: hsl(var(--status-unknown));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
 @layer base {
   :root {
     --background: 240 5% 96.5%;
@@ -102,6 +146,11 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv11", "ss01";
+  }
+  /* Tailwind 4 gives buttons the default arrow cursor. Keep the pointer, as in Tailwind 3. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
   /* Numbers line up in tables and totals. */
   .font-mono {

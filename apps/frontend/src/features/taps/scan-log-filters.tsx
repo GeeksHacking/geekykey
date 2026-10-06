@@ -21,7 +21,7 @@ interface ScanLogFiltersProps {
 export function ScanLogFilters({ filters, onChange, stations }: ScanLogFiltersProps) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:max-w-xl">
-      <div className="space-y-1.5">
+      <div className="grid gap-1.5">
         <Label htmlFor="filter-station">Station</Label>
         <Select
           value={filters.station_id ?? ALL}
@@ -42,7 +42,7 @@ export function ScanLogFilters({ filters, onChange, stations }: ScanLogFiltersPr
           </SelectContent>
         </Select>
       </div>
-      <div className="space-y-1.5">
+      <div className="grid gap-1.5">
         <Label htmlFor="filter-status">Status</Label>
         <Select
           value={filters.status ?? ALL}

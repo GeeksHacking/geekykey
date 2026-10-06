@@ -29,11 +29,11 @@ export function ParticipantShell({ user, onSignOut, children }: ParticipantShell
     <div className="flex min-h-[100dvh] flex-col">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-sm"
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-sm">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-4 px-4">
           <Link to="/" aria-label="GeekyKey home">
             <Wordmark />
@@ -56,13 +56,13 @@ export function ParticipantShell({ user, onSignOut, children }: ParticipantShell
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 outline-none md:pb-12"
+        className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 outline-hidden md:pb-12"
       >
         {children}
       </main>
       <nav
         aria-label="Sections"
-        className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
       >
         <div className="mx-auto flex max-w-3xl px-2">
           {NAV.map((item) => (
