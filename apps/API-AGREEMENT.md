@@ -2,19 +2,19 @@
 
 Contract between GeekyKey's two services and everything that talks to them: the ESP32 reader
 stations, the two sets of screens, and other teams' Event Services. Words such as token, claim,
-owner, link and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) says.
+owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) says.
 
 | Part | What it does | Code |
 |---|---|---|
-| GeekyKey Service | What stations and tokens talk to. It knows each station and which event it feeds, finds each token's owner, and hands taps on | `apps/backend`, which becomes `apps/geekykey-service` at checkpoint 4 |
-| Event Service | Runs one event's games. Ours runs the capstone showcase, whose first game is the passport | Inside `apps/backend` from checkpoint 3, then `apps/event-service` |
-| GeekyKey screens | The token page, My tokens and the GeekyKey admin screens | `apps/geekykey-web`, new |
-| Event screens | The dashboard, passport, activity and organizer screens | `apps/frontend`, which becomes `apps/event-web` at checkpoint 4 |
+| GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | Inside `apps/backend` until checkpoint 4, then `apps/geekykey-service` |
+| Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/backend`, which becomes `apps/event-service` at checkpoint 4 |
+| GeekyKey screens | The token page and My tokens | `apps/geekykey-web` |
+| Event screens | The dashboard, passport, activity and organizer screens, including the station board | `apps/frontend`, which becomes `apps/event-web` at checkpoint 4 |
 
 | | |
 |---|---|
-| Version | 0.2 (draft) |
-| Date | 29 September 2026 |
+| Version | 0.3 (draft) |
+| Date | 7 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -34,13 +34,13 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 
 | Checkpoint | What it delivers |
 |---|---|
-| 1 | Today's backend on Cloudflare Workers and TiDB, unchanged on the wire |
-| 2 | The first deploy, at `https://key-api.geekshacking.com` |
-| 3 | The GeekyKey Service and the Event Service drawn inside one Worker, talking only through the hand-off |
-| 4 | Two Workers, one per service |
+| 1 | Today's backend on TiDB, unchanged on the wire. Done |
+| 2 | Today's backend moved to Google Cloud Run, at `https://event-api.geekshacking.com` |
+| 3 | The GeekyKey Service and the Event Service drawn inside one server, talking only through their requests |
+| 4 | The GeekyKey Service cut out as a Worker at `https://key-api.geekshacking.com`, and the stations moved to it |
 | 5 | Login through the Portal, and both sets of screens deployed |
-| 6 | The GeekyKey Service's features: claiming, the GeekyKey admin endpoints, the status call, rate limits |
-| 7 | The Event Service's features: the station board, passport settings, the tap log, stats, the export, the QR fallback |
+| 6 | The GeekyKey Service's features: claiming and releasing, rate limits |
+| 7 | The Event Service's features: the organizers' station endpoints, the station board, passport settings, the tap log, stats, the export, the QR fallback |
 | 8 | Ready for the event |
 
 ---
@@ -70,7 +70,8 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 
 | Who | Local | Production |
 |---|---|---|
-| Stations and Event Services, to the GeekyKey Service | `http://localhost:8000` | `https://key-api.geekshacking.com` |
+| Stations, to the GeekyKey Service | `http://localhost:8000` | `https://key-api.geekshacking.com` from checkpoint 4. From checkpoint 2 until then, `https://event-api.geekshacking.com` |
+| The GeekyKey Service, to our Event Service | `http://localhost:8001` from checkpoint 4 | `https://event-api.geekshacking.com` |
 | Browsers, for the GeekyKey screens | `http://localhost:5174` | `https://key.geekshacking.com` |
 | Browsers, for the Event Service's screens | `http://localhost:5173` | `https://event.geekshacking.com` |
 
@@ -81,14 +82,13 @@ service's address.
 
 - A real station on the local network uses the laptop's `.local` name, such as
   `http://A-Mac.local:8000`.
-- The Event Service has no public address. In production only its screens' Worker and the
-  GeekyKey Service reach it, through service bindings. Locally it answers on
-  `http://localhost:8001` from checkpoint 4; until then both services run inside one Worker
-  on port 8000.
+- The Event Service's own address, `event-api.`, is for the GeekyKey Service and the Event
+  screens' Worker. Browsers never call it directly. Until checkpoint 4 both services run inside
+  one server, on port 8000 locally and at `event-api.` in production, and stations call it there.
 
 All resource endpoints live under `/api/v1`. Auth endpoints live under `/auth` because they are
-browser redirects, not JSON resources. Health is at `/api/health`. The hand-off, which only
-services call, lives under `/geekykey/v1`.
+browser redirects, not JSON resources. Health is at `/api/health`. What the GeekyKey Service asks
+of an Event Service lives under `/geekykey/v1`.
 
 ### Wire format
 
@@ -117,7 +117,7 @@ services call, lives under `/geekykey/v1`.
 | 409 | Conflict with existing state: a token someone else has claimed, or a user who already holds 3 tokens |
 | 429 | Too many requests from this caller in the last minute. See [Rate limits](#rate-limits) |
 | 500 | A bug in a service. Screens show a generic error and log the request ID if present |
-| 503 | A service this one depends on didn't answer: the Event Service during a tap, or, after the showcase, the Portal |
+| 503 | A service this one depends on didn't answer: whatever holds the claims (the claims stand-in, then the Portal), or the station's Event Service during a station request |
 
 ### Error body
 
@@ -140,16 +140,16 @@ only for `validation_failed` and follows Zod's issue format.
 | `validation_failed` | 400 | See `issues` |
 | `unauthenticated` | 401 | No valid session cookie |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
-| `invalid_station_key` | 401 | Station key not recognised, or its station is disabled |
-| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on the hand-off or the status call |
+| `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
+| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1` |
 | `forbidden` | 403 | Not on the organizer list or the GeekyKey admin list, as the endpoint needs |
 | `not_found` | 404 | |
 | `token_taken` | 409 | Someone else has claimed this token |
 | `token_limit_reached` | 409 | The user already holds 3 tokens |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
-| `event_service_unavailable` | 503 | The station's Event Service didn't answer in time, or answered wrongly. The station keeps its taps and resends them |
-| `portal_unavailable` | 503 | Only from the switch to the Portal's tag APIs, after the showcase. The Portal didn't answer who owns a token |
+| `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them |
+| `claims_unavailable` | 503 | Who owns a token couldn't be found in time: from the claims stand-in until the switch after the showcase, then from the Portal. A station keeps its taps and resends them; the screens say "Couldn't reach GeeksHacking. Try again." |
 
 ### Rate limits
 
@@ -162,8 +162,7 @@ caller's requests over one minute, and once it is passed answers `429` with
 | GeekyKey Service | Each station's requests, taps and heartbeats together | 60 |
 | GeekyKey Service | Each user's requests to its API | 60 |
 | GeekyKey Service | Each user's token lookups and claims, which also count toward the 60 | 20 |
-| GeekyKey Service | Each Event Service's status calls | 120 |
-| Event Service | Each user's requests to its API | 60 |
+| Event Service | Each user's requests to its API | 60, counted by each server instance |
 
 ### CORS and cookies
 
@@ -191,11 +190,11 @@ the session cookie by default.
 | Caller | Identified by | Talks to |
 |---|---|---|
 | Participant | `event_session` | The Event Service |
-| Organizer | `event_session`, with a Portal user ID on the Event Service's organizer list (not `users.role`) | The Event Service |
+| Organizer | `event_session`, with a Portal user ID on the Event Service's organizer list (not `users.role`) | The Event Service, including its stations |
 | User | `gk_session` | The GeekyKey Service: the token page and My tokens |
-| GeekyKey admin | `gk_session`, with a Portal user ID on the GeekyKey Service's admin list | The GeekyKey Service |
+| GeekyKey admin | `gk_session`, with a Portal user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
-| Event Service | `Authorization: Bearer` with its Event Service key | The GeekyKey Service's status call, and the other way for the hand-off |
+| GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
 
 - The organizer list and the GeekyKey admin list are settings of their service, changed through
   a reviewed pull request and a deploy. Each is checked on every request, so removing someone
@@ -221,36 +220,41 @@ login is only a quick redirect.
 
 ### Station keys
 
-Each physical station has one key. A GeekyKey admin creates it with
-`POST /api/v1/admin/stations`, and can replace it with `POST /api/v1/admin/stations/{id}/key`,
-which keeps the station's ID. The key is shown once and only its hash is stored. Firmware sends
-it on every request as `Authorization: Bearer <key>`.
+Each station belongs to one Event Service, which registers it and issues its one key. An
+organizer creates it with the Event Service's `POST /api/v1/admin/stations`, and can replace it
+with `POST /api/v1/admin/stations/{id}/key`, which keeps the station's ID. The key is shown once
+and only its hash is stored. Firmware sends it on every request to the GeekyKey Service as
+`Authorization: Bearer <key>`.
 
-- A GeekyKey admin can disable a station and enable it again. A disabled station's key gets
-  `401 invalid_station_key`, the same as a wrong key.
+- The GeekyKey Service checks the key against its copy of every Event Service's registered
+  stations (11.1), and the station feeds the Event Service that registered it.
+- An organizer can disable a station and enable it again. A disabled station drops off its
+  Event Service's registered stations, and its key gets `401 invalid_station_key`, the same as a
+  wrong key.
 - A new, replaced or disabled key takes up to a minute to take effect, because the GeekyKey
-  Service keeps its list of key hashes in memory.
+  Service refreshes its copy at most once a minute.
+- A reader moved to another event becomes a new station there, with a new ID and key from that
+  event's Event Service. It first sends its saved taps, then its flash is erased before it is
+  flashed with the new key. Provisional until 8 October 2026.
 - A station never receives any information about a participant beyond a tap status, in line
   with the privacy row of the risk assessment.
 
 ### Event Service keys
 
-`Checkpoint 3`. Each Event Service shares one key with the GeekyKey Service. Both directions
-send it as `Authorization: Bearer <key>`: the GeekyKey Service on the hand-off, and the Event
-Service on the status call.
+`Checkpoint 3`. Each Event Service shares one key with the GeekyKey Service, which sends it as
+`Authorization: Bearer <key>` on every request under `/geekykey/v1`: the registered stations,
+the hand-off and the heartbeat hand-off. Event Services never call the GeekyKey Service.
 
 - It is 32 random bytes, generated like a station key. Nobody picks one.
-- Both sides compare it in constant time.
+- The Event Service compares it in constant time, on every request, since its address is
+  public.
 - Neither side ever logs it.
-- The hand-off never follows a redirect, because `fetch()` sends `Authorization` on to wherever
-  a redirect points, even another domain. Another team's Event Service address must start with
+- The GeekyKey Service never follows a redirect, because `fetch()` sends `Authorization` on to
+  wherever a redirect points, even another domain. Every Event Service address must start with
   `https://`.
 - To replace one, set the new key on both sides outside the event. Hand-offs fail with
   `503 event_service_unavailable` until both match, and stations keep their taps and resend
   them.
-
-Our Event Service checks the key even though only service bindings reach it, because other
-teams copy it, and theirs will be on public addresses.
 
 ---
 
@@ -284,14 +288,15 @@ Every tap a station sends comes back with one of these.
 | `no_game` | Event Service | yes | Reached the event, but no game counts taps at that station, for example one without passport settings |
 | `duplicate` | Event Service | no | This station already sent this `client_tap_id`. Nothing written. Returned only to stations |
 | `unknown_token` | GeekyKey Service | no, only logged | Nobody has claimed this token |
-| `no_event` | GeekyKey Service | no, only logged | The station feeds no event, or the tap was timed before its current link started |
 
 - **Stored** means kept in the Event Service's taps, so only `accepted`, `cooldown` and
   `no_game` appear in the tap log, the export and `recent_taps`.
 - Another team's Event Service may answer statuses of its own, which the GeekyKey Service
   passes on unchanged. A station treats any status it doesn't know as recorded.
-- `no_game` and `no_event` start at checkpoint 3. Until then, today's backend stores
-  `unknown_token` taps.
+- `no_game` starts at checkpoint 3. Until then, today's backend stores `unknown_token` taps.
+- `no_event`, in version 0.2, is retired: every station belongs to the Event Service that
+  registered it, and a key no Event Service has registered gets `401`. No service sends it.
+  Provisional until 8 October 2026.
 
 The cooldown window is an Event Service setting, default 300 seconds. The screens never need to
 compute it.
@@ -320,13 +325,13 @@ them.
 - **Points** are the sum of the station's points over the user's accepted taps, so tapping a
   station again after the cooldown earns its points again. This is the simplest rule that keeps
   the showcase interesting and can be changed later without an API change.
-- A station unlinked later keeps its stamp slot and the stamps already earned there.
+- A station disabled later keeps its stamp slot and the stamps already earned there.
 
 ---
 
 ## 5. Endpoint index
 
-Until checkpoint 4, one Worker built from `apps/backend` serves both tables.
+Until checkpoint 4, one server built from `apps/backend` serves both tables.
 
 **The GeekyKey Service**
 
@@ -343,20 +348,15 @@ Until checkpoint 4, one Worker built from `apps/backend` serves both tables.
 | GET | `/api/v1/tokens/{uid}` | User | `Checkpoint 6` | What the token page shows |
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Checkpoint 6` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Checkpoint 6` | Release a token |
-| GET | `/api/v1/admin/stations` | GeekyKey admin | `Checkpoint 6` | Every station |
-| POST | `/api/v1/admin/stations` | GeekyKey admin | `Checkpoint 6` | Create a station, key shown once |
-| POST | `/api/v1/admin/stations/{id}/key` | GeekyKey admin | `Checkpoint 6` | Replace a station's key, new key shown once |
-| PUT | `/api/v1/admin/stations/{id}/link` | GeekyKey admin | `Checkpoint 6` | Link a station to an Event Service, or to none |
-| POST | `/api/v1/admin/stations/{id}/disable` | GeekyKey admin | `Checkpoint 6` | Disable a station |
-| POST | `/api/v1/admin/stations/{id}/enable` | GeekyKey admin | `Checkpoint 6` | Enable it again |
-| GET | `/api/v1/event-service/stations` | Event Service | `Checkpoint 6` | The status of the stations linked to it |
 
 **The Event Service**
 
 | Method | Path | Caller | Status | Purpose |
 |---|---|---|---|---|
 | GET | `/api/health` | anyone | `Checkpoint 4` | Liveness check |
+| GET | `/geekykey/v1/stations` | GeekyKey Service | `Checkpoint 3` | Its registered stations |
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Checkpoint 3` | The hand-off |
+| POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Checkpoint 3` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Checkpoint 4` | Set `event_session` for a seeded user |
 | GET | `/auth/login` | browser | `Checkpoint 5` | Start the Portal login |
 | GET | `/auth/callback` | browser | `Checkpoint 5` | Finish the Portal login, set `event_session` |
@@ -364,6 +364,10 @@ Until checkpoint 4, one Worker built from `apps/backend` serves both tables.
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented, changes at checkpoint 3` | Profile, stamps, points, history |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
 | GET | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | The station board |
+| POST | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | Create a station, key shown once |
+| POST | `/api/v1/admin/stations/{id}/key` | Organizer | `Checkpoint 7` | Replace a station's key, new key shown once |
+| POST | `/api/v1/admin/stations/{id}/disable` | Organizer | `Checkpoint 7` | Disable a station |
+| POST | `/api/v1/admin/stations/{id}/enable` | Organizer | `Checkpoint 7` | Enable it again |
 | GET | `/api/v1/admin/taps` | Organizer | `Checkpoint 7` | Recent taps, newest first |
 | POST | `/api/v1/admin/taps` | Organizer | `Checkpoint 7` | QR fallback tap |
 | GET | `/api/v1/admin/stats` | Organizer | `Checkpoint 7` | Totals for the dashboard |
@@ -373,7 +377,9 @@ Until checkpoint 4, one Worker built from `apps/backend` serves both tables.
 
 ## 6. Station endpoints
 
-On the GeekyKey Service, at `https://key-api.geekshacking.com` in production.
+On the GeekyKey Service, at `https://key-api.geekshacking.com` in production from checkpoint 4.
+From checkpoint 2 until then, stations call today's backend at
+`https://event-api.geekshacking.com`, which answers them the same way.
 
 ### 6.1 `POST /api/v1/taps` — `Implemented, changes at checkpoint 3`
 
@@ -417,32 +423,36 @@ item has a [`tap_status`](#tap_status).
 
 **How a tap is answered, from checkpoint 3**
 
-1. The GeekyKey Service finds the station from its key. A wrong key, or a disabled station's,
-   gets `401`.
-2. It checks the station's link. No link, a link to an Event Service no longer in its settings,
-   or a tap timed before the link started gets `no_event`. This is checked before the token.
-3. A token nobody has claimed gets `unknown_token`.
-4. It hands every other tap to the linked Event Service in one call, the hand-off
-   (section 11), and passes back the statuses it answers unchanged.
-5. If the Event Service doesn't answer properly within 3 seconds, the whole request fails with
-   `503 event_service_unavailable`, and the station keeps every tap in it to resend.
+1. The GeekyKey Service checks the key against its copy of every Event Service's registered
+   stations (11.1). A key on none of them, which includes a disabled station's, gets `401`. If
+   an Event Service's registered stations couldn't be fetched and the key isn't on the others,
+   the request fails with `503 event_service_unavailable` instead, since the key may be on the
+   missing list.
+2. It finds each token's owner: from the claims stand-in until the switch after the showcase,
+   then from the Portal. A token nobody has claimed gets `unknown_token`.
+3. It hands every other tap to the Event Service that registered the station in one call, the
+   hand-off (11.2), and passes back the statuses it answers unchanged.
+4. Steps 2 and 3 share one deadline of 4 seconds (11.5, provisional). If the owners can't be
+   found properly in time, the whole request fails with `503 claims_unavailable`. If the Event
+   Service doesn't answer properly in what's left, it fails with
+   `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
 Until checkpoint 3, today's backend answers `accepted`, `cooldown`, `unknown_token` or
 `duplicate` itself, and stores `unknown_token` taps.
 
 **Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`,
-`event_service_unavailable` (from checkpoint 3), `rate_limited` (from checkpoint 6), and
-`portal_unavailable` (after the showcase).
+`claims_unavailable` and `event_service_unavailable` (from checkpoint 3), and `rate_limited`
+(from checkpoint 6).
 
 **Firmware contract**
 
 - Remove a tap from the local buffer as soon as **any** status comes back for it, including
-  `duplicate`, `unknown_token`, `no_event`, `no_game`, and statuses you don't know.
+  `duplicate`, `unknown_token`, `no_game`, and statuses you don't know.
 - Re-sending a `client_tap_id` is always safe. It returns `duplicate` and writes nothing.
+- Wait 5 seconds for an answer. The GeekyKey Service uses at most 4 of them.
 - On `401`, keep the taps, show a setup error, and retry at the heartbeat's pace. Once the key
   is fixed, or the station is enabled again, they still count.
-- On `429`, any `5xx` including `503 event_service_unavailable`, or no answer, keep the taps and
-  retry later.
+- On `429`, any `5xx` including either `503`, or no answer, keep the taps and retry later.
 - On `400`, drop that batch and print it on the serial port. Sending it again would never work,
   and it would block every tap saved after it.
 - Resend saved taps at most once a minute, alongside the heartbeat, never in a loop. A new tap
@@ -462,11 +472,10 @@ change. Show each result for about 2 seconds with its LED on, then go back to "R
 | `accepted` | `Tap counted!` / `Check your phone` | blue |
 | `cooldown` | `Already counted` / `Try again later` | amber |
 | `unknown_token` | `Not claimed yet` / `Claim on phone` | red |
-| `no_event` | `Not in an event` / `Tell organizer` | red |
 | `no_game` | `Not in a game` / `Tell organizer` | red |
 | `duplicate` | nothing; it only happens when a saved tap is resent | none |
 | any status the station doesn't know | `Tap received` | blue |
-| no answer, `503` or `429` | `Not recorded` / `Please tap again`, or `Tap saved` / `Will send later` while it's saved | red |
+| no answer, `503` or `429` | `Tap saved` / `Will send later`, since the station keeps the tap and resends it | red |
 | `401` | `Setup error` / `Tell organizer` | red |
 | the reader stops answering (the station's own check, section 6.2) | `Reader error` / `Tell organizer` | red |
 
@@ -479,13 +488,14 @@ change. Show each result for about 2 seconds with its LED on, then go back to "R
 - Never print the key on the serial port, even in debug output.
 - In production, trust the 14 root certificates of the certificate authorities Cloudflare uses,
   listed in [the message to Zi Tao](../.scratch/db-hosting/assets/message-to-zi-tao-station-contract.md),
-  and never use `setInsecure()`. Keep one HTTPS connection open, so a tap doesn't pay a new
+  which also cover the Google Trust Services certificate of `event-api.`, and never use
+  `setInsecure()`. Keep one HTTPS connection open, so a tap doesn't pay a new
   handshake each time.
 
 ### 6.2 `POST /api/v1/stations/heartbeat` — `Checkpoint 3`
 
-Lets the screens show an online light between taps and whether the reader works, and gives the
-station its clock.
+Gives the station its clock, and lets the station board show an online light between taps and
+whether the reader works.
 
 **Auth:** station key.
 
@@ -497,7 +507,7 @@ station its clock.
 
 | Field | Type | Rules |
 |---|---|---|
-| `firmware_version` | string | Shown to GeekyKey admins and organizers |
+| `firmware_version` | string | Shown to organizers on the station board |
 | `buffered_taps` | integer, 0 or more | Taps saved on the station and not yet sent |
 | `reader_ok` | boolean | `false` when the NFC reader doesn't answer the station's own check. Leave it out if the station doesn't check |
 
@@ -513,9 +523,14 @@ station its clock.
   only once it has been set.
 - Every 60 seconds also keeps the HTTPS connection open, since Cloudflare closes an idle one
   after 400 seconds.
-- A station is shown as online when its last request of any kind was within 120 seconds.
+- The GeekyKey Service answers as soon as the key is checked, and passes the other fields to the
+  station's Event Service afterwards, without waiting (11.3). So a heartbeat succeeds, and sets
+  the clock, even while the Event Service is down.
+- A station is shown as online when its Event Service heard from it, by a tap or a heartbeat,
+  within 120 seconds.
 
-**Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`, `rate_limited`
+**Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`,
+`event_service_unavailable` when the key can't be checked (from checkpoint 3), and `rate_limited`
 (from checkpoint 6).
 
 ---
@@ -542,7 +557,7 @@ settings. Never enabled in production.
   `dev-user-1` (participant) and `dev-organizer-1`, who is on the local organizer list, so both
   views can be developed.
 - **The GeekyKey Service** signs in any `user_id`, because it keeps no users. `dev-organizer-1`
-  is also on its local GeekyKey admin list, so the admin screens can be developed.
+  is also on its local GeekyKey admin list, so releasing someone else's token can be developed.
 - Until checkpoint 4, today's backend has one dev-login, which sets `gk_session` for a seeded
   user and answers `not_found` for anyone else.
 
@@ -572,7 +587,10 @@ Portal. The GeekyKey Service keeps no users: its session holds only the Portal u
 ## 8. User endpoints
 
 8.1 is on the Event Service, for participants and organizers. 8.2 to 8.5 are on the GeekyKey
-Service, for any logged-in user, and are what the token page and My tokens call.
+Service, for any logged-in user, and are what the token page and My tokens call. Each of 8.2 to
+8.5 answers `503 claims_unavailable` when the claims stand-in, or after the switch the Portal,
+doesn't answer properly within 4 seconds. Nothing is saved, and the screens say "Couldn't reach
+GeeksHacking. Try again."
 
 ### 8.1 `GET /api/v1/me` on the Event Service — `Implemented, changes at checkpoint 3`
 
@@ -699,7 +717,7 @@ shows a login prompt and looks nothing up.
 | `owner` | The token page shows |
 |---|---|
 | `nobody` | **Claim** |
-| `you` | Your token, with **Release**, and a link to each event from `/me` |
+| `you` | Your token, with **Release**, and a button for each event from `/me`, such as "Open Capstone Showcase" |
 | `someone_else` | "This token belongs to someone else", with no name. A GeekyKey admin also sees **Release** |
 
 **Errors:** `unauthenticated`, `validation_failed`, `rate_limited`.
@@ -709,8 +727,8 @@ shows a login prompt and looks nothing up.
 ## 9. Organizer endpoints
 
 On the Event Service. All require `event_session` for a user on the Event Service's organizer
-list. Anyone else gets `forbidden`. Creating a station, its key, its link and disabling it
-belong to the GeekyKey admins, in section 10.
+list. Anyone else gets `forbidden`. Organizers also look after their event's stations: 9.7 to 9.9
+create them, replace their keys, and disable and enable them.
 
 ### 9.1 `PUT /api/v1/admin/stations/{id}/passport` — `Checkpoint 7`
 
@@ -735,26 +753,25 @@ station board.
   it.
 - From then on, its taps get `accepted` or `cooldown` instead of `no_game`. Taps already stored
   as `no_game` stay as they are.
-- The Event Service doesn't check that the station is linked. The station board offers this
-  only for the stations on it.
 
-**Errors:** `validation_failed`.
+**Errors:** `validation_failed`, and `not_found` for a station this Event Service didn't
+register.
 
 ### 9.2 `GET /api/v1/admin/stations` — `Checkpoint 7`
 
-The station board. The Event Service merges the GeekyKey Service's status call (11.5) with its
-own passport settings and taps.
+The station board: every station this Event Service has registered, enabled or disabled, with
+its health, its passport settings and its last tap.
 
 **Response `200`**
 
 ```json
 {
-  "status_known": true,
   "stations": [
     {
       "id": "…",
       "label": "Reader 3",
-      "linked": true,
+      "created_at": "2026-10-01T02:00:00.000Z",
+      "disabled_at": null,
       "passport": { "name": "3D Printing Booth", "location": "Hall A", "points": 1, "added_at": "…" },
       "last_seen_at": "2026-10-10T09:00:01.250Z",
       "online": true,
@@ -767,23 +784,19 @@ own passport settings and taps.
 }
 ```
 
-- The board lists every station linked to this event now, and every station with passport
-  settings.
-- `passport` is `null` for a linked station without passport settings. The screen shows it as
-  "Not in the passport", with a button to add its settings (9.1). Its taps get `no_game`.
-- `linked` is `false` for a passport station that is no longer linked. It keeps its slot and its
-  stamps, and shows as "no longer linked".
-- `online` is the GeekyKey Service's: the station's last request was within 120 seconds.
-- `reader_ok` is `null` when the station hasn't sent one.
-- `last_tap_at` is when this Event Service last received a stored tap from the station, or
-  `null`.
-- `status_known` is `false` when the status call failed or took more than 3 seconds. Then the
-  list holds the passport stations and the stations that have sent a tap here, and `label`,
-  `linked`, `last_seen_at`, `online`, `firmware_version`, `buffered_taps` and `reader_ok` are
-  all `null`. The screen shows each station's status as unknown, not offline, so nobody restarts
-  a healthy station.
+| Field | Meaning |
+|---|---|
+| `label` | The device's name, such as "Reader 3". Its name in the passport is `passport.name` |
+| `disabled_at` | When an organizer disabled it, or `null` while it is enabled |
+| `passport` | `null` for a station without passport settings. The screen shows it as "Not in the passport", with a button to add its settings (9.1). Its taps get `no_game` |
+| `last_seen_at`, `online` | When this Event Service last heard from the station, by a tap or a heartbeat, and whether that was within 120 seconds |
+| `firmware_version`, `buffered_taps`, `reader_ok` | From its last heartbeat, or `null` |
+| `last_tap_at` | When this Event Service last received a stored tap from the station, or `null` |
+
+- A disabled station keeps its slot and its stamps.
 - Suggested: stations that are offline, holding saved taps, not in the passport, or whose reader
-  isn't responding go first, in red. A station that is only quiet stays uncoloured.
+  isn't responding go first, in red. A station that is only quiet stays uncoloured. A disabled
+  station goes last.
 
 Poll this every 10 to 15 seconds for the station board.
 
@@ -886,56 +899,9 @@ who has never logged in to this event.
 This is the data feed for the Sprint 2 A/B analysis, so it must not be cut from scope. The
 analysis needs neither token UIDs nor taps by unclaimed tokens (Joshua, 28 Sep).
 
----
+### 9.7 `POST /api/v1/admin/stations` — `Checkpoint 7`
 
-## 10. GeekyKey admin endpoints
-
-On the GeekyKey Service. All require `gk_session` for a user on the GeekyKey Service's admin
-list. Anyone else gets `forbidden`. Each change is logged with who made it.
-
-Every endpoint here answers with this station object:
-
-```json
-{
-  "id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
-  "label": "Reader 3",
-  "created_at": "2026-10-01T02:00:00.000Z",
-  "link": { "event_service_id": "showcase", "event_service_name": "Capstone Showcase", "linked_at": "2026-10-09T23:30:00.000Z" },
-  "disabled_at": null,
-  "last_seen_at": "2026-10-10T09:00:01.250Z",
-  "online": true,
-  "firmware_version": "0.3.1",
-  "buffered_taps": 0,
-  "reader_ok": true
-}
-```
-
-| Field | Meaning |
-|---|---|
-| `label` | The device's name, such as "Reader 3". What an event calls it, such as its passport name, is the Event Service's business |
-| `link` | Which Event Service the station feeds, and since when. `null` for no link. `event_service_name` is `null` if that Event Service is no longer in the settings, and its taps get `no_event` |
-| `disabled_at` | When the station was disabled, or `null` while it is enabled |
-| `online` | Its last request of any kind was within 120 seconds |
-| `firmware_version`, `buffered_taps`, `reader_ok` | From its last heartbeat, or `null` |
-
-### 10.1 `GET /api/v1/admin/stations` — `Checkpoint 6`
-
-Every station, and the Event Services a station can be linked to.
-
-**Response `200`**
-
-```jsonc
-{
-  "stations": [
-    // one station object, as above, per station
-  ],
-  "event_services": [ { "id": "showcase", "name": "Capstone Showcase" } ]
-}
-```
-
-Poll this every 10 to 15 seconds.
-
-### 10.2 `POST /api/v1/admin/stations` — `Checkpoint 6`
+Create a station for this event.
 
 **Request**
 
@@ -947,20 +913,23 @@ Poll this every 10 to 15 seconds.
 
 ```jsonc
 {
-  "station": { /* the station object, with "link": null */ },
+  "station": { /* the station, as the board lists it (9.2) */ },
   "api_key": "gk_sta_DuY…"
 }
 ```
 
-A new station has no link. `api_key` is returned **only** in this response. The admin screen must
-show it with a copy button and a warning. There is no endpoint to read it back.
+- `api_key` is returned **only** in this response. The station board must show it with a copy
+  button and a warning. There is no endpoint to read it back.
+- The station joins this Event Service's registered stations at once, and the GeekyKey Service
+  accepts its key within a minute.
+- It isn't in the passport until 9.1 adds its settings, so until then its taps get `no_game`.
 
 **Errors:** `validation_failed`.
 
-### 10.3 `POST /api/v1/admin/stations/{id}/key` — `Checkpoint 6`
+### 9.8 `POST /api/v1/admin/stations/{id}/key` — `Checkpoint 7`
 
-Replace a station's key, keeping its ID and its link. The old key stops working within a minute,
-and Zi Tao reflashes the station with the new one.
+Replace a station's key, keeping its ID, its passport settings and its stamps. The old key stops
+working within a minute, and Zi Tao reflashes the station with the new one.
 
 **Request:** no body.
 
@@ -968,7 +937,7 @@ and Zi Tao reflashes the station with the new one.
 
 ```jsonc
 {
-  "station": { /* the station object */ },
+  "station": { /* the station, as the board lists it */ },
   "api_key": "gk_sta_Qm7…"
 }
 ```
@@ -977,63 +946,84 @@ As when a station is created, `api_key` is returned only here.
 
 **Errors:** `not_found`.
 
-### 10.4 `PUT /api/v1/admin/stations/{id}/link` — `Checkpoint 6`
-
-Link a station to an Event Service from `event_services`, or unlink it.
-
-**Request**
-
-```json
-{ "event_service_id": "showcase" }
-```
-
-`{ "event_service_id": null }` unlinks it.
-
-**Response `200`**
-
-```jsonc
-{ "station": { /* the station object */ } }
-```
-
-- Linking or moving a station sets `linked_at` to now. Taps it saved before then get `no_event`
-  when they arrive, so the admin screen warns before a move when `buffered_taps` isn't 0.
-- Linking it again to the Event Service it already feeds changes nothing, so its saved taps
-  still count.
-- Unlinking empties the link.
-
-**Errors:** `validation_failed` for an ID not in `event_services`, `not_found` for the station.
-
-### 10.5 `POST /api/v1/admin/stations/{id}/disable` and `/enable` — `Checkpoint 6`
+### 9.9 `POST /api/v1/admin/stations/{id}/disable` and `/enable` — `Checkpoint 7`
 
 **Request:** no body.
 
 **Response `200`**
 
 ```jsonc
-{ "station": { /* the station object */ } }
+{ "station": { /* the station, as the board lists it */ } }
 ```
 
-Disabling sets `disabled_at`. Within a minute the station's key gets `401`, and the station
-keeps its taps. Enabling empties `disabled_at`, and the saved taps count once they arrive.
-Doing either twice changes nothing.
+Disabling sets `disabled_at`, and the station drops off this Event Service's registered
+stations, so within a minute its key gets `401`, and the station keeps its taps. Enabling
+empties `disabled_at`, and the saved taps count once they arrive. Doing either twice changes
+nothing. Each change is logged with who made it.
 
 **Errors:** `not_found`.
 
 ---
 
+## 10. GeekyKey admin endpoints
+
+None since version 0.3. The station jobs moved to each Event Service's organizers (9.7 to 9.9).
+A GeekyKey admin's one job is releasing someone else's token, which is 8.3 with `owner_id`.
+
+---
+
 ## 11. Building an Event Service
 
-For anyone building an Event Service, ours or another team's. The GeekyKey Service hands each
-linked station's taps to its Event Service as users, and the Event Service decides what they
-count for. An Event Service logs its users in through the Portal itself
+For anyone building an Event Service, ours or another team's. The GeekyKey Service checks each
+station's key against the stations the Event Services have registered, and hands the station's
+taps to the Event Service that registered it, as users. The Event Service decides what they count
+for. An Event Service logs its users in through the Portal itself
 ([ADR 0002](../docs/adr/0002-each-service-logs-in-through-the-portal.md)).
 
-Adding an Event Service is a reviewed pull request to the GeekyKey Service's settings: its ID,
-its name, its `https://` address, and optionally a public address and name for the links on My
-tokens and the token page. Its key is set as a secret on both sides. A GeekyKey admin then links
-stations to it.
+Every Event Service serves three requests, all called by the GeekyKey Service with the Event
+Service key: its registered stations (11.1), the hand-off (11.2) and the heartbeat hand-off
+(11.3). It also creates its own stations and issues their keys, in whatever way suits it; ours
+does it on the station board (9.7 to 9.9).
 
-### 11.1 The hand-off: `POST /geekykey/v1/taps` — `Checkpoint 3`
+Adding an Event Service is a reviewed pull request to the GeekyKey Service's settings: its ID,
+its name, its `https://` address, and optionally a public address and name for the buttons on My
+tokens and the token page. Its key is set as a secret on both sides.
+
+### 11.1 Registered stations: `GET /geekykey/v1/stations` — `Checkpoint 3`
+
+Which station keys are this Event Service's. The GeekyKey Service keeps a copy of every Event
+Service's list in memory, fills it when it's empty, and refreshes it at most once a minute.
+
+**Auth:** `Authorization: Bearer <Event Service key>`.
+
+**Response `200`**
+
+```json
+{
+  "stations": [
+    { "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6", "key_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" }
+  ]
+}
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `station_id` | string | The station's ID, unique across every Event Service. Ours are UUIDs |
+| `key_hash` | string | The SHA-256 of the station key, as 64 lower-case hex characters. Never the key itself |
+
+- List enabled stations only. A disabled station drops off, and within a minute its key gets
+  `401`.
+- Nothing else goes in the list: no label, no location.
+- A station ID or key hash that appears twice, in one list or across Event Services, is refused
+  and logged, so neither station works until it's fixed. Make keys of 32 random bytes, as ours
+  are, with the `gk_sta_` prefix.
+- When this call fails, the GeekyKey Service keeps the last list it had from you. While it has
+  none, a station whose key isn't on another list gets `503 event_service_unavailable`, not
+  `401`. Filling an empty copy counts against the same deadline as a tap (11.5).
+
+**Errors:** `invalid_event_service_key`.
+
+### 11.2 The hand-off: `POST /geekykey/v1/taps` — `Checkpoint 3`
 
 The GeekyKey Service calls this on the Event Service once per station request, with every tap in
 it that passed the GeekyKey Service's own checks.
@@ -1054,7 +1044,7 @@ it that passed the GeekyKey Service's own checks.
 
 | Field | Type | Rules |
 |---|---|---|
-| `station_id` | string | The station's ID on the GeekyKey Service |
+| `station_id` | string | One of this Event Service's registered stations |
 | `taps` | array | 1 to 500 items |
 | `taps[].client_tap_id` | string | 1 to 128 chars. Unique per station forever |
 | `taps[].user_id` | string | The token owner's Portal user ID |
@@ -1080,19 +1070,49 @@ it that passed the GeekyKey Service's own checks.
 
 **Errors:** `invalid_event_service_key`, `validation_failed`.
 
-### 11.2 Dropping replays
+### 11.3 The heartbeat hand-off: `POST /geekykey/v1/heartbeats` — `Checkpoint 3`
+
+The GeekyKey Service passes on each heartbeat a station sends (6.2), after it has answered the
+station.
+
+**Auth:** `Authorization: Bearer <Event Service key>`.
+
+**Request**
+
+```json
+{ "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6", "firmware_version": "0.3.1", "buffered_taps": 0, "reader_ok": true }
+```
+
+`station_id` is always there. The other three are the station's own, as in 6.2, and are left out
+when the station left them out.
+
+**Response `204`**, no body.
+
+- The GeekyKey Service doesn't wait for the answer and doesn't retry. A lost heartbeat is
+  replaced a minute later.
+- Use it for the station's health, such as an online light. Ours counts a station heard from, by
+  a tap or a heartbeat, within 120 seconds as online.
+
+**Errors:** `invalid_event_service_key`, `validation_failed`.
+
+### 11.4 Dropping replays
 
 Every Event Service must drop replays by station ID and `client_tap_id`: a tap it has already
 received answers `duplicate` and changes nothing. Stations resend saved taps, and a hand-off that
-failed may still have stored some of its taps (11.3).
+failed may still have stored some of its taps (11.5).
 
-### 11.3 The 3-second limit
+### 11.5 The 4-second deadline
 
-The GeekyKey Service waits 3 seconds for the answer. Each of these fails the whole station
-request with `503 event_service_unavailable`, and the station keeps every tap in it to resend
-later:
+The GeekyKey Service gives each station request one deadline of 4 seconds for finding the tokens'
+owners and the hand-off together, so the hand-off gets whatever the owner lookup leaves. The
+station waits 5. Provisional until our first deploy measures a cold start: a cold start lands on
+the first call that wakes a server, so keep yours warm on event days, or able to answer from
+cold within about 3 seconds.
 
-- no answer within 3 seconds;
+Each of these fails the whole station request with `503 event_service_unavailable`, and the
+station keeps every tap in it to resend later:
+
+- no answer within the time left;
 - a status other than 2xx;
 - a redirect, which is never followed;
 - a body the response schema rejects, including results that don't match the request's taps one
@@ -1101,53 +1121,24 @@ later:
 The GeekyKey Service doesn't retry. An Event Service that stored taps but answered late sees them
 again when the station resends, and answers `duplicate`.
 
-### 11.4 The Event Service key
+### 11.6 The Event Service key
 
 Both sides check it as [Event Service keys](#event-service-keys) in section 3 describes. The
-GeekyKey Service sends it on the hand-off, and the Event Service sends it on the status call.
+GeekyKey Service sends it on all three requests.
 
-### 11.5 The status call: `GET /api/v1/event-service/stations` — `Checkpoint 6`
+### 11.7 The JSON Schema
 
-On the GeekyKey Service, at `https://key-api.geekshacking.com`. An Event Service calls it
-with its key to show its stations' health. Ours calls it over HTTPS too, not through a binding.
-
-**Response `200`**
-
-```json
-{
-  "stations": [
-    {
-      "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
-      "label": "Reader 3",
-      "linked_at": "2026-10-09T23:30:00.000Z",
-      "last_seen_at": "2026-10-10T09:00:01.250Z",
-      "online": true,
-      "firmware_version": "0.3.1",
-      "buffered_taps": 0,
-      "reader_ok": null
-    }
-  ]
-}
-```
-
-- Only the stations linked to the calling Event Service now.
-- `reader_ok` is `null` when the station hasn't sent one.
-- The GeekyKey Service sends no notice when a link changes. An Event Service learns of a station
-  from this call or from its first tap.
-- Give it 3 seconds. If it fails, show each station's status as unknown, not offline.
-
-**Errors:** `invalid_event_service_key`, `rate_limited`.
-
-### 11.6 The JSON Schema
-
-The hand-off's request and response are Zod schemas in `packages/handoff`, from checkpoint 3.
-Both our services check against them, and a JSON Schema generated from them with
+The bodies of the three requests and their answers are Zod schemas in `packages/handoff`, from
+checkpoint 3. Both our services check against them, and a JSON Schema generated from them with
 `z.toJSONSchema` is for other teams.
 
-### 11.7 What the hand-off leaves out
+### 11.8 What the hand-off leaves out
 
 - The token's UID. An Event Service sees only users.
-- Taps the GeekyKey Service turned away as `unknown_token` or `no_event`.
+- Who owns which token. The GeekyKey Service finds owners itself: from a claims stand-in on our
+  own server until the switch after the showcase, then from the Portal. An Event Service never
+  builds or calls either.
+- Taps the GeekyKey Service turned away as `unknown_token`.
 - The source. Every tap in a hand-off comes from a station; our QR fallback lives inside the
   Event Service.
 - When the GeekyKey Service received the tap. The Event Service uses its own clock.
@@ -1160,10 +1151,12 @@ Both our services check against them, and a JSON Schema generated from them with
 Not exposed by the API before the showcase. Listed so nobody builds UI against them.
 
 - Several events in one Event Service, or any event CRUD. One Event Service runs one event, and a
-  station feeds one Event Service at a time.
+  station belongs to one Event Service.
+- Moving a station between Event Services. A reader moved to another event becomes a new station
+  there.
 - Dual-tap connections, leaderboards, or archetype quests.
 - WebSocket or server-sent events. Poll the endpoints above.
-- Reading a station key back. Replacing one is in scope, for GeekyKey admins.
+- Reading a station key back. Replacing one is in scope, for organizers.
 - Removing a station from the passport.
 - Editing or deleting taps.
 - User profile editing. Display names come from the Portal.
@@ -1177,13 +1170,10 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | Screen | Calls |
 |---|---|
 | Login | `GET /auth/login` in production, `POST /auth/dev-login` in development |
-| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}` |
+| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token |
 | My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form |
-| GeekyKey admin stations, `/admin` | `GET /api/v1/admin/stations`, polled |
-| GeekyKey admin add station | `POST /api/v1/admin/stations` |
-| GeekyKey admin replace key | `POST /api/v1/admin/stations/{id}/key` |
-| GeekyKey admin change link | `PUT /api/v1/admin/stations/{id}/link` |
-| GeekyKey admin disable or enable | `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
+
+There are no GeekyKey admin screens.
 
 **The Event screens** (`apps/frontend`, which becomes `apps/event-web`, `event.geekshacking.com`)
 
@@ -1193,7 +1183,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | Participant dashboard | `GET /api/v1/me` |
 | Passport / stamp book | `GET /api/v1/me` (the `stamps` array) |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
-| Organizer station board | `GET /api/v1/admin/stations`, polled, and `PUT /api/v1/admin/stations/{id}/passport` |
+| Organizer station board | `GET /api/v1/admin/stations`, polled; `PUT /api/v1/admin/stations/{id}/passport`; `POST /api/v1/admin/stations`; `POST /api/v1/admin/stations/{id}/key`; `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
 | Organizer summary | `GET /api/v1/admin/stats`, `GET /api/v1/admin/export.csv` |
 
@@ -1201,6 +1191,8 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
   tokens say "Too many tries. Wait a minute and try again."
 - On `token_limit_reached`, the claim says "You already have 3 tokens. Release one on My tokens
   first."
+- On `claims_unavailable`, the token page, the claim form and My tokens say "Couldn't reach
+  GeeksHacking. Try again."
 
 Local setup, from checkpoint 1:
 
@@ -1210,7 +1202,7 @@ mise run seed          # prints a station key, and creates dev-user-1 and dev-or
 mise run dev:backend   # the service on http://localhost:8000
 ```
 
-`mise run dev:backend` turns on `DEV_AUTH_ENABLED` by itself, so no `.dev.vars` is needed. From
+`mise run dev:backend` turns on `DEV_AUTH_ENABLED` by itself, so no local settings file is needed. From
 checkpoint 4, one `pnpm dev` at the repo root starts both services and both sets of screens. Then
 `POST /auth/dev-login` with `{"user_id":"dev-user-1"}` from the screens, and every other call on
 that service works.
@@ -1246,3 +1238,4 @@ Closed on 2026-10-01:
 | 2026-09-26 | Fixes to `POST /api/v1/taps`, request and response shapes unchanged. A `tapped_at` more than 5 minutes ahead of the server or 7 days behind it is now ignored (section 6.1), so a clock that never synced (1970) cannot skew the cooldown. A late offline tap is judged against the accepted taps nearest it in time rather than only the newest. Overlapping requests from one station are handled one at a time, so a retry racing its original gets `duplicate` and two taps by one participant cannot both beat the cooldown. Unknown routes now return the `not_found` error body instead of plain text. |
 | 2026-09-29 | Version 0.2, rewritten for the move to Cloudflare Workers and TiDB and the split into the GeekyKey Service and the Event Service, as the [migration spec](../.scratch/db-hosting/spec.md) plans. Status tags now name the checkpoint that builds each endpoint, replacing `Sprint 1` and `MVP`. The endpoints are split by service. Pairing and unpairing become claim and release on the GeekyKey Service, with a 3-token limit, and `token_taken` replaces `uid_already_paired`. New: the GeekyKey Service's `/me` and token lookup, the GeekyKey admin endpoints (sections 10.1 to 10.5), passport settings (9.1), the hand-off and the status call (section 11), the heartbeat's `reader_ok`, and the statuses `no_event` and `no_game`. New errors: `invalid_event_service_key`, `token_limit_reached`, `rate_limited` (429), `event_service_unavailable` and `portal_unavailable` (503). No CORS; two cookies, `gk_session` and `event_session`. Base URLs for production. The station board is merged from the status call; the QR fallback takes `user_id` only. **One-off removals,** allowed once because nothing relies on them in production yet: `tokens` from the Event Service's `GET /api/v1/me`, `token_uid` from the tap log and the export, and stored `unknown_token` taps. Two open questions closed. |
 | 2026-10-01 | GeeksHacking's hostnames, chosen by Julian: stations and Event Services call `https://key-api.geekshacking.com` (was `geekykey-api`), the GeekyKey screens and the token address are on `key.geekshacking.com` (was `geekykey`), and the Event screens on `event.geekshacking.com` (was the provisional `showcase`). No endpoint or shape changes. |
+| 2026-10-07 | Version 0.3 (draft), after the Event Service moved to Google Cloud Run and the GeekyKey Service became a Worker with no database ([ADR 0003](../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md)), as the rewritten [migration spec](../.scratch/db-hosting/spec.md) plans. Each Event Service now registers its own stations and issues their keys, and a station feeds the Event Service that registered it. **New:** the registered stations, `GET /geekykey/v1/stations` (11.1); the heartbeat hand-off, `POST /geekykey/v1/heartbeats`, answering `204` (11.3); and the organizers' endpoints to create a station, replace its key, and disable and enable it (9.7 to 9.9), with the shapes the GeekyKey admin endpoints had, less the link. **Removed,** none of them built: the status call `GET /api/v1/event-service/stations` and its limit of 120 a minute, the GeekyKey admin endpoints (section 10), links, and the status `no_event` (provisional until 8 Oct). The station board (9.2) reads the Event Service's own stations, so it loses `status_known` and `linked` and gains `created_at` and `disabled_at`. Passport settings (9.1) answer `not_found` for a station that isn't this Event Service's. `claims_unavailable` (503) replaces `portal_unavailable`, from checkpoint 3, on station requests and on 8.2 to 8.5. One 4-second deadline for finding owners and the hand-off together replaces the 3-second limit (11.5, provisional). The heartbeat answers without waiting for the Event Service, and a key that can't be checked gets `503`. From checkpoint 2 until checkpoint 4, stations call `https://event-api.geekshacking.com`. The screen table's "no answer" row says `Tap saved` / `Will send later`. The checkpoints follow the rewritten spec, and section 11 is renumbered. |
