@@ -89,7 +89,7 @@ names them `geekykey.listStations` and `event.listStationBoard`; both still call
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
 | 1 | Session | `devLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
-| 2 | Stations | `listStations`, `createStation` | `/admin/stations`, the picker on `/admin/fallback` |
+| 2 | Stations | `listStationBoard`, `listStations`, `createStation`, `setStationPassport` | `/admin/stations`, the picker on `/admin/fallback` |
 | 3 | Scan log | `listTaps` | `/admin/taps` |
 | 4 | Event tail | `createFallbackTap`, `stats`, `exportCsv` | `/admin/summary`, `/admin/fallback` |
 
@@ -310,7 +310,8 @@ apps/frontend/
       auth/                 # login screen, dev-login form, RequireSession, RequireRole, 403 view, shell wiring
       passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph
       activity/             # participant tap history
-      stations/             # station board, add-station dialog, one-time key reveal
+      stations/             # station board, add-station dialog, one-time key reveal,
+                           # passport settings form (add or edit a slot)
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
@@ -400,7 +401,7 @@ Rules:
 | `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
-| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board |
+| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `PUT /admin/stations/{id}/passport` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; Add to passport on a row with no settings, Edit on one with |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |

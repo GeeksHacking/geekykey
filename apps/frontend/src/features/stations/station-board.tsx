@@ -2,6 +2,7 @@ import { WarningCircle } from "@phosphor-icons/react";
 
 import type { EventStationBoardStation } from "@/api/types";
 import { OnlineStatus } from "@/components/online-status";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/table";
 import { formatDateTime, formatWhen } from "@/lib/format";
 
+import { PassportStationDialog } from "./passport-station-dialog";
+import { usePassportStationDialog } from "./use-passport-station-dialog";
 import {
   hasStationProblem,
   sortStationsByTrouble,
@@ -22,6 +25,7 @@ import {
 export function StationBoard({ stations }: { stations: EventStationBoardStation[] }) {
   // Trouble first, so whoever is at the desk sees the rows that need them (agreement 9.2).
   const sorted = sortStationsByTrouble(stations);
+  const passport = usePassportStationDialog();
 
   return (
     <Table>
@@ -76,6 +80,18 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                     ))}
                   </ul>
                 ) : null}
+                <PassportButton
+                  station={station}
+                  onOpen={() => passport.openFor(station.id)}
+                  editing={station.passport !== null}
+                />
+                <PassportStationDialog
+                  station={station}
+                  open={passport.isOpenFor(station.id)}
+                  onOpenChange={(open) => {
+                    if (!open) passport.close();
+                  }}
+                />
               </TableCell>
               <TableCell className="text-right font-mono">
                 {station.passport?.points ?? "—"}
@@ -97,5 +113,31 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
         })}
       </TableBody>
     </Table>
+  );
+}
+
+/** Agreement 9.1. A station with no settings can be added; one with settings can be changed. */
+function PassportButton({
+  station,
+  editing,
+  onOpen,
+}: {
+  station: EventStationBoardStation;
+  editing: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="link"
+      size="sm"
+      className="h-auto px-0 text-xs"
+      onClick={onOpen}
+      aria-label={`${editing ? "Change passport settings for" : "Add to passport"} ${
+        station.passport?.name ?? station.label ?? "this station"
+      }`}
+    >
+      {editing ? "Edit passport settings" : "Add to passport"}
+    </Button>
   );
 }

@@ -12,6 +12,7 @@ const MOCKED_METHODS: readonly (keyof ApiClient)[] = [
   "listStations",
   "listStationBoard",
   "createStation",
+  "setStationPassport",
   "listTaps",
   "createFallbackTap",
   "stats",

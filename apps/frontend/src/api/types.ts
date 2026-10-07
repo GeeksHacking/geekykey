@@ -62,6 +62,18 @@ export interface EventStationPassport {
   added_at: string;
 }
 
+/** PUT /api/v1/admin/stations/{id}/passport. `location` and `points` may be left out. */
+export interface SetStationPassportRequest {
+  name: string;
+  location?: string;
+  points?: number;
+}
+
+/** Agreement 9.1. `station_id` is at the top level here, unlike the board's nested passport. */
+export interface SetStationPassportResponse {
+  passport: EventStationPassport & { station_id: string };
+}
+
 export interface EventStationBoardStation {
   id: string;
   label: string | null;

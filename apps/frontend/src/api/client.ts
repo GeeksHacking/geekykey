@@ -8,6 +8,8 @@ import type {
   ListTapsQuery,
   ListTapsResponse,
   MeResponse,
+  SetStationPassportRequest,
+  SetStationPassportResponse,
   StatsResponse,
 } from "@/api/types";
 
@@ -38,6 +40,15 @@ export interface ApiClient {
 
   /** POST /api/v1/admin/stations. The key in the response is shown once. */
   createStation(input: CreateStationRequest): Promise<CreateStationResponse>;
+
+  /**
+   * PUT /api/v1/admin/stations/{id}/passport. Adds the station to the passport or changes
+   * its settings. Agreement 9.1.
+   */
+  setStationPassport(
+    stationId: string,
+    input: SetStationPassportRequest,
+  ): Promise<SetStationPassportResponse>;
 
   /** GET /api/v1/admin/taps */
   listTaps(query?: ListTapsQuery): Promise<ListTapsResponse>;

@@ -23,6 +23,7 @@ import {
   type ListTapsQuery,
   type ListTapsResponse,
   type MeResponse,
+  type SetStationPassportResponse,
   type Station,
   type StatsResponse,
   type TapStatus,
@@ -321,6 +322,40 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         };
         data.stations.push(station);
         return { station: toStation(station), api_key: `gk_sta_${randomBase62(40)}` };
+      }),
+
+    setStationPassport: (stationId, input) =>
+      call((): SetStationPassportResponse => {
+        currentOrganizer();
+        const station = data.stations.find((s) => s.id === stationId);
+        if (!station) throw new ApiError(404, "not_found");
+
+        const issues: ApiIssue[] = [];
+        const name = input.name.trim();
+        if (name.length < 1 || name.length > 80) {
+          issues.push({ path: ["name"], message: "name must be 1 to 80 characters" });
+        }
+        const points = input.points ?? 1;
+        if (!Number.isInteger(points) || points < 0) {
+          issues.push({ path: ["points"], message: "points must be an integer of 0 or more" });
+        }
+        const location = input.location?.trim();
+        if (location !== undefined && location.length > 80) {
+          issues.push({ path: ["location"], message: "location must be 80 characters or fewer" });
+        }
+        if (issues.length) fail("validation_failed", issues);
+
+        // added_at decides the passport's slot order (agreement 8.1), so changing settings
+        // must keep the original one or the station would move. The service answers 201 when
+        // it adds and 200 when it changes; the body is the same either way.
+        const addedAt = station.passport === null ? iso(now()) : station.passport.added_at;
+        station.passport = {
+          name,
+          location: location || null,
+          points,
+          added_at: addedAt,
+        };
+        return { passport: { station_id: station.id, ...station.passport } };
       }),
 
     listTaps: (query: ListTapsQuery = {}) =>

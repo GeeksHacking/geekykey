@@ -14,7 +14,14 @@ describe("service client boundary", () => {
     );
     expect(Object.keys(services.geekykey).sort()).toEqual(["createStation", "listStations"].sort());
     expect(Object.keys(services.event).sort()).toEqual(
-      ["createFallbackTap", "exportCsv", "listStationBoard", "listTaps", "stats"].sort(),
+      [
+        "createFallbackTap",
+        "exportCsv",
+        "listStationBoard",
+        "listTaps",
+        "setStationPassport",
+        "stats",
+      ].sort(),
     );
   });
 });

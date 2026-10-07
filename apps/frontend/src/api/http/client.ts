@@ -8,6 +8,7 @@ import type {
   ListStationsResponse,
   ListTapsQuery,
   ListTapsResponse,
+  SetStationPassportResponse,
   StatsResponse,
 } from "@/api/types";
 import { parseEventStationBoardResponse, parseMeResponse } from "@/api/schemas";
@@ -86,12 +87,16 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     }
   }
 
-  function postJson(body: unknown): RequestInit {
+  function jsonBody(body: unknown, method: "POST" | "PUT"): RequestInit {
     return {
-      method: "POST",
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     };
+  }
+
+  function postJson(body: unknown): RequestInit {
+    return jsonBody(body, "POST");
   }
 
   return {
@@ -115,6 +120,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     createStation: (input) =>
       sendJson<CreateStationResponse>("/api/v1/admin/stations", postJson(input)),
+
+    setStationPassport: (stationId, input) =>
+      sendJson<SetStationPassportResponse>(
+        `/api/v1/admin/stations/${encodeURIComponent(stationId)}/passport`,
+        jsonBody(input, "PUT"),
+      ),
 
     listTaps: (query) => sendJson<ListTapsResponse>(`/api/v1/admin/taps${toSearch(query)}`),
 
