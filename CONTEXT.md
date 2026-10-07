@@ -36,7 +36,8 @@ station. The Event Service answers with a status for each tap.
 _Avoid_: trigger, forward
 
 **Event Service key**:
-The secret one Event Service shares with the GeekyKey Service, proving each to the other.
+The secret one Event Service shares with the GeekyKey Service, which the GeekyKey Service sends with
+everything it asks of that Event Service.
 _Avoid_: API key
 
 ### Users, tokens and stations

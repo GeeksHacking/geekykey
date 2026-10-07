@@ -653,3 +653,15 @@
     sits beside it. The trade-offs we accept: Cloudflare's protections don't cover the server's
     address, so our own limits do, and one copy of the server is kept running only on event days,
     so the first request on any other day is slower.
+
+- id: move-redrawn-planned
+  date: 2026-10-07
+  area: research
+  change: >-
+    The hosting plan now has its steps redrawn for two platforms. Today's backend first moves
+    unchanged to Google Cloud Run and goes live there. Then the GeekyKey Service is cut out as its
+    own Cloudflare Worker with no database, and the stations switch to it. Each event registers its
+    own stations, so organizers add, rekey and disable them on the station board, and GeeksHacking
+    staff only release lost tokens. The trade-offs we accept: every station is reflashed once when
+    the GeekyKey Service is cut out, and five choices wait on the meeting with GeeksHacking on 8
+    October.
