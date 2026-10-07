@@ -665,3 +665,10 @@
     staff only release lost tokens. The trade-offs we accept: every station is reflashed once when
     the GeekyKey Service is cut out, and five choices wait on the meeting with GeeksHacking on 8
     October.
+
+- id: node-24
+  date: 2026-10-07
+  area: tooling
+  change: >-
+    Every app, every laptop and CI run on Node 24, which is supported until April 2028 and is the
+    Node the event's server will run on Google Cloud Run.

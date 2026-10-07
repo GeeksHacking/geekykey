@@ -128,7 +128,7 @@ Two things that look like bugs and are not:
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Runtime, package manager | Node 22, pnpm 12 | Workspace package `@geekykey/frontend`. Exact versions are pinned in the root `.mise.toml` |
+| Runtime, package manager | Node 24, pnpm 12 | Workspace package `@geekykey/frontend`. Exact versions are pinned in the root `.mise.toml` |
 | Framework | React 19 | Function components only |
 | Language | TypeScript 6.0, strict | Pin `typescript@~6.0.3`. See "TypeScript version" |
 | Build | Vite 8 + `@vitejs/plugin-react` | |

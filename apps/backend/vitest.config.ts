@@ -1,13 +1,11 @@
 import { createRequire, isBuiltin } from "node:module";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import type { Plugin } from "vitest/config";
 import { defineConfig } from "vitest/config";
 import { localDatabaseUrl } from "./scripts/local-tidb.ts";
 
-const nodeProcessStandIn = fileURLToPath(
-  new URL("./test-support/node-process.cjs", import.meta.url),
-);
+const nodeProcessStandIn = join(import.meta.dirname, "test-support/node-process.cjs");
 
 /**
  * Fixes two ways the Vitest plugin loads mysql2 wrongly (seen with
