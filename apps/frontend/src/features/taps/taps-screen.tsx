@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button";
 import { ScanLogFilters } from "@/features/taps/scan-log-filters";
 import { ScanLogSkeleton } from "@/features/taps/scan-log-skeleton";
 import { ScanLogTable } from "@/features/taps/scan-log-table";
+import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { useScanLog, type ScanLogFilters as Filters } from "@/features/taps/use-scan-log";
 import { useStationOptions } from "@/features/taps/use-station-options";
+import { showStaleNote } from "@/lib/rate-limit";
 
 export function TapsScreen() {
   const [filters, setFilters] = useState<Filters>({});
@@ -39,7 +41,9 @@ export function TapsScreen() {
   } else {
     body = (
       <div className="space-y-3">
-        {log.error ? (
+        {showStaleNote(log.error, log.taps.length > 0) ? (
+          <StaleDataNote onRetry={() => void log.refetch()} />
+        ) : log.error ? (
           <InlineQueryError
             error={log.error}
             onRetry={() => void log.refetch()}
@@ -81,7 +85,9 @@ export function TapsScreen() {
         title="Scan log"
         description="Every tap from every station, newest first, including the ones that did not count. Refreshes every 5 seconds."
       />
-      {stationError ? (
+      {showStaleNote(stationError, stations.length > 0) ? (
+        <StaleDataNote onRetry={() => void refetchStations()} />
+      ) : stationError ? (
         <InlineQueryError
           error={stationError}
           onRetry={() => void refetchStations()}
