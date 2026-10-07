@@ -66,4 +66,39 @@
       "localConnectionString": "mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_dev",
     },
   ],
+
+  // Staging: a copy on Adam's own free Cloudflare account, against
+  // geekykey_staging, where deploys are tried and logs read before production.
+  // Only `pnpm deploy:staging` deploys it. Everything above is production's,
+  // which Workers Builds deploys with a plain `wrangler deploy`, so it never
+  // sees this.
+  "env": {
+    "staging": {
+      "name": "geekykey-service-staging",
+      // Adam's account, so a staging deploy can't land in anyone else's.
+      "account_id": "STAND-IN-ACCOUNT-ID",
+      // No domain: it answers at its workers.dev address. Routes are passed
+      // down from the top level, so this clears production's.
+      "workers_dev": true,
+      "routes": [],
+
+      // Settings, secrets and bindings aren't passed down, so they're repeated
+      // here. The settings are production's, so staging behaves like it.
+      "secrets": {
+        "required": ["SESSION_SECRET"],
+      },
+      "vars": {
+        "TAP_COOLDOWN_SECONDS": "300",
+        "MAX_TAPS_PER_REQUEST": "500",
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          // Staging's Hyperdrive config, in Adam's account, with the query
+          // cache off.
+          "id": "STAND-IN-HYPERDRIVE-ID",
+        },
+      ],
+    },
+  },
 }
