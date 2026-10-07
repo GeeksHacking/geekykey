@@ -1,11 +1,26 @@
+import { useApi } from "@/api/context";
+import { useSession } from "@/lib/session";
+
+/**
+ * My tokens is the home page (agreement 8.4). FRO-27 builds the real list; until then this
+ * shows the signed-in identity so the session and the account menu have a screen to sit on.
+ */
 export function HomePage() {
+  const api = useApi();
+  const session = useSession();
+
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-3xl flex-col justify-center px-6 py-16">
-      <p className="text-sm font-medium text-primary-text">GeekyKey</p>
-      <h1 className="mt-2 text-4xl font-semibold tracking-tight">Tokens and stations</h1>
+    <main className="flex flex-col">
+      <h1 className="text-3xl font-semibold tracking-tight">My tokens</h1>
       <p className="mt-4 max-w-xl text-muted-foreground">
-        This is the GeekyKey web app. Token claiming, My tokens, and station administration screens
-        arrive in later tickets.
+        Signed in as <span className="font-mono">{session.me?.user.id}</span>
+        {session.me?.user.is_geekykey_admin ? ", a GeekyKey admin." : "."}
+      </p>
+      <p className="mt-4 max-w-xl text-muted-foreground">
+        Your tokens are listed here by a later ticket. Claiming and releasing arrive with them.
+      </p>
+      <p className="mt-6 text-sm text-muted-foreground">
+        Portal login address for this page: <span className="font-mono">{api.loginUrl("/")}</span>
       </p>
     </main>
   );
