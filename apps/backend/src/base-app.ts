@@ -6,7 +6,7 @@ import { noStore } from "./middleware/no-store.ts";
 /**
  * The parts of the backend that answer the same wherever it runs: no /api or
  * /auth answer is ever cached, errors use the agreement's JSON envelope, and
- * `/` and `/api/health` say it's up. The Worker starts from this.
+ * `/` and `/api/health` say it's up. src/app.ts starts from this.
  */
 export function createBaseApp<E extends HonoEnv = BlankEnv>() {
   const app = new Hono<E>();

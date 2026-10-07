@@ -1,4 +1,11 @@
 export interface Config {
+  /**
+   * The database's `mysql://user:password@host:port/db` URL. The server uses
+   * checked TLS unless the host is this machine (src/db/pool.ts).
+   */
+  databaseUrl: string;
+  /** The port the server listens on. Cloud Run sets PORT itself. */
+  port: number;
   /** Seconds a user must wait before a second tap at the same station counts. 0 disables. */
   tapCooldownSeconds: number;
   maxTapsPerRequest: number;
@@ -19,27 +26,15 @@ export interface Config {
  */
 const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
 
-interface EnvReader {
-  get(key: string): string | undefined;
-}
-
 /**
- * Reads settings by name from a Worker's `env`, which gets them from
- * wrangler.jsonc, .dev.vars or `wrangler secret put`.
+ * Settings by name, as environment variables: `process.env` in the server.
+ * Locally they come from dev.env, .env and the shell, and on Cloud Run from
+ * the service's settings and Secret Manager.
  */
-function readerFor(settings: object): EnvReader {
-  const values = settings as Record<string, unknown>;
-  return {
-    get(key) {
-      const value = values[key];
-      // wrangler.jsonc can hold a number or a boolean; everything else holds strings.
-      return value === undefined ? undefined : String(value);
-    },
-  };
-}
+type Env = Record<string, string | undefined>;
 
-function intFromEnv(env: EnvReader, key: string, fallback: number): number {
-  const raw = env.get(key);
+function intFromEnv(env: Env, key: string, fallback: number): number {
+  const raw = env[key];
   if (raw === undefined || raw === "") return fallback;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 0) {
@@ -48,8 +43,8 @@ function intFromEnv(env: EnvReader, key: string, fallback: number): number {
   return value;
 }
 
-function boolFromEnv(env: EnvReader, key: string, fallback: boolean): boolean {
-  const raw = env.get(key)?.trim().toLowerCase();
+function boolFromEnv(env: Env, key: string, fallback: boolean): boolean {
+  const raw = env[key]?.trim().toLowerCase();
   if (raw === undefined || raw === "") return fallback;
   if (raw === "true" || raw === "1") return true;
   if (raw === "false" || raw === "0") return false;
@@ -57,8 +52,8 @@ function boolFromEnv(env: EnvReader, key: string, fallback: boolean): boolean {
 }
 
 /** Fails at boot rather than serving forgeable sessions with a default secret. */
-function sessionSecretFromEnv(env: EnvReader, devAuthEnabled: boolean): string {
-  const secret = env.get("SESSION_SECRET");
+function sessionSecretFromEnv(env: Env, devAuthEnabled: boolean): string {
+  const secret = env.SESSION_SECRET;
   if (secret) {
     if (secret.length < 16) {
       throw new Error("SESSION_SECRET must be at least 16 characters");
@@ -69,10 +64,22 @@ function sessionSecretFromEnv(env: EnvReader, devAuthEnabled: boolean): string {
   throw new Error("SESSION_SECRET is required unless DEV_AUTH_ENABLED is true");
 }
 
-export function loadConfig(settings: object): Config {
-  const env = readerFor(settings);
+/** No default: a server that can't reach its database shouldn't start. */
+function databaseUrlFromEnv(env: Env): string {
+  const url = env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is required");
+  return url;
+}
+
+/**
+ * Every setting, read once at start-up. A bad or missing one throws, which
+ * stops the server starting rather than failing every request.
+ */
+export function loadConfig(env: Env): Config {
   const devAuthEnabled = boolFromEnv(env, "DEV_AUTH_ENABLED", false);
   return {
+    databaseUrl: databaseUrlFromEnv(env),
+    port: intFromEnv(env, "PORT", 8000),
     tapCooldownSeconds: intFromEnv(env, "TAP_COOLDOWN_SECONDS", 300),
     maxTapsPerRequest: intFromEnv(env, "MAX_TAPS_PER_REQUEST", 500),
     devAuthEnabled,

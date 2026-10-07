@@ -21,7 +21,7 @@ geekykey/
 │   ├── API-AGREEMENT.md        the contract between the frontend, backend, and stations
 │   ├── frontend/               Event screens for participants and organisers, port 5173
 │   ├── geekykey-web/           GeekyKey screens: the token page, My tokens, admin. Port 5174
-│   ├── backend/                the Worker that stations and the frontend call
+│   ├── backend/                the Node server that stations and the frontend call
 │   └── updates/                progress timeline for our mentors
 └── firmware/
     └── geekykey_station/       ESP32 reader station
@@ -31,7 +31,7 @@ geekykey/
 |---|---|---|
 | `apps/frontend` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/frontend/CLAUDE.md` |
 | `apps/geekykey-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/geekykey-web/CLAUDE.md` |
-| `apps/backend` | Hono on Cloudflare Workers, Drizzle ORM, TiDB | `src/worker.ts`, then `src/routes/` |
+| `apps/backend` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and `src/routes/` |
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
 
@@ -71,23 +71,35 @@ apps/frontend/src/
 ```text
 apps/backend/
 ├── src/
-│   ├── worker.ts      the entry point: exports the Worker, with the routes mounted
+│   ├── server.ts      the entry point: reads the settings, starts the server, stops it cleanly
+│   ├── app.ts         every route mounted, given the settings and the database
 │   ├── base-app.ts    what every response shares: never cached, errors as JSON, /api/health
 │   ├── config.ts      every setting, with its default
 │   ├── routes/        HTTP handlers, one file per area (auth, me, taps)
 │   ├── services/      the logic behind the handlers (the tap pipeline, token lookup, /me)
 │   ├── middleware/    session cookie and station key checks, and the no-caching header
-│   ├── db/            Drizzle schema, a database connection per request, and the migrator
+│   ├── db/            Drizzle schema, the connection pool, and the migrator
 │   └── lib/           small helpers (station keys, validation)
 ├── drizzle/           SQL migrations generated from src/db/schema.ts
 ├── scripts/           Node scripts for the database tasks, the seed, and the migration check
-├── test-support/      test setup: migrate geekykey_test once, empty every table before each test
-├── wrangler.jsonc     the Worker's name, port, settings, and how it reaches the database
-├── vitest.config.ts   runs the Worker's tests inside workerd, the runtime Cloudflare runs Workers on
-└── .dev.vars.example  a template for .dev.vars, your own local settings and secrets
+├── test-support/      test setup, and a proxy that breaks database connections on purpose
+├── Dockerfile         builds the image Cloud Run runs
+├── dev.env            the settings `mise run dev:backend` starts with, committed
+├── .env.example       a template for .env, your own local settings and secrets
+└── vitest.config.ts   runs every test on Node, against TiDB in Docker
 ```
 
 Each test sits next to the code it tests, as a `.test.ts` file.
+
+The server keeps one pool of up to 10 connections to the database, shared by every
+request (`src/db/pool.ts`). Cloud Run pauses the server between requests, so a
+connection can die unnoticed. The pool closes connections left unused for a minute, and
+checks one with a ping before reusing it after more than a second. A dead one is
+replaced before the query is sent, so no query is ever sent twice.
+
+The image holds one file. `pnpm build` uses esbuild to bundle `src/server.ts` and
+everything it imports into `dist/server.cjs`, and the `Dockerfile` runs that on Node 24.
+See [The image](#the-image) to build and start it yourself.
 
 ## Running the frontend
 
@@ -127,8 +139,8 @@ mise run install
 ```
 
 This installs every workspace package and can be run from any folder in the repo. The
-first time, pnpm also runs install scripts for `esbuild` and `workerd`, which each fetch a
-program for your computer. That is expected, and both are approved in
+first time, pnpm also runs install scripts for `esbuild`, which fetch a program for your
+computer. That is expected, and they are approved in
 `pnpm-workspace.yaml`. If pnpm ever prints "Ignored build scripts" instead, run
 `mise exec -- pnpm approve-builds esbuild` once from the repo root and install again.
 
@@ -219,8 +231,8 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `test:geekykey-web` | GeekyKey screens unit tests, run once |
 | `build:geekykey-web` | Typecheck the GeekyKey screens, then build them |
 | `format:geekykey-web` | Format the GeekyKey screens code in place with oxfmt |
-| `dev:backend` | Backend in `wrangler dev` on http://localhost:8000, reloading when a file changes, with dev sign-in turned on |
-| `test:backend` | Backend tests (Vitest), run once: the Worker's inside workerd against `geekykey_test`, the database scripts' on Node |
+| `dev:backend` | Backend on Node on http://localhost:8000, reloading when a file changes, with dev sign-in turned on |
+| `test:backend` | Backend tests (Vitest on Node) against `geekykey_test`, run once |
 | `format:backend` | Format the backend code in place with oxfmt |
 | `db:up` | Start TiDB in Docker, then create and migrate `geekykey_dev` and `geekykey_test` |
 | `db:reset` | Throw away all TiDB data, then start again with empty, migrated databases |
@@ -243,7 +255,8 @@ pnpm dev:frontend                          root package.json
 
 The backend tasks follow the same chain, ending in a script from
 `apps/backend/package.json`. For `mise run dev:backend`, that script is
-`wrangler dev --var DEV_AUTH_ENABLED:true`, which is where dev sign-in is turned on.
+`node --watch --env-file=dev.env --env-file-if-exists=.env src/server.ts`, and
+`apps/backend/dev.env` is where dev sign-in is turned on.
 `db:up`, `db:reset` and `db:down` are the exception: their commands are written out in the
 root `package.json`, because they start and stop TiDB with `docker compose` and the root
 `compose.yaml`.
@@ -258,16 +271,14 @@ mise run dev:frontend -- --port 5174           # Vite on another port
 mise run seed -- --station "Booth 3"           # give the new station a name
 ```
 
-To change one of the backend's settings for a single run, pass it to `wrangler dev` with
-`--var`:
+To change one of the backend's settings for a single run, set it in front of the
+command:
 
 ```bash
-mise run dev:backend -- --var TAP_COOLDOWN_SECONDS:0
+TAP_COOLDOWN_SECONDS=0 mise run dev:backend
 ```
 
-Setting it in front of the command, as in `TAP_COOLDOWN_SECONDS=0 mise run dev:backend`,
-works only when you have no `apps/backend/.dev.vars`: `wrangler dev` reads your shell's
-environment only then. `--var` always works.
+A setting in your shell wins over the backend's settings files. See [Settings](#settings).
 
 ### `mise run` or `mise exec`?
 
@@ -291,9 +302,9 @@ Add `dir = "apps/backend"` if the command has to run from a particular folder.
 
 ## Running the backend
 
-The backend is a Cloudflare Worker: a small server that Cloudflare runs for us. On your
-laptop, `wrangler dev` (Wrangler is Cloudflare's command-line tool) runs it in workerd, the
-same program Cloudflare runs it on, and its database is TiDB in Docker.
+The backend is a Node server. In production, Google Cloud Run runs it from a container
+image (see [The image](#the-image)). On your laptop, Node runs it straight from the
+TypeScript in `apps/backend/src`, and its database is TiDB in Docker.
 
 Do steps 1 and 2 of [Running the frontend](#running-the-frontend) first.
 
@@ -331,9 +342,10 @@ Open a second terminal, `cd` into the repo, then:
 mise run dev:backend     # http://localhost:8000
 ```
 
-It is ready when it prints `Ready on http://0.0.0.0:8000`. Leave it running: it reloads when
-you save a file under `apps/backend/src`. To stop it, press Ctrl-C. pnpm may print an error
-as it stops; that is normal.
+It is ready when it prints `Listening on http://localhost:8000`. Before that, it says
+`.env not found. Continuing without it.` if you have no `apps/backend/.env`, which is
+fine. Leave it running: it restarts when you save a file under `apps/backend/src`. To stop
+it, press Ctrl-C. pnpm may print an error as it stops; that is normal.
 
 ### 4. Send a tap
 
@@ -374,7 +386,7 @@ runs. It holds two databases: `geekykey_dev` for the dev server and the seed, an
 
 ### Settings
 
-Settings live in `apps/backend/wrangler.jsonc`, under `vars`, and
+Every setting is an environment variable, read once when the backend starts.
 `apps/backend/src/config.ts` explains each one and gives its default. The one you are most
 likely to change:
 
@@ -382,33 +394,29 @@ likely to change:
 |---|---|---|
 | `TAP_COOLDOWN_SECONDS` | `300` | Set it to `0` so repeat taps at the same station count while you test |
 
-`wrangler.jsonc` is what gets deployed, so do not edit it to change a setting on your
-laptop. Pass the setting with `--var` for one run, as in
-[Passing arguments and settings](#passing-arguments-and-settings), or put it in
-`apps/backend/.dev.vars` to keep it:
+`mise run dev:backend` reads them from three places. Each one wins over the one before:
 
-```text
-TAP_COOLDOWN_SECONDS=0
-```
+1. `apps/backend/dev.env`, which is committed. It turns dev sign-in on and points the
+   backend at `geekykey_dev`. Change it only for something everyone should get.
+2. `apps/backend/.env`, your own, which git ignores. Copy `.env.example` to start it, and
+   put a setting there to keep it, such as `TAP_COOLDOWN_SECONDS=0`.
+3. Your shell, for one run, as in
+   [Passing arguments and settings](#passing-arguments-and-settings).
 
-`.dev.vars` is for your laptop only: it overrides `wrangler.jsonc` there, and git ignores
-it. `wrangler dev` takes only two kinds of line from it: settings already under `vars` in
-`wrangler.jsonc`, and the secrets listed under `secrets.required` there, which are the
-ones production can't run without. It ignores anything else, so a misspelt setting does
-nothing. The only secret is `SESSION_SECRET`, and you seldom need it, because dev sign-in
-uses a built-in one instead. `.dev.vars.example` shows the format.
+Never put a secret in `dev.env`. In production, Cloud Run sets the settings, and the
+secrets come from Google's Secret Manager.
 
-The port, 8000, is set in `apps/backend/wrangler.jsonc`. The frontend's dev server and the
+The port is the `PORT` setting, 8000 unless set. The frontend's dev server and the
 stations expect 8000, so change them too if you move it. The backend listens on your whole
 network, not only your laptop, because real stations call it by the laptop's name. So
 anyone on the same Wi-Fi can reach it, dev sign-in included.
 
-`mise run dev:backend` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`,
-which signs in a seeded user without the portal, and signs sessions with a built-in
-secret. Never turn it on in production. Without it, the backend refuses to start unless
-`SESSION_SECRET` is set. Because production needs `SESSION_SECRET`, `wrangler dev` warns
-`Missing required secrets: SESSION_SECRET` every time it starts without one. On your
-laptop, that warning is expected.
+`dev.env` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`, which signs in a
+seeded user without the portal, and signs sessions with a built-in secret. Never turn it
+on in production. Without it, the backend refuses to start unless `SESSION_SECRET` is set.
+It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
+connects over TLS, checking the database's certificate and name, unless the address is on
+your laptop, such as `127.0.0.1`.
 
 ### Other backend commands
 
@@ -425,19 +433,42 @@ For the rest, `cd apps/backend` first. If your shell is activated, you can leave
 ```bash
 mise exec -- pnpm lint               # eslint
 mise exec -- pnpm format:check       # list files that are not formatted, without changing them
-mise exec -- pnpm typecheck          # write the Workers types (wrangler types), then tsc
+mise exec -- pnpm typecheck          # tsc
 mise exec -- pnpm db:generate        # write a migration after editing src/db/schema.ts
-mise exec -- pnpm check:build        # bundle the Worker as a deploy would, without uploading it
+mise exec -- pnpm build              # bundle the server into dist/server.cjs, as the image does
+mise exec -- pnpm build:image        # build the image Cloud Run runs (Docker Desktop must be running)
 mise exec -- pnpm check:migrations   # fail if src/db/schema.ts has a change with no migration
 ```
 
 `db:generate` runs `drizzle-kit generate`, which writes the new migration into `drizzle/`.
-Commit it, and run `mise run db:migrate` to apply it to both local databases. CI runs
-`check:build` and `check:migrations` on every pull request.
+Commit it, and run `mise run db:migrate` to apply it to both local databases. CI builds
+the image and runs `check:migrations` on every pull request.
 
 Three more set up GeeksHacking's production database: `db:logins`, `db:test-station` and
 `db:migrate --production`. Only Adam runs them, since they need logins kept on his laptop.
 The comment at the top of each script in `scripts/` says what it does.
+
+### The image
+
+Cloud Run runs the backend from a container image, which `apps/backend/Dockerfile`
+builds. Docker Desktop must be running. From `apps/backend`:
+
+```bash
+mise exec -- pnpm build:image     # builds the image geekykey-backend
+```
+
+To start it, give it the two settings it can't start without, as Cloud Run does:
+
+```bash
+docker run --rm --publish 8001:8000 \
+  --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_dev \
+  --env SESSION_SECRET=any-16-characters-or-more \
+  geekykey-backend
+```
+
+Then http://localhost:8001/api/health answers. Inside the container, `127.0.0.1` is the
+container itself, not your laptop, so the routes that need the database fail. Ctrl-C
+stops it.
 
 ### With the frontend
 
@@ -510,7 +541,12 @@ mise exec -- pnpm --filter @geekykey/backend format:check
 mise exec -- pnpm --filter @geekykey/backend typecheck
 mise run db:up
 mise run test:backend
-mise exec -- pnpm --filter @geekykey/backend check:build        # the Worker builds
+mise exec -- pnpm --filter @geekykey/backend build:image        # the image builds
+docker run --detach --rm --name backend --publish 8000:8000 \
+  --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
+  --env SESSION_SECRET=ci-stand-in-not-a-secret geekykey-backend
+curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
+docker stop backend
 mise exec -- pnpm --filter @geekykey/backend check:migrations   # every schema change has its migration
 
 # Updates site job

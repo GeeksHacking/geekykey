@@ -672,3 +672,12 @@
   change: >-
     Every app, every laptop and CI run on Node 24, which is supported until April 2028 and is the
     Node the event's server will run on Google Cloud Run.
+
+- id: backend-on-node
+  date: 2026-10-07
+  area: backend
+  change: >-
+    The backend runs as a Node server, built into the container image that Google Cloud Run will
+    run, and answers stations and screens exactly as before. It checks that an idle database
+    connection still works before reusing it, since Cloud Run pauses the server between requests,
+    and CI checks on every pull request that the image builds and starts.

@@ -9,7 +9,7 @@
  *
  * It writes to geekykey_dev, which `mise run db:up` creates and migrates. Each
  * run adds another station; the users and the token are only added once. It
- * connects straight to TiDB with mysql2, not through Hyperdrive.
+ * connects straight to TiDB with mysql2.
  */
 import { parseArgs } from "node:util";
 import { drizzle } from "drizzle-orm/mysql2";

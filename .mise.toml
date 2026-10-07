@@ -1,6 +1,7 @@
 # Tool versions and task shortcuts for the whole monorepo.
 # this file is the source of truth for tool versions. `packageManager` in
-# package.json must match the pnpm pin here.
+# package.json must match the pnpm pin here, and apps/backend/Dockerfile pins
+# the same Node and pnpm.
 #
 #   mise install            install the pinned tools
 #   mise run <task>         run a task with those tools on PATH, even if the
@@ -66,11 +67,11 @@ env = { ASTRO_TELEMETRY_DISABLED = "1" }
 # Backend
 
 [tasks."dev:backend"]
-description = "The Worker in wrangler dev (workerd) on http://localhost:8000, with dev-login on"
+description = "The backend on Node on http://localhost:8000, reloading on save, with dev-login on"
 run = "pnpm dev:backend"
 
 [tasks."test:backend"]
-description = "Backend tests (Vitest): the Worker's inside workerd against geekykey_test, the database scripts' on Node"
+description = "Backend tests (Vitest on Node) against geekykey_test, run once"
 run = "pnpm test:backend"
 
 [tasks."format:backend"]

@@ -1,5 +1,5 @@
 // Formatter settings, as in the frontend: every option not set here is oxfmt's default. Files
-// git ignores, such as worker-configuration.d.ts, are skipped without being listed.
+// git ignores, such as the bundle in dist/, are skipped without being listed.
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": [
