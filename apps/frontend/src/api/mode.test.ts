@@ -23,6 +23,7 @@ describe("frontend data source mode", () => {
 
     liveMethods.add("listStationBoard");
     liveMethods.add("createStation");
+    liveMethods.add("setStationPassport");
     liveMethods.add("listTaps");
     liveMethods.add("createFallbackTap");
     liveMethods.add("stats");
@@ -38,6 +39,24 @@ describe("frontend data source mode", () => {
       "loginUrl",
       "listStations",
       "createStation",
+      "listTaps",
+      "createFallbackTap",
+      "stats",
+      "exportCsv",
+    ]);
+
+    expect(isMockData(true, liveMethods)).toBe(true);
+  });
+
+  it("keeps the notice while only the passport settings are still mocked", () => {
+    const liveMethods = new Set<keyof ApiClient>([
+      "me",
+      "devLogin",
+      "logout",
+      "loginUrl",
+      "listStations",
+      "createStation",
+      "listStationBoard",
       "listTaps",
       "createFallbackTap",
       "stats",

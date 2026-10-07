@@ -5,10 +5,12 @@ import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { LiveStamp } from "@/components/layout/live-stamp";
 import { PageHeader } from "@/components/layout/page-header";
+import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { AddStationDialog } from "@/features/stations/add-station-dialog";
 import { StationBoard } from "@/features/stations/station-board";
 import { StationBoardSkeleton } from "@/features/stations/station-board-skeleton";
 import { useStationBoard } from "@/features/stations/use-station-board";
+import { showStaleNote } from "@/lib/rate-limit";
 
 /**
  * Shown when the GeekyKey Service's status call failed or was slow (agreement 9.2).
@@ -55,7 +57,9 @@ export function StationsScreen() {
     const online = list.filter((station) => station.online === true).length;
     body = (
       <div className="space-y-3">
-        {stations.isError ? (
+        {showStaleNote(stations.error, list !== undefined) ? (
+          <StaleDataNote onRetry={() => void stations.refetch()} />
+        ) : stations.isError ? (
           <InlineQueryError
             error={stations.error}
             onRetry={() => void stations.refetch()}

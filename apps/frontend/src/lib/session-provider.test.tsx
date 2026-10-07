@@ -120,6 +120,35 @@ describe("SessionProvider", () => {
     expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
   });
 
+  it("stays authenticated when a /me poll is rate limited", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    api.mock.failNext("rate_limited");
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    // Participant screens keep the stamps and points they already had: a 429 on a
+    // background poll is stale data, not a signed-out user.
+    await waitFor(() => expect(result.current.error).toBeDefined());
+    expect(result.current.status).toBe("authenticated");
+    expect(result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID);
+    expect(result.current.me?.user.display_name).toBe("Alex Tan");
+  });
+
+  it("reports an error when a first /me load is rate limited with no data", async () => {
+    const { result } = setup((api) => api.mock.failNext("rate_limited"));
+
+    // Nothing to keep, so the usual error path applies rather than a quiet note.
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.me).toBeNull();
+  });
+
   it("refresh picks up a change made behind its back", async () => {
     const { api, result } = setup();
     await waitFor(() => expect(result.current.status).toBe("anonymous"));

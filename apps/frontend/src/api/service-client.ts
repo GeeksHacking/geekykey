@@ -12,7 +12,12 @@ export type GeekyKeyApi = Pick<ApiClient, "listStations" | "createStation">;
 /** The Event Service owns the station board, the tap log, stats, export, and fallback. */
 export type EventApi = Pick<
   ApiClient,
-  "listStationBoard" | "listTaps" | "createFallbackTap" | "stats" | "exportCsv"
+  | "listStationBoard"
+  | "setStationPassport"
+  | "listTaps"
+  | "createFallbackTap"
+  | "stats"
+  | "exportCsv"
 >;
 
 export interface ServiceClientBundle {
@@ -39,6 +44,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
     },
     event: {
       listStationBoard: api.listStationBoard.bind(api),
+      setStationPassport: api.setStationPassport.bind(api),
       listTaps: api.listTaps.bind(api),
       createFallbackTap: api.createFallbackTap.bind(api),
       stats: api.stats.bind(api),
