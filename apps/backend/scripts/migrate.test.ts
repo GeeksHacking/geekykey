@@ -3,13 +3,12 @@ import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { type Connection, createConnection } from "mysql2/promise";
 import { afterAll, beforeAll, beforeEach, test } from "vitest";
 import { LOCAL_ROOT } from "./local-tidb.ts";
 
-const backendDir = fileURLToPath(new URL("..", import.meta.url));
+const backendDir = join(import.meta.dirname, "..");
 
 // A database in the Docker TiDB playing production, so a test can see whether
 // the script migrated it.

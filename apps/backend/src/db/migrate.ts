@@ -1,10 +1,10 @@
+import { join } from "node:path";
 import { drizzle } from "drizzle-orm/mysql2";
 import { migrate as runMigrations } from "drizzle-orm/mysql2/migrator";
-import { fileURLToPath } from "node:url";
 import { type ConnectionOptions, createConnection } from "mysql2/promise";
 
 /** Resolved relative to this module, not the working directory. */
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../../drizzle", import.meta.url));
+const MIGRATIONS_FOLDER = join(import.meta.dirname, "../../drizzle");
 
 /**
  * Applies pending migrations from the drizzle/ folder to the database at a
