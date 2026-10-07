@@ -2,6 +2,8 @@
 
 Drafted 2 Oct 2026 from what the repo says today. Each answer cites where it comes from, so anyone can check it.
 
+Updated 7 Oct 2026 for the redrawn hosting plan: the Event Service moved to Google Cloud Run, the GeekyKey Service keeps no database, and each event registers its own stations (ADR 0003; API v0.3; the rewritten spec, whose section numbers are used below).
+
 **How to read this**
 
 - **Decided** means a file in the repo records it. **Not decided** means nothing does yet, and the answer says who should settle it.
@@ -13,11 +15,12 @@ Drafted 2 Oct 2026 from what the repo says today. Each answer cites where it com
 | Short name | File |
 |---|---|
 | CONTEXT | [CONTEXT.md](../../CONTEXT.md), the project's vocabulary |
-| API | [apps/API-AGREEMENT.md](../../apps/API-AGREEMENT.md), v0.2. If any other document disagrees, this one wins |
-| spec | [.scratch/db-hosting/spec.md](../db-hosting/spec.md), the hosting and migration plan (29 Sep, updated 1 Oct) |
+| API | [apps/API-AGREEMENT.md](../../apps/API-AGREEMENT.md), v0.3 (draft, for Ethan's review; v0.2 was the last approved). If any other document disagrees, this one wins |
+| spec | [.scratch/db-hosting/spec.md](../db-hosting/spec.md), the hosting and migration plan (29 Sep, rewritten 7 Oct) |
 | map | [.scratch/db-hosting/map.md](../db-hosting/map.md): its "Givens", "Facts" and "Out of scope" sections |
 | ADR 0001 | [docs/adr/0001-token-id-is-the-hardware-uid.md](../../docs/adr/0001-token-id-is-the-hardware-uid.md) |
 | ADR 0002 | [docs/adr/0002-each-service-logs-in-through-the-portal.md](../../docs/adr/0002-each-service-logs-in-through-the-portal.md) |
+| ADR 0003 | [docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md) |
 | 24 Sep notes | `meeting-notes/[24 Sept 26] NFC token scanner design and interactive activity planning for showcase.md` |
 | update 23 Sep | [apps/updates/src/content/entries/2026-09-23-first-end-to-end-tap.md](../../apps/updates/src/content/entries/2026-09-23-first-end-to-end-tap.md) |
 | update 27 Sep | [apps/updates/src/content/entries/2026-09-27-hosting-plan-and-two-services.md](../../apps/updates/src/content/entries/2026-09-27-hosting-plan-and-two-services.md) |
@@ -33,13 +36,13 @@ Drafted 2 Oct 2026 from what the repo says today. Each answer cites where it com
 1. **Update, 2 Oct: colour-match bingo is the proposed flagship.** It's a person-to-person game, so it closes the gap below if it's built. Its design is in section 4.3 of the updated SSOT (`Geekykey Single Source of Truth (updated 2 Oct 2026).docx`). Until it's decided, answer sections 2, 11 and 14 for both the passport and bingo.
 
    **What we're building doesn't yet match the problem we say we're solving.** The SSOT says the problem is people not mixing with new people, and sponsors not being visited. What's actually being built is a **passport**: a participant taps their token at stations and collects stamps and points (CONTEXT, "Passport"). That's an interaction between a person and a station. Nothing built or planned makes two participants interact. The API agreement puts "dual-tap connections, leaderboards, or archetype quests" out of scope for the showcase (API §12). Either a person-to-person mechanic gets added, or the report says the MVP tests the platform and the passport, with networking as future work. **Joshua (ideas and report) and Adam need to decide this first.** Most of sections 2 and 9 depend on it.
-2. **The SSOT is out of date.** Every row below is now wrong in the SSOT:
+2. **The SSOT is out of date.** Every row below is wrong, or only partly right, in the SSOT:
 
    | SSOT says | What's true now | Source |
    |---|---|---|
    | PN532 reader, ESP32-WROOM | RC522 on an ESP32-S3 | firmware header, update 23 Sep |
    | NTAG 424 DNA tags against cloning | NTAG213. We accept that tags can be cloned | ADR 0001, "Consequences" |
-   | Docker container on Cloud Run, Hono/Deno, SQLite | Cloudflare Workers, Hono, TiDB. No containers | map "Givens", spec §3 |
+   | Docker container on Cloud Run, Hono/Deno, SQLite | Partly right again since 2 Oct: the Event Service is Hono on Node, in a container on Cloud Run. The GeekyKey Service and the screens are Cloudflare Workers. TiDB, with no Deno or SQLite | ADR 0003, spec §3.2 |
    | Wi-Fi access-point setup page on the station | Wi-Fi and the key are compiled into `secrets.h` | firmware |
    | Showcase on 17 Nov, setup on 16 Nov | Showcase Wed 18 Nov, setup Tue 17 Nov | spec §1, §2 |
    | Puzzle pieces collected from sponsors and swapped | Not built or planned. The passport is | CONTEXT, API |
@@ -80,7 +83,7 @@ In what's built: person ↔ station, through the token. A station can stand at a
 - Other teams' Event Services (map "Out of scope")
 
 **What features are currently being built, rather than merely discussed?**
-- Adam: moving the backend to Cloudflare Workers and TiDB. Checkpoint 1 is done, and BAC-9, the production config, is in progress (spec §6; changelog `move-step-1-proof`).
+- Adam: moving the backend to TiDB, then to Google Cloud Run (the Event Service) and Cloudflare Workers (the GeekyKey Service). Checkpoint 1 is done, and the production database is ready (BAC-10). Hyperdrive couldn't reach TiDB Cloud on 2 Oct, so the plan was redrawn; checkpoint 2, the move to Cloud Run, comes next (spec §6; ADR 0003; changelog `move-step-1-proof`, `hyperdrive-cannot-reach-tidb`, `move-redrawn-planned`).
 - Ethan: the web app's screens. They run on mock data until each endpoint lands (changelog `frontend-api-v0-2`).
 - Zi Tao: the station firmware (saving taps, new statuses, HTTPS) and the token writer (changelog `station-saved-taps`, `token-writer`).
 
@@ -93,7 +96,7 @@ In what's built: person ↔ station, through the token. A station can stand at a
 - The token writer and the firmware that saves taps have both been tried on hardware (Adam, 2 Oct).
 
 **What can we realistically finish and demonstrate by the actual capstone deadline?**
-The plan has all eight checkpoints done, plus a rehearsal on the live system by Sat 7 Nov (spec §6, §10.1). That would mean: claiming tokens on phones, stations around the venue stamping passports, and organizers watching the board live. The two outside dependencies are Qing Guan's Portal login details (needed for checkpoint 5) and Julian setting up the deploys. A person-to-person mechanic would be extra work on top, and isn't planned.
+The plan has all eight checkpoints done, plus a rehearsal on the live system by Sat 7 Nov (spec §6, §10.1). That would mean: claiming tokens on phones, stations around the venue stamping passports, and organizers watching the board live. The two outside dependencies are Qing Guan's Portal login details (needed for checkpoint 5), and Julian and Qing Guan setting up our Google Cloud project and the address `event-api.` (needed for checkpoint 2, asked on 8 Oct). A person-to-person mechanic would be extra work on top, and isn't planned.
 
 **What is our definition of "MVP complete"?**
 Not written down as one sentence. The closest thing is the "done when" line of checkpoint 8: the backup and restore have been tried, and the rehearsal ran on production by 7 Nov (spec §6). Suggested wording: "A participant can claim a token, tap it at every station, and see their passport fill in, and organizers can see and export every tap, all on the live system."
@@ -200,13 +203,13 @@ Yes. A token "stays theirs across events" (CONTEXT "Token"). The 27 Sep decision
 It has one owner at a time. The owner can release it, or a GeekyKey admin can, and then anyone can claim it (CONTEXT "Claim", "Release").
 
 **Can one participant have multiple tokens?**
-Yes, up to 3 (spec §4, `MAX_TOKENS_PER_USER`).
+Yes, up to 3 (spec §4, §5.1 `MAX_TOKENS_PER_USER`).
 
 **Can one token ever belong to multiple participants?**
 No. The first claim wins (spec §4).
 
 **Can a token be reset and reused at another event?**
-It doesn't need resetting. The same token works at the next event: moving a station to another event is just changing the station's link (CONTEXT "Link"). To give the token to someone else, release it.
+It doesn't need resetting. The same token works at the next event, whose Event Service registers its own stations (CONTEXT "Token", "Station"). To give the token to someone else, release it.
 
 **What happens if someone loses their token?**
 They release it on My tokens and claim a new one (CONTEXT "My tokens").
@@ -233,7 +236,7 @@ If it's yours, you see "already yours". If it's someone else's, you see "This to
 It's refused with `token_taken`. Token IDs aren't secret, so someone could claim a token they don't hold before its holder does. We accept that risk, because the real holder can get the claim released (ADR 0001).
 
 **What happens after the event?**
-Claims stay. Copying them into the Portal is planned for after the showcase. What happens to the event's own data is still provisional (spec §11.2).
+Claims stay. Until then they're in the claims stand-in on our Cloud Run server, and copying them into the Portal is planned for after the showcase (spec §4). What happens to the event's own data is still provisional (spec §11.2).
 
 **Does token → participant association persist across events?**
 Yes (CONTEXT "Token"; map "Out of scope", the Portal's tag APIs).
@@ -301,7 +304,7 @@ The station's light and screen change. [Fill in: Zi Tao, on the current colours.
 The tap goes station → GeekyKey Service → Event Service, and is stored with a status (spec §3.3).
 
 **What gets recorded in the database?**
-One `taps` row: station, the participant's Portal user ID, when it happened, when it arrived, the source (NFC or QR fallback) and the status (accepted, cooldown, no game). The token's ID isn't stored (spec §3.5).
+One `taps` row: station, the participant's Portal user ID, when it happened, when it arrived, the source (NFC or QR fallback) and the status (accepted, cooldown, no game). The token's ID isn't stored (spec §3.6).
 
 **What reward/progress do they receive?**
 A stamp at each station the first time, and that station's points for every accepted tap (CONTEXT "Stamp", "Points").
@@ -384,13 +387,13 @@ It runs as one Cloud Run instance in Singapore, handling one request at a time, 
 Login (OAuth), and later its tag APIs for who owns each token (spec §4, §6).
 
 **What parts are we building ourselves?**
-The GeekyKey Service, the showcase's Event Service, their screens, and the station firmware (spec §3.1).
+The GeekyKey Service, the showcase's Event Service, the claims stand-in until the switch to the Portal, their screens, and the station firmware (spec §3.1).
 
 **Who owns/maintains the portal?**
 Qing Guan (spec §3.1).
 
 **Have we actually spoken to the portal lead?**
-Yes. Qing Guan and Julian shaped the architecture on 27 Sep, and Qing Guan advised on deploys and hostnames on 28 Sep (map "Givens"). The login request is still waiting for a reply (spec §9).
+Yes. Qing Guan and Julian shaped the architecture on 27 Sep, and Qing Guan advised on deploys and hostnames on 28 Sep (map "Givens"). The login request is still waiting for a reply (spec §9). Adam meets Julian and Qing Guan on 8 Oct about our Google Cloud project and its setup (spec §9).
 
 **Do we have API access?**
 Not yet. We're waiting on the login details and two OAuth apps. The tag APIs don't exist yet: its draft `NfcTag` has no endpoints (map "Facts"; spec §12).
@@ -421,43 +424,43 @@ Doesn't apply.
 TiDB (map "Givens").
 
 **TiDB, Firestore, Firebase, SQLite, something else?**
-TiDB Cloud Starter, on Alibaba Cloud in Singapore. SQLite was used until checkpoint 1 (spec §3.5).
+TiDB Cloud Starter, on Alibaba Cloud in Singapore. SQLite was used until checkpoint 1 (spec §3.6, §6 checkpoint 1).
 
 **Why was that database selected?**
 The mentors asked us to use what GeeksHacking already runs, with TiDB first, and not to add Turso (24 Sep notes §1; update 27 Sep).
 
 **Is the database part of Geekshacking's existing infrastructure or ours?**
-GeeksHacking's. It's their cluster, with our own database `geekykey` inside it (spec §3.5).
+GeeksHacking's. It's their cluster, with our own database `geekykey` inside it (spec §3.6).
 
 **Are we creating a separate event database?**
-No. One database holds both services' tables, and each table belongs to one service (spec §1).
+No. One database, `geekykey`, holds the Event Service's tables and, until the switch to the Portal, the claims stand-in's `tokens`. The GeekyKey Service has no database (spec §1, §3.6).
 
 **Are we using the existing portal database?**
 No (spec §3.1).
 
 **What data does our system actually need to store?**
-Stations, token claims (until they move to the Portal), and per event: users' IDs and names, taps, and the passport's settings (spec §3.5).
+Per event: its stations, users' IDs and names, taps, and the passport's settings. And token claims, in the claims stand-in until they move to the Portal (spec §3.1, §3.6).
 
 **What tables/entities do we need?**
-`stations`, `tokens`, `users`, `taps`, `event_stations` and `passport_stations` (spec §3.5 has the full table).
+`stations`, `users`, `taps` and `passport_stations` in the Event Service, and `tokens` in the claims stand-in (spec §3.6 has the full table).
 
 **How are users represented?**
-By their Portal user ID, with a display name copied in at login (spec §3.5 `users`).
+By their Portal user ID, with a display name copied in at login (spec §3.6 `users`).
 
 **How are tokens represented?**
-By the chip's hardware ID, with the owner and when they claimed it (ADR 0001; spec §3.5 `tokens`).
+By the chip's hardware ID, with the owner and when they claimed it, in the claims stand-in (ADR 0001; spec §3.6 `tokens`).
 
 **How are events represented?**
-Each event is its own Event Service, listed in the GeekyKey Service's settings. A station's link says which event it feeds (spec §3.5 `stations`, §5.1 `EVENT_SERVICES`).
+Each event is its own Event Service, listed in the GeekyKey Service's settings. Each Event Service registers its own stations, and a station feeds the one that registered it (spec §3.1, §3.5, §5.1 `EVENT_SERVICES`).
 
 **How are interactions represented?**
-As taps (spec §3.5 `taps`).
+As taps (spec §3.6 `taps`).
 
 **How are rewards/progress represented?**
 They're worked out from taps every time they're read, and never stored (spec §10.3).
 
 **How is token reassignment handled?**
-Releasing deletes the claim, and the next person claims it (spec §3.5, §4).
+Releasing deletes the claim, and the next person claims it (spec §3.6, §4).
 
 **What happens to data after an event?**
 Provisional (spec §11.2). See section 4.
@@ -466,29 +469,27 @@ Provisional (spec §11.2). See section 4.
 Only for token claims. Event data doesn't carry over.
 
 **What is the actual deployment architecture?**
-Four Cloudflare Workers:
-- `geekykey-service` at `key-api.geekshacking.com`
-- `event-service`, reached only through bindings
-- `geekykey-web` at `key.geekshacking.com`
-- `event-web` at `event.geekshacking.com`
+Two platforms (spec §3.2; ADR 0003):
+- `event-service` on Google Cloud Run at `event-api.geekshacking.com`: a Node server that reaches TiDB through an ordinary `mysql2` connection pool. Until checkpoint 4 it's the whole backend, and stations call it. It also runs the claims stand-in. Its staging copy, `event-service-staging`, runs beside it against its own database.
+- Three Cloudflare Workers: `geekykey-service` at `key-api.geekshacking.com`, with no database, from checkpoint 4; `geekykey-web` at `key.geekshacking.com` and `event-web` at `event.geekshacking.com`, from checkpoint 5.
 
-They reach TiDB through Hyperdrive. Staging runs on Adam's own account (spec §3.2).
+Hyperdrive was dropped on 2 Oct, because it can't sign in to TiDB Cloud (map "Out of scope").
 
 **Are containers actually required?**
-No.
+Yes, for the Event Service: Cloud Run runs it as a container image. The Workers need none (spec §6 checkpoint 2).
 
 **Is Cloud Run actually being used?**
-No. Julian chose Workers on 25 Sep (map "Givens").
+Yes, for the Event Service, since 2 Oct, after Hyperdrive couldn't reach TiDB Cloud. Julian had chosen Workers on 25 Sep (map "Givens"; ADR 0003). It runs in a Google Cloud project of our own, which is provisional until 8 Oct (spec §11.3).
 
 **Is the frontend/backend in one container or separate?**
-Separate Workers (map "Givens"; spec §3.2).
+Separate. The screens are Workers, and so is the GeekyKey Service from checkpoint 4. The Event Service is on Cloud Run (map "Givens"; spec §3.2).
 
 ---
 
 ## 8. Offline functionality
 
 **Does the MVP need to work without internet?**
-The station must keep taps through a dropped connection. Nothing else works offline (spec §3.3 step 5; changelog `station-saved-taps`).
+The station must keep taps through a dropped connection. Nothing else works offline (spec §3.3, "Why taps wait"; changelog `station-saved-taps`).
 
 **Which exact functionality must work offline?**
 Reading taps at a station and keeping them until they can be sent. Claiming and the passport need internet.
@@ -506,13 +507,13 @@ In the ESP32's flash, which survives a power cut (changelog `station-saved-taps`
 Up to 100 taps per station. Each is a tap number, the chip ID and a time (firmware `QUEUE_CAPACITY`).
 
 **What happens when connection returns?**
-Saved taps go out together at most once a minute, and new taps go at once (spec §7.1, API §6.1).
+Saved taps go out together at most once a minute, and new taps go at once (API §6.1).
 
 **How do we prevent duplicate uploads?**
 Each tap carries the station's own tap number (`client_tap_id`). The event drops any repeat as `duplicate` (spec §3.3 step 6).
 
 **What happens if the device loses power before synchronising?**
-The taps are in flash, so they're sent after the restart. The tap counter is also saved before each tap (spec §7.1, item 12; update 23 Sep).
+The taps are in flash, so they're sent after the restart. The tap counter is also saved before each tap (API §6.1 `client_tap_id`; update 23 Sep).
 
 **Is 4G actually being implemented or just investigated?**
 Only investigated (24 Sep notes §3; map "Out of scope").
@@ -549,7 +550,7 @@ ESP32-S3.
 Built-in Wi-Fi (SSOT §3.1). [Fill in: Zi Tao.]
 
 **How does the scanner communicate with the backend?**
-Over Wi-Fi, with HTTP to a laptop today. In production it will use HTTPS to `key-api.geekshacking.com` (spec §7.1, 6.1; update 23 Sep).
+Over Wi-Fi, with HTTP to a laptop today. In production it will use HTTPS: to `event-api.geekshacking.com` from checkpoint 2, then to `key-api.geekshacking.com` after a reflash at checkpoint 4 (spec §9 "Zi Tao"; API §6.1; update 23 Sep).
 
 **Wi-Fi, USB, Web Serial, WebUSB, something else?**
 Wi-Fi.
@@ -570,7 +571,7 @@ No. A phone hotspot was used as the Wi-Fi in testing (update 23 Sep).
 To send taps, yes. Without internet it saves them (section 8).
 
 **What happens when it cannot connect?**
-It saves the tap and shows it wasn't recorded yet. It retries alongside its once-a-minute check-in (spec §7.1).
+It saves the tap and shows it wasn't recorded yet. It retries alongside its once-a-minute check-in (API §6.1).
 
 **How is the scanner powered?**
 Over USB. [Fill in: Zi Tao, on power banks.]
@@ -585,7 +586,7 @@ No. The reader picks one card at a time.
 A slot that lets only one token in at a time was suggested (24 Sep notes §2). It isn't built.
 
 **How many scanners are required for the MVP?**
-Not decided. The SSOT's parts list has 4. The plan's sizing example used 20 (spec §11.1).
+Not decided. The SSOT's parts list has 4. The free-plan estimate assumed 20 (spec §11.1; `.scratch/db-hosting/assets/message-to-julian-workers-requests.md`, part 3).
 
 **What hardware have we actually tested successfully?**
 ESP32-S3 + RC522 + NTAG213 tags + the LED and LCD (update 23 Sep, update 27 Sep).
@@ -737,7 +738,7 @@ Filling the passport, and earning more points after the cooldown.
 ## 12. Privacy and consent
 
 **What participant information is stored?**
-Portal user ID, display name, and each tap's station and times (spec §3.5).
+Portal user ID, display name, and each tap's station and times (spec §3.6).
 
 **What information is visible to other participants?**
 Nothing about anyone else (spec §3.4).
@@ -789,7 +790,7 @@ Claiming, taps, the passport, the organizers' board and export, and the Portal l
 
 **What is useful but optional?**
 - The QR fallback.
-- The GeekyKey admin screens. These are needed to set up stations without database queries.
+- Creating, rekeying and disabling stations on the station board. Until checkpoint 7 builds them, Adam sets up stations with one-off scripts (spec §6 checkpoint 3).
 - The once-a-minute check-in and its reader check.
 
 **What is future work?**
@@ -829,7 +830,7 @@ Only saving taps at the station.
 Only for token claims.
 
 **Is the admin dashboard necessary for MVP?**
-The organizers' board is. The GeekyKey admin screens are nearly so.
+The organizers' station board is. Since 7 Oct it's also where stations are created and disabled, and there are no GeekyKey admin screens: a GeekyKey admin only releases tokens, on the token page (API §10).
 
 **Is the public profile necessary?**
 No. None is planned.
