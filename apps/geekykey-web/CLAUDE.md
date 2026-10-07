@@ -22,4 +22,6 @@ Read those files before adding screens. They are references, not documents to co
 
 ## Current scope
 
-The app is an empty routed shell with one placeholder page. Token claiming, My tokens, and the GeekyKey admin screens are added by later tickets.
+The app is an empty routed shell with one placeholder page, plus the data layer in `src/api/`. Token claiming, My tokens, and the GeekyKey admin screens are added by later tickets.
+
+`src/api/create-client.ts` is the only file that changes when an endpoint goes live, and `liveMethods()` is empty until checkpoint 6: the GeekyKey Service's routes do not exist yet, so every method runs on the mock even with `VITE_LIVE_API=1`.
