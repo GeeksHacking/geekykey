@@ -7,6 +7,12 @@ import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { useSession } from "@/lib/session";
 import { createTestProviders } from "@/test/providers";
 
+/** A token the seeded participant owns, used as an identity-scoped cache key. */
+const SOME_UID = "04A1B2C3D4E5F6";
+
+/** Any shape, as a cached value: these tests only care that the key gets cleared. */
+const cachedToken = { uid: SOME_UID, owner: "you", claimed_at: null, owner_id: null };
+
 function setup(prepare?: (api: MockApiClient) => void) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   prepare?.(api);
@@ -117,14 +123,14 @@ describe("SessionProvider", () => {
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
     // The admin station list belongs to the first account.
-    queryClient.setQueryData(queryKeys.stations, { stations: [], event_services: [] });
+    queryClient.setQueryData(queryKeys.token(SOME_UID), { token: cachedToken });
 
     let pending: Promise<unknown> | undefined;
     act(() => {
       pending = result.current.signIn(SEEDED_ADMIN_ID);
     });
     // Nothing from the old account may survive into the new one, even mid-request.
-    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.token(SOME_UID))).toBeUndefined();
 
     await act(async () => {
       await pending;
@@ -140,7 +146,7 @@ describe("SessionProvider", () => {
       await result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
-    queryClient.setQueryData(queryKeys.stations, { stations: [], event_services: [] });
+    queryClient.setQueryData(queryKeys.token(SOME_UID), { token: cachedToken });
     api.mock.failNext("internal_error");
 
     await act(async () => {
@@ -149,7 +155,7 @@ describe("SessionProvider", () => {
 
     // A failed sign-in must not leave the old account's data visible.
     expect(result.current.me).toBeNull();
-    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.token(SOME_UID))).toBeUndefined();
   });
 
   it("clears identity queries even when logout fails", async () => {
@@ -160,7 +166,7 @@ describe("SessionProvider", () => {
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
     // Identity-scoped cache: the admin station list, which must not survive to the next person.
-    queryClient.setQueryData(queryKeys.stations, { stations: [], event_services: [] });
+    queryClient.setQueryData(queryKeys.token(SOME_UID), { token: cachedToken });
     api.mock.failNext("internal_error");
 
     await expect(result.current.signOut()).rejects.toBeDefined();
@@ -168,7 +174,7 @@ describe("SessionProvider", () => {
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(result.current.me).toBeNull();
     // The failure must not leave the previous account's data on screen.
-    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.token(SOME_UID))).toBeUndefined();
   });
 
   it("clears identity queries the moment logout starts, before the request settles", async () => {
@@ -178,14 +184,14 @@ describe("SessionProvider", () => {
       await result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
-    queryClient.setQueryData(queryKeys.stations, { stations: [], event_services: [] });
+    queryClient.setQueryData(queryKeys.token(SOME_UID), { token: cachedToken });
 
     // Not awaited: the point is what is already gone while the request is still in flight.
     let pending: Promise<void> | undefined;
     act(() => {
       pending = result.current.signOut();
     });
-    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.token(SOME_UID))).toBeUndefined();
 
     await act(async () => {
       await pending;
@@ -201,13 +207,13 @@ describe("SessionProvider", () => {
       await result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
-    queryClient.setQueryData(queryKeys.stations, { stations: [] });
+    queryClient.setQueryData(queryKeys.token(SOME_UID), { token: cachedToken });
 
     api.mock.failNext("unauthenticated");
-    await expect(api.listStations()).rejects.toBeDefined();
+    await expect(api.getToken("04A1B2C3D4E5F6")).rejects.toBeDefined();
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(result.current.me).toBeNull();
-    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.token(SOME_UID))).toBeUndefined();
   });
 
   it("keeps a 403 available to a role gate", async () => {
@@ -219,7 +225,8 @@ describe("SessionProvider", () => {
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
 
     api.mock.failNext("forbidden");
-    await expect(api.listStations()).rejects.toBeDefined();
+    // Any identity-scoped request can answer 403; the claim is one of them.
+    await expect(api.claimToken("04E5F7091B3D")).rejects.toBeDefined();
     await waitFor(() => expect(result.current.authorizationError).toBeDefined());
     await act(async () => {
       await result.current.refresh();

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { LIVE_METHODS, createAppClient } from "@/api/create-client";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
-import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 
 /** With nothing live, the app client is the mock client and keeps its test controls. */
 function mockBacked(live: boolean): MockApiClient {
@@ -22,9 +22,10 @@ describe("createAppClient", () => {
   it("still uses the mock with live requested, since liveMethods is empty", async () => {
     // Checkpoint 6 has not landed, so VITE_LIVE_API must not change anything yet.
     const client = mockBacked(true);
-    client.mock.setSession(SEEDED_ADMIN_ID);
+    client.mock.setSession(SEEDED_PARTICIPANT_ID);
 
-    expect((await client.listStations()).stations.length).toBeGreaterThan(0);
+    // Agreement 8.4: the seeded participant owns two tokens.
+    expect((await client.me()).tokens.length).toBeGreaterThan(0);
     expect(LIVE_METHODS.size).toBe(0);
   });
 
@@ -35,21 +36,7 @@ describe("createAppClient", () => {
       .sort();
     // Mirrored from ApiClient by hand on purpose: a forgotten method should fail here.
     expect(fromMock).toEqual(
-      [
-        "claimToken",
-        "createStation",
-        "devLogin",
-        "disableStation",
-        "enableStation",
-        "getToken",
-        "listStations",
-        "loginUrl",
-        "logout",
-        "me",
-        "releaseToken",
-        "replaceStationKey",
-        "setStationLink",
-      ].sort(),
+      ["claimToken", "devLogin", "getToken", "loginUrl", "logout", "me", "releaseToken"].sort(),
     );
   });
 });

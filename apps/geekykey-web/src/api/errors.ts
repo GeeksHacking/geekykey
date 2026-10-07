@@ -56,6 +56,9 @@ export function describeError(error: unknown): string {
         return "You already have 3 tokens. Release one on My tokens first.";
       case "rate_limited":
         return "Too many tries. Wait a minute and try again.";
+      case "claims_unavailable":
+        // Agreement section 13: the token page, the claim form and My tokens say this.
+        return "Couldn't reach GeeksHacking. Try again.";
       case "internal_error":
         return "Something went wrong on the server. Try again in a moment.";
     }

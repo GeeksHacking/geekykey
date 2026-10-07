@@ -1,14 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
-import {
-  parseClaimResponse,
-  parseCreateStationResponse,
-  parseListStationsResponse,
-  parseMeResponse,
-  parseReplaceStationKeyResponse,
-  parseStationResponse,
-  parseTokenLookupResponse,
-} from "@/api/schemas";
+import { parseClaimResponse, parseMeResponse, parseTokenLookupResponse } from "@/api/schemas";
 import type { ApiIssue, ErrorCode } from "@/api/types";
 
 export interface HttpClientOptions {
@@ -102,8 +94,6 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
   /** A UID in the path must already be normalised; the services normalise on input, but not in a URL. */
   const tokenPath = (uid: string) => `/api/v1/tokens/${encodeURIComponent(uid)}`;
-  const stationPath = (stationId: string) =>
-    `/api/v1/admin/stations/${encodeURIComponent(stationId)}`;
 
   return {
     me: () => sendJson<unknown>("/api/v1/me").then(parseMeResponse),
@@ -127,31 +117,6 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       const query = ownerId === undefined ? "" : `?owner_id=${encodeURIComponent(ownerId)}`;
       await sendNoContent(`${tokenPath(uid)}${query}`, { method: "DELETE" });
     },
-
-    listStations: () => sendJson<unknown>("/api/v1/admin/stations").then(parseListStationsResponse),
-
-    createStation: (input) =>
-      sendJson<unknown>("/api/v1/admin/stations", postJson(input)).then(parseCreateStationResponse),
-
-    replaceStationKey: (stationId) =>
-      sendJson<unknown>(`${stationPath(stationId)}/key`, { method: "POST" }).then(
-        parseReplaceStationKeyResponse,
-      ),
-
-    setStationLink: (stationId, input) =>
-      sendJson<unknown>(`${stationPath(stationId)}/link`, jsonBody(input, "PUT")).then(
-        parseStationResponse,
-      ),
-
-    disableStation: (stationId) =>
-      sendJson<unknown>(`${stationPath(stationId)}/disable`, { method: "POST" }).then(
-        parseStationResponse,
-      ),
-
-    enableStation: (stationId) =>
-      sendJson<unknown>(`${stationPath(stationId)}/enable`, { method: "POST" }).then(
-        parseStationResponse,
-      ),
   };
 }
 
@@ -163,6 +128,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "token_taken",
   "token_limit_reached",
   "rate_limited",
+  "claims_unavailable",
   "internal_error",
 ]);
 
@@ -173,6 +139,9 @@ function errorCodeForStatus(status: number): ErrorCode {
   if (status === 404) return "not_found";
   if (status === 409) return "internal_error";
   if (status === 429) return "rate_limited";
+  // A bare 503 on these endpoints is claims_unavailable: event_service_unavailable is the
+  // other 503 in the agreement's table, and it only ever answers a station.
+  if (status === 503) return "claims_unavailable";
   return "internal_error";
 }
 

@@ -1,28 +1,16 @@
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
-import {
-  createFixtures,
-  type MockData,
-  type MockStation,
-  type MockToken,
-} from "@/api/mock/fixtures";
+import { createFixtures, type MockData, type MockToken } from "@/api/mock/fixtures";
 import type {
   ApiIssue,
-  CreateStationRequest,
-  CreateStationResponse,
   ErrorCode,
   EventServiceLink,
-  ListStationsResponse,
   MeResponse,
-  ReplaceStationKeyResponse,
-  SetStationLinkRequest,
-  Station,
   Token,
   TokenLookup,
 } from "@/api/types";
 
 const SESSION_KEY = "gk-mock-session";
-const STATION_ONLINE_WINDOW_MS = 120_000;
 /** Agreement 8.2: a user holds at most 3 tokens. */
 const MAX_TOKENS = 3;
 
@@ -35,6 +23,9 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   token_limit_reached: 409,
   rate_limited: 429,
   internal_error: 500,
+  // Every one of 8.2 to 8.5 answers this when the claims stand-in, or the Portal after
+  // the switch, cannot say who owns a token within 4 seconds.
+  claims_unavailable: 503,
 };
 
 export type MockFailure = ErrorCode | "network";
@@ -113,13 +104,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return sessionUserId ?? fail("unauthenticated");
   }
 
-  /** Section 10: the admin list gates every station endpoint. Anyone else gets forbidden. */
-  function currentAdminId(): string {
-    const userId = currentUserId();
-    if (!data.admins.includes(userId)) fail("forbidden");
-    return userId;
-  }
-
   function setSession(userId: string | null) {
     sessionUserId = userId;
     if (userId) storage?.setItem(SESSION_KEY, userId);
@@ -153,38 +137,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   function eventLink(id: string): EventServiceLink | undefined {
     const service = data.event_services.find((item) => item.id === id);
     return service ? { id: service.id, name: service.name, url: service.url } : undefined;
-  }
-
-  function requireStation(stationId: string): MockStation {
-    const station = data.stations.find((item) => item.id === stationId);
-    if (!station) fail("not_found");
-    return station;
-  }
-
-  function toStation(station: MockStation): Station {
-    const seen = station.last_seen_at ? new Date(station.last_seen_at).getTime() : null;
-    const service = station.link
-      ? data.event_services.find((item) => item.id === station.link?.event_service_id)
-      : undefined;
-    return {
-      id: station.id,
-      label: station.label,
-      created_at: station.created_at,
-      link: station.link
-        ? {
-            event_service_id: station.link.event_service_id,
-            // Null once that Event Service leaves the settings (agreement 10).
-            event_service_name: service?.in_settings ? service.name : null,
-            linked_at: station.link.linked_at,
-          }
-        : null,
-      disabled_at: station.disabled_at,
-      last_seen_at: station.last_seen_at,
-      online: seen !== null && now() - seen < STATION_ONLINE_WINDOW_MS,
-      firmware_version: station.firmware_version,
-      buffered_taps: station.buffered_taps,
-      reader_ok: station.reader_ok,
-    };
   }
 
   const client: ApiClient = {
@@ -279,89 +231,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         token.owner_id = null;
         token.claimed_at = null;
       }),
-
-    listStations: () =>
-      call((): ListStationsResponse => {
-        currentAdminId();
-        return {
-          stations: data.stations.map(toStation),
-          event_services: data.event_services
-            .filter((service) => service.in_settings)
-            .map((service) => ({ id: service.id, name: service.name })),
-        };
-      }),
-
-    createStation: (input: CreateStationRequest) =>
-      call((): CreateStationResponse => {
-        currentAdminId();
-        const label = input.label.trim();
-        if (label.length < 1 || label.length > 80) {
-          fail("validation_failed", [
-            { path: ["label"], message: "label must be 1 to 80 characters" },
-          ]);
-        }
-        const station: MockStation = {
-          id: crypto.randomUUID(),
-          label,
-          created_at: iso(now()),
-          // A new station has no link (agreement 10.2).
-          link: null,
-          disabled_at: null,
-          last_seen_at: null,
-          firmware_version: null,
-          buffered_taps: null,
-          reader_ok: null,
-        };
-        data.stations.push(station);
-        return { station: toStation(station), api_key: `gk_sta_${randomBase62(40)}` };
-      }),
-
-    replaceStationKey: (stationId) =>
-      call((): ReplaceStationKeyResponse => {
-        currentAdminId();
-        // Replaces the key, keeping the ID and the link (agreement 10.3).
-        const station = requireStation(stationId);
-        return { station: toStation(station), api_key: `gk_sta_${randomBase62(40)}` };
-      }),
-
-    setStationLink: (stationId, input: SetStationLinkRequest) =>
-      call((): Station => {
-        currentAdminId();
-        const station = requireStation(stationId);
-        if (input.event_service_id === null) {
-          station.link = null;
-          return toStation(station);
-        }
-        const service = data.event_services.find((item) => item.id === input.event_service_id);
-        if (!service?.in_settings) {
-          fail("validation_failed", [
-            { path: ["event_service_id"], message: "That event service is not available" },
-          ]);
-        }
-        // Linking or moving sets linked_at to now (agreement 10.4). Linking it again to
-        // the service it already feeds changes nothing, so its saved taps still count.
-        if (station.link?.event_service_id !== service.id) {
-          station.link = { event_service_id: service.id, linked_at: iso(now()) };
-        }
-        return toStation(station);
-      }),
-
-    disableStation: (stationId) =>
-      call((): Station => {
-        currentAdminId();
-        const station = requireStation(stationId);
-        // Doing it twice changes nothing (agreement 10.5).
-        station.disabled_at ??= iso(now());
-        return toStation(station);
-      }),
-
-    enableStation: (stationId) =>
-      call((): Station => {
-        currentAdminId();
-        const station = requireStation(stationId);
-        station.disabled_at = null;
-        return toStation(station);
-      }),
   };
 
   return {
@@ -382,10 +251,4 @@ function safeSessionStorage(): Storage | null {
   } catch {
     return null;
   }
-}
-
-function randomBase62(length: number): string {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }

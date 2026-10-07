@@ -1,32 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { NetworkError } from "@/api/errors";
-import {
-  parseClaimResponse,
-  parseListStationsResponse,
-  parseMeResponse,
-  parseStationResponse,
-  parseTokenLookupResponse,
-} from "@/api/schemas";
+import { parseClaimResponse, parseMeResponse, parseTokenLookupResponse } from "@/api/schemas";
 
 const iso = "2026-10-10T08:30:00.000Z";
-
-const station = {
-  id: "ca939e19-8216-4b95-8375-5b54e543c5f6",
-  label: "Reader 3",
-  created_at: iso,
-  link: {
-    event_service_id: "showcase",
-    event_service_name: "Capstone Showcase",
-    linked_at: iso,
-  },
-  disabled_at: null,
-  last_seen_at: iso,
-  online: true,
-  firmware_version: "0.3.1",
-  buffered_taps: 0,
-  reader_ok: true,
-};
 
 describe("geekykey-web schemas", () => {
   it("accepts the agreement's /me and strips keys it does not list", () => {
@@ -81,65 +58,40 @@ describe("geekykey-web schemas", () => {
     expect(lookup.owner_id).toBeNull();
   });
 
+  it("keeps a claim time for a token you own", () => {
+    const lookup = parseTokenLookupResponse({
+      token: { uid: "04A1B2C3D4E5F6", owner: "you", claimed_at: iso, owner_id: null },
+    });
+    expect(lookup.claimed_at).toBe(iso);
+  });
+
+  it("rejects a token missing a field the agreement lists", () => {
+    const incomplete: Record<string, unknown> = {
+      uid: "04A1B2C3D4E5F6",
+      owner: "nobody",
+      claimed_at: null,
+    };
+    delete incomplete.owner_id;
+    expect(() => parseTokenLookupResponse({ token: incomplete })).toThrow(NetworkError);
+  });
+
+  it("rejects a claimed_at that is not ISO", () => {
+    expect(() =>
+      parseTokenLookupResponse({
+        token: { uid: "04A1B2C3D4E5F6", owner: "you", claimed_at: "yesterday", owner_id: null },
+      }),
+    ).toThrow(NetworkError);
+  });
+
   it("accepts a claim response", () => {
     const token = parseClaimResponse({ token: { uid: "04A1B2C3D4E5F6", claimed_at: iso } });
     expect(token.uid).toBe("04A1B2C3D4E5F6");
   });
 
-  it("accepts the station registry with a null link", () => {
-    const list = parseListStationsResponse({
-      stations: [{ ...station, link: null }],
-      event_services: [{ id: "showcase", name: "Capstone Showcase" }],
-    });
-    expect(list.stations[0]?.link).toBeNull();
-  });
-
-  it("accepts a link whose event_service_name is null", () => {
-    const list = parseListStationsResponse({
-      stations: [{ ...station, link: { ...station.link, event_service_name: null } }],
-      event_services: [],
-    });
-    expect(list.stations[0]?.link?.event_service_name).toBeNull();
-  });
-
-  it("accepts a never-seen station with null heartbeat fields", () => {
-    const list = parseListStationsResponse({
-      stations: [
-        {
-          ...station,
-          last_seen_at: null,
-          online: false,
-          firmware_version: null,
-          buffered_taps: null,
-          reader_ok: null,
-        },
-      ],
-      event_services: [],
-    });
-    expect(list.stations[0]?.buffered_taps).toBeNull();
-  });
-
-  it("rejects a station missing a field the agreement lists", () => {
-    const incomplete: Record<string, unknown> = { ...station };
-    delete incomplete.reader_ok;
-    expect(() => parseListStationsResponse({ stations: [incomplete], event_services: [] })).toThrow(
+  it("rejects a claim response with no token wrapper", () => {
+    expect(() => parseClaimResponse({ uid: "04A1B2C3D4E5F6", claimed_at: iso })).toThrow(
       NetworkError,
     );
-  });
-
-  it("rejects a buffered_taps that is not a whole number", () => {
-    expect(() => parseStationResponse({ station: { ...station, buffered_taps: 1.5 } })).toThrow(
-      NetworkError,
-    );
-    expect(() => parseStationResponse({ station: { ...station, buffered_taps: -1 } })).toThrow(
-      NetworkError,
-    );
-  });
-
-  it("rejects a timestamp that is not ISO", () => {
-    expect(() =>
-      parseStationResponse({ station: { ...station, created_at: "yesterday" } }),
-    ).toThrow(NetworkError);
   });
 
   it("turns any unexpected shape into a NetworkError, not a raw Zod error", () => {

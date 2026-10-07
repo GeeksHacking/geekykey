@@ -1,14 +1,4 @@
-import type {
-  CreateStationRequest,
-  CreateStationResponse,
-  ListStationsResponse,
-  MeResponse,
-  ReplaceStationKeyResponse,
-  SetStationLinkRequest,
-  Station,
-  Token,
-  TokenLookup,
-} from "@/api/types";
+import type { MeResponse, Token, TokenLookup } from "@/api/types";
 
 /*
   The one interface every feature consumes. Two implementations:
@@ -18,6 +8,11 @@ import type {
   Screens never know which one they are talking to. Every method here is on the
   GeekyKey Service; none of them is the Event Service's, even where the path
   matches.
+
+  Agreement version 0.3 has no station endpoints here: section 10 is empty, because
+  each Event Service registers its own stations and the jobs moved to the Event screens
+  (agreement 9.7 to 9.9). A GeekyKey admin's one remaining job is releasing someone
+  else's token, which is releaseToken with ownerId.
 */
 export interface ApiClient {
   /** GET /api/v1/me. Rejects with `unauthenticated` when there is no session. */
@@ -47,22 +42,4 @@ export interface ApiClient {
    * showed.
    */
   releaseToken(uid: string, ownerId?: string): Promise<void>;
-
-  /** GET /api/v1/admin/stations. Agreement 10.1. Poll every 10 to 15 seconds. */
-  listStations(): Promise<ListStationsResponse>;
-
-  /** POST /api/v1/admin/stations. Agreement 10.2. The key is shown once. */
-  createStation(input: CreateStationRequest): Promise<CreateStationResponse>;
-
-  /** POST /api/v1/admin/stations/{id}/key. Agreement 10.3. The new key is shown once. */
-  replaceStationKey(stationId: string): Promise<ReplaceStationKeyResponse>;
-
-  /** PUT /api/v1/admin/stations/{id}/link. Agreement 10.4. A null id unlinks. */
-  setStationLink(stationId: string, input: SetStationLinkRequest): Promise<Station>;
-
-  /** POST /api/v1/admin/stations/{id}/disable. Agreement 10.5. */
-  disableStation(stationId: string): Promise<Station>;
-
-  /** POST /api/v1/admin/stations/{id}/enable. Agreement 10.5. */
-  enableStation(stationId: string): Promise<Station>;
 }

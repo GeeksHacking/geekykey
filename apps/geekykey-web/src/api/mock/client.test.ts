@@ -258,144 +258,6 @@ describe("geekykey-web mock client", () => {
     });
   });
 
-  describe("the station registry", () => {
-    it("needs a GeekyKey admin", async () => {
-      const api = setup(SEEDED_PARTICIPANT_ID);
-      expect(await codeOf(() => api.listStations())).toBe("forbidden");
-    });
-
-    it("answers forbidden for create, replace key, link and disable on a plain user", async () => {
-      const api = setup(SEEDED_PARTICIPANT_ID);
-      const id = "ca939e19-8216-4b95-8375-5b54e543c5f6";
-      expect(await codeOf(() => api.createStation({ label: "Reader 2" }))).toBe("forbidden");
-      expect(await codeOf(() => api.replaceStationKey(id))).toBe("forbidden");
-      expect(await codeOf(() => api.setStationLink(id, { event_service_id: "showcase" }))).toBe(
-        "forbidden",
-      );
-      expect(await codeOf(() => api.disableStation(id))).toBe("forbidden");
-      expect(await codeOf(() => api.enableStation(id))).toBe("forbidden");
-    });
-
-    it("lists every station and the event services it can link to", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const { stations, event_services } = await api.listStations();
-      expect(stations).toHaveLength(6);
-      // Only the Event Services still in the settings are offered.
-      expect(event_services).toEqual([{ id: "showcase", name: "Capstone Showcase" }]);
-    });
-
-    it("computes online from a 120-second window", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const byLabel = new Map((await api.listStations()).stations.map((s) => [s.label, s]));
-      expect(byLabel.get("Reader 3")?.online).toBe(true);
-      expect(byLabel.get("Reader 7")?.online).toBe(false);
-      // Never checked in.
-      expect(byLabel.get("Reader 12")?.last_seen_at).toBeNull();
-      expect(byLabel.get("Reader 12")?.online).toBe(false);
-    });
-
-    it("reports a null event_service_name for a link that left the settings", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const reader4 = (await api.listStations()).stations.find((s) => s.label === "Reader 4");
-      expect(reader4?.link?.event_service_id).toBe("e_4b19");
-      expect(reader4?.link?.event_service_name).toBeNull();
-    });
-
-    it("returns an api_key exactly once, on create", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const created = await api.createStation({ label: "Reader 20" });
-      expect(created.api_key).toMatch(/^gk_sta_/);
-
-      // Nothing anywhere else carries it.
-      const listed = (await api.listStations()).stations.find((s) => s.id === created.station.id);
-      expect(listed).toBeDefined();
-      expect(JSON.stringify(listed)).not.toContain("gk_sta_");
-      expect(created.station.link).toBeNull();
-    });
-
-    it("rejects a blank or overlong label", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      expect(await codeOf(() => api.createStation({ label: "   " }))).toBe("validation_failed");
-      expect(await codeOf(() => api.createStation({ label: "x".repeat(81) }))).toBe(
-        "validation_failed",
-      );
-    });
-
-    it("replaces a key without changing the ID or the link", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const before = (await api.listStations()).stations.find((s) => s.label === "Reader 3");
-      const replaced = await api.replaceStationKey(before!.id);
-
-      expect(replaced.api_key).toMatch(/^gk_sta_/);
-      expect(replaced.station.id).toBe(before!.id);
-      expect(replaced.station.link).toEqual(before!.link);
-      expect(replaced.api_key).not.toBe(
-        before && (before as unknown as { api_key?: string }).api_key,
-      );
-    });
-
-    it("answers not_found when replacing the key of an unknown station", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      expect(await codeOf(() => api.replaceStationKey("nope"))).toBe("not_found");
-    });
-
-    it("links a station and stamps linked_at, then unlinks it", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const reader9 = (await api.listStations()).stations.find((s) => s.label === "Reader 9");
-      expect(reader9?.link).toBeNull();
-
-      const linked = await api.setStationLink(reader9!.id, { event_service_id: "showcase" });
-      expect(linked.link?.event_service_id).toBe("showcase");
-      expect(linked.link?.linked_at).not.toBeNull();
-
-      const unlinked = await api.setStationLink(reader9!.id, { event_service_id: null });
-      expect(unlinked.link).toBeNull();
-    });
-
-    it("rejects a link to an event service that is not in the settings", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      expect(
-        await codeOf(() =>
-          api.setStationLink("ca939e19-8216-4b95-8375-5b54e543c5f6", {
-            event_service_id: "e_4b19",
-          }),
-        ),
-      ).toBe("validation_failed");
-    });
-
-    it("leaves linked_at alone when a station is linked to the service it already feeds", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const before = (await api.listStations()).stations.find((s) => s.label === "Reader 3");
-      const again = await api.setStationLink(before!.id, { event_service_id: "showcase" });
-      // Agreement 10.4: its saved taps still count, so nothing moved.
-      expect(again.link?.linked_at).toBe(before!.link?.linked_at);
-    });
-
-    it("disables and re-enables, and doing either twice changes nothing", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      const id = "ca939e19-8216-4b95-8375-5b54e543c5f6";
-
-      const disabled = await api.disableStation(id);
-      expect(disabled.disabled_at).not.toBeNull();
-      const again = await api.disableStation(id);
-      expect(again.disabled_at).toBe(disabled.disabled_at);
-
-      const enabled = await api.enableStation(id);
-      expect(enabled.disabled_at).toBeNull();
-      const enabledAgain = await api.enableStation(id);
-      expect(enabledAgain.disabled_at).toBeNull();
-    });
-
-    it("answers not_found for a station that does not exist", async () => {
-      const api = setup(SEEDED_ADMIN_ID);
-      expect(await codeOf(() => api.setStationLink("nope", { event_service_id: null }))).toBe(
-        "not_found",
-      );
-      expect(await codeOf(() => api.disableStation("nope"))).toBe("not_found");
-      expect(await codeOf(() => api.enableStation("nope"))).toBe("not_found");
-    });
-  });
-
   describe("auth and failure simulation", () => {
     it("signs in any user id, because the service keeps no users", async () => {
       const api = createMockClient({ latencyMs: [0, 0], storage: null });
@@ -426,6 +288,81 @@ describe("geekykey-web mock client", () => {
       const api = setup();
       api.mock.failNext("network");
       await expect(api.me()).rejects.toThrow(/Could not reach the server/);
+    });
+  });
+
+  describe("claims_unavailable", () => {
+    // Agreement 0.3: every one of 8.2 to 8.5 answers 503 when the claims stand-in, or the
+    // Portal after the switch, cannot say who owns a token within 4 seconds. Nothing is
+    // saved, so a claim that hits it must leave the token unclaimed.
+    it("answers 503 from a lookup", async () => {
+      const api = setup();
+      api.mock.failNext("claims_unavailable");
+
+      try {
+        await api.getToken(UNCLAIMED);
+        throw new Error("expected the call to reject");
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError);
+        expect((error as ApiError).code).toBe("claims_unavailable");
+        expect((error as ApiError).status).toBe(503);
+      }
+    });
+
+    it("answers 503 from a claim and saves nothing", async () => {
+      const api = setup();
+      api.mock.failNext("claims_unavailable");
+
+      expect(await codeOf(() => api.claimToken(UNCLAIMED))).toBe("claims_unavailable");
+      // Nothing was saved, so the token is still nobody's.
+      expect((await api.getToken(UNCLAIMED)).owner).toBe("nobody");
+      expect((await api.me()).tokens).toHaveLength(2);
+    });
+
+    it("answers 503 from a release and keeps the claim", async () => {
+      const api = setup();
+      await api.claimToken(UNCLAIMED);
+      api.mock.failNext("claims_unavailable");
+
+      expect(await codeOf(() => api.releaseToken(UNCLAIMED))).toBe("claims_unavailable");
+      expect((await api.getToken(UNCLAIMED)).owner).toBe("you");
+    });
+
+    it("answers 503 from /me", async () => {
+      const api = setup();
+      api.mock.failNext("claims_unavailable");
+      expect(await codeOf(() => api.me())).toBe("claims_unavailable");
+    });
+  });
+
+  describe("no station endpoints since 0.3", () => {
+    it("has no station methods left on the client", () => {
+      // Section 10 is empty: each Event Service registers its own stations now, so the
+      // registry belongs to apps/frontend (agreement 9.7 to 9.9).
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      const methods = Object.keys(api).filter((key) => key !== "mock");
+      for (const gone of [
+        "listStations",
+        "createStation",
+        "replaceStationKey",
+        "setStationLink",
+        "disableStation",
+        "enableStation",
+      ]) {
+        expect(methods).not.toContain(gone);
+      }
+    });
+
+    it("keeps no station fixtures", () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      expect(api.mock.data).not.toHaveProperty("stations");
+    });
+
+    it("still keeps the admin list, because releasing someone's token is still an admin job", async () => {
+      const api = setup(SEEDED_ADMIN_ID);
+      expect((await api.me()).user.is_geekykey_admin).toBe(true);
+      await api.releaseToken(SOMEONE_ELSES, "p_1041");
+      expect((await api.getToken(SOMEONE_ELSES)).owner).toBe("nobody");
     });
   });
 });

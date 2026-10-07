@@ -6,5 +6,4 @@
 export const queryKeys = {
   me: ["me"] as const,
   token: (uid: string) => ["token", uid] as const,
-  stations: ["stations"] as const,
 } as const;
