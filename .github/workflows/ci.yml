@@ -108,8 +108,6 @@ jobs:
       - name: Format
         run: pnpm --filter @geekykey/backend format:check
 
-      # `wrangler types` writes the Workers types first, then tsc checks
-      # against them.
       - name: Typecheck
         run: pnpm --filter @geekykey/backend typecheck
 
@@ -121,11 +119,24 @@ jobs:
       - name: Test
         run: pnpm test:backend
 
-      # Bundles the Worker the way a deploy does, then stops before uploading
-      # it, so it needs no Cloudflare login. This is what proves the Worker
-      # builds: the tests load the code a different way.
-      - name: Build the Worker
-        run: pnpm --filter @geekykey/backend check:build
+      # Builds the image Cloud Run runs, without pushing it anywhere. This is
+      # what proves the bundle and the image build: the tests load the code a
+      # different way.
+      - name: Build the image
+        run: pnpm --filter @geekykey/backend build:image
+
+      # Starts the image and asks it for /api/health, so a bundle that builds
+      # but can't start fails here. /api/health needs no database, so the
+      # DATABASE_URL only has to be there, and the SESSION_SECRET is a
+      # stand-in that nothing else uses.
+      - name: Start the image
+        run: |
+          docker run --detach --name backend --publish 8000:8000 \
+            --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
+            --env SESSION_SECRET=ci-stand-in-not-a-secret \
+            geekykey-backend
+          curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-all-errors \
+            http://localhost:8000/api/health || { docker logs backend; exit 1; }
 
       # Every change to src/db/schema.ts must come with the migration
       # drizzle-kit writes for it. scripts/check-migrations.ts says why this

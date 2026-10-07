@@ -1,0 +1,34 @@
+/**
+ * The GeekyKey backend as a Node server. `pnpm dev` runs this file with
+ * `node --watch`, and the image runs it bundled into one file
+ * (dist/server.cjs).
+ *
+ * It reads its settings from environment variables once, here, and a bad or
+ * missing one, such as SESSION_SECRET or DATABASE_URL, stops it starting.
+ */
+import { serve } from "@hono/node-server";
+import { createApp } from "./app.ts";
+import { loadConfig } from "./config.ts";
+import { createDbPool } from "./db/pool.ts";
+
+const config = loadConfig(process.env);
+const database = createDbPool(config.databaseUrl);
+const app = createApp(config, database.db);
+
+// Every network interface, not only localhost: real stations call a laptop by
+// name, such as http://A-Mac.local:8000, and Cloud Run calls the container
+// from outside it.
+const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
+  console.log(`Listening on http://localhost:${info.port}`);
+});
+
+// Cloud Run sends SIGTERM 10 seconds before it stops an instance. The server
+// stops taking requests and lets the ones in flight finish, then the pool
+// closes its connections, so TiDB ends their sessions cleanly. Ctrl-C sends
+// SIGINT, which Node ignores inside a container unless it's handled.
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    console.log(`${signal}: stopping once the requests in flight are done`);
+    server.close(() => void database.close());
+  });
+}

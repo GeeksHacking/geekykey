@@ -3,7 +3,7 @@
  * to production. Both connect straight to TiDB with mysql2.
  */
 import { sql } from "drizzle-orm";
-import type { Db } from "../src/db/hyperdrive.ts";
+import type { Db } from "../src/db/pool.ts";
 import { stations, tokens, users } from "../src/db/schema.ts";
 import { generateStationKey, hashStationKey } from "../src/lib/station-keys.ts";
 

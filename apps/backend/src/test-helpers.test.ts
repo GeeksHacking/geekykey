@@ -5,7 +5,7 @@ import { stations, taps, tokens, users } from "./db/schema.ts";
 import { hashStationKey } from "./lib/station-keys.ts";
 import { setupFixture, testDb } from "./test-helpers.ts";
 
-test("the fixture's station, participant and token read back through the Hyperdrive binding", async () => {
+test("the fixture's station, participant and token read back through the pool", async () => {
   const { db, stationId, stationKey, userId, uid } = await setupFixture();
 
   const [station] = await db.select().from(stations).where(eq(stations.id, stationId)).limit(1);

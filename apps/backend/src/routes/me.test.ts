@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { exports } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { type NewTap, stations, taps, tokens, users } from "../db/schema.ts";
-import { setupFixture } from "../test-helpers.ts";
+import { setupFixture, testApp } from "../test-helpers.ts";
+
+const app = testApp();
 
 /** Pinned so slot order and paired_at do not depend on the day the tests run. */
 const BOOTH_CREATED_AT = "2026-10-10T08:00:00.000Z";
@@ -51,13 +52,13 @@ async function harness() {
   await fx.db.update(tokens).set({ pairedAt: PAIRED_AT }).where(eq(tokens.uid, fx.uid));
 
   const getMe = (cookie?: string) =>
-    exports.default.fetch("http://localhost/api/v1/me", {
+    app.request("/api/v1/me", {
       headers: cookie ? { Cookie: cookie } : {},
     });
 
   /** Signs in through dev-login and returns the /me body, which must be a 200. */
   const meAs = async (userId: string): Promise<MeBody> => {
-    const login = await exports.default.fetch("http://localhost/auth/dev-login", {
+    const login = await app.request("/auth/dev-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId }),
@@ -67,7 +68,7 @@ async function harness() {
     const cookie = (login.headers.get("Set-Cookie") ?? "").split(";")[0];
     const res = await getMe(cookie);
     assert.equal(res.status, 200);
-    return await res.json<MeBody>();
+    return (await res.json()) as MeBody;
   };
 
   /** /me never reads station keys, so each extra station gets a placeholder hash. */

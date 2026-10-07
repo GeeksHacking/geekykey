@@ -1,5 +1,5 @@
 import { and, between, eq, inArray, sql } from "drizzle-orm";
-import type { Db } from "../db/hyperdrive.ts";
+import type { Db } from "../db/pool.ts";
 import {
   type NewTap,
   type STORED_TAP_STATUSES,
@@ -177,7 +177,7 @@ export class TapPipeline {
   }
 
   /**
-   * Makes one station's ingests take turns, even across Workers instances:
+   * Makes one station's ingests take turns, even across Cloud Run instances:
    * each reads, decides, then writes, so two at once would miss each other's
    * rows. A resend racing its original would get `accepted` twice, and two
    * taps by one participant would both beat the cooldown. The lock is held
@@ -188,8 +188,8 @@ export class TapPipeline {
    * so it would still miss the taps the ingest before stored. That's why the
    * reads after the lock are locking reads (`FOR UPDATE`) too: a locking read
    * sees the latest rows. (READ COMMITTED would also do it, but Drizzle sets it
-   * with a statement of its own before BEGIN, and Hyperdrive resets a
-   * connection after any statement outside a transaction.)
+   * with a statement of its own before BEGIN, and the locking reads need
+   * nothing set.)
    */
   async #lockStation(tx: Tx, stationId: string): Promise<void> {
     await tx

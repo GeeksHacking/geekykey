@@ -4,9 +4,7 @@
     "lib": ["ES2024"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    // Node's types for nodejs_compat and the scripts; the Workers runtime's
-    // come from worker-configuration.d.ts, which `wrangler types` writes.
-    "types": ["node", "@cloudflare/vitest-plugin/types"],
+    "types": ["node"],
     "strict": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
@@ -18,12 +16,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": [
-    "worker-configuration.d.ts",
-    "src",
-    "scripts/*.ts",
-    "test-support/*.ts",
-    "drizzle.config.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src", "scripts/*.ts", "test-support/*.ts", "drizzle.config.ts", "vitest.config.ts"]
 }

@@ -1,10 +1,10 @@
-import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
-import { env } from "cloudflare:workers";
-import { onTestFinished } from "vitest";
-import { createRequestDb, type Db } from "./db/hyperdrive.ts";
+import { afterAll } from "vitest";
+import { localDatabaseUrl } from "../scripts/local-tidb.ts";
+import { createApp } from "./app.ts";
+import { loadConfig } from "./config.ts";
+import { createDbPool, type Db } from "./db/pool.ts";
 import { stations, tokens, users } from "./db/schema.ts";
 import { generateStationKey, hashStationKey } from "./lib/station-keys.ts";
-import type { createWorkerApp } from "./worker.ts";
 
 export interface TestFixture {
   db: Db;
@@ -15,32 +15,30 @@ export interface TestFixture {
   uid: string;
 }
 
+/** One pool to geekykey_test for each test file, closed once its tests are done. */
+const testPool = createDbPool(localDatabaseUrl("geekykey_test"));
+afterAll(testPool.close);
+
 /**
- * geekykey_test through the Hyperdrive binding, as a Worker's request sees
- * its database. The connection closes when the test ends. Every table starts
- * the test empty (test-support/empty-tables.ts).
+ * geekykey_test, through a pool like the server's. Every table starts each
+ * test empty (test-support/empty-tables.ts).
  */
 export function testDb(): Db {
-  const { db, close } = createRequestDb(env.HYPERDRIVE);
-  onTestFinished(close);
-  return db;
+  return testPool.db;
 }
 
 /**
- * Sends a request to a Worker a test started itself, such as one with other
- * settings, the way `exports.default.fetch` sends one to the tests' own
- * Worker. Waits for what the request left running, such as closing its
- * database connection.
+ * The backend as `pnpm dev` starts it, with dev-login on, but against
+ * geekykey_test. `settings` are added to, or replace, its environment
+ * variables. Send it a request with `app.request(path, init)`.
  */
-export async function requestWorker(
-  worker: ReturnType<typeof createWorkerApp>,
-  path: string,
-  init?: RequestInit,
-): Promise<Response> {
-  const ctx = createExecutionContext();
-  const res = await worker.request(path, init, env, ctx);
-  await waitOnExecutionContext(ctx);
-  return res;
+export function testApp(settings: Record<string, string> = {}) {
+  const config = loadConfig({
+    DATABASE_URL: localDatabaseUrl("geekykey_test"),
+    DEV_AUTH_ENABLED: "true",
+    ...settings,
+  });
+  return createApp(config, testDb());
 }
 
 /** One station, and one participant holding one token. */

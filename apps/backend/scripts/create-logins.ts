@@ -14,8 +14,8 @@
  * as one restored after the old one is lost, it creates everything again.
  *
  *   --new-app-password        give the app login a new password, and show the
- *                             login once, for the Hyperdrive config. Use it at
- *                             the first deploy, or if the login ever leaks.
+ *                             login once, for DATABASE_URL in Secret Manager.
+ *                             Use it at the first deploy, or if it ever leaks.
  *   --new-migration-password  give the migration login a new password, and
  *                             save that. Then replace GitHub's copy too.
  */
@@ -49,10 +49,10 @@ try {
   console.log(`Migration login:  ${names.migration}, saved in ${SAVE_PATH}`);
   if (appUrl) {
     console.log(`App login:        ${appUrl}`);
-    console.log("                  <- shown once, for the Hyperdrive config. Save it nowhere.");
+    console.log("                  <- shown once, for DATABASE_URL. Save it nowhere else.");
   } else {
     console.log(`App login:        ${names.app}. Its password isn't shown: add`);
-    console.log("                  --new-app-password when the Hyperdrive config needs it.");
+    console.log("                  --new-app-password when DATABASE_URL needs it.");
   }
 } finally {
   await root.end();

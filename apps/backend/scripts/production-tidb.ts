@@ -1,45 +1,26 @@
 /**
  * How the database scripts reach GeeksHacking's TiDB Cloud cluster: straight
- * from a laptop or GitHub Actions with mysql2, never through Hyperdrive.
+ * from a laptop or GitHub Actions with mysql2.
  */
 import { readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import type { ConnectionOptions } from "mysql2/promise";
-
-/**
- * TLS that checks the server's certificate, and that it was issued for the
- * host we asked for: mysql2 skips that second check unless told. TiDB Cloud
- * takes nothing less than TLS.
- */
-const CHECKED_TLS = {
-  minVersion: "TLSv1.2",
-  rejectUnauthorized: true,
-  verifyIdentity: true,
-} as const;
+import { CHECKED_TLS, loginFromUrl } from "../src/db/pool.ts";
 
 /**
  * Connection options for the login in a `mysql://user:password@host:port/db`
  * URL, over TLS that checks the server's certificate. The URL can't turn that
- * off: given a URL, mysql2 would let a `?ssl=` in it override this.
+ * off, and nor can the host: unlike the server's pool, a script never skips
+ * TLS for a database on this machine.
  */
 export function productionConnection(url: string): ConnectionOptions {
-  const parsed = new URL(url);
-  return {
-    host: parsed.hostname,
-    port: Number(parsed.port || 4000),
-    user: decodeURIComponent(parsed.username),
-    password: decodeURIComponent(parsed.password),
-    database: decodeURIComponent(parsed.pathname.slice(1)),
-    ssl: { ...CHECKED_TLS },
-  };
+  return { ...loginFromUrl(url), ssl: { ...CHECKED_TLS } };
 }
 
 /**
- * The migration login, from TIDB_MIGRATION_URL. Nobody on the team has
- * Cloudflare access (spec.md:99), so a "Migrate production" workflow can't be
- * the thing that sets it: Adam runs db:migrate from his laptop until that
- * workflow exists (spec.md:51), passing --env-file to name the file
- * create-logins.ts saved.
+ * The migration login, from TIDB_MIGRATION_URL. Adam runs db:migrate from
+ * his laptop until the deploy workflow migrates production itself, passing
+ * --env-file to name the file create-logins.ts saved.
  */
 export function migrationLogin(envFile?: string): ConnectionOptions {
   const url = readEnv(envFile).TIDB_MIGRATION_URL;

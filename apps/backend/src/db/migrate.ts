@@ -12,7 +12,7 @@ const MIGRATIONS_FOLDER = join(import.meta.dirname, "../../drizzle");
  * src/db/schema.ts, then run `pnpm db:generate` to write the next migration.
  *
  * Runs on Node, from `mise run db:migrate` and the tests' global setup, with
- * mysql2 connecting straight to TiDB. Never inside a Worker.
+ * mysql2 connecting straight to TiDB. Never when the server starts.
  */
 export async function migrate(database: string | ConnectionOptions): Promise<void> {
   const connection = await createConnection(

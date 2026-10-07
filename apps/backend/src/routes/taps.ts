@@ -4,7 +4,7 @@ import { jsonBody } from "../lib/validate.ts";
 import { stationAuth, type StationEnv } from "../middleware/station-auth.ts";
 import { LocalTokenResolver, normaliseUid } from "../services/identity.ts";
 import { TapPipeline } from "../services/taps.ts";
-import type { WorkerEnv } from "../worker.ts";
+import type { AppEnv } from "../app.ts";
 
 /** 4 to 10 bytes of hex after normalisation, covering single, double, and triple size ISO 14443A UIDs. */
 const UID_PATTERN = /^(?:[0-9A-F]{2}){4,10}$/;
@@ -29,7 +29,7 @@ export function tapBodySchema(maxTaps: number) {
   });
 }
 
-type TapsEnv = WorkerEnv & StationEnv;
+type TapsEnv = AppEnv & StationEnv;
 type TapBodySchema = ReturnType<typeof tapBodySchema>;
 
 /**

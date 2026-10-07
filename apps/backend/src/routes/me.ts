@@ -5,7 +5,7 @@ import {
   type SessionOptions,
 } from "../middleware/session-auth.ts";
 import { loadMe } from "../services/me.ts";
-import type { WorkerEnv } from "../worker.ts";
+import type { AppEnv } from "../app.ts";
 
 export interface MeRouteDeps {
   session: SessionOptions;
@@ -19,7 +19,7 @@ export interface MeRouteDeps {
  * signed in.
  */
 export function meRoutes({ session }: MeRouteDeps) {
-  return new Hono<WorkerEnv & SessionEnv>().get("/", requireSession(session), async (c) => {
+  return new Hono<AppEnv & SessionEnv>().get("/", requireSession(session), async (c) => {
     // The session already loaded the profile, so only the rest is read here.
     const user = c.var.user;
     const me = await loadMe(c.var.db, user.id);

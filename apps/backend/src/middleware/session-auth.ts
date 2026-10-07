@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
-import type { Db } from "../db/hyperdrive.ts";
+import type { Db } from "../db/pool.ts";
 import { type User, users } from "../db/schema.ts";
 
 export const SESSION_COOKIE = "gk_session";

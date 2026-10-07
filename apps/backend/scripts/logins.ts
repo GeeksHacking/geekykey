@@ -17,7 +17,7 @@ const APP_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE";
 const MIGRATION_PRIVILEGES = `${APP_PRIVILEGES}, CREATE, ALTER, DROP, INDEX, REFERENCES`;
 
 export interface LoginNames {
-  /** Reads and writes rows. The Workers use it, through Hyperdrive. */
+  /** Reads and writes rows. The server uses it, as its DATABASE_URL. */
   app: string;
   /** Can also create, change and drop tables. `db:migrate` uses it. */
   migration: string;
@@ -94,7 +94,7 @@ export async function ensureLogins(
   await root.query(`GRANT ${MIGRATION_PRIVILEGES} ON ${DATABASE}.* TO ?@'%'`, [names.migration]);
 
   // A new app login's password is thrown away unless it was asked for: the
-  // first deploy asks for a new one when it creates the Hyperdrive config.
+  // first deploy asks for a new one, to put in DATABASE_URL.
   const appExists = await loginExists(root, names.app);
   const appPassword = newPassword();
   if (!appExists || options.newAppPassword) {

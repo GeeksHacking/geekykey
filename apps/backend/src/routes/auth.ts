@@ -4,7 +4,7 @@ import { z } from "zod";
 import { users } from "../db/schema.ts";
 import { jsonBody } from "../lib/validate.ts";
 import { clearSession, issueSession, type SessionOptions } from "../middleware/session-auth.ts";
-import type { WorkerEnv } from "../worker.ts";
+import type { AppEnv } from "../app.ts";
 
 const devLoginSchema = z.object({
   user_id: z.string().min(1).max(128),
@@ -27,7 +27,7 @@ export interface AuthRouteDeps {
  * joins them without a second definition of what a session looks like.
  */
 export function authRoutes({ session, devAuthEnabled }: AuthRouteDeps) {
-  const app = new Hono<WorkerEnv>();
+  const app = new Hono<AppEnv>();
 
   if (devAuthEnabled) {
     app.post("/dev-login", jsonBody(devLoginSchema), async (c) => {

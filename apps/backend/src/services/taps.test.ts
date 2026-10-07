@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { setTimeout as sleep } from "node:timers/promises";
 import { eq, sql } from "drizzle-orm";
 import { test } from "vitest";
-import type { Db } from "../db/hyperdrive.ts";
+import type { Db } from "../db/pool.ts";
 import { stations, taps, tokens } from "../db/schema.ts";
 import { fakeClock, setupFixture, testDb } from "../test-helpers.ts";
 import { LocalTokenResolver } from "./identity.ts";
@@ -281,9 +282,9 @@ test("revoked tokens resolve as unknown", async () => {
 });
 
 // Two ingests from one station at once, each on a connection of its own, as
-// when a station's requests land on two Workers instances.
+// when a station's requests land on two Cloud Run instances.
 
-/** A pipeline with a database connection of its own. */
+/** A pipeline whose transaction takes a connection of its own from the pool. */
 function pipelineOnItsOwnConnection(): TapPipeline {
   const db = testDb();
   return new TapPipeline(db, new LocalTokenResolver(db), {
@@ -345,7 +346,7 @@ async function overlappingIngests(
   try {
     for (let i = 0; i < 100 && !bothWaited; i++) {
       bothWaited = (await waitingForStationLock(observer)) === 2;
-      if (!bothWaited) await scheduler.wait(10);
+      if (!bothWaited) await sleep(10);
     }
   } finally {
     await letGo();

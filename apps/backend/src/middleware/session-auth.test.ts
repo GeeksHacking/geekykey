@@ -31,7 +31,7 @@ async function harness(overrides: Partial<SessionOptions> = {}) {
   };
 
   const app = new Hono<SessionEnv>()
-    // The request's database, as the Worker hands it to every route.
+    // The database, as the app hands it to every route.
     .use(async (c, next) => {
       c.set("db", fx.db);
       await next();

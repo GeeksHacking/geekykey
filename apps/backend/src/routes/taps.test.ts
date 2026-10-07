@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
-import { exports } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { stations, taps } from "../db/schema.ts";
-import { setupFixture } from "../test-helpers.ts";
+import { setupFixture, testApp } from "../test-helpers.ts";
 
-/** The fixture, and a way to post to the Worker as its station. */
+const app = testApp();
+
+/** The fixture, and a way to post to the backend as its station. */
 async function harness() {
   const fx = await setupFixture();
   const post = (body: unknown, key: string | null = fx.stationKey) =>
-    exports.default.fetch("http://localhost/api/v1/taps", {
+    app.request("/api/v1/taps", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -84,14 +85,14 @@ test("validates the body shape", async () => {
     { taps: [{ uid }] },
     { taps: [{ client_tap_id: "t1", uid: "zz" }] },
     { taps: [{ client_tap_id: "t1", uid, tapped_at: "yesterday" }] },
-    // One more than MAX_TAPS_PER_REQUEST in wrangler.jsonc.
+    // One more than MAX_TAPS_PER_REQUEST allows by default.
     {
       taps: Array.from({ length: 501 }, (_, i) => ({ client_tap_id: `t${i}`, uid })),
     },
   ]) {
     const res = await post(body);
     assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(body).slice(0, 80)}`);
-    const json = await res.json<{ error: string }>();
+    const json = (await res.json()) as { error: string };
     assert.equal(json.error, "validation_failed");
   }
 });
@@ -101,7 +102,7 @@ test("unknown routes and methods return the JSON not_found error", async () => {
     ["GET", "/nope"],
     ["GET", "/api/v1/taps"],
   ]) {
-    const res = await exports.default.fetch(`http://localhost${path}`, { method });
+    const res = await app.request(path, { method });
     assert.equal(res.status, 404, `${method} ${path}`);
     assert.deepEqual(await res.json(), { error: "not_found" });
   }
@@ -110,7 +111,7 @@ test("unknown routes and methods return the JSON not_found error", async () => {
 test("treats an unparseable body as a 400, not a backend error", async () => {
   // A station that retried this as a 5xx would resend the same broken payload forever.
   const { stationKey } = await harness();
-  const res = await exports.default.fetch("http://localhost/api/v1/taps", {
+  const res = await app.request("/api/v1/taps", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -119,5 +120,5 @@ test("treats an unparseable body as a 400, not a backend error", async () => {
     body: '{"taps":[{',
   });
   assert.equal(res.status, 400);
-  assert.equal((await res.json<{ error: string }>()).error, "validation_failed");
+  assert.equal(((await res.json()) as { error: string }).error, "validation_failed");
 });
