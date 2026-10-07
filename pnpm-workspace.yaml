@@ -54,5 +54,13 @@ allowBuilds:
 # Wrangler's miniflare, which asks for exactly 7.29.0 and runs on our own
 # machines (`wrangler dev` and the backend's tests), never in a deploy. Drop
 # this once Wrangler is 4.144.0 or later: its miniflare asks for 7.29.1 itself.
+#
+# sharp below 0.35.5 has a high advisory (GHSA-wq5f-xc86-pv6w, in its bundled
+# librsvg), and 0.35.5 fixes it. The updates site asks for 0.35.5 itself, but
+# miniflare (under Wrangler and the backend's test plugin) asks for exactly
+# 0.35.4 and runs only on our own machines. Checked 2026-10-07: miniflare
+# 5.20261006.0-alpha still asks for 0.35.4. Drop this once miniflare asks for
+# 0.35.5 or later.
 overrides:
   "undici@7.29.0": "7.29.1"
+  "sharp@0.35.4": "0.35.5"
