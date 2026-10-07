@@ -641,3 +641,15 @@
     free cache. The trade-offs we accept: the first tap after a quiet spell may wait while the list
     is fetched, and after the switch a token passed to someone else could count for its old owner
     for a few minutes.
+
+- id: event-service-cloud-run-planned
+  date: 2026-10-07
+  area: research
+  change: >-
+    The hosting plan now says how the event's server runs on Google Cloud Run, the same way
+    GeeksHacking already runs the Portal. It runs on Node, after Bun and Deno ran our backend
+    unchanged and no faster, and the whole repo moves to Node 24 first. Every change merged to
+    main updates the database, then deploys, with no password kept in GitHub, and a staging copy
+    sits beside it. The trade-offs we accept: Cloudflare's protections don't cover the server's
+    address, so our own limits do, and one copy of the server is kept running only on event days,
+    so the first request on any other day is slower.
