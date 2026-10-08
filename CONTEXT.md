@@ -10,8 +10,9 @@ This file names the domain. The wire format, field names and status codes live i
 ### Services
 
 **Portal**:
-GeeksHacking's identity service. It knows every user, and will know which tokens each user has
-claimed. Until it can, the claims stand-in holds them.
+GeeksHacking's identity service. It knows every GeeksHacking member, and will know which tokens each
+user has claimed. Until it can, the claims stand-in holds them. At the showcase, people log in
+through Firebase instead (ADR 0004).
 
 **GeekyKey Service**:
 The service that stations and tokens talk to. It checks each station's key against the stations
@@ -43,7 +44,9 @@ _Avoid_: API key
 ### Users, tokens and stations
 
 **User**:
-A person with a GeeksHacking Portal account. At an event, a user is a participant or an organizer.
+A person who has logged in: through Firebase at the showcase, through the GeeksHacking Portal at
+later events. Their user ID comes from that login. At an event, a user is a participant or an
+organizer.
 _Avoid_: portal user, account
 
 **GeekyKey admin**:
@@ -58,7 +61,7 @@ _Avoid_: tag, card
 
 **Claim**:
 Binding an unclaimed token to yourself by tapping it with your phone, or typing its UID, and logging
-in through the Portal.
+in.
 _Avoid_: pair, register
 
 **Release**:

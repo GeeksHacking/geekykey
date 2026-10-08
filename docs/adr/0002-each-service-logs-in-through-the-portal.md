@@ -1,5 +1,8 @@
 # Each service logs users in through the Portal itself
 
+> **Narrowed on 8 Oct 2026** by [ADR 0004](0004-the-showcase-logs-in-through-firebase.md): at the
+> showcase the login is Firebase's, not the Portal's. Each service still logs users in itself.
+
 The GeekyKey Service and every Event Service each log users in through the GeeksHacking Portal on
 their own, with their own `/auth/callback`, their own redirect URL registered with the Portal, and
 their own session cookie on their own hostname. Neither trusts the other's login. The Portal is the

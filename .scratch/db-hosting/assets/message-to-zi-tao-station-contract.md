@@ -8,9 +8,16 @@ Draft for Adam to edit and send, from "How do stations talk to the GeekyKey Serv
 
 - `no_event` is retired, so the service won't send it. Removing a tap from the queue whatever status comes back (section 6) still matters for `no_game` and any status added later.
 - A new station's key comes from the event's organizers, on their station board, instead of a GeekyKey admin. It's still shown once, and you flash it as before.
-- To move a station to another event (provisional, until Julian answers on 8 Oct): let it send its saved taps to the old event, then flash it with "Erase All Flash Before Sketch Upload" turned on and the key from the new event. It becomes a new station there, and no taps from the old event go to the new one.
+- ~~To move a station to another event (provisional, until Julian answers on 8 Oct): let it send its saved taps to the old event, then flash it with "Erase All Flash Before Sketch Upload" turned on and the key from the new event.~~ Replaced on 8 Oct by the setup mode, below. It still becomes a new station there, and no taps from the old event go to the new one.
 
 **Changed on 6 Oct 2026,** by "Does a station wait for the Event Service's verdict?". Still no firmware change. The station keeps waiting for each tap's status, as it does now. When no answer comes, the queue you built already does the right thing: keep the tap, say so, and resend. So the "no answer" row in section 4 now says `Tap saved` / `Will send later` (your `QUEUED` / `Will send later` is fine), not `Not recorded` / `Please tap again`: the tap isn't lost, so nobody needs to tap again. The heartbeat will be answered at once, even while the event's server is down, so the clock is always set.
+
+**Changed on 8 Oct 2026,** at the meeting with Julian and Qing Guan. Julian doesn't want stations reflashed to move them. One firmware change, before the GeekyKey Service is cut out (checkpoint 4), tracked in Linear:
+
+- **A setup mode.** The station takes a new server address and station key from a serial terminal or a simple browser page, without a reflash, and keeps them across restarts. Which of the two is your call. When the key changes, it clears its saved taps, so taps from one event never reach another; before that, it should send them, or warn that some are still saved.
+- **Moving a station** to another event is then: let it send its saved taps, then give it the new event's key through the setup mode.
+- **At checkpoint 4,** each station's server changes to `https://key-api.geekshacking.com` through the setup mode, keeping its key (HAR-13). A key replaced on event day goes in the same way.
+- The only-`.local`-over-`http://` rule (section 1) applies to an address set this way too.
 
 ---
 

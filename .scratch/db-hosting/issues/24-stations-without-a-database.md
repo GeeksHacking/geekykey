@@ -41,6 +41,11 @@ Resolved 5 Oct 2026 by grilling with Adam. Two parts are provisional until Julia
 - **`no_event` is retired** (provisional). Without links, a station either has a key an Event Service lists or it gets `401`. Erasing the flash on a move covers the other case `no_event` handled: taps saved before the move. The firmware can keep knowing the status. Rejected: the Event Service setting `no_event` itself for taps timed before the station was created, because every Event Service would have to build it, and taps with no time couldn't be checked anyway.
 - **Nothing changes for Zi Tao's firmware.** The requests, the key format, the `key-api.` address and the `401` handling all stay. He gets an updated message. Adam can change the firmware too, if something comes up.
 
+**Since the meeting with Julian and Qing Guan (8 Oct 2026)**
+
+- **No reflash.** Julian wants a station set up from a terminal or a browser page. So moving a reader is: it sends its saved taps to the old event, then takes the new event's key through a firmware setup mode, which clears its saved taps when the key changes. The same setup mode moves stations to `key-api.` at checkpoint 4, and takes a replaced key on event day. Zi Tao builds it before checkpoint 4, and picks a serial terminal or a browser page.
+- **`no_event` stays retired.** Julian didn't object.
+
 **To ask Julian (Thu 8 Oct 2026)**
 
 - Is a reflash an acceptable way to move a reader to another event, given he wanted it to be easy to point stations at a new event (27 Sep)?

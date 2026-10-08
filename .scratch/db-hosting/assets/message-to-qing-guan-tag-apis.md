@@ -6,6 +6,8 @@ Draft for Adam to edit and send to the group chat, from "What does the GeekyKey 
 
 **Changed on 7 Oct 2026,** by "Does a station wait for the Event Service's verdict?" (6 Oct) and "What does the GeekyKey Service cache, and in which store?" (7 Oct). One 4-second deadline now covers the owner lookup and the hand-off together, in place of 1.5 seconds for the lookup. After the switch, the GeekyKey Service caches owners in Cloudflare's Cache API for up to 5 minutes, so the Portal is asked less often, but it's still asked for every token tapped for the first time and every unclaimed one. Part 1 gains a paragraph answering Julian's suggestion of a Redis cache of tokens to users. Part 2's point 5 is rewritten. If part 2 has already gone out, send the follow-up at the end instead.
 
+**Changed on 8 Oct 2026,** at the meeting. Julian agreed to the claims stand-in, and the Portal's team agrees with the approach, so part 1 is settled. The showcase now logs in through Firebase ([ADR 0004](../../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)), so the showcase's claims are deleted with its data rather than copied to the Portal. Part 2 goes to Qing Guan when his team starts the tag APIs. Julian asked whether the owners cache could keep an entry for an hour rather than 5 minutes: the Cache API can, but each data centre keeps its own copy, and the time is chosen at the switch.
+
 ---
 
 **Part 1, for Julian** (to ask in person on Thu 8 Oct)

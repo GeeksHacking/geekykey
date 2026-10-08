@@ -681,3 +681,45 @@
     run, and answers stations and screens exactly as before. It checks that an idle database
     connection still works before reusing it, since Cloud Run pauses the server between requests,
     and CI checks on every pull request that the image builds and starts.
+
+- id: cloud-setup-by-hand-planned
+  date: 2026-10-08
+  area: research
+  change: >-
+    The hosting plan now says GeeksHacking creates our own Google Cloud project on its billing
+    account, and we set up the event's server there by hand, writing down every command, rather
+    than as infrastructure as code. Each merge to main still deploys it automatically, with no key
+    stored in GitHub. The trade-offs we accept: the setup can drift from what is written down until
+    it becomes code, and switching on the warm server for event days is a command someone has to
+    remember to run.
+
+- id: firebase-login-planned
+  date: 2026-10-08
+  area: research
+  change: >-
+    The hosting plan now says people log in at the showcase through Firebase, with Google or with
+    their GeeksHacking account, instead of through the GeeksHacking Portal, so the showcase's
+    visitors never end up in GeeksHacking's user list, and the login no longer waits on the
+    Portal's team. The trade-offs we accept: claims made at the showcase are deleted with its data
+    rather than moved to the Portal afterwards, and whether the GeekyKey Service can check a login
+    within the free plan is still to be tried.
+
+- id: station-setup-mode-planned
+  date: 2026-10-08
+  area: research
+  change: >-
+    The hosting plan now says a station takes a new server address or key through a setup mode,
+    from a terminal or a browser page, instead of being reflashed, for moving it to another event
+    or to the GeekyKey Service's own address. GeeksHacking also agreed to keep the showcase's
+    claims on our server until after the showcase. The trade-offs we accept: the station firmware
+    gains a feature to build and try before the GeekyKey Service is cut out.
+
+- id: showcase-freeze-planned
+  date: 2026-10-08
+  area: research
+  change: >-
+    The hosting plan now says the backend takes no new features from 11 November, a week before
+    the showcase, and nothing at all merges after 16 November, so nothing deploys the night
+    before. Before the rehearsal, a copy of the backend is put under more load than the showcase
+    expects. The trade-offs we accept: anything merged between the rehearsal on 7 November and the
+    freeze reaches the showcase without a rehearsal of its own.

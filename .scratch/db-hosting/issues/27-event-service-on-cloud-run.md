@@ -66,6 +66,14 @@ Resolved 7 Oct 2026 by grilling with Adam. The Google Cloud project, the infrast
 - **Rollbacks:** Adam sends all traffic back to the previous revision (`gcloud run services update-traffic`, or the console), with Julian as the backstop. One version back is always safe. Revert the bad commit on `main` straight after, or the next deploy brings it back. The database is never rolled back. Ethan gets no deploy role on Google Cloud; the screens he might roll back stay on Cloudflare.
 - **The Workers config already on `main`:** Adam asks Julian on 8 Oct to disconnect Workers Builds from `apps/backend`. The move-first change removes `wrangler.jsonc` from it anyway. Workers Builds is connected again for the GeekyKey Service's own package at the split.
 
+**Since the meeting with Julian and Qing Guan (8 Oct 2026)**
+
+- **Our own Google Cloud project is agreed,** on GeeksHacking's billing account. Julian creates it and sets up the keyless sign-in. The roles are agreed as proposed.
+- **No infrastructure as code for now.** Julian would rather the architecture firmed up and the MVP ran first, with the services set up by hand and the glue turned into code later; Pulumi is nice to have. So the resources are made by hand with `gcloud`, each command written into a runbook, `infra/README.md`. The GitHub Actions deploy with keyless sign-in stays (Adam), and it sets the service's settings and pins its secret versions from files in the repo, so those still change through a reviewed pull request. The warm instance is switched with a `gcloud` command from the runbook. No ADR: this is easy to undo.
+- **Cloud Run v1.** Julian finds v2 costs noticeably more. We read it as the domain mapping through the v1 interface, and the first-generation execution environment, so the cold start is measured on the first generation only.
+- **The freeze moves earlier:** only fixes merge to the backend from Wed 11 Nov, and nothing merges after Mon 16 Nov.
+- **Still to ask:** who adds the DNS record for `event-api.`, the budget alert, and which roles Adam needs to make the resources by hand.
+
 **What follows without a further decision**
 
 - The Event Service's settings that aren't secret (the cooldown, the batch size, the redirect URL, the organizers) move from `wrangler.jsonc` to the Cloud Run service's environment, set by the infrastructure code and changed by a reviewed pull request.

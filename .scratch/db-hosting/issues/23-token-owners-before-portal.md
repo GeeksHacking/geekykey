@@ -48,6 +48,12 @@ Resolved 5 Oct 2026 by grilling with Adam. Where owners live is provisional unti
 - **A lookup gets 1.5 seconds, with no retry, from day one.** No answer in time, a `429` or `5xx`, or a body that doesn't parse fails the whole station request with **`503 claims_unavailable`**, the same code before and after the switch, and the station keeps and resends its taps, as for any `503`. This replaces the 28 Sep `503 portal_unavailable`, so neither the API agreement nor Zi Tao's firmware changes at the switch. The screens say they couldn't reach GeeksHacking and to try again, and nothing is saved. The stand-in shares a server with the hand-off, so when one is down the other usually is too.
 - **The Portal's load matters only after the switch.** For the showcase the Portal is off the station path. The ask for a warm instance that takes more than one request at a time stays in the message for later.
 
+**Since the meeting with Julian and Qing Guan (8 Oct 2026)**
+
+- **The claims stand-in is agreed** ("it should be ok"), and the Portal's team agrees with the approach. It's no longer provisional.
+- **The showcase logs in through Firebase, not the Portal** ([ADR 0004](../../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)), so the stand-in's `user_id` is a Firebase UID. The switch no longer copies claims: they're deleted with the showcase's data, and the Portal's tag APIs start empty. "Copy claims to the Portal" and the stand-in's fifth route are gone.
+- **The owner's view keeps its button for each event.** Julian would like the token page to send its owner straight to the ongoing event, and later to ask the Portal for active events. That's in the spec's backlog (section 3.7), not built for the showcase.
+
 **To ask Julian (Thu 8 Oct 2026)**
 
 - Is a claims stand-in on our Cloud Run server, holding the showcase's claims until the switch after 18 Nov, acceptable, given ADR 0003 says the GeekyKey Service keeps no database? Part 1 of [the message](../assets/message-to-qing-guan-tag-apis.md), asked in person. If he wants the Portal at the showcase, the 28 Sep fallback stands: switch before it only if the tag APIs are live by 28 Oct, with a warm Portal instance.
