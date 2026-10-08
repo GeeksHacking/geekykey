@@ -9,7 +9,7 @@
     "build": "esbuild src/server.ts --bundle --platform=node --target=node24 --sourcemap --outfile=dist/server.cjs",
     "build:image": "docker build --file Dockerfile --tag geekykey-backend ../..",
     "typecheck": "tsc",
-    "lint": "eslint .",
+    "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "check:migrations": "node scripts/check-migrations.ts",
@@ -28,14 +28,12 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.1",
     "drizzle-kit": "^0.31.10",
     "esbuild": "^0.28.2",
-    "eslint": "^10.10.0",
     "oxfmt": "0.70.0",
+    "oxlint": "1.87.0",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.70.0",
     "vitest": "^4.1.11"
   }
 }

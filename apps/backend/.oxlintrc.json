@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Oxlint's defaults stand in for ESLint's js and typescript-eslint recommended sets.
+  // The frontends stay on ESLint for now, for the React hooks rules Oxlint lacks.
+  // Files git ignores, such as the bundle in dist/, are skipped without being listed.
+  "plugins": ["eslint", "typescript", "unicorn", "oxc"],
+  "categories": { "correctness": "error" }
+}
