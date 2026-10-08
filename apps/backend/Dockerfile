@@ -3,7 +3,7 @@
 # the whole workspace's lockfile.
 #
 # The first stage installs the backend's dependencies and bundles
-# src/server.ts and everything it imports into one file with esbuild. The
+# src/server.ts and everything it imports into one file with Rolldown. The
 # second puts only that file on a bare Node, so the image holds no source, no
 # node_modules and no pnpm. Dockerfile.dockerignore lists what the build sees.
 
