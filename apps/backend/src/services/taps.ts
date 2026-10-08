@@ -94,7 +94,7 @@ export class TapPipeline {
 
     return await this.#db.transaction(async (tx) => {
       await this.#lockStation(tx, stationId);
-      const results: TapResult[] = new Array(incoming.length);
+      const results = Array.from<TapResult>({ length: incoming.length });
 
       // 1. Replays: client IDs already stored for this station, or repeated within this request.
       const existing = await this.#existingClientTapIds(

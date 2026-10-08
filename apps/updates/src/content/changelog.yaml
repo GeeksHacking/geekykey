@@ -723,3 +723,13 @@
     before. Before the rehearsal, a copy of the backend is put under more load than the showcase
     expects. The trade-offs we accept: anything merged between the rehearsal on 7 November and the
     freeze reaches the showcase without a rehearsal of its own.
+
+- id: backend-oxlint
+  date: 2026-10-09
+  area: tooling
+  change: >-
+    The backend is linted by Oxlint instead of ESLint, in under a second, with three fewer
+    packages to install. The two sets of screens stay on ESLint, because Oxlint lacks some of the
+    React hooks rules they use, and Ethan decides whether they move. The trade-offs we accept:
+    two linters in one repo for now, and Oxlint's default rules are close to ESLint's but not the
+    same set.

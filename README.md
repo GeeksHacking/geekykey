@@ -430,7 +430,7 @@ For the rest, `cd apps/backend` first. If your shell is activated, you can leave
 `mise exec --`.
 
 ```bash
-mise exec -- pnpm lint               # eslint
+mise exec -- pnpm lint               # oxlint
 mise exec -- pnpm format:check       # list files that are not formatted, without changing them
 mise exec -- pnpm typecheck          # tsc
 mise exec -- pnpm db:generate        # write a migration after editing src/db/schema.ts
