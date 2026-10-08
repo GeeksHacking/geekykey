@@ -97,7 +97,7 @@ connection can die unnoticed. The pool closes connections left unused for a minu
 checks one with a ping before reusing it after more than a second. A dead one is
 replaced before the query is sent, so no query is ever sent twice.
 
-The image holds one file. `pnpm build` uses esbuild to bundle `src/server.ts` and
+The image holds one file. `pnpm build` uses Rolldown to bundle `src/server.ts` and
 everything it imports into `dist/server.cjs`, and the `Dockerfile` runs that on Node 24.
 See [The image](#the-image) to build and start it yourself.
 

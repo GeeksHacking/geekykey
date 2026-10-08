@@ -733,3 +733,13 @@
     React hooks rules they use, and Ethan decides whether they move. The trade-offs we accept:
     two linters in one repo for now, and Oxlint's default rules are close to ESLint's but not the
     same set.
+
+- id: backend-rolldown
+  date: 2026-10-09
+  area: tooling
+  change: >-
+    The backend's server is bundled by Rolldown, the bundler inside Vite, instead of esbuild. The
+    file Google Cloud Run runs is a third smaller, because Rolldown leaves out more unused code,
+    and it answers stations and screens exactly as before. The trade-offs we accept: esbuild is
+    still installed for other tools, and an error inside the database library is traced to its
+    JavaScript rather than its TypeScript.
