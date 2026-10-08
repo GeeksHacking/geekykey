@@ -14,7 +14,7 @@ Draft for Adam to edit and send, from "How do stations talk to the GeekyKey Serv
 
 **Changed on 8 Oct 2026,** at the meeting with Julian and Qing Guan. Julian doesn't want stations reflashed to move them. One firmware change, before the GeekyKey Service is cut out (checkpoint 4), tracked in Linear:
 
-- **A setup mode.** The station takes a new server address and station key from a serial terminal or a simple browser page, without a reflash, and keeps them across restarts. Which of the two is your call. When the key changes, it clears its saved taps, so taps from one event never reach another; before that, it should send them, or warn that some are still saved.
+- **A setup mode.** The station takes a new server address, station key, and Wi-Fi name and password from a serial terminal or a simple browser page, without a reflash, and keeps them across restarts. Which of the two is your call; a serial menu first, with a Web Serial page on top, would cover both. The Wi-Fi matters most, since every venue has its own. When the key changes, it clears its saved taps (a new address or Wi-Fi keeps them), so taps from one event never reach another; before that, it should send them, or warn that some are still saved.
 - **Moving a station** to another event is then: let it send its saved taps, then give it the new event's key through the setup mode.
 - **At checkpoint 4,** each station's server changes to `https://key-api.geekshacking.com` through the setup mode, keeping its key (HAR-13). A key replaced on event day goes in the same way.
 - The only-`.local`-over-`http://` rule (section 1) applies to an address set this way too.

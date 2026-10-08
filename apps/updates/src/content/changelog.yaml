@@ -708,9 +708,9 @@
   date: 2026-10-08
   area: research
   change: >-
-    The hosting plan now says a station takes a new server address or key through a setup mode,
-    from a terminal or a browser page, instead of being reflashed, for moving it to another event
-    or to the GeekyKey Service's own address. GeeksHacking also agreed to keep the showcase's
+    The hosting plan now says a station takes a new server address, key or Wi-Fi network through a
+    setup mode, from a terminal or a browser page, instead of being reflashed, for a new venue's
+    Wi-Fi, moving it to another event, or moving it to the GeekyKey Service's own address. GeeksHacking also agreed to keep the showcase's
     claims on our server until after the showcase. The trade-offs we accept: the station firmware
     gains a feature to build and try before the GeekyKey Service is cut out.
 
