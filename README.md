@@ -81,7 +81,7 @@ apps/backend/
 │   ├── db/            Drizzle schema, the connection pool, and the migrator
 │   └── lib/           small helpers (station keys, validation)
 ├── drizzle/           SQL migrations generated from src/db/schema.ts
-├── scripts/           Node scripts for the database tasks, the seed, and the migration check
+├── scripts/           Node scripts for the dev server, the database tasks, the seed, and the migration check
 ├── test-support/      test setup, and a proxy that breaks database connections on purpose
 ├── Dockerfile         builds the image Cloud Run runs
 ├── dev.env            the settings `mise run dev:backend` starts with, committed
@@ -255,8 +255,8 @@ pnpm dev:frontend                          root package.json
 
 The backend tasks follow the same chain, ending in a script from
 `apps/backend/package.json`. For `mise run dev:backend`, that script is
-`node --watch --env-file=dev.env --env-file-if-exists=.env src/server.ts`, and
-`apps/backend/dev.env` is where dev sign-in is turned on.
+`node --watch scripts/dev-server.ts`, which reads `apps/backend/dev.env`, where dev
+sign-in is turned on.
 `db:up`, `db:reset` and `db:down` are the exception: their commands are written out in the
 root `package.json`, because they start and stop TiDB with `docker compose` and the root
 `compose.yaml`.
@@ -342,10 +342,9 @@ Open a second terminal, `cd` into the repo, then:
 mise run dev:backend     # http://localhost:8000
 ```
 
-It is ready when it prints `Listening on http://localhost:8000`. Before that, it says
-`.env not found. Continuing without it.` if you have no `apps/backend/.env`, which is
-fine. Leave it running: it restarts when you save a file under `apps/backend/src`. To stop
-it, press Ctrl-C. pnpm may print an error as it stops; that is normal.
+It is ready when it prints `Listening on http://localhost:8000`. Leave it running: it
+restarts when you save a file under `apps/backend/src`. To stop it, press Ctrl-C. pnpm may
+print an error as it stops; that is normal.
 
 ### 4. Send a tap
 

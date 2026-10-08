@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --env-file=dev.env --env-file-if-exists=.env src/server.ts",
+    "dev": "node --watch scripts/dev-server.ts",
     "test": "vitest run",
     "build": "esbuild src/server.ts --bundle --platform=node --target=node24 --sourcemap --outfile=dist/server.cjs",
     "build:image": "docker build --file Dockerfile --tag geekykey-backend ../..",

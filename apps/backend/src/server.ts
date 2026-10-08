@@ -1,6 +1,6 @@
 /**
- * The GeekyKey backend as a Node server. `pnpm dev` runs this file with
- * `node --watch`, and the image runs it bundled into one file
+ * The GeekyKey backend as a Node server. `pnpm dev` runs this file through
+ * scripts/dev-server.ts, and the image runs it bundled into one file
  * (dist/server.cjs).
  *
  * It reads its settings from environment variables once, here, and a bad or
