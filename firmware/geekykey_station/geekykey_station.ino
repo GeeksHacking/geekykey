@@ -132,6 +132,7 @@ void setup() {
   delay(50);
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
   rfid.PCD_Init();
+  rfid.PCD_SetRegisterBitMask(mfrc522.RFCfgReg, (0x07 << 4));
   // Asks the RC522 for its chip version. 0x00 or 0xFF means the ESP32 cannot
   // talk to the reader over SPI: check the wiring and 3.3V power first.
   rfid.PCD_DumpVersionToSerial();
