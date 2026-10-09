@@ -47,9 +47,12 @@ migration login, from Secret Manager.
 
 Adam has the Editor role on the project. It lets him turn on APIs and create the image
 repository, the service accounts, the services and the secrets, and add secret values.
-It doesn't let him give anyone a role. So Julian, as Owner, runs every command that grants
-access: the keyless sign-in, the deploy accounts' access, opening the services to the
-internet, the domain mapping and the budget.
+It doesn't let him give anyone a role, and steps 6 to 8 are all grants: about eighteen of
+them. Rather than make each one in the console, Julian, as Owner, gives Adam a role that
+can grant (Owner, or Security Admin with Workload Identity Pool Admin, asked 9 Oct 2026),
+and Adam runs those steps from here. Julian still runs step 9, because mapping a domain
+needs whoever verified `geekshacking.com` with Google, and step 10, on the billing
+account. He works in the web console, so those two steps say where each one is there too.
 
 | Step | Who | Run |
 |---|---|---|
@@ -58,10 +61,10 @@ internet, the domain mapping and the budget.
 | [3. The service accounts](#3-the-service-accounts) | Adam | 9 Oct 2026 |
 | [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026 |
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
-| [6. The keyless sign-in](#6-the-keyless-sign-in) | Julian | Not yet |
-| [7. Who may do what](#7-who-may-do-what) | Julian | Not yet |
-| [8. Logs for the team](#8-logs-for-the-team) | Julian | Not yet |
-| [9. The address](#9-the-address) | Julian | Not yet |
+| [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, once Julian gives the access | Not yet |
+| [7. Who may do what](#7-who-may-do-what) | Adam, once Julian gives the access | Not yet |
+| [8. Logs for the team](#8-logs-for-the-team) | Adam, once Julian gives the access | Not yet |
+| [9. The address](#9-the-address) | Julian, once Adam says it's ready | Not yet |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026 |
 
@@ -202,8 +205,8 @@ done
 - `--min=0 --max=2`: no instance when nobody is calling, and never more than two, which
   also caps TiDB at 20 connections. The minimum goes to 1 on event days (see
   [The warm instance](#the-warm-instance)).
-- `--no-allow-unauthenticated`: nobody can call it yet. Julian opens it in step 7, once
-  the real image is ready.
+- `--no-allow-unauthenticated`: nobody can call it yet. Step 7 opens it, just before the
+  first deploy.
 
 Their `run.app` addresses, which never change:
 
@@ -316,6 +319,17 @@ for service in event-service event-service-staging; do
 done
 ```
 
+Then check steps 6 and 7:
+
+```bash
+gcloud iam workload-identity-pools providers describe geekykey \
+  --location=global --workload-identity-pool=github --format="value(state,attributeCondition)"
+gcloud run services get-iam-policy event-service --region=asia-southeast1
+```
+
+The first should say `ACTIVE` and the repo's ID, `1310668143`. The second should list
+`allUsers` as invoker and `event-service-deployer` as developer.
+
 ## 8. Logs for the team
 
 Adam and Ethan read the services' logs (Logs Viewer). Adam's Editor role already covers
@@ -334,7 +348,9 @@ done
 
 `event-api.geekshacking.com` is mapped to `event-service`, the way GeeksHacking's
 `portal-api.` is mapped to the Portal. Google issues its certificate. Mapping a domain
-needs someone who has verified `geekshacking.com` with Google, so Julian runs it:
+needs someone who has verified `geekshacking.com` with Google, so Julian runs it. In the
+console, it's Cloud Run → Domain mappings → Add mapping, with service `event-service` and
+domain `event-api.geekshacking.com`, which then shows the DNS record. With `gcloud`:
 
 ```bash
 gcloud beta run domain-mappings create \
@@ -353,14 +369,15 @@ gcloud beta run domain-mappings describe \
 ```
 
 That record goes into Cloudflare's DNS for `geekshacking.com`, with the proxy **off**
-(grey cloud, "DNS only"). Julian adds it, once we tell him the service is ready. The certificate can take from 15
-minutes to a day. `event-service-staging` has no mapping, only its `run.app` address.
+(grey cloud, "DNS only"). Julian adds it, once we tell him the service is ready. The
+certificate can take from 15 minutes to a day. `event-service-staging` has no mapping, only its `run.app` address.
 
 ## 10. A budget alert
 
 Still to confirm with Julian (asked 8 Oct 2026, not answered). A budget doesn't stop
 anything. It emails when the project's spending passes each step. The amount here is a
-placeholder. Budgets have their own API to turn on first:
+placeholder. In the console, it's Billing → Budgets & alerts → Create budget, scoped to
+`geekykey-b035a`. With `gcloud`, budgets have their own API to turn on first:
 
 ```bash
 gcloud services enable billingbudgets.googleapis.com
