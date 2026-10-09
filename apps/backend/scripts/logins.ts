@@ -16,7 +16,7 @@ export interface Target {
   migration: string;
 }
 
-/** The one database both services' tables live in. */
+/** Production's database, for event-service on Cloud Run. */
 export const PRODUCTION: Target = {
   database: "geekykey",
   app: "geekykey_app",
@@ -55,10 +55,10 @@ export function loginNames(rootUser: string, target: Target = PRODUCTION): Login
   const names = { app: `${prefix}${target.app}`, migration: `${prefix}${target.migration}` };
   // With today's 16-character prefixes, production's migration login's name is
   // exactly as long as TiDB allows.
-  if (names.migration.length > 32 || names.app.length > 32) {
-    throw new Error(
-      `${names.migration} is longer than the 32 characters TiDB allows in a user name.`,
-    );
+  for (const name of [names.migration, names.app]) {
+    if (name.length > 32) {
+      throw new Error(`${name} is longer than the 32 characters TiDB allows in a user name.`);
+    }
   }
   return names;
 }

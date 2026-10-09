@@ -186,6 +186,14 @@ test("a prefix that leaves no room for the names under TiDB's 32-character limit
   assert.throws(() => loginNames("3pTAoNNegb47Uc8X.root"), /32 characters/);
 });
 
+test("the refusal names the login that's too long", () => {
+  const longApp = { ...PRODUCTION, app: "geekykey_app_with_a_long_name" };
+  assert.throws(
+    () => loginNames("3pTAoNNegb47Uc8.root", longApp),
+    /^Error: 3pTAoNNegb47Uc8\.geekykey_app_with_a_long_name is longer/,
+  );
+});
+
 test("when a new migration password can't be set, the saved login still works", async () => {
   await ensureLogins(root, { savePath });
   const saved = await readFile(savePath, "utf8");
