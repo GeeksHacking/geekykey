@@ -63,7 +63,7 @@ account. He works in the web console, so those two steps say where each one is t
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
 | [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave | 9 Oct 2026 |
-| [8. Logs for the team](#8-logs-for-the-team) | Adam, once Julian gives the access | Not yet |
+| [8. Logs for the team](#8-logs-for-the-team) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | Not yet |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026 |
