@@ -18,16 +18,15 @@ In this order.
      | gcloud secrets versions add event-service-database-url --data-file=- ; unset url
    ```
 
-3. **Add staging's app login** (step 11). Its URL isn't kept anywhere, so it needs a new password too. But `db:logins --staging` only exists on the unmerged BAC-15 branch (commit `f596e1a`); `main` has lost it. Choose one:
-   - **Bring `--staging` into the BAC-18 pull request** (recommended), by cherry-picking `f596e1a` and fixing what conflicts. The runbook then works on a new cluster too. Ask Claude to do it.
-   - **Run it once from the BAC-15 branch,** in a separate worktree, with `--staging --new-app-password`, and leave the script as it is on `main`.
-
-   Then:
+3. **Add staging's app login** (step 11). Its URL isn't kept anywhere either, so it gets a new password the same way, with `--staging`. That option came over from the unmerged BAC-15 branch into PR #46 on 9 Oct, so run it from that branch until the PR merges:
 
    ```bash
+   mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password --staging
    read -rs "url?Staging app login URL: " && printf '%s' "$url" \
      | gcloud secrets versions add event-service-staging-database-url --data-file=- ; unset url
    ```
+
+   Clear the terminal after each of steps 2 and 3 (Cmd-K), since the URL stays on screen.
 
 4. **Once Julian has run steps 6 and 7,** check them:
 
