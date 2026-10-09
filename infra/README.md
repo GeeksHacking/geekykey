@@ -61,8 +61,8 @@ account. He works in the web console, so those two steps say where each one is t
 | [3. The service accounts](#3-the-service-accounts) | Adam | 9 Oct 2026 |
 | [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026 |
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
-| [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, once Julian gives the access | Not yet |
-| [7. Who may do what](#7-who-may-do-what) | Adam, once Julian gives the access | Not yet |
+| [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
+| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [8. Logs for the team](#8-logs-for-the-team) | Adam, once Julian gives the access | Not yet |
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | Not yet |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
@@ -266,6 +266,23 @@ gcloud iam service-accounts add-iam-policy-binding \
   --role=roles/iam.workloadIdentityUser \
   --member="principalSet://iam.googleapis.com/projects/468223998400/locations/global/workloadIdentityPools/github/attribute.repository_id/1310668143"
 ```
+
+On 9 Oct this step first ran with an older mapping and a production binding on the
+token's subject, which this repo's subjects never match. It was put right straight after,
+before any deploy, with:
+
+```bash
+gcloud iam workload-identity-pools providers update-oidc geekykey \
+  --location=global --workload-identity-pool=github \
+  --attribute-mapping="google.subject=assertion.repository_id + ':' + assertion.run_id,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref"
+gcloud iam service-accounts remove-iam-policy-binding \
+  event-service-deployer@geekykey-b035a.iam.gserviceaccount.com \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principal://iam.googleapis.com/projects/468223998400/locations/global/workloadIdentityPools/github/subject/repo:GeeksHacking/geekykey:ref:refs/heads/main"
+```
+
+followed by production's binding above. On a new project, run the commands above this
+note and skip these.
 
 Never add a workflow that runs `on: pull_request_target`. It runs for someone else's pull
 request, yet its ref is `main`'s, so it could act as production's deploy account.
