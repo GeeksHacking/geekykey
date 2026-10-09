@@ -750,6 +750,6 @@
   change: >-
     The Event Service has its two copies on Google Cloud Run, production and staging, made by hand
     from a runbook that lists every command, and a workflow that migrates and deploys production
-    on every merge to main, and staging when run by hand, with no key kept in GitHub. Neither copy
-    answers yet. Their database logins are in, and the accounts get their access once Julian gives
-    Adam the role to grant it.
+    on every merge to main, and staging when run by hand, with no key kept in GitHub. The first
+    deploy went out on the same day, and production now answers at its Google address; its own
+    address, event-api.geekshacking.com, waits on Julian mapping it.
