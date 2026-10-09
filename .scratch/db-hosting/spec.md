@@ -6,6 +6,8 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 8 Oct 2026,** after Adam met Julian and Qing Guan ([the agenda, with the answers](../meetings/2026-10-08-julian-and-qing-guan.md)). Five things changed: the showcase logs people in through Firebase, not the Portal ([ADR 0004](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)); the Google Cloud resources are set up by hand, with no infrastructure as code for now; a station takes a new key through a setup mode instead of a reflash; the backend freezes a week before the showcase; and a stress test comes before it. The claims stand-in and our own Google Cloud project are agreed. "The 8 Oct answers" in section 2 lists everything, and section 12 what's still open.
 
+> **Updated 9 Oct 2026** (BAC-18): the Event Service's Google Cloud project is our existing Firebase project, `geekykey-b035a`, with billing on, rather than a new one. Adam is Editor there, which lets him create resources but not grant access. So he ran the runbook's steps 1 to 5 (the APIs, the image repository, the service accounts, the empty secrets and the two services, closed to callers), and Julian, as Owner, runs the grants: the keyless sign-in, each account's access, opening the services, Logs Viewer, the domain mapping and the budget. Each deploy account reads only its migration login; each service reads its other secrets as its own account.
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
@@ -32,7 +34,7 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 ## 1. In short
 
 - **Three kinds of service.** The Portal, Qing Guan's, knows who every GeeksHacking user is. At the showcase, people log in through Firebase instead, with Google or with GeeksHacking's login (ADR 0004). The GeekyKey Service is what stations and tokens talk to: it checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. An Event Service runs one event's games and registers that event's stations. We build the GeekyKey Service, and one Event Service for the capstone showcase, whose first game is the passport.
-- **Two platforms.** The GeekyKey Service and both sets of screens are Cloudflare Workers in GeeksHacking's account, which Julian sets up, and the team has no access to it (1 Oct 2026). The Event Service is a Node server on Google Cloud Run, which GitHub Actions deploys on every merge to `main`, in a Google Cloud project of our own on GeeksHacking's billing account, which Julian creates (8 Oct). Its resources are set up by hand for now, from written commands.
+- **Two platforms.** The GeekyKey Service and both sets of screens are Cloudflare Workers in GeeksHacking's account, which Julian sets up, and the team has no access to it (1 Oct 2026). The Event Service is a Node server on Google Cloud Run, which GitHub Actions deploys on every merge to `main`, in a Google Cloud project of our own on GeeksHacking's billing account (8 Oct), which turned out to be our existing Firebase project, `geekykey-b035a` (9 Oct). Its resources are set up by hand for now, from written commands.
 - **One TiDB database,** reached only from Cloud Run through an ordinary `mysql2` connection pool. The GeekyKey Service keeps no database: it keeps a copy in memory of the registered stations, and asks for everything else.
 - **Claims stay on our side through the showcase,** in a claims stand-in on our Cloud Run server, behind one module, `Claims`, and the GeekyKey Service moves to the Portal's tag APIs after it (Julian agreed on 8 Oct). The showcase's claims are deleted with its data rather than copied, since its users are Firebase users (ADR 0004). The stand-in isn't part of the Event Service, so token IDs never reach one.
 - **Four addresses,** chosen by Julian on 1 Oct 2026. Stations call `https://key-api.geekshacking.com`. People open `https://key.geekshacking.com` for the token page and My tokens, and `https://event.geekshacking.com` for the passport and the organizers' screens. `https://event-api.geekshacking.com` is the Event Service's own, called by the GeekyKey Service and by the Event screens' Worker.
@@ -46,7 +48,7 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 From the meeting with Julian and Qing Guan on Thu 8 Oct, and Adam's calls on them the same day. [The agenda](../meetings/2026-10-08-julian-and-qing-guan.md) has each question beside its answer.
 
-1. **Our own Google Cloud project,** on GeeksHacking's billing account. Julian creates it and sets up the keyless sign-in from GitHub. The roles are as proposed: Adam deploys, adds secret values and reads logs; Ethan and Zi Tao get Logs Viewer; Joshua gets none.
+1. **Our own Google Cloud project,** on GeeksHacking's billing account. Julian creates it and sets up the keyless sign-in from GitHub. *Since 9 Oct:* it's our existing Firebase project, `geekykey-b035a`, where Adam is Editor (section 12). The roles are as proposed: Adam deploys, adds secret values and reads logs; Ethan and Zi Tao get Logs Viewer; Joshua gets none.
 2. **No infrastructure as code for now.** Julian would rather the architecture firmed up and the MVP ran first: set the services up by hand, then turn the glue into code. Pulumi is "nice if we have the time but not really needed". So the resources are made by hand with `gcloud`, and every command goes into a runbook, `infra/README.md`, from which code can be written later (the spec's call). The GitHub Actions deploy with keyless sign-in stays (Adam), and it sets the service's settings and pins its secret versions from files in the repo (`--env-vars-file`, `--set-secrets`), so they still change through a reviewed pull request (the spec's call). The warm instance is switched with a `gcloud` command from the runbook, not a reviewed change.
 3. **Cloud Run "v1".** Julian finds v2 costs noticeably more, so we stay on v1 unless we need a v2 feature. We read this as the domain mapping through Cloud Run's v1 interface, which the setup uses anyway, and the first-generation execution environment. The cold start is measured on the first generation only.
 4. **The claims stand-in is agreed** ("it should be ok"), and the Portal's team agrees with the approach. After the switch, Julian asked whether the Cache API can keep an owner for an hour, or else to use Redis or KV. It can: it keeps an entry for as long as its `max-age`. But each data centre keeps its own copy, and a delete clears only the copy in the data centre that runs it, so the longer the time, the longer a release can go unseen elsewhere. The time is chosen at the switch (section 4).
@@ -141,7 +143,7 @@ Sources: [Which parts of today's backend belong to the GeekyKey Service, and whi
 
 **The Cloud Run service** (agreed on 8 Oct, except the DNS record, still to ask for).
 
-- A Google Cloud project of our own, on GeeksHacking's billing account, so our roles never touch the Portal's. Julian creates it. Its resources are made by hand with `gcloud`, and each command is written into `infra/README.md`, a runbook from which infrastructure as code can be written once the architecture settles (Julian, 8 Oct). Cloud Run's v1 interface and the first-generation execution environment, since v2 costs more (Julian, 8 Oct).
+- A Google Cloud project of our own, on GeeksHacking's billing account, so our roles never touch the Portal's: our existing Firebase project, `geekykey-b035a` (9 Oct). Its resources are made by hand with `gcloud`, and each command is written into `infra/README.md`, a runbook from which infrastructure as code can be written once the architecture settles (Julian, 8 Oct). Cloud Run's v1 interface and the first-generation execution environment, since v2 costs more (Julian, 8 Oct).
 - `event-api.geekshacking.com` is a Cloud Run domain mapping with Cloudflare's proxy off, exactly like the Portal's `portal-api.` Google issues its certificate from Google Trust Services, whose roots the stations already trust. Cloudflare's zone rules don't cover it, and the `run.app` address stays open, so the limits and key checks in our own code protect both. The fallback, if domain mapping lets us down, is a Google load balancer at about US$18 a month.
 - Region `asia-southeast1`; 1 vCPU and 512 MiB; up to 80 requests at once per instance; request-based billing, with startup CPU boost on. At most 2 instances, which also caps TiDB connections at 20.
 - No warm instance, except one on event days: the rehearsal (by 7 Nov) and 17 to 18 Nov. Adam switches it on and off with the `gcloud` command in the runbook.
@@ -388,8 +390,10 @@ The status call's limit, `7104`, went with the status call on 5 Oct.
 
 **GitHub holds no secret at all.** The deploy signs in to Google Cloud without a key (Workload Identity Federation), through two service accounts (the spec's call):
 
-- **production's,** usable only by this repo's `main` branch, can deploy `event-service` and read its secrets, including the migration login;
-- **staging's,** usable from any branch of this repo, can touch only `event-service-staging` and its secrets.
+- **production's,** usable only by this repo's `main` branch, can deploy `event-service` and read its migration login;
+- **staging's,** usable from any branch of this repo, can deploy only `event-service-staging` and read only its migration login.
+
+Neither reads the other secrets: each service reads its own session secret and app login as an account of its own, which can read nothing else (9 Oct). Both push to one image repository, and the deploy runs each image by its digest, so staging's pushes can't change what production runs (accepted, 9 Oct).
 
 So a workflow on another branch can't deploy production or read its migration login. No Cloudflare API token is kept in GitHub either, and nobody on the team holds a production Cloudflare secret.
 
@@ -471,7 +475,7 @@ Today's backend, unchanged on the wire, runs as a Node server on Cloud Run at `h
 - **Tests:** plain Vitest on Node, in one project. `@cloudflare/vitest-plugin` and the `requireLikeNode` workaround go. TiDB in Docker stays.
 - **CI:** `docker build` on the image, without pushing it, replaces "Build the Worker", proving the image and the bundle build. `typecheck` drops `wrangler types`.
 
-**The infrastructure,** made by hand with `gcloud` (8 Oct), each command written into `infra/README.md` so it can be repeated and later turned into code: the Artifact Registry repository; `event-service` and `event-service-staging`; their secrets, created without values; the domain mapping for `event-api.`; the two deploy service accounts (section 5.2); Logs Viewer for Adam, Ethan and Zi Tao, and Adam's roles to deploy, add secret values and read logs; the warm-instance switch; and a budget alert to Julian and Adam. Who runs which command depends on the roles Julian gives Adam (section 12).
+**The infrastructure,** made by hand with `gcloud` (8 Oct), each command written into `infra/README.md` so it can be repeated and later turned into code: the Artifact Registry repository; `event-service` and `event-service-staging`; their secrets, created without values; the domain mapping for `event-api.`; the two deploy service accounts (section 5.2); Logs Viewer for Adam, Ethan and Zi Tao, and Adam's roles to deploy, add secret values and read logs; the warm-instance switch; and a budget alert to Julian and Adam. Adam ran steps 1 to 5 on 9 Oct with his Editor role, and Julian runs the grants, steps 6 to 10 (section 12).
 
 **The deploy workflow,** on every push to `main`, after the backend checks pass. One job:
 
@@ -483,7 +487,7 @@ Run by hand (`workflow_dispatch`) from any branch, the same workflow migrates `g
 
 Before the first deploy, once:
 
-- Julian creates the project on GeeksHacking's billing account and sets up the keyless sign-in from GitHub (agreed 8 Oct).
+- ~~Julian creates the project on GeeksHacking's billing account~~ (it's `geekykey-b035a`, 9 Oct), and sets up the keyless sign-in from GitHub and the grants in the runbook's steps 6 to 10 (agreed 8 Oct).
 - Julian disconnects Workers Builds from `apps/backend`, which builds every push to `main` and fails (agreed 8 Oct).
 - Adam adds each secret's value from his laptop, keeping no copy: `SESSION_SECRET`, `DATABASE_URL` and `MIGRATION_DATABASE_URL`, for production and for staging.
 - Julian or Qing Guan add the DNS record for `event-api.geekshacking.com` that the domain mapping asks for, with Cloudflare's proxy off.
@@ -706,8 +710,8 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### Julian
 
-- **Agreed on 8 Oct, to do:** create our Google Cloud project on GeeksHacking's billing account, set up the keyless sign-in from GitHub, and give the roles; disconnect Workers Builds from `apps/backend`; make the repo public and protect `main`; link GeeksHacking's billing account to our Firebase project; keep `key.geekshacking.com/t/` working for as long as tokens are in use.
-- **Still to ask:** who adds the DNS record for `event-api.`, and how we ask when ready; the budget alert; which roles Adam needs to make the resources by hand, or whether Julian makes them; how the team sees the GeekyKey Service on the day (section 12); the showcase's hours.
+- **Agreed on 8 Oct, to do:** set up the keyless sign-in from GitHub, and give the roles: steps 6 to 10 of `infra/README.md`, including opening the two services, the domain mapping for `event-api.` (which needs `geekshacking.com` verified with Google) and Logs Viewer (the project itself is `geekykey-b035a`, 9 Oct); disconnect Workers Builds from `apps/backend`; make the repo public and protect `main`; link GeeksHacking's billing account to our Firebase project; keep `key.geekshacking.com/t/` working for as long as tokens are in use.
+- **Still to ask:** who adds the DNS record for `event-api.`, and how we ask when ready; the budget alert; how the team sees the GeekyKey Service on the day (section 12); the showcase's hours.
 - **At checkpoint 4:** connect `geekykey-service` to Workers Builds from `apps/geekykey-service`, with the settings Adam sends; set its `SESSION_SECRET`, as a random value nobody keeps, and the two keys Adam sends; a screen share for the log check; note the three rate-limit namespace IDs we use (section 5.1). And the Event Service's new repo, if it moves then.
 - **At checkpoint 5:** attach `key.geekshacking.com` to `geekykey-web` and `event.geekshacking.com` to `event-web`, and connect both.
 - **On the day, and before it:** at the showcase himself (8 Oct), and reachable by phone, with his number on the event-day sheet if he agrees; upgrade to Workers Paid on the spot if we pass 70% of the free day; roll a Worker back when we ask, and roll the Event Service back if Adam can't; check TiDB's Request Units the evening before; restore TiDB's backup if the cluster is lost. How the team sees the GeekyKey Service's logs and the account's usage is still open (section 12).
@@ -858,7 +862,7 @@ Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own G
 
 - **Who adds the DNS record for `event-api.geekshacking.com`,** with Cloudflare's proxy off, and how we ask when ready (asked 8 Oct, not answered).
 - **The budget alert** on the project, to Julian and Adam (asked 8 Oct, not answered).
-- **Which roles Adam gets to make the resources by hand,** or whether Julian makes them from the runbook. The roles agreed on 8 Oct cover deploying, secret values and logs, not creating services, accounts or the domain mapping.
+- ~~**Which roles Adam gets to make the resources by hand,** or whether Julian makes them from the runbook.~~ *Answered 9 Oct:* Adam is Editor on `geekykey-b035a`, which creates resources but grants nothing. He made the resources (steps 1 to 5), and Julian, as Owner, runs the grants (steps 6 to 10).
 - **That "v1" means what we read it as** (section 2, answer 3): the v1 interface and the first-generation execution environment.
 - **Whether the Portal's web app is on GeeksHacking's Cloudflare account, and runs a Worker on each page load,** which would count against the same free day (asked 8 Oct, not answered).
 - **The showcase's hours,** and whether Adam or Ethan presents at set times.
