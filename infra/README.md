@@ -77,6 +77,10 @@ gcloud auth login
 gcloud config set project geekykey-b035a
 ```
 
+Or use Cloud Shell, a terminal inside the [Google Cloud console](https://console.cloud.google.com/?project=geekykey-b035a)
+(the `>_` button, top right), where `gcloud` is already installed and signed in as you.
+Then only the second command is needed.
+
 Every command below is written for zsh or bash, from any folder.
 
 ## 1. Turn on the APIs
@@ -314,13 +318,13 @@ done
 
 ## 8. Logs for the team
 
-Adam, Ethan and Zi Tao read the services' logs (Logs Viewer). Adam's Editor role already
-covers it, and deploying and adding secret values, but he gets Logs Viewer too, so he
-keeps it if Editor is ever narrowed. Joshua needs none. Put each person's Google account
-in place of the placeholder:
+Adam and Ethan read the services' logs (Logs Viewer). Adam's Editor role already covers
+it, and deploying and adding secret values, but he gets Logs Viewer too, so he keeps it if
+Editor is ever narrowed. Nobody else needs it (Zi Tao and Joshua, 9 Oct). Put each
+person's Google account in place of the placeholder:
 
 ```bash
-for person in ADAM_EMAIL ETHAN_EMAIL ZITAO_EMAIL; do
+for person in ADAM_EMAIL ETHAN_EMAIL; do
   gcloud projects add-iam-policy-binding geekykey-b035a \
     --member="user:$person" --role=roles/logging.viewer
 done
@@ -349,7 +353,7 @@ gcloud beta run domain-mappings describe \
 ```
 
 That record goes into Cloudflare's DNS for `geekshacking.com`, with the proxy **off**
-(grey cloud, "DNS only"). Who adds it is still to ask. The certificate can take from 15
+(grey cloud, "DNS only"). Julian adds it, once we tell him the service is ready. The certificate can take from 15
 minutes to a day. `event-service-staging` has no mapping, only its `run.app` address.
 
 ## 10. A budget alert
