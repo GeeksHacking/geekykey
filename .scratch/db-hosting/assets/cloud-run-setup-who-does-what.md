@@ -10,10 +10,16 @@ In this order.
 
 1. **Send Julian [his part](#julian) below,** and send him privately the Google accounts for Logs Viewer: Adam's and Ethan's. Zi Tao doesn't need the logs (9 Oct). The accounts go nowhere in the repo.
 
-2. **Add production's app login** (step 11). It gets a new password, shown once, from `apps/backend`:
+2. **Add production's app login** (step 11). It gets a new password, shown once. Run each block on its own: pasted together, the prompt starts even if the first command fails.
 
    ```bash
+   cd ~/workspace/github.com/geekykey/apps/backend
    mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password
+   ```
+
+   Copy the `mysql://` URL it prints after "App login:", then paste it at this prompt, where it won't show:
+
+   ```bash
    read -rs "url?Production app login URL: " && printf '%s' "$url" \
      | gcloud secrets versions add event-service-database-url --data-file=- ; unset url
    ```
@@ -21,7 +27,15 @@ In this order.
 3. **Add staging's app login** (step 11). Its URL isn't kept anywhere either, so it gets a new password the same way, with `--staging`. That option came over from the unmerged BAC-15 branch into PR #46 on 9 Oct, so run it from that branch until the PR merges:
 
    ```bash
+   cd ~/workspace/github.com/geekykey
+   git switch adam/bac-18-the-runbook-and-the-deploy-workflow-cloud-run-secret-manager
+   cd apps/backend
    mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password --staging
+   ```
+
+   Then, on its own:
+
+   ```bash
    read -rs "url?Staging app login URL: " && printf '%s' "$url" \
      | gcloud secrets versions add event-service-staging-database-url --data-file=- ; unset url
    ```
