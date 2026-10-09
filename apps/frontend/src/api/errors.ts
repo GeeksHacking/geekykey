@@ -55,7 +55,7 @@ export function describeError(error: unknown): string {
       case "invalid_event_service_key":
         return "The event service key is missing or invalid.";
       case "event_service_unavailable":
-      case "portal_unavailable":
+      case "claims_unavailable":
         return "A required service is unavailable. Try again shortly.";
       case "missing_station_key":
       case "invalid_station_key":

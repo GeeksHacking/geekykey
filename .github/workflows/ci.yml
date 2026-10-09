@@ -51,8 +51,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Neither of these is part of the typecheck or the tests, so without them
+      # lint errors and unformatted files pile up unnoticed. `build` runs the typecheck.
       - name: Lint
         run: pnpm --filter @geekykey/frontend lint
+
+      - name: Format
+        run: pnpm --filter @geekykey/frontend format:check
 
       - name: Test
         run: pnpm test:frontend
@@ -75,8 +80,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Neither of these is part of the typecheck or the tests, so without them
+      # lint errors and unformatted files pile up unnoticed. `build` runs the typecheck.
       - name: Lint
         run: pnpm --filter @geekykey/geekykey-web lint
+
+      - name: Format
+        run: pnpm --filter @geekykey/geekykey-web format:check
 
       - name: Test
         run: pnpm test:geekykey-web

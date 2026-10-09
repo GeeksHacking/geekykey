@@ -385,12 +385,16 @@ Rules:
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.
-   - `event_service_unavailable` / `portal_unavailable`: show a service-availability message.
+   - `event_service_unavailable` / `claims_unavailable`: show a service-availability message.
+     `claims_unavailable` replaced `portal_unavailable` in agreement 0.3; it is what 8.2 to 8.5
+     and the station endpoints answer when the claims stand-in, or the Portal, cannot say who
+     owns a token.
    - `invalid_event_service_key` / station-key errors: setup/configuration message.
    - `internal_error` or a network failure: generic error state with a retry button.
 - Out of scope, do not build UI for it: leaderboards, dual-tap, archetype quests, event
-  CRUD, editing or deleting taps, profile editing, station key rotation, reading a key
-  back, Web Serial or USB device configuration.
+  CRUD, editing or deleting taps, profile editing, reading a station key back, Web Serial or
+  USB device configuration. Replacing a station's key is **not** out of scope: agreement 9.8
+  does it on the station board and FRO-28 builds it.
 
 ## Screens (MVP)
 

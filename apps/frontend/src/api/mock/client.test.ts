@@ -16,6 +16,36 @@ async function expectApiError(promise: Promise<unknown>, code: string, status: n
   expect((error as ApiError).status).toBe(status);
 }
 
+describe("the mock's error statuses", () => {
+  it("answers each code with the status agreement section 2 gives it", async () => {
+    // The mock is the only error source the screens see in development, so a wrong status
+    // here is a wrong status on screen. The three station-facing codes are absent on
+    // purpose: they answer a station request, and no screen calls one.
+    const expected: Record<string, number> = {
+      validation_failed: 400,
+      unauthenticated: 401,
+      forbidden: 403,
+      not_found: 404,
+      rate_limited: 429,
+      event_service_unavailable: 503,
+      claims_unavailable: 503,
+      internal_error: 500,
+    };
+
+    for (const [code, status] of Object.entries(expected)) {
+      const api = client();
+      api.mock.setSession(SEEDED_ORGANIZER_ID);
+      api.mock.failNext(code as Parameters<typeof api.mock.failNext>[0]);
+
+      const error = await api.me().catch((e: unknown) => e);
+
+      expect(error, `${code} did not reject`).toBeInstanceOf(ApiError);
+      expect((error as ApiError).code, code).toBe(code);
+      expect((error as ApiError).status, code).toBe(status);
+    }
+  });
+});
+
 describe("sessions and roles", () => {
   it("answers /me with 401 when nobody is signed in", async () => {
     await expectApiError(client().me(), "unauthenticated", 401);
@@ -166,6 +196,22 @@ describe("station keys and export", () => {
     expect(rows.length).toBeGreaterThan(0);
     // Guards the gap between the header constant and the hand-built row.
     for (const row of rows) expect(row.split(",")).toHaveLength(EXPORT_CSV_COLUMNS.length);
+    // The order itself, written out. Comparing the header against the constant cannot catch a
+    // reordered constant, because the mock builds the header from that same constant, so the
+    // two would stay wrong together. Agreement 9.6 fixes the order, so the literal list is
+    // asserted here rather than derived from the constant.
+    expect(EXPORT_CSV_COLUMNS).toEqual([
+      "tap_id",
+      "client_tap_id",
+      "station_id",
+      "station_name",
+      "user_id",
+      "display_name",
+      "status",
+      "source",
+      "tapped_at",
+      "received_at",
+    ]);
   });
 
   it("leaves station_name and display_name empty when the tap has neither", async () => {

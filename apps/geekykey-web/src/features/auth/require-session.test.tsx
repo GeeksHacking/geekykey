@@ -52,8 +52,11 @@ function makeRouter(initialPath: string) {
   const login = createRoute({
     getParentRoute: () => rootRoute,
     path: "/login",
-    validateSearch: (search: Record<string, unknown>): { return_to?: string } =>
-      isSafeReturnTo(search.return_to) ? { return_to: search.return_to } : {},
+    // The same rule as routes/login.tsx, and the same shape on purpose. The router merges the
+    // validated search over the parsed one, so returning `{}` would drop nothing and this
+    // stand-in would stop describing what the real route does.
+    validateSearch: (search: Record<string, unknown>): { return_to?: string | undefined } =>
+      isSafeReturnTo(search.return_to) ? { return_to: search.return_to } : { return_to: undefined },
     // The real LoginScreen owns post-login navigation, so the stand-in does too. Otherwise
     // the round trip would stop at /login and the criterion would not be covered.
     component: LoginStandIn,

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, NetworkError } from "@/api/errors";
 import { createHttpClient } from "@/api/http/client";
+import type { ErrorCode } from "@/api/types";
 
 const me = {
   user: { id: "dev-user-1", display_name: "Alex Tan", role: "participant" as const },
@@ -122,6 +123,23 @@ describe("HTTP client transport", () => {
     expect(error.status).toBe(503);
   });
 
+  it("reads every code from the error body, so a missing set entry cannot hide", async () => {
+    // One case per code, all sharing a status the fallback cannot answer. If a code is
+    // missing from the body's allowlist the body is ignored and the status map supplies the
+    // answer instead, so the code read back is wrong and this fails. The same test exists in
+    // apps/geekykey-web, for the same reason: a code can be renamed in the agreement and in
+    // the union while the set that decides what to believe quietly drops it.
+    const status = 418;
+    for (const code of Object.keys(statusFor) as (keyof typeof statusFor)[]) {
+      fetchMock.mockResolvedValue(response({ error: code }, status));
+
+      const error = await apiError(createHttpClient().me());
+
+      expect(error, `${code} did not reject`).toBeInstanceOf(ApiError);
+      expect(error.code, `${code} was not read from the body`).toBe(code);
+    }
+  });
+
   it("ignores malformed issue entries without losing valid ones", async () => {
     fetchMock.mockResolvedValue(
       response(
@@ -171,3 +189,22 @@ describe("HTTP client transport", () => {
     expect(error).toBeInstanceOf(NetworkError);
   });
 });
+
+/**
+ * Every code in `ErrorCode`, with the status agreement section 2 gives it. `satisfies`
+ * makes this exhaustive in both directions: drop a code here, or add one to the union
+ * without giving it a status, and the typecheck fails.
+ */
+const statusFor = {
+  validation_failed: 400,
+  unauthenticated: 401,
+  missing_station_key: 401,
+  invalid_station_key: 401,
+  forbidden: 403,
+  not_found: 404,
+  rate_limited: 429,
+  invalid_event_service_key: 401,
+  event_service_unavailable: 503,
+  claims_unavailable: 503,
+  internal_error: 500,
+} as const satisfies Record<ErrorCode, number>;
