@@ -412,14 +412,24 @@ sed -n 's/^TIDB_MIGRATION_URL=//p' ~/.config/geekykey/tidb-staging-migration.env
 
 The app logins. An app login's password is shown only once, when it's made, so each one
 gets a new password here. `db:logins` shows the login's URL once, then `read -s` takes it
-without showing what you paste. One at a time, from `apps/backend`:
+without showing what you paste. Run each block on its own: pasted together, the prompt
+starts even if `db:logins` fails, and an empty value must never become a version.
 
 ```bash
+cd apps/backend   # from the repo's root: db:logins is the backend's script
 mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password
+```
+
+```bash
 read -rs "url?Production app login URL: " && printf '%s' "$url" \
   | gcloud secrets versions add event-service-database-url --data-file=- ; unset url
+```
 
+```bash
 mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password --staging
+```
+
+```bash
 read -rs "url?Staging app login URL: " && printf '%s' "$url" \
   | gcloud secrets versions add event-service-staging-database-url --data-file=- ; unset url
 ```
