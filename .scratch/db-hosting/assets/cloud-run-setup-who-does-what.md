@@ -2,13 +2,13 @@
 
 Written 9 Oct 2026, for BAC-18 ([PR #46](https://github.com/GeeksHacking/geekykey/pull/46)). The runbook is `infra/README.md` on that branch; the step numbers below are its steps.
 
-**Where things stand.** The project is our Firebase project, `geekykey-b035a`. Adam is Editor there, which creates things but grants nothing. On 9 Oct he ran steps 1 to 5: the APIs, the image repository, four service accounts, six secrets and the two Cloud Run services, `event-service` and `event-service-staging`, both closed to callers for now. Four of the six secrets have their values. Everything that grants access is Julian's, as Owner: steps 6 to 10.
+**Where things stand.** The project is our Firebase project, `geekykey-b035a`, on GeeksHacking's billing account. Adam is Editor there, which creates things but grants nothing. On 9 Oct he ran steps 1 to 5: the APIs, the image repository, four service accounts, six secrets and the two Cloud Run services, `event-service` and `event-service-staging`, both closed to callers for now. Four of the six secrets have their values. Everything that grants access is Julian's, as Owner: steps 6 to 10.
 
 ## Adam
 
 In this order.
 
-1. **Send Julian [his part](#julian) below,** and send him privately the Google accounts for Logs Viewer: Adam's, Ethan's and Zi Tao's. They go nowhere in the repo.
+1. **Send Julian [his part](#julian) below,** and send him privately the Google accounts for Logs Viewer: Adam's and Ethan's. Zi Tao doesn't need the logs (9 Oct). The accounts go nowhere in the repo.
 
 2. **Add production's app login** (step 11). It gets a new password, shown once, from `apps/backend`:
 
@@ -46,9 +46,19 @@ In this order.
 
 ## Julian
 
-Hi Julian. The Event Service's Google Cloud setup is ready for your part. We used our Firebase project, `geekykey-b035a` (number `468223998400`), rather than a new one: please confirm that's fine, and that its billing account is GeeksHacking's.
+Hi Julian. The Event Service's Google Cloud setup is ready for your part. It's in our Firebase project, `geekykey-b035a` (number `468223998400`), on GeeksHacking's billing account.
 
-I've made, with my Editor role: the APIs, the image repository `event-service` in `asia-southeast1`, four service accounts, six secrets, and the two Cloud Run services `event-service` and `event-service-staging`. Editor can't grant access, so the rest needs you as Owner. Every command is in `infra/README.md` in [PR #46](https://github.com/GeeksHacking/geekykey/pull/46), with a line on what each is for. Steps 6 and 7 are below too, so you can paste them as they are. Could you run them, and tell me the date you did?
+I've made, with my Editor role: the APIs, the image repository `event-service` in `asia-southeast1`, four service accounts, six secrets, and the two Cloud Run services `event-service` and `event-service-staging`. Editor can't grant access, so the rest needs you as Owner. Every command is in `infra/README.md` in [PR #46](https://github.com/GeeksHacking/geekykey/pull/46), with a line on what each is for. Steps 6 to 8 are below too, so you can paste them as they are. Could you run them, and tell me the date you did?
+
+**How to run them.** The quickest way is Cloud Shell, a terminal inside the Google Cloud console with `gcloud` already signed in as you, so nothing needs installing. Open [the console for `geekykey-b035a`](https://console.cloud.google.com/?project=geekykey-b035a), click the Cloud Shell button (`>_`, top right), and paste one block at a time into the terminal it opens. Step 7 is one loop that runs the grants for both services, about twenty commands, so give it a minute or two. Any grant can be pasted again safely: one that's already there is left as it is.
+
+**Or let me run them.** If you'd rather not, give me two roles instead, and I'll run steps 6 to 8 myself and tell you when they're done. Security Admin lets me grant roles in this project, which is close to what Owner can do, so it's your call:
+
+```bash
+for role in roles/iam.securityAdmin roles/iam.workloadIdentityPoolAdmin; do
+  gcloud projects add-iam-policy-binding geekykey-b035a --member="user:ADAM_EMAIL" --role="$role"
+done
+```
 
 **Step 6, the keyless sign-in from GitHub.** Google trusts GitHub's tokens only from `GeeksHacking/geekykey`, checked by repo ID. Production's deploy account is usable only from `main`; staging's from any branch of the repo.
 
@@ -103,9 +113,24 @@ for service in event-service event-service-staging; do
 done
 ```
 
-**Step 8, Logs Viewer** for Adam, Ethan and Zi Tao, with the accounts I've sent you separately (`roles/logging.viewer` on the project). Joshua needs none.
+**Step 8, Logs Viewer** for Adam and Ethan, with the accounts I've sent you separately. Nobody else needs it.
 
-**Step 9, `event-api.geekshacking.com`,** when you're ready. It's a Cloud Run domain mapping, like `portal-api.`, and needs someone who has verified `geekshacking.com` with Google, which I think is you. The runbook has the two commands. The record it asks for goes into Cloudflare with the proxy off. Who adds it, and how should I ask when the time comes?
+```bash
+for person in ADAM_EMAIL ETHAN_EMAIL; do
+  gcloud projects add-iam-policy-binding geekykey-b035a \
+    --member="user:$person" --role=roles/logging.viewer
+done
+```
+
+**Step 9, `event-api.geekshacking.com`,** later: I'll tell you when the service is ready for it. It's a Cloud Run domain mapping, like `portal-api.`, and needs someone who has verified `geekshacking.com` with Google, which I think is you. Then the DNS record it asks for goes into Cloudflare, with the proxy off (grey cloud):
+
+```bash
+gcloud beta run domain-mappings create \
+  --service=event-service --domain=event-api.geekshacking.com --region=asia-southeast1
+gcloud beta run domain-mappings describe \
+  --domain=event-api.geekshacking.com --region=asia-southeast1 \
+  --format="value(status.resourceRecords)"
+```
 
 **Step 10, the budget alert,** if you agree: on this project, to you and me. The runbook has a placeholder of US$10 a month, with emails at 50%, 90% and 100%. What amount would you like?
 
