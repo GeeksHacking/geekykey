@@ -17,7 +17,8 @@
  *                             login once, for DATABASE_URL in Secret Manager.
  *                             Use it at the first deploy, or if it ever leaks.
  *   --new-migration-password  give the migration login a new password, and
- *                             save that. Then replace GitHub's copy too.
+ *                             save that. Then add it to Secret Manager as a
+ *                             new version, as infra/README.md says.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";

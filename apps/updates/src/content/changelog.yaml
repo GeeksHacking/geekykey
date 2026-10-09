@@ -743,3 +743,13 @@
     and it answers stations and screens exactly as before. The trade-offs we accept: esbuild is
     still installed for other tools, and an error inside the database library is traced to its
     JavaScript rather than its TypeScript.
+
+- id: event-service-cloud-run-setup
+  date: 2026-10-09
+  area: backend
+  change: >-
+    The Event Service has its two copies on Google Cloud Run, production and staging, made by hand
+    from a runbook that lists every command, and a workflow that migrates and deploys production
+    on every merge to main, and staging when run by hand, with no key kept in GitHub. Neither copy
+    answers yet, because Julian still grants the accounts their access and the database logins
+    are still to be added.
