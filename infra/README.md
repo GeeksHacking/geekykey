@@ -231,22 +231,31 @@ gcloud iam workload-identity-pools providers create-oidc geekykey \
   --workload-identity-pool=github \
   --display-name="GeeksHacking/geekykey" \
   --issuer-uri="https://token.actions.githubusercontent.com" \
-  --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id" \
+  --attribute-mapping="google.subject=assertion.repository_id + ':' + assertion.run_id,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref" \
   --attribute-condition="assertion.repository_id == '1310668143'"
 ```
 
 `1310668143` is the ID GitHub gives `GeeksHacking/geekykey`. It's checked rather than the
 name, because a deleted repo's name can be taken by someone else, but its ID never is.
 
-Production's deploy account, only for runs on `main`. A token's subject is
-`repo:GeeksHacking/geekykey:ref:refs/heads/main` only when the run is on `main`; a pull
-request's says `pull_request` instead, and another branch's names that branch:
+The mapping copies what Google needs out of each token:
+
+- `google.subject` names the run in Google's audit logs, as the repo's ID and the run's
+  ID, the number in the run's address on GitHub (`…/actions/runs/NUMBER`). It isn't the token's own
+  subject (`sub`), for two reasons. This repo's tokens use GitHub's newer subjects,
+  which carry IDs as well as names (`repo:GeeksHacking@42840940/geekykey@1310668143:ref:…`),
+  and Google refuses a subject longer than 127 characters, which a long branch name passes.
+- `attribute.repository_id` is the repo's ID, which staging's binding checks.
+- `attribute.ref` is the branch the run is on, such as `refs/heads/main`, which
+  production's binding checks. A pull request's run has `refs/pull/NUMBER/merge` instead.
+
+Production's deploy account, only for runs on `main`:
 
 ```bash
 gcloud iam service-accounts add-iam-policy-binding \
   event-service-deployer@geekykey-b035a.iam.gserviceaccount.com \
   --role=roles/iam.workloadIdentityUser \
-  --member="principal://iam.googleapis.com/projects/468223998400/locations/global/workloadIdentityPools/github/subject/repo:GeeksHacking/geekykey:ref:refs/heads/main"
+  --member="principalSet://iam.googleapis.com/projects/468223998400/locations/global/workloadIdentityPools/github/attribute.ref/refs/heads/main"
 ```
 
 Staging's deploy account, for any run from this repo:
@@ -258,9 +267,8 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="principalSet://iam.googleapis.com/projects/468223998400/locations/global/workloadIdentityPools/github/attribute.repository_id/1310668143"
 ```
 
-If a job in the workflow ever gets an `environment:`, its token's subject names the
-environment instead of the branch, and production's deploy stops working. That's on
-purpose: check this binding before adding one.
+Never add a workflow that runs `on: pull_request_target`. It runs for someone else's pull
+request, yet its ref is `main`'s, so it could act as production's deploy account.
 
 ## 7. Who may do what
 
@@ -457,7 +465,11 @@ Clear the terminal after each (Cmd-K), since the URL stayed on screen.
 
 Each service's `deploy.env` pins version 1 of each secret, except staging's app login: on
 9 Oct its `db:logins` ran twice, so its first URL had a password that no longer worked.
-Version 1 is disabled, and staging is pinned to version 2.
+Version 1 is disabled, and staging is pinned to version 2:
+
+```bash
+gcloud secrets versions disable 1 --secret=event-service-staging-database-url
+```
 
 ## Day to day
 
