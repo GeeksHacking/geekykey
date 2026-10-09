@@ -1,7 +1,8 @@
 /**
  * Creates the geekykey database on GeeksHacking's TiDB cluster (or, with
- * --staging, geekykey_staging), and the two logins the backend reaches it with (logins.ts says what each may do). Adam
- * runs it from his laptop, because it needs the cluster's root login:
+ * --staging, geekykey_staging), and the two logins the backend reaches it
+ * with (logins.ts says what each may do). Adam runs it from his laptop,
+ * because it needs the cluster's root login:
  *
  *   cd apps/backend
  *   mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env
