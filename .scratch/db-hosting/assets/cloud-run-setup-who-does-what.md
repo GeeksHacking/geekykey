@@ -8,7 +8,7 @@ Written 9 Oct 2026, for BAC-18 ([PR #46](https://github.com/GeeksHacking/geekyke
 
 In this order.
 
-1. **Send Julian [the message](#julian) below.** Once he's given you the access, run the runbook's steps 6 to 8 yourself. Step 8 needs Ethan's Google account, which goes nowhere in the repo.
+1. **Ask Julian for the access,** in your own words, from [the notes](#julian) below. Once he's given it, run the runbook's steps 6 to 8 yourself. Step 8 needs Ethan's Google account, which goes nowhere in the repo.
 
 2. **Add production's app login** (step 11). It gets a new password, shown once. Run each block on its own: pasted together, the prompt starts even if the first command fails.
 
@@ -60,11 +60,15 @@ In this order.
 
 ## Julian
 
-He works in the web console only, and asked for less text (9 Oct). So he gives Adam the access, and Adam runs steps 6 to 8 himself. The message:
+Notes for Adam to write his own message from (Adam writes every message to Julian himself). Julian works in the web console only, not `gcloud`, and asked for short, specific asks (9 Oct).
 
-> Fair, sorry! Shorter version, all in the web console:
->
-> 1. **Make me Owner of the GeekyKey project** (`geekykey-b035a`): IAM & Admin → IAM → Grant access → my account → role "Owner". Then I'll set up the GitHub sign-in and the permissions myself, and write down every step. If you'd rather not give Owner, "Security Admin" plus "Workload Identity Pool Admin" also works.
-> 2. **Later, when I say it's ready:** Cloud Run → Domain mappings → Add mapping → service `event-service`, domain `event-api.geekshacking.com`. Then add the DNS record it shows in Cloudflare, with the proxy off. It needs you because you verified geekshacking.com.
-> 3. **A budget alert** if you want one: Billing → Budgets & alerts, for this project. What amount?
-> 4. **When you get a chance:** disconnect Workers Builds from `apps/backend`.
+**The main ask: access for Adam to finish steps 6 to 8 himself.** Adam's Editor role can create things but can't grant access, and every remaining step is a grant. Doing them in the console is about eighteen separate grants across five pages (step 6: a pool, a provider and two bindings; step 7: fourteen grants on secrets, the image repository, both services and two service accounts; step 8: one). One grant to Adam instead lets him do them all and record them in the runbook. Two choices for Julian, both under IAM & Admin → IAM → Grant access:
+
+- **Owner** on `geekykey-b035a`: one role, simplest. It covers everything in this project, but not the billing account.
+- **Security Admin and Workload Identity Pool Admin**: narrower on paper, but Security Admin can grant any role in the project, so in practice it's close to Owner.
+
+**Later, when Adam says it's ready: the domain mapping and its DNS record** (agreed 9 Oct that Julian adds the DNS record). It has to be Julian, because mapping a domain needs whoever verified `geekshacking.com` with Google. In the console: Cloud Run → Domain mappings → Add mapping, service `event-service`, domain `event-api.geekshacking.com`; then the record it shows goes into Cloudflare with the proxy off.
+
+**Still open: the budget alert.** Whether he wants one, and the amount. In the console: Billing → Budgets & alerts, scoped to this project.
+
+**Still to do from 8 Oct: disconnect Workers Builds from `apps/backend`,** which builds every push to `main` and fails.
