@@ -63,7 +63,7 @@ internet, the domain mapping and the budget.
 | [8. Logs for the team](#8-logs-for-the-team) | Julian | Not yet |
 | [9. The address](#9-the-address) | Julian | Not yet |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
-| [11. The secret values](#11-the-secret-values) | Adam | Session secrets and migration logins 9 Oct 2026. App logins not yet |
+| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026 |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
@@ -438,7 +438,9 @@ Clear the terminal after each (Cmd-K), since the URL stayed on screen.
 
 (`read -rs "url?…"` is zsh. In bash, it's `read -rsp "…" url`.)
 
-Each service's `deploy.env` already pins version 1 of each secret.
+Each service's `deploy.env` pins version 1 of each secret, except staging's app login: on
+9 Oct its `db:logins` ran twice, so its first URL had a password that no longer worked.
+Version 1 is disabled, and staging is pinned to version 2.
 
 ## Day to day
 
