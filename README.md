@@ -448,7 +448,8 @@ Commit it, and run `mise run db:migrate` to apply it to both local databases. CI
 the image and runs `check:migrations` on every pull request.
 
 Three more set up GeeksHacking's production database: `db:logins`, `db:test-station` and
-`db:migrate --production`. Only Adam runs them, since they need logins kept on his laptop.
+`db:migrate --production`. `db:logins --staging` does the same for staging's,
+`geekykey_staging`. Only Adam runs them, since they need logins kept on his laptop.
 The comment at the top of each script in `scripts/` says what it does.
 
 ### The image

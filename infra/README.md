@@ -406,21 +406,21 @@ sed -n 's/^TIDB_MIGRATION_URL=//p' ~/.config/geekykey/tidb-staging-migration.env
   | gcloud secrets versions add event-service-staging-migration-database-url --data-file=-
 ```
 
-The app logins. Production's password is shown only once, so give it a new one, from
-`apps/backend`:
+The app logins. An app login's password is shown only once, when it's made, so each one
+gets a new password here. `db:logins` shows the login's URL once, then `read -s` takes it
+without showing what you paste. One at a time, from `apps/backend`:
 
 ```bash
 mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password
-```
-
-Then paste each URL when asked. `read -s` doesn't show what you paste:
-
-```bash
 read -rs "url?Production app login URL: " && printf '%s' "$url" \
   | gcloud secrets versions add event-service-database-url --data-file=- ; unset url
+
+mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password --staging
 read -rs "url?Staging app login URL: " && printf '%s' "$url" \
   | gcloud secrets versions add event-service-staging-database-url --data-file=- ; unset url
 ```
+
+Clear the terminal after each (Cmd-K), since the URL stayed on screen.
 
 (`read -rs "url?…"` is zsh. In bash, it's `read -rsp "…" url`.)
 
