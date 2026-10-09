@@ -94,65 +94,10 @@ jobs:
       - name: Build
         run: pnpm build:geekykey-web
 
+  # The steps are in backend.yml, which deploy.yml runs too.
   backend:
     name: Backend
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-        with:
-          version: 2026.7.12
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      # Neither of these is part of the typecheck or the tests, so without them
-      # lint errors and unformatted files pile up unnoticed. .oxfmtrc.jsonc
-      # leaves drizzle/ out of the format check, because drizzle-kit rewrites
-      # those files in its own style on every generate.
-      - name: Lint
-        run: pnpm --filter @geekykey/backend lint
-
-      - name: Format
-        run: pnpm --filter @geekykey/backend format:check
-
-      - name: Typecheck
-        run: pnpm --filter @geekykey/backend typecheck
-
-      # TiDB in Docker from the root compose.yaml, with geekykey_dev and
-      # geekykey_test created and migrated, the same way as on a laptop.
-      - name: Start TiDB
-        run: pnpm db:up
-
-      - name: Test
-        run: pnpm test:backend
-
-      # Builds the image Cloud Run runs, without pushing it anywhere. This is
-      # what proves the bundle and the image build: the tests load the code a
-      # different way.
-      - name: Build the image
-        run: pnpm --filter @geekykey/backend build:image
-
-      # Starts the image and asks it for /api/health, so a bundle that builds
-      # but can't start fails here. /api/health needs no database, so the
-      # DATABASE_URL only has to be there, and the SESSION_SECRET is a
-      # stand-in that nothing else uses.
-      - name: Start the image
-        run: |
-          docker run --detach --name backend --publish 8000:8000 \
-            --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
-            --env SESSION_SECRET=ci-stand-in-not-a-secret \
-            geekykey-backend
-          curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-all-errors \
-            http://localhost:8000/api/health || { docker logs backend; exit 1; }
-
-      # Every change to src/db/schema.ts must come with the migration
-      # drizzle-kit writes for it. scripts/check-migrations.ts says why this
-      # can't just trust drizzle-kit's exit code.
-      - name: Check every schema change has its migration
-        run: pnpm --filter @geekykey/backend check:migrations
+    uses: ./.github/workflows/backend.yml
 
   updates:
     name: Updates site

@@ -16,7 +16,11 @@ geekykey/
 ├── pnpm-workspace.yaml         which folders are packages, and the supply-chain rules
 ├── pnpm-lock.yaml
 ├── compose.yaml                TiDB in Docker, the backend's database on your laptop and in CI
-├── .github/workflows/ci.yml    lint, test, build, and audit on every push and pull request
+├── .github/workflows/
+│   ├── ci.yml                  lint, test, build, and audit on every push and pull request
+│   ├── backend.yml             the backend's checks, which ci.yml and deploy.yml both run
+│   └── deploy.yml              deploys the backend to Google Cloud Run: production from main, staging by hand
+├── infra/                      the backend's Google Cloud setup: the runbook, and what deploy.yml deploys with
 ├── apps/
 │   ├── API-AGREEMENT.md        the contract between the frontend, backend, and stations
 │   ├── frontend/               Event screens for participants and organisers, port 5173
