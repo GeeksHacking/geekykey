@@ -38,7 +38,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
 
   const clearIdentityQueries = useCallback(() => {
-    // A shared browser must not show the previous account's tokens or stations.
+    // A shared browser must not show the previous user's tokens.
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "me" });
   }, [queryClient]);
 

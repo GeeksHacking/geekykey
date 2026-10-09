@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { StationsScreen } from "@/features/stations/stations-screen";
@@ -38,6 +39,16 @@ async function button(user: UserEvent, name: string | RegExp) {
   const first = matches[0];
   if (!first) throw new Error(`no button named ${String(name)}`);
   await user.click(first);
+}
+
+/**
+ * A `validation_failed` the way the service sends one: agreement section 2's error body, so
+ * `issues` is present and each issue names the field it belongs to.
+ */
+function failWithValidation(issues: { path: (string | number)[]; message: string }[]) {
+  return async () => {
+    throw new ApiError(400, "validation_failed", issues);
+  };
 }
 
 describe("passport settings on the station board", () => {
@@ -110,6 +121,51 @@ describe("passport settings on the station board", () => {
     // The client blocks an empty name before sending, so the issue shown is the
     // field's own rule rather than the service's.
     expect(await screen.findByText("Give the station a name.")).toBeInTheDocument();
+  });
+
+  it("shows the service's own issue text on the field it names", async () => {
+    // The test above cannot reach this: the client's own rules reject an empty name and
+    // bad points before a request is sent, and `failNext("validation_failed")` carries no
+    // issues at all. So the failure is raised here as the service would raise it, with
+    // the error body of agreement section 2.
+    const user = userEvent.setup();
+    const api = renderBoard();
+    api.setStationPassport = failWithValidation([
+      { path: ["name"], message: "name is already used by another station" },
+    ]);
+
+    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    await user.click(await screen.findByRole("button", { name: "Save changes" }));
+
+    // The service's wording, wired to the Name input by aria-describedby, so it is read as
+    // that field's message rather than as loose text. With nothing left over the form still
+    // shows its own summary line, so the check is that the service's wording did not land
+    // there instead.
+    const message = await screen.findByText("name is already used by another station");
+    expect(message).toBeInTheDocument();
+    // aria-describedby carries the hint and the message together, so match the tail.
+    expect(screen.getByLabelText("Name")).toHaveAccessibleDescription(
+      /name is already used by another station$/,
+    );
+    expect(screen.getByRole("alert")).not.toHaveTextContent(
+      "name is already used by another station",
+    );
+  });
+
+  it("puts a matched issue on its field and an unmatched one on a form-level line", async () => {
+    const user = userEvent.setup();
+    const api = renderBoard();
+    api.setStationPassport = failWithValidation([
+      { path: ["points"], message: "points must be an integer of 0 or more" },
+      { path: ["uid"], message: "uid must be 4 to 10 hex bytes" },
+    ]);
+
+    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    await user.click(await screen.findByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText("points must be an integer of 0 or more")).toBeInTheDocument();
+    // `uid` matches no field on this form, so it becomes the form-level line.
+    expect(await screen.findByRole("alert")).toHaveTextContent("uid must be 4 to 10 hex bytes");
   });
 
   it("does not accept a name the mock rejects, and leaves the station out of the passport", async () => {

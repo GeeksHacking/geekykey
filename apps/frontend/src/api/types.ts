@@ -177,7 +177,7 @@ export type ErrorCode =
   | "rate_limited"
   | "invalid_event_service_key"
   | "event_service_unavailable"
-  | "portal_unavailable"
+  | "claims_unavailable"
   | "internal_error";
 
 export interface ApiIssue {

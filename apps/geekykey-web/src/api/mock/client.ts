@@ -1,6 +1,7 @@
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import { createFixtures, type MockData, type MockToken } from "@/api/mock/fixtures";
+import { MOCK_LATENCY_MS } from "@/lib/constants";
 import type {
   ApiIssue,
   ErrorCode,
@@ -70,7 +71,7 @@ function isValidNormalizedUid(uid: string): boolean {
 export function createMockClient(options: MockClientOptions = {}): MockApiClient {
   const now = options.now ?? (() => Date.now());
   const data = options.data ?? createFixtures(now());
-  const latency = options.latencyMs ?? [180, 520];
+  const latency = options.latencyMs ?? MOCK_LATENCY_MS;
   const storage = options.storage === undefined ? safeSessionStorage() : options.storage;
 
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;

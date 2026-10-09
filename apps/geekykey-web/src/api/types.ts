@@ -3,9 +3,11 @@
   shape for the GeekyKey Service. Never add a field the agreement does not have;
   propose a change to the agreement instead.
 
-  Sections 8.2 to 8.5 and 10 of the agreement are the endpoints here. The Event
-  Service's shapes (agreement 8.1, 9.x) are deliberately absent: they belong to
-  apps/frontend and must not leak into these screens.
+  Sections 8.2 to 8.5 of the agreement are the endpoints here. Section 10 has been
+  empty since version 0.3: a GeekyKey admin's one job is releasing someone else's token,
+  which is 8.3 with `owner_id`. The Event Service's shapes (agreement 8.1, 9.x)
+  are deliberately absent: they belong to apps/frontend and must not leak into
+  these screens.
 */
 
 /** One token as the GeekyKey Service returns it (agreement 8.2, 8.4, 8.5). */

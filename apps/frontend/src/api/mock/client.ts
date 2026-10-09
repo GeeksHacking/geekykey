@@ -51,7 +51,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,
-  portal_unavailable: 503,
+  claims_unavailable: 503,
   internal_error: 500,
 };
 
