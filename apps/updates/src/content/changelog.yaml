@@ -782,3 +782,12 @@
     keep the planned login: the screens sign in with Firebase and send the result to their own
     service, which checks it and sets its own cookie. The trade-offs we accept: every visitor
     signs in with a Google account for now, and GeeksHacking's own login waits on Mr Pang.
+
+- id: geekshacking-login-first
+  date: 2026-10-10
+  area: backend
+  change: >-
+    GeeksHacking's own login is being added to the showcase beside Google sign-in, before Mr Pang
+    is asked whether the showcase offers it, so it's ready if he agrees. The trade-offs we accept:
+    asking the Portal's team for a client that may end up unused, and a small charge for each
+    GeeksHacking member who signs in beyond 49 a month.

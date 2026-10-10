@@ -427,7 +427,7 @@ Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then
 | 2 | The move to Cloud Run | A tap to `event-api.geekshacking.com` is stored in TiDB, after staging; the log check; the cold start is measured | Julian: the project, the keyless sign-in and the roles (agreed 8 Oct), disconnecting Workers Builds, and the DNS record, once we're ready |
 | 3 | The line drawn inside | One server, with the GeekyKey side, the Event side and the claims stand-in talking only through their requests, on the new tables | Nothing outside the team |
 | 4 | The GeekyKey Service cut out | `geekykey-service` runs at `key-api.`, the stations have moved to it, and the smoke test runs on every pull request | Julian: connecting `geekykey-service`, its secrets, and the Event Service's new repo under GeeksHacking. Zi Tao: the setup mode |
-| 5 | Login, and the screens deployed | Both logins work through Firebase, the passport shows on a phone, the cookies are checked, the passport poll is measured | Adam: Firebase set up, and the check that a Worker can verify its login. Julian: billing on the Firebase project. Qing Guan: an OIDC client for GeeksHacking's login, if Mr Pang agrees. Julian or Qing Guan: two domains |
+| 5 | Login, and the screens deployed | Both logins work through Firebase, the passport shows on a phone, the cookies are checked, the passport poll is measured | Adam: Firebase set up, and the check that a Worker can verify its login. Julian: billing on the Firebase project. Qing Guan: an OIDC client for GeeksHacking's login, asked before Mr Pang (10 Oct). Julian or Qing Guan: two domains |
 | 6 | The GeekyKey Service's features | Tokens are claimed and released, and the limits hold | Ethan's team: the `geekykey-web` screens |
 | 7 | The Event Service's features | Organizers create and disable stations, set up the passport and watch taps, and the export is right | Ethan's team: the `event-web` changes |
 | 8 | Ready for the event | The copy, restore and clear tasks work, the restore is tried, the stress test has run, the rehearsal is done by 7 Nov | The whole team |
@@ -445,7 +445,7 @@ Three tracks run alongside the checkpoints: going public, the screens (Ethan's t
 
 **Messages to send now:** [the station contract](assets/message-to-zi-tao-station-contract.md), with its notes of 5, 6 and 8 Oct, to Zi Tao. Part 2 of [the tag APIs message](assets/message-to-qing-guan-tag-apis.md) can wait: the Portal's team agrees with the approach, and nothing is needed before the showcase. [Logging in through the Portal](assets/message-to-qing-guan-login.md) is parked until events log in through the Portal (ADR 0004).
 
-**Adam asks:** Mr Pang, whether the showcase offers GeeksHacking's login beside Google; and the teachers, whether the showcase has a theme, for Joshua's games.
+**Adam asks:** Mr Pang, whether the showcase offers GeeksHacking's login beside Google (built first since 10 Oct, and turned off if he says no); and the teachers, whether the showcase has a theme, for Joshua's games.
 
 **Done on 8 Oct:** Julian makes sure `key.geekshacking.com` and its `/t/` path keep working for as long as tokens are in use.
 
@@ -560,7 +560,7 @@ Changed on 8 Oct: the showcase logs in through Firebase, not the Portal ([ADR 00
 
 **Before it, the Firebase setup and one check:**
 
-- Adam turns on Google sign-in in our Firebase project and adds `key.geekshacking.com` and `event.geekshacking.com` to its authorised domains (*done 10 Oct*, runbook step 12). Julian links GeeksHacking's billing account to the project, which the Identity Platform upgrade needs (*done by 9 Oct*). If Mr Pang agrees, Qing Guan issues an OIDC client for GeeksHacking's login, and it's added as a provider. OIDC sign-ins are free for 49 users a month, then US$0.015 each.
+- Adam turns on Google sign-in in our Firebase project and adds `key.geekshacking.com` and `event.geekshacking.com` to its authorised domains (*done 10 Oct*, runbook step 12). Julian links GeeksHacking's billing account to the project, which the Identity Platform upgrade needs (*done by 9 Oct*). *Changed 10 Oct (Adam):* GeeksHacking's login is added now, and Mr Pang is asked afterwards. Qing Guan issues an OIDC client for Firebase's redirect URL, and Adam upgrades the project to Identity Platform and adds it as a provider (runbook step 12). If Mr Pang says no, the provider is turned off and the screens drop its button. OIDC sign-ins are free for 49 users a month, then US$0.015 each.
 - **The check** (Adam, BAC-20): a Worker verifies a Firebase ID token against Google's public keys, and the CPU time per login is measured against the free plan's 10 ms. *Passed 10 Oct:* a median of 1 ms of CPU with Google's keys cached and 2 ms with them fetched, and Google sign-in works on `localhost` ([the check](research/firebase-login-check.md)).
 
 - **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changes with it, once the check passes. Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID.
@@ -720,7 +720,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### Qing Guan
 
-- **If Mr Pang agrees to GeeksHacking's login at the showcase:** an OIDC client for our Firebase project, with Firebase's redirect URL, its client ID and secret, and which claim carries the display name.
+- **Now, before Mr Pang is asked** (Adam, 10 Oct): [an OIDC client for our Firebase project](assets/message-to-qing-guan-firebase-client.md), with Firebase's redirect URL; its client ID and secret; and whether the ID token carries the user's name. The Portal's issuer is `https://hackomania-api.geekshacking.com/`, which offers the code flow and `openid profile email`.
 - **Parked until events log in through the Portal** (ADR 0004): [logging in through the Portal](assets/message-to-qing-guan-login.md), with its two OAuth apps.
 - **The tag APIs,** after the showcase: his team agrees with our approach (8 Oct). Part 2 of [the tag APIs message](assets/message-to-qing-guan-tag-apis.md) goes when they start.
 - **On the day:** reachable by phone, for the Portal and the zone. His custom rule for `key-api.` is already on (BAC-8).
@@ -844,7 +844,7 @@ Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own G
 
 | Decision | Firm when | Fallback |
 |---|---|---|
-| GeeksHacking's login offered at the showcase, inside Firebase | Mr Pang agrees, and Qing Guan issues the OIDC client | Google sign-in only |
+| GeeksHacking's login offered at the showcase, inside Firebase | Mr Pang agrees. Built before he's asked (Adam, 10 Oct), once Qing Guan issues the OIDC client | The provider turned off: Google sign-in only |
 | `event-api.` as a Cloud Run domain mapping | Not questioned on 8 Oct; firm once it works at checkpoint 2 | A Google load balancer at about US$18 a month |
 | The 4-second shared deadline | Checkpoint 2 measures a cold start | A number that fits the measurement, inside the station's 5 seconds |
 | No server-side tap queue | The stress test (checkpoint 8) | A queue, from the backlog (section 12) |

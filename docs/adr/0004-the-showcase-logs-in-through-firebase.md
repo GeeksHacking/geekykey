@@ -31,6 +31,9 @@ path: the request for two OAuth apps had waited since 1 Oct, and the Sprint 2 A/
   their own service, which checks it against Google's public keys and sets its own cookie. It was
   provisional until Adam checked that a Worker can do this within the free plan's CPU time. It can:
   a median of 1 ms with Google's keys cached, against the free plan's 10 ms (BAC-20, 10 Oct 2026).
+- GeeksHacking's login is set up before Mr Pang is asked whether the showcase offers it (Adam, 10
+  Oct 2026), so it's ready if he agrees. If he says no, the provider is turned off in Firebase and
+  the screens drop its button; nothing else changes, since both logins give the same kind of token.
 - Because showcase users aren't Portal users, "Copy claims to the Portal" is dropped, and the Portal's
   tag APIs start empty after the switch. The QR fallback can't scan the Portal's participant QR code.
 - Another team's Event Service at the showcase would log in through the same Firebase project, so its

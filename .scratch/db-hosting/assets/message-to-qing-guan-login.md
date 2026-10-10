@@ -6,7 +6,7 @@ The Portal's user IDs are GUIDs (from "What does the GeekyKey Service need from 
 
 On 1 Oct 2026 the redirect URLs moved to Julian's hostnames, `key.geekshacking.com` and `event.geekshacking.com`. The message hadn't been sent yet.
 
-**Parked on 8 Oct 2026.** At the meeting, Julian and Qing Guan chose Firebase for the showcase's login, with Google sign-in and GeeksHacking's login as an OIDC provider inside it ([ADR 0004](../../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)). So this message isn't sent. What Qing Guan may be asked for instead, if Mr Pang agrees, is one OIDC client for our Firebase project (spec section 9). The message comes back when events log in through the Portal.
+**Parked on 8 Oct 2026.** At the meeting, Julian and Qing Guan chose Firebase for the showcase's login, with Google sign-in and GeeksHacking's login as an OIDC provider inside it ([ADR 0004](../../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)). So this message isn't sent. What Qing Guan is asked for instead is one OIDC client for our Firebase project: [that message](message-to-qing-guan-firebase-client.md), since 10 Oct sent before Mr Pang is asked. The message comes back when events log in through the Portal.
 
 ---
 
