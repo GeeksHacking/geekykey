@@ -762,3 +762,13 @@
     database, and a test station's taps come back accepted, duplicate, cooldown and unknown token
     as they should, all stored in staging's database and none in production's. A deploy with a
     missing secret fails in the workflow and leaves the running copy answering.
+
+- id: login-after-the-showcase
+  date: 2026-10-10
+  area: backend
+  change: >-
+    After the showcase, both services log people in through the GeeksHacking Portal, and the
+    showcase's Firebase login is turned off once its users are deleted. Firebase is for the
+    showcase's visitors only, because the Portal's tag APIs know Portal users, not Firebase ones.
+    The trade-offs we accept: each service's login is built twice, once for Firebase now and once
+    for the Portal after the showcase, though only the sign-in step changes.

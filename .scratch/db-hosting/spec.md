@@ -618,6 +618,7 @@ Waits on Qing Guan's tag APIs, and on events logging in through the Portal. Juli
 
 - `PortalClaims` (section 4), with its owners cache, and the Portal client secret on `geekykey-service`.
 - **Changed on 8 Oct: nothing is copied.** The showcase's users are Firebase users (ADR 0004), so its claims don't belong to Portal users. They're deleted with the showcase's data, and the Portal's tag APIs start empty. "Copy claims to the Portal" and the stand-in's fifth route are gone.
+- **The login moves to the Portal too** (Adam, 10 Oct, ADR 0004). Each service gets `GET /auth/login` and `GET /auth/callback`, as the API agreement has them, and drops the Firebase route. Firebase's sign-in providers are turned off once the showcase's users are deleted; the project stays, as the Event Service's Google Cloud project.
 - The order: deploy the version with `PortalClaims`; then delete the stand-in's routes and folder, drop `tokens` in a later migration, and delete `CLAIMS_STAND_IN_KEY` on both sides.
 - The API agreement doesn't change: `503 claims_unavailable` already covers the Portal.
 
