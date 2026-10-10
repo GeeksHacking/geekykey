@@ -469,7 +469,7 @@ Today's backend, unchanged on the wire, runs as a Node server on Cloud Run at `h
 
 - `src/worker.ts` becomes `src/server.ts` on `@hono/node-server`. Settings come from `process.env` and are still read once at start-up.
 - `src/db/hyperdrive.ts` becomes the shared `mysql2` pool in section 3.6. The `FOR UPDATE` reads stay.
-- The image: esbuild bundles one file at build time, and `node:24-slim` runs it.
+- The image: Rolldown bundles one file at build time (it replaced esbuild on 9 Oct, PR #44), and `node:24-slim` runs it.
 - `wrangler.jsonc`, `worker-configuration.d.ts`, the `disableEval` setting and the compatibility flags leave `apps/backend`. A Worker comes back as the GeekyKey Service's own package at checkpoint 4.
 - `node --watch` replaces `wrangler dev`, on port 8000, so the Vite proxy and the stations need no change. `pnpm dev` still turns dev-login on.
 - **Tests:** plain Vitest on Node, in one project. `@cloudflare/vitest-plugin` and the `requireLikeNode` workaround go. TiDB in Docker stays.
