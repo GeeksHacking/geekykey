@@ -753,3 +753,12 @@
     on every merge to main, and staging when run by hand, with no key kept in GitHub. The first
     deploy went out on the same day, and production now answers at its Google address; its own
     address, event-api.geekshacking.com, waits on Julian mapping it.
+
+- id: event-service-staging-live
+  date: 2026-10-10
+  area: backend
+  change: >-
+    Staging is live: the Event Service's staging copy runs on Google Cloud Run against its own
+    database, and a test station's taps come back accepted, duplicate, cooldown and unknown token
+    as they should, all stored in staging's database and none in production's. A deploy with a
+    missing secret fails in the workflow and leaves the running copy answering.
