@@ -791,3 +791,13 @@
     is asked whether the showcase offers it, so it's ready if he agrees. The trade-offs we accept:
     asking the Portal's team for a client that may end up unused, and a small charge for each
     GeeksHacking member who signs in beyond 49 a month.
+
+- id: api-agreement-firebase-login
+  date: 2026-10-10
+  area: backend
+  change: >-
+    Version 0.4 of the API agreement is agreed with the screens' team: both services log people in
+    by checking the sign-in Firebase gives the screens, with Google or GeeksHacking's login, and
+    user IDs at the showcase are Firebase's. The trade-offs we accept: logging in through the
+    Portal waits until after the showcase, and a user whose sign-in gives no name shows as
+    "GeeksHacking member" until we learn whether GeeksHacking's login sends one.
