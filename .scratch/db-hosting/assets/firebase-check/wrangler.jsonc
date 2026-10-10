@@ -1,0 +1,12 @@
+// A throwaway Worker for BAC-20, on Adam's own free Cloudflare account, like
+// geekykey-db-bench on 2 Oct. Delete it with `wrangler delete` once measured.
+{
+  "name": "geekykey-firebase-check",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "vars": {
+    // Not a secret: tokens are checked against it, and anyone can read it from the page.
+    "FIREBASE_PROJECT_ID": "geekykey-b035a"
+  }
+}

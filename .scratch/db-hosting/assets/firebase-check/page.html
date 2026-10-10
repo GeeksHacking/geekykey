@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BAC-20: Firebase sign-in check</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; }
+      button { font: inherit; padding: 0.4rem 0.9rem; margin: 0 0.5rem 0.5rem 0; }
+      textarea { width: 100%; height: 6rem; font: 12px monospace; }
+      pre { background: #f4f4f4; padding: 0.75rem; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Firebase sign-in check</h1>
+    <p>Signs in with Google through the <code>geekykey-b035a</code> Firebase project, then sends
+      the ID token to this Worker, which checks it and sets its own cookie.</p>
+    <button id="sign-in">Sign in with Google</button>
+    <button id="me">Who does the cookie say I am?</button>
+    <button id="copy" disabled>Copy the ID token</button>
+    <button id="sign-out">Sign out</button>
+    <pre id="log">Signed out.</pre>
+    <textarea id="token" readonly placeholder="The ID token appears here."></textarea>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+      import {
+        getAuth,
+        GoogleAuthProvider,
+        signInWithPopup,
+        signOut,
+      } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+
+      // The web app's public config, from the Firebase console (infra/README.md, step 12).
+      const app = initializeApp({
+        apiKey: "AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc",
+        authDomain: "geekykey-b035a.firebaseapp.com",
+        projectId: "geekykey-b035a",
+        appId: "1:468223998400:web:19878ad2672a1c7116b025",
+      });
+      const auth = getAuth(app);
+
+      const log = (line) => (document.getElementById("log").textContent = line);
+      const tokenBox = document.getElementById("token");
+
+      const signInButton = document.getElementById("sign-in");
+      signInButton.onclick = async () => {
+        // A second popup while the first is open cancels the first
+        // (auth/cancelled-popup-request), so one click at a time.
+        signInButton.disabled = true;
+        log("Waiting for the Google popup...");
+        try {
+          const { user } = await signInWithPopup(auth, new GoogleAuthProvider());
+          const idToken = await user.getIdToken();
+          tokenBox.value = idToken;
+          document.getElementById("copy").disabled = false;
+          const response = await fetch("/auth/firebase", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ id_token: idToken }),
+          });
+          log(
+            `Firebase: signed in as ${user.displayName} (UID ${user.uid}).\n` +
+              `Worker: POST /auth/firebase answered ${response.status}` +
+              (response.ok ? ", and set its cookie." : `: ${await response.text()}`),
+          );
+        } catch (error) {
+          log(
+            `Sign-in failed: ${error.code ?? ""} ${error.message}\n` +
+              `Browser: ${navigator.userAgent}`,
+          );
+        } finally {
+          signInButton.disabled = false;
+        }
+      };
+
+      document.getElementById("me").onclick = async () => {
+        const response = await fetch("/me");
+        log(`GET /me answered ${response.status}: ${await response.text()}`);
+      };
+
+      document.getElementById("copy").onclick = async () => {
+        await navigator.clipboard.writeText(tokenBox.value);
+        log("Copied. It lasts an hour.");
+      };
+
+      document.getElementById("sign-out").onclick = async () => {
+        await signOut(auth);
+        tokenBox.value = "";
+        log("Signed out of Firebase. The Worker's cookie stays until it expires.");
+      };
+    </script>
+  </body>
+</html>
