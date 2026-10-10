@@ -37,6 +37,7 @@ the console. The next deploy sets them, and anything changed by hand is overwrit
 | Service accounts the deploy signs in as | `event-service-deployer`, `event-service-staging-deployer` | Production's works only from `main`. Staging's works from any branch and can't touch production |
 | Secrets | `event-service-…` and `event-service-staging-…` | `SESSION_SECRET`, `DATABASE_URL` and `MIGRATION_DATABASE_URL`, for each service |
 | Keyless sign-in | Pool `github`, provider `geekykey` | Lets this repo's workflows sign in to Google Cloud without a key |
+| Firebase Authentication | Google sign-in, in the same project | The showcase's login, for both services' screens (step 12) |
 
 **GitHub holds no secret.** (Nor a Cloudflare API token: nothing here deploys to
 Cloudflare.) The workflow signs in through
@@ -67,6 +68,7 @@ account. He works in the web console, so those two steps say where each one is t
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | Not yet |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026 |
+| [12. Firebase sign-in, for the showcase](#12-firebase-sign-in-for-the-showcase) | Adam | Not yet |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
@@ -487,6 +489,42 @@ Version 1 is disabled, and staging is pinned to version 2:
 ```bash
 gcloud secrets versions disable 1 --secret=event-service-staging-database-url
 ```
+
+## 12. Firebase sign-in, for the showcase
+
+The showcase's visitors sign in through Firebase Authentication in this project, with
+Google (ADR 0004). Both services use it: the screens sign in with Firebase's web SDK, and
+send the ID token to their own service, which checks it against Google's public keys. So
+this step serves the GeekyKey Service too, not only the Event Service. It's all in the
+[Firebase console](https://console.firebase.google.com/project/geekykey-b035a/authentication),
+which the Editor role is enough for.
+
+1. **Turn on Google sign-in.** Authentication, then **Sign-in method**, then **Add new
+   provider**, **Google**. Turn on **Enable**, set the public-facing name to `GeekyKey`,
+   pick a support email, and **Save**. Google sign-in is free for up to 50,000 users a
+   month.
+2. **Allow the screens' hostnames.** Authentication, then **Settings**, then **Authorised
+   domains**, and **Add domain** for each of `key.geekshacking.com` and
+   `event.geekshacking.com`. `localhost` and `geekykey-b035a.firebaseapp.com` are there
+   already, so local development needs nothing more.
+3. **The screens' config.** Project settings (the gear), **General**, then **Your apps**. If
+   there's no web app, **Add app**, **Web**, nickname `GeekyKey screens`, without Firebase
+   Hosting. Its `firebaseConfig` (`apiKey`, `authDomain`, `projectId`, `appId`) goes into the
+   screens' build. None of it is a secret: Firebase's API key only names the project, and
+   the authorised domains are what limit where sign-in works.
+
+The services need only the project ID, `geekykey-b035a`, as `FIREBASE_PROJECT_ID`, a
+setting rather than a secret. A token from any other Firebase project is refused.
+
+**Not done unless Mr Pang agrees:** GeeksHacking's login beside Google. It needs the
+project upgraded to Identity Platform (Authentication, then **Settings**), which the
+billing account allows, then an OpenID Connect provider with the client Qing Guan issues
+for Firebase's redirect URL. OpenID Connect sign-ins are free for 49 users a month, then
+US$0.015 each.
+
+**After the showcase,** once its data is deleted: delete the showcase's users
+(Authentication, **Users**), and turn the Google provider off. Later events log in through
+the Portal. The project stays, since the Event Service runs in it.
 
 ## Day to day
 
