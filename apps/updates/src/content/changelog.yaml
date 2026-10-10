@@ -772,3 +772,13 @@
     showcase's visitors only, because the Portal's tag APIs know Portal users, not Firebase ones.
     The trade-offs we accept: each service's login is built twice, once for Firebase now and once
     for the Portal after the showcase, though only the sign-in step changes.
+
+- id: firebase-login-check
+  date: 2026-10-10
+  area: backend
+  change: >-
+    Google sign-in works against our Firebase project, and a Cloudflare Worker checks the login it
+    gives in about 1 ms of computing time, well inside the free plan's 10 ms, so both services
+    keep the planned login: the screens sign in with Firebase and send the result to their own
+    service, which checks it and sets its own cookie. The trade-offs we accept: every visitor
+    signs in with a Google account for now, and GeeksHacking's own login waits on Mr Pang.

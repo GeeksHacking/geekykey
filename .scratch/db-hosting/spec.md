@@ -560,10 +560,10 @@ Changed on 8 Oct: the showcase logs in through Firebase, not the Portal ([ADR 00
 
 **Before it, the Firebase setup and one check:**
 
-- Adam turns on Google sign-in in our Firebase project and adds `key.geekshacking.com` and `event.geekshacking.com` to its authorised domains. Julian links GeeksHacking's billing account to the project, which the Identity Platform upgrade needs. If Mr Pang agrees, Qing Guan issues an OIDC client for GeeksHacking's login, and it's added as a provider. OIDC sign-ins are free for 49 users a month, then US$0.015 each.
-- **The check** (provisional, Adam, BAC-20): a Worker verifies a Firebase ID token against Google's public keys, and the CPU time per login is measured against the free plan's 10 ms. If it doesn't work out, the login is rethought before this checkpoint starts.
+- Adam turns on Google sign-in in our Firebase project and adds `key.geekshacking.com` and `event.geekshacking.com` to its authorised domains (*done 10 Oct*, runbook step 12). Julian links GeeksHacking's billing account to the project, which the Identity Platform upgrade needs (*done by 9 Oct*). If Mr Pang agrees, Qing Guan issues an OIDC client for GeeksHacking's login, and it's added as a provider. OIDC sign-ins are free for 49 users a month, then US$0.015 each.
+- **The check** (Adam, BAC-20): a Worker verifies a Firebase ID token against Google's public keys, and the CPU time per login is measured against the free plan's 10 ms. *Passed 10 Oct:* a median of 1 ms of CPU with Google's keys cached and 2 ms with them fetched, and Google sign-in works on `localhost` ([the check](research/firebase-login-check.md)).
 
-- **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), provisionally like this: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changes with it, once the check passes. Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID.
+- **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changes with it, once the check passes. Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID.
 - **The forwarding Workers.** A small `worker/` folder in `apps/event-web` and in `apps/geekykey-web`, with its own Wrangler config (section 5.1). Adam writes them. Afterwards Ethan owns them, and Adam reviews any change to their list of paths.
 - **`apps/geekykey-web`** exists by now, from the screens track, with at least its login and shell.
 
@@ -840,11 +840,10 @@ What happens to the showcase's data once it ends. Julian suggested keeping a per
 
 ### 11.3 Other provisional decisions
 
-Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own Google Cloud project (agreed), Pulumi in TypeScript (no infrastructure as code for now), and moving a reader by a reflash (a setup mode instead).
+Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own Google Cloud project (agreed), Pulumi in TypeScript (no infrastructure as code for now), and moving a reader by a reflash (a setup mode instead). Settled on 10 Oct: how each service checks a Firebase login, since a Worker does it in about 1 ms of CPU (BAC-20).
 
 | Decision | Firm when | Fallback |
 |---|---|---|
-| How each service checks a Firebase login: the ID token sent to the service, checked against Google's public keys | Adam's check, before checkpoint 5, that a Worker can do it within the free plan | Rethought before checkpoint 5 |
 | GeeksHacking's login offered at the showcase, inside Firebase | Mr Pang agrees, and Qing Guan issues the OIDC client | Google sign-in only |
 | `event-api.` as a Cloud Run domain mapping | Not questioned on 8 Oct; firm once it works at checkpoint 2 | A Google load balancer at about US$18 a month |
 | The 4-second shared deadline | Checkpoint 2 measures a cold start | A number that fits the measurement, inside the station's 5 seconds |

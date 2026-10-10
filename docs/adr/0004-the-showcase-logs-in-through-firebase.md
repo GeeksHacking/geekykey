@@ -27,10 +27,10 @@ path: the request for two OAuth apps had waited since 1 Oct, and the Sprint 2 A/
   because an OpenID Connect provider needs Firebase's Identity Platform upgrade. Google sign-in is free
   for up to 50,000 users a month; OpenID Connect sign-ins are free for 49 users a month, then
   US$0.015 each.
-- How a service checks the login is provisional: the screens sign in with Firebase's SDK and send the
-  ID token to their own service, which checks it against Google's public keys and sets its own cookie.
-  It holds if a Worker can do this within the free plan's CPU time, which Adam checks before
-  checkpoint 5.
+- How a service checks the login: the screens sign in with Firebase's SDK and send the ID token to
+  their own service, which checks it against Google's public keys and sets its own cookie. It was
+  provisional until Adam checked that a Worker can do this within the free plan's CPU time. It can:
+  a median of 1 ms with Google's keys cached, against the free plan's 10 ms (BAC-20, 10 Oct 2026).
 - Because showcase users aren't Portal users, "Copy claims to the Portal" is dropped, and the Portal's
   tag APIs start empty after the switch. The QR fallback can't scan the Portal's participant QR code.
 - Another team's Event Service at the showcase would log in through the same Firebase project, so its
