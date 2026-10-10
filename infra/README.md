@@ -516,14 +516,29 @@ which the Editor role is enough for.
 The services need only the project ID, `geekykey-b035a`, as `FIREBASE_PROJECT_ID`, a
 setting rather than a secret. A token from any other Firebase project is refused.
 
-**Not done unless Mr Pang agrees:** GeeksHacking's login beside Google. It needs the
-project upgraded to Identity Platform (Authentication, then **Settings**), which the
-billing account allows, then an OpenID Connect provider with the client Qing Guan issues
-for Firebase's redirect URL. OpenID Connect sign-ins are free for 49 users a month, then
-US$0.015 each.
+**GeeksHacking's login,** beside Google. Adam decided on 10 Oct 2026 to add it before Mr
+Pang is asked whether the showcase offers it; if he says no, turn the provider off (step 6
+below) and the screens drop its button. It waits on Qing Guan's client: what to ask for is in
+`.scratch/db-hosting/assets/message-to-qing-guan-firebase-client.md`.
+
+4. **Upgrade to Identity Platform.** Authentication, then **Settings**, then the upgrade
+   offer, which needs the billing account (linked by 9 Oct). Google sign-in stays free for up
+   to 50,000 users a month; OpenID Connect sign-ins are free for 49 users a month, then
+   US$0.015 each.
+5. **Add the provider.** **Sign-in method**, **Add new provider**, **OpenID Connect**:
+   - grant type **Code flow**;
+   - name `GeeksHacking`, and provider ID `oidc.geekshacking` (the console puts the `oidc.`
+     in front), which is the ID the screens sign in with, so check it reads exactly that;
+   - client ID and client secret from Qing Guan, typed straight into the console and kept
+     nowhere else;
+   - issuer `https://hackomania-api.geekshacking.com/`.
+
+   The console shows the redirect URL Qing Guan needs,
+   `https://geekykey-b035a.firebaseapp.com/__/auth/handler`.
+6. **To turn it off,** open the provider under **Sign-in method** and turn off **Enable**.
 
 **After the showcase,** once its data is deleted: delete the showcase's users
-(Authentication, **Users**), and turn the Google provider off. Later events log in through
+(Authentication, **Users**), and turn off both providers. Later events log in through
 the Portal. The project stays, since the Event Service runs in it.
 
 ## Day to day
