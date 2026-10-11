@@ -571,6 +571,122 @@ migration into `apps/backend/drizzle/`: look it over and commit it. If it writes
 you probably renamed something, so run `mise exec -- pnpm db:generate` from `apps/backend`
 and answer its question about the rename.
 
+## Deploying
+
+<!-- TODO(BAC-13): the production half waits for the first deploy (BAC-11), because every
+command here has to be one a real deploy used. Still to write: how production deploys,
+rolling back, where the other credentials live (spec section 5.2), and the team's eight rules
+(spec section 8.1). -->
+
+Today we deploy one service, the Event Service, and a copy of it for trying changes
+first. The rest are coming:
+
+| Part | Built from | Runs on | Address |
+|---|---|---|---|
+| `event-service` | `apps/backend` | Google Cloud Run | `https://event-api.geekshacking.com`, once Julian maps it (BAC-11) |
+| `event-service-staging`, the staging copy | `apps/backend` | Google Cloud Run | Its `run.app` address only, listed in `infra/README.md`, step 5 |
+| `geekykey-service`, coming at checkpoint 4 | `apps/geekykey-service` | A Cloudflare Worker | `https://key-api.geekshacking.com` |
+| `geekykey-web` and `event-web`, the two sets of screens, coming at checkpoint 5 | `apps/geekykey-web` and `apps/event-web` (today's `apps/frontend`) | Cloudflare Workers | `https://key.geekshacking.com` and `https://event.geekshacking.com` |
+
+Both Cloud Run services are deployed by one GitHub workflow, `.github/workflows/deploy.yml`.
+What it deploys with (which service, which settings, which secret versions) is in
+`infra/`, and `infra/README.md` is the runbook of `gcloud` commands that set up everything
+else by hand.
+
+### Production
+
+Every push to `main` deploys `event-service`. How, and how to roll it back, is written
+here after its first deploy (BAC-11).
+
+### Staging
+
+`event-service-staging` runs the same code as production, in the same Google Cloud
+project, against its own database, `geekykey_staging`, on GeeksHacking's TiDB cluster. Its
+two database logins can't touch production's database, `geekykey`. It has no domain of its
+own and no warm instance, so the first request after a quiet spell can take two or three
+seconds while an instance starts.
+
+**What it's for.** Every merge to `main` goes live, so a change is tried on staging first
+when it touches how the server starts, its settings, its Google Cloud setup or how it
+reaches the database. Logs from staging show whether it works before production ever
+runs it.
+
+**Deploying it.** Nobody deploys from their laptop. Run the deploy workflow by hand, from
+any branch:
+
+1. On GitHub, open Actions, then Deploy, then Run workflow.
+2. Under "Use workflow from", pick your branch, and press Run workflow.
+
+You need write access to the repo to run it. The run checks `apps/backend` first,
+with the same checks as CI, and stops there if one fails. Then it signs in to Google Cloud
+as staging's deploy account, and:
+
+1. builds the image from your branch and pushes it to Artifact Registry;
+2. migrates `geekykey_staging`, with staging's migration login, which it reads from
+   Secret Manager;
+3. deploys that image to `event-service-staging`, with the settings in
+   `infra/staging/settings.env` and the secret versions in `infra/staging/deploy.env`, as
+   your branch has them.
+
+Once it's green, `/api/health` on staging's address answers `200`. Staging keeps running
+your branch until someone runs the workflow again. To see which branch is on it, look under
+Actions, then Deploy, for the latest successful run that was started by hand, since
+production's runs from `main` are listed there too. Each service deploys one run at a time:
+a run started meanwhile waits, and a third replaces the one waiting.
+
+Things to know:
+
+- **The migration runs even if the deploy then fails.** `geekykey_staging` is never rolled
+  back, so a migration tried there stays, even if its branch never merges. That is fine
+  only because every migration has to work with the version still running.
+- **A secret version that doesn't exist** fails the deploy step, with a red X on the run,
+  and staging keeps answering from the version before. A version that starts but can't
+  run, such as one missing `SESSION_SECRET`, never gets any traffic either.
+- **Keep test runs small.** TiDB measures every query's work in Request Units, and
+  GeeksHacking's cluster gets a free amount each month. Staging's queries use the same
+  allowance as production's.
+- **A test station.** Adam makes one in `geekykey_staging` from his laptop, with staging's
+  migration login. From `apps/backend`:
+
+  ```bash
+  mise exec -- pnpm db:test-station --production --env-file ~/.config/geekykey/tidb-staging-migration.env
+  ```
+
+  `--production` means GeeksHacking's cluster, and the login decides which database. It
+  also adds a test participant holding one token. It prints the station key once, and the
+  token's UID, so keep both outside the repo.
+- **Its logs** are in Cloud Logging, which Adam and Ethan can read.
+
+### Secrets
+
+Secrets live in Google's Secret Manager. None is ever committed, kept in GitHub, or pasted
+into a chat. Each Cloud Run service has three:
+
+| Secret | Read by | What it is |
+|---|---|---|
+| `SESSION_SECRET` | The service, when it starts | A random value that signs the session cookie. Nobody keeps a copy |
+| `DATABASE_URL` | The service, when it starts | The TiDB app login, which can read and write rows but not change tables |
+| `MIGRATION_DATABASE_URL` | The deploy workflow only, for `db:migrate` | The TiDB migration login, which can also change tables |
+
+Staging's are named `event-service-staging-…`, and production's `event-service-…`. Each
+service runs as its own Google account, which can read only its own two, and each deploy
+account can read only its own service's migration login.
+
+**Changing one** takes two steps:
+
+1. Adam adds the new value as a new version, from his laptop, keeping no copy, as
+   `infra/README.md` says under "Changing a secret".
+2. A pull request changes the version number in that service's `deploy.env`. The next
+   deploy uses it. For staging's own secrets, that's the next run from the branch, so a
+   new value can be tried there before it merges. Production's are only used once the
+   pull request merges.
+
+**GitHub holds no secret at all,** not even a key for Google Cloud. GitHub gives every
+workflow run a signed token saying which repo and branch it came from, and Google trusts
+it without a key (`infra/README.md`, step 6). Staging's deploy account accepts a run from
+any branch of this repo, and can reach only staging: its service, its migration login and
+the image repository. Production's accepts only runs on `main`.
+
 ## Where to read next
 
 - `apps/API-AGREEMENT.md` is the contract every part of the system is built against. It
