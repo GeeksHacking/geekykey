@@ -167,7 +167,7 @@ station ──HTTPS──▶ key-api.geekshacking.com (geekykey-service, a Worke
 
 1. The station sends `POST /api/v1/taps` with its station key: one tap, or up to 500 saved ones.
 2. The GeekyKey Service counts the request against the station's 60 a minute, then finds the key's hash in its copy of the registered stations (section 3.5). The station is the one whose hash matches, and it feeds the Event Service that registered it. A key on no list gets `401`. If one Event Service's list couldn't be fetched and the key isn't on the others, the answer is `503 event_service_unavailable` instead, since the key may be on the missing list.
-3. One 4-second deadline starts, for the next two steps together. A cold start takes up to about 2 seconds of it (section 11.3).
+3. One 4-second deadline starts, for the next two steps together. A cold start takes up to about 2.6 seconds of it (section 11.3).
 4. It asks `Claims` for each token's owner: the claims stand-in until the switch, then the Portal. A token nobody owns gets `unknown_token`, and a log line. No answer in time, a `429` or `5xx`, or a body that doesn't parse fails the whole request with `503 claims_unavailable`.
 5. It hands the rest to that Event Service in one call, `POST /geekykey/v1/taps` with the Event Service key: the station ID and, for each tap, its `client_tap_id`, the owner's user ID and `tapped_at` (null when the station sent none or it was wildly off). No answer within what's left of the 4 seconds, an answer that isn't a 2xx, a redirect, or a body the schema rejects fails the whole request with `503 event_service_unavailable`. Neither call is retried.
 6. The Event Service locks the station's row, drops replays (`duplicate`), applies the cooldown and stores each tap as `accepted`, `cooldown` or `no_game`, writing a `tap_stored` log line for each. It also records when the station was last seen.
@@ -320,7 +320,7 @@ Settings for a Worker live in its `wrangler.jsonc`. Settings for the Event Servi
 | Setting | `GEEKYKEY_ADMINS` | User IDs. Adam, Ethan and Zi Tao for the showcase |
 | Setting | `MAX_TOKENS_PER_USER` | `3` |
 | Setting | `MAX_TAPS_PER_REQUEST` | `500` |
-| Setting | `TAP_DEADLINE_MS` | `4000`, the shared deadline. Provisional until the first deploy measures a cold start |
+| Setting | `TAP_DEADLINE_MS` | `4000`, the shared deadline. A cold start takes up to about 2.6 seconds of it (section 11.3) |
 | Setting | `FIREBASE_PROJECT_ID` | The Firebase project whose ID tokens it accepts, at the showcase (ADR 0004). The Portal's login settings replace it once events log in through the Portal |
 | Secret | `SESSION_SECRET` | Signs `gk_session` |
 | Secret | `EVENT_SERVICE_KEY_SHOWCASE` | One for each entry in `EVENT_SERVICES` |
@@ -830,8 +830,9 @@ Sources for section 10: [How do we notice trouble on event day, and who watches?
 
 **Cloud Run.** The free tier is 2 million requests and 180,000 vCPU-seconds a month, shared across GeeksHacking's billing account, and a showcase day fits. One warm instance on event days costs cents. A budget alert goes to Julian and Adam (still to confirm, 8 Oct).
 
-- **The first numbers** (staging, 11 Oct, BAC-12). A tap is one request. A warm one does about 17 ms of work, but Cloud Run rounds billed time up to 100 ms, so one on its own bills about 0.1 vCPU-second; requests that overlap share theirs. A cold start bills its start-up too, about 1 to 2 seconds. [The measurements](assets/cold-start.md).
-- **What a showcase day uses:** the 60,000 to 90,000 Worker requests above, nearly all of which reach Cloud Run, at no more than 0.1 vCPU-second each when warm, come to at most 9,000 vCPU-seconds: about 5% of the month's free CPU and 4.5% of its free requests, each day. With one instance kept warm all day, its idle time is billed as well.
+- **The first numbers** (staging, 11 Oct, BAC-12). A tap is one request. 60 warm taps sent 2 seconds apart billed 5.2 vCPU-seconds, about 0.09 each, though each answered in a median of 17 ms (they carried made-up keys, so skipped the tap's own transaction; a real one answers in 68 to 92 ms, BAC-19). Requests that overlap share their billed time, so a busy instance costs less per request. A cold start bills its start-up too, about 1 to 2 seconds. [The measurements](assets/cold-start.md).
+- **What a showcase day's requests use:** the 60,000 to 90,000 Worker requests above, nearly all of which reach Cloud Run, at about 0.1 vCPU-second each when warm, come to at most 9,000 vCPU-seconds: about 5% of the month's free CPU and 4.5% of its free requests, each day.
+- **Not yet known: the warm instance.** Kept from the morning of 17 Nov to the end of 18 Nov, about 40 hours, plus the rehearsal, it is up to about 150,000 instance-seconds. If Cloud Run bills its idle time as vCPU-seconds against the free tier, that alone is most of the month's 180,000, and the rest is paid. Google's billing page doesn't say how idle time is billed under request-based billing, so it's measured before the rehearsal: `--min=1` on staging for an hour, then `billable_instance_time` read for that hour.
 
 **Firebase.** Google sign-in is free for up to 50,000 users a month. GeeksHacking's login, as an OIDC provider, is free for 49 users a month, then US$0.015 each, on GeeksHacking's billing account.
 
@@ -862,7 +863,7 @@ Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own G
 | On (4 taps, 4 health checks) | 1.31 to 2.00 s, mean 1.59 | 1.82 to 2.60 s, mean 2.20 | 0.33 to 0.99 s |
 | Off (3 taps, 2 health checks) | 1.31 to 2.05 s, mean 1.68 | 1.84 to 2.52 s, mean 2.28 | 0.68 to 0.69 s |
 
-Boost stays on, as the runbook already has it: cold taps were a little faster with it, though by less than the spread between rounds. Day was no slower than night. The slowest cold tap, 2.05 s, leaves about 2 seconds of the deadline, and only the owner lookup can land on a cold instance, so the hand-off after it is warm. The 4 seconds stay.
+Boost stays on, as the runbook already has it: cold taps were a little faster with it, though by less than the spread between rounds. Day was no slower than night. The slowest cold tap took 2.05 s on Cloud Run and 2.60 s at curl, which leaves at least 1.3 seconds of the deadline even with the tap's own transaction. While the claims stand-in and the passport share one Cloud Run service, only the owner lookup can wake it, so the hand-off after it is warm. Another team's Event Service brings its own cold start, and should keep warm on event days, as the agreement asks. The 4 seconds stay.
 
 ---
 
