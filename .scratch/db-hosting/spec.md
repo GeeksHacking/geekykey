@@ -167,7 +167,7 @@ station ──HTTPS──▶ key-api.geekshacking.com (geekykey-service, a Worke
 
 1. The station sends `POST /api/v1/taps` with its station key: one tap, or up to 500 saved ones.
 2. The GeekyKey Service counts the request against the station's 60 a minute, then finds the key's hash in its copy of the registered stations (section 3.5). The station is the one whose hash matches, and it feeds the Event Service that registered it. A key on no list gets `401`. If one Event Service's list couldn't be fetched and the key isn't on the others, the answer is `503 event_service_unavailable` instead, since the key may be on the missing list.
-3. One 4-second deadline starts, for the next two steps together (provisional, until the first deploy measures a cold start).
+3. One 4-second deadline starts, for the next two steps together. A cold start takes up to about 2 seconds of it (section 11.3).
 4. It asks `Claims` for each token's owner: the claims stand-in until the switch, then the Portal. A token nobody owns gets `unknown_token`, and a log line. No answer in time, a `429` or `5xx`, or a body that doesn't parse fails the whole request with `503 claims_unavailable`.
 5. It hands the rest to that Event Service in one call, `POST /geekykey/v1/taps` with the Event Service key: the station ID and, for each tap, its `client_tap_id`, the owner's user ID and `tapped_at` (null when the station sent none or it was wildly off). No answer within what's left of the 4 seconds, an answer that isn't a 2xx, a redirect, or a body the schema rejects fails the whole request with `503 event_service_unavailable`. Neither call is retried.
 6. The Event Service locks the station's row, drops replays (`duplicate`), applies the cooldown and stores each tap as `accepted`, `cooldown` or `no_game`, writing a `tap_stored` log line for each. It also records when the station was last seen.
@@ -495,9 +495,9 @@ Before the first deploy, once:
 Done when:
 
 - **The proof:** with the test station's key, `curl` to `event-service-staging`'s `run.app` address, then to `https://event-api.geekshacking.com/api/v1/taps`, gets `unknown_token` for an unclaimed UID and `accepted` for the test token. The same `client_tap_id` sent again gets `duplicate`, and a new tap by the test token gets `cooldown`. Each tap is in the right database. Staging passed on 10 Oct (BAC-19), and production on 12 Oct (BAC-11), through `event-api.` and Cloudflare's proxy, using a second test station, since the first one's key was lost.
-- **The log check,** in Cloud Logging, on staging and then production: no key or cookie in any log line, and no secret in a URL. Production passed on 12 Oct (BAC-11).
-- **The cold start is measured** on staging, with and without startup CPU boost, on the first-generation execution environment (Julian: stay on v1, 8 Oct). The faster is kept, and the 4-second deadline is revisited with the number.
-- **The first numbers** are written down for section 11.1: Cloud Run's requests and CPU, and TiDB's Request Units after a day, which only Julian can see.
+- **The log check,** in Cloud Logging, on staging and then production: no key or cookie in any log line, and no secret in a URL. Staging passed on 10 Oct (BAC-12), and production on 12 Oct (BAC-11).
+- **The cold start is measured** on staging, with and without startup CPU boost, on the first-generation execution environment (Julian: stay on v1, 8 Oct). The faster is kept, and the 4-second deadline is revisited with the number. Done 11 Oct (BAC-12): boost stays on, and the deadline stays at 4 seconds (section 11.3).
+- **The first numbers** are written down for section 11.1: Cloud Run's requests and CPU, and TiDB's Request Units after a day, which only Julian can see. Cloud Run's are in (11 Oct); TiDB's wait on Julian.
 - A real station taps `event-api.` over HTTPS (BAC-14). Passed on 12 Oct, with the HTTPS firmware (HAR-10, taken over from Zi Tao by Adam): its taps were stored in `geekykey_staging` through staging's `run.app` address, then in production through `event-api.`.
 
 ### Checkpoint 3. The line drawn inside
@@ -830,6 +830,9 @@ Sources for section 10: [How do we notice trouble on event day, and who watches?
 
 **Cloud Run.** The free tier is 2 million requests and 180,000 vCPU-seconds a month, shared across GeeksHacking's billing account, and a showcase day fits. One warm instance on event days costs cents. A budget alert goes to Julian and Adam (still to confirm, 8 Oct).
 
+- **The first numbers** (staging, 11 Oct, BAC-12). A tap is one request. A warm one does about 17 ms of work, but Cloud Run rounds billed time up to 100 ms, so one on its own bills about 0.1 vCPU-second; requests that overlap share theirs. A cold start bills its start-up too, about 1 to 2 seconds. [The measurements](assets/cold-start.md).
+- **What a showcase day uses:** the 60,000 to 90,000 Worker requests above, nearly all of which reach Cloud Run, at no more than 0.1 vCPU-second each when warm, come to at most 9,000 vCPU-seconds: about 5% of the month's free CPU and 4.5% of its free requests, each day. With one instance kept warm all day, its idle time is billed as well.
+
 **Firebase.** Google sign-in is free for up to 50,000 users a month. GeeksHacking's login, as an OIDC provider, is free for 49 users a month, then US$0.015 each, on GeeksHacking's billing account.
 
 **TiDB.** Starter's free 50 million Request Units a month, after which TiDB refuses new connections. The passport's and organizers' polls reach it from Cloud Run, and staging draws on the same allowance. Only Julian can see the console. A spending limit above $0 would also keep backups for up to 30 days, at a time we choose, instead of one day at a random time.
@@ -840,18 +843,26 @@ What happens to the showcase's data once it ends. Julian suggested keeping a per
 
 ### 11.3 Other provisional decisions
 
-Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own Google Cloud project (agreed), Pulumi in TypeScript (no infrastructure as code for now), and moving a reader by a reflash (a setup mode instead). Settled on 10 Oct: how each service checks a Firebase login, since a Worker does it in about 1 ms of CPU (BAC-20). Settled on 12 Oct: `event-api.` as a Cloud Run domain mapping, which works, behind Cloudflare's proxy (BAC-11).
+Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own Google Cloud project (agreed), Pulumi in TypeScript (no infrastructure as code for now), and moving a reader by a reflash (a setup mode instead). Settled on 10 Oct: how each service checks a Firebase login, since a Worker does it in about 1 ms of CPU (BAC-20). Settled on 11 Oct: the 4-second shared deadline, by the cold start below. Settled on 12 Oct: `event-api.` as a Cloud Run domain mapping, which works, behind Cloudflare's proxy (BAC-11).
 
 | Decision | Firm when | Fallback |
 |---|---|---|
 | GeeksHacking's login offered at the showcase, inside Firebase | Mr Pang agrees. Built before he's asked (Adam, 10 Oct), once Qing Guan issues the OIDC client | The provider turned off: Google sign-in only |
-| The 4-second shared deadline | Checkpoint 2 measures a cold start | A number that fits the measurement, inside the station's 5 seconds |
 | No server-side tap queue | The stress test (checkpoint 8) | A queue, from the backlog (section 12) |
 | The showcase on the Workers free plan | The rehearsal's day of requests | Slower organizer polling, or Workers Paid |
 | The Cache API for the registered stations: not used | The rehearsal's `stations_copy_filled` | Added behind memory |
 | Owners cached in the Cache API after the switch, for 5 minutes to an hour | Built at the switch | No cache, if the Portal keeps up; Redis or KV, if a per-data-centre cache is too loose |
 | Tokens claimed at check-in | Adam decides ("still up to discussion") | Release only the team's own claims instead of emptying `tokens` |
 | The clear as a laptop task | Adam decides | A manual workflow, once copies have a private home such as a Cloud Storage bucket |
+
+**The cold start, measured** on `event-service-staging` on 10 and 11 Oct (BAC-12), in 13 rounds that each woke a new instance. "Cloud Run" is the latency in its request log; "curl" is the whole request from a laptop in Singapore, with a new TLS handshake. The tap carried a made-up key, so it opened the first TiDB connection but skipped the tap's own transaction (about 0.1 s warm). [Every round](assets/cold-start.md).
+
+| Startup CPU boost | Cold tap, Cloud Run | Cold tap, curl | Cold health check, Cloud Run |
+|---|---|---|---|
+| On (4 taps, 4 health checks) | 1.31 to 2.00 s, mean 1.59 | 1.82 to 2.60 s, mean 2.20 | 0.33 to 0.99 s |
+| Off (3 taps, 2 health checks) | 1.31 to 2.05 s, mean 1.68 | 1.84 to 2.52 s, mean 2.28 | 0.68 to 0.69 s |
+
+Boost stays on, as the runbook already has it: cold taps were a little faster with it, though by less than the spread between rounds. Day was no slower than night. The slowest cold tap, 2.05 s, leaves about 2 seconds of the deadline, and only the owner lookup can land on a cold instance, so the hand-off after it is warm. The 4 seconds stay.
 
 ---
 
