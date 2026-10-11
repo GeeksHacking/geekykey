@@ -802,16 +802,22 @@
     Portal waits until after the showcase, and a user whose sign-in gives no name shows as
     "GeeksHacking member" until we learn whether GeeksHacking's login sends one.
 
-- id: staging-logs-and-cold-start
+- id: staging-logs-clean
   date: 2026-10-11
   area: backend
   change: >-
-    Staging's logs hold no station key or login cookie, and an idle Event Service answers its
-    first tap within about 2 seconds, so the GeekyKey Service keeps its 4-second wait and Cloud
-    Run keeps its start-up boost. A warm tap costs about a tenth of a second of billed computing,
-    so a showcase day uses about 5% of the free monthly allowance. The trade-offs we accept: the
-    first tap after a quiet spell is slower unless an instance is kept warm, which we do on event
-    days.
+    Staging's logs hold no station key and no login cookie, checked by sending made-up ones and
+    searching every log line for them, and no address the Event Service answers carries a secret.
+    Production gets the same search at its first tap.
+
+- id: cold-start-measured
+  date: 2026-10-11
+  area: backend
+  change: >-
+    An idle Event Service answers its first tap within about 2.6 seconds, so the GeekyKey
+    Service's 4-second deadline stays, and Cloud Run keeps its start-up boost. The trade-offs we
+    accept: the boost won by less than the spread between rounds, and our timings come from 13
+    rounds on staging, not from a real station.
 
 - id: event-service-live
   date: 2026-10-12
