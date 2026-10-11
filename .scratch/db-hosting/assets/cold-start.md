@@ -44,7 +44,9 @@ In short:
 
 ## A warm request
 
-60 taps with made-up keys, one every 2 seconds, to a warm instance (11 Oct, 05:11 to 05:13 UTC):
+A real warm tap takes 68 to 92 ms on Cloud Run: BAC-19's three taps after its cold one, with the test station's key, took 68, 89 and 92 ms. It locks the station's row, checks for a repeat and the cooldown, and stores the tap.
+
+For the billed time, 60 taps with made-up keys went one every 2 seconds to a warm instance (11 Oct, 05:11 to 05:13 UTC). They stop at the station lookup, so they're quicker than a real tap:
 
 - Cloud Run's latency: median 17 ms, slowest 656 ms. curl: median 79 ms.
 - Cloud Monitoring billed 5.2 instance-seconds for the 60, about 0.09 s each, five times their median latency, so a tap on its own bills about 0.1 vCPU-second. Requests that overlap share their billed time, so a busy instance costs less per request.
