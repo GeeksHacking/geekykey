@@ -199,7 +199,9 @@ done
   another.
 - `--cpu-throttling`: request-based billing. The instance gets its processor only while a
   request is in progress, and we pay only for that time.
-- `--cpu-boost`: extra processor while an instance starts, to shorten a cold start.
+- `--cpu-boost`: extra processor while an instance starts, to shorten a cold start. Kept
+  after measuring it on staging on 10 and 11 Oct 2026: cold taps answered in 1.3 to 2.0 s
+  with it and 1.3 to 2.1 s without ([the measurements](../.scratch/db-hosting/assets/cold-start.md)).
 - `--execution-environment=gen1`: the first-generation environment, which starts faster
   and is what Julian means by "v1" (8 Oct 2026).
 - `--min=0 --max=2`: no instance when nobody is calling, and never more than two, which
@@ -525,7 +527,8 @@ gcloud secrets versions disable 1 --secret=event-service-staging-database-url
 
 ### The warm instance
 
-With no instance running, the first tap waits for one to start. On event days one
+With no instance running, the first tap waits for one to start, which takes 1.3 to 2.1
+seconds (BAC-12). On event days one
 instance is kept running: the rehearsal (by 7 Nov), and from the morning of 17 Nov to the
 end of 18 Nov. This changes the service, not a revision, so a deploy doesn't undo it.
 
