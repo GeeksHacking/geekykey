@@ -829,3 +829,15 @@
     the same network. A real station's taps reached staging and then production, and were stored
     in each. The trade-offs we accept: if Cloudflare starts using a new certificate authority,
     every station needs new firmware.
+
+- id: readme-deploying
+  date: 2026-10-12
+  area: tooling
+  change: >-
+    The README now explains how we deploy, so someone who wasn't there for the first deploy can
+    deploy from it, and GeeksHacking can take the code over from it after the showcase. It says
+    where each part runs, how a push to the main branch deploys production and a run by hand
+    deploys staging, how to roll back, where every credential is kept without giving any, and
+    the team's eight rules, from the freeze before the showcase to who may change data on the
+    day. The parts that don't exist yet, such as database copies and rolling back a Cloudflare
+    Worker, are marked as coming.
