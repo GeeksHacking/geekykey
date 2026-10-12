@@ -529,15 +529,16 @@ for service in event-service event-service-staging; do
 done
 ```
 
-The two keys, from checkpoint 3 (BAC-30). Each is 32 random bytes, written the way a
-station key is (the API agreement, "Event Service keys"): base64url, which uses `-` and `_`
-where plain base64 has `+` and `/`, and has no `=` at the end. Each is generated on its
-own, so production's and staging's differ:
+The two keys, from checkpoint 3 (BAC-30). Each is 32 random bytes, written as 64 lower-case
+hex characters, as the API agreement says under "Event Service keys". No chat, dashboard or
+shell treats a hex character specially, and a double-click selects the whole key, so it
+survives being copied at checkpoint 4. Each is generated on its own, so production's and
+staging's differ:
 
 ```bash
 for service in event-service event-service-staging; do
   for name in event-service-key claims-stand-in-key; do
-    openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n' \
+    openssl rand -hex 32 | tr -d '\n' \
       | gcloud secrets versions add "$service-$name" --data-file=-
   done
 done
