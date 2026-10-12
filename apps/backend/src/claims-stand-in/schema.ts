@@ -3,7 +3,8 @@ import { isoNow, isoTimestamp, tokenUid, userId } from "../db/columns.ts";
 
 /**
  * The claims stand-in's one table: who owns each token, until the GeekyKey
- * Service asks the Portal instead.
+ * Service asks the Portal instead. Timestamps are ISO strings, not
+ * DATETIME: src/db/columns.ts says why.
  *
  * GeekyKey's stand-in, removed after the switch.
  */

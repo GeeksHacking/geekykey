@@ -64,6 +64,9 @@ interface PendingTap {
  * state, and makes a single multi-row insert. Every non-duplicate tap is
  * stored, including rejected ones, so organisers can see unknown tags and
  * repeat taps in the log.
+ *
+ * It still takes the claims stand-in's token lookup. Later in checkpoint 3 it
+ * is handed user IDs instead, and never sees a token.
  */
 export class TapPipeline {
   #db: Db;

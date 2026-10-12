@@ -1,9 +1,9 @@
 import { varchar } from "drizzle-orm/mysql-core";
 
 /**
- * The column types both schema files use, src/event/schema.ts and
+ * The column types for the schema files, src/event/schema.ts and
  * src/claims-stand-in/schema.ts, so a user ID or a timestamp is stored the
- * same way on both sides of the database.
+ * same way in both.
  */
 
 /**

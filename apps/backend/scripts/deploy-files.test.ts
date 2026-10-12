@@ -44,8 +44,10 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
 
     test("its settings and secrets are enough for the server to start, with dev sign-in off", () => {
       const env: Record<string, string> = { ...settings };
-      // A stand-in for each secret Cloud Run would fill in.
-      for (const name of secrets.keys()) env[name] = "a-stand-in-for-the-secret";
+      // A stand-in for each secret Cloud Run would fill in, shaped like a URL
+      // since DATABASE_URL must be one.
+      for (const name of secrets.keys())
+        env[name] = "mysql://a-stand-in-for-the-secret@stand-in/db";
 
       const config = loadConfig(env);
       assert.equal(config.devAuthEnabled, false);

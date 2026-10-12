@@ -3,13 +3,14 @@
  * is. A new line gets its name here first, so the names stay a fixed set
  * that a saved query in Cloud Logging can count and group.
  */
-const SEVERITIES = {
+const LOG_LINES = {
   server_started: "INFO",
   server_stopping: "INFO",
   internal_error: "ERROR",
+  fatal_error: "ERROR",
 } as const;
 
-export type LogName = keyof typeof SEVERITIES;
+export type LogName = keyof typeof LOG_LINES;
 
 /**
  * What a log line carries besides its name: plain values only, so a whole
@@ -29,7 +30,7 @@ export type LogFields = Record<
  * a token's UID is fine.
  */
 export function log(name: LogName, fields: LogFields = {}): void {
-  const severity = SEVERITIES[name];
+  const severity = LOG_LINES[name];
   const line = JSON.stringify({ severity, message: name, ...fields });
   if (severity === "ERROR") console.error(line);
   else console.log(line);
