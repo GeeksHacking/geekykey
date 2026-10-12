@@ -512,9 +512,14 @@ To point a station at a backend running on your laptop:
 1. Start the backend and seed a station for it, as in
    [Running the backend](#running-the-backend). Keep the printed key.
 2. Copy `secrets.example.h` to `secrets.h` in the same folder. Fill in the Wi-Fi name and
-   password, your laptop's network name, and the station key. `secrets.h` is gitignored,
+   password, the server's full base URL, and the station key. `secrets.h` is gitignored,
    so it never reaches the repo.
 3. Put the laptop and the station on the same network.
+
+The server setting is a base URL: `http://your-laptop.local:8000` for a laptop, or
+`https://event-api.geekshacking.com` for production. An `https://` URL is checked against
+the root certificates in `ca_roots.h`; a plain `http://` URL is only sent to a host ending
+in `.local`, since the station key must not cross a network unencrypted.
 
 The station's side of the contract is `POST /api/v1/taps` in `apps/API-AGREEMENT.md`,
 section 6.1.

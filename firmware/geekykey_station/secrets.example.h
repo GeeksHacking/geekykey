@@ -7,12 +7,14 @@
 #define WIFI_SSID     "your-wifi-name"
 #define WIFI_PASSWORD "your-wifi-password"
 
-// The computer running the backend, by name so it survives IP changes.
-//   Mac:     `scutil --get LocalHostName`, then add .local (e.g. "A-Mac.local")
-//   Windows: `hostname`, then add .local
-// A plain IP such as "10.82.204.187" also works if name lookup fails on a network.
-#define SERVER_HOST   "your-laptop.local"
-#define SERVER_PORT   8000
+// The server's full base URL. An https:// URL is called as written: the station
+// checks the server's certificate against the 14 roots in ca_roots.h. A plain
+// http:// URL is only sent to a host ending in .local, whose IP is looked up
+// with mDNS, so the station key never crosses the venue WiFi unencrypted.
+//   Production, until checkpoint 4: "https://event-api.geekshacking.com"
+//   After checkpoint 4:               "https://key-api.geekshacking.com"
+//   A laptop running the backend:     "http://your-laptop.local:8000"
+#define SERVER_URL   "http://your-laptop.local:8000"
 
 // Printed once by `mise run seed`. Only its hash is stored,
 // so if it is lost, run the seed again for a new one.

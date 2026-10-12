@@ -18,9 +18,13 @@
   Setup: copy secrets.example.h to secrets.h in this folder and fill it in.
   secrets.h is gitignored, so credentials never reach the repo.
 
-  The backend is found by the laptop's name (SERVER_HOST, e.g. A-Mac.local)
-  rather than its IP, because a phone hotspot hands out a new IP whenever it
-  restarts.
+  The server is a full base URL in secrets.h (SERVER_URL), such as
+  "https://event-api.geekshacking.com" in production or
+  "http://A-Mac.local:8000" on a laptop. An https:// URL is called as written,
+  with the server's certificate checked against the 14 root certificates in
+  ca_roots.h: the station key must never cross the venue WiFi in plain text,
+  so plain http:// is only ever sent to a .local host, whose IP is looked up
+  with mDNS because a phone hotspot hands out a new one on every restart.
 
   The backend contract for POST /api/v1/taps is in apps/API-AGREEMENT.md, section 6.1.
 */
@@ -28,11 +32,14 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <WiFi.h>
+#include <WiFiClient.h>
 #include <HTTPClient.h>
+#include <NetworkClientSecure.h>
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include "secrets.h"
+#include "ca_roots.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
@@ -67,8 +74,30 @@ const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 const char* stationKey = STATION_KEY;
 
-// "http://<ip>:<port>" once SERVER_HOST has been looked up; empty until then.
+// SERVER_URL split into its parts at boot (parseServerUrl). An https:// URL
+// keeps its host as written: the ESP32's DNS resolves it and the certificate is
+// checked against the hostname in it.
+bool urlIsHttps = false;      // SERVER_URL starts with "https://"
+bool urlHostIsLocal = false;  // the host ends in ".local", so mDNS looks up its IP
+String urlHost = "";          // the host, without any port
+uint16_t urlPort = 443;       // from SERVER_URL, or the scheme's default
+
+// The base URL every request is sent to. For a .local host it holds the
+// looked-up IP, and is emptied again when a send fails, so it is looked up
+// once more: the laptop may have a new IP after a hotspot restart.
 String serverBase = "";
+
+// One connection, kept open for every request: the clients and the HTTPClient
+// are global, with reuse on, so a tap doesn't pay a new TLS handshake (about a
+// second on the ESP32) each time. The secure client trusts the roots in
+// ca_roots.h and nothing else: no setInsecure(), so anyone on the venue WiFi
+// could pose as the server and station keys would be collected, and no
+// setFollowRedirects, since a redirect would carry the station key to wherever
+// it points. HTTPClient leaves redirects off by default. The station key is
+// never printed on the serial port.
+WiFiClient plainClient;
+NetworkClientSecure secureClient;
+HTTPClient http;
 
 // The library is not given RST_PIN: setup() drives it instead (see there).
 MFRC522 rfid(SS_PIN, MFRC522::UNUSED_PIN);
@@ -121,6 +150,15 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
+  // Read the server setting before anything else. A URL the station may not
+  // use is a setup error: it shows on the screen and nothing is ever sent, so
+  // the station key cannot cross the venue WiFi in plain text.
+  if (!parseServerUrl()) {
+    showScreen("SETUP ERROR", "Check secrets.h");
+    Serial.println("Setup error: SERVER_URL in secrets.h is not usable. Sending nothing.");
+    while (true) delay(1000);
+  }
+
   // Hold the RC522's reset pin HIGH ourselves. Given the pin, the library
   // leaves it a floating input whenever it happens to read HIGH, and the
   // reader can then drift into power-down: it answers 0xFF and never sees a
@@ -132,7 +170,7 @@ void setup() {
   delay(50);
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
   rfid.PCD_Init();
-  rfid.PCD_SetRegisterBitMask(mfrc522.RFCfgReg, (0x07 << 4));
+  rfid.PCD_SetRegisterBitMask(MFRC522::RFCfgReg, (0x07 << 4));
   // Asks the RC522 for its chip version. 0x00 or 0xFF means the ESP32 cannot
   // talk to the reader over SPI: check the wiring and 3.3V power first.
   rfid.PCD_DumpVersionToSerial();
@@ -170,6 +208,18 @@ void setup() {
     showScreen("mDNS", "failed to start");
     delay(2000);
   }
+
+  // Every https request checks the server's certificate against these 14 roots
+  // (Cloudflare's and Google's certificate authorities) and nothing else. An
+  // empty string here would refuse every connection rather than fall back to
+  // no checking, which is the right failure, but the roots are filled in.
+  secureClient.setCACert(CA_ROOTS);
+  // The handshake gets its own deadline: the default is 120 seconds, and a
+  // server that accepts the TCP connection but stalls the handshake would
+  // otherwise hold up every tap for those two minutes. It takes about one.
+  secureClient.setHandshakeTimeout(5);
+  http.setReuse(true);  // one connection, kept open across requests
+
   if (WiFi.status() == WL_CONNECTED && resolveServer()) checkBackend();
 
   Serial.println("Ready. Tap an NTAG213 tag...");
@@ -345,14 +395,17 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
     return;
   }
 
-  HTTPClient http;
-  if (!http.begin(serverBase + "/api/v1/taps")) {
+  // The shared HTTPClient, already pointed at the server's base URL, opens or
+  // reuses the one connection for this request.
+  if (!beginRequest("/api/v1/taps")) {
     result.retryable = true;
     return;
   }
   // A backend that has left the network would otherwise hold up the tap for
   // 5 seconds before it is saved. Answers keep 5 seconds, because the backend
-  // can take up to 4 finding the token's owner and handing the tap on.
+  // can take up to 4 finding the token's owner and handing the tap on. The
+  // connect timeout covers the TCP connect; the TLS handshake has its own,
+  // set in setup().
   http.setConnectTimeout(2000);
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
@@ -364,7 +417,7 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
 
   if (code <= 0) {
     // The laptop may have a new IP since we looked it up (a hotspot restart,
-    // or waking from sleep), so look SERVER_HOST up again next time.
+    // or waking from sleep), so its .local name is looked up again next time.
     serverBase = "";
   }
 
@@ -501,32 +554,97 @@ String takeClientTapId() {
   return "tap-" + String(id);
 }
 
-// Turns SERVER_HOST into serverBase. A name ending in .local is looked up with
-// mDNS, which asks the local network "who is A-Mac?" and gets the laptop's
-// current IP back. A plain IP address is used as it is.
-bool resolveServer() {
-  String host = SERVER_HOST;
-  IPAddress ip;
-  if (host.endsWith(".local")) {
-    host.remove(host.length() - 6);  // mDNS queries take the name without .local
-    ip = MDNS.queryHost(host.c_str(), 3000);
-    if (ip == IPAddress(0, 0, 0, 0)) {
-      Serial.println("Could not find " + String(SERVER_HOST) + " on this network. Is the laptop on the same WiFi?");
-      return false;
-    }
-  } else if (!ip.fromString(host)) {
-    Serial.println("SERVER_HOST must be an IP address or a name ending in .local");
+// Splits SERVER_URL into its parts and decides whether the station may send at
+// all. Returns false for a URL the station must not use, which parks it on a
+// setup error: the setting is only usable as https://, or as plain http:// to a
+// host ending in .local. Anything else would send the station key across the
+// venue WiFi in plain text, before anything could redirect it to HTTPS.
+bool parseServerUrl() {
+  String rest = SERVER_URL;
+  if (rest.startsWith("https://")) {
+    urlIsHttps = true;
+    urlPort = 443;
+    rest.remove(0, 8);
+  } else if (rest.startsWith("http://")) {
+    urlIsHttps = false;
+    urlPort = 80;
+    rest.remove(0, 7);
+  } else {
+    Serial.println("SERVER_URL must start with https:// or http://");
     return false;
   }
-  serverBase = "http://" + ip.toString() + ":" + String(SERVER_PORT);
-  Serial.println("Backend: " + String(SERVER_HOST) + " -> " + serverBase);
+  // A base URL has no path; a trailing one is left out rather than sent.
+  int slash = rest.indexOf('/');
+  if (slash >= 0) rest.remove(slash);
+  // Split off the port when the host holds exactly one colon. More than one
+  // means an IPv6 literal, which is left as written with the default port.
+  int colon = rest.indexOf(':');
+  if (colon >= 0 && rest.indexOf(':', colon + 1) < 0) {
+    const int port = rest.substring(colon + 1).toInt();
+    rest.remove(colon);
+    if (port > 0 && port < 65536) {
+      urlPort = (uint16_t)port;
+    } else {
+      Serial.println("SERVER_URL's port is not a number, using " + String(urlPort));
+    }
+  }
+  urlHost = rest;
+  if (urlHost.length() == 0) {
+    Serial.println("SERVER_URL has no host");
+    return false;
+  }
+  urlHostIsLocal = urlHost.endsWith(".local");
+  if (!urlIsHttps && !urlHostIsLocal) {
+    Serial.println("SERVER_URL is plain http:// to a host that isn't .local");
+    return false;
+  }
   return true;
+}
+
+// Builds serverBase, the base URL every request goes to. A host ending in
+// .local is looked up with mDNS, which asks the local network "who is A-Mac?"
+// and gets the laptop's current IP back, because a phone hotspot hands out a
+// new one whenever it restarts. Any other host is https and is used as written:
+// the ESP32's DNS resolves it and the certificate is checked against the
+// hostname in the URL.
+bool resolveServer() {
+  if (!urlHostIsLocal) {
+    serverBase = String(urlIsHttps ? "https://" : "http://") + urlHost + ":" + String(urlPort);
+    return true;
+  }
+  String name = urlHost;
+  name.remove(name.length() - 6);  // mDNS queries take the name without .local
+  IPAddress ip = MDNS.queryHost(name.c_str(), 3000);
+  if (ip == IPAddress(0, 0, 0, 0)) {
+    Serial.println("Could not find " + urlHost + " on this network. Is the laptop on the same WiFi?");
+    return false;
+  }
+  String resolved = String(urlIsHttps ? "https://" : "http://") + ip.toString() + ":" + String(urlPort);
+  if (serverBase.length() > 0 && resolved != serverBase) {
+    // The laptop has a new IP. The kept-open connection points at the old one
+    // and, with reuse on, HTTPClient would send to it again, so close it.
+    if (plainClient.connected()) plainClient.stop();
+  }
+  serverBase = resolved;
+  Serial.println("Backend: " + urlHost + " -> " + serverBase);
+  return true;
+}
+
+// Points the shared HTTPClient at a path on the server. The scheme picks the
+// client: TLS over the roots in ca_roots.h for https://, the plain client for a
+// .local host. begin() only parses the URL and opens nothing: the connection
+// made for a request is kept for the next one (see setReuse in setup()).
+bool beginRequest(const String &path) {
+  if (urlIsHttps) return http.begin(secureClient, serverBase + path);
+  return http.begin(plainClient, serverBase + path);
 }
 
 // Boot self-test: confirms the backend is reachable before anyone taps.
 void checkBackend() {
-  HTTPClient http;
-  http.begin(serverBase + "/api/health");
+  if (!beginRequest("/api/health")) {
+    Serial.println("Backend NOT reachable: bad URL");
+    return;
+  }
   http.setConnectTimeout(2000);
   http.setTimeout(5000);
   int code = http.GET();
