@@ -8,9 +8,18 @@
  */
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
-import { loadConfig } from "./config.ts";
+import { ConfigError, loadConfig } from "./config.ts";
 import { createDbPool } from "./db/pool.ts";
-import { log } from "./lib/log.ts";
+import { errorFields, log } from "./lib/log.ts";
+
+// Anything thrown and never caught, as the server starts or later, stops it
+// with one log line rather than Node's own report, which prints the error's
+// every property: a DATABASE_URL that won't parse would print its password.
+// A rejected promise nobody handles ends up here too.
+process.on("uncaughtException", (err) => {
+  log("fatal_error", err instanceof ConfigError ? { reason: err.message } : errorFields(err));
+  process.exit(1);
+});
 
 const config = loadConfig(process.env);
 const database = createDbPool(config.databaseUrl);

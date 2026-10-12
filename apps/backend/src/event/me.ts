@@ -52,6 +52,8 @@ export interface MeView {
  */
 export async function loadMe(db: Db, userId: string): Promise<MeView> {
   const [pairedTokens, allStations, visits, recentTaps] = await Promise.all([
+    // The claims stand-in's table, read from the Event side until /me stops
+    // listing tokens, later in checkpoint 3.
     db
       .select({ uid: tokens.uid, pairedAt: tokens.pairedAt })
       .from(tokens)

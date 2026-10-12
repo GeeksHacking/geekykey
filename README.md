@@ -103,15 +103,22 @@ claims stand-in stay on Cloud Run. Until then the three share one server, its se
 its database pool, which sit beside them. The Event side and the stand-in each keep their
 tables in a schema file of their own, and the GeekyKey side has none. Drizzle writes one
 set of migrations from both files, since it's one database, and no foreign key crosses
-between them. The station route still reaches into the other two areas directly; the rest
-of checkpoint 3 replaces each reach with the request it will send once the services run
-apart.
+between them.
+
+Three places still reach across the areas, and the rest of checkpoint 3 replaces each with
+the request it will send once the services run apart. The station route reads the Event
+side's `stations` to check a key, looks up owners in the stand-in's `tokens`, and calls the
+tap pipeline itself. The tap pipeline takes the stand-in's token lookup. And `/me` lists the
+user's tokens from `tokens`.
 
 Every line the server logs is one JSON object whose `message` is a fixed name, such as
 `server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging
 shows that name as the line's headline, and takes its `severity`. A log line never holds a
 key, a cookie or a name: an `internal_error` keeps the error's class, its code and where
-it was thrown, but not its message, which can hold a query's values.
+it was thrown, but not its message, which can hold a query's values. Anything thrown and
+never caught, such as a missing setting at start-up, stops the server with one
+`fatal_error` line instead of Node's own report, which would print a `DATABASE_URL` that
+won't parse, password and all.
 
 The server keeps one pool of up to 10 connections to the database, shared by every
 request (`src/db/pool.ts`). Cloud Run pauses the server between requests, so a

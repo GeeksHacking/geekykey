@@ -27,6 +27,15 @@ export interface Config {
 const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
 
 /**
+ * A setting that's missing or wrong. The server logs its message as it stops
+ * (src/server.ts), so the message names the setting, and never the value of
+ * a secret one.
+ */
+export class ConfigError extends Error {
+  override name = "ConfigError";
+}
+
+/**
  * Settings by name, as environment variables: `process.env` in the server.
  * Locally they come from dev.env, .env and the shell, and on Cloud Run from
  * the service's settings and Secret Manager.
@@ -38,7 +47,7 @@ function intFromEnv(env: Env, key: string, fallback: number): number {
   if (raw === undefined || raw === "") return fallback;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${key} must be a non-negative integer, got "${raw}"`);
+    throw new ConfigError(`${key} must be a non-negative integer, got "${raw}"`);
   }
   return value;
 }
@@ -48,7 +57,7 @@ function boolFromEnv(env: Env, key: string, fallback: boolean): boolean {
   if (raw === undefined || raw === "") return fallback;
   if (raw === "true" || raw === "1") return true;
   if (raw === "false" || raw === "0") return false;
-  throw new Error(`${key} must be true or false, got "${raw}"`);
+  throw new ConfigError(`${key} must be true or false, got "${raw}"`);
 }
 
 /** Fails at boot rather than serving forgeable sessions with a default secret. */
@@ -56,18 +65,25 @@ function sessionSecretFromEnv(env: Env, devAuthEnabled: boolean): string {
   const secret = env.SESSION_SECRET;
   if (secret) {
     if (secret.length < 16) {
-      throw new Error("SESSION_SECRET must be at least 16 characters");
+      throw new ConfigError("SESSION_SECRET must be at least 16 characters");
     }
     return secret;
   }
   if (devAuthEnabled) return DEV_SESSION_SECRET;
-  throw new Error("SESSION_SECRET is required unless DEV_AUTH_ENABLED is true");
+  throw new ConfigError("SESSION_SECRET is required unless DEV_AUTH_ENABLED is true");
 }
 
-/** No default: a server that can't reach its database shouldn't start. */
+/**
+ * No default: a server that can't reach its database shouldn't start. Checked
+ * here rather than when the pool reads it, so the error never holds the URL,
+ * whose password is in it.
+ */
 function databaseUrlFromEnv(env: Env): string {
   const url = env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is required");
+  if (!url) throw new ConfigError("DATABASE_URL is required");
+  if (!URL.canParse(url)) {
+    throw new ConfigError("DATABASE_URL must be a mysql://user:password@host:port/database URL");
+  }
   return url;
 }
 

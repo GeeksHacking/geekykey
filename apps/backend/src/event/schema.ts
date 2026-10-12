@@ -12,6 +12,7 @@ import { isoNow, isoTimestamp, stationId, tokenUid, userId } from "../db/columns
 /**
  * The Event side's tables. The claims stand-in's `tokens` is in
  * src/claims-stand-in/schema.ts, and no foreign key crosses between the two.
+ * Timestamps are ISO strings, not DATETIME: src/db/columns.ts says why.
  */
 
 export const USER_ROLES = ["participant", "organizer"] as const;

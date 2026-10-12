@@ -65,16 +65,31 @@ test("the server answers /api/health on the port it's given", async () => {
   assert.equal(((await res.json()) as { status: string }).status, "ok");
 });
 
-test("the server won't start without SESSION_SECRET", async () => {
-  const { exited, output } = startServer(settingsWithout("SESSION_SECRET"));
+/** The one line a server that stopped on an error logged. */
+async function fatalError({ exited, output }: ReturnType<typeof startServer>) {
   assert.notEqual(await exited, 0);
-  assert.match(output(), /SESSION_SECRET is required/);
+  const lines = logLines(output());
+  assert.equal(lines.length, 1, output());
+  assert.equal(lines[0]!.severity, "ERROR");
+  assert.equal(lines[0]!.message, "fatal_error");
+  return lines[0]!;
+}
+
+test("the server won't start without SESSION_SECRET", async () => {
+  const line = await fatalError(startServer(settingsWithout("SESSION_SECRET")));
+  assert.match(String(line.reason), /SESSION_SECRET is required/);
 });
 
 test("the server won't start without DATABASE_URL", async () => {
-  const { exited, output } = startServer(settingsWithout("DATABASE_URL"));
-  assert.notEqual(await exited, 0);
-  assert.match(output(), /DATABASE_URL is required/);
+  const line = await fatalError(startServer(settingsWithout("DATABASE_URL")));
+  assert.match(String(line.reason), /DATABASE_URL is required/);
+});
+
+test("a DATABASE_URL that won't parse stops the server without logging its password", async () => {
+  const started = startServer({ ...SETTINGS, DATABASE_URL: "mysql://app:hunter2-not-real@[bad" });
+  const line = await fatalError(started);
+  assert.match(String(line.reason), /DATABASE_URL must be/);
+  assert.doesNotMatch(started.output(), /hunter2-not-real/);
 });
 
 test("on SIGTERM, the server closes its database connections and exits", async () => {
