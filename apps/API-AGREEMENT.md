@@ -13,8 +13,8 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.3 (draft) |
-| Date | 7 October 2026 |
+| Version | 0.4 (draft) |
+| Date | 10 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -38,7 +38,7 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 | 2 | Today's backend moved to Google Cloud Run, at `https://event-api.geekshacking.com` |
 | 3 | The GeekyKey Service and the Event Service drawn inside one server, talking only through their requests |
 | 4 | The GeekyKey Service cut out as a Worker at `https://key-api.geekshacking.com`, and the stations moved to it |
-| 5 | Login through the Portal, and both sets of screens deployed |
+| 5 | Login through Firebase, with Google or GeeksHacking's login, and both sets of screens deployed |
 | 6 | The GeekyKey Service's features: claiming and releasing, rate limits |
 | 7 | The Event Service's features: the organizers' station endpoints, the station board, passport settings, the tap log, stats, the export, the QR fallback |
 | 8 | Ready for the event |
@@ -97,7 +97,9 @@ of an Event Service lives under `/geekykey/v1`.
   care.
 - IDs are opaque strings. Do not parse them. The only numeric ID is `taps.id`, used as a
   pagination cursor.
-- User IDs are the Portal's user IDs, the same in both services.
+- User IDs come from the login, and are the same in both services. At the showcase they are
+  Firebase user IDs (UIDs), whichever way the user signed in; after it, the Portal's user IDs
+  ([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)).
 - Timestamps are ISO 8601. Both services always **return** UTC with milliseconds, for example
   `2026-10-10T09:00:00.000Z`. Clients may **send** any ISO 8601 string with an offset; the
   services normalise it.
@@ -117,7 +119,7 @@ of an Event Service lives under `/geekykey/v1`.
 | 409 | Conflict with existing state: a token someone else has claimed, or a user who already holds 3 tokens |
 | 429 | Too many requests from this caller in the last minute. See [Rate limits](#rate-limits) |
 | 500 | A bug in a service. Screens show a generic error and log the request ID if present |
-| 503 | A service this one depends on didn't answer: whatever holds the claims (the claims stand-in, then the Portal), or the station's Event Service during a station request |
+| 503 | A service this one depends on didn't answer: whatever holds the claims (the claims stand-in, then the Portal), the station's Event Service during a station request, or Google's keys during login |
 
 ### Error body
 
@@ -139,6 +141,7 @@ only for `validation_failed` and follows Zod's issue format.
 |---|---|---|
 | `validation_failed` | 400 | See `issues` |
 | `unauthenticated` | 401 | No valid session cookie |
+| `invalid_token` | 401 | The Firebase ID token sent to log in can't be trusted: not signed by Google, for another Firebase project, or expired |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
 | `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1` |
@@ -149,6 +152,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
 | `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them |
+| `login_unavailable` | 503 | Google's keys couldn't be fetched to check a Firebase ID token. The token may be fine; the screens say "Couldn't log you in. Try again." |
 | `claims_unavailable` | 503 | Who owns a token couldn't be found in time: from the claims stand-in until the switch after the showcase, then from the Portal. A station keeps its taps and resends them; the screens say "Couldn't reach GeeksHacking. Try again." |
 
 ### Rate limits
@@ -190,9 +194,9 @@ the session cookie by default.
 | Caller | Identified by | Talks to |
 |---|---|---|
 | Participant | `event_session` | The Event Service |
-| Organizer | `event_session`, with a Portal user ID on the Event Service's organizer list (not `users.role`) | The Event Service, including its stations |
+| Organizer | `event_session`, with a user ID on the Event Service's organizer list (not `users.role`) | The Event Service, including its stations |
 | User | `gk_session` | The GeekyKey Service: the token page and My tokens |
-| GeekyKey admin | `gk_session`, with a Portal user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens |
+| GeekyKey admin | `gk_session`, with a user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
 | GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
 
@@ -209,14 +213,14 @@ the session cookie by default.
 Each service sets its own cookie, from exactly two routes, and the screens' code is identical
 whichever one set it:
 
-- `GET /auth/callback`, after the round trip through the Portal. `Checkpoint 5`, waiting on
-  Qing Guan for the Portal's login details and the two OAuth apps.
+- `POST /auth/firebase`, with the ID token the screens get from Firebase's web SDK after the
+  user signs in with Google or with GeeksHacking's login. `Checkpoint 5`.
 - `POST /auth/dev-login`, in local development only. This exists so the screens can be built
-  before Portal login lands, without any code that has to be removed later.
+  before the login lands, without any code that has to be removed later.
 
 "Am I logged in?" is answered by calling that service's `GET /api/v1/me`. A 401 means no.
-Someone who uses both sets of screens logs in to each. If the Portal remembers them, the second
-login is only a quick redirect.
+Someone who uses both sets of screens logs in to each, because Firebase keeps its sign-in per
+hostname. Google remembers them, so the second login is one click.
 
 ### Station keys
 
@@ -234,8 +238,8 @@ and only its hash is stored. Firmware sends it on every request to the GeekyKey 
 - A new, replaced or disabled key takes up to a minute to take effect, because the GeekyKey
   Service refreshes its copy at most once a minute.
 - A reader moved to another event becomes a new station there, with a new ID and key from that
-  event's Event Service. It first sends its saved taps, then its flash is erased before it is
-  flashed with the new key. Provisional until 8 October 2026.
+  event's Event Service. It first sends its saved taps, then takes the new key through the
+  station's setup mode, which clears its saved taps. There is no reflash (8 October 2026).
 - A station never receives any information about a participant beyond a tap status, in line
   with the privacy row of the risk assessment.
 
@@ -296,7 +300,6 @@ Every tap a station sends comes back with one of these.
 - `no_game` starts at checkpoint 3. Until then, today's backend stores `unknown_token` taps.
 - `no_event`, in version 0.2, is retired: every station belongs to the Event Service that
   registered it, and a key no Event Service has registered gets `401`. No service sends it.
-  Provisional until 8 October 2026.
 
 The cooldown window is an Event Service setting, default 300 seconds. The screens never need to
 compute it.
@@ -341,8 +344,7 @@ Until checkpoint 4, one server built from `apps/backend` serves both tables.
 | POST | `/api/v1/taps` | Station | `Implemented, changes at checkpoint 3` | Taps, one or a batch |
 | POST | `/api/v1/stations/heartbeat` | Station | `Checkpoint 3` | Online light, clock, `reader_ok` |
 | POST | `/auth/dev-login` | local only | `Implemented, changes at checkpoint 4` | Set `gk_session` for a user |
-| GET | `/auth/login` | browser | `Checkpoint 5` | Start the Portal login |
-| GET | `/auth/callback` | browser | `Checkpoint 5` | Finish the Portal login, set `gk_session` |
+| POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `gk_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
 | GET | `/api/v1/me` | User | `Checkpoint 6` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
 | GET | `/api/v1/tokens/{uid}` | User | `Checkpoint 6` | What the token page shows |
@@ -358,8 +360,7 @@ Until checkpoint 4, one server built from `apps/backend` serves both tables.
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Checkpoint 3` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Checkpoint 3` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Checkpoint 4` | Set `event_session` for a seeded user |
-| GET | `/auth/login` | browser | `Checkpoint 5` | Start the Portal login |
-| GET | `/auth/callback` | browser | `Checkpoint 5` | Finish the Portal login, set `event_session` |
+| POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/logout` | browser | `Checkpoint 4` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented, changes at checkpoint 3` | Profile, stamps, points, history |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
@@ -538,12 +539,13 @@ whether the reader works.
 ## 7. Auth endpoints
 
 Each service has its own set, on its screens' hostname. The GeekyKey Service's set `gk_session`,
-the Event Service's set `event_session`. Each service has its own OAuth app on the Portal.
+the Event Service's set `event_session`. Both accept logins from the same Firebase project,
+`geekykey-b035a`, so a user has the same ID in both.
 
 ### 7.1 `POST /auth/dev-login` — GeekyKey Service `Implemented, changes at checkpoint 4`, Event Service `Checkpoint 4`
 
-Only mounted when the service runs with `DEV_AUTH_ENABLED=true`, from its gitignored local
-settings. Never enabled in production.
+Only mounted when the service runs with `DEV_AUTH_ENABLED=true`, from its local development
+settings: for today's backend, the committed `apps/backend/dev.env`. Never enabled in production.
 
 **Request**
 
@@ -561,26 +563,58 @@ settings. Never enabled in production.
 - Until checkpoint 4, today's backend has one dev-login, which sets `gk_session` for a seeded
   user and answers `not_found` for anyone else.
 
-### 7.2 `GET /auth/login?return_to=/passport` — `Checkpoint 5`
+### 7.2 `POST /auth/firebase` — `Checkpoint 5`
 
-Redirects to the Portal. `return_to` must be a relative path on the screens' hostname. The token
-page logs in with `return_to=/t/<UID>`, so the user lands back on it.
+Logs the user in with the ID token Firebase gave the screens. The service checks it against
+Google's public keys, then sets its cookie. There's no redirect: the screens stay where they
+are, so the token page stays on `/t/<UID>` after logging in.
 
-### 7.3 `GET /auth/callback` — `Checkpoint 5`
+**The screens' side,** with Firebase's web SDK and the project's config. None of it is secret:
+the API key only names the project, and Firebase allows sign-in only from `localhost`,
+`key.geekshacking.com` and `event.geekshacking.com`.
 
-The Portal's redirect target. It checks `state`, sets the cookie, then redirects to `return_to`.
+```js
+initializeApp({
+  apiKey: "AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc",
+  authDomain: "geekykey-b035a.firebaseapp.com",
+  projectId: "geekykey-b035a",
+  appId: "1:468223998400:web:19878ad2672a1c7116b025",
+});
+```
 
-| Service | Redirect URL | Local |
-|---|---|---|
-| GeekyKey Service | `https://key.geekshacking.com/auth/callback` | `http://localhost:5174/auth/callback` |
-| Event Service | `https://event.geekshacking.com/auth/callback` | `http://localhost:5173/auth/callback` |
+1. Sign in with `signInWithPopup`, using `GoogleAuthProvider` for Google, or
+   `new OAuthProvider("oidc.geekshacking")` for GeeksHacking's login. Disable the button while
+   the popup is open: a second popup cancels the first (`auth/cancelled-popup-request`).
+2. Get the ID token with `user.getIdToken()`, and send it here.
+3. On `204`, call `GET /api/v1/me` as usual. The service's cookie is the session from now on,
+   so the screens don't need Firebase again until the next login.
 
-On login, the Event Service creates or updates the user's row with their display name from the
-Portal. The GeekyKey Service keeps no users: its session holds only the Portal user ID.
+GeeksHacking's login appears only once it's set up in Firebase, which waits on Qing Guan's
+client and, in the end, Mr Pang. If he says no, it's turned off and its button removed.
 
-### 7.4 `POST /auth/logout` — GeekyKey Service `Implemented`, Event Service `Checkpoint 4`
+**Request**, as `application/json`. Any other content type fails validation, so a form on
+another site can't log someone in.
 
-**Response `204`**, clears that service's cookie.
+```json
+{ "id_token": "eyJhbGciOiJSUzI1NiIs…" }
+```
+
+**Response `204`** with `Set-Cookie` for that service's cookie.
+
+- The token must be signed by Google for the project `geekykey-b035a`, unexpired, and for a
+  sign-in that has already happened. Its `sub`, the Firebase UID, becomes the user ID.
+- **The Event Service** creates or updates the user's row with the token's `name`. If the token
+  has none, it keeps the name it already has, or uses `GeeksHacking member` for a new user
+  (provisional: whether the Portal's login carries a name is still open, section 14).
+- **The GeekyKey Service** keeps no users: its session holds only the user ID.
+
+**Errors:** `validation_failed`; `invalid_token` (401); `login_unavailable` (503) when Google's
+keys couldn't be fetched, so the token may be fine and the screens offer to try again.
+
+### 7.3 `POST /auth/logout` — GeekyKey Service `Implemented`, Event Service `Checkpoint 4`
+
+**Response `204`**, clears that service's cookie. The screens also call Firebase's `signOut()`,
+so a shared device doesn't stay signed in to Firebase.
 
 ---
 
@@ -614,7 +648,8 @@ Everything the participant dashboard and passport view need in one call.
 }
 ```
 
-- `user.id` is the Portal user ID. `user.role` is worked out from the organizer list.
+- `user.id` is the user's ID from the login (section 2). `user.role` is worked out from the
+  organizer list.
 - `stamps` lists **every** station with passport settings, so the passport can render empty
   slots. They come in the order their settings were added, oldest first. A station without
   passport settings never appears here, even if the user has tapped it.
@@ -660,7 +695,7 @@ Release a token, for example a lost one, so anyone can claim it again. Releasing
 claim. Taps made with the token before still count.
 
 **Auth:** `gk_session`. An owner releases their own token. A GeekyKey admin can release someone
-else's by adding `?owner_id=<Portal user ID>`: the owner the token lookup (8.5) showed when the
+else's by adding `?owner_id=<user ID>`: the owner the token lookup (8.5) showed when the
 page loaded, so a late or double click can't release a newer claim.
 
 **Response `204`**.
@@ -712,7 +747,7 @@ shows a login prompt and looks nothing up.
 |---|---|
 | `owner` | `nobody`, `you` or `someone_else` |
 | `claimed_at` | When you claimed it, if `owner` is `you`. Otherwise `null` |
-| `owner_id` | The owner's Portal user ID, only for a GeekyKey admin when `owner` is `someone_else`. Otherwise `null`. A GeekyKey admin passes it to release (8.3) |
+| `owner_id` | The owner's user ID, only for a GeekyKey admin when `owner` is `someone_else`. Otherwise `null`. A GeekyKey admin passes it to release (8.3) |
 
 | `owner` | The token page shows |
 |---|---|
@@ -843,8 +878,8 @@ The live scan log, newest first.
 ### 9.4 `POST /api/v1/admin/taps` — `Checkpoint 7`
 
 The QR fallback, for when a tap can't go through a station, such as a reader that dies during
-the event. An organizer scans a participant's QR code from the Portal, or types their Portal
-user ID, and logs a tap on their behalf. It goes through the same pipeline as station taps, so
+the event. An organizer scans a participant's QR code, or types their user ID, and logs a
+tap on their behalf. What the QR code is at the showcase is still open (section 14). It goes through the same pipeline as station taps, so
 cooldown and stamps behave identically, but is stored with `source = qr_fallback` for auditing.
 
 **Request**
@@ -861,7 +896,7 @@ Both fields are required. The Event Service generates the `client_tap_id`.
 { "result": { "id": 43, "status": "accepted" } }
 ```
 
-- `user_id` is a Portal user ID. It is accepted even if that user has never logged in to this
+- `user_id` is a user ID. It is accepted even if that user has never logged in to this
   event, the same as a station tap by them.
 - `status` is `accepted` or `cooldown`.
 
@@ -929,7 +964,7 @@ Create a station for this event.
 ### 9.8 `POST /api/v1/admin/stations/{id}/key` — `Checkpoint 7`
 
 Replace a station's key, keeping its ID, its passport settings and its stamps. The old key stops
-working within a minute, and Zi Tao reflashes the station with the new one.
+working within a minute, and Zi Tao enters the new one through the station's setup mode.
 
 **Request:** no body.
 
@@ -977,8 +1012,11 @@ A GeekyKey admin's one job is releasing someone else's token, which is 8.3 with 
 For anyone building an Event Service, ours or another team's. The GeekyKey Service checks each
 station's key against the stations the Event Services have registered, and hands the station's
 taps to the Event Service that registered it, as users. The Event Service decides what they count
-for. An Event Service logs its users in through the Portal itself
-([ADR 0002](../docs/adr/0002-each-service-logs-in-through-the-portal.md)).
+for. An Event Service logs its users in itself
+([ADR 0002](../docs/adr/0002-each-service-logs-in-through-the-portal.md)): at the showcase through
+our Firebase project, as section 7.2 does, so its user IDs match ours
+([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)); after it, through the
+Portal.
 
 Every Event Service serves three requests, all called by the GeekyKey Service with the Event
 Service key: its registered stations (11.1), the hand-off (11.2) and the heartbeat hand-off
@@ -1036,8 +1074,8 @@ it that passed the GeekyKey Service's own checks.
 {
   "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
   "taps": [
-    { "client_tap_id": "tap-000123", "user_id": "<Portal user ID>", "tapped_at": "2026-10-10T01:00:00.000Z" },
-    { "client_tap_id": "tap-000124", "user_id": "<Portal user ID>", "tapped_at": null }
+    { "client_tap_id": "tap-000123", "user_id": "<user ID>", "tapped_at": "2026-10-10T01:00:00.000Z" },
+    { "client_tap_id": "tap-000124", "user_id": "<user ID>", "tapped_at": null }
   ]
 }
 ```
@@ -1047,7 +1085,7 @@ it that passed the GeekyKey Service's own checks.
 | `station_id` | string | One of this Event Service's registered stations |
 | `taps` | array | 1 to 500 items |
 | `taps[].client_tap_id` | string | 1 to 128 chars. Unique per station forever |
-| `taps[].user_id` | string | The token owner's Portal user ID |
+| `taps[].user_id` | string | The token owner's user ID |
 | `taps[].tapped_at` | string or `null` | The station's time for the tap, in UTC with milliseconds. `null` when the station sent none, or it was more than 5 minutes ahead or 7 days behind |
 
 **Response `200`**
@@ -1142,7 +1180,7 @@ checkpoint 3. Both our services check against them, and a JSON Schema generated 
 - The source. Every tap in a hand-off comes from a station; our QR fallback lives inside the
   Event Service.
 - When the GeekyKey Service received the tap. The Event Service uses its own clock.
-- The user's name. An Event Service that needs one asks the Portal, for example at login.
+- The user's name. An Event Service that needs one takes it from the login.
 
 ---
 
@@ -1159,7 +1197,10 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 - Reading a station key back. Replacing one is in scope, for organizers.
 - Removing a station from the passport.
 - Editing or deleting taps.
-- User profile editing. Display names come from the Portal.
+- User profile editing. Display names come from the login.
+- Logging in through the Portal (`GET /auth/login` and `GET /auth/callback`). It replaces
+  `POST /auth/firebase` after the showcase
+  ([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)).
 
 ---
 
@@ -1169,7 +1210,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 
 | Screen | Calls |
 |---|---|
-| Login | `GET /auth/login` in production, `POST /auth/dev-login` in development |
+| Login | Firebase's web SDK, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
 | Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token |
 | My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form |
 
@@ -1179,7 +1220,7 @@ There are no GeekyKey admin screens.
 
 | Screen | Calls |
 |---|---|
-| Login | `GET /auth/login` in production, `POST /auth/dev-login` in development |
+| Login | Firebase's web SDK, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
 | Participant dashboard | `GET /api/v1/me` |
 | Passport / stamp book | `GET /api/v1/me` (the `stamps` array) |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
@@ -1193,6 +1234,7 @@ There are no GeekyKey admin screens.
   first."
 - On `claims_unavailable`, the token page, the claim form and My tokens say "Couldn't reach
   GeeksHacking. Try again."
+- On `login_unavailable`, both logins say "Couldn't log you in. Try again."
 
 Local setup, from checkpoint 1:
 
@@ -1213,8 +1255,8 @@ that service works.
 
 | Question | Owner | Needed by |
 |---|---|---|
-| What does the Portal's participant QR code encode: user ID, or something else? Decides how the QR fallback scans | Adam with Qing Guan | Checkpoint 7 |
-| The Portal's login details: the issuer, each app's client ID, which claim carries the display name, and whether there is a client secret | Adam with Qing Guan | Checkpoint 5 |
+| What does the QR fallback scan, now that showcase users aren't Portal users? Likely a QR code of the user ID on the passport | Adam with Ethan | Checkpoint 7 |
+| Does GeeksHacking's login, through Firebase, carry the user's name? Decides whether 7.2's `GeeksHacking member` is ever used | Adam with Qing Guan | Checkpoint 5 |
 
 Closed in 0.2:
 
@@ -1225,6 +1267,12 @@ Closed in 0.2:
 Closed on 2026-10-01:
 
 - "The Event Service's hostname": `event.geekshacking.com`, chosen by Julian.
+
+Closed on 2026-10-10:
+
+- "The Portal's login details": the showcase logs in through Firebase instead (ADR 0004). The
+  Portal's issuer, `https://hackomania-api.geekshacking.com/`, goes inside Firebase as
+  GeeksHacking's login.
 
 ---
 
@@ -1239,3 +1287,5 @@ Closed on 2026-10-01:
 | 2026-09-29 | Version 0.2, rewritten for the move to Cloudflare Workers and TiDB and the split into the GeekyKey Service and the Event Service, as the [migration spec](../.scratch/db-hosting/spec.md) plans. Status tags now name the checkpoint that builds each endpoint, replacing `Sprint 1` and `MVP`. The endpoints are split by service. Pairing and unpairing become claim and release on the GeekyKey Service, with a 3-token limit, and `token_taken` replaces `uid_already_paired`. New: the GeekyKey Service's `/me` and token lookup, the GeekyKey admin endpoints (sections 10.1 to 10.5), passport settings (9.1), the hand-off and the status call (section 11), the heartbeat's `reader_ok`, and the statuses `no_event` and `no_game`. New errors: `invalid_event_service_key`, `token_limit_reached`, `rate_limited` (429), `event_service_unavailable` and `portal_unavailable` (503). No CORS; two cookies, `gk_session` and `event_session`. Base URLs for production. The station board is merged from the status call; the QR fallback takes `user_id` only. **One-off removals,** allowed once because nothing relies on them in production yet: `tokens` from the Event Service's `GET /api/v1/me`, `token_uid` from the tap log and the export, and stored `unknown_token` taps. Two open questions closed. |
 | 2026-10-01 | GeeksHacking's hostnames, chosen by Julian: stations and Event Services call `https://key-api.geekshacking.com` (was `geekykey-api`), the GeekyKey screens and the token address are on `key.geekshacking.com` (was `geekykey`), and the Event screens on `event.geekshacking.com` (was the provisional `showcase`). No endpoint or shape changes. |
 | 2026-10-07 | Version 0.3 (draft), after the Event Service moved to Google Cloud Run and the GeekyKey Service became a Worker with no database ([ADR 0003](../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md)), as the rewritten [migration spec](../.scratch/db-hosting/spec.md) plans. Each Event Service now registers its own stations and issues their keys, and a station feeds the Event Service that registered it. **New:** the registered stations, `GET /geekykey/v1/stations` (11.1); the heartbeat hand-off, `POST /geekykey/v1/heartbeats`, answering `204` (11.3); and the organizers' endpoints to create a station, replace its key, and disable and enable it (9.7 to 9.9), with the shapes the GeekyKey admin endpoints had, less the link. **Removed,** none of them built: the status call `GET /api/v1/event-service/stations` and its limit of 120 a minute, the GeekyKey admin endpoints (section 10), links, and the status `no_event` (provisional until 8 Oct). The station board (9.2) reads the Event Service's own stations, so it loses `status_known` and `linked` and gains `created_at` and `disabled_at`. Passport settings (9.1) answer `not_found` for a station that isn't this Event Service's. `claims_unavailable` (503) replaces `portal_unavailable`, from checkpoint 3, on station requests and on 8.2 to 8.5. One 4-second deadline for finding owners and the hand-off together replaces the 3-second limit (11.5, provisional). The heartbeat answers without waiting for the Event Service, and a key that can't be checked gets `503`. From checkpoint 2 until checkpoint 4, stations call `https://event-api.geekshacking.com`. The screen table's "no answer" row says `Tap saved` / `Will send later`. The checkpoints follow the rewritten spec, and section 11 is renumbered. |
+| 2026-10-10 | Version 0.4 (draft): the showcase logs in through Firebase, not the Portal ([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)). **New:** `POST /auth/firebase` on both services (7.2), taking the ID token from Firebase's web SDK after a Google or GeeksHacking sign-in, with the errors `invalid_token` (401) and `login_unavailable` (503). **Moved out of scope:** `GET /auth/login` and `GET /auth/callback`, which return after the showcase; logout becomes 7.3. User IDs are Firebase UIDs at the showcase, so "Portal user ID" becomes "user ID" throughout, and another team's Event Service logs in through the same Firebase project. Checked on 10 Oct that a Worker verifies the token in about 1 ms of CPU (BAC-20). Open questions: whether GeeksHacking's login carries a name, and what the QR fallback scans. |
+| 2026-10-12 | Housekeeping, no endpoint or shape changes. A reader moved to another event, and a replaced key (9.8), go in through the station's setup mode, not a reflash, as agreed on 8 Oct; `no_event` stays retired, no longer provisional; dev-login is turned on by the committed `apps/backend/dev.env` (7.1), not a gitignored file. |

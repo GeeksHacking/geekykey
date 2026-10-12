@@ -43,3 +43,8 @@ the stations each Event Service has registered; it keeps no cache store before t
 Julian meant by "v1" is still to be asked. The setup copies the Portal's, whose address is a Cloud Run
 domain mapping, which only Cloud Run's v1 interface offers. The details are in the migration spec,
 `.scratch/db-hosting/spec.md`, section 3.
+
+**Asked on 8 Oct 2026:** Julian finds Cloud Run's v2 costs noticeably more, so we stay on v1 unless
+we need a v2 feature. We read that as the v1 interface, which the domain mapping needs, and the
+first-generation execution environment. Whether he meant both is still to confirm (the spec,
+sections 2 and 12).

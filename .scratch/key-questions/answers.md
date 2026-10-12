@@ -4,6 +4,8 @@ Drafted 2 Oct 2026 from what the repo says today. Each answer cites where it com
 
 Updated 7 Oct 2026 for the redrawn hosting plan: the Event Service moved to Google Cloud Run, the GeekyKey Service keeps no database, and each event registers its own stations (ADR 0003; API v0.3; the rewritten spec, whose section numbers are used below).
 
+Updated 12 Oct 2026 for the 8 Oct meeting and what followed: the showcase logs in through Firebase, not the Portal, and its claims are deleted with its data (ADR 0004; API v0.4); a station takes a new key through a setup mode instead of a reflash; and our Google Cloud project is agreed, and is our Firebase project.
+
 **How to read this**
 
 - **Decided** means a file in the repo records it. **Not decided** means nothing does yet, and the answer says who should settle it.
@@ -15,12 +17,13 @@ Updated 7 Oct 2026 for the redrawn hosting plan: the Event Service moved to Goog
 | Short name | File |
 |---|---|
 | CONTEXT | [CONTEXT.md](../../CONTEXT.md), the project's vocabulary |
-| API | [apps/API-AGREEMENT.md](../../apps/API-AGREEMENT.md), v0.3 (draft, for Ethan's review; v0.2 was the last approved). If any other document disagrees, this one wins |
+| API | [apps/API-AGREEMENT.md](../../apps/API-AGREEMENT.md), v0.4 (approved by Ethan on 10 Oct). If any other document disagrees, this one wins |
 | spec | [.scratch/db-hosting/spec.md](../db-hosting/spec.md), the hosting and migration plan (29 Sep, rewritten 7 Oct) |
 | map | [.scratch/db-hosting/map.md](../db-hosting/map.md): its "Givens", "Facts" and "Out of scope" sections |
 | ADR 0001 | [docs/adr/0001-token-id-is-the-hardware-uid.md](../../docs/adr/0001-token-id-is-the-hardware-uid.md) |
 | ADR 0002 | [docs/adr/0002-each-service-logs-in-through-the-portal.md](../../docs/adr/0002-each-service-logs-in-through-the-portal.md) |
 | ADR 0003 | [docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md) |
+| ADR 0004 | [docs/adr/0004-the-showcase-logs-in-through-firebase.md](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md) |
 | 24 Sep notes | `meeting-notes/[24 Sept 26] NFC token scanner design and interactive activity planning for showcase.md` |
 | update 23 Sep | [apps/updates/src/content/entries/2026-09-23-first-end-to-end-tap.md](../../apps/updates/src/content/entries/2026-09-23-first-end-to-end-tap.md) |
 | update 27 Sep | [apps/updates/src/content/entries/2026-09-27-hosting-plan-and-two-services.md](../../apps/updates/src/content/entries/2026-09-27-hosting-plan-and-two-services.md) |
@@ -43,7 +46,7 @@ Updated 7 Oct 2026 for the redrawn hosting plan: the Event Service moved to Goog
    | PN532 reader, ESP32-WROOM | RC522 on an ESP32-S3 | firmware header, update 23 Sep |
    | NTAG 424 DNA tags against cloning | NTAG213. We accept that tags can be cloned | ADR 0001, "Consequences" |
    | Docker container on Cloud Run, Hono/Deno, SQLite | Partly right again since 2 Oct: the Event Service is Hono on Node, in a container on Cloud Run. The GeekyKey Service and the screens are Cloudflare Workers. TiDB, with no Deno or SQLite | ADR 0003, spec §3.2 |
-   | Wi-Fi access-point setup page on the station | Wi-Fi and the key are compiled into `secrets.h` | firmware |
+   | Wi-Fi access-point setup page on the station | Partly right again since 8 Oct: Wi-Fi and the key are compiled into `secrets.h` today, and a setup mode, from a serial terminal or a browser page, is planned for a new server address, key and Wi-Fi network (HAR-14) | firmware, spec §2 |
    | Showcase on 17 Nov, setup on 16 Nov | Showcase Wed 18 Nov, setup Tue 17 Nov | spec §1, §2 |
    | Puzzle pieces collected from sponsors and swapped | Not built or planned. The passport is | CONTEXT, API |
    | WebSockets (WS) | Polling only | map "Out of scope", API §12 |
@@ -56,7 +59,7 @@ Updated 7 Oct 2026 for the redrawn hosting plan: the Event Service moved to Goog
 ## 1. The current project
 
 **If we had to describe the current GeekyKey MVP in 2–3 sentences, what exactly does it do?**
-Each participant gets an NFC token and claims it by tapping it with their phone and logging in with their GeeksHacking Portal account. They then tap the token at reader stations around the event. Each accepted tap stamps their digital passport and earns points. Organizers watch the stations and the taps live, and can export the data. Under the hood, the GeekyKey Service checks the station and finds the token's owner. It then passes the tap to the event's own Event Service, so a future event can bring its own games without changing the stations. (CONTEXT; spec §1, §3.3)
+Each participant gets an NFC token and claims it by tapping it with their phone and logging in, with Google or, if Mr Pang agrees, their GeeksHacking account (ADR 0004). They then tap the token at reader stations around the event. Each accepted tap stamps their digital passport and earns points. Organizers watch the stations and the taps live, and can export the data. Under the hood, the GeekyKey Service checks the station and finds the token's owner. It then passes the tap to the event's own Event Service, so a future event can bring its own games without changing the stations. (CONTEXT; spec §1, §3.3)
 
 **What is the single main problem we are solving?**
 On paper it's low cross-group networking, with sponsor engagement second (SSOT §2.1). In what's built, it's engagement and getting people to visit stations. See section 0, item 1. **Not decided.**
@@ -69,7 +72,7 @@ In what's built: person ↔ station, through the token. A station can stand at a
 - Tapping it at a station and having the tap recorded
 - The passport, with stamps and points
 - The organizers' station board, tap log, and the CSV export that feeds the A/B analysis. API §9.6 says the export "must not be cut from scope".
-- Logging in through the Portal
+- Logging in, through Firebase at the showcase (ADR 0004)
 
 (spec §6, checkpoints 1–8)
 
@@ -79,7 +82,7 @@ In what's built: person ↔ station, through the token. A station can stand at a
 - Station offline sync over 4G, and battery power, at the backend level (map "Out of scope")
 - Dual-tap connections, leaderboards and archetype quests (API §12)
 - Editing profiles (API §12)
-- Moving token claims into the Portal, which happens after the showcase (spec §6, "After the showcase")
+- Switching the GeekyKey Service to the Portal's tag APIs, after the showcase. The showcase's claims are deleted, not moved (spec §6, "After the showcase"; ADR 0004)
 - Other teams' Event Services (map "Out of scope")
 
 **What features are currently being built, rather than merely discussed?**
@@ -96,7 +99,7 @@ In what's built: person ↔ station, through the token. A station can stand at a
 - The token writer and the firmware that saves taps have both been tried on hardware (Adam, 2 Oct).
 
 **What can we realistically finish and demonstrate by the actual capstone deadline?**
-The plan has all eight checkpoints done, plus a rehearsal on the live system by Sat 7 Nov (spec §6, §10.1). That would mean: claiming tokens on phones, stations around the venue stamping passports, and organizers watching the board live. The two outside dependencies are Qing Guan's Portal login details (needed for checkpoint 5), and Julian and Qing Guan setting up our Google Cloud project and the address `event-api.` (needed for checkpoint 2, asked on 8 Oct). A person-to-person mechanic would be extra work on top, and isn't planned.
+The plan has all eight checkpoints done, plus a rehearsal on the live system by Sat 7 Nov (spec §6, §10.1). That would mean: claiming tokens on phones, stations around the venue stamping passports, and organizers watching the board live. The outside dependencies left are small: Julian switching `event-api.`'s DNS record to DNS only, which was found proxied on 12 Oct (checkpoint 2), Qing Guan's client for GeeksHacking's login and Mr Pang's yes to offering it (checkpoint 5, with Google sign-in as the fallback), and Julian connecting the Workers (checkpoints 4 and 5). Our Google Cloud project, the address `event-api.` and the Firebase login check were done between 8 and 11 Oct (spec §6, §9). A person-to-person mechanic would be extra work on top, and isn't planned.
 
 **What is our definition of "MVP complete"?**
 Not written down as one sentence. The closest thing is the "done when" line of checkpoint 8: the backup and restore have been tried, and the rehearsal ran on production by 7 Nov (spec §6). Suggested wording: "A participant can claim a token, tap it at every station, and see their passport fill in, and organizers can see and export every tap, all on the live system."
@@ -218,7 +221,7 @@ They release it on My tokens and claim a new one (CONTEXT "My tokens").
 Taps still count for the owner, not the person holding it (CONTEXT "Owner"). The token page tells the holder it "belongs to someone else", without saying who. The owner or a GeekyKey admin can release it (spec §3.4).
 
 **How is a token initially registered?**
-By claiming it: tap it with your phone (or type its ID), log in through the Portal, and press **Claim** (spec §3.4).
+By claiming it: tap it with your phone (or type its ID), log in (through Firebase at the showcase), and press **Claim** (spec §3.4).
 
 **Phone NFC registration or QR-code registration?**
 Phone NFC, with typing the ID as the fallback for phones without NFC (issue 15). The QR-code option from 24 Sep wasn't chosen.
@@ -236,13 +239,13 @@ If it's yours, you see "already yours". If it's someone else's, you see "This to
 It's refused with `token_taken`. Token IDs aren't secret, so someone could claim a token they don't hold before its holder does. We accept that risk, because the real holder can get the claim released (ADR 0001).
 
 **What happens after the event?**
-Claims stay. Until then they're in the claims stand-in on our Cloud Run server, and copying them into the Portal is planned for after the showcase (spec §4). What happens to the event's own data is still provisional (spec §11.2).
+The showcase's claims are deleted with the rest of its data, because its users are Firebase users, not Portal users (ADR 0004). Until then they're in the claims stand-in on our Cloud Run server. Later events keep their claims in the Portal, through its tag APIs (spec §4, §6 "After the showcase"). When the event's own data is deleted is still provisional (spec §11.2).
 
 **Does token → participant association persist across events?**
-Yes (CONTEXT "Token"; map "Out of scope", the Portal's tag APIs).
+Not the showcase's: its claims are deleted with its data (ADR 0004). From the events after it, yes, in the Portal (CONTEXT "Token"; map "Out of scope", the Portal's tag APIs).
 
 **If it persists, how is it reused for another event?**
-The new event's Event Service registers its own stations. A reader moves to it by sending its saved taps, then a reflash with the new event's key (provisional). The token needs nothing done to it (spec §3.7).
+The new event's Event Service registers its own stations. A reader moves to it by sending its saved taps, then taking the new event's key through the station's setup mode, which clears its saved taps (8 Oct, HAR-14). The token needs nothing done to it (spec §3.7).
 
 **If it does not persist, how is it reset?**
 Doesn't apply. Release covers handing a token to someone else.
@@ -254,10 +257,10 @@ Doesn't apply. Release covers handing a token to someone else.
 ### Before the event
 
 **Does the participant already have an account?**
-Yes, they need a GeeksHacking Portal account (CONTEXT "User").
+At the showcase, a Google account is enough, or a GeeksHacking account if Mr Pang agrees to offer that login (ADR 0004). Events after it need a GeeksHacking Portal account (CONTEXT "User").
 
 **Do they already exist in the Geekshacking portal?**
-Yes, for GeeksHacking events. For the A/B test at an SST event, people may not have Portal accounts. That's an open problem (spec §12).
+They don't need to for the showcase: its visitors log in through Firebase, and nothing about them reaches the Portal (ADR 0004). Hackathon participants at later events already have Portal accounts. For the A/B test, Firebase's Google sign-in removes the need for one (spec §12).
 
 **Do they receive a token before arriving?**
 No. They get it at check-in (spec §10.1, provisional).
@@ -304,7 +307,7 @@ The station's light and screen change. [Fill in: Zi Tao, on the current colours.
 The tap goes station → GeekyKey Service → Event Service, and is stored with a status (spec §3.3).
 
 **What gets recorded in the database?**
-One `taps` row: station, the participant's Portal user ID, when it happened, when it arrived, the source (NFC or QR fallback) and the status (accepted, cooldown, no game). The token's ID isn't stored (spec §3.6).
+One `taps` row: station, the participant's user ID (a Firebase ID at the showcase), when it happened, when it arrived, the source (NFC or QR fallback) and the status (accepted, cooldown, no game). The token's ID isn't stored (spec §3.6).
 
 **What reward/progress do they receive?**
 A stamp at each station the first time, and that station's points for every accepted tap (CONTEXT "Stamp", "Points").
@@ -315,13 +318,13 @@ A stamp at each station the first time, and that station's points for every acce
 Their token, and their passport for that event.
 
 **Does anything persist?**
-The token claim does. The event's data is provisional (spec §11.2).
+Not from the showcase: its claims are deleted with its data (ADR 0004). When that happens is provisional (spec §11.2).
 
 **Does their token remain linked?**
-Yes.
+Until the showcase's data is deleted (ADR 0004).
 
 **What happens to the data?**
-Adam keeps a copy at the end of the day for Joshua's analysis and for moving claims into the Portal. After that, the event's data and our copies are deleted. **Provisional** (spec §10.1, §11.2).
+Adam keeps a copy at the end of the day for Joshua's analysis. After that, the event's data, its claims and our copies are deleted. **Provisional** (spec §10.1, §11.2).
 
 ---
 
@@ -331,17 +334,17 @@ Adam keeps a copy at the end of the day for Joshua's analysis and for moving cla
 Not defined. Suggested: "after a one-time claim, each interaction is one tap, with no phone and no app." The 24 Sep notes say to show "why and how NFC can reduce the number of steps".
 
 **Are we actually claiming "zero barrier"?**
-We shouldn't. Claiming needs a Portal login (spec §3.4).
+We shouldn't. Claiming needs a login, with Google at the showcase (spec §3.4; ADR 0004).
 
 **What steps does a participant have to complete before their first interaction?**
-1. Have a Portal account.
+1. Have a Google account (or, if offered, a GeeksHacking one).
 2. Get a token.
 3. Tap it with their phone, or type its ID.
 4. Log in.
 5. Press **Claim**.
 
 **Do they need to log in?**
-Yes, once to claim. Opening the passport is a second login, which is a quick redirect if the Portal remembers them (ADR 0002).
+Yes, once to claim. Opening the passport is a second login, which is one click if Google remembers them (ADR 0002; API §3 "Browser sessions").
 
 **Do they need to register their token?**
 Yes. A tap with an unclaimed token is turned away as "Not claimed yet" (spec §3.3).
@@ -384,7 +387,7 @@ It runs as one Cloud Run instance in Singapore, handling one request at a time, 
 [Fill in: Qing Guan.] The SSOT says MySQL/TiDB, but that hasn't been checked.
 
 **What parts are we integrating with?**
-Login (OAuth), and later its tag APIs for who owns each token (spec §4, §6).
+At the showcase, only GeeksHacking's login, as a provider inside Firebase, if Mr Pang agrees (ADR 0004). After it, the Portal's login and its tag APIs for who owns each token (spec §4, §6).
 
 **What parts are we building ourselves?**
 The GeekyKey Service, the showcase's Event Service, the claims stand-in until the switch to the Portal, their screens, and the station firmware (spec §3.1).
@@ -393,25 +396,25 @@ The GeekyKey Service, the showcase's Event Service, the claims stand-in until th
 Qing Guan (spec §3.1).
 
 **Have we actually spoken to the portal lead?**
-Yes. Qing Guan and Julian shaped the architecture on 27 Sep, and Qing Guan advised on deploys and hostnames on 28 Sep (map "Givens"). The login request is still waiting for a reply (spec §9). Adam meets Julian and Qing Guan on 8 Oct about our Google Cloud project and its setup (spec §9).
+Yes. Qing Guan and Julian shaped the architecture on 27 Sep, and Qing Guan advised on deploys and hostnames on 28 Sep (map "Givens"). Adam met Julian and Qing Guan on 8 Oct: the showcase logs in through Firebase, the Portal's team agrees with the claims stand-in, and our Google Cloud project is agreed (spec §2). Qing Guan is now asked for a client for GeeksHacking's login inside Firebase (spec §9).
 
 **Do we have API access?**
-Not yet. We're waiting on the login details and two OAuth apps. The tag APIs don't exist yet: its draft `NfcTag` has no endpoints (map "Facts"; spec §12).
+None is needed before the showcase: the login is Firebase's (ADR 0004), and the tag APIs come after it. They don't exist yet: its draft `NfcTag` has no endpoints (map "Facts"). The request for two OAuth apps is parked until events log in through the Portal (spec §9).
 
 **What information can our system obtain from the portal?**
-The user's ID and display name at login (spec §6 checkpoint 5). After the switch, the owner of each token.
+At the showcase, through GeeksHacking's login inside Firebase, a Firebase user ID, and a name if the login carries one, which is still to ask (API §14). After the showcase, the user's Portal ID and name at login, and the owner of each token.
 
 **What information are we allowed to send back?**
-Only claims and releases, after the showcase (spec §4).
+Nothing before the showcase. After it, claims and releases (spec §4). The showcase's claims are deleted, not sent (ADR 0004).
 
 **Are we using OAuth/OpenID Connect?**
-Yes (ADR 0002).
+At the showcase, Firebase Authentication, with Google sign-in, and GeeksHacking's login as an OpenID Connect provider inside it (ADR 0004). After it, the Portal's OAuth/OpenID Connect (ADR 0002).
 
 **What is our actual authentication flow?**
-Each service sends the browser to the Portal and gets it back at its own `/auth/callback`. It then sets its own cookie: `gk_session` or `event_session` (ADR 0002; spec §6 checkpoint 5). Locally, dev-login stands in for this.
+The screens sign in with Firebase's web SDK and send the ID token to their own service's `POST /auth/firebase`, which checks it against Google's public keys and sets its own cookie: `gk_session` or `event_session` (ADR 0004; API §7.2). Locally, dev-login stands in for this. After the showcase, each service sends the browser to the Portal and gets it back at its own `/auth/callback` (ADR 0002).
 
 **Are we rebuilding authentication anywhere?**
-No. The Portal is the only identity provider (ADR 0002).
+No. Firebase knows the showcase's users, and the Portal everyone's after it. Each service only checks the login and sets its own cookie (ADR 0002, ADR 0004).
 
 **If yes, why?**
 Doesn't apply.
@@ -439,13 +442,13 @@ No. One database, `geekykey`, holds the Event Service's tables and, until the sw
 No (spec §3.1).
 
 **What data does our system actually need to store?**
-Per event: its stations, users' IDs and names, taps, and the passport's settings. And token claims, in the claims stand-in until they move to the Portal (spec §3.1, §3.6).
+Per event: its stations, users' IDs and names, taps, and the passport's settings. And token claims, in the claims stand-in until the switch to the Portal's tag APIs after the showcase (spec §3.1, §3.6).
 
 **What tables/entities do we need?**
 `stations`, `users`, `taps` and `passport_stations` in the Event Service, and `tokens` in the claims stand-in (spec §3.6 has the full table).
 
 **How are users represented?**
-By their Portal user ID, with a display name copied in at login (spec §3.6 `users`).
+By the user ID their login gives, a Firebase ID at the showcase, with a display name copied in at login (spec §3.6 `users`).
 
 **How are tokens represented?**
 By the chip's hardware ID, with the owner and when they claimed it, in the claims stand-in (ADR 0001; spec §3.6 `tokens`).
@@ -479,7 +482,7 @@ Hyperdrive was dropped on 2 Oct, because it can't sign in to TiDB Cloud (map "Ou
 Yes, for the Event Service: Cloud Run runs it as a container image. The Workers need none (spec §6 checkpoint 2).
 
 **Is Cloud Run actually being used?**
-Yes, for the Event Service, since 2 Oct, after Hyperdrive couldn't reach TiDB Cloud. Julian had chosen Workers on 25 Sep (map "Givens"; ADR 0003). It runs in a Google Cloud project of our own, which is provisional until 8 Oct (spec §11.3).
+Yes, for the Event Service, since 2 Oct, after Hyperdrive couldn't reach TiDB Cloud. Julian had chosen Workers on 25 Sep (map "Givens"; ADR 0003). It runs in a Google Cloud project of our own, agreed on 8 Oct: our existing Firebase project, `geekykey-b035a` (spec §3.2).
 
 **Is the frontend/backend in one container or separate?**
 Separate. The screens are Workers, and so is the GeekyKey Service from checkpoint 4. The Event Service is on Cloud Run (map "Givens"; spec §3.2).
@@ -550,7 +553,7 @@ ESP32-S3.
 Built-in Wi-Fi (SSOT §3.1). [Fill in: Zi Tao.]
 
 **How does the scanner communicate with the backend?**
-Over Wi-Fi, with HTTP to a laptop today. In production it will use HTTPS: to `event-api.geekshacking.com` from checkpoint 2, then to `key-api.geekshacking.com` after a reflash at checkpoint 4 (spec §9 "Zi Tao"; API §6.1; update 23 Sep).
+Over Wi-Fi, with HTTP to a laptop today. In production it will use HTTPS: to `event-api.geekshacking.com` from checkpoint 2, then to `key-api.geekshacking.com` through the station's setup mode at checkpoint 4 (spec §9 "Zi Tao"; API §6.1; update 23 Sep).
 
 **Wi-Fi, USB, Web Serial, WebUSB, something else?**
 Wi-Fi.
@@ -666,7 +669,7 @@ Saving and resending taps has been tried on hardware (Adam, 2 Oct). [Fill in: Zi
 
 ## 11. Token-matching mechanic
 
-None of this is built or planned. Profile editing is out of scope, and names come from the Portal (API §12). These answers are true of the current design. If the team picks a matching mechanic, they all need new answers.
+None of this is built or planned. Profile editing is out of scope, and names come from the login (API §12). These answers are true of the current design. If the team picks a matching mechanic, they all need new answers.
 
 **Are participants actually going to answer profile questions?**
 No.
@@ -738,7 +741,7 @@ Filling the passport, and earning more points after the cooldown.
 ## 12. Privacy and consent
 
 **What participant information is stored?**
-Portal user ID, display name, and each tap's station and times (spec §3.6).
+User ID (a Firebase ID at the showcase), display name, and each tap's station and times (spec §3.6).
 
 **What information is visible to other participants?**
 Nothing about anyone else (spec §3.4).
@@ -786,7 +789,7 @@ Nothing is built for it. Adam can delete it by hand (spec §10.3). [Gap.]
 ## 13. Scope
 
 **What is absolutely essential?**
-Claiming, taps, the passport, the organizers' board and export, and the Portal login (section 1).
+Claiming, taps, the passport, the organizers' board and export, and the login (section 1).
 
 **What is useful but optional?**
 - The QR fallback.
@@ -882,7 +885,7 @@ SST students.
 The SSOT's number didn't survive the export. [Fill in: Joshua.] We have only 20 tokens (update 27 Sep).
 
 **What data can we collect before the report deadline?**
-The tap export and the survey, if the test runs in Sprint 2. It needs the Portal login, or another way for participants to log in (spec §12).
+The tap export and the survey, if the test runs in Sprint 2. It needs participants to log in, which Firebase's Google sign-in now allows without the Portal (spec §12).
 
 **What would count as evidence that the design needs changing?**
 Not defined. Suggested:
