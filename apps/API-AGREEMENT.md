@@ -238,8 +238,8 @@ and only its hash is stored. Firmware sends it on every request to the GeekyKey 
 - A new, replaced or disabled key takes up to a minute to take effect, because the GeekyKey
   Service refreshes its copy at most once a minute.
 - A reader moved to another event becomes a new station there, with a new ID and key from that
-  event's Event Service. It first sends its saved taps, then its flash is erased before it is
-  flashed with the new key. Provisional until 8 October 2026.
+  event's Event Service. It first sends its saved taps, then takes the new key through the
+  station's setup mode, which clears its saved taps. There is no reflash (8 October 2026).
 - A station never receives any information about a participant beyond a tap status, in line
   with the privacy row of the risk assessment.
 
@@ -300,7 +300,6 @@ Every tap a station sends comes back with one of these.
 - `no_game` starts at checkpoint 3. Until then, today's backend stores `unknown_token` taps.
 - `no_event`, in version 0.2, is retired: every station belongs to the Event Service that
   registered it, and a key no Event Service has registered gets `401`. No service sends it.
-  Provisional until 8 October 2026.
 
 The cooldown window is an Event Service setting, default 300 seconds. The screens never need to
 compute it.
@@ -545,8 +544,8 @@ the Event Service's set `event_session`. Both accept logins from the same Fireba
 
 ### 7.1 `POST /auth/dev-login` — GeekyKey Service `Implemented, changes at checkpoint 4`, Event Service `Checkpoint 4`
 
-Only mounted when the service runs with `DEV_AUTH_ENABLED=true`, from its gitignored local
-settings. Never enabled in production.
+Only mounted when the service runs with `DEV_AUTH_ENABLED=true`, from its local development
+settings: for today's backend, the committed `apps/backend/dev.env`. Never enabled in production.
 
 **Request**
 
@@ -965,7 +964,7 @@ Create a station for this event.
 ### 9.8 `POST /api/v1/admin/stations/{id}/key` — `Checkpoint 7`
 
 Replace a station's key, keeping its ID, its passport settings and its stamps. The old key stops
-working within a minute, and Zi Tao reflashes the station with the new one.
+working within a minute, and Zi Tao enters the new one through the station's setup mode.
 
 **Request:** no body.
 
@@ -1289,3 +1288,4 @@ Closed on 2026-10-10:
 | 2026-10-01 | GeeksHacking's hostnames, chosen by Julian: stations and Event Services call `https://key-api.geekshacking.com` (was `geekykey-api`), the GeekyKey screens and the token address are on `key.geekshacking.com` (was `geekykey`), and the Event screens on `event.geekshacking.com` (was the provisional `showcase`). No endpoint or shape changes. |
 | 2026-10-07 | Version 0.3 (draft), after the Event Service moved to Google Cloud Run and the GeekyKey Service became a Worker with no database ([ADR 0003](../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md)), as the rewritten [migration spec](../.scratch/db-hosting/spec.md) plans. Each Event Service now registers its own stations and issues their keys, and a station feeds the Event Service that registered it. **New:** the registered stations, `GET /geekykey/v1/stations` (11.1); the heartbeat hand-off, `POST /geekykey/v1/heartbeats`, answering `204` (11.3); and the organizers' endpoints to create a station, replace its key, and disable and enable it (9.7 to 9.9), with the shapes the GeekyKey admin endpoints had, less the link. **Removed,** none of them built: the status call `GET /api/v1/event-service/stations` and its limit of 120 a minute, the GeekyKey admin endpoints (section 10), links, and the status `no_event` (provisional until 8 Oct). The station board (9.2) reads the Event Service's own stations, so it loses `status_known` and `linked` and gains `created_at` and `disabled_at`. Passport settings (9.1) answer `not_found` for a station that isn't this Event Service's. `claims_unavailable` (503) replaces `portal_unavailable`, from checkpoint 3, on station requests and on 8.2 to 8.5. One 4-second deadline for finding owners and the hand-off together replaces the 3-second limit (11.5, provisional). The heartbeat answers without waiting for the Event Service, and a key that can't be checked gets `503`. From checkpoint 2 until checkpoint 4, stations call `https://event-api.geekshacking.com`. The screen table's "no answer" row says `Tap saved` / `Will send later`. The checkpoints follow the rewritten spec, and section 11 is renumbered. |
 | 2026-10-10 | Version 0.4 (draft): the showcase logs in through Firebase, not the Portal ([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)). **New:** `POST /auth/firebase` on both services (7.2), taking the ID token from Firebase's web SDK after a Google or GeeksHacking sign-in, with the errors `invalid_token` (401) and `login_unavailable` (503). **Moved out of scope:** `GET /auth/login` and `GET /auth/callback`, which return after the showcase; logout becomes 7.3. User IDs are Firebase UIDs at the showcase, so "Portal user ID" becomes "user ID" throughout, and another team's Event Service logs in through the same Firebase project. Checked on 10 Oct that a Worker verifies the token in about 1 ms of CPU (BAC-20). Open questions: whether GeeksHacking's login carries a name, and what the QR fallback scans. |
+| 2026-10-12 | Housekeeping, no endpoint or shape changes. A reader moved to another event, and a replaced key (9.8), go in through the station's setup mode, not a reflash, as agreed on 8 Oct; `no_event` stays retired, no longer provisional; dev-login is turned on by the committed `apps/backend/dev.env` (7.1), not a gitignored file. |

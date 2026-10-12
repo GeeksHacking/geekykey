@@ -24,7 +24,7 @@ geekykey/
 ├── apps/
 │   ├── API-AGREEMENT.md        the contract between the frontend, backend, and stations
 │   ├── frontend/               Event screens for participants and organisers, port 5173
-│   ├── geekykey-web/           GeekyKey screens: the token page, My tokens, admin. Port 5174
+│   ├── geekykey-web/           GeekyKey screens: the token page and My tokens. Port 5174
 │   ├── backend/                the Node server that stations and the frontend call
 │   └── updates/                progress timeline for our mentors
 └── firmware/
@@ -39,9 +39,9 @@ geekykey/
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
 
-`apps/geekykey-web` is a scaffold so far: one placeholder page, and no screens yet. The
-two sets of screens are separate because they belong to separate services. See
-`apps/API-AGREEMENT.md`.
+`apps/geekykey-web` is a shell so far: logging in and out, and a placeholder My tokens page,
+all on mock data. The two sets of screens are separate because they belong to separate
+services. See `apps/API-AGREEMENT.md`.
 
 `pnpm-workspace.yaml` also includes `packages/*`, for code shared between apps. There is
 nothing there yet.
@@ -159,7 +159,8 @@ reload in place.
 
 ### 4. Sign in
 
-The portal sign-in is not wired yet. Use a seeded account from the form on the login page:
+The real login, through Firebase, isn't wired yet (checkpoint 5 of the migration spec). Use a
+seeded account from the form on the login page:
 
 | Account | Role | What you get |
 |---|---|---|
@@ -415,7 +416,7 @@ network, not only your laptop, because real stations call it by the laptop's nam
 anyone on the same Wi-Fi can reach it, dev sign-in included.
 
 `dev.env` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`, which signs in a
-seeded user without the portal, and signs sessions with a built-in secret. Never turn it
+seeded user without a real login, and signs sessions with a built-in secret. Never turn it
 on in production. Without it, the backend refuses to start unless `SESSION_SECRET` is set.
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
 connects over TLS, checking the database's certificate and name, unless the address is on

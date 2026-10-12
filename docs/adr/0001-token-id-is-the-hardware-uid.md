@@ -1,5 +1,8 @@
 # Tokens are identified by their hardware UID, mirrored into a permanent link
 
+> **Narrowed on 8 Oct 2026** by [ADR 0004](0004-the-showcase-logs-in-through-firebase.md): at the
+> showcase a claim needs a Firebase login, not a Portal one. The consequences below still hold.
+
 A token's ID is its NTAG213 hardware UID, both when a station reads it and when a phone opens it.
 Every token carries the address `https://key.geekshacking.com/t/<UID>`, and the chip fills in
 its own UID each time it is read (the NTAG21x "UID mirror"), so every token is written the same

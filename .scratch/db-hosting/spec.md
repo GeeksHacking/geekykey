@@ -11,7 +11,7 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
-- Words such as token, claim, owner, registered stations and hand-off mean what [CONTEXT.md](../../CONTEXT.md) says. Field names and status codes live in [apps/API-AGREEMENT.md](../../apps/API-AGREEMENT.md), whose version 0.3 carries this rewrite (section 7).
+- Words such as token, claim, owner, registered stations and hand-off mean what [CONTEXT.md](../../CONTEXT.md) says. Field names and status codes live in [apps/API-AGREEMENT.md](../../apps/API-AGREEMENT.md), whose version 0.3 carries this rewrite and version 0.4 the Firebase login (section 7).
 
 ## Contents
 
@@ -55,7 +55,7 @@ From the meeting with Julian and Qing Guan on Thu 8 Oct, and Adam's calls on the
 5. **No reflash to move a reader.** Julian wants a station set up from a terminal or a browser page instead of being reflashed. So the firmware gains a setup mode that takes a new server address, station key and Wi-Fi network without a reflash (Adam added the Wi-Fi, since every venue has its own), and clears the saved taps when the key changes (Zi Tao, HAR-14, before checkpoint 4). Stations move to `key-api.` through it at checkpoint 4, and a replaced key on event day goes in through it too. `no_event` stays retired.
 6. **The showcase logs in through Firebase** ([ADR 0004](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)). Google sign-in for anyone, and GeeksHacking's login as an OIDC provider inside Firebase for people with a GeeksHacking account. Its users aren't stored in GeeksHacking's database, so taking the showcase down leaves no mess in the Portal. We use our existing Firebase project, and Julian links GeeksHacking's billing account to it, which the OIDC provider needs. A user ID at the showcase is a Firebase UID. Adam checks with Mr Pang about offering GeeksHacking's login at the showcase.
 7. **The showcase's claims are thrown away,** with the rest of its data. A Firebase UID isn't a Portal user, so "Copy claims to the Portal" goes, and the Portal's tag APIs start empty.
-8. **How each service checks a Firebase login is provisional:** whether a Worker can do it well enough (Adam: "it depends, see if Workers works out"). The spec's call, until the check before checkpoint 5 (BAC-20): the screens sign in with Firebase's SDK, send the ID token to their own service, which checks it against Google's public keys and sets its own cookie, so ADR 0002's rule that each service logs users in itself still holds.
+8. **How each service checks a Firebase login is provisional:** whether a Worker can do it well enough (Adam: "it depends, see if Workers works out"). The spec's call, until the check before checkpoint 5 (BAC-20): the screens sign in with Firebase's SDK, send the ID token to their own service, which checks it against Google's public keys and sets its own cookie, so ADR 0002's rule that each service logs users in itself still holds. *Settled 10 Oct:* a Worker checks the login in about 1 ms of CPU, so this stays (BAC-20, checkpoint 5).
 9. **Housekeeping.** Julian agreed to disconnect Workers Builds from `apps/backend`, and to make the repo public and protect `main`; neither is done yet. His two diagrams in `assets/` may be public. He makes sure `key.geekshacking.com/t/` keeps working, and `key.` never changes. Only he can use the TiDB console, and he'll be at the showcase. At the split, the Event Service's repo goes under the GeeksHacking organisation.
 10. **The freeze moves earlier** (Julian suggested two weeks; Adam chose one). The backend freezes from Wed 11 Nov: only fixes merge after it. The last merge of all is on Mon 16 Nov, so nothing deploys the night before the showcase.
 11. **A stress test before the showcase,** on staging, and rate limiting before it, which isn't built yet (checkpoint 8, BAC-21). Julian also raised a server-side queue for taps. It's in the backlog (BAC-22), and the stress test decides whether we need it (section 12).
@@ -418,16 +418,16 @@ Sources for section 5: [How do deploys and secrets work?](issues/09-deploys-and-
 
 ## 6. The migration plan
 
-Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then does the next one start. The order is the spec's call. Checkpoints 6 and 7 can swap, and checkpoint 5 can move after them if the Firebase login check is slow: they're built and tested locally with dev-login meanwhile.
+Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then does the next one start. The order is the spec's call. Checkpoints 6 and 7 can swap, and checkpoint 5 can move after them if it runs late: they're built and tested locally with dev-login meanwhile.
 
 | | Checkpoint | Done when | Waits on |
 |---|---|---|---|
-| 0 | The contract and the asks | **Done** for version 0.2 (29 Sep). Version 0.3, for this rewrite, is approved by Ethan before checkpoint 3 | Ethan's review |
+| 0 | The contract and the asks | **Done** for version 0.2 (29 Sep) and version 0.4, the Firebase login (approved by Ethan and merged on 10 Oct, PR #48). Version 0.3, for this rewrite, went to `main` on 7 Oct, and is approved by Ethan before checkpoint 3 | Ethan's review of 0.3 |
 | 1 | Today's backend on workerd and TiDB | **Done** (BAC-1 to BAC-6) | |
 | 2 | The move to Cloud Run | A tap to `event-api.geekshacking.com` is stored in TiDB, after staging; the log check; the cold start is measured | Julian: the project, the keyless sign-in and the roles (agreed 8 Oct), disconnecting Workers Builds, and the DNS record, once we're ready |
 | 3 | The line drawn inside | One server, with the GeekyKey side, the Event side and the claims stand-in talking only through their requests, on the new tables | Nothing outside the team |
 | 4 | The GeekyKey Service cut out | `geekykey-service` runs at `key-api.`, the stations have moved to it, and the smoke test runs on every pull request | Julian: connecting `geekykey-service`, its secrets, and the Event Service's new repo under GeeksHacking. Zi Tao: the setup mode |
-| 5 | Login, and the screens deployed | Both logins work through Firebase, the passport shows on a phone, the cookies are checked, the passport poll is measured | Adam: Firebase set up, and the check that a Worker can verify its login. Julian: billing on the Firebase project. Qing Guan: an OIDC client for GeeksHacking's login, asked before Mr Pang (10 Oct). Julian or Qing Guan: two domains |
+| 5 | Login, and the screens deployed | Both logins work through Firebase, the passport shows on a phone, the cookies are checked, the passport poll is measured | Qing Guan: an OIDC client for GeeksHacking's login, asked before Mr Pang (10 Oct). Julian or Qing Guan: two domains. Done: Google sign-in and the check that a Worker can verify its login (Adam, 10 Oct), and billing on the Firebase project (Julian, by 9 Oct) |
 | 6 | The GeekyKey Service's features | Tokens are claimed and released, and the limits hold | Ethan's team: the `geekykey-web` screens |
 | 7 | The Event Service's features | Organizers create and disable stations, set up the passport and watch taps, and the export is right | Ethan's team: the `event-web` changes |
 | 8 | Ready for the event | The copy, restore and clear tasks work, the restore is tried, the stress test has run, the rehearsal is done by 7 Nov | The whole team |
@@ -439,7 +439,7 @@ Three tracks run alongside the checkpoints: going public, the screens (Ethan's t
 
 **Done for version 0.2.** The API agreement was rewritten for the two services and merged on 29 Sep, and amended on 1 Oct for Julian's hostnames. `CONTEXT.md` and `docs/adr/` are committed.
 
-**Version 0.3,** for this rewrite, is a pull request that Ethan reviews (section 7). It should be approved before checkpoint 3 builds the shapes it changes, and before Ethan's team builds the station screens on `event-web`.
+**Version 0.3,** for this rewrite, went to `main` on 7 Oct for Ethan to review (section 7). It should be approved before checkpoint 3 builds the shapes it changes, and before Ethan's team builds the station screens on `event-web`. **Version 0.4,** the Firebase login, followed in PR #48, which Ethan approved and which merged on 10 Oct.
 
 **Asked in person on Thu 8 Oct,** from [the agenda](../meetings/2026-10-08-julian-and-qing-guan.md). The answers are in section 2, and what's still open in section 12.
 
@@ -563,7 +563,7 @@ Changed on 8 Oct: the showcase logs in through Firebase, not the Portal ([ADR 00
 - Adam turns on Google sign-in in our Firebase project and adds `key.geekshacking.com` and `event.geekshacking.com` to its authorised domains (*done 10 Oct*, runbook step 12). Julian links GeeksHacking's billing account to the project, which the Identity Platform upgrade needs (*done by 9 Oct*). *Changed 10 Oct (Adam):* GeeksHacking's login is added now, and Mr Pang is asked afterwards. Qing Guan issues an OIDC client for Firebase's redirect URL, and Adam upgrades the project to Identity Platform and adds it as a provider (runbook step 12). If Mr Pang says no, the provider is turned off and the screens drop its button. OIDC sign-ins are free for 49 users a month, then US$0.015 each.
 - **The check** (Adam, BAC-20): a Worker verifies a Firebase ID token against Google's public keys, and the CPU time per login is measured against the free plan's 10 ms. *Passed 10 Oct:* a median of 1 ms of CPU with Google's keys cached and 2 ms with them fetched, and Google sign-in works on `localhost` ([the check](research/firebase-login-check.md)).
 
-- **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changes with it, once the check passes. Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID.
+- **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changed with it, in version 0.4 (10 Oct). Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID.
 - **The forwarding Workers.** A small `worker/` folder in `apps/event-web` and in `apps/geekykey-web`, with its own Wrangler config (section 5.1). Adam writes them. Afterwards Ethan owns them, and Adam reviews any change to their list of paths.
 - **`apps/geekykey-web`** exists by now, from the screens track, with at least its login and shell.
 
@@ -652,7 +652,7 @@ Sources for section 6: every ticket in section 13, in particular [How is the Eve
 
 ## 7. The API agreement
 
-The agreement wins over every other document, including this one. Step 0 rewrote it as version 0.2, merged on 29 Sep. The redraw's changes are made in the agreement itself, as **version 0.3**, in a pull request that Ethan reviews; its changelog lists them. Every endpoint they touch is a `Checkpoint N` one, so a pull request from either side may change it (the agreement's section 1). In short:
+The agreement wins over every other document, including this one. Step 0 rewrote it as version 0.2, merged on 29 Sep. The redraw's changes are made in the agreement itself, as **version 0.3**, which went to `main` on 7 Oct for Ethan's review; its changelog lists them. Every endpoint they touch is a `Checkpoint N` one, so a pull request from either side may change it (the agreement's section 1). In short:
 
 - **New, in the section for Event Service builders and in `packages/handoff`:** the registered stations, `GET /geekykey/v1/stations`, and the heartbeat hand-off, `POST /geekykey/v1/heartbeats`, answering `204` (the spec's call).
 - **Gone:** the status call, `GET /api/v1/event-service/stations`, with its limit of 120 a minute and its "status unknown" case; the status `no_event`; links; and the GeekyKey admins' station endpoints.
@@ -662,7 +662,7 @@ The agreement wins over every other document, including this one. Step 0 rewrote
 - **The heartbeat** answers `server_time` without waiting for the Event Service, and a missing list gives `503` rather than `401`.
 - **The screen table's "no answer" row** says `Tap saved` / `Will send later`, and the `no_event` row goes.
 - **Addresses:** the Event Service gets `https://event-api.geekshacking.com`; stations call it until checkpoint 4. The checkpoint table follows section 6.
-- **Not yet in it:** the Firebase login (section 6, checkpoint 5). Its login section changes once the check passes, in a later version.
+- **Added in version 0.4** (10 Oct, PR #48): the Firebase login, `POST /auth/firebase` on both services (section 6, checkpoint 5).
 
 The endpoint index is the agreement's section 5.
 
@@ -727,12 +727,12 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### Ethan
 
-- **Review the API agreement's version 0.3 pull request** (section 7).
+- **Review version 0.3 of the API agreement,** on `main` since 7 Oct (section 7). He approved version 0.4 on 10 Oct.
 - **The screens track** in section 6, with his team, the Linear tickets the rewrite changes (listed in "Fold the answers into the spec"), and the edits to `apps/frontend/CLAUDE.md` (section 8.2).
 - **Own the two forwarding Workers** once Adam has written them. Adam reviews any change to their list of paths.
 - **Access:** none on Cloudflare (Julian, 1 Oct 2026); his screens deploy when his pull requests merge, and roll back by reverting. Logs Viewer on Google Cloud, for the Event Service's logs, and no deploy role there.
 - **Install Docker** to run the backend locally.
-- **The Firebase login on both sets of screens,** once the check passes (checkpoint 5, FRO-33).
+- **The Firebase login on both sets of screens,** now that the check has passed (checkpoint 5, FRO-33).
 - **On the day:** watch the screens and roll them back by reverting; a second pair of eyes on the Event Service's logs; read any query Adam runs to change data; at the desk whenever Adam isn't; an organizer who disables and enables stations, and a GeekyKey admin who releases found tokens.
 
 ### Zi Tao

@@ -142,7 +142,7 @@ The spec marks the first two provisional (Adam, 28 Sep), in its section 11. The 
 - **Renaming "barrel key" to "API key".** It has its own action item, and the code and docs keep "station key".
 - **Moving data from the dev database.** It only holds test data.
 - **Deploying the updates site.** The mentors' timeline isn't part of the destination. It can reuse whichever way Julian picks in "How do deploys and secrets work?".
-- **Portal login details** (OIDC issuer, client ID, claims). Still an open question with Qing Guan in the API agreement. Only the redirect URLs are in scope here.
+- **Portal login details** (OIDC issuer, client ID, claims). Still an open question with Qing Guan in the API agreement. Only the redirect URLs are in scope here. *Closed on 10 Oct:* the showcase logs in through Firebase ([ADR 0004](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)), with the Portal's issuer inside it as GeeksHacking's login.
 - **Hyperdrive.** It can't sign in to TiDB Cloud (BAC-15, 2 Oct). The measurements behind dropping it are in [research/hyperdrive-alternatives-benchmark.md](research/hyperdrive-alternatives-benchmark.md).
 - **The games at the showcase.** Bingo, colour matching and quests were discussed at the 2 Oct meeting. Joshua owns them. This map only keeps room for what a game needs from hosting, as "Can the architecture carry the 24 Sep game ideas?" did. (Adam, 3 Oct)
 - **Bun's package manager or test runner.** A change for the whole repo, not for Cloud Run, and `bun test` would run the tests on Bun rather than Node. Ruled out in "How is the Event Service built, deployed and staged on Cloud Run?". (Adam, 7 Oct)
