@@ -648,6 +648,10 @@ void checkBackend() {
   http.setConnectTimeout(2000);
   http.setTimeout(5000);
   int code = http.GET();
+  // Read the answer even though it isn't used. The connection stays open for
+  // the next request, and an unread body would be taken as that request's
+  // answer (on hardware, a reused connection then returned HTTP 5).
+  if (code > 0) http.getString();
   http.end();
   if (code == 200) {
     Serial.println("Backend reachable");
