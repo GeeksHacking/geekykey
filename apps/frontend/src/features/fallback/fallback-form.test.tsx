@@ -47,25 +47,25 @@ function chooseStation() {
 }
 
 describe("FallbackForm", () => {
-  it("shows only the Portal user ID field", () => {
+  it("shows only the user ID field", () => {
     setup();
 
-    expect(screen.getByLabelText("Portal user ID")).toBeInTheDocument();
+    expect(screen.getByLabelText("User ID")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
     expect(screen.queryByText("Token UID")).not.toBeInTheDocument();
   });
 
-  it("accepts an unknown Portal user ID and logs accepted then cooldown", async () => {
+  it("accepts an unknown user ID and logs accepted then cooldown", async () => {
     const { api, user } = setup();
     chooseStation();
-    await user.type(screen.getByLabelText("Portal user ID"), "new-user-123");
+    await user.type(screen.getByLabelText("User ID"), "new-user-123");
     await user.click(screen.getByRole("button", { name: "Log tap" }));
 
     expect(await screen.findByText("Accepted")).toBeInTheDocument();
     expect(api.mock.data.taps.some((tap) => tap.user_id === "new-user-123")).toBe(true);
 
     await user.click(screen.getByRole("button", { name: "Log another" }));
-    await user.type(screen.getByLabelText("Portal user ID"), "new-user-123");
+    await user.type(screen.getByLabelText("User ID"), "new-user-123");
     await user.click(screen.getByRole("button", { name: "Log tap" }));
 
     expect(await screen.findByText("Cooldown")).toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("FallbackForm", () => {
     const { user } = setup([photoWall]);
     const select = document.querySelector("select");
     fireEvent.change(select!, { target: { value: photoWall.id } });
-    await user.type(screen.getByLabelText("Portal user ID"), "new-user-123");
+    await user.type(screen.getByLabelText("User ID"), "new-user-123");
     await user.click(screen.getByRole("button", { name: "Log tap" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -93,7 +93,7 @@ describe("FallbackForm", () => {
     const { api, user } = setup();
     api.mock.failNext("validation_failed");
     chooseStation();
-    await user.type(screen.getByLabelText("Portal user ID"), "dev-user-1");
+    await user.type(screen.getByLabelText("User ID"), "dev-user-1");
     await user.click(screen.getByRole("button", { name: "Log tap" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(

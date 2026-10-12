@@ -13,7 +13,7 @@ import {
 import { SEEDED_USERS } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 
-/** Local development only. Same session cookie as the portal login, so every screen after this is identical. */
+/** Local development only. Same session cookie as the real sign-in, so every screen after this is identical. */
 export function DevLoginForm() {
   const session = useSession();
   const [userId, setUserId] = useState<string>(SEEDED_USERS[0].id);
@@ -44,7 +44,7 @@ export function DevLoginForm() {
         Local development
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        The portal sign-in is not wired yet. Use a seeded account instead.
+        The showcase&apos;s sign-in isn&apos;t built yet. Use a seeded account for now.
       </p>
       <div className="mt-4 grid gap-2">
         <Label htmlFor="dev-user">Seeded account</Label>

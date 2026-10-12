@@ -23,5 +23,5 @@ export const SEEDED_USERS = [
 /** Simulated request latency for the mock client, in milliseconds. */
 export const MOCK_LATENCY_MS: readonly [number, number] = [180, 520];
 
-/** Where the Portal login lands a participant with no tokens yet. */
+/** Where the login lands a participant with no tokens yet. */
 export const HOME_PATH = "/" as const;

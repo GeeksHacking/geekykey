@@ -387,10 +387,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const userId = input.user_id.trim();
         if (!userId) {
           fail("validation_failed", [
-            { path: ["user_id"], message: "Enter the participant's Portal user ID." },
+            { path: ["user_id"], message: "Enter the participant's user ID." },
           ]);
         }
-        // A Portal user ID is valid even when the participant has never logged in.
+        // A user ID is valid even when the participant has never logged in.
         const status = resolveStatus(userId, input.station_id, at);
         if (status === "no_game") fail("not_found");
         const tap = appendTap({

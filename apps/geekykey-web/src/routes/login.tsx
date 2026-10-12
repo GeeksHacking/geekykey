@@ -10,7 +10,7 @@ export const Route = createFileRoute("/login")({
   // The key must be named with an explicit `undefined`. The router *merges* the validated
   // search over the parsed one rather than replacing it, so returning `{}` drops nothing and
   // whatever was in the URL survives. Measured on this version: `{}` left
-  // "//evil.example/steal" in both the match and the URL, and the Portal sign-in link was then
+  // "//evil.example/steal" in both the match and the URL, and the sign-in link was then
   // built from it. Only `{ return_to: undefined }` removes the key and rewrites the URL.
   validateSearch: (search: Record<string, unknown>): { return_to?: string | undefined } =>
     isSafeReturnTo(search.return_to) ? { return_to: search.return_to } : { return_to: undefined },

@@ -89,7 +89,7 @@ describe("geekykey-web http client", () => {
     expect(calls[0]?.url).toBe("/api/v1/tokens/04A1B2C3D4E5F6");
   });
 
-  it("builds the portal login URL without sending a request", () => {
+  it("builds the login URL without sending a request", () => {
     const { calls } = stubFetch(() => json({}));
     const api = createHttpClient();
 

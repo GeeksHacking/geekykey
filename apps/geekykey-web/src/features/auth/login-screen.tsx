@@ -37,7 +37,7 @@ export function LoginScreen({ returnTo }: { returnTo?: string }) {
       <p className="mt-3 text-muted-foreground">
         Sign in with your GeeksHacking account to see your tokens.
       </p>
-      {/* The Portal round trip lands at checkpoint 5 (agreement 7.2). */}
+      {/* The Firebase sign-in lands at checkpoint 5 (agreement 7.2, version 0.4). */}
       <Button asChild size="lg" className="mt-8 w-full">
         <a href={api.loginUrl(returnTo ?? "/")}>Sign in with GeeksHacking</a>
       </Button>

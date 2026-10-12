@@ -5,10 +5,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 /*
-  The Portal user ID an organiser asks for when logging a QR fallback. It stays
-  small and always visible because a station can fail at any point in the event,
-  not only for someone who has never tapped. Copied the same way as the station
-  key reveal: write to the clipboard, then confirm briefly.
+  The user ID an organiser asks for when logging a QR fallback. Agreement 0.4:
+  a Firebase UID at the showcase, the Portal's user ID once events log in through
+  the Portal. It stays small and always visible because a station can fail at any
+  point in the event, not only for someone who has never tapped. Copied the same
+  way as the station key reveal: write to the clipboard, then confirm briefly.
 */
 export function UserIdRow({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);
@@ -38,7 +39,7 @@ export function UserIdRow({ userId }: { userId: string }) {
   return (
     <div className="mt-1 flex items-center gap-2">
       <p className="text-sm text-muted-foreground">
-        Your Portal user ID: <code className="font-mono text-foreground">{userId}</code>
+        Your user ID: <code className="font-mono text-foreground">{userId}</code>
       </p>
       <Button size="sm" variant="outline" onClick={() => void copyUserId()}>
         {copied ? <Check aria-hidden /> : <Copy aria-hidden />}

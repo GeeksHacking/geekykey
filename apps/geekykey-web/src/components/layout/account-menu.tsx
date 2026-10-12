@@ -13,7 +13,7 @@ import {
 import { HOME_PATH } from "@/lib/constants";
 
 interface AccountMenuProps {
-  /** The Portal user ID. The GeekyKey Service keeps no display name (agreement 8.4). */
+  /** The user ID. The GeekyKey Service keeps no display name (agreement 8.4). */
   userId: string;
   isGeekyKeyAdmin: boolean;
   onSignOut: () => void;

@@ -23,7 +23,7 @@ export interface TokenLookup {
   /** When you claimed it, only when `owner` is "you". Otherwise null. */
   claimed_at: string | null;
   /**
-   * The owner's Portal user ID. Only for a GeekyKey admin when `owner` is
+   * The owner's user ID. Only for a GeekyKey admin when `owner` is
    * "someone_else"; null otherwise. Passed back to release (8.3) so a late click
    * cannot release a newer claim.
    */

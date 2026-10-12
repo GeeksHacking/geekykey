@@ -135,7 +135,7 @@ export interface ListTapsResponse {
   next_before_id: number | null;
 }
 
-/** POST /api/v1/admin/taps. The organiser supplies the Portal user ID. */
+/** POST /api/v1/admin/taps. The organiser supplies the user ID. */
 export interface FallbackTapRequest {
   station_id: string;
   user_id: string;

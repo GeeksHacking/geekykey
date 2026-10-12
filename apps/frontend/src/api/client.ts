@@ -29,7 +29,9 @@ export interface ApiClient {
   /** POST /auth/logout */
   logout(): Promise<void>;
 
-  /** Where to send the browser to start the portal login. GET /auth/login?return_to=... */
+  /** Where to send the browser to start the login. GET /auth/login?return_to=... Agreement 0.4
+   *  moved that endpoint out of scope for the showcase; POST /auth/firebase (7.2) replaces
+   *  it, which is FRO-33. Kept because it is the return-URL rule's only caller today. */
   loginUrl(returnTo: string): string;
 
   /** GET /api/v1/admin/stations (GeekyKey station registry). */

@@ -28,7 +28,7 @@ export interface MockData {
   event_services: MockEventService[];
   tokens: MockToken[];
   /**
-   * Portal user IDs on the GeekyKey Service's admin list. Since 0.3 an admin's one
+   * user IDs on the GeekyKey Service's admin list. Since 0.3 an admin's one
    * job is releasing someone else's token (8.3 with `owner_id`); the station jobs
    * moved to the Event screens.
    */

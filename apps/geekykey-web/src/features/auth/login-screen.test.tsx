@@ -49,7 +49,7 @@ async function openAccountList(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("LoginScreen", () => {
-  it("builds the Portal sign-in address from the login URL method", async () => {
+  it("builds the sign-in address from the login URL method", async () => {
     const { api } = renderLogin("/t/04A1B2C3D4E5F6");
 
     const link = await screen.findByRole("link", { name: "Sign in with GeeksHacking" });

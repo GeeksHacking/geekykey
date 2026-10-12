@@ -7,7 +7,6 @@ import type { Role, TapSource, TapStatus } from "@/api/types";
 
 export interface MockUser {
   id: string;
-  portal_user_id: string;
   display_name: string | null;
   role: Role;
 }
@@ -76,31 +75,28 @@ export function createFixtures(now: number = Date.now()): MockData {
   const users: MockUser[] = [
     {
       id: SEEDED_PARTICIPANT_ID,
-      portal_user_id: "dev-portal-1",
       display_name: "Alex Tan",
       role: "participant",
     },
     {
       id: SEEDED_ORGANIZER_ID,
-      portal_user_id: "dev-portal-2",
       display_name: "Priya Raman",
       role: "organizer",
     },
-    { id: "u_7f3a", portal_user_id: "p_1041", display_name: "Wei Lin Chong", role: "participant" },
+    { id: "u_7f3a", display_name: "Wei Lin Chong", role: "participant" },
     {
       id: "u_9c21",
-      portal_user_id: "p_1042",
       display_name: "Farhan Iskandar",
       role: "participant",
     },
-    { id: "u_2e8b", portal_user_id: "p_1047", display_name: "Kenji Ong", role: "participant" },
-    { id: "u_b514", portal_user_id: "p_1053", display_name: "Hui Min Loh", role: "participant" },
-    { id: "u_d0a9", portal_user_id: "p_1058", display_name: "Darren Koh", role: "participant" },
-    { id: "u_44c7", portal_user_id: "p_1061", display_name: "Aisyah Rahman", role: "participant" },
-    { id: "u_e1f2", portal_user_id: "p_1066", display_name: "Marcus Lim", role: "participant" },
-    { id: "u_3b7d", portal_user_id: "p_1072", display_name: "Nurul Huda", role: "participant" },
-    { id: "u_8a05", portal_user_id: "p_1079", display_name: "Jia Hao Ng", role: "participant" },
-    { id: "u_c6e3", portal_user_id: "p_1083", display_name: "Siti Aminah", role: "participant" },
+    { id: "u_2e8b", display_name: "Kenji Ong", role: "participant" },
+    { id: "u_b514", display_name: "Hui Min Loh", role: "participant" },
+    { id: "u_d0a9", display_name: "Darren Koh", role: "participant" },
+    { id: "u_44c7", display_name: "Aisyah Rahman", role: "participant" },
+    { id: "u_e1f2", display_name: "Marcus Lim", role: "participant" },
+    { id: "u_3b7d", display_name: "Nurul Huda", role: "participant" },
+    { id: "u_8a05", display_name: "Jia Hao Ng", role: "participant" },
+    { id: "u_c6e3", display_name: "Siti Aminah", role: "participant" },
   ];
 
   const eventStart = now - minutes(137);
