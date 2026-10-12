@@ -839,5 +839,4 @@
     where each part runs, how a push to the main branch deploys production and a run by hand
     deploys staging, how to roll back, where every credential is kept without giving any, and
     the team's eight rules, from the freeze before the showcase to who may change data on the
-    day. The parts that don't exist yet, such as database copies and rolling back a Cloudflare
-    Worker, are marked as coming.
+    day, and marks as coming the parts that don't exist yet, such as database copies.
