@@ -9,7 +9,7 @@ export const Route = createFileRoute("/login")({
   //
   // The key must be named with an explicit `undefined`. The router *merges* the validated
   // search over the parsed one rather than replacing it, so returning `{}` drops nothing and
-  // whatever was in the URL survives, and LoginScreen then builds the Portal sign-in link
+  // whatever was in the URL survives, and LoginScreen then builds the sign-in link
   // from it. Returning `{ return_to: undefined }` removes the key and rewrites the URL.
   // apps/geekykey-web/src/routes/login.tsx is the same rule, and
   // apps/geekykey-web/src/routes/login.test.tsx proves it.

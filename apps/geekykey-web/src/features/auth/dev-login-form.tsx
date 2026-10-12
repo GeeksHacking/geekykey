@@ -14,7 +14,7 @@ import { SEEDED_USERS } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 
 /**
- * Local development only. Same session cookie as the portal login, so every screen after
+ * Local development only. Same session cookie as the real sign-in, so every screen after
  * this is identical.
  *
  * The GeekyKey Service keeps no users and signs in any ID (agreement 7.1), so this form
@@ -47,7 +47,7 @@ export function DevLoginForm() {
         Local development
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        The portal sign-in is not wired yet. Use a seeded account instead.
+        The showcase&apos;s sign-in isn&apos;t built yet. Use a seeded account for now.
       </p>
       <div className="mt-4 grid gap-2">
         <Label htmlFor="dev-user">Seeded account</Label>

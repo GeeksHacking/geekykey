@@ -25,7 +25,7 @@ export interface SessionState {
   authorizationError?: unknown;
   /** Re-fetch /me. Call after anything that changes tokens. */
   refresh: () => Promise<void>;
-  /** Dev-login with a Portal user ID. Resolves with the fresh /me payload. */
+  /** Dev-login with a user ID. Resolves with the fresh /me payload. */
   signIn: (userId: string) => Promise<MeResponse>;
   signOut: () => Promise<void>;
 }

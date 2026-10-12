@@ -14,17 +14,17 @@ beforeEach(() => {
 
 describe("UserIdRow", () => {
   it("labels the ID plainly and shows it in the mono font", () => {
-    render(<UserIdRow userId="portal-user-1" />);
+    render(<UserIdRow userId="user-1" />);
 
-    expect(screen.getByText(/Your Portal user ID/)).toBeInTheDocument();
-    expect(screen.getByText("portal-user-1")).toHaveClass("font-mono");
+    expect(screen.getByText(/Your user ID/)).toBeInTheDocument();
+    expect(screen.getByText("user-1")).toHaveClass("font-mono");
   });
 
-  it("copies the Portal user ID and confirms briefly", async () => {
-    render(<UserIdRow userId="portal-user-1" />);
+  it("copies the user ID and confirms briefly", async () => {
+    render(<UserIdRow userId="user-1" />);
     await userEvent.click(screen.getByRole("button", { name: "Copy" }));
 
-    expect(writeText).toHaveBeenCalledWith("portal-user-1");
+    expect(writeText).toHaveBeenCalledWith("user-1");
     expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
   });
 });

@@ -18,6 +18,8 @@ describe("DashboardClaimHelp", () => {
     render(<DashboardClaimHelp />);
 
     expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Portal user ID/)).not.toBeInTheDocument();
+    // Matched on "Your user ID", which is what UserIdRow renders. Asserting the old
+    // "Portal user ID" would pass forever now the wording is gone from the app.
+    expect(screen.queryByText(/Your user ID/)).not.toBeInTheDocument();
   });
 });

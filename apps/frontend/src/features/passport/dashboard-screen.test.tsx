@@ -16,7 +16,7 @@ vi.mock("@/components/layout/section-heading", () => ({
 }));
 
 const baseMe: MeResponse = {
-  user: { id: "portal-user-1", display_name: "Alex Tan", role: "participant" },
+  user: { id: "user-1", display_name: "Alex Tan", role: "participant" },
   points: 0,
   stamps: [],
   recent_taps: [],
@@ -60,6 +60,6 @@ describe("DashboardScreen", () => {
       screen.queryByText("Tap your token with your phone to claim it"),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
-    expect(screen.getByText("portal-user-1")).toBeInTheDocument();
+    expect(screen.getByText("user-1")).toBeInTheDocument();
   });
 });

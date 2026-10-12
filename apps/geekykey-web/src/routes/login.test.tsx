@@ -16,7 +16,7 @@ import { routeTree } from "@/routeTree.gen";
   `isSafeReturnTo` is unit-tested in features/auth/paths.test.ts, but that only proves the
   predicate. What matters here is whether the route *applies* it: the router merges the
   validated search over the parsed one, so a validator that omits the key leaves it in place,
-  and the Portal sign-in link is then built from an address on another site. These tests
+  and the sign-in link is then built from an address on another site. These tests
   arrive at /login with a hostile return_to, which is the only way to see that.
 */
 function renderLoginAt(query: string) {
@@ -40,7 +40,7 @@ function renderLoginAt(query: string) {
   return { router };
 }
 
-async function portalHref(query: string) {
+async function loginHref(query: string) {
   const { router } = renderLoginAt(query);
   const link = await screen.findByRole("link", { name: "Sign in with GeeksHacking" });
   await waitFor(() => expect(router.state.status).toBe("idle"));
@@ -53,7 +53,7 @@ async function portalHref(query: string) {
 
 describe("the /login route's return_to rule", () => {
   it("keeps a relative path, so the token page's return survives", async () => {
-    const { href, browserUrl } = await portalHref("?return_to=%2Ft%2F04A1B2C3D4E5F6");
+    const { href, browserUrl } = await loginHref("?return_to=%2Ft%2F04A1B2C3D4E5F6");
 
     expect(browserUrl).toBe("/login?return_to=%2Ft%2F04A1B2C3D4E5F6");
     // Agreement 7.2: the token page logs in with return_to=/t/<UID>.
@@ -61,7 +61,7 @@ describe("the /login route's return_to rule", () => {
   });
 
   it("falls back to the home page when there is no return_to", async () => {
-    const { href } = await portalHref("");
+    const { href } = await loginHref("");
 
     expect(href).toBe("/auth/login?return_to=%2F");
   });
@@ -76,8 +76,8 @@ describe("the /login route's return_to rule", () => {
   ];
 
   for (const [label, query] of hostile) {
-    it(`drops the ${label} address, in the URL and on the Portal link`, async () => {
-      const { href, browserUrl, search } = await portalHref(query);
+    it(`drops the ${label} address, in the URL and on the sign-in link`, async () => {
+      const { href, browserUrl, search } = await loginHref(query);
 
       expect(search).not.toHaveProperty("return_to");
       expect(browserUrl).toBe("/login");
@@ -87,7 +87,7 @@ describe("the /login route's return_to rule", () => {
   }
 
   it("drops /login itself, so signing in cannot bounce", async () => {
-    const { browserUrl, href } = await portalHref("?return_to=%2Flogin");
+    const { browserUrl, href } = await loginHref("?return_to=%2Flogin");
 
     expect(browserUrl).toBe("/login");
     expect(href).toBe("/auth/login?return_to=%2F");

@@ -4,8 +4,10 @@ import type { ApiClient } from "@/api/client";
 export type SessionApi = Pick<ApiClient, "me" | "devLogin" | "logout" | "loginUrl">;
 
 /**
- * The GeekyKey Service owns token claims and releases, and the station registry:
- * listing every station (agreement 10.1) and creating one (10.2).
+ * The GeekyKey Service owns token claims and releases. Section 10 has held no
+ * endpoints since version 0.3, so the station registry is not here: each Event
+ * Service registers and issues its own stations (9.7 to 9.9), and the GeekyKey
+ * Service keeps only a copy in memory of what they registered.
  */
 export type GeekyKeyApi = Pick<ApiClient, "listStations" | "createStation">;
 

@@ -27,15 +27,17 @@ import { FallbackResult } from "@/features/fallback/fallback-result";
 import { useLogFallbackTap } from "@/features/fallback/use-log-fallback-tap";
 import { applyApiIssues } from "@/lib/form-errors";
 
-const MAX_PORTAL_USER_ID_LENGTH = 128;
+// Agreement 0.4: a user ID is a Firebase UID at the showcase, and the Portal's ID only once
+// events log in through the Portal. The field is the user ID either way.
+const MAX_USER_ID_LENGTH = 128;
 
 const schema = z.object({
   station_id: z.string().min(1, "Choose a station."),
   user_id: z
     .string()
     .trim()
-    .min(1, "Enter the participant's Portal user ID.")
-    .max(MAX_PORTAL_USER_ID_LENGTH, "Portal user IDs must be 128 characters or fewer."),
+    .min(1, "Enter the participant's user ID.")
+    .max(MAX_USER_ID_LENGTH, "User IDs must be 128 characters or fewer."),
 });
 
 type FallbackValues = z.infer<typeof schema>;
@@ -122,7 +124,7 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
           name="user_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Portal user ID</FormLabel>
+              <FormLabel>User ID</FormLabel>
               <FormControl>
                 <Input
                   {...field}
@@ -133,7 +135,9 @@ export function FallbackForm({ stations }: { stations: Station[] }) {
                 />
               </FormControl>
               <FormDescription>
-                Scan the QR code on the participant&apos;s Portal profile, or type the ID.
+                {/* Agreement 0.4 still lists "what the QR fallback scans" as open, so this
+                    says the participant's profile and nothing about where it lives. */}
+                Scan the QR code on the participant&apos;s profile, or type the ID.
               </FormDescription>
               <FormMessage />
             </FormItem>

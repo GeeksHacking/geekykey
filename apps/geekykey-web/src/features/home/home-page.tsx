@@ -19,9 +19,13 @@ export function HomePage() {
       <p className="mt-4 max-w-xl text-muted-foreground">
         Your tokens are listed here by a later ticket. Claiming and releasing arrive with them.
       </p>
-      <p className="mt-6 text-sm text-muted-foreground">
-        Portal login address for this page: <span className="font-mono">{api.loginUrl("/")}</span>
-      </p>
+      {/* The Portal login returns after the showcase (agreement 0.4 moved
+          GET /auth/login out of scope), so this belongs in development only. */}
+      {import.meta.env.DEV ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Login address for this page: <span className="font-mono">{api.loginUrl("/")}</span>
+        </p>
+      ) : null}
     </main>
   );
 }

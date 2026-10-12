@@ -140,7 +140,7 @@ describe("QR fallback", () => {
     expect(stored.user_id).toBe("u_2e8b");
   });
 
-  it("accepts a Portal user ID that has never logged in", async () => {
+  it("accepts a user ID that has never logged in", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
@@ -151,7 +151,7 @@ describe("QR fallback", () => {
     );
   });
 
-  it("rejects a blank Portal user ID", async () => {
+  it("rejects a blank user ID", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
