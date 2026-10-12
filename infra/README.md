@@ -64,7 +64,7 @@ account. He works in the web console, so those two steps say where each one is t
 | [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [8. Logs for the team](#8-logs-for-the-team) | Adam, with the access Julian gave | 9 Oct 2026 |
-| [9. The address](#9-the-address) | Julian, once Adam says it's ready | Not yet |
+| [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026 |
 
@@ -393,9 +393,42 @@ gcloud beta run domain-mappings describe \
   --format="value(status.resourceRecords)"
 ```
 
-That record goes into Cloudflare's DNS for `geekshacking.com`, with the proxy **off**
-(grey cloud, "DNS only"). Julian adds it, once we tell him the service is ready. The
-certificate can take from 15 minutes to a day. `event-service-staging` has no mapping, only its `run.app` address.
+That record goes into Cloudflare's DNS for `geekshacking.com`. Add it with the proxy
+**off** (grey cloud, "DNS only") until the certificate is issued, because Google's docs warn
+that a proxy in front of a mapping can stop its certificate from being issued or renewed.
+Julian adds it, once we tell him the service is ready. The certificate can take from 15
+minutes to a day. `event-service-staging` has no mapping, only its `run.app` address.
+
+Julian made the mapping in the console on 11 Oct 2026, at 15:23 UTC. It asked for one
+record, a `CNAME` from `event-api` to `ghs.googlehosted.com.`, and Google's certificate
+was ready seven minutes later. The record has Cloudflare's proxy **on** (orange cloud), as
+Julian set it. Adam kept it on, on 12 Oct 2026, after a request sent the way a station
+sends one passed through to the service. So:
+
+- Cloudflare answers for `event-api.`, with its own certificate (Let's Encrypt's, on 12 Oct),
+  and passes each request on to Google. Stations trust it: their 14 roots cover the
+  certificate authorities Cloudflare uses, as they must for `key-api.` anyway.
+- Cloud Run's request log shows Cloudflare's addresses, not each caller's.
+- Cloudflare's SSL/TLS mode for `geekshacking.com` must stay Full or Full (strict). Flexible
+  would send requests on to Google over plain `http://`, which Cloud Run answers with a
+  redirect to `https://`, so every request would go round in circles.
+- Cloudflare's "Always Use HTTPS" stays off, as Google's docs ask when Cloudflare is in
+  front of a mapping. Cloud Run sends `http://` on to `https://` itself.
+- Google's certificate expires on 9 Jan 2027, and Google renews it before then. In
+  mid-December, check under Cloud Run → Domain mappings that it did. If it didn't,
+  switch the record to DNS only until it has.
+
+To see whether the proxy is on, from any laptop:
+
+```bash
+dig +short event-api.geekshacking.com
+curl -sI https://event-api.geekshacking.com/api/health | grep -i '^server:'
+```
+
+With the proxy on, as now, the first prints only Cloudflare's addresses, and the second
+says `server: cloudflare`. With it off, the first starts with `ghs.googlehosted.com.`, and
+the second says `server: Google Frontend`. The certificate's issuer doesn't tell you,
+because Cloudflare sometimes uses Google Trust Services too.
 
 ## 10. A budget alert
 
