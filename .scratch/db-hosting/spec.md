@@ -497,7 +497,7 @@ Done when:
 - **The proof:** with the test station's key, `curl` to `event-service-staging`'s `run.app` address, then to `https://event-api.geekshacking.com/api/v1/taps`, gets `unknown_token` for an unclaimed UID and `accepted` for the test token. The same `client_tap_id` sent again gets `duplicate`, and a new tap by the test token gets `cooldown`. Each tap is in the right database. Staging passed on 10 Oct (BAC-19), and production on 12 Oct (BAC-11), through `event-api.` and Cloudflare's proxy, using a second test station, since the first one's key was lost.
 - **The log check,** in Cloud Logging, on staging and then production: no key or cookie in any log line, and no secret in a URL. Staging passed on 10 Oct (BAC-12), and production on 12 Oct (BAC-11).
 - **The cold start is measured** on staging, with and without startup CPU boost, on the first-generation execution environment (Julian: stay on v1, 8 Oct). The faster is kept, and the 4-second deadline is revisited with the number. Done 11 Oct (BAC-12): boost stays on, and the deadline stays at 4 seconds (section 11.3).
-- **The first numbers** are written down for section 11.1: Cloud Run's requests and CPU, and TiDB's Request Units after a day, which only Julian can see. Cloud Run's are in (11 Oct); TiDB's wait on Julian.
+- **The first numbers** are written down for section 11.1: Cloud Run's requests and CPU, and TiDB's Request Units after a day, which only Julian can see. Cloud Run's are in (11 Oct), and TiDB's (12 Oct, from Julian's screenshots).
 - A real station taps `event-api.` over HTTPS (BAC-14). Passed on 12 Oct, with the HTTPS firmware (HAR-10, taken over from Zi Tao by Adam): its taps were stored in `geekykey_staging` through staging's `run.app` address, then in production through `event-api.`.
 
 ### Checkpoint 3. The line drawn inside
@@ -837,6 +837,9 @@ Sources for section 10: [How do we notice trouble on event day, and who watches?
 **Firebase.** Google sign-in is free for up to 50,000 users a month. GeeksHacking's login, as an OIDC provider, is free for 49 users a month, then US$0.015 each, on GeeksHacking's billing account.
 
 **TiDB.** Starter's free 50 million Request Units a month, after which TiDB refuses new connections. The passport's and organizers' polls reach it from Cloud Run, and staging draws on the same allowance. Only Julian can see the console. A spending limit above $0 would also keep backups for up to 30 days, at a time we choose, instead of one day at a random time.
+
+- **The first numbers** (the whole cluster, both databases, about 10 to 12 Oct, from Julian's screenshots of the console's metrics, BAC-12). Two days of staging's and production's first taps, the cold-start rounds and the station's HTTPS taps used Request Units in short bursts of up to about 9 a second, and none in between: at most a few tens of thousands of the month's 50 million. No query failed, no transaction waited on a lock, a transaction took under 4 ms on average and about 40 ms at worst, and no more than one connection was open at once.
+- **What a showcase day uses** isn't known from this. The bursts of about 9 a second came with under 0.15 queries a second, so a request, with the sign-in when it opens a connection, may cost tens of Request Units. At 60 each, a day's 60,000 to 90,000 requests would use about 5 million, a tenth of the month. The rehearsal measures it, and Julian's check the evening before (section 10.1) stays.
 
 ### 11.2 After the event
 
