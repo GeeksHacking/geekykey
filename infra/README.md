@@ -33,9 +33,9 @@ the console. The next deploy sets them, and anything changed by hand is overwrit
 | Region | `asia-southeast1` | Singapore, where TiDB is |
 | Image repository | `event-service` | Holds the backend's images, which the deploy builds |
 | Cloud Run services | `event-service`, `event-service-staging` | Production at `event-api.geekshacking.com`, and staging at its `run.app` address only |
-| Service accounts the services run as | `event-service`, `event-service-staging` | Each can read only its own service's two secrets |
+| Service accounts the services run as | `event-service`, `event-service-staging` | Each can read only its own service's four secrets |
 | Service accounts the deploy signs in as | `event-service-deployer`, `event-service-staging-deployer` | Production's works only from `main`. Staging's works from any branch and can't touch production |
-| Secrets | `event-service-…` and `event-service-staging-…` | `SESSION_SECRET`, `DATABASE_URL` and `MIGRATION_DATABASE_URL`, for each service |
+| Secrets | `event-service-…` and `event-service-staging-…` | `SESSION_SECRET`, `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`, for each service |
 | Keyless sign-in | Pool `github`, provider `geekykey` | Lets this repo's workflows sign in to Google Cloud without a key |
 
 **GitHub holds no secret.** (Nor a Cloudflare API token: nothing here deploys to
@@ -59,14 +59,14 @@ account. He works in the web console, so those two steps say where each one is t
 | [1. Turn on the APIs](#1-turn-on-the-apis) | Adam | 9 Oct 2026 |
 | [2. The image repository](#2-the-image-repository) | Adam | 9 Oct 2026 |
 | [3. The service accounts](#3-the-service-accounts) | Adam | 9 Oct 2026 |
-| [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026 |
+| [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026. The two keys: not yet |
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
 | [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
-| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave | 9 Oct 2026 |
+| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave | 9 Oct 2026. The two keys: not yet |
 | [8. Logs for the team](#8-logs-for-the-team) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
-| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026 |
+| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. The two keys: not yet |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
@@ -161,14 +161,33 @@ for service in event-service event-service-staging; do
 done
 ```
 
-That makes six:
+Checkpoint 3 adds two keys to each service (BAC-30). The GeekyKey side sends one with every
+request to the Event side, and the other with every request to the claims stand-in, and
+each of those checks it. They're named like the others, `<service>-<setting>`, which is why
+the first says "event-service" twice:
+
+```bash
+for service in event-service event-service-staging; do
+  for name in event-service-key claims-stand-in-key; do
+    gcloud secrets create "$service-$name" --replication-policy=automatic
+  done
+done
+```
+
+That makes ten:
 
 | Secret | Read by | Becomes |
 |---|---|---|
 | `event-service-session-secret` | The service, at start-up | `SESSION_SECRET`, which signs the session cookie |
 | `event-service-database-url` | The service, at start-up | `DATABASE_URL`, the TiDB app login |
 | `event-service-migration-database-url` | The deploy workflow only | The TiDB migration login, for `db:migrate` |
+| `event-service-event-service-key` | The service, at start-up | `EVENT_SERVICE_KEY`, which the GeekyKey side's requests to the Event side carry |
+| `event-service-claims-stand-in-key` | The service, at start-up | `CLAIMS_STAND_IN_KEY`, which the GeekyKey side's requests to the claims stand-in carry |
 | `event-service-staging-…` | The same, for staging | The same, on `geekykey_staging` |
+
+Until the split, both ends of those requests are inside the one server, so it both sends
+and checks each key. From checkpoint 4, the GeekyKey Service sends them from a Worker,
+which keeps its own copy of production's two as Workers secrets.
 
 ## 5. The two services
 
@@ -294,11 +313,24 @@ request, yet its ref is `main`'s, so it could act as production's deploy account
 Every grant is on one service, one secret or one account, not on the whole project, so
 each account can reach only what's listed here.
 
-Each service reads its own app login and session secret, and nothing else:
+Each service reads its own app login, session secret and two keys, and nothing else. The
+first two:
 
 ```bash
 for service in event-service event-service-staging; do
   for name in session-secret database-url; do
+    gcloud secrets add-iam-policy-binding "$service-$name" \
+      --member="serviceAccount:$service@geekykey-b035a.iam.gserviceaccount.com" \
+      --role=roles/secretmanager.secretAccessor
+  done
+done
+```
+
+The two keys, from checkpoint 3 (BAC-30):
+
+```bash
+for service in event-service event-service-staging; do
+  for name in event-service-key claims-stand-in-key; do
     gcloud secrets add-iam-policy-binding "$service-$name" \
       --member="serviceAccount:$service@geekykey-b035a.iam.gserviceaccount.com" \
       --role=roles/secretmanager.secretAccessor
@@ -356,6 +388,25 @@ gcloud run services get-iam-policy event-service --region=asia-southeast1
 
 The first should say `ACTIVE` and the repo's ID, `1310668143`. The second should list
 `allUsers` as invoker and `event-service-deployer` as developer.
+
+And check that only each service's own account can read its keys:
+
+```bash
+for service in event-service event-service-staging; do
+  for name in event-service-key claims-stand-in-key; do
+    gcloud secrets get-iam-policy "$service-$name" --format="value(bindings.members)"
+  done
+done
+for deployer in event-service-deployer event-service-staging-deployer; do
+  gcloud projects get-iam-policy geekykey-b035a --flatten="bindings[].members" \
+    --filter="bindings.members:$deployer@geekykey-b035a.iam.gserviceaccount.com" \
+    --format="value(bindings.role)"
+done
+```
+
+The first loop should print four lines: `serviceAccount:event-service@…` twice, then
+`serviceAccount:event-service-staging@…` twice. The second should print nothing, since a
+deploy account with a role on the whole project could read every secret in it.
 
 ## 8. Logs for the team
 
@@ -477,6 +528,23 @@ for service in event-service event-service-staging; do
 done
 ```
 
+The two keys, from checkpoint 3 (BAC-30). Each is 32 random bytes, written as 64 hex
+characters, so it pastes anywhere unchanged. Each is generated on its own, so
+production's and staging's differ:
+
+```bash
+for service in event-service event-service-staging; do
+  for name in event-service-key claims-stand-in-key; do
+    openssl rand -hex 32 | tr -d '\n' \
+      | gcloud secrets versions add "$service-$name" --data-file=-
+  done
+done
+```
+
+Nobody needs to see them yet. At checkpoint 4, when the GeekyKey Service moves to its
+Worker, Adam reads production's two once and sends them to Julian privately, to set as
+that Worker's secrets. Nobody ever needs to see staging's.
+
 The migration logins, from the files `db:logins` saved. `sed` picks the URL out of the
 file without running it:
 
@@ -522,6 +590,13 @@ Version 1 is disabled, and staging is pinned to version 2:
 ```bash
 gcloud secrets versions disable 1 --secret=event-service-staging-database-url
 ```
+
+A deploy fails if its service's account can't read every secret `deploy.env` pins. So a
+new secret is made, opened to its service (step 7) and given its value before the pull
+request that pins it merges, since the merge deploys production. The branch can deploy
+staging first, by running the deploy by hand. The two keys (BAC-30) were pinned before any
+code read them. A server ignores a setting it doesn't read, so until then they changed
+nothing.
 
 ## Day to day
 

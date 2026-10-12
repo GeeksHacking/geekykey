@@ -905,3 +905,11 @@
     yellow in the navigation. The trade-offs we accept: the kit has no dark theme, no status
     colours and no font for numbers, and its secondary grey is too faint to read on a light
     page, so there the screens keep their own choice or use a colour worked out from the kit's.
+
+- id: handoff-keys
+  date: 2026-10-13
+  area: backend
+  change: >-
+    Production and staging each have the two keys the next step needs: one the GeekyKey Service
+    shows the Event Service, and one it shows the claims stand-in. Each is random, kept only in
+    Google's Secret Manager, and readable only by its own service, so nobody has a copy.
