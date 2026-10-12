@@ -857,3 +857,12 @@
     deploys staging, how to roll back, where every credential is kept without giving any, and
     the team's eight rules, from the freeze before the showcase to who may change data on the
     day, and marks as coming the parts that don't exist yet, such as database copies.
+
+- id: tidb-first-numbers
+  date: 2026-10-12
+  area: backend
+  change: >-
+    The database's first two days of real use, from staging's and production's first taps to
+    the station's, took a few tens of thousands of the 50 million free Request Units a month,
+    with no failed query and no transaction kept waiting. The trade-offs we accept: the numbers
+    are too small to say what a showcase day will use, so the rehearsal measures it.
