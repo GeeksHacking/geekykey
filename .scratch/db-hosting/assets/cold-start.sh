@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Times cold starts of event-service-staging (BAC-12). Each round waits until
-# the running instance has stopped (our server logs "SIGTERM: stopping…"), sends
-# one request, then checks the logs for a new "Listening on" line, which says
+# the running instance has stopped (our server logs server_stopping), sends
+# one request, then checks the logs for a new server_started line, which says
 # the request did start an instance. Rounds alternate a tap and GET /api/health.
+# Since BAC-29 those are JSON log lines; the 11 Oct runs looked for the plain
+# text "SIGTERM: stopping" and "Listening on" lines the server wrote then.
 #
 # The tap carries a made-up station key, so it answers invalid_station_key
 # after one station lookup: it opens the first TiDB connection, as a real tap
@@ -25,10 +27,10 @@ since=${3:-$(date -u +%FT%TZ)}
 url=https://event-service-staging-468223998400.asia-southeast1.run.app
 service='resource.type="cloud_run_revision" AND resource.labels.service_name="event-service-staging"'
 
-# Prints how many of our log lines since $1 contain the text $2.
+# Prints how many of our log lines since $1 are named $2.
 count_since() {
   local ids
-  ids=$(gcloud logging read "$service AND timestamp>=\"$1\" AND textPayload:\"$2\"" \
+  ids=$(gcloud logging read "$service AND timestamp>=\"$1\" AND jsonPayload.message=\"$2\"" \
     --limit=10 --format="value(insertId)") || return 1
   grep -c . <<<"$ids" || true
 }
@@ -45,7 +47,7 @@ wait_until_stopped() {
   local since=$1
   local stopped
   for _ in $(seq 1 40); do
-    stopped=$(count_since "$since" SIGTERM)
+    stopped=$(count_since "$since" server_stopping)
     [ "$stopped" -gt 0 ] && return 0
     sleep 60
   done
@@ -73,7 +75,7 @@ for i in $(seq 1 "$rounds"); do
   at=$(date -u +%FT%TZ)
   times=$(send "$kind")
   sleep 90 # for the logs to arrive
-  started=$(count_since "$at" "Listening on")
+  started=$(count_since "$at" server_started)
   cold=$([ "$started" -gt 0 ] && echo yes || echo no)
   latency=$(latency_since "$at")
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$label" "$kind" "$at" "$cold" "$times" "$latency"

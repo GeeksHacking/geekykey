@@ -14,7 +14,7 @@
 import { parseArgs } from "node:util";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createConnection } from "mysql2/promise";
-import { normaliseUid } from "../src/services/identity.ts";
+import { normaliseUid } from "../src/claims-stand-in/token-lookup.ts";
 import { localDatabaseUrl } from "./local-tidb.ts";
 import { addParticipant, addStation, addUser } from "./seed-rows.ts";
 

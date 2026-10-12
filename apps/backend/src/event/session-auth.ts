@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import type { Db } from "../db/pool.ts";
-import { type User, users } from "../db/schema.ts";
+import { type User, users } from "./schema.ts";
 
 export const SESSION_COOKIE = "gk_session";
 
@@ -33,7 +33,7 @@ export interface SessionOptions {
 
 /*
   Browser sessions for participants and organizers. Stations do not use this;
-  they carry a bearer key, see station-auth.ts.
+  they carry a bearer key, see src/geekykey/station-auth.ts.
 
   The session is the cookie. There is no sessions table: the cookie holds an
   expiry and a user ID, signed with the configured secret, so a forged or edited

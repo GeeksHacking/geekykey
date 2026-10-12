@@ -7,23 +7,12 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core";
+import { isoNow, isoTimestamp, stationId, tokenUid, userId } from "../db/columns.ts";
 
 /**
- * Timestamps are ISO 8601 UTC strings with milliseconds, as
- * `Date.prototype.toISOString()` writes them, not DATETIME. They were strings
- * on SQLite, so the code, the sort order and what the API sends stay the same
- * after the move. A string can't have a database default, so the code sets it.
+ * The Event side's tables. The claims stand-in's `tokens` is in
+ * src/claims-stand-in/schema.ts, and no foreign key crosses between the two.
  */
-const isoTimestamp = (name: string) => varchar(name, { length: 24 });
-const isoNow = () => new Date().toISOString();
-
-// Lengths for keys and indexed columns, which MySQL needs.
-/** The longest `user_id` dev-login accepts. Portal user IDs are GUIDs. */
-const userId = (name: string) => varchar(name, { length: 128 });
-/** `crypto.randomUUID()` in the seed. */
-const stationId = (name: string) => varchar(name, { length: 64 });
-/** The taps route accepts UIDs of 4 to 10 bytes, in hex. */
-const tokenUid = (name: string) => varchar(name, { length: 20 });
 
 export const USER_ROLES = ["participant", "organizer"] as const;
 
@@ -34,19 +23,6 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", USER_ROLES).notNull().default("participant"),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
 });
-
-export const tokens = mysqlTable(
-  "tokens",
-  {
-    uid: tokenUid("uid").primaryKey(),
-    userId: userId("user_id")
-      .notNull()
-      .references(() => users.id),
-    pairedAt: isoTimestamp("paired_at").notNull().$defaultFn(isoNow),
-    revokedAt: isoTimestamp("revoked_at"),
-  },
-  (t) => [index("tokens_user_id_idx").on(t.userId)],
-);
 
 export const stations = mysqlTable("stations", {
   id: stationId("id").primaryKey(),
@@ -93,7 +69,6 @@ export const taps = mysqlTable(
 );
 
 export type User = typeof users.$inferSelect;
-export type Token = typeof tokens.$inferSelect;
 export type Station = typeof stations.$inferSelect;
 export type Tap = typeof taps.$inferSelect;
 export type NewTap = typeof taps.$inferInsert;

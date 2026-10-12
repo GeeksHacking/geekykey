@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { users } from "../db/schema.ts";
-import { jsonBody } from "../lib/validate.ts";
-import { clearSession, issueSession, type SessionOptions } from "../middleware/session-auth.ts";
 import type { AppEnv } from "../app.ts";
+import { jsonBody } from "../lib/validate.ts";
+import { users } from "./schema.ts";
+import { clearSession, issueSession, type SessionOptions } from "./session-auth.ts";
 
 const devLoginSchema = z.object({
   user_id: z.string().min(1).max(128),

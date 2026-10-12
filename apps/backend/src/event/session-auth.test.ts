@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { test } from "vitest";
-import { users } from "../db/schema.ts";
+import { users } from "./schema.ts";
 import { setupFixture } from "../test-helpers.ts";
 import {
   clearSession,

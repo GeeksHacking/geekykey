@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { eq, sql } from "drizzle-orm";
 import { test } from "vitest";
-import { stations, taps, tokens, users } from "./db/schema.ts";
-import { hashStationKey } from "./lib/station-keys.ts";
+import { tokens } from "./claims-stand-in/schema.ts";
+import { stations, taps, users } from "./event/schema.ts";
+import { hashStationKey } from "./geekykey/station-keys.ts";
 import { setupFixture, testDb } from "./test-helpers.ts";
 
 test("the fixture's station, participant and token read back through the pool", async () => {

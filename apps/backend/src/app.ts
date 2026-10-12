@@ -1,10 +1,10 @@
 import { createBaseApp } from "./base-app.ts";
 import type { Config } from "./config.ts";
 import type { Db } from "./db/pool.ts";
-import type { SessionOptions } from "./middleware/session-auth.ts";
-import { authRoutes } from "./routes/auth.ts";
-import { meRoutes } from "./routes/me.ts";
-import { tapsRoutes } from "./routes/taps.ts";
+import { authRoutes } from "./event/auth-routes.ts";
+import { meRoutes } from "./event/me-routes.ts";
+import type { SessionOptions } from "./event/session-auth.ts";
+import { tapsRoutes } from "./geekykey/station-routes.ts";
 
 export type AppEnv = {
   Variables: { config: Config; db: Db };
@@ -13,6 +13,11 @@ export type AppEnv = {
 /**
  * The GeekyKey backend, with every route mounted, started with its settings
  * and its database. src/server.ts serves it.
+ *
+ * Its routes come from three areas: the GeekyKey side (src/geekykey/), the
+ * Event side (src/event/) and the claims stand-in (src/claims-stand-in/).
+ * Until they run as two services, they share this one server, its settings
+ * and its database pool.
  *
  * The settings are read once, before this runs, so that which routes exist
  * can depend on them: POST /auth/dev-login is only there when
@@ -35,8 +40,11 @@ export function createApp(config: Config, db: Db) {
     await next();
   });
 
+  // The Event side: logging in and out, and what a signed-in user sees.
   app.route("/auth", authRoutes({ session, devAuthEnabled: config.devAuthEnabled }));
   app.route("/api/v1/me", meRoutes({ session }));
+
+  // The GeekyKey side: what stations call.
   app.route("/api/v1/taps", tapsRoutes());
 
   return app;

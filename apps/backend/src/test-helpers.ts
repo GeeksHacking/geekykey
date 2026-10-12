@@ -3,8 +3,9 @@ import { localDatabaseUrl } from "../scripts/local-tidb.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createDbPool, type Db } from "./db/pool.ts";
-import { stations, tokens, users } from "./db/schema.ts";
-import { generateStationKey, hashStationKey } from "./lib/station-keys.ts";
+import { tokens } from "./claims-stand-in/schema.ts";
+import { stations, users } from "./event/schema.ts";
+import { generateStationKey, hashStationKey } from "./geekykey/station-keys.ts";
 
 export interface TestFixture {
   db: Db;

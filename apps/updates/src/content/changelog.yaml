@@ -878,3 +878,12 @@
     has registered, and a new heartbeat sets the station's clock and shows it online. The
     trade-offs we accept: each table change takes two deploys, since an old column goes only once
     nothing running uses it.
+
+- id: backend-split-inside
+  date: 2026-10-12
+  area: backend
+  change: >-
+    The backend's code is now in three parts, the GeekyKey Service's side, the Event Service's
+    side and the claims stand-in, along the line the two services will be cut apart at, and every
+    line it logs is one JSON object with a fixed name that the showcase's saved queries can count,
+    holding no station key, login cookie or person's name.

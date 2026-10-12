@@ -3,7 +3,8 @@
  * AUTO_INCREMENT, so no test may assume an `id` value.
  */
 import { beforeEach } from "vitest";
-import { stations, taps, tokens, users } from "../src/db/schema.ts";
+import { tokens } from "../src/claims-stand-in/schema.ts";
+import { stations, taps, users } from "../src/event/schema.ts";
 import { testDb } from "../src/test-helpers.ts";
 
 beforeEach(async () => {

@@ -1,7 +1,8 @@
 import { and, asc, count, desc, eq, isNull, min } from "drizzle-orm";
+import { tokens } from "../claims-stand-in/schema.ts";
 import type { Db } from "../db/pool.ts";
-import { stations, taps, tokens } from "../db/schema.ts";
-import type { StoredTapStatus, TapSource } from "./taps.ts";
+import { stations, taps } from "./schema.ts";
+import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
 
 /** How many of their latest taps a participant sees, any status. */
 export const RECENT_TAP_LIMIT = 50;

@@ -35,7 +35,7 @@ geekykey/
 |---|---|---|
 | `apps/frontend` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/frontend/CLAUDE.md` |
 | `apps/geekykey-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/geekykey-web/CLAUDE.md` |
-| `apps/backend` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and `src/routes/` |
+| `apps/backend` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and its three areas |
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
 
@@ -75,16 +75,18 @@ apps/frontend/src/
 ```text
 apps/backend/
 ├── src/
-│   ├── server.ts      the entry point: reads the settings, starts the server, stops it cleanly
-│   ├── app.ts         every route mounted, given the settings and the database
-│   ├── base-app.ts    what every response shares: never cached, errors as JSON, /api/health
-│   ├── config.ts      every setting, with its default
-│   ├── routes/        HTTP handlers, one file per area (auth, me, taps)
-│   ├── services/      the logic behind the handlers (the tap pipeline, token lookup, /me)
-│   ├── middleware/    session cookie and station key checks, and the no-caching header
-│   ├── db/            Drizzle schema, the connection pool, and the migrator
-│   └── lib/           small helpers (station keys, validation)
-├── drizzle/           SQL migrations generated from src/db/schema.ts
+│   ├── server.ts          the entry point: reads the settings, starts the server, stops it cleanly
+│   ├── app.ts             every route mounted, given the settings and the database
+│   ├── base-app.ts        what every response shares: never cached, errors as JSON, /api/health
+│   ├── config.ts          every setting, with its default
+│   ├── geekykey/          the GeekyKey side: the station routes and the station key check
+│   ├── event/             the Event side: the tap pipeline, /me, logging in and out, the session,
+│   │                      and its tables (stations, users, taps) in schema.ts
+│   ├── claims-stand-in/   who owns each token until the Portal does: today's token lookup,
+│   │                      and its table (tokens) in schema.ts
+│   ├── db/                the connection pool, the migrator, and the column types both schemas share
+│   └── lib/               small helpers every area uses (validation, the no-caching header, log lines)
+├── drizzle/           SQL migrations generated from the two schema files, for the one database
 ├── scripts/           Node scripts for the dev server, the database tasks, the seed, and the migration check
 ├── test-support/      test setup, and a proxy that breaks database connections on purpose
 ├── Dockerfile         builds the image Cloud Run runs
@@ -94,6 +96,22 @@ apps/backend/
 ```
 
 Each test sits next to the code it tests, as a `.test.ts` file.
+
+The three folders under `src/` follow the line between the two services the backend
+becomes at checkpoint 4: the GeekyKey side becomes a Worker, while the Event side and the
+claims stand-in stay on Cloud Run. Until then the three share one server, its settings and
+its database pool, which sit beside them. The Event side and the stand-in each keep their
+tables in a schema file of their own, and the GeekyKey side has none. Drizzle writes one
+set of migrations from both files, since it's one database, and no foreign key crosses
+between them. The station route still reaches into the other two areas directly; the rest
+of checkpoint 3 replaces each reach with the request it will send once the services run
+apart.
+
+Every line the server logs is one JSON object whose `message` is a fixed name, such as
+`server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging
+shows that name as the line's headline, and takes its `severity`. A log line never holds a
+key, a cookie or a name: an `internal_error` keeps the error's class, its code and where
+it was thrown, but not its message, which can hold a query's values.
 
 The server keeps one pool of up to 10 connections to the database, shared by every
 request (`src/db/pool.ts`). Cloud Run pauses the server between requests, so a
@@ -347,7 +365,7 @@ Open a second terminal, `cd` into the repo, then:
 mise run dev:backend     # http://localhost:8000
 ```
 
-It is ready when it prints `Listening on http://localhost:8000`. Leave it running: it
+It is ready when it prints a line with `"message":"server_started"`. Leave it running: it
 restarts when you save a file under `apps/backend/src`. To stop it, press Ctrl-C. pnpm may
 print an error as it stops; that is normal.
 
@@ -438,10 +456,10 @@ For the rest, `cd apps/backend` first. If your shell is activated, you can leave
 mise exec -- pnpm lint               # oxlint
 mise exec -- pnpm format:check       # list files that are not formatted, without changing them
 mise exec -- pnpm typecheck          # tsc
-mise exec -- pnpm db:generate        # write a migration after editing src/db/schema.ts
+mise exec -- pnpm db:generate        # write a migration after editing a schema file
 mise exec -- pnpm build              # bundle the server into dist/server.cjs, as the image does
 mise exec -- pnpm build:image        # build the image Cloud Run runs (Docker Desktop must be running)
-mise exec -- pnpm check:migrations   # fail if src/db/schema.ts has a change with no migration
+mise exec -- pnpm check:migrations   # fail if a schema file has a change with no migration
 ```
 
 `db:generate` runs `drizzle-kit generate`, which writes the new migration into `drizzle/`.

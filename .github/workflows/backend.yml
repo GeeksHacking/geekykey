@@ -64,7 +64,7 @@ jobs:
           curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-all-errors \
             http://localhost:8000/api/health || { docker logs backend; exit 1; }
 
-      # Every change to src/db/schema.ts must come with the migration
+      # Every change to a schema file must come with the migration
       # drizzle-kit writes for it. scripts/check-migrations.ts says why this
       # can't just trust drizzle-kit's exit code.
       - name: Check every schema change has its migration

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { stations, taps } from "../db/schema.ts";
+import { stations, taps } from "../event/schema.ts";
 import { setupFixture, testApp } from "../test-helpers.ts";
 
 const app = testApp();
