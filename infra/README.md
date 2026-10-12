@@ -47,7 +47,7 @@ migration login, from Secret Manager.
 
 Adam has the Editor role on the project. It lets him turn on APIs and create the image
 repository, the service accounts, the services and the secrets, and add secret values.
-It doesn't let him give anyone a role, and steps 6 to 8 are all grants: about eighteen of
+It doesn't let him give anyone a role, and steps 6 to 8 are all grants: about twenty-two of
 them. Rather than make each one in the console, Julian, as Owner, gives Adam a role that
 can grant (Owner, or Security Admin with Workload Identity Pool Admin, asked 9 Oct 2026),
 and Adam runs those steps from here. Julian still runs step 9, because mapping a domain
@@ -187,7 +187,8 @@ That makes ten:
 
 Until the split, both ends of those requests are inside the one server, so it both sends
 and checks each key. From checkpoint 4, the GeekyKey Service sends them from a Worker,
-which keeps its own copy of production's two as Workers secrets.
+which keeps its own copy of production's two as Workers secrets, named
+`EVENT_SERVICE_KEY_SHOWCASE` and `CLAIMS_STAND_IN_KEY` there.
 
 ## 5. The two services
 
@@ -314,7 +315,7 @@ Every grant is on one service, one secret or one account, not on the whole proje
 each account can reach only what's listed here.
 
 Each service reads its own app login, session secret and two keys, and nothing else. The
-first two:
+app login and session secret:
 
 ```bash
 for service in event-service event-service-staging; do
@@ -528,22 +529,35 @@ for service in event-service event-service-staging; do
 done
 ```
 
-The two keys, from checkpoint 3 (BAC-30). Each is 32 random bytes, written as 64 hex
-characters, so it pastes anywhere unchanged. Each is generated on its own, so
-production's and staging's differ:
+The two keys, from checkpoint 3 (BAC-30). Each is 32 random bytes, written the way a
+station key is (the API agreement, "Event Service keys"): base64url, which uses `-` and `_`
+where plain base64 has `+` and `/`, and has no `=` at the end. Each is generated on its
+own, so production's and staging's differ:
 
 ```bash
 for service in event-service event-service-staging; do
   for name in event-service-key claims-stand-in-key; do
-    openssl rand -hex 32 | tr -d '\n' \
+    openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n' \
       | gcloud secrets versions add "$service-$name" --data-file=-
   done
 done
 ```
 
-Nobody needs to see them yet. At checkpoint 4, when the GeekyKey Service moves to its
+Then check each has one version, and that it's enabled:
+
+```bash
+for service in event-service event-service-staging; do
+  for name in event-service-key claims-stand-in-key; do
+    gcloud secrets versions list "$service-$name" --format="value(name.basename(),state)"
+  done
+done
+```
+
+It should print `1` and `ENABLED` four times.
+
+Nobody needs to see the keys yet. At checkpoint 4, when the GeekyKey Service moves to its
 Worker, Adam reads production's two once and sends them to Julian privately, to set as
-that Worker's secrets. Nobody ever needs to see staging's.
+that Worker's secrets.
 
 The migration logins, from the files `db:logins` saved. `sed` picks the URL out of the
 file without running it:
@@ -590,13 +604,6 @@ Version 1 is disabled, and staging is pinned to version 2:
 ```bash
 gcloud secrets versions disable 1 --secret=event-service-staging-database-url
 ```
-
-A deploy fails if its service's account can't read every secret `deploy.env` pins. So a
-new secret is made, opened to its service (step 7) and given its value before the pull
-request that pins it merges, since the merge deploys production. The branch can deploy
-staging first, by running the deploy by hand. The two keys (BAC-30) were pinned before any
-code read them. A server ignores a setting it doesn't read, so until then they changed
-nothing.
 
 ## Day to day
 
@@ -662,6 +669,22 @@ showed the old revision answering from the next request on. That request took 6.
 because the old revision had no instance running and had to start one, longer than the
 cold starts measured before. How the warm instance behaves during a rollback is checked
 at the rehearsal.
+
+### Adding a secret
+
+A deploy fails if its service's account can't read every secret `deploy.env` pins. So a
+new secret is made (step 4), opened to its service (step 7) and given its value (step 11)
+before the pull request that pins it merges, since the merge deploys production. The branch
+can deploy staging first, by running the deploy by hand. Then check the new revision has it:
+
+```bash
+gcloud run services describe event-service-staging --region=asia-southeast1 \
+  --format="value(spec.template.spec.containers[0].env[].name)"
+```
+
+It lists the names of the service's settings and secrets, never their values. The two keys
+(BAC-30) were pinned before any code read them. A server ignores a setting it doesn't read,
+so until then they changed nothing.
 
 ### Changing a secret
 
