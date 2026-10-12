@@ -736,16 +736,18 @@ Things to know:
 ### Secrets
 
 Secrets live in Google's Secret Manager. None is ever committed, kept in GitHub, or pasted
-into a chat. Each Cloud Run service has three:
+into a chat. Each Cloud Run service has five:
 
 | Secret | Read by | What it is |
 |---|---|---|
 | `SESSION_SECRET` | The service, when it starts | A random value that signs the session cookie. Nobody keeps a copy |
 | `DATABASE_URL` | The service, when it starts | The TiDB app login, which can read and write rows but not change tables |
 | `MIGRATION_DATABASE_URL` | The deploy workflow only, for `db:migrate` | The TiDB migration login, which can also change tables |
+| `EVENT_SERVICE_KEY` | The service, when it starts | A random key that the GeekyKey side's requests to the Event side carry. Nobody keeps a copy |
+| `CLAIMS_STAND_IN_KEY` | The service, when it starts | A random key that the GeekyKey side's requests to the claims stand-in carry. Nobody keeps a copy |
 
 Staging's are named `event-service-staging-…`, and production's `event-service-…`. Each
-service runs as its own Google account, which can read only its own two, and each deploy
+service runs as its own Google account, which can read only its own four, and each deploy
 account can read only its own service's migration login.
 
 **Changing one** takes two steps:
@@ -774,14 +776,14 @@ This says where each one is, never its value. Each is kept only where the table 
 | TiDB app logins, production's and staging's | Secret Manager, as each service's `DATABASE_URL` | Adam makes each with `db:logins` and adds it from his laptop, keeping no copy | Adam gives it a new password, adds a new version, and a pull request pins the service to it |
 | TiDB migration logins, production's and staging's | Secret Manager, as each service's `MIGRATION_DATABASE_URL`, and `~/.config/geekykey/` on Adam's laptop | Adam, with `db:logins` | Adam gives it a new password, and adds a new version |
 | `SESSION_SECRET`, one per service | Secret Manager | Adam, as a random value nobody keeps | A new one signs everyone out of that service |
+| `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`, one of each per service | Secret Manager. From checkpoint 4, production's two are also Workers secrets on the GeekyKey Service | Adam, as random values nobody keeps. At checkpoint 4 he reads production's two once, for Julian to set | Set a new one on both sides, outside the event. Taps fail with `503` until both match, and stations resend them |
 | Station key | The station's gitignored `secrets.h`. The database keeps only its hash | Adam, with `db:test-station`, until organizers can make one on the station board (coming) | Tell Adam. Replacing a key while keeping the station's ID comes with the station board |
 | Wi-Fi details | Each station's `secrets.h`, until the station's setup mode can store them (coming, HAR-14) | Zi Tao | Change the password, and put the new one on each station |
 | Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, tokens can never be rewritten |
 | Our database copies | Adam's laptop, outside the repo. Never GitHub, a workflow's files or a chat | Adam | They hold user IDs, names and who tapped where |
 
-Still coming: the Event Service key and `CLAIMS_STAND_IN_KEY`, which go into our Secret
-Manager at checkpoint 3, and onto the GeekyKey Service as Workers secrets that Julian sets
-at checkpoint 4, with its own `SESSION_SECRET`; the GeeksHacking login's client secret,
+Still coming: the GeekyKey Service's own `SESSION_SECRET`, a Workers secret that Julian sets
+at checkpoint 4 with the two keys; the GeeksHacking login's client secret,
 which will live in Firebase's own settings once Qing Guan issues it; and the Portal's
 client secret, after the showcase. The migration spec, section 5.2, has the full list.
 
