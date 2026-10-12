@@ -906,10 +906,11 @@
     colours and no font for numbers, and its secondary grey is too faint to read on a light
     page, so there the screens keep their own choice or use a colour worked out from the kit's.
 
-- id: handoff-keys
+- id: event-service-and-claims-keys
   date: 2026-10-13
   area: backend
   change: >-
-    Production and staging each have the two keys the next step needs: one the GeekyKey Service
-    shows the Event Service, and one it shows the claims stand-in. Each is random, kept only in
-    Google's Secret Manager, and readable only by its own service, so nobody has a copy.
+    The backend on Google Cloud, in production and in staging, has the two keys the GeekyKey
+    Service will show when it hands a tap to the Event Service and when it asks the claims
+    stand-in who owns a token. Each is random and was generated straight into Google's Secret
+    Manager, so nobody keeps a copy, and only its own service is given access to it.
