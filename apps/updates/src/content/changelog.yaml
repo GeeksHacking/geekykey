@@ -819,3 +819,13 @@
     trade-offs we accept: Cloudflare answers with its own certificate rather than Google's, the
     Event Service's logs show Cloudflare's addresses instead of each caller's, and Google's
     certificate renews from behind the proxy, so we check in December that it did.
+
+- id: station-https
+  date: 2026-10-12
+  area: firmware
+  change: >-
+    The station now talks HTTPS to a full server address, checking the server's certificate
+    against 14 trusted root certificates, and sends its key over plain HTTP only to a laptop on
+    the same network. A real station's taps reached staging and then production, and were stored
+    in each. The trade-offs we accept: if Cloudflare starts using a new certificate authority,
+    every station needs new firmware.

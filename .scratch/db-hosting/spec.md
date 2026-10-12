@@ -498,7 +498,7 @@ Done when:
 - **The log check,** in Cloud Logging, on staging and then production: no key or cookie in any log line, and no secret in a URL. Production passed on 12 Oct (BAC-11).
 - **The cold start is measured** on staging, with and without startup CPU boost, on the first-generation execution environment (Julian: stay on v1, 8 Oct). The faster is kept, and the 4-second deadline is revisited with the number.
 - **The first numbers** are written down for section 11.1: Cloud Run's requests and CPU, and TiDB's Request Units after a day, which only Julian can see.
-- Once Zi Tao's firmware speaks HTTPS, a real station taps `event-api.` (BAC-14).
+- A real station taps `event-api.` over HTTPS (BAC-14). Passed on 12 Oct, with the HTTPS firmware (HAR-10, taken over from Zi Tao by Adam): its taps were stored in `geekykey_staging` through staging's `run.app` address, then in production through `event-api.`.
 
 ### Checkpoint 3. The line drawn inside
 
@@ -739,7 +739,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 - **[The station contract](assets/message-to-zi-tao-station-contract.md),** with its notes of 5 and 6 Oct: the address and HTTPS with the 14 roots, the heartbeat with `reader_ok` and the clock, the statuses and the screen table, the resend pace, and the three rules for the station key. Since 5 Oct, `no_event` is retired and organizers issue station keys. Since 8 Oct, a reader moves to another event by sending its saved taps, then taking the new event's key through the setup mode. Since 6 Oct, the "no answer" row says `Tap saved` / `Will send later`.
 - **The firmware already follows the contract's queue rules,** checked on 6 Oct: any status removes a tap, a `400` drops the batch, and saved taps go together at most once a minute. It still has to be tried on a real station (HAR-9).
-- **HTTPS (HAR-10):** `https://event-api.geekshacking.com` until checkpoint 4, then `https://key-api.geekshacking.com`. `event-api.` answers with Cloudflare's certificate, as `key-api.` will, so the same 14 roots cover both.
+- **HTTPS (HAR-10):** passed on a real station on 12 Oct, in Adam's PR #53, since Adam took the ticket over: `SERVER_URL` is a full base URL, `https://event-api.geekshacking.com` until checkpoint 4, then `https://key-api.geekshacking.com`, checked against the 14 roots in `ca_roots.h`. `event-api.` answers with Cloudflare's certificate, as `key-api.` will, so the same 14 roots cover both.
 - **The heartbeat (HAR-11),** once checkpoint 3 adds it.
 - **The setup mode,** before checkpoint 4 (8 Oct): a station takes a new server address, station key and Wi-Fi network from a serial terminal or a browser page, without a reflash, and clears its saved taps when the key changes. Which of the two is his choice.
 - **At checkpoint 4:** set each station's server to `key-api.` through the setup mode, keeping its key (HAR-13).
