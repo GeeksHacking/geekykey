@@ -866,3 +866,15 @@
     the station's, took a few tens of thousands of the 50 million free Request Units a month,
     with no failed query and no transaction kept waiting. The trade-offs we accept: the numbers
     are too small to say what a showcase day will use, so the rehearsal measures it.
+
+- id: checkpoint-3-tickets
+  date: 2026-10-12
+  area: admin
+  change: >-
+    The next step of the move is planned as nine tickets: inside the one server, the GeekyKey
+    Service, the Event Service and the claims stand-in reach each other only through the requests
+    they will send once they run apart. A station's tap gets its owner from the claims stand-in
+    and is handed to the Event Service, its key is checked against the stations the Event Service
+    has registered, and a new heartbeat sets the station's clock and shows it online. The
+    trade-offs we accept: each table change takes two deploys, since an old column goes only once
+    nothing running uses it.
