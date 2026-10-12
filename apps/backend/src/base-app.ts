@@ -1,7 +1,8 @@
 import { type Env as HonoEnv, Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { BlankEnv } from "hono/types";
-import { noStore } from "./middleware/no-store.ts";
+import { errorFields, log } from "./lib/log.ts";
+import { noStore } from "./lib/no-store.ts";
 
 /**
  * The parts of the backend that answer the same wherever it runs: no /api or
@@ -32,7 +33,7 @@ export function createBaseApp<E extends HonoEnv = BlankEnv>() {
         400,
       );
     }
-    console.error(`${c.req.method} ${c.req.path} failed:`, err);
+    log("internal_error", { method: c.req.method, path: c.req.path, ...errorFields(err) });
     return c.json({ error: "internal_error" }, 500);
   });
 

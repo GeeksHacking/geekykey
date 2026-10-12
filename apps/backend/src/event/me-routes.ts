@@ -1,10 +1,6 @@
 import { Hono } from "hono";
-import {
-  requireSession,
-  type SessionEnv,
-  type SessionOptions,
-} from "../middleware/session-auth.ts";
-import { loadMe } from "../services/me.ts";
+import { requireSession, type SessionEnv, type SessionOptions } from "./session-auth.ts";
+import { loadMe } from "./me.ts";
 import type { AppEnv } from "../app.ts";
 
 export interface MeRouteDeps {

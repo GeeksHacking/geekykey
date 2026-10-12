@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { beforeEach, onTestFinished, test, vi } from "vitest";
 import { startTidbProxy, type TidbProxy } from "../../test-support/tidb-proxy.ts";
 import { connectionOptions, createDbPool, type DbPoolOptions } from "./pool.ts";
-import { stations } from "./schema.ts";
+import { stations } from "../event/schema.ts";
 
 let proxy: TidbProxy;
 

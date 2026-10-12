@@ -1,5 +1,6 @@
 /**
- * Fails when src/db/schema.ts has a change that no migration in drizzle/
+ * Fails when a schema file (src/event/schema.ts or
+ * src/claims-stand-in/schema.ts) has a change that no migration in drizzle/
  * covers. CI runs it on every pull request, and anyone can run it with
  * `pnpm --filter @geekykey/backend check:migrations`.
  *

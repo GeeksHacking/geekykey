@@ -1,4 +1,5 @@
 import { and, between, eq, inArray, sql } from "drizzle-orm";
+import { normaliseUid, type TokenResolver } from "../claims-stand-in/token-lookup.ts";
 import type { Db } from "../db/pool.ts";
 import {
   type NewTap,
@@ -6,8 +7,7 @@ import {
   stations,
   type TAP_SOURCES,
   taps,
-} from "../db/schema.ts";
-import { normaliseUid, type TokenResolver } from "./identity.ts";
+} from "./schema.ts";
 
 export type TapSource = (typeof TAP_SOURCES)[number];
 export type StoredTapStatus = (typeof STORED_TAP_STATUSES)[number];

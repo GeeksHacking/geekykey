@@ -4,8 +4,9 @@
  */
 import { sql } from "drizzle-orm";
 import type { Db } from "../src/db/pool.ts";
-import { stations, tokens, users } from "../src/db/schema.ts";
-import { generateStationKey, hashStationKey } from "../src/lib/station-keys.ts";
+import { tokens } from "../src/claims-stand-in/schema.ts";
+import { stations, users } from "../src/event/schema.ts";
+import { generateStationKey, hashStationKey } from "../src/geekykey/station-keys.ts";
 
 /**
  * Adds a station with a new key. The key is handed back to be shown once:

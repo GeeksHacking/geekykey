@@ -8,6 +8,13 @@
       "when": 1790732771297,
       "tag": "0000_todays_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1791807819929,
+      "tag": "0001_tokens_without_a_foreign_key",
+      "breakpoints": true
     }
   ]
 }

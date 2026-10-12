@@ -10,6 +10,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createDbPool } from "./db/pool.ts";
+import { log } from "./lib/log.ts";
 
 const config = loadConfig(process.env);
 const database = createDbPool(config.databaseUrl);
@@ -19,7 +20,7 @@ const app = createApp(config, database.db);
 // name, such as http://A-Mac.local:8000, and Cloud Run calls the container
 // from outside it.
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
-  console.log(`Listening on http://localhost:${info.port}`);
+  log("server_started", { port: info.port });
 });
 
 // Cloud Run sends SIGTERM 10 seconds before it stops an instance. The server
@@ -28,7 +29,7 @@ const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
 // SIGINT, which Node ignores inside a container unless it's handled.
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.once(signal, () => {
-    console.log(`${signal}: stopping once the requests in flight are done`);
+    log("server_stopping", { signal });
     server.close(() => void database.close());
   });
 }

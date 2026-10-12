@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { SESSION_COOKIE } from "../middleware/session-auth.ts";
+import { SESSION_COOKIE } from "./session-auth.ts";
 import { setupFixture, testApp } from "../test-helpers.ts";
 
 /** The backend as `pnpm dev` starts it, with dev-login on. */

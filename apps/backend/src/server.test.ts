@@ -20,6 +20,17 @@ function settingsWithout(name: keyof typeof SETTINGS): Record<string, string> {
   return settings;
 }
 
+/** One line the server logs. */
+type LogLine = { severity: string; message: string } & Record<string, unknown>;
+
+/** Every line in `output`, each read as one JSON object. Throws on a line that isn't. */
+function logLines(output: string): LogLine[] {
+  return output
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => JSON.parse(line) as LogLine);
+}
+
 /**
  * Starts `node src/server.ts` with only these environment variables, as
  * `pnpm dev` and the image do, and keeps everything it prints.
@@ -34,8 +45,11 @@ function startServer(env: Record<string, string>) {
   const listening = new Promise<string>((resolve) => {
     server.stdout.on("data", (chunk: Buffer) => {
       output += chunk;
-      const address = /Listening on (http:\/\/\S+)/.exec(output)?.[1];
-      if (address) resolve(address);
+      // Only whole lines, since a chunk can end partway through one.
+      const started = logLines(output.slice(0, output.lastIndexOf("\n") + 1)).find(
+        (line) => line.message === "server_started",
+      );
+      if (started) resolve(`http://localhost:${started.port}`);
     });
   });
   server.stderr.on("data", (chunk: Buffer) => (output += chunk));
@@ -75,4 +89,21 @@ test("on SIGTERM, the server closes its database connections and exits", async (
   // An open connection would keep it running.
   server.kill("SIGTERM");
   assert.equal(await exited, 0);
+});
+
+test("every line the server logs is one JSON object with a fixed name", async () => {
+  const { server, listening, exited, output } = startServer(SETTINGS);
+  await listening;
+  server.kill("SIGTERM");
+  assert.equal(await exited, 0);
+
+  const lines = logLines(output());
+  assert.deepEqual(
+    lines.map(({ severity, message }) => ({ severity, message })),
+    [
+      { severity: "INFO", message: "server_started" },
+      { severity: "INFO", message: "server_stopping" },
+    ],
+  );
+  assert.equal(lines[1]!.signal, "SIGTERM");
 });

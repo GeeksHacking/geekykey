@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 import { eq, sql } from "drizzle-orm";
 import { test } from "vitest";
+import { tokens } from "../claims-stand-in/schema.ts";
+import { LocalTokenResolver } from "../claims-stand-in/token-lookup.ts";
 import type { Db } from "../db/pool.ts";
-import { stations, taps, tokens } from "../db/schema.ts";
 import { fakeClock, setupFixture, testDb } from "../test-helpers.ts";
-import { LocalTokenResolver } from "./identity.ts";
-import { type IncomingTap, TapPipeline } from "./taps.ts";
+import { stations, taps } from "./schema.ts";
+import { type IncomingTap, TapPipeline } from "./tap-pipeline.ts";
 
 async function pipeline(cooldownSeconds = 300) {
   const fx = await setupFixture();

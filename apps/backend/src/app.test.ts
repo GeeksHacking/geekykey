@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { sql } from "drizzle-orm";
-import { test } from "vitest";
+import { onTestFinished, test, vi } from "vitest";
 import { testApp } from "./test-helpers.ts";
 
 const app = testApp();
@@ -35,4 +35,37 @@ test("a request gets the settings the app started with, and its database", async
     rows: [{ name: "geekykey_test" }],
     tapCooldownSeconds: 7,
   });
+});
+
+test("an unexpected error answers internal_error, and logs one line without its message", async () => {
+  const app = testApp();
+  app.get("/api/probe-failure", () => {
+    // As a failed query would: its values in the message, mysql2's code on the cause.
+    const cause = Object.assign(new Error("Lock wait timeout exceeded"), {
+      code: "ER_LOCK_WAIT_TIMEOUT",
+    });
+    throw new Error("Failed query: params: gk_sta_secret-key, Alex Tan", { cause });
+  });
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  onTestFinished(() => logged.mockRestore());
+
+  const res = await app.request("/api/probe-failure");
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal_error" });
+
+  assert.equal(logged.mock.calls.length, 1);
+  const [line] = logged.mock.calls[0]!;
+  assert.equal(typeof line, "string");
+  assert.doesNotMatch(line, /gk_sta_secret-key|Alex Tan|Lock wait/);
+  const { stack, ...rest } = JSON.parse(line) as { stack: string[] };
+  assert.deepEqual(rest, {
+    severity: "ERROR",
+    message: "internal_error",
+    method: "GET",
+    path: "/api/probe-failure",
+    error: "Error",
+    code: "ER_LOCK_WAIT_TIMEOUT",
+  });
+  // Where it was thrown, so the line still points at the code.
+  assert.match(stack[0]!, /^at .*app\.test\.ts:\d+:\d+/);
 });

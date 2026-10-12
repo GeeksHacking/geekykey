@@ -8,8 +8,9 @@ const MIGRATIONS_FOLDER = join(import.meta.dirname, "../../drizzle");
 
 /**
  * Applies pending migrations from the drizzle/ folder to the database at a
- * `mysql://` URL, or the one in mysql2's connection options. Edit
- * src/db/schema.ts, then run `pnpm db:generate` to write the next migration.
+ * `mysql://` URL, or the one in mysql2's connection options. Edit a schema
+ * file, src/event/schema.ts or src/claims-stand-in/schema.ts, then run
+ * `pnpm db:generate` to write the next migration.
  *
  * Runs on Node, from `mise run db:migrate` and the tests' global setup, with
  * mysql2 connecting straight to TiDB. Never when the server starts.
