@@ -170,6 +170,8 @@ export interface DevLoginRequest {
 export type ErrorCode =
   | "validation_failed"
   | "unauthenticated"
+  // Agreement 0.4 section 7.2: POST /auth/firebase, on both services.
+  | "invalid_token"
   | "missing_station_key"
   | "invalid_station_key"
   | "forbidden"
@@ -178,6 +180,7 @@ export type ErrorCode =
   | "invalid_event_service_key"
   | "event_service_unavailable"
   | "claims_unavailable"
+  | "login_unavailable"
   | "internal_error";
 
 export interface ApiIssue {

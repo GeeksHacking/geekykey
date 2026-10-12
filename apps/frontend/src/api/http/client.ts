@@ -141,6 +141,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "validation_failed",
   "unauthenticated",
+  "invalid_token",
   "missing_station_key",
   "invalid_station_key",
   "forbidden",
@@ -149,6 +150,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "invalid_event_service_key",
   "event_service_unavailable",
   "claims_unavailable",
+  "login_unavailable",
   "internal_error",
 ]);
 

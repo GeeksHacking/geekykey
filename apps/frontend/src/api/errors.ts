@@ -46,6 +46,10 @@ export function describeError(error: unknown): string {
         return "Some of the details are not valid. Check the form and try again.";
       case "unauthenticated":
         return "You are signed out. Sign in again to continue.";
+      case "invalid_token":
+        // The Firebase ID token is not signed by Google, is for another project, or has
+        // expired, so signing in again is the fix. Agreement 0.4 names no wording for this.
+        return "Couldn't log you in. Sign in again.";
       case "forbidden":
         return "Your account is not allowed to do that.";
       case "not_found":
@@ -57,6 +61,9 @@ export function describeError(error: unknown): string {
       case "event_service_unavailable":
       case "claims_unavailable":
         return "A required service is unavailable. Try again shortly.";
+      case "login_unavailable":
+        // Agreement section 13: on login_unavailable, both logins say exactly this.
+        return "Couldn't log you in. Try again.";
       case "missing_station_key":
       case "invalid_station_key":
         return "The station key is missing or invalid.";

@@ -60,12 +60,15 @@ export interface EventServiceLink {
 export type ErrorCode =
   | "validation_failed"
   | "unauthenticated"
+  // Agreement 0.4 section 7.2: POST /auth/firebase, on both services.
+  | "invalid_token"
   | "forbidden"
   | "not_found"
   | "token_taken"
   | "token_limit_reached"
   | "rate_limited"
   | "claims_unavailable"
+  | "login_unavailable"
   | "internal_error";
 
 export interface ApiIssue {
