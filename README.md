@@ -574,7 +574,9 @@ and answer its question about the rename.
 ## Deploying
 
 Today we deploy one service, the Event Service, and a copy of it for trying changes
-first. The rest are coming:
+first. The rest are coming, at the checkpoints of the migration spec
+(`.scratch/db-hosting/spec.md`, section 6), its steps from today's one server to the
+showcase:
 
 | Part | Built from | Runs on | Address |
 |---|---|---|---|
@@ -660,7 +662,7 @@ any branch:
 1. On GitHub, open Actions, then Deploy, then Run workflow.
 2. Under "Use workflow from", pick your branch, and press Run workflow.
 
-You need write access to the repo to run it. The run checks `apps/backend` first,
+Running it needs write access to the repo. The run checks `apps/backend` first,
 with the same checks as CI, and stops there if one fails. Then it signs in to Google Cloud
 as staging's deploy account, and:
 
@@ -719,7 +721,8 @@ account can read only its own service's migration login.
 
 1. Adam adds the new value as a new version, from his laptop, keeping no copy, as
    `infra/README.md` says under "Changing a secret".
-2. A pull request changes the version number in that service's `deploy.env`. The next
+2. A pull request, reviewed before it merges, changes the version number in that
+   service's `deploy.env`. The next
    deploy uses it. For staging's own secrets, that's the next run from the branch, so a
    new value can be tried there before it merges. Production's are only used once the
    change reaches `main`.
@@ -741,15 +744,15 @@ This says where each one is, never its value. Each is kept only where the table 
 | TiDB migration logins, production's and staging's | Secret Manager, as each service's `MIGRATION_DATABASE_URL`, and `~/.config/geekykey/` on Adam's laptop | Adam, with `db:logins` | Adam gives it a new password, and adds a new version |
 | `SESSION_SECRET`, one per service | Secret Manager | Adam, as a random value nobody keeps | A new one signs everyone out of that service |
 | Station key | The station's gitignored `secrets.h`. The database keeps only its hash | Adam, with `db:test-station`, until organizers can make one on the station board (coming) | Tell Adam. Replacing a key while keeping the station's ID comes with the station board |
-| Wi-Fi details | Each station's `secrets.h` | Zi Tao | Change the password, and put the new one on each station |
+| Wi-Fi details | Each station's `secrets.h`, until the station's setup mode can store them (coming, HAR-14) | Zi Tao | Change the password, and put the new one on each station |
 | Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, tokens can never be rewritten |
 | Our database copies | Adam's laptop, outside the repo. Never GitHub, a workflow's files or a chat | Adam | They hold user IDs, names and who tapped where |
 
-Coming with later checkpoints: the GeekyKey Service's own `SESSION_SECRET`, the Event
-Service key and `CLAIMS_STAND_IN_KEY` (checkpoint 4), which live as Workers secrets that
-Julian sets and in our Secret Manager; and the GeeksHacking login's client secret, which
-will live in Firebase's own settings once Qing Guan issues it. The migration spec, section
-5.2, has the full list.
+Still coming: the Event Service key and `CLAIMS_STAND_IN_KEY`, which go into our Secret
+Manager at checkpoint 3, and onto the GeekyKey Service as Workers secrets that Julian sets
+at checkpoint 4, with its own `SESSION_SECRET`; the GeeksHacking login's client secret,
+which will live in Firebase's own settings once Qing Guan issues it; and the Portal's
+client secret, after the showcase. The migration spec, section 5.2, has the full list.
 
 ### The team's rules
 
@@ -762,15 +765,16 @@ will live in Firebase's own settings once Qing Guan issues it. The migration spe
    it doesn't understand.
 3. **Staging first.** A change to how the server starts, its settings, its Google Cloud
    setup or how it reaches the database runs on `event-service-staging` before it merges.
-4. **The freeze.** From Wed 11 Nov, a week before the showcase, only fixes merge to the
-   backend. The last merge of all is on Mon 16 Nov. From then until the showcase ends on
+4. **The freeze.** From Wed 11 Nov, a week before the showcase, only fixes merge to
+   `apps/backend`. The last merge of all is on Mon 16 Nov. From then until the showcase ends on
    Wed 18 Nov, nothing goes onto `main` except a fix Adam approves and announces in the
    team chat, so nothing deploys the night before. Every push migrates, so the freeze
    stops migrations too.
-5. **Rolling back** is by revision, as in [Rolling back](#rolling-back), and the bad commit
-   is reverted straight after. One revision back is always safe. Never roll back past a
-   change of secret, and never roll the database back. Rolling back a Worker comes with
-   checkpoint 4: revert the commit on `main`, or Julian rolls back one version.
+5. **Rolling back.** The Event Service is rolled back by revision, then the bad commit is
+   reverted, as in [Rolling back](#rolling-back). A Worker, from checkpoint 4 for the
+   GeekyKey Service and checkpoint 5 for the screens, is rolled back by reverting the
+   commit on `main`, which Workers Builds deploys in a few minutes, or by Julian rolling
+   back one version.
 6. **The hand-off.** From checkpoint 4, the two services share `packages/handoff`, which
    doesn't exist yet. A change to it must work with the other service's previous version,
    because the two deploy separately.
