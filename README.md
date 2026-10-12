@@ -573,17 +573,12 @@ and answer its question about the rename.
 
 ## Deploying
 
-<!-- TODO(BAC-13): the production half waits for the first deploy (BAC-11), because every
-command here has to be one a real deploy used. Still to write: how production deploys,
-rolling back, where the other credentials live (spec section 5.2), and the team's eight rules
-(spec section 8.1). -->
-
 Today we deploy one service, the Event Service, and a copy of it for trying changes
 first. The rest are coming:
 
 | Part | Built from | Runs on | Address |
 |---|---|---|---|
-| `event-service` | `apps/backend` | Google Cloud Run | `https://event-api.geekshacking.com`, once Julian maps it (BAC-11) |
+| `event-service` | `apps/backend` | Google Cloud Run | `https://event-api.geekshacking.com`, behind Cloudflare's proxy, and its `run.app` address |
 | `event-service-staging`, the staging copy | `apps/backend` | Google Cloud Run | Its `run.app` address only, listed in `infra/README.md`, step 5 |
 | `geekykey-service`, coming at checkpoint 4 | `apps/geekykey-service` | A Cloudflare Worker | `https://key-api.geekshacking.com` |
 | `geekykey-web` and `event-web`, the two sets of screens, coming at checkpoint 5 | `apps/geekykey-web` and `apps/event-web` (today's `apps/frontend`) | Cloudflare Workers | `https://key.geekshacking.com` and `https://event.geekshacking.com` |
@@ -591,12 +586,60 @@ first. The rest are coming:
 Both Cloud Run services are deployed by one GitHub workflow, `.github/workflows/deploy.yml`.
 What it deploys with (which service, which settings, which secret versions) is in
 `infra/`, and `infra/README.md` is the runbook of `gcloud` commands that set up everything
-else by hand.
+else by hand. There's no infrastructure as code yet: Julian asked on 8 Oct 2026 for the
+setup to stay by hand while the architecture settles.
 
 ### Production
 
-Every push to `main` deploys `event-service`. How, and how to roll it back, is written
-here after its first deploy (BAC-11).
+**Every push to `main` deploys `event-service`.** That's any push: a merged pull request, or
+a commit pushed straight to `main`, a docs change included. `main` isn't protected, so
+anyone who can push to it deploys. Nobody runs a deploy command. Each push starts a run of
+the deploy workflow, listed under Actions, then Deploy, which:
+
+1. checks `apps/backend`, with the same checks as CI, and stops there if one fails;
+2. signs in to Google Cloud as production's deploy account, which only a run on `main` can
+   use;
+3. builds the image and pushes it to Artifact Registry;
+4. migrates production's database, `geekykey`, with the migration login it reads from
+   Secret Manager;
+5. deploys the image to `event-service`, with the settings in
+   `infra/production/settings.env` and the secret versions in
+   `infra/production/deploy.env`, and sends all traffic to it.
+
+A run takes about four minutes. Once it's green, the new version is answering at
+`https://event-api.geekshacking.com`. Cloudflare answers that address and passes each
+request on to Cloud Run (`infra/README.md`, step 9 says why it's set up that way).
+
+The migration runs before the new version starts, so for a short while the version still
+running meets the new tables. That's why every migration has to work with it (rule 2 below).
+
+Production's logs are in Cloud Logging, which Adam and Ethan can read. They hold no keys or
+cookies, but they do hold every request's full address, so a secret never goes in a URL.
+
+On event days, the rehearsal (by Sat 7 Nov) and 17 to 18 Nov, one instance is kept running,
+so no tap waits for one to start. Adam switches it on and off with the commands in
+`infra/README.md`, under "The warm instance", first at the rehearsal. A deploy doesn't undo
+it.
+
+### Rolling back
+
+Each deploy makes a new revision of the service: its image and settings as they were at
+that deploy. The old revisions stay. If a deploy breaks production, Adam sends all traffic
+back to the revision before, with `gcloud run services update-traffic` or from the Cloud
+Run console. The commands are in `infra/README.md`, under "Rolling back". If Adam can't be
+reached, Julian does it, as the project's owner.
+
+Then revert the bad commit on `main`. The revert's deploy sends traffic back to the newest
+revision by itself. Until the revert is on `main`, push nothing else: every push deploys,
+and the bad commit would come back with it.
+
+- **One revision back is always safe,** because every migration works with the version
+  before it.
+- **Never roll back past a change of secret.** The older revision would use the older
+  value, which may no longer work.
+- **The database is never rolled back.**
+
+Nobody has rolled production back yet. The rehearsal, by Sat 7 Nov, tries it once.
 
 ### Staging
 
@@ -679,13 +722,64 @@ account can read only its own service's migration login.
 2. A pull request changes the version number in that service's `deploy.env`. The next
    deploy uses it. For staging's own secrets, that's the next run from the branch, so a
    new value can be tried there before it merges. Production's are only used once the
-   pull request merges.
+   change reaches `main`.
 
 **GitHub holds no secret at all,** not even a key for Google Cloud. GitHub gives every
 workflow run a signed token saying which repo and branch it came from, and Google trusts
 it without a key (`infra/README.md`, step 6). Staging's deploy account accepts a run from
 any branch of this repo, and can reach only staging: its service, its migration login and
 the image repository. Production's accepts only runs on `main`.
+
+### Where every credential lives
+
+This says where each one is, never its value. Each is kept only where the table says.
+
+| Credential | Lives in | Set by | If it leaks or is lost |
+|---|---|---|---|
+| TiDB root login | `~/.config/geekykey/tidb.env` on Adam's laptop. Never deployed | Julian gave it to Adam | Ask Julian |
+| TiDB app logins, production's and staging's | Secret Manager, as each service's `DATABASE_URL` | Adam makes each with `db:logins` and adds it from his laptop, keeping no copy | Adam gives it a new password, adds a new version, and a pull request pins the service to it |
+| TiDB migration logins, production's and staging's | Secret Manager, as each service's `MIGRATION_DATABASE_URL`, and `~/.config/geekykey/` on Adam's laptop | Adam, with `db:logins` | Adam gives it a new password, and adds a new version |
+| `SESSION_SECRET`, one per service | Secret Manager | Adam, as a random value nobody keeps | A new one signs everyone out of that service |
+| Station key | The station's gitignored `secrets.h`. The database keeps only its hash | Adam, with `db:test-station`, until organizers can make one on the station board (coming) | Tell Adam. Replacing a key while keeping the station's ID comes with the station board |
+| Wi-Fi details | Each station's `secrets.h` | Zi Tao | Change the password, and put the new one on each station |
+| Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, tokens can never be rewritten |
+| Our database copies | Adam's laptop, outside the repo. Never GitHub, a workflow's files or a chat | Adam | They hold user IDs, names and who tapped where |
+
+Coming with later checkpoints: the GeekyKey Service's own `SESSION_SECRET`, the Event
+Service key and `CLAIMS_STAND_IN_KEY` (checkpoint 4), which live as Workers secrets that
+Julian sets and in our Secret Manager; and the GeeksHacking login's client secret, which
+will live in Firebase's own settings once Qing Guan issues it. The migration spec, section
+5.2, has the full list.
+
+### The team's rules
+
+1. **Every push to `main` deploys.** Don't push anything to `main`, or merge anything into
+   it, that you wouldn't want live in four minutes. From checkpoint 4, Cloudflare's Workers
+   Builds deploys the Workers from `main` too.
+2. **Every migration works with the version still running.** Add first, switch the code,
+   drop later. To rename a column, say: add the new column, then change the code to use it,
+   and drop the old one in a later deploy. The version still running never meets a table
+   it doesn't understand.
+3. **Staging first.** A change to how the server starts, its settings, its Google Cloud
+   setup or how it reaches the database runs on `event-service-staging` before it merges.
+4. **The freeze.** From Wed 11 Nov, a week before the showcase, only fixes merge to the
+   backend. The last merge of all is on Mon 16 Nov. From then until the showcase ends on
+   Wed 18 Nov, nothing goes onto `main` except a fix Adam approves and announces in the
+   team chat, so nothing deploys the night before. Every push migrates, so the freeze
+   stops migrations too.
+5. **Rolling back** is by revision, as in [Rolling back](#rolling-back), and the bad commit
+   is reverted straight after. One revision back is always safe. Never roll back past a
+   change of secret, and never roll the database back. Rolling back a Worker comes with
+   checkpoint 4: revert the commit on `main`, or Julian rolls back one version.
+6. **The hand-off.** From checkpoint 4, the two services share `packages/handoff`, which
+   doesn't exist yet. A change to it must work with the other service's previous version,
+   because the two deploy separately.
+7. **Copies.** Adam takes a copy of production's database before merging a migration, just
+   before the test data is cleared, and at the end of the event day. The `db:backup`
+   command that takes it is coming. Copies stay on his laptop, never in GitHub or a chat.
+8. **On the event day,** only Adam changes data, with a fresh copy first and Ethan reading
+   the query before it runs. A counting or display bug is fixed by rolling back, not by
+   changing data.
 
 ## Where to read next
 
