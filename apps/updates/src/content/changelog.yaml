@@ -801,3 +801,21 @@
     user IDs at the showcase are Firebase's. The trade-offs we accept: logging in through the
     Portal waits until after the showcase, and a user whose sign-in gives no name shows as
     "GeeksHacking member" until we learn whether GeeksHacking's login sends one.
+
+- id: event-service-live
+  date: 2026-10-12
+  area: backend
+  change: >-
+    The Event Service is live at event-api.geekshacking.com: a test station's taps to it come back
+    unknown token, accepted, duplicate and cooldown as they should, and are stored in production's
+    database, not staging's, and production's logs hold no station key or login cookie.
+
+- id: event-api-behind-cloudflare
+  date: 2026-10-12
+  area: backend
+  change: >-
+    The Event Service's address stays behind Cloudflare's proxy, as GeeksHacking set it up,
+    because a request sent the way a station sends one passes through it untouched. The
+    trade-offs we accept: Cloudflare answers with its own certificate rather than Google's, the
+    Event Service's logs show Cloudflare's addresses instead of each caller's, and Google's
+    certificate renews from behind the proxy, so we check in December that it did.
