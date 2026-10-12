@@ -345,7 +345,7 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 | Secret | `EVENT_SERVICE_KEY` | From checkpoint 3. The same value as the GeekyKey Service's `EVENT_SERVICE_KEY_SHOWCASE` |
 | Secret | `CLAIMS_STAND_IN_KEY` | From checkpoint 3 until the switch |
 
-The service pins each secret to a version number in the deploy workflow, so changing one is a reviewed change and a new revision. The settings are read once at start-up, and a missing secret stops the server starting. `event-service-staging` has the same names, with its own values and `geekykey_staging`.
+The service pins each secret to a version number in its `deploy.env` in `infra/`, which the deploy workflow reads, so changing one is a reviewed change and a new revision. The settings are read once at start-up, and a missing secret stops the server starting. `event-service-staging` has the same names, with its own values and `geekykey_staging`.
 
 **`geekykey-web` and `event-web`** (Workers, from checkpoint 5)
 
@@ -393,7 +393,7 @@ The status call's limit, `7104`, went with the status call on 5 Oct.
 - **production's,** usable only by this repo's `main` branch, can deploy `event-service` and read its migration login;
 - **staging's,** usable from any branch of this repo, can deploy only `event-service-staging` and read only its migration login.
 
-Neither reads the other secrets: each service reads its own session secret and app login as an account of its own, which can read nothing else (9 Oct). Both push to one image repository, and the deploy runs each image by its digest, so staging's pushes can't change what production runs (accepted, 9 Oct).
+Neither reads the other secrets: each service reads its own session secret, app login and, from checkpoint 3, its two keys, as an account of its own, which can read nothing else (9 Oct). Both push to one image repository, and the deploy runs each image by its digest, so staging's pushes can't change what production runs (accepted, 9 Oct).
 
 So a workflow on another branch can't deploy production or read its migration login. No Cloudflare API token is kept in GitHub either, and nobody on the team holds a production Cloudflare secret.
 
