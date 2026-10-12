@@ -422,7 +422,7 @@ Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then
 
 | | Checkpoint | Done when | Waits on |
 |---|---|---|---|
-| 0 | The contract and the asks | **Done** for version 0.2 (29 Sep) and version 0.4, the Firebase login (approved by Ethan and merged on 10 Oct, PR #48). Version 0.3, for this rewrite, went to `main` on 7 Oct, and is approved by Ethan before checkpoint 3 | Ethan's review of 0.3 |
+| 0 | The contract and the asks | **Done:** version 0.2 (29 Sep); version 0.3, for this rewrite (7 Oct); and version 0.4, the Firebase login, which Ethan approved and which merged on 10 Oct (PR #48). His approval covers 0.3 too (Adam, 12 Oct) | |
 | 1 | Today's backend on workerd and TiDB | **Done** (BAC-1 to BAC-6) | |
 | 2 | The move to Cloud Run | A tap to `event-api.geekshacking.com` is stored in TiDB, after staging; the log check; the cold start is measured | Julian: the project, the keyless sign-in and the roles (agreed 8 Oct), disconnecting Workers Builds, and the DNS record, once we're ready |
 | 3 | The line drawn inside | One server, with the GeekyKey side, the Event side and the claims stand-in talking only through their requests, on the new tables | Nothing outside the team |
@@ -439,7 +439,7 @@ Three tracks run alongside the checkpoints: going public, the screens (Ethan's t
 
 **Done for version 0.2.** The API agreement was rewritten for the two services and merged on 29 Sep, and amended on 1 Oct for Julian's hostnames. `CONTEXT.md` and `docs/adr/` are committed.
 
-**Version 0.3,** for this rewrite, went to `main` on 7 Oct for Ethan to review (section 7). It should be approved before checkpoint 3 builds the shapes it changes, and before Ethan's team builds the station screens on `event-web`. **Version 0.4,** the Firebase login, followed in PR #48, which Ethan approved and which merged on 10 Oct.
+**Version 0.3,** for this rewrite, went to `main` on 7 Oct (section 7). **Version 0.4,** the Firebase login, followed in PR #48, which Ethan approved and which merged on 10 Oct. His approval of 0.4 covers 0.3 as well (Adam, 12 Oct), so checkpoint 3 and the station screens on `event-web` can build 0.3's shapes.
 
 **Asked in person on Thu 8 Oct,** from [the agenda](../meetings/2026-10-08-julian-and-qing-guan.md). The answers are in section 2, and what's still open in section 12.
 
@@ -652,7 +652,7 @@ Sources for section 6: every ticket in section 13, in particular [How is the Eve
 
 ## 7. The API agreement
 
-The agreement wins over every other document, including this one. Step 0 rewrote it as version 0.2, merged on 29 Sep. The redraw's changes are made in the agreement itself, as **version 0.3**, which went to `main` on 7 Oct for Ethan's review; its changelog lists them. Every endpoint they touch is a `Checkpoint N` one, so a pull request from either side may change it (the agreement's section 1). In short:
+The agreement wins over every other document, including this one. Step 0 rewrote it as version 0.2, merged on 29 Sep. The redraw's changes are made in the agreement itself, as **version 0.3**, which went to `main` on 7 Oct and is agreed with Ethan's approval of 0.4 on 10 Oct; its changelog lists them. Every endpoint they touch is a `Checkpoint N` one, so a pull request from either side may change it (the agreement's section 1). In short:
 
 - **New, in the section for Event Service builders and in `packages/handoff`:** the registered stations, `GET /geekykey/v1/stations`, and the heartbeat hand-off, `POST /geekykey/v1/heartbeats`, answering `204` (the spec's call).
 - **Gone:** the status call, `GET /api/v1/event-service/stations`, with its limit of 120 a minute and its "status unknown" case; the status `no_event`; links; and the GeekyKey admins' station endpoints.
@@ -727,7 +727,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### Ethan
 
-- **Review version 0.3 of the API agreement,** on `main` since 7 Oct (section 7). He approved version 0.4 on 10 Oct.
+- ~~**Review version 0.3 of the API agreement**~~ (section 7). *Done:* his approval of 0.4 on 10 Oct covers it (Adam, 12 Oct).
 - **The screens track** in section 6, with his team, the Linear tickets the rewrite changes (listed in "Fold the answers into the spec"), and the edits to `apps/frontend/CLAUDE.md` (section 8.2).
 - **Own the two forwarding Workers** once Adam has written them. Adam reviews any change to their list of paths.
 - **Access:** none on Cloudflare (Julian, 1 Oct 2026); his screens deploy when his pull requests merge, and roll back by reverting. Logs Viewer on Google Cloud, for the Event Service's logs, and no deploy role there.
