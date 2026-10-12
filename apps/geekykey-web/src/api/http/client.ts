@@ -123,12 +123,14 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "validation_failed",
   "unauthenticated",
+  "invalid_token",
   "forbidden",
   "not_found",
   "token_taken",
   "token_limit_reached",
   "rate_limited",
   "claims_unavailable",
+  "login_unavailable",
   "internal_error",
 ]);
 

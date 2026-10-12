@@ -7,12 +7,14 @@ import type { ErrorCode } from "@/api/types";
 const CODES: ErrorCode[] = [
   "validation_failed",
   "unauthenticated",
+  "invalid_token",
   "forbidden",
   "not_found",
   "token_taken",
   "token_limit_reached",
   "rate_limited",
   "claims_unavailable",
+  "login_unavailable",
   "internal_error",
 ];
 
@@ -31,6 +33,20 @@ describe("describeError", () => {
     // Section 13 names the exact string for the token page, the claim form and My tokens.
     expect(describeError(new ApiError(503, "claims_unavailable"))).toBe(
       "Couldn't reach GeeksHacking. Try again.",
+    );
+  });
+
+  it("uses the agreement's wording for login_unavailable", () => {
+    // Section 13: on login_unavailable, both logins say exactly this.
+    expect(describeError(new ApiError(503, "login_unavailable"))).toBe(
+      "Couldn't log you in. Try again.",
+    );
+  });
+
+  it("tells a bad Firebase token to sign in again, not just to retry", () => {
+    // The token is refused rather than unverifiable, so "Try again" alone would mislead.
+    expect(describeError(new ApiError(401, "invalid_token"))).toBe(
+      "Couldn't log you in. Sign in again.",
     );
   });
 

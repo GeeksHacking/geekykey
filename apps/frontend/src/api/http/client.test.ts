@@ -198,6 +198,7 @@ describe("HTTP client transport", () => {
 const statusFor = {
   validation_failed: 400,
   unauthenticated: 401,
+  invalid_token: 401,
   missing_station_key: 401,
   invalid_station_key: 401,
   forbidden: 403,
@@ -206,5 +207,6 @@ const statusFor = {
   invalid_event_service_key: 401,
   event_service_unavailable: 503,
   claims_unavailable: 503,
+  login_unavailable: 503,
   internal_error: 500,
 } as const satisfies Record<ErrorCode, number>;

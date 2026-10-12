@@ -18,6 +18,8 @@ const MAX_TOKENS = 3;
 const HTTP_STATUS: Record<ErrorCode, number> = {
   validation_failed: 400,
   unauthenticated: 401,
+  // Agreement 0.4 section 7.2, POST /auth/firebase, on both services.
+  invalid_token: 401,
   forbidden: 403,
   not_found: 404,
   token_taken: 409,
@@ -27,6 +29,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   // Every one of 8.2 to 8.5 answers this when the claims stand-in, or the Portal after
   // the switch, cannot say who owns a token within 4 seconds.
   claims_unavailable: 503,
+  login_unavailable: 503,
 };
 
 export type MockFailure = ErrorCode | "network";

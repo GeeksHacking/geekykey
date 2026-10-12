@@ -28,3 +28,9 @@ These documents change often, so re-read them at the start of a task and before 
 ### Escalation
 
 Any conflict or problem between the sources above, and anything important or likely to affect the project, becomes an issue for Adam. That covers other lanes too: something for the backend or the infrastructure is raised there rather than fixed from the frontend.
+
+### Lanes
+
+The frontend is ours: `apps/frontend`, `apps/geekykey-web`, `apps/updates`, and this file.
+
+`apps/backend`, `infra/`, `firmware/` and `compose.yaml` are **not ours and are not to be edited.** Not to fix a bug, not to tidy a type, not to add a test. A problem there is raised as a Linear issue for Adam, with the evidence, and left there. Read them freely to answer questions about the contract; changing them needs Ethan's explicit permission for that specific change.

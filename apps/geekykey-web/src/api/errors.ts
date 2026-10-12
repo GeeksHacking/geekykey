@@ -46,6 +46,10 @@ export function describeError(error: unknown): string {
         return "Some of the details are not valid. Check the form and try again.";
       case "unauthenticated":
         return "You are signed out. Sign in again to continue.";
+      case "invalid_token":
+        // The Firebase ID token is not signed by Google, is for another project, or has
+        // expired, so signing in again is the fix. Agreement 0.4 names no wording for this.
+        return "Couldn't log you in. Sign in again.";
       case "forbidden":
         return "Your account is not allowed to do that.";
       case "not_found":
@@ -59,6 +63,9 @@ export function describeError(error: unknown): string {
       case "claims_unavailable":
         // Agreement section 13: the token page, the claim form and My tokens say this.
         return "Couldn't reach GeeksHacking. Try again.";
+      case "login_unavailable":
+        // Agreement section 13: on login_unavailable, both logins say exactly this.
+        return "Couldn't log you in. Try again.";
       case "internal_error":
         return "Something went wrong on the server. Try again in a moment.";
     }

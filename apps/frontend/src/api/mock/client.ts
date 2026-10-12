@@ -44,6 +44,8 @@ const SESSION_KEY = "gk-mock-session";
 const HTTP_STATUS: Record<ErrorCode, number> = {
   validation_failed: 400,
   unauthenticated: 401,
+  // Agreement 0.4 section 7.2, POST /auth/firebase, on both services.
+  invalid_token: 401,
   missing_station_key: 401,
   invalid_station_key: 401,
   forbidden: 403,
@@ -52,6 +54,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   invalid_event_service_key: 401,
   event_service_unavailable: 503,
   claims_unavailable: 503,
+  login_unavailable: 503,
   internal_error: 500,
 };
 

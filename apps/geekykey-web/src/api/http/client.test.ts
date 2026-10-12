@@ -97,6 +97,30 @@ describe("geekykey-web http client", () => {
     expect(calls).toHaveLength(0);
   });
 
+  it("turns a login_unavailable body into that code", async () => {
+    // Agreement 0.4 section 7.2, POST /auth/firebase: Google's keys could not be fetched.
+    stubFetch(() => json({ error: "login_unavailable" }, 503));
+    const api = createHttpClient();
+
+    await expect(api.me()).rejects.toMatchObject({
+      name: "ApiError",
+      status: 503,
+      code: "login_unavailable",
+    });
+  });
+
+  it("turns an invalid_token body into that code", async () => {
+    // Agreement 0.4 section 7.2: the Firebase ID token cannot be trusted.
+    stubFetch(() => json({ error: "invalid_token" }, 401));
+    const api = createHttpClient();
+
+    await expect(api.me()).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+      code: "invalid_token",
+    });
+  });
+
   it("turns a claims_unavailable body into that code", async () => {
     stubFetch(() => json({ error: "claims_unavailable" }, 503));
     const api = createHttpClient();
@@ -174,11 +198,13 @@ describe("geekykey-web http client", () => {
 const statusFor: Record<ErrorCode, number> = {
   validation_failed: 400,
   unauthenticated: 401,
+  invalid_token: 401,
   forbidden: 403,
   not_found: 404,
   token_taken: 409,
   token_limit_reached: 409,
   rate_limited: 429,
   claims_unavailable: 503,
+  login_unavailable: 503,
   internal_error: 500,
 };
