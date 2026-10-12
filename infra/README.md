@@ -561,13 +561,35 @@ gcloud run services update-traffic event-service --region=asia-southeast1 \
   --to-revisions=REVISION_NAME=100
 ```
 
+Pick the revision that was serving before the bad deploy. The list's `READY` column isn't
+proof that a revision can start: one that never started says `True` once it's retired.
+`gcloud run revisions describe REVISION_NAME --region=asia-southeast1` shows
+`ContainerHealthy` as `False` for one that never started. Don't pick one older than the
+last change of secret (see [Changing a secret](#changing-a-secret)).
+
 Then revert the bad commit on `main`. Its deploy sends traffic back to the newest revision
 by itself. So does *any* push to `main`, a docs change included: until the revert is
 merged, merge nothing else, or the bad version comes back. The database is never rolled back, which is why every migration has to work
 with the version already running.
 
+To end a rollback without a deploy, as when trying it on staging, send traffic back to the
+newest revision, which is what the deploy does after every deploy:
+
+```bash
+gcloud run services update-traffic event-service --region=asia-southeast1 --to-latest
+```
+
+Tried on `event-service-staging` on 12 Oct 2026: from revision `00007` back to `00006`, then
+`--to-latest`. Each switch took about 9 seconds. The logs (`resource.labels.revision_name`)
+showed the old revision answering from the next request on. That request took 6.5 seconds,
+because the old revision had no instance running and had to start one, longer than the
+cold starts measured before. How the warm instance behaves during a rollback is checked
+at the rehearsal.
+
 ### Changing a secret
 
 Add the new value as a new version (as in step 11), then change the version number in that
 service's `deploy.env` in a pull request. The deploy after it merges uses the new value.
-Never roll back past a change of key, or the old revision uses the old one.
+Never roll back past a change of secret: the old revision uses the old value, which may no
+longer work or may be the one that leaked. If the bad deploy is the one that changed a
+secret, fix it forward instead: add a version that works, and pin it in a new pull request.

@@ -635,13 +635,17 @@ Then revert the bad commit on `main`. The revert's deploy sends traffic back to 
 revision by itself. Until the revert is on `main`, push nothing else: every push deploys,
 and the bad commit would come back with it.
 
-- **One revision back is always safe,** because every migration works with the version
-  before it.
+- **One revision back is safe,** because every migration works with the version before
+  it, unless the bad deploy changed a secret's version.
 - **Never roll back past a change of secret.** The older revision would use the older
-  value, which may no longer work.
+  value, which may no longer work, or may be the one that leaked. If the bad deploy is the
+  one that changed a secret, fix it forward instead: Adam adds a version that works, and a
+  new pull request pins it.
 - **The database is never rolled back.**
 
-Nobody has rolled production back yet. The rehearsal, by Sat 7 Nov, tries it once.
+Rolling back was tried on staging on 12 Oct 2026. Moving the traffic took about 9 seconds,
+and the first request after it took 6.5 seconds, while the old revision started an
+instance. The rehearsal, by Sat 7 Nov, tries it on production.
 
 ### Staging
 
@@ -656,13 +660,15 @@ when it touches how the server starts, its settings, its Google Cloud setup or h
 reaches the database. Logs from staging show whether it works before production ever
 runs it.
 
-**Deploying it.** Nobody deploys from their laptop. Run the deploy workflow by hand, from
-any branch:
+**Deploying it.** Adam deploys staging, and nobody else does unless he asks them to.
+Anyone with write access to the repo could run the workflow, so that's a team rule, not a
+lock: staging runs one branch at a time, and a branch's migrations stay in its database.
+Nobody deploys from their laptop. Run the deploy workflow by hand, from any branch:
 
 1. On GitHub, open Actions, then Deploy, then Run workflow.
 2. Under "Use workflow from", pick your branch, and press Run workflow.
 
-Running it needs write access to the repo. The run checks `apps/backend` first,
+The run checks `apps/backend` first,
 with the same checks as CI, and stops there if one fails. Then it signs in to Google Cloud
 as staging's deploy account, and:
 
