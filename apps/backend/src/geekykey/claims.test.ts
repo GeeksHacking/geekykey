@@ -42,9 +42,19 @@ test("no UIDs, no owners", async () => {
 
 test("a claim is claimed, then already yours, and taken for anyone else", async () => {
   const claims = standInClaims();
-  assert.equal(await claims.claim("04A1B2C3D4E5F6", "user-1", signal()), "claimed");
-  assert.equal(await claims.claim("04A1B2C3D4E5F6", "user-1", signal()), "already_yours");
-  assert.equal(await claims.claim("04A1B2C3D4E5F6", "user-2", signal()), "taken");
+  const claimed = await claims.claim("04A1B2C3D4E5F6", "user-1", signal());
+  assert.ok(claimed.result === "claimed");
+  // When it was claimed, as the user's tokens have it.
+  const [token] = await claims.tokensOf("user-1", signal());
+  assert.equal(claimed.claimedAt, token!.claimedAt);
+
+  // Again, still the first claim's time.
+  assert.deepEqual(await claims.claim("04A1B2C3D4E5F6", "user-1", signal()), {
+    result: "already_yours",
+    claimedAt: claimed.claimedAt,
+  });
+  // Nothing about someone else's claim.
+  assert.deepEqual(await claims.claim("04A1B2C3D4E5F6", "user-2", signal()), { result: "taken" });
 });
 
 test("a token is released only by the owner named", async () => {
