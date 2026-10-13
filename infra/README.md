@@ -600,10 +600,18 @@ Clear the terminal after each (Cmd-K), since the URL stayed on screen.
 
 Each service's `deploy.env` pins version 1 of each secret, except staging's app login: on
 9 Oct its `db:logins` ran twice, so its first URL had a password that no longer worked.
-Version 1 is disabled, and staging is pinned to version 2:
+Version 1 was disabled, and staging is pinned to version 2:
 
 ```bash
 gcloud secrets versions disable 1 --secret=event-service-staging-database-url
+```
+
+On 13 Oct 2026 it was destroyed, since a disabled version is still billed and this one
+could never be used again. Destroying a version can't be undone, so only destroy one whose
+value is dead:
+
+```bash
+gcloud secrets versions destroy 1 --secret=event-service-staging-database-url
 ```
 
 ## Day to day
