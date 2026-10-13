@@ -42,6 +42,50 @@ export class ConfigError extends Error {
  */
 type Env = Record<string, string | undefined>;
 
+/** The secrets APP_SECRETS may hold. Ordinary settings stay out, so a secret can't switch on dev sign-in. */
+const APP_SECRET_NAMES = new Set([
+  "SESSION_SECRET",
+  "DATABASE_URL",
+  "EVENT_SERVICE_KEY",
+  "CLAIMS_STAND_IN_KEY",
+]);
+
+/**
+ * `env` with APP_SECRETS, one JSON object of secrets by name, unpacked into
+ * them. On Cloud Run each service keeps its secrets in one Secret Manager
+ * secret, which is billed as one (spec section 5.1); locally they're separate
+ * settings and there's no APP_SECRETS. No error quotes the JSON, since it's
+ * all secret: even JSON.parse's own message would show the start of it.
+ */
+export function unpackAppSecrets(env: Env): Env {
+  const raw = env.APP_SECRETS;
+  if (raw === undefined || raw === "") return env;
+
+  let secrets: unknown;
+  try {
+    secrets = JSON.parse(raw);
+  } catch {
+    throw new ConfigError("APP_SECRETS must be a JSON object, and isn't valid JSON");
+  }
+  if (typeof secrets !== "object" || secrets === null || Array.isArray(secrets)) {
+    throw new ConfigError("APP_SECRETS must be a JSON object of secrets by name");
+  }
+
+  const unpacked: Env = { ...env };
+  delete unpacked.APP_SECRETS;
+  for (const [name, value] of Object.entries(secrets)) {
+    if (!APP_SECRET_NAMES.has(name)) throw new ConfigError(`${name} can't be in APP_SECRETS`);
+    if (typeof value !== "string") {
+      throw new ConfigError(`${name} in APP_SECRETS must be a string`);
+    }
+    if (env[name] !== undefined) {
+      throw new ConfigError(`${name} is set both in APP_SECRETS and on its own`);
+    }
+    unpacked[name] = value;
+  }
+  return unpacked;
+}
+
 function intFromEnv(env: Env, key: string, fallback: number): number {
   const raw = env[key];
   if (raw === undefined || raw === "") return fallback;

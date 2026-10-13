@@ -4,11 +4,12 @@
  * (dist/server.cjs).
  *
  * It reads its settings from environment variables once, here, and a bad or
- * missing one, such as SESSION_SECRET or DATABASE_URL, stops it starting.
+ * missing one, such as SESSION_SECRET or DATABASE_URL, stops it starting. On
+ * Cloud Run its secrets come in one setting, APP_SECRETS, unpacked first.
  */
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
-import { ConfigError, loadConfig } from "./config.ts";
+import { ConfigError, loadConfig, unpackAppSecrets } from "./config.ts";
 import { createDbPool } from "./db/pool.ts";
 import { errorFields, log } from "./lib/log.ts";
 
@@ -21,7 +22,7 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-const config = loadConfig(process.env);
+const config = loadConfig(unpackAppSecrets(process.env));
 const database = createDbPool(config.databaseUrl);
 const app = createApp(config, database.db);
 

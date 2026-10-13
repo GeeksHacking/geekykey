@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { describe, test } from "vitest";
-import { loadConfig } from "../src/config.ts";
+import { loadConfig, unpackAppSecrets } from "../src/config.ts";
 
 // The files in infra/ that .github/workflows/deploy.yml deploys with. A
 // mistake in one only shows when a deploy fails, or worse, when it doesn't,
@@ -44,14 +44,19 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
 
     test("its settings and secrets are enough for the server to start, with dev sign-in off", () => {
       const env: Record<string, string> = { ...settings };
-      // A stand-in for each secret Cloud Run would fill in, shaped like a URL
-      // since DATABASE_URL must be one.
-      for (const name of secrets.keys())
-        env[name] = "mysql://a-stand-in-for-the-secret@stand-in/db";
+      // A stand-in for the secrets Cloud Run would fill in.
+      env.APP_SECRETS = JSON.stringify({
+        SESSION_SECRET: "a-stand-in-for-the-secret",
+        DATABASE_URL: "mysql://a-stand-in-for-the-secret@stand-in/db",
+      });
 
-      const config = loadConfig(env);
+      const config = loadConfig(unpackAppSecrets(env));
       assert.equal(config.devAuthEnabled, false);
       assert.equal(config.sessionCookieSecure, true);
+    });
+
+    test("the server's secrets come as one, APP_SECRETS, so each costs one stored version", () => {
+      assert.deepEqual([...secrets.keys()], ["APP_SECRETS"]);
     });
 
     test("it deploys its own service, as its own deploy account", () => {
@@ -63,13 +68,8 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       const pins = [...secrets.values(), parsePin(deployEnv.MIGRATION_SECRET!)];
       for (const { secret, version } of pins) {
         // Production's secret names are a prefix of staging's, so check the
-        // whole name is this service's plus one of its five secrets.
-        assert.match(
-          secret,
-          new RegExp(
-            `^${service}-(session-secret|database-url|migration-database-url|event-service-key|claims-stand-in-key)$`,
-          ),
-        );
+        // whole name is this service's plus one of its two secrets.
+        assert.match(secret, new RegExp(`^${service}-(app-secrets|migration-database-url)$`));
         assert.match(version, /^[1-9]\d*$/, `${secret} must be pinned to a number, not ${version}`);
       }
     });
