@@ -47,12 +47,14 @@ migration login, from Secret Manager.
 
 Adam has the Editor role on the project. It lets him turn on APIs and create the image
 repository, the service accounts, the services and the secrets, and add secret values.
-It doesn't let him give anyone a role, and steps 6 to 8 are all grants: about twenty-two of
-them. Rather than make each one in the console, Julian, as Owner, gives Adam a role that
-can grant (Owner, or Security Admin with Workload Identity Pool Admin, asked 9 Oct 2026),
-and Adam runs those steps from here. Julian still runs step 9, because mapping a domain
-needs whoever verified `geekshacking.com` with Google, and step 10, on the billing
-account. He works in the web console, so those two steps say where each one is there too.
+It doesn't let him give anyone a role, or read a secret's value. Steps 6 to 8 are all
+grants: about twenty-two of them. Rather than make each one in the console, Julian, as
+Owner, gave Adam a role that can grant (Owner, or Security Admin with Workload Identity
+Pool Admin, asked 9 Oct 2026), and Adam ran those steps from here. That role was taken
+away again after 9 Oct (found on 13 Oct 2026), so a grant made since is Julian's, or
+needs the role back for a while. Julian also runs step 9, because mapping a domain needs
+whoever verified `geekshacking.com` with Google, and step 10, on the billing account. He
+works in the web console, so his steps say where each one is there too.
 
 | Step | Who | Run |
 |---|---|---|
@@ -62,7 +64,7 @@ account. He works in the web console, so those two steps say where each one is t
 | [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026. The two keys: 13 Oct 2026 |
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
 | [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
-| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave | 9 Oct 2026. The two keys: not yet |
+| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave. The two keys: Julian | 9 Oct 2026. The two keys: not yet |
 | [8. Logs for the team](#8-logs-for-the-team) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
@@ -338,6 +340,20 @@ for service in event-service event-service-staging; do
   done
 done
 ```
+
+Julian makes these four, since Adam can no longer grant. In the console, it's Security →
+Secret Manager, then for each secret: open it, the Permissions tab, Grant access, with the
+role Secret Manager Secret Accessor, to:
+
+| Secret | Principal |
+|---|---|
+| `event-service-event-service-key` | `event-service@geekykey-b035a.iam.gserviceaccount.com` |
+| `event-service-claims-stand-in-key` | `event-service@geekykey-b035a.iam.gserviceaccount.com` |
+| `event-service-staging-event-service-key` | `event-service-staging@geekykey-b035a.iam.gserviceaccount.com` |
+| `event-service-staging-claims-stand-in-key` | `event-service-staging@geekykey-b035a.iam.gserviceaccount.com` |
+
+`event-service-session-secret`'s Permissions tab shows one made on 9 Oct, to compare with.
+No value is seen or needed: a grant only lets the service read its own secret.
 
 Each deploy account may push images, read its own migration login, deploy its own
 service, and start that service as the service's own account:
