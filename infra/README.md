@@ -192,8 +192,9 @@ it and the services must not. The cost is in changing one of the four (see
 [Changing a secret](#changing-a-secret)).
 
 Until 13 Oct each of the four was a secret of its own: `session-secret` and `database-url`
-from 9 Oct, and `event-service-key` and `claims-stand-in-key` from 13 Oct. They're
-deleted once both services run on `app-secrets` (step 11).
+from 9 Oct, and `event-service-key` and `claims-stand-in-key` from 13 Oct. The keys were
+deleted the same day, and the other two go once both services run on `app-secrets`
+(step 11).
 
 ## 5. The two services
 
@@ -588,18 +589,31 @@ It should print `1` and `enabled` twice. Your account can't read the versions th
 so the server checks the rest: a deploy whose `APP_SECRETS` isn't valid, or is missing a
 value, stops at start-up and logs which setting is wrong.
 
-Once both services run on `app-secrets`, the old eight are deleted:
+The old secrets are deleted once nothing can read them. The four keys went on 13 Oct 2026:
+no revision ever pinned them, and nobody had a copy:
 
 ```bash
 for service in event-service event-service-staging; do
-  for name in session-secret database-url event-service-key claims-stand-in-key; do
+  for name in event-service-key claims-stand-in-key; do
     gcloud secrets delete "$service-$name" --quiet
   done
 done
 ```
 
-Deleting a secret can't be undone, so check first that both services' latest revisions
-pin only `APP_SECRETS` (see [Adding a secret](#adding-a-secret)).
+Each service's `session-secret` and `database-url` go once both services run on
+`app-secrets`:
+
+```bash
+for service in event-service event-service-staging; do
+  for name in session-secret database-url; do
+    gcloud secrets delete "$service-$name" --quiet
+  done
+done
+```
+
+Deleting a secret can't be undone, and a revision that pins a deleted one can't start, so
+rolling back to it fails too. Check first that both services' latest revisions pin only
+`APP_SECRETS` (see [Adding a secret](#adding-a-secret)), and roll back no further than those.
 
 On 9 Oct staging's app login got two versions, because its `db:logins` ran twice and the
 first URL's password no longer worked. Version 1 was disabled, and on 13 Oct destroyed,
