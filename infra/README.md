@@ -59,14 +59,14 @@ account. He works in the web console, so those two steps say where each one is t
 | [1. Turn on the APIs](#1-turn-on-the-apis) | Adam | 9 Oct 2026 |
 | [2. The image repository](#2-the-image-repository) | Adam | 9 Oct 2026 |
 | [3. The service accounts](#3-the-service-accounts) | Adam | 9 Oct 2026 |
-| [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026. The two keys: not yet |
+| [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026. The two keys: 13 Oct 2026 |
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
 | [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave | 9 Oct 2026. The two keys: not yet |
 | [8. Logs for the team](#8-logs-for-the-team) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
-| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. The two keys: not yet |
+| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. The two keys: 13 Oct 2026 |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
@@ -554,7 +554,7 @@ for service in event-service event-service-staging; do
 done
 ```
 
-It should print `1` and `ENABLED` four times.
+It should print `1` and `enabled` four times.
 
 Nobody needs to see the keys yet. At checkpoint 4, when the GeekyKey Service moves to its
 Worker, Adam reads production's two once and sends them to Julian privately, to set as
