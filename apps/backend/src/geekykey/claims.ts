@@ -11,12 +11,15 @@ import { z, type ZodType } from "zod";
 export interface Claims {
   /** The owners of up to 500 tokens, by UID. A UID missing from the map is unclaimed. */
   ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, string>>;
-  /** Claims the token for the user. The first claim wins. */
+  /**
+   * Claims the token for the user. The first claim wins, and `claimedAt` is
+   * when the user's claim was made, for the claim route's answer.
+   */
   claim(
     uid: string,
     userId: string,
     signal: AbortSignal,
-  ): Promise<"claimed" | "already_yours" | "taken">;
+  ): Promise<{ result: "claimed" | "already_yours"; claimedAt: string } | { result: "taken" }>;
   /** Releases the token, but only if `ownerId` still owns it. */
   release(uid: string, ownerId: string, signal: AbortSignal): Promise<"released" | "not_owner">;
   /** The user's tokens, oldest claim first. */
@@ -53,7 +56,10 @@ export type Send = (url: string, init: RequestInit) => Promise<Response>;
 const ownersAnswer = z.object({
   owners: z.array(z.object({ uid: z.string(), user_id: z.string() })),
 });
-const claimAnswer = z.object({ result: z.enum(["claimed", "already_yours", "taken"]) });
+const claimAnswer = z.union([
+  z.object({ result: z.enum(["claimed", "already_yours"]), claimed_at: z.string() }),
+  z.object({ result: z.literal("taken"), claimed_at: z.null() }),
+]);
 const releaseAnswer = z.object({ result: z.enum(["released", "not_owner"]) });
 const tokensAnswer = z.object({
   tokens: z.array(z.object({ uid: z.string(), claimed_at: z.string() })),
@@ -86,7 +92,9 @@ export class StandInClaims implements Claims {
 
   async claim(uid: string, userId: string, signal: AbortSignal) {
     const path = `/tokens/${uid}/claim`;
-    return (await this.#call("POST", path, { user_id: userId }, claimAnswer, signal)).result;
+    const claimed = await this.#call("POST", path, { user_id: userId }, claimAnswer, signal);
+    if (claimed.result === "taken") return { result: claimed.result };
+    return { result: claimed.result, claimedAt: claimed.claimed_at };
   }
 
   async release(uid: string, ownerId: string, signal: AbortSignal) {
