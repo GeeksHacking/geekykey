@@ -207,8 +207,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
         // Already yours: 200, idempotent, and the 3-token limit does not apply.
         if (token.owner_id === userId) return toToken(token);
-        if (token.owner_id !== null) fail("token_taken");
+        // The limit before the owner (agreement 8.2), so a user at 3 learns that
+        // even when the token is someone else's.
         if (ownedTokens(userId).length >= MAX_TOKENS) fail("token_limit_reached");
+        if (token.owner_id !== null) fail("token_taken");
 
         token.owner_id = userId;
         token.claimed_at = iso(now());

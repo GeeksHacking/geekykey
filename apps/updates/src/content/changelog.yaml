@@ -887,3 +887,11 @@
     side and the claims stand-in, along the line the two services will be cut apart at, and every
     line it logs is one JSON object with a fixed name that the showcase's saved queries can count,
     holding no station key, login cookie or person's name.
+
+- id: claim-check-order
+  date: 2026-10-13
+  area: frontend
+  change: >-
+    Claiming a token now checks the 3-token limit before whether someone else owns it, in the API
+    agreement and in the screens' mock, so someone already holding 3 is told to release one. When
+    someone else got a token first, the token page says so, and shows underneath whether anyone holds it now.

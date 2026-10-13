@@ -687,6 +687,10 @@ first claim wins, and a user holds at most 3 tokens.
 **Errors:** `validation_failed`, `token_taken` (409) when someone else has claimed it,
 `token_limit_reached` (409) when the user already holds 3, and `rate_limited`.
 
+The checks run in this order: a token that is already yours answers `200` whatever your count;
+then a user holding 3 gets `token_limit_reached`, even for someone else's token; then
+`token_taken`.
+
 Taps turned away as `unknown_token` before the claim are not credited afterwards: they were
 never stored.
 
@@ -1233,6 +1237,10 @@ There are no GeekyKey admin screens.
   tokens say "Too many tries. Wait a minute and try again."
 - On `token_limit_reached`, the claim says "You already have 3 tokens. Release one on My tokens
   first."
+- On `token_taken`, the claim says "Someone else already claimed this token." The error names
+  no owner, so the token page then shows what a fresh lookup (8.5) answers, under that sentence.
+  The two can differ: if the token was released in between, the lookup says `nobody`, and the
+  sentence still stays, so the user learns they lost the claim.
 - On `claims_unavailable`, the token page, the claim form and My tokens say "Couldn't reach
   GeeksHacking. Try again."
 - On `login_unavailable`, both logins say "Couldn't log you in. Try again."
@@ -1291,3 +1299,4 @@ Closed on 2026-10-10:
 | 2026-10-10 | Version 0.4 (draft): the showcase logs in through Firebase, not the Portal ([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)). **New:** `POST /auth/firebase` on both services (7.2), taking the ID token from Firebase's web SDK after a Google or GeeksHacking sign-in, with the errors `invalid_token` (401) and `login_unavailable` (503). **Moved out of scope:** `GET /auth/login` and `GET /auth/callback`, which return after the showcase; logout becomes 7.3. User IDs are Firebase UIDs at the showcase, so "Portal user ID" becomes "user ID" throughout, and another team's Event Service logs in through the same Firebase project. Checked on 10 Oct that a Worker verifies the token in about 1 ms of CPU (BAC-20). Open questions: whether GeeksHacking's login carries a name, and what the QR fallback scans. |
 | 2026-10-12 | Housekeeping, no endpoint or shape changes. A reader moved to another event, and a replaced key (9.8), go in through the station's setup mode, not a reflash, as agreed on 8 Oct; `no_event` stays retired, no longer provisional; dev-login is turned on by the committed `apps/backend/dev.env` (7.1), not a gitignored file. |
 | 2026-10-13 | The Event Service key is written as 64 lower-case hex characters ([Event Service keys](#event-service-keys)). "Generated like a station key" only ever meant random, but it read as a station key's base64url, whose `-` and `_` some apps split a double-click at; hex is copied between people, chats and dashboards unchanged. No endpoint or shape changes. |
+| 2026-10-13 | The claim's checks run in a stated order (8.2): already yours, then the 3-token limit, then `token_taken`, so a user holding 3 hears about the limit even for someone else's token, as the migration spec says. Section 13 sets the `token_taken` sentence, "Someone else already claimed this token.", and keeps it above the token page's fresh lookup even when that lookup says `nobody`. No endpoint or shape changes. |

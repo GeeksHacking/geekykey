@@ -93,6 +93,20 @@ describe("geekykey-web mock client", () => {
       expect(await codeOf(() => api.claimToken("04F1A3B5D7E9"))).toBe("token_limit_reached");
     });
 
+    it("answers token_limit_reached, not token_taken, for someone else's token at the limit", async () => {
+      const api = setup();
+      await api.claimToken(UNCLAIMED);
+      expect((await api.me()).tokens).toHaveLength(3);
+      expect(await codeOf(() => api.claimToken(SOMEONE_ELSES))).toBe("token_limit_reached");
+    });
+
+    it("still answers already yours at the limit", async () => {
+      const api = setup();
+      const claimed = await api.claimToken(UNCLAIMED);
+      expect((await api.me()).tokens).toHaveLength(3);
+      expect((await api.claimToken(UNCLAIMED)).claimed_at).toBe(claimed.claimed_at);
+    });
+
     it("claims a well-formed UID no fixture carries, adding it", async () => {
       // 8.2 lists no not_found, and 8.5 says nothing looks missing either, so a UID the
       // hardware could answer with reads as an unclaimed token.

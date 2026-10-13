@@ -284,7 +284,7 @@ export interface Claims {
 - **The deadline.** Each call gives up when its `signal` fires: the station request's shared 4 seconds, or 4 seconds of its own on the screens' calls (the spec's call). There's no retry.
 - **When it can't answer** (no answer in time, a `429` or `5xx`, or a body that doesn't parse), it throws `ClaimsUnavailable`. The station route turns that into `503 claims_unavailable`, the same code before and after the switch, and the screens into "Couldn't reach GeeksHacking. Try again."
 - **UIDs arrive normalised.** Who may release is decided by the routes: an owner passes their own user ID, and a GeekyKey admin passes the owner the token page found when it loaded, so a late or double click can't release a newer claim.
-- **The cap** is 3 tokens, a GeekyKey Service setting, with no exemption for anyone. The claim route checks `tokensOf` before `claim`, and answers `409 token_limit_reached`. Accepted: two claims by one user at the same instant could leave them with 4 tokens.
+- **The cap** is 3 tokens, a GeekyKey Service setting, with no exemption for anyone. The claim route checks `tokensOf` before `claim`: a token already among them answers `200` as already yours, whatever the count, and otherwise a user at the cap gets `409 token_limit_reached`, even when the token is someone else's. Accepted: two claims by one user at the same instant could leave them with 4 tokens.
 - **Every release writes a `token_released` log line** saying who released which UID from whom. With no history kept, it's the only trace.
 
 **The claims stand-in** keeps the `tokens` table and offers the four calls we're asking the Portal for, in [part 2 of the tag APIs message](assets/message-to-qing-guan-tag-apis.md). Before the split it's simply today's `tokens` table and claim code, moved to Cloud Run with everything else. From checkpoint 3 it's a folder of its own on the Cloud Run server, `claims-stand-in/`, with its own schema file, marked "GeekyKey's stand-in, removed after the switch". Its routes are the spec's call. The fifth, read-only route for "Copy claims to the Portal" went on 8 Oct, with the copy. Each takes `Authorization: Bearer <CLAIMS_STAND_IN_KEY>`, compared in constant time:
@@ -638,6 +638,7 @@ Until then, anyone with write access could push to `main` and deploy, so the tea
   - the token page at `/t/<UID>`, with its five views, landing back on it after login, and a button for each event in the owner's view;
   - My tokens, the home page, with **Release**, the form to claim by typing a UID, and a button for each event;
   - "Couldn't reach GeeksHacking. Try again." on `claims_unavailable`, and "You already have 3 tokens. Release one on My tokens first." on `token_limit_reached`;
+  - "Someone else already claimed this token." on `token_taken`, and on the token page, the view from a fresh lookup underneath, whatever it answers;
   - no GeekyKey admin screens: a GeekyKey admin releases a found token on its token page.
 - **In `apps/frontend`, which becomes `apps/event-web` at checkpoint 4:**
   - **Done:** the passport without pairing, the Portal user ID to copy, passport stations only, the tap log and export of version 0.2, the QR fallback by user ID, and passport settings from the station board.
