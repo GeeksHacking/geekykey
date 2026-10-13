@@ -10,6 +10,11 @@ export interface Config {
   tapCooldownSeconds: number;
   maxTapsPerRequest: number;
   /**
+   * Milliseconds a station's request has to find its tokens' owners. The
+   * station waits 5 seconds, so this leaves it room for the network.
+   */
+  tapDeadlineMs: number;
+  /**
    * Mounts POST /auth/dev-login, which signs in a seeded user without the
    * portal. Local development only, never true in production.
    */
@@ -18,6 +23,12 @@ export interface Config {
   sessionSecret: string;
   /** `Secure` on the session cookie. A Secure cookie is never sent back over plain http. */
   sessionCookieSecure: boolean;
+  /**
+   * The key the GeekyKey side's requests to the claims stand-in carry, and the
+   * stand-in checks. 64 lower-case hex characters, as `openssl rand -hex 32`
+   * writes them.
+   */
+  claimsStandInKey: string;
 }
 
 /**
@@ -25,6 +36,12 @@ export interface Config {
  * ones and nothing needs protecting. Production must set SESSION_SECRET.
  */
 const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
+
+/**
+ * Stand-in for the keys between the areas, in local development. Both ends of
+ * every request are in the one server, so the key only has to match itself.
+ */
+const DEV_KEY = "0".repeat(64);
 
 /**
  * A setting that's missing or wrong. The server logs its message as it stops
@@ -118,6 +135,23 @@ function sessionSecretFromEnv(env: Env, devAuthEnabled: boolean): string {
 }
 
 /**
+ * A key one area's requests to another carry. Fails at boot rather than
+ * starting with a key that can't be the one in Secret Manager, and never
+ * says what it was given.
+ */
+function keyFromEnv(env: Env, name: string, devAuthEnabled: boolean): string {
+  const key = env[name];
+  if (key) {
+    if (!/^[0-9a-f]{64}$/.test(key)) {
+      throw new ConfigError(`${name} must be 64 lower-case hex characters`);
+    }
+    return key;
+  }
+  if (devAuthEnabled) return DEV_KEY;
+  throw new ConfigError(`${name} is required unless DEV_AUTH_ENABLED is true`);
+}
+
+/**
  * No default: a server that can't reach its database shouldn't start. Checked
  * here rather than when the pool reads it, so the error never holds the URL,
  * whose password is in it.
@@ -142,9 +176,11 @@ export function loadConfig(env: Env): Config {
     port: intFromEnv(env, "PORT", 8000),
     tapCooldownSeconds: intFromEnv(env, "TAP_COOLDOWN_SECONDS", 300),
     maxTapsPerRequest: intFromEnv(env, "MAX_TAPS_PER_REQUEST", 500),
+    tapDeadlineMs: intFromEnv(env, "TAP_DEADLINE_MS", 4000),
     devAuthEnabled,
     sessionSecret: sessionSecretFromEnv(env, devAuthEnabled),
     // Dev auth means a developer on http://localhost, where a Secure cookie never comes back.
     sessionCookieSecure: !devAuthEnabled,
+    claimsStandInKey: keyFromEnv(env, "CLAIMS_STAND_IN_KEY", devAuthEnabled),
   };
 }

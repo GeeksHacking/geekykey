@@ -1,5 +1,4 @@
 import { and, between, eq, inArray, sql } from "drizzle-orm";
-import { normaliseUid, type TokenResolver } from "../claims-stand-in/token-lookup.ts";
 import type { Db } from "../db/pool.ts";
 import {
   type NewTap,
@@ -17,7 +16,10 @@ export type TapResultStatus = StoredTapStatus | "duplicate";
 export interface IncomingTap {
   /** Station-generated ID that makes retries idempotent. Unique per station. */
   clientTapId: string;
+  /** The token's normalised UID, still stored with the tap until BAC-32. */
   uid: string;
+  /** The token's owner. A tap by a token nobody owns never gets this far. */
+  userId: string;
   /** Device clock time of the tap, ISO 8601. Optional because ESP32 clocks are unreliable. */
   tappedAt?: string;
 }
@@ -52,31 +54,28 @@ interface PendingTap {
   tappedAt: string | null;
   /** Time used for ordering and cooldown: device time when given, else server receipt time. */
   effectiveAt: string;
-  userId: string | null;
+  userId: string;
   status: StoredTapStatus;
 }
 
 /**
- * Ingests a batch of taps from one station.
+ * Ingests a batch of taps from one station, each by a token's owner.
  *
- * Designed for a remote database: one read for tokens, then one short
- * transaction that locks the station's row, reads existing IDs and cooldown
- * state, and makes a single multi-row insert. Every non-duplicate tap is
- * stored, including rejected ones, so organisers can see unknown tags and
- * repeat taps in the log.
+ * Designed for a remote database: one short transaction that locks the
+ * station's row, reads existing IDs and cooldown state, and makes a single
+ * multi-row insert. Every non-duplicate tap is stored, including cooldown
+ * ones, so organisers can see repeat taps in the log.
  *
- * It still takes the claims stand-in's token lookup. Later in checkpoint 3 it
- * is handed user IDs instead, and never sees a token.
+ * It's still handed each token's UID, to store with the tap. Later in
+ * checkpoint 3 it gets only user IDs, and never sees a token.
  */
 export class TapPipeline {
   #db: Db;
-  #tokens: TokenResolver;
   #cooldownMs: number;
   #now: () => Date;
 
-  constructor(db: Db, tokens: TokenResolver, options: TapPipelineOptions) {
+  constructor(db: Db, options: TapPipelineOptions) {
     this.#db = db;
-    this.#tokens = tokens;
     this.#cooldownMs = options.cooldownSeconds * 1000;
     this.#now = options.now ?? (() => new Date());
   }
@@ -89,11 +88,6 @@ export class TapPipeline {
     if (incoming.length === 0) return [];
     const now = this.#now();
     const receivedAt = now.toISOString();
-
-    // Token to user, before the transaction, so the station's lock never waits on it.
-    const users = await this.#tokens.resolveMany([
-      ...new Set(incoming.map((t) => normaliseUid(t.uid))),
-    ]);
 
     return await this.#db.transaction(async (tx) => {
       await this.#lockStation(tx, stationId);
@@ -117,33 +111,30 @@ export class TapPipeline {
           return;
         }
         seen.add(tap.clientTapId);
-        const uid = normaliseUid(tap.uid);
         const tappedAt = this.#trustedTappedAt(tap.tappedAt, now);
         pending.push({
           index,
           clientTapId: tap.clientTapId,
-          uid,
+          uid: tap.uid,
           tappedAt,
           effectiveAt: tappedAt ?? receivedAt,
-          userId: users.get(uid) ?? null,
-          status: "unknown_token",
+          userId: tap.userId,
+          status: "accepted",
         });
       });
       if (pending.length === 0) return results;
 
-      // 2. Cooldown: a known user's tap is `cooldown` when one of their accepted taps at this
+      // 2. Cooldown: a user's tap is `cooldown` when one of their accepted taps at this
       //    station, stored or earlier in this batch, is inside the window on either side of it.
       //    Walking the batch in time order means an offline flush is judged by when taps happened.
       const accepted = await this.#acceptedTimes(tx, stationId, pending);
       const inTimeOrder = [...pending].sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt));
       for (const p of inTimeOrder) {
-        if (p.userId === null) continue;
         const times = accepted.get(p.userId) ?? [];
         if (times.some((at) => this.#withinCooldown(at, p.effectiveAt))) {
           p.status = "cooldown";
           continue;
         }
-        p.status = "accepted";
         times.push(p.effectiveAt);
         accepted.set(p.userId, times);
       }
@@ -245,10 +236,8 @@ export class TapPipeline {
     stationId: string,
     pending: PendingTap[],
   ): Promise<Map<string, string[]>> {
-    const known = pending.flatMap((p) =>
-      p.userId ? [{ userId: p.userId, at: Date.parse(p.effectiveAt) }] : [],
-    );
-    if (known.length === 0 || this.#cooldownMs <= 0) return new Map();
+    const known = pending.map((p) => ({ userId: p.userId, at: Date.parse(p.effectiveAt) }));
+    if (this.#cooldownMs <= 0) return new Map();
 
     const times = known.map((k) => k.at);
     const from = new Date(Math.min(...times) - this.#cooldownMs).toISOString();

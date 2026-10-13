@@ -1,24 +1,21 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { tokens } from "../claims-stand-in/schema.ts";
 import { setupFixture, testApp } from "../test-helpers.ts";
 import { type NewTap, stations, taps, users } from "./schema.ts";
 
 const app = testApp();
 
-/** Pinned so slot order and paired_at do not depend on the day the tests run. */
+/** Pinned so slot order does not depend on the day the tests run. */
 const BOOTH_CREATED_AT = "2026-10-10T08:00:00.000Z";
-const PAIRED_AT = "2026-10-10T08:30:00.000Z";
 
 /**
- * GET /api/v1/me in today's shape, which is section 8.1 as it reads before
- * checkpoint 3: section 8.1 (API-AGREEMENT.md:585-597) is the agreed shape,
- * and :613-614 lists how today's backend still differs from it.
+ * GET /api/v1/me in today's shape: section 8.1 of API-AGREEMENT.md is the
+ * agreed shape, and the paragraph after its list says how today's backend
+ * still differs from it.
  */
 interface MeBody {
   user: { id: string; display_name: string; role: string };
-  tokens: { uid: string; paired_at: string }[];
   points: number;
   stamps: {
     station_id: string;
@@ -50,7 +47,6 @@ async function harness() {
     .update(stations)
     .set({ createdAt: BOOTH_CREATED_AT })
     .where(eq(stations.id, fx.stationId));
-  await fx.db.update(tokens).set({ pairedAt: PAIRED_AT }).where(eq(tokens.uid, fx.uid));
 
   const getMe = (cookie?: string) =>
     app.request("/api/v1/me", {
@@ -107,11 +103,11 @@ test("answers unauthenticated when nobody is signed in", async () => {
   assert.deepEqual(await res.json(), { error: "unauthenticated" });
 });
 
-test("a participant who has not tapped yet gets an empty passport", async () => {
-  const { meAs, userId, uid, stationId } = await harness();
+test("a participant who has not tapped yet gets an empty passport, and no tokens", async () => {
+  // A user's tokens are on the GeekyKey Service's /me, not this one.
+  const { meAs, userId, stationId } = await harness();
   assert.deepEqual(await meAs(userId), {
     user: { id: userId, display_name: "Alex", role: "participant" },
-    tokens: [{ uid, paired_at: PAIRED_AT }],
     points: 0,
     stamps: [
       {
@@ -280,10 +276,9 @@ test("recent taps are in the order the backend received them", async () => {
 });
 
 test("shows only the signed-in participant's own taps", async () => {
-  // One tap by another participant, and one by a token nobody had paired yet.
+  // One tap by another participant, and one by a token nobody had claimed yet.
   const { meAs, addTap, db, userId } = await harness();
   await db.insert(users).values({ id: "user-2", displayName: "Wei Lin" });
-  await db.insert(tokens).values({ uid: "0455D2F1C83A91", userId: "user-2" });
   await addTap({
     userId: "user-2",
     tokenUid: "0455D2F1C83A91",
@@ -301,42 +296,6 @@ test("shows only the signed-in participant's own taps", async () => {
   assert.deepEqual(me.recent_taps, []);
 });
 
-test("a revoked token leaves the list, but the stamps it earned stay", async () => {
-  const { meAs, addTap, db, userId, uid } = await harness();
-  await addTap({ receivedAt: "2026-10-10T09:00:00.000Z" });
-  // Alex loses the token, unpairs it, and pairs a spare.
-  await db.update(tokens).set({ revokedAt: "2026-10-10T10:00:00.000Z" }).where(eq(tokens.uid, uid));
-  await db.insert(tokens).values({
-    uid: "04C9E1A27B3080",
-    userId,
-    pairedAt: "2026-10-10T10:05:00.000Z",
-  });
-  const me = await meAs(userId);
-  assert.deepEqual(me.tokens, [
-    {
-      uid: "04C9E1A27B3080",
-      paired_at: "2026-10-10T10:05:00.000Z",
-    },
-  ]);
-  assert.equal(me.points, 1);
-  assert.equal(me.stamps[0].earned_at, "2026-10-10T09:00:00.000Z");
-});
-
-test("tokens are listed oldest pairing first", async () => {
-  // The spare was paired at 08:10, before the fixture token's 08:30, but stored after it.
-  const { meAs, db, userId, uid } = await harness();
-  await db.insert(tokens).values({
-    uid: "04C9E1A27B3080",
-    userId,
-    pairedAt: "2026-10-10T08:10:00.000Z",
-  });
-  const me = await meAs(userId);
-  assert.deepEqual(
-    me.tokens.map((t) => t.uid),
-    ["04C9E1A27B3080", uid],
-  );
-});
-
 test("an organizer gets the same view of their own account", async () => {
   const { meAs, db, stationId } = await harness();
   await db.insert(users).values({
@@ -346,7 +305,6 @@ test("an organizer gets the same view of their own account", async () => {
   });
   assert.deepEqual(await meAs("organizer-1"), {
     user: { id: "organizer-1", display_name: "Priya", role: "organizer" },
-    tokens: [],
     points: 0,
     stamps: [
       {

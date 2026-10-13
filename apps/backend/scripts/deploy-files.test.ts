@@ -44,10 +44,13 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
 
     test("its settings and secrets are enough for the server to start, with dev sign-in off", () => {
       const env: Record<string, string> = { ...settings };
-      // A stand-in for the secrets Cloud Run would fill in.
+      // A stand-in for the secrets Cloud Run would fill in, each shaped like
+      // the real one: a URL for DATABASE_URL, and 64 hex characters for a key.
       env.APP_SECRETS = JSON.stringify({
         SESSION_SECRET: "a-stand-in-for-the-secret",
         DATABASE_URL: "mysql://a-stand-in-for-the-secret@stand-in/db",
+        EVENT_SERVICE_KEY: "0".repeat(64),
+        CLAIMS_STAND_IN_KEY: "0".repeat(64),
       });
 
       const config = loadConfig(unpackAppSecrets(env));

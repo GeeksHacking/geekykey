@@ -20,7 +20,7 @@ test("the fixture's station, participant and token read back through the pool", 
 
   const [token] = await db.select().from(tokens).where(eq(tokens.uid, uid)).limit(1);
   assert.equal(token?.userId, userId);
-  assert.equal(token.revokedAt, null);
+  assert.equal(new Date(token.claimedAt).toISOString(), token.claimedAt);
 
   // A tap as well, so the next test can show that taps are emptied too.
   await db.insert(taps).values({

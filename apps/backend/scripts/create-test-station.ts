@@ -24,7 +24,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createConnection } from "mysql2/promise";
 import { tokens } from "../src/claims-stand-in/schema.ts";
-import { normaliseUid } from "../src/claims-stand-in/token-lookup.ts";
+import { normaliseUid } from "../src/lib/token-uid.ts";
 import { localDatabaseUrl } from "./local-tidb.ts";
 import { migrationLogin } from "./production-tidb.ts";
 import { addParticipant, addStation } from "./seed-rows.ts";
