@@ -113,8 +113,8 @@ function bundled(secrets: Record<string, unknown>): Record<string, string> {
 }
 
 test("the server starts with its secrets in APP_SECRETS", async () => {
-  const { DATABASE_URL, SESSION_SECRET } = SETTINGS;
-  const { listening } = startServer(bundled({ DATABASE_URL, SESSION_SECRET }));
+  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY } = SETTINGS;
+  const { listening } = startServer(bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY }));
   const res = await fetch(`${await listening}/api/health`);
   assert.equal(res.status, 200);
 });
@@ -134,15 +134,20 @@ test("an APP_SECRETS value that isn't a string stops the server without logging 
 });
 
 test("APP_SECRETS can't hold an ordinary setting, such as DEV_AUTH_ENABLED", async () => {
-  const { DATABASE_URL, SESSION_SECRET } = SETTINGS;
-  const started = startServer(bundled({ DATABASE_URL, SESSION_SECRET, DEV_AUTH_ENABLED: "true" }));
+  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY } = SETTINGS;
+  const started = startServer(
+    bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY, DEV_AUTH_ENABLED: "true" }),
+  );
   const line = await fatalError(started);
   assert.match(String(line.reason), /DEV_AUTH_ENABLED can't be in APP_SECRETS/);
 });
 
 test("a secret both in APP_SECRETS and on its own stops the server", async () => {
-  const { DATABASE_URL, SESSION_SECRET } = SETTINGS;
-  const started = startServer({ ...bundled({ DATABASE_URL, SESSION_SECRET }), SESSION_SECRET });
+  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY } = SETTINGS;
+  const started = startServer({
+    ...bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY }),
+    SESSION_SECRET,
+  });
   const line = await fatalError(started);
   assert.match(String(line.reason), /SESSION_SECRET is set both in APP_SECRETS and on its own/);
 });
