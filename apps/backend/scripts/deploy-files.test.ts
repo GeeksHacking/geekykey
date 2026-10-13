@@ -63,10 +63,12 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       const pins = [...secrets.values(), parsePin(deployEnv.MIGRATION_SECRET!)];
       for (const { secret, version } of pins) {
         // Production's secret names are a prefix of staging's, so check the
-        // whole name is this service's plus one of the three secrets.
+        // whole name is this service's plus one of its five secrets.
         assert.match(
           secret,
-          new RegExp(`^${service}-(session-secret|database-url|migration-database-url)$`),
+          new RegExp(
+            `^${service}-(session-secret|database-url|migration-database-url|event-service-key|claims-stand-in-key)$`,
+          ),
         );
         assert.match(version, /^[1-9]\d*$/, `${secret} must be pinned to a number, not ${version}`);
       }
