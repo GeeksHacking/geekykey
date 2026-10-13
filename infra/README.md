@@ -33,9 +33,9 @@ the console. The next deploy sets them, and anything changed by hand is overwrit
 | Region | `asia-southeast1` | Singapore, where TiDB is |
 | Image repository | `event-service` | Holds the backend's images, which the deploy builds |
 | Cloud Run services | `event-service`, `event-service-staging` | Production at `event-api.geekshacking.com`, and staging at its `run.app` address only |
-| Service accounts the services run as | `event-service`, `event-service-staging` | Each can read only its own service's four secrets |
+| Service accounts the services run as | `event-service`, `event-service-staging` | Each can read only its own service's `app-secrets` |
 | Service accounts the deploy signs in as | `event-service-deployer`, `event-service-staging-deployer` | Production's works only from `main`. Staging's works from any branch and can't touch production |
-| Secrets | `event-service-…` and `event-service-staging-…` | `SESSION_SECRET`, `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`, for each service |
+| Secrets | `event-service-…` and `event-service-staging-…` | For each service, `app-secrets` (its session secret, app login and two keys, in one) and `migration-database-url` |
 | Keyless sign-in | Pool `github`, provider `geekykey` | Lets this repo's workflows sign in to Google Cloud without a key |
 
 **GitHub holds no secret.** (Nor a Cloudflare API token: nothing here deploys to
@@ -61,14 +61,14 @@ works in the web console, so his steps say where each one is there too.
 | [1. Turn on the APIs](#1-turn-on-the-apis) | Adam | 9 Oct 2026 |
 | [2. The image repository](#2-the-image-repository) | Adam | 9 Oct 2026 |
 | [3. The service accounts](#3-the-service-accounts) | Adam | 9 Oct 2026 |
-| [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026. The two keys: 13 Oct 2026 |
+| [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026. `app-secrets`: 13 Oct 2026 |
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
 | [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
-| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave. The two keys: Julian | 9 Oct 2026. The two keys: not yet |
+| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave. `app-secrets`: Julian | 9 Oct 2026. `app-secrets`: not yet |
 | [8. Logs for the team](#8-logs-for-the-team) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
-| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. The two keys: 13 Oct 2026 |
+| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. `app-secrets`: not yet |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
@@ -157,40 +157,43 @@ A secret is created empty. Its value is added later as version 1, from Adam's la
 
 ```bash
 for service in event-service event-service-staging; do
-  for name in session-secret database-url migration-database-url; do
+  for name in app-secrets migration-database-url; do
     gcloud secrets create "$service-$name" --replication-policy=automatic
   done
 done
 ```
 
-Checkpoint 3 adds two keys to each service (BAC-30). The GeekyKey side sends one with every
-request to the Event side, and the other with every request to the claims stand-in, and
-each of those checks it. They're named like the others, `<service>-<setting>`, which is why
-the first says "event-service" twice:
-
-```bash
-for service in event-service event-service-staging; do
-  for name in event-service-key claims-stand-in-key; do
-    gcloud secrets create "$service-$name" --replication-policy=automatic
-  done
-done
-```
-
-That makes ten:
+That makes four:
 
 | Secret | Read by | Becomes |
 |---|---|---|
-| `event-service-session-secret` | The service, at start-up | `SESSION_SECRET`, which signs the session cookie |
-| `event-service-database-url` | The service, at start-up | `DATABASE_URL`, the TiDB app login |
+| `event-service-app-secrets` | The service, at start-up | `APP_SECRETS`, one JSON object, which the server unpacks into the four below |
 | `event-service-migration-database-url` | The deploy workflow only | The TiDB migration login, for `db:migrate` |
-| `event-service-event-service-key` | The service, at start-up | `EVENT_SERVICE_KEY`, which the GeekyKey side's requests to the Event side carry |
-| `event-service-claims-stand-in-key` | The service, at start-up | `CLAIMS_STAND_IN_KEY`, which the GeekyKey side's requests to the claims stand-in carry |
 | `event-service-staging-…` | The same, for staging | The same, on `geekykey_staging` |
+
+What's inside each `app-secrets`:
+
+| Name | What it is |
+|---|---|
+| `SESSION_SECRET` | Signs the session cookie |
+| `DATABASE_URL` | The TiDB app login |
+| `EVENT_SERVICE_KEY` | The key the GeekyKey side's requests to the Event side carry, from checkpoint 3 |
+| `CLAIMS_STAND_IN_KEY` | The key the GeekyKey side's requests to the claims stand-in carry, from checkpoint 3 until the switch |
 
 Until the split, both ends of those requests are inside the one server, so it both sends
 and checks each key. From checkpoint 4, the GeekyKey Service sends them from a Worker,
 which keeps its own copy of production's two as Workers secrets, named
 `EVENT_SERVICE_KEY_SHOWCASE` and `CLAIMS_STAND_IN_KEY` there.
+
+The four live in one secret because Secret Manager bills each stored version, after the
+first 6 on the billing account, and one secret for each made ten (13 Oct 2026, BAC-30, at
+Julian's suggestion). The migration login stays apart, because the deploy accounts read
+it and the services must not. The cost is in changing one of the four (see
+[Changing a secret](#changing-a-secret)).
+
+Until 13 Oct each of the four was a secret of its own: `session-secret` and `database-url`
+from 9 Oct, and `event-service-key` and `claims-stand-in-key` from 13 Oct. They're
+deleted once both services run on `app-secrets` (step 11).
 
 ## 5. The two services
 
@@ -316,44 +319,31 @@ request, yet its ref is `main`'s, so it could act as production's deploy account
 Every grant is on one service, one secret or one account, not on the whole project, so
 each account can reach only what's listed here.
 
-Each service reads its own app login, session secret and two keys, and nothing else. The
-app login and session secret:
+Each service reads its own `app-secrets`, and nothing else:
 
 ```bash
 for service in event-service event-service-staging; do
-  for name in session-secret database-url; do
-    gcloud secrets add-iam-policy-binding "$service-$name" \
-      --member="serviceAccount:$service@geekykey-b035a.iam.gserviceaccount.com" \
-      --role=roles/secretmanager.secretAccessor
-  done
+  gcloud secrets add-iam-policy-binding "$service-app-secrets" \
+    --member="serviceAccount:$service@geekykey-b035a.iam.gserviceaccount.com" \
+    --role=roles/secretmanager.secretAccessor
 done
 ```
 
-The two keys, from checkpoint 3 (BAC-30):
-
-```bash
-for service in event-service event-service-staging; do
-  for name in event-service-key claims-stand-in-key; do
-    gcloud secrets add-iam-policy-binding "$service-$name" \
-      --member="serviceAccount:$service@geekykey-b035a.iam.gserviceaccount.com" \
-      --role=roles/secretmanager.secretAccessor
-  done
-done
-```
-
-Julian makes these four, since Adam can no longer grant. In the console, it's Security →
+Julian makes these two, since Adam can no longer grant. In the console, it's Security →
 Secret Manager, then for each secret: open it, the Permissions tab, Grant access, with the
 role Secret Manager Secret Accessor, to:
 
 | Secret | Principal |
 |---|---|
-| `event-service-event-service-key` | `event-service@geekykey-b035a.iam.gserviceaccount.com` |
-| `event-service-claims-stand-in-key` | `event-service@geekykey-b035a.iam.gserviceaccount.com` |
-| `event-service-staging-event-service-key` | `event-service-staging@geekykey-b035a.iam.gserviceaccount.com` |
-| `event-service-staging-claims-stand-in-key` | `event-service-staging@geekykey-b035a.iam.gserviceaccount.com` |
+| `event-service-app-secrets` | `event-service@geekykey-b035a.iam.gserviceaccount.com` |
+| `event-service-staging-app-secrets` | `event-service-staging@geekykey-b035a.iam.gserviceaccount.com` |
 
-`event-service-session-secret`'s Permissions tab shows one made on 9 Oct, to compare with.
+Until it's deleted, `event-service-session-secret`'s Permissions tab shows one made on 9 Oct,
+to compare with.
 No value is seen or needed: a grant only lets the service read its own secret.
+
+(On 9 Oct the same grant was made on each service's `session-secret` and `database-url`,
+which `app-secrets` replaces.)
 
 Each deploy account may push images, read its own migration login, deploy its own
 service, and start that service as the service's own account:
@@ -406,13 +396,11 @@ gcloud run services get-iam-policy event-service --region=asia-southeast1
 The first should say `ACTIVE` and the repo's ID, `1310668143`. The second should list
 `allUsers` as invoker and `event-service-deployer` as developer.
 
-And check that only each service's own account can read its keys:
+And check that only each service's own account can read its `app-secrets`:
 
 ```bash
 for service in event-service event-service-staging; do
-  for name in event-service-key claims-stand-in-key; do
-    gcloud secrets get-iam-policy "$service-$name" --format="value(bindings.members)"
-  done
+  gcloud secrets get-iam-policy "$service-app-secrets" --format="value(bindings.members)"
 done
 for deployer in event-service-deployer event-service-staging-deployer; do
   gcloud projects get-iam-policy geekykey-b035a --flatten="bindings[].members" \
@@ -421,8 +409,8 @@ for deployer in event-service-deployer event-service-staging-deployer; do
 done
 ```
 
-The first loop should print four lines: `serviceAccount:event-service@…` twice, then
-`serviceAccount:event-service-staging@…` twice. The second should print nothing, since a
+The first loop should print two lines: `serviceAccount:event-service@…`, then
+`serviceAccount:event-service-staging@…`. The second should print nothing, since a
 deploy account with a role on the whole project could read every secret in it.
 
 ## 8. Logs for the team
@@ -536,46 +524,6 @@ Adam adds each value from his laptop, as version 1, keeping no copy. Nothing is 
 the command line, so nothing lands in the shell's history. `tr -d '\n'` and `printf '%s'`
 keep a newline out of the value.
 
-The session secrets, which nobody ever needs to see:
-
-```bash
-for service in event-service event-service-staging; do
-  openssl rand -base64 48 | tr -d '\n' \
-    | gcloud secrets versions add "$service-session-secret" --data-file=-
-done
-```
-
-The two keys, from checkpoint 3 (BAC-30). Each is 32 random bytes, written as 64 lower-case
-hex characters, as the API agreement says under "Event Service keys". No chat, dashboard or
-shell treats a hex character specially, and a double-click selects the whole key, so it
-survives being copied at checkpoint 4. Each is generated on its own, so production's and
-staging's differ:
-
-```bash
-for service in event-service event-service-staging; do
-  for name in event-service-key claims-stand-in-key; do
-    openssl rand -hex 32 | tr -d '\n' \
-      | gcloud secrets versions add "$service-$name" --data-file=-
-  done
-done
-```
-
-Then check each has one version, and that it's enabled:
-
-```bash
-for service in event-service event-service-staging; do
-  for name in event-service-key claims-stand-in-key; do
-    gcloud secrets versions list "$service-$name" --format="value(name.basename(),state)"
-  done
-done
-```
-
-It should print `1` and `enabled` four times.
-
-Nobody needs to see the keys yet. At checkpoint 4, when the GeekyKey Service moves to its
-Worker, Adam reads production's two once and sends them to Julian privately, to set as
-that Worker's secrets.
-
 The migration logins, from the files `db:logins` saved. `sed` picks the URL out of the
 file without running it:
 
@@ -586,45 +534,77 @@ sed -n 's/^TIDB_MIGRATION_URL=//p' ~/.config/geekykey/tidb-staging-migration.env
   | gcloud secrets versions add event-service-staging-migration-database-url --data-file=-
 ```
 
-The app logins. An app login's password is shown only once, when it's made, so each one
-gets a new password here. `db:logins` shows the login's URL once, then `read -s` takes it
-without showing what you paste. Run each block on its own: pasted together, the prompt
-starts even if `db:logins` fails, and an empty value must never become a version.
+Each service's `app-secrets`, as one JSON object. Nobody ever needs to see its values:
+
+- the session secret is 48 random bytes, in base64;
+- the app login gets a new password, since one is shown only once, when it's made;
+- each key is 32 random bytes, written as 64 lower-case hex characters, as the API
+  agreement says under "Event Service keys". No chat, dashboard or shell treats a hex
+  character specially, and a double-click selects the whole key, so it survives being
+  copied at checkpoint 4.
+
+Each value is generated on its own, so production's and staging's differ. `db:logins`
+prints the app login's URL, but `sed` takes it out of what's printed, so it never shows.
+The values reach `jq` as environment variables, which only your own account can see, not
+as arguments, which any account on the laptop can list, and `jq -j` writes no newline:
 
 ```bash
 cd apps/backend   # from the repo's root: db:logins is the backend's script
-mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password
+
+# $1 is the service; the rest go to db:logins.
+app_secrets() {
+  local service=$1; shift
+  local url
+  url=$(mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env \
+    --new-app-password "$@" | sed -n 's/^App login: *\(mysql:\/\/.*\)$/\1/p')
+  [[ $url == mysql://* ]] || { echo "No app login URL, so nothing added"; return 1; }
+  DATABASE_URL=$url \
+    SESSION_SECRET=$(openssl rand -base64 48 | tr -d '\n') \
+    EVENT_SERVICE_KEY=$(openssl rand -hex 32) \
+    CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
+    jq -jn '{SESSION_SECRET: env.SESSION_SECRET, DATABASE_URL: env.DATABASE_URL,
+      EVENT_SERVICE_KEY: env.EVENT_SERVICE_KEY, CLAIMS_STAND_IN_KEY: env.CLAIMS_STAND_IN_KEY}' \
+    | gcloud secrets versions add "$service-app-secrets" --data-file=-
+}
+
+app_secrets event-service-staging --staging
+app_secrets event-service
 ```
+
+A new app login password stops the running service opening new connections to TiDB, so
+each line runs only once that service can read its `app-secrets` (step 7), and its deploy
+follows straight after: staging's from the branch, production's by the merge.
+
+Then check each has one version, that it's enabled, and that it holds the four names (the
+check prints the names, never a value):
 
 ```bash
-read -rs "url?Production app login URL: " && printf '%s' "$url" \
-  | gcloud secrets versions add event-service-database-url --data-file=- ; unset url
+for service in event-service event-service-staging; do
+  gcloud secrets versions list "$service-app-secrets" --format="value(name.basename(),state)"
+done
 ```
+
+It should print `1` and `enabled` twice. Your account can't read the versions themselves,
+so the server checks the rest: a deploy whose `APP_SECRETS` isn't valid, or is missing a
+value, stops at start-up and logs which setting is wrong.
+
+Once both services run on `app-secrets`, the old eight are deleted:
 
 ```bash
-mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env --new-app-password --staging
+for service in event-service event-service-staging; do
+  for name in session-secret database-url event-service-key claims-stand-in-key; do
+    gcloud secrets delete "$service-$name" --quiet
+  done
+done
 ```
 
-```bash
-read -rs "url?Staging app login URL: " && printf '%s' "$url" \
-  | gcloud secrets versions add event-service-staging-database-url --data-file=- ; unset url
-```
+Deleting a secret can't be undone, so check first that both services' latest revisions
+pin only `APP_SECRETS` (see [Adding a secret](#adding-a-secret)).
 
-Clear the terminal after each (Cmd-K), since the URL stayed on screen.
-
-(`read -rs "url?…"` is zsh. In bash, it's `read -rsp "…" url`.)
-
-Each service's `deploy.env` pins version 1 of each secret, except staging's app login: on
-9 Oct its `db:logins` ran twice, so its first URL had a password that no longer worked.
-Version 1 was disabled, and staging is pinned to version 2:
-
-```bash
-gcloud secrets versions disable 1 --secret=event-service-staging-database-url
-```
-
-On 13 Oct 2026 it was destroyed, since a disabled version is still billed and this one
-could never be used again. Destroying a version can't be undone, so only destroy one whose
-value is dead:
+On 9 Oct staging's app login got two versions, because its `db:logins` ran twice and the
+first URL's password no longer worked. Version 1 was disabled, and on 13 Oct destroyed,
+since a disabled version is still billed. Destroying a version can't be undone either, so
+only destroy one whose value is dead:
 
 ```bash
 gcloud secrets versions destroy 1 --secret=event-service-staging-database-url
@@ -707,14 +687,24 @@ gcloud run services describe event-service-staging --region=asia-southeast1 \
   --format="value(spec.template.spec.containers[0].env[].name)"
 ```
 
-It lists the names of the service's settings and secrets, never their values. The two keys
-(BAC-30) were pinned before any code read them. A server ignores a setting it doesn't read,
-so until then they changed nothing.
+It lists the names of the service's settings and secrets, never their values. A secret
+inside `APP_SECRETS` is added there instead, as a new version of it (see below), and the
+server must accept its name first: it stops at start-up on a name it doesn't know.
 
 ### Changing a secret
 
 Add the new value as a new version (as in step 11), then change the version number in that
 service's `deploy.env` in a pull request. The deploy after it merges uses the new value.
+
+A new version of `app-secrets` holds all four values, so the three that aren't changing go
+into it as they are. Adam's account can't read them, so either:
+
+- Julian, who can, makes the new version in the console: he views the latest version's
+  value, and adds a new version with that JSON and the one value changed;
+- or Adam runs step 11's `app_secrets` again, which makes every value new: everyone is
+  signed out, and from checkpoint 4 Julian sets the two keys on the Worker again.
+
+If one value leaks, take the second way anyway, since the other three were stored with it.
 Never roll back past a change of secret: the old revision uses the old value, which may no
 longer work or may be the one that leaked. If the bad deploy is the one that changed a
 secret, fix it forward instead: add a version that works, and pin it in a new pull request.

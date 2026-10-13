@@ -736,24 +736,33 @@ Things to know:
 ### Secrets
 
 Secrets live in Google's Secret Manager. None is ever committed, kept in GitHub, or pasted
-into a chat. Each Cloud Run service has five:
+into a chat. Each Cloud Run service has two:
 
 | Secret | Read by | What it is |
 |---|---|---|
-| `SESSION_SECRET` | The service, when it starts | A random value that signs the session cookie. Nobody keeps a copy |
-| `DATABASE_URL` | The service, when it starts | The TiDB app login, which can read and write rows but not change tables |
+| `APP_SECRETS` | The service, when it starts | The four below, as one JSON object, which the server unpacks |
 | `MIGRATION_DATABASE_URL` | The deploy workflow only, for `db:migrate` | The TiDB migration login, which can also change tables |
-| `EVENT_SERVICE_KEY` | The service, when it starts | A random key that the GeekyKey side's requests to the Event side carry. Nobody keeps a copy |
-| `CLAIMS_STAND_IN_KEY` | The service, when it starts | A random key that the GeekyKey side's requests to the claims stand-in carry. Nobody keeps a copy |
+
+| Inside `APP_SECRETS` | What it is |
+|---|---|
+| `SESSION_SECRET` | A random value that signs the session cookie. Nobody keeps a copy |
+| `DATABASE_URL` | The TiDB app login, which can read and write rows but not change tables |
+| `EVENT_SERVICE_KEY` | A random key that the GeekyKey side's requests to the Event side carry. Nobody keeps a copy |
+| `CLAIMS_STAND_IN_KEY` | A random key that the GeekyKey side's requests to the claims stand-in carry. Nobody keeps a copy |
+
+The four share one secret because Secret Manager bills each stored version, and one each
+made ten; this way the project stores four, inside the free allowance. Locally they're
+four separate settings, and there's no `APP_SECRETS`.
 
 Staging's are named `event-service-staging-…`, and production's `event-service-…`. Each
-service runs as its own Google account, which can read only its own four, and each deploy
-account can read only its own service's migration login.
+service runs as its own Google account, which can read only its own `APP_SECRETS`, and
+each deploy account can read only its own service's migration login.
 
 **Changing one** takes two steps:
 
-1. Adam adds the new value as a new version, from his laptop, keeping no copy, as
-   `infra/README.md` says under "Changing a secret".
+1. A new version is added, keeping no copy, as `infra/README.md` says under "Changing a
+   secret". For `APP_SECRETS` that means all four values: Julian, who can read it, keeps
+   the other three as they are, or Adam makes all four new.
 2. A pull request, reviewed before it merges, changes the version number in that
    service's `deploy.env`. The next
    deploy uses it. For staging's own secrets, that's the next run from the branch, so a
@@ -773,10 +782,10 @@ This says where each one is, never its value. Each is kept only where the table 
 | Credential | Lives in | Set by | If it leaks or is lost |
 |---|---|---|---|
 | TiDB root login | `~/.config/geekykey/tidb.env` on Adam's laptop. Never deployed | Julian gave it to Adam | Ask Julian |
-| TiDB app logins, production's and staging's | Secret Manager, as each service's `DATABASE_URL` | Adam makes each with `db:logins` and adds it from his laptop, keeping no copy | Adam gives it a new password, adds a new version, and a pull request pins the service to it |
+| TiDB app logins, production's and staging's | Secret Manager, as `DATABASE_URL` in each service's `APP_SECRETS` | Adam makes each with `db:logins` and adds it from his laptop, keeping no copy | Adam gives it a new password, a new version of `APP_SECRETS` holds it, and a pull request pins the service to that |
 | TiDB migration logins, production's and staging's | Secret Manager, as each service's `MIGRATION_DATABASE_URL`, and `~/.config/geekykey/` on Adam's laptop | Adam, with `db:logins` | Adam gives it a new password, and adds a new version |
-| `SESSION_SECRET`, one per service | Secret Manager | Adam, as a random value nobody keeps | A new one signs everyone out of that service |
-| `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`, one of each per service | Secret Manager. From checkpoint 4, production's two are also Workers secrets on the GeekyKey Service | Adam, as random values nobody keeps. At checkpoint 4 he reads production's two once, for Julian to set | Set a new one on both sides, outside the event. Taps fail with `503` until both match, and stations resend them. `CLAIMS_STAND_IN_KEY` is deleted on both sides after the switch to the Portal |
+| `SESSION_SECRET`, one per service | Secret Manager, in `APP_SECRETS` | Adam, as a random value nobody keeps | A new one signs everyone out of that service |
+| `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`, one of each per service | Secret Manager, in `APP_SECRETS`. From checkpoint 4, production's two are also Workers secrets on the GeekyKey Service | Adam, as random values nobody keeps. At checkpoint 4 Julian copies production's two onto the Worker, since Adam's account can't read them (still to confirm, spec section 12) | Set a new one on both sides, outside the event. Taps fail with `503` until both match, and stations resend them. `CLAIMS_STAND_IN_KEY` is deleted on both sides after the switch to the Portal |
 | Station key | The station's gitignored `secrets.h`. The database keeps only its hash | Adam, with `db:test-station`, until organizers can make one on the station board (coming) | Tell Adam. Replacing a key while keeping the station's ID comes with the station board |
 | Wi-Fi details | Each station's `secrets.h`, until the station's setup mode can store them (coming, HAR-14) | Zi Tao | Change the password, and put the new one on each station |
 | Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, tokens can never be rewritten |
