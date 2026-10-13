@@ -298,7 +298,7 @@ Every tap a station sends comes back with one of these.
   `no_game` appear in the tap log, the export and `recent_taps`.
 - Another team's Event Service may answer statuses of its own, which the GeekyKey Service
   passes on unchanged. A station treats any status it doesn't know as recorded.
-- `no_game` starts at checkpoint 3. Until then, today's backend stores `unknown_token` taps.
+- `no_game` starts at checkpoint 3. Today's backend doesn't send it yet.
 - `no_event`, in version 0.2, is retired: every station belongs to the Event Service that
   registered it, and a key no Event Service has registered gets `401`. No service sends it.
 
@@ -439,8 +439,10 @@ item has a [`tap_status`](#tap_status).
    Service doesn't answer properly in what's left, it fails with
    `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
-Until checkpoint 3, today's backend answers `accepted`, `cooldown`, `unknown_token` or
-`duplicate` itself, and stores `unknown_token` taps.
+Until the rest of checkpoint 3, today's backend checks the key against its own stations, and
+answers the claimed taps itself rather than through the hand-off: `accepted`, `cooldown` or
+`duplicate`, never `no_game`. Step 2 is already as above, with the 4-second deadline and
+`503 claims_unavailable`, and `unknown_token` taps are not stored.
 
 **Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`,
 `claims_unavailable` and `event_service_unavailable` (from checkpoint 3), and `rate_limited`
@@ -664,8 +666,8 @@ Everything the participant dashboard and passport view need in one call.
   didn't count". `station_name` is `null` for a station without passport settings.
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
-Until checkpoint 3, today's backend also returns `tokens`, takes `role` from `users.role`, and
-lists every station in `stamps`, in the order the stations were created.
+Until the rest of checkpoint 3, today's backend takes `role` from `users.role`, and lists every
+station in `stamps`, in the order the stations were created.
 
 **Errors:** `unauthenticated`.
 
@@ -1300,3 +1302,4 @@ Closed on 2026-10-10:
 | 2026-10-12 | Housekeeping, no endpoint or shape changes. A reader moved to another event, and a replaced key (9.8), go in through the station's setup mode, not a reflash, as agreed on 8 Oct; `no_event` stays retired, no longer provisional; dev-login is turned on by the committed `apps/backend/dev.env` (7.1), not a gitignored file. |
 | 2026-10-13 | The Event Service key is written as 64 lower-case hex characters ([Event Service keys](#event-service-keys)). "Generated like a station key" only ever meant random, but it read as a station key's base64url, whose `-` and `_` some apps split a double-click at; hex is copied between people, chats and dashboards unchanged. No endpoint or shape changes. |
 | 2026-10-13 | The claim's checks run in a stated order (8.2): already yours, then the 3-token limit, then `token_taken`, so a user holding 3 hears about the limit even for someone else's token, as the migration spec says. Section 13 sets the `token_taken` sentence, "Someone else already claimed this token.", and keeps it above the token page's fresh lookup even when that lookup says `nobody`. No endpoint or shape changes. |
+| 2026-10-13 | Today's backend now finds each token's owner as 6.1's step 2 says, from the claims stand-in within the 4-second deadline, and answers `503 claims_unavailable` when it can't. `unknown_token` taps are logged and no longer stored (6.1, and `tap_status` in section 4). The Event Service's `GET /api/v1/me` no longer returns `tokens` (8.1), one of the removals version 0.2 allowed. The agreed shapes don't change; only the notes on how today's backend still differs do (BAC-31). |

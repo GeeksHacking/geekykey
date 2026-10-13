@@ -916,3 +916,13 @@
     Manager, so nobody keeps a copy, and only its own service is given access to it. Each
     service now keeps its keys, session secret and database login in one secret, at Julian's
     suggestion, so Secret Manager stores four versions instead of ten.
+
+- id: owners-from-the-claims-stand-in
+  date: 2026-10-14
+  area: backend
+  change: >-
+    A station's tap now gets its token's owner by asking the claims stand-in, with its key,
+    within a 4-second deadline, as it will once the two services run apart. A tap by a token
+    nobody has claimed is answered and logged but no longer stored, and when the owners can't be
+    found in time the station keeps its taps and sends them again later. The Event Service no
+    longer sends a user's tokens with their passport, since tokens belong to the GeekyKey Service.
