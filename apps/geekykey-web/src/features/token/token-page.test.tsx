@@ -70,12 +70,13 @@ describe("TokenPage", () => {
     expect(screen.getByRole("heading", { name: "Your token" })).toBeInTheDocument();
   });
 
-  it("shows your own token, and no buttons yet", async () => {
+  it("shows your own token, with nothing to claim", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderAs(api, OWNED_BY_PARTICIPANT);
 
     expect(await screen.findByText("This is your token.")).toBeInTheDocument();
-    // FRO-22 brings Claim and FRO-23 brings Release; this ticket is read-only.
+    // Claim belongs on an unclaimed token (FRO-22); Release is FRO-23, so neither button
+    // belongs here.
     expect(screen.queryByRole("button", { name: /claim|release/i })).not.toBeInTheDocument();
   });
 
