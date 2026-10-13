@@ -92,6 +92,46 @@ test("a DATABASE_URL that won't parse stops the server without logging its passw
   assert.doesNotMatch(started.output(), /hunter2-not-real/);
 });
 
+/** SETTINGS as Cloud Run gives them: the secrets in one APP_SECRETS, and PORT on its own. */
+function bundled(secrets: Record<string, unknown>): Record<string, string> {
+  return { PORT: SETTINGS.PORT, APP_SECRETS: JSON.stringify(secrets) };
+}
+
+test("the server starts with its secrets in APP_SECRETS", async () => {
+  const { DATABASE_URL, SESSION_SECRET } = SETTINGS;
+  const { listening } = startServer(bundled({ DATABASE_URL, SESSION_SECRET }));
+  const res = await fetch(`${await listening}/api/health`);
+  assert.equal(res.status, 200);
+});
+
+test("an APP_SECRETS that isn't JSON stops the server without logging it", async () => {
+  const started = startServer({ PORT: "0", APP_SECRETS: '{"SESSION_SECRET": "hunter2-not-real' });
+  const line = await fatalError(started);
+  assert.match(String(line.reason), /APP_SECRETS must be a JSON object/);
+  assert.doesNotMatch(started.output(), /hunter2-not-real/);
+});
+
+test("an APP_SECRETS value that isn't a string stops the server without logging it", async () => {
+  const started = startServer(bundled({ ...SETTINGS, SESSION_SECRET: ["hunter2-not-real"] }));
+  const line = await fatalError(started);
+  assert.match(String(line.reason), /SESSION_SECRET in APP_SECRETS must be a string/);
+  assert.doesNotMatch(started.output(), /hunter2-not-real/);
+});
+
+test("APP_SECRETS can't hold an ordinary setting, such as DEV_AUTH_ENABLED", async () => {
+  const { DATABASE_URL, SESSION_SECRET } = SETTINGS;
+  const started = startServer(bundled({ DATABASE_URL, SESSION_SECRET, DEV_AUTH_ENABLED: "true" }));
+  const line = await fatalError(started);
+  assert.match(String(line.reason), /DEV_AUTH_ENABLED can't be in APP_SECRETS/);
+});
+
+test("a secret both in APP_SECRETS and on its own stops the server", async () => {
+  const { DATABASE_URL, SESSION_SECRET } = SETTINGS;
+  const started = startServer({ ...bundled({ DATABASE_URL, SESSION_SECRET }), SESSION_SECRET });
+  const line = await fatalError(started);
+  assert.match(String(line.reason), /SESSION_SECRET is set both in APP_SECRETS and on its own/);
+});
+
 test("on SIGTERM, the server closes its database connections and exits", async () => {
   const { server, listening, exited } = startServer(SETTINGS);
   // A station key check, so the server opens a connection to the database.
