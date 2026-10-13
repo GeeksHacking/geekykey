@@ -8,6 +8,8 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 9 Oct 2026** (BAC-18): the Event Service's Google Cloud project is our existing Firebase project, `geekykey-b035a`, with billing on, rather than a new one. Adam is Editor there, which lets him create resources but not grant access. So he ran the runbook's steps 1 to 5 (the APIs, the image repository, the service accounts, the empty secrets and the two services, closed to callers), and the grants need more. So Julian, as Owner, gives Adam a role that can grant, and Adam runs the keyless sign-in, each account's access, opening the services and Logs Viewer himself (steps 6 to 8); Julian runs the domain mapping and the budget (steps 9 and 10), in the web console. Each deploy account reads only its migration login; each service reads its other secrets as its own account. Adam settled three more things the same day: the project's billing account is GeeksHacking's, Julian adds the DNS record for `event-api.` once we're ready, and Zi Tao doesn't get the logs.
 
+> **Updated 13 Oct 2026** (BAC-30): each Event Service keeps its session secret, app login and two keys in one Secret Manager secret, `APP_SECRETS`, as JSON, at Julian's suggestion. The project then stores 4 secret versions instead of 10, inside Secret Manager's free 6. The migration login stays a secret of its own. Adam's account can no longer grant access or read a secret, so Julian gives each service access to its `APP_SECRETS` (section 12).
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
@@ -339,13 +341,16 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 | Setting | `TAP_COOLDOWN_SECONDS` | `300`. 900 was suggested on 8 Oct, for Adam to decide (section 12) |
 | Setting | `MAX_TAPS_PER_REQUEST` | `500` |
 | Setting | `FIREBASE_PROJECT_ID` | As for the GeekyKey Service |
-| Secret | `SESSION_SECRET` | Signs `event_session` from checkpoint 4, and `gk_session` before that |
-| Secret | `DATABASE_URL` | The app login's connection URL |
+| Secret | `APP_SECRETS` | One JSON object holding the four values below, by name (13 Oct) |
+| In `APP_SECRETS` | `SESSION_SECRET` | Signs `event_session` from checkpoint 4, and `gk_session` before that |
+| In `APP_SECRETS` | `DATABASE_URL` | The app login's connection URL |
+| In `APP_SECRETS` | `EVENT_SERVICE_KEY` | From checkpoint 3. The same value as the GeekyKey Service's `EVENT_SERVICE_KEY_SHOWCASE` |
+| In `APP_SECRETS` | `CLAIMS_STAND_IN_KEY` | From checkpoint 3 until the switch |
 | Secret | `MIGRATION_DATABASE_URL` | Read only by the deploy job, for `db:migrate` |
-| Secret | `EVENT_SERVICE_KEY` | From checkpoint 3. The same value as the GeekyKey Service's `EVENT_SERVICE_KEY_SHOWCASE` |
-| Secret | `CLAIMS_STAND_IN_KEY` | From checkpoint 3 until the switch |
 
-The service pins each secret to a version number in its `deploy.env` in `infra/`, which the deploy workflow reads, so changing one is a reviewed change and a new revision. The settings are read once at start-up, and a missing secret stops the server starting. `event-service-staging` has the same names, with its own values and `geekykey_staging`.
+The service pins each secret to a version number in its `deploy.env` in `infra/`, which the deploy workflow reads, so changing one is a reviewed change and a new revision. The settings are read once at start-up, and a missing secret stops the server starting. The server unpacks `APP_SECRETS` into its four settings before it reads them, and checks each as before; an error in it names the setting, never a value. Locally the four stay separate settings. `event-service-staging` has the same names, with its own values and `geekykey_staging`.
+
+Why one secret for four values (13 Oct): Secret Manager bills each stored version after the first 6 on the billing account, and one secret per value made 10. The migration login can't join them, because the deploy accounts read it and the services must not. The cost is in changing a value (section 5.2).
 
 **`geekykey-web` and `event-web`** (Workers, from checkpoint 5)
 
@@ -375,11 +380,11 @@ The status call's limit, `7104`, went with the status call on 5 Oct.
 | Credential | Lives in | Set by | If it leaks or is lost |
 |---|---|---|---|
 | TiDB root login | `~/.config/geekykey/tidb.env` on Adam's laptop. Never deployed | Julian provided it | Ask Julian |
-| TiDB app login | Secret Manager, as `DATABASE_URL` | Adam creates it with the root login and adds it from his laptop, keeping no copy | Adam resets it, adds a new version, and a reviewed change pins the service to it |
+| TiDB app login | Secret Manager, as `DATABASE_URL` in `APP_SECRETS` | Adam creates it with the root login and adds it from his laptop, keeping no copy | Adam resets it, a new version of `APP_SECRETS` is made with it (below), and a reviewed change pins the service to it |
 | TiDB migration login | Secret Manager, as `MIGRATION_DATABASE_URL`, and `~/.config/geekykey/` on Adam's laptop | Adam | Adam resets it, and adds a new version |
 | Staging's two TiDB logins | Secret Manager, for `event-service-staging`, and the migration login in `~/.config/geekykey/` | Adam | Adam resets them. Neither can touch `geekykey` |
-| `SESSION_SECRET`, one per service | A Workers secret on `geekykey-service`; Secret Manager for the Event Service | Julian, as a random value nobody keeps; Adam, with `openssl rand` piped into `gcloud secrets versions add --data-file=-` | A new one logs everyone out of that service |
-| Event Service key, one per Event Service | A Workers secret on `geekykey-service`, and Secret Manager for ours | Adam generates 32 random bytes into Secret Manager, then reads the value back once to send to Julian privately, keeping no copy. Another team's key goes to that team, and to Julian | Set the new one on both sides outside the event. Hand-offs fail with `503` until both match, and stations resend |
+| `SESSION_SECRET`, one per service | A Workers secret on `geekykey-service`; Secret Manager for the Event Service | Julian, as a random value nobody keeps; Adam, with `openssl rand` piped into `APP_SECRETS`, never printed | A new one logs everyone out of that service |
+| Event Service key, one per Event Service | A Workers secret on `geekykey-service`, and `APP_SECRETS` for ours | Adam generates 32 random bytes into `APP_SECRETS`, keeping no copy. How it reaches the Worker is still open (section 12). Another team's key goes to that team, and to Julian | Set the new one on both sides outside the event. Hand-offs fail with `503` until both match, and stations resend |
 | `CLAIMS_STAND_IN_KEY` | As the Event Service key | As the Event Service key | As the Event Service key. Deleted on both sides after the switch |
 | Portal client secret, from the switch | A Workers secret on `geekykey-service` | Qing Guan gives it to Julian, who sets it | Qing Guan and Julian replace it |
 | The GeeksHacking OIDC client secret inside Firebase | Firebase's own settings, in our Firebase project | Qing Guan issues it, and whoever sets up the provider pastes it in | Qing Guan issues a new one |
@@ -388,12 +393,14 @@ The status call's limit, `7104`, went with the status call on 5 Oct.
 | Wi-Fi details | Each station's `secrets.h` at first, then whatever the setup mode stored (HAR-14) | Zi Tao | Change the password, and enter the new one through the setup mode |
 | Our database copies | Adam's laptop, outside the repo. Never GitHub, a workflow artifact or a chat | Adam | They hold user IDs, names and who tapped where |
 
+**Changing one value in `APP_SECRETS`** (13 Oct). Secret Manager stores a whole new version, so the other three values go into it unchanged. Adam's account can't read them, so either Julian, who can, makes the new version in the console, or Adam makes one with every random value new: everyone is signed out, and from checkpoint 4 the keys are set again on the Worker. A leak of one value is a reason to replace all four anyway, since they're stored together.
+
 **GitHub holds no secret at all.** The deploy signs in to Google Cloud without a key (Workload Identity Federation), through two service accounts (the spec's call):
 
 - **production's,** usable only by this repo's `main` branch, can deploy `event-service` and read its migration login;
 - **staging's,** usable from any branch of this repo, can deploy only `event-service-staging` and read only its migration login.
 
-Neither reads the other secrets: each service reads its own session secret, app login and, from checkpoint 3, its two keys, as an account of its own, which can read nothing else (9 Oct). Both push to one image repository, and the deploy runs each image by its digest, so staging's pushes can't change what production runs (accepted, 9 Oct).
+Neither reads the other secrets: each service reads its own `APP_SECRETS` (its session secret, app login and, from checkpoint 3, its two keys) as an account of its own, which can read nothing else (9 Oct, 13 Oct). Both push to one image repository, and the deploy runs each image by its digest, so staging's pushes can't change what production runs (accepted, 9 Oct).
 
 So a workflow on another branch can't deploy production or read its migration login. No Cloudflare API token is kept in GitHub either, and nobody on the team holds a production Cloudflare secret.
 
@@ -523,7 +530,7 @@ Still one Cloud Run server, but its code is now the GeekyKey side, the Event sid
   - the shared 4-second deadline, with `503 claims_unavailable` and `503 event_service_unavailable`, and no retry;
   - `POST /api/v1/stations/heartbeat`, answering `server_time` once the key is checked, and sending the heartbeat hand-off without waiting for it;
   - the `EVENT_SERVICES` list, with the showcase's entry reached through `app.request()` inside the same server until the split, carrying the keys (the spec's call), and the `GEEKYKEY_ADMINS` list.
-- **The keys.** Adam adds `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY` to Secret Manager, for production and staging, so the key checks run from now on.
+- **The keys.** Adam adds `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY` to Secret Manager, inside each service's `APP_SECRETS` (section 5.1), for production and staging, so the key checks run from now on.
 - **Log lines.** From here on, every log line either side writes is one JSON object with a fixed name, such as `tap_stored`, `unknown_token`, `handoff_failed`, `claims_unavailable` and `stations_copy_filled`, and never holds a key, a cookie or a name. `tap_stored` carries the station ID, `client_tap_id`, user ID, `tapped_at` and status, so taps lost to a restore can be rebuilt.
 - **The tables** change to section 3.6's under the migration rule: add first, switch the code, drop in a later migration, so each change takes two merges. Test data that no longer fits is deleted, not converted. Station IDs and keys stay, so stations keep working throughout.
 - **Tests** for each side, with the others faked at their requests, including one for each status a station can hear, the deadline, and `503` against `401` when a list is missing.
@@ -878,8 +885,8 @@ Boost stays on, as the runbook already has it: cold taps were a little faster wi
 - ~~**Who adds the DNS record for `event-api.geekshacking.com`,** with Cloudflare's proxy off, and how we ask when ready.~~ *Answered 9 Oct:* Julian adds it, once we tell him it's ready. He added it on 11 Oct.
 - ~~**`event-api.`'s record with Cloudflare's proxy off** (BAC-27).~~ *Answered 12 Oct:* it had the proxy on, and Adam kept it, since a request sent the way a station sends one passes through (section 3.2).
 - **The budget alert** on the project, to Julian and Adam (asked 8 Oct, not answered).
-- **What Secret Manager costs us** (Julian asked, 13 Oct). Google bills about US$0.06 a month for each stored version of a secret, a disabled one included, and US$0.03 for each 10,000 reads, after 6 versions and 10,000 reads free each month, shared across the billing account. We have 10 versions, so it's $0.24 a month if the free 6 are ours, and $0.60 if other projects on GeeksHacking's billing account use them. Reads stay free: each instance start reads 4. Julian can see in Billing → Reports, filtered to Secret Manager, whether other projects use the free 6.
-- ~~**Which roles Adam gets to make the resources by hand,** or whether Julian makes them from the runbook.~~ *Answered 9 Oct:* Adam is Editor on `geekykey-b035a`, which creates resources but grants nothing. He made the resources (steps 1 to 5). Julian, as Owner, gives him a role that can grant, so he runs the grants too (steps 6 to 8); Julian runs the domain mapping and the budget (steps 9 and 10). *Found 13 Oct:* that role was taken away after 9 Oct, so any grant since is Julian's, such as the four for the keys (BAC-30). Editor can't read a secret's value either.
+- **What Secret Manager costs us** (Julian asked, 13 Oct). Google bills about US$0.06 a month for each stored version of a secret, a disabled one included, and US$0.03 for each 10,000 reads, after 6 versions and 10,000 reads free each month, shared across the billing account. We have 10 versions, so it's $0.24 a month if the free 6 are ours, and $0.60 if other projects on GeeksHacking's billing account use them. Reads stay free: each instance start reads 4. Julian can see in Billing → Reports, filtered to Secret Manager, whether other projects use the free 6. *Settled 13 Oct:* each service's four runtime values go into one secret, `APP_SECRETS` (section 5.1), at Julian's suggestion, so we store 4 versions and each instance start reads 1. That's free unless other projects on the billing account use 3 or more of the 6.
+- ~~**Which roles Adam gets to make the resources by hand,** or whether Julian makes them from the runbook.~~ *Answered 9 Oct:* Adam is Editor on `geekykey-b035a`, which creates resources but grants nothing. He made the resources (steps 1 to 5). Julian, as Owner, gives him a role that can grant, so he runs the grants too (steps 6 to 8); Julian runs the domain mapping and the budget (steps 9 and 10). *Found 13 Oct:* that role was taken away after 9 Oct, so any grant since is Julian's, such as each service's access to its `APP_SECRETS` (BAC-30). Editor can't read a secret's value either.
 - **That "v1" means what we read it as** (section 2, answer 3): the v1 interface and the first-generation execution environment.
 - **Whether the Portal's web app is on GeeksHacking's Cloudflare account, and runs a Worker on each page load,** which would count against the same free day (asked 8 Oct, not answered).
 - **The showcase's hours,** and whether Adam or Ethan presents at set times.
