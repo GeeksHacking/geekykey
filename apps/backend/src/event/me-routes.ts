@@ -21,7 +21,6 @@ export function meRoutes({ session }: MeRouteDeps) {
     const me = await loadMe(c.var.db, user.id);
     return c.json({
       user: { id: user.id, display_name: user.displayName, role: user.role },
-      tokens: me.tokens.map((t) => ({ uid: t.uid, paired_at: t.pairedAt })),
       points: me.points,
       // The wire calls the passport's slots `stamps`. Fields are never renamed within /api/v1.
       stamps: me.passport.map((slot) => ({

@@ -1,5 +1,5 @@
 /**
- * Local development seed: creates a station, a participant with one paired
+ * Local development seed: creates a station, a participant with one claimed
  * token, and an organizer, then prints the station key and a curl command to
  * try the tap endpoint. The two user IDs are the ones the frontend's dev-login
  * form offers, so both views can be developed against DEV_AUTH_ENABLED=true.
@@ -14,7 +14,7 @@
 import { parseArgs } from "node:util";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createConnection } from "mysql2/promise";
-import { normaliseUid } from "../src/claims-stand-in/token-lookup.ts";
+import { normaliseUid } from "../src/lib/token-uid.ts";
 import { localDatabaseUrl } from "./local-tidb.ts";
 import { addParticipant, addStation, addUser } from "./seed-rows.ts";
 
@@ -54,7 +54,7 @@ try {
   console.log(`Database:     geekykey_dev`);
   console.log(`Station:      ${values.station} (${station.id})`);
   console.log(`Station key:  ${station.key}   <- shown once, only the hash is stored`);
-  console.log(`Participant:  ${values.name} (${userId}) paired to token ${uid}`);
+  console.log(`Participant:  ${values.name} (${userId}), owner of token ${uid}`);
   console.log(`Organizer:    ${values.organizer} (${organizerId})`);
   console.log();
   console.log("Try it:");

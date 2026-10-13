@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { MiddlewareHandler } from "hono";
 import type { Db } from "../db/pool.ts";
 import { stations } from "../event/schema.ts";
+import { bearerKey } from "../lib/bearer-key.ts";
 import { hashStationKey } from "./station-keys.ts";
 
 export interface StationContext {
@@ -18,11 +19,8 @@ export type StationEnv = { Variables: { db: Db; station: StationContext } };
  * Sets `c.var.station` and bumps the station's last_seen_at.
  */
 export const stationAuth: MiddlewareHandler<StationEnv> = async (c, next) => {
-  const header = c.req.header("Authorization") ?? "";
-  const [scheme, key, ...rest] = header.trim().split(/\s+/);
-  if (scheme?.toLowerCase() !== "bearer" || !key || rest.length > 0) {
-    return c.json({ error: "missing_station_key" }, 401);
-  }
+  const key = bearerKey(c.req.header("Authorization"));
+  if (key === null) return c.json({ error: "missing_station_key" }, 401);
 
   const { db } = c.var;
   const [station] = await db

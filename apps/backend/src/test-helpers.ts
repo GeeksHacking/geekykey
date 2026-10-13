@@ -1,6 +1,6 @@
 import { afterAll } from "vitest";
 import { localDatabaseUrl } from "../scripts/local-tidb.ts";
-import { createApp } from "./app.ts";
+import { type AppOptions, createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createDbPool, type Db } from "./db/pool.ts";
 import { tokens } from "./claims-stand-in/schema.ts";
@@ -12,9 +12,12 @@ export interface TestFixture {
   stationId: string;
   stationKey: string;
   userId: string;
-  /** Normalised UID paired to `userId`. */
+  /** Normalised UID claimed by `userId`. */
   uid: string;
 }
+
+/** The claims stand-in's key in testApp(), which tests send to its routes. */
+export const TEST_CLAIMS_STAND_IN_KEY = "5".repeat(64);
 
 /** One pool to geekykey_test for each test file, closed once its tests are done. */
 const testPool = createDbPool(localDatabaseUrl("geekykey_test"));
@@ -31,15 +34,17 @@ export function testDb(): Db {
 /**
  * The backend as `pnpm dev` starts it, with dev-login on, but against
  * geekykey_test. `settings` are added to, or replace, its environment
- * variables. Send it a request with `app.request(path, init)`.
+ * variables, and `options` can fake one side's requests to another. Send it
+ * a request with `app.request(path, init)`.
  */
-export function testApp(settings: Record<string, string> = {}) {
+export function testApp(settings: Record<string, string> = {}, options: AppOptions = {}) {
   const config = loadConfig({
     DATABASE_URL: localDatabaseUrl("geekykey_test"),
     DEV_AUTH_ENABLED: "true",
+    CLAIMS_STAND_IN_KEY: TEST_CLAIMS_STAND_IN_KEY,
     ...settings,
   });
-  return createApp(config, testDb());
+  return createApp(config, testDb(), options);
 }
 
 /** One station, and one participant holding one token. */
@@ -60,6 +65,14 @@ export async function setupFixture(): Promise<TestFixture> {
   await db.insert(tokens).values({ uid, userId });
 
   return { db, stationId, stationKey, userId, uid };
+}
+
+/**
+ * Stores who owns a token, as a claim through the claims stand-in would, at
+ * a time a test can pin.
+ */
+export function claimToken(uid: string, userId: string, claimedAt = "2026-10-12T05:00:00.000Z") {
+  return testDb().insert(tokens).values({ uid, userId, claimedAt });
 }
 
 /** Deterministic clock for pipeline tests. */

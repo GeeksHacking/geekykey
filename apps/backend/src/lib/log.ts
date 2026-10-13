@@ -8,6 +8,10 @@ const LOG_LINES = {
   server_stopping: "INFO",
   internal_error: "ERROR",
   fatal_error: "ERROR",
+  // A station's tap by a token nobody owns, answered and stored nowhere.
+  unknown_token: "INFO",
+  // A station request failed because the token owners couldn't be had in time.
+  claims_unavailable: "ERROR",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;
@@ -46,7 +50,7 @@ export function errorFields(err: unknown): LogFields {
   if (!(err instanceof Error)) return { error: typeof err };
   return {
     error: err.name,
-    code: codeOf(err),
+    code: errorCode(err),
     // Only the "at ..." lines. The lines above them repeat the message.
     stack: err.stack
       ?.split("\n")
@@ -55,8 +59,11 @@ export function errorFields(err: unknown): LogFields {
   };
 }
 
-/** The first `code` on the error or on what caused it: Drizzle keeps mysql2's error as the cause. */
-function codeOf(err: Error): string | undefined {
+/**
+ * The first `code` on the error or on what caused it, such as mysql2's
+ * `ER_DUP_ENTRY`: Drizzle keeps mysql2's error as the cause.
+ */
+export function errorCode(err: unknown): string | undefined {
   let current: unknown = err;
   // A few causes deep at most, in case one points back at another.
   for (let depth = 0; depth < 5 && current instanceof Error; depth++) {

@@ -3,8 +3,9 @@ import { isoNow, isoTimestamp, tokenUid, userId } from "../db/columns.ts";
 
 /**
  * The claims stand-in's one table: who owns each token, until the GeekyKey
- * Service asks the Portal instead. Timestamps are ISO strings, not
- * DATETIME: src/db/columns.ts says why.
+ * Service asks the Portal instead. It holds current owners only: releasing a
+ * token deletes its row. Timestamps are ISO strings, not DATETIME:
+ * src/db/columns.ts says why.
  *
  * GeekyKey's stand-in, removed after the switch.
  */
@@ -14,7 +15,10 @@ export const tokens = mysqlTable(
     uid: tokenUid("uid").primaryKey(),
     /** A user ID, with no foreign key: no foreign key crosses into the Event side's tables. */
     userId: userId("user_id").notNull(),
-    pairedAt: isoTimestamp("paired_at").notNull().$defaultFn(isoNow),
+    claimedAt: isoTimestamp("claimed_at").notNull().$defaultFn(isoNow),
+    /** No longer written or read, since claimed_at took over. Dropped in BAC-36. */
+    pairedAt: isoTimestamp("paired_at"),
+    /** No longer written or read, since a release deletes the row. Dropped in BAC-36. */
     revokedAt: isoTimestamp("revoked_at"),
   },
   (t) => [index("tokens_user_id_idx").on(t.userId)],

@@ -79,13 +79,15 @@ apps/backend/
 │   ├── app.ts             every route mounted, given the settings and the database
 │   ├── base-app.ts        what every response shares: never cached, errors as JSON, /api/health
 │   ├── config.ts          every setting, with its default
-│   ├── geekykey/          the GeekyKey side: the station routes and the station key check
+│   ├── geekykey/          the GeekyKey side: the station routes, the station key check, and
+│   │                      Claims, which asks the claims stand-in who owns each token
 │   ├── event/             the Event side: the tap pipeline, /me, logging in and out, the session,
 │   │                      and its tables (stations, users, taps) in schema.ts
-│   ├── claims-stand-in/   who owns each token until the Portal does: today's token lookup,
-│   │                      and its table (tokens) in schema.ts
+│   ├── claims-stand-in/   who owns each token until the Portal does: its four routes under
+│   │                      /claims-stand-in/v1, and its table (tokens) in schema.ts
 │   ├── db/                the connection pool, the migrator, and the column types both schemas share
-│   └── lib/               small helpers every area uses (validation, the no-caching header, log lines)
+│   └── lib/               small helpers every area uses (validation, the no-caching header, log lines,
+│                          token UIDs, and the key check on requests between the areas)
 ├── drizzle/           SQL migrations generated from the two schema files, for the one database
 ├── scripts/           Node scripts for the dev server, the database tasks, the seed, and the migration check
 ├── test-support/      test setup, and a proxy that breaks database connections on purpose
@@ -105,11 +107,16 @@ tables in a schema file of their own, and the GeekyKey side has none. Drizzle wr
 set of migrations from both files, since it's one database, and no foreign key crosses
 between them.
 
-Three places still reach across the areas, and the rest of checkpoint 3 replaces each with
-the request it will send once the services run apart. The station route reads the Event
-side's `stations` to check a key, looks up owners in the stand-in's `tokens`, and calls the
-tap pipeline itself. The tap pipeline takes the stand-in's token lookup. And `/me` lists the
-user's tokens from `tokens`.
+The GeekyKey side asks the claims stand-in who owns each token only through the stand-in's
+routes, which check `CLAIMS_STAND_IN_KEY`. Inside the one server it sends them with
+`app.request()`, with the same paths, bodies and key it will send over HTTPS once the
+services run apart, so the key check already runs on production. A station's request gets
+one deadline for it, `TAP_DEADLINE_MS`, 4 seconds: a stand-in that doesn't answer properly
+in time fails the request with `503 claims_unavailable`, and the station keeps its taps.
+
+Two places still reach across the areas, and the rest of checkpoint 3 replaces each with the
+request it will send once the services run apart. The station route reads the Event side's
+`stations` to check a key, and calls the tap pipeline itself.
 
 Every line the server logs is one JSON object whose `message` is a fixed name, such as
 `server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging
@@ -441,8 +448,9 @@ network, not only your laptop, because real stations call it by the laptop's nam
 anyone on the same Wi-Fi can reach it, dev sign-in included.
 
 `dev.env` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`, which signs in a
-seeded user without a real login, and signs sessions with a built-in secret. Never turn it
-on in production. Without it, the backend refuses to start unless `SESSION_SECRET` is set.
+seeded user without a real login, and gives the session secret and the claims stand-in's key
+built-in values. Never turn it on in production. Without it, the backend refuses to start
+unless `SESSION_SECRET` and `CLAIMS_STAND_IN_KEY` are set, the key as 64 hex characters.
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
 connects over TLS, checking the database's certificate and name, unless the address is on
 your laptop, such as `127.0.0.1`.
@@ -487,12 +495,13 @@ builds. Docker Desktop must be running. From `apps/backend`:
 mise exec -- pnpm build:image     # builds the image geekykey-backend
 ```
 
-To start it, give it the two settings it can't start without, as Cloud Run does:
+To start it, give it the three settings it can't start without, as Cloud Run does:
 
 ```bash
 docker run --rm --publish 8001:8000 \
   --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_dev \
   --env SESSION_SECRET=any-16-characters-or-more \
+  --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
   geekykey-backend
 ```
 
@@ -579,7 +588,8 @@ mise run test:backend
 mise exec -- pnpm --filter @geekykey/backend build:image        # the image builds
 docker run --detach --rm --name backend --publish 8000:8000 \
   --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
-  --env SESSION_SECRET=ci-stand-in-not-a-secret geekykey-backend
+  --env SESSION_SECRET=ci-stand-in-not-a-secret \
+  --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) geekykey-backend
 curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
 docker stop backend
 mise exec -- pnpm --filter @geekykey/backend check:migrations   # every schema change has its migration

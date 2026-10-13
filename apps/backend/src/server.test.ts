@@ -11,6 +11,7 @@ const backendDir = join(import.meta.dirname, "..");
 const SETTINGS = {
   DATABASE_URL: localDatabaseUrl("geekykey_test"),
   SESSION_SECRET: "test-secret-at-least-16",
+  CLAIMS_STAND_IN_KEY: "c".repeat(64),
   PORT: "0",
 };
 
@@ -83,6 +84,20 @@ test("the server won't start without SESSION_SECRET", async () => {
 test("the server won't start without DATABASE_URL", async () => {
   const line = await fatalError(startServer(settingsWithout("DATABASE_URL")));
   assert.match(String(line.reason), /DATABASE_URL is required/);
+});
+
+test("the server won't start without CLAIMS_STAND_IN_KEY", async () => {
+  const line = await fatalError(startServer(settingsWithout("CLAIMS_STAND_IN_KEY")));
+  assert.match(String(line.reason), /CLAIMS_STAND_IN_KEY is required/);
+});
+
+test("a CLAIMS_STAND_IN_KEY that isn't 64 hex characters stops the server without logging it", async () => {
+  // The base64url a station key is written in, which the key isn't.
+  const key = "kQ3v-Not_A_Hex_Key_but-long-enough-to-pass-for-one-0123456789abcd";
+  const started = startServer({ ...SETTINGS, CLAIMS_STAND_IN_KEY: key });
+  const line = await fatalError(started);
+  assert.match(String(line.reason), /CLAIMS_STAND_IN_KEY must be 64 lower-case hex characters/);
+  assert.doesNotMatch(started.output(), /kQ3v/);
 });
 
 test("a DATABASE_URL that won't parse stops the server without logging its password", async () => {

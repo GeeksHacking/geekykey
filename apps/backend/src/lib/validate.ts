@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { Context } from "hono";
 import type { ZodType } from "zod";
 
 /**
@@ -10,9 +11,19 @@ import type { ZodType } from "zod";
  * field.
  */
 export function jsonBody<T extends ZodType>(schema: T) {
-  return zValidator("json", schema, (result, c) =>
-    result.success
-      ? undefined
-      : c.json({ error: "validation_failed", issues: result.error.issues }, 400),
-  );
+  return zValidator("json", schema, failValidation);
+}
+
+/** The same check, for a route's path parameters, such as a token's UID. */
+export function pathParams<T extends ZodType>(schema: T) {
+  return zValidator("param", schema, failValidation);
+}
+
+function failValidation(
+  result: { success: true } | { success: false; error: { issues: unknown } },
+  c: Context,
+) {
+  return result.success
+    ? undefined
+    : c.json({ error: "validation_failed", issues: result.error.issues }, 400);
 }

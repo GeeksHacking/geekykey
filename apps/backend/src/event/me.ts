@@ -1,16 +1,10 @@
-import { and, asc, count, desc, eq, isNull, min } from "drizzle-orm";
-import { tokens } from "../claims-stand-in/schema.ts";
+import { and, asc, count, desc, eq, min } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import { stations, taps } from "./schema.ts";
 import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
 
 /** How many of their latest taps a participant sees, any status. */
 export const RECENT_TAP_LIMIT = 50;
-
-export interface PairedToken {
-  uid: string;
-  pairedAt: string;
-}
 
 /** A station's place in a participant's passport. See CONTEXT.md. */
 export interface StampSlot {
@@ -33,9 +27,11 @@ export interface RecentTap {
   receivedAt: string;
 }
 
-/** What GET /api/v1/me shows a signed-in user about themselves, apart from their profile. */
+/**
+ * What GET /api/v1/me shows a signed-in user about themselves, apart from
+ * their profile. Their tokens are on the GeekyKey Service's /me instead.
+ */
 export interface MeView {
-  tokens: PairedToken[];
   points: number;
   passport: StampSlot[];
   recentTaps: RecentTap[];
@@ -45,20 +41,13 @@ export interface MeView {
  * Reads everything /me shows, for one user. Stamps and points are derived from
  * accepted taps here, never stored, so they cannot drift from the tap log.
  *
- * The four reads are independent and sent together. Not with db.batch(): that
- * is libSQL-only, and the backend may move to TiDB. The cost is that each read
- * sees its own moment, so a tap stored mid-request can appear in recentTaps a
- * poll before its stamp does. The next poll catches up.
+ * The three reads are independent and sent together. Not with db.batch(): that
+ * is libSQL-only. The cost is that each read sees its own moment, so a tap
+ * stored mid-request can appear in recentTaps a poll before its stamp does.
+ * The next poll catches up.
  */
 export async function loadMe(db: Db, userId: string): Promise<MeView> {
-  const [pairedTokens, allStations, visits, recentTaps] = await Promise.all([
-    // The claims stand-in's table, read from the Event side until /me stops
-    // listing tokens, later in checkpoint 3.
-    db
-      .select({ uid: tokens.uid, pairedAt: tokens.pairedAt })
-      .from(tokens)
-      .where(and(eq(tokens.userId, userId), isNull(tokens.revokedAt)))
-      .orderBy(asc(tokens.pairedAt), asc(tokens.uid)),
+  const [allStations, visits, recentTaps] = await Promise.all([
     db
       .select({
         id: stations.id,
@@ -105,7 +94,6 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
   );
 
   return {
-    tokens: pairedTokens,
     points,
     passport: allStations.map((station) => ({
       stationId: station.id,
