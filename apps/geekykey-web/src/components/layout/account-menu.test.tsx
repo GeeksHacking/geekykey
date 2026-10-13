@@ -101,16 +101,19 @@ describe("AccountMenu", () => {
     expect(screen.getByText("GeekyKey admin")).toBeInTheDocument();
   });
 
-  it("shows a disabled Admin console row for an admin, until FRO-21 adds the route", async () => {
+  it("offers an admin no admin console, because there are none (agreement 13)", async () => {
+    // Section 13: "There are no GeekyKey admin screens." A GeekyKey admin's one job is
+    // releasing someone else's token from the token page (8.5), not a console of their own.
+    // FRO-21, which would have added the route, is cancelled.
     const { user } = await renderMenu(
       <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin onSignOut={() => {}} />,
     );
 
     await openMenu(user);
-    const item = screen.getByRole("menuitem", { name: /Admin console/ });
-    // It must not be a link: there is no /admin route yet, so linking would 404.
-    expect(item).toHaveAttribute("data-disabled");
-    expect(item.querySelector("a")).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: /Admin console/ })).not.toBeInTheDocument();
+    // The role still reads, and sign out still works, so an admin is not left without a menu.
+    expect(screen.getByText("GeekyKey admin")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Sign out/ })).toBeInTheDocument();
   });
 
   it("does not offer the admin console to a plain participant", async () => {

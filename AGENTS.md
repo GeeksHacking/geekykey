@@ -16,10 +16,11 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 
 ### Source of truth
 
-In order: the spec, then the API agreement, then Linear and `CONTEXT.md`, which sit at about the same level. Code, tests and our own notes rank below all of them.
+In order: the API agreement, then the spec, then `CONTEXT.md` and the ADRs, with Linear and our own notes below all of them. Code and tests rank last.
 
-- The spec: [.scratch/db-hosting/spec.md](.scratch/db-hosting/spec.md). Adam reviews it before any code changes. Section 11 marks what's still provisional, section 12 what's still to confirm.
-- The API agreement: [apps/API-AGREEMENT.md](apps/API-AGREEMENT.md). Field names, status codes and the error codes live there, not in the spec.
+- The API agreement: [apps/API-AGREEMENT.md](apps/API-AGREEMENT.md). **Highest.** Section 1 says of itself: *"The screens and the stations build against the shapes here, not against either service's source. If a service differs from this file, the file wins and the service is fixed. This file also wins over every other document, including the migration spec."* Field names, status codes, error codes and the screen wording in section 13 all live here.
+- The spec: [.scratch/db-hosting/spec.md](.scratch/db-hosting/spec.md). Decides what gets built and what is removed. It makes no claim of precedence over the agreement, and defers to it for shapes: *"Field names and status codes live in apps/API-AGREEMENT.md."* Section 11 marks what's provisional, section 12 what's still to confirm. Adam reviews it before any code changes.
+- `CONTEXT.md` and `docs/adr/`: vocabulary and architecture decisions. ADR 0004 supersedes ADR 0002 for the showcase.
 
 Where a lower source contradicts a higher one, the higher one wins, and the difference is raised as an issue rather than settled in the code.
 

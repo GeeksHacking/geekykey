@@ -8,7 +8,8 @@ import { isSafeReturnTo } from "@/features/auth/paths";
  * After sign-in, go back to where the user was, or to My tokens.
  *
  * There is no `role` on the GeekyKey Service's /me (agreement 8.4), so there is no
- * role-specific home to branch on. FRO-21 adds the admin console and the branch with it.
+ * role-specific home to branch on. Agreement 13 says there are no GeekyKey admin screens,
+ * so both roles land on My tokens.
  */
 export function useGoAfterLogin() {
   const navigate = useNavigate();
@@ -16,11 +17,11 @@ export function useGoAfterLogin() {
   return useCallback(
     (returnTo: string | undefined) => {
       if (isSafeReturnTo(returnTo)) {
-        // History, not the typed navigate: return_to is an arbitrary validated path, and
-        // /t/<UID> has no route yet, so the router has no type for it.
+        // History, not the typed navigate: return_to is an arbitrary validated path rather than
+        // one the router's types know, which is what isSafeReturnTo is for.
         router.history.replace(returnTo);
       } else {
-        // The admin console arrives with FRO-21, so both roles land on My tokens for now.
+        // Both roles land on My tokens: there are no GeekyKey admin screens (13).
         void navigate({ to: HOME_PATH, replace: true });
       }
     },

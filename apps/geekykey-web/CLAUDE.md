@@ -24,7 +24,8 @@ Read those files before adding screens. They are references, not documents to co
 
 The app is a routed shell with `/login`, a pathless signed-in layout, My tokens as the home
 page (still a placeholder until FRO-27), the data layer in `src/api/`, and sign-in and sign-out
-(FRO-19). Token claiming arrives with FRO-22 and FRO-30. There are no GeekyKey admin screens:
-agreement section 13 says so, and FRO-21, which would have been one, was canceled.
+(FRO-19), and claiming a token from the token page (FRO-22). Claiming by code on My tokens is
+FRO-30. There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21, which
+would have been one, was canceled.
 
 `src/api/create-client.ts` is the only file that changes when an endpoint goes live, and `liveMethods()` is empty until checkpoint 6: the GeekyKey Service's routes do not exist yet, so every method runs on the mock even with `VITE_LIVE_API=1`.
