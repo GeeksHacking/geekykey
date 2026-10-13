@@ -1,4 +1,4 @@
-import { CaretDown, ShieldCheck, SignOut, Stamp } from "@phosphor-icons/react";
+import { CaretDown, SignOut, Stamp } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -47,16 +47,6 @@ export function AccountMenu({ userId, isGeekyKeyAdmin, onSignOut }: AccountMenuP
             My tokens
           </Link>
         </DropdownMenuItem>
-        {/*
-          The admin console arrives with FRO-21, which adds the route. Until then there is
-          nothing to link to, so the entry stays out rather than dead.
-        */}
-        {isGeekyKeyAdmin ? (
-          <DropdownMenuItem disabled>
-            <ShieldCheck aria-hidden />
-            Admin console
-          </DropdownMenuItem>
-        ) : null}
         <DropdownMenuItem onSelect={onSignOut}>
           <SignOut aria-hidden />
           Sign out

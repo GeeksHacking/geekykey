@@ -63,21 +63,21 @@ describe("the signed-in shell", () => {
     );
   });
 
-  it("reads the GeekyKey admin flag from /me, so the admin row appears for an admin", async () => {
+  it("reads the GeekyKey admin flag from /me and labels the account, with no admin row", async () => {
     const user = userEvent.setup();
     signedInAs(SEEDED_ADMIN_ID);
     await screen.findByText(/a GeekyKey admin/);
 
     const menu = await openAccountMenu(user);
 
+    // The flag still reads, so the account says who it is.
     expect(within(menu).getByText("GeekyKey admin")).toBeInTheDocument();
-    // Present but not a link: there is no /admin route, so linking would 404.
-    const row = within(menu).getByRole("menuitem", { name: /Admin console/ });
-    expect(row).toHaveAttribute("data-disabled");
-    expect(row.querySelector("a")).toBeNull();
+    // No admin row either way: agreement 13 says there are no GeekyKey admin screens, and
+    // an admin's one job is releasing a token from the token page (8.5).
+    expect(within(menu).queryByRole("menuitem", { name: /Admin console/ })).not.toBeInTheDocument();
   });
 
-  it("reads the flag the other way too, so a plain participant gets no admin row", async () => {
+  it("reads the flag the other way too, so a plain participant is labelled as one", async () => {
     const user = userEvent.setup();
     signedInAs(SEEDED_PARTICIPANT_ID);
     await screen.findByRole("button", { name: "Account menu" });
