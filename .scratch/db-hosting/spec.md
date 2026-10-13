@@ -272,8 +272,8 @@ Claiming a token and finding who owns it go through one module in the GeekyKey S
 export interface Claims {
   /** The owners of up to 500 tokens, by UID. A UID missing from the map is unclaimed. */
   ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, string>>;
-  /** Claims the token for the user. The first claim wins. */
-  claim(uid: string, userId: string, signal: AbortSignal): Promise<"claimed" | "already_yours" | "taken">;
+  /** Claims the token for the user. The first claim wins, and `claimedAt` is when the user's claim was made, for the claim route's answer. */
+  claim(uid: string, userId: string, signal: AbortSignal): Promise<{ result: "claimed" | "already_yours"; claimedAt: string } | { result: "taken" }>;
   /** Releases the token, but only if `ownerId` still owns it. */
   release(uid: string, ownerId: string, signal: AbortSignal): Promise<"released" | "not_owner">;
   /** The user's tokens, oldest claim first. */
@@ -281,20 +281,20 @@ export interface Claims {
 }
 ```
 
-- **`StandInClaims`** calls the claims stand-in over HTTPS with `CLAIMS_STAND_IN_KEY`, and replaces `TokenResolver` and `LocalTokenResolver` in `apps/backend/src/services/identity.ts`. Inside the one server at checkpoint 3, it calls the same routes through `app.request()`.
+- **`StandInClaims`** calls the claims stand-in over HTTPS with `CLAIMS_STAND_IN_KEY`, and replaces `TokenResolver` and `LocalTokenResolver` in `apps/backend/src/claims-stand-in/token-lookup.ts`. Inside the one server at checkpoint 3, it calls the same routes through `app.request()`.
 - **`PortalClaims`**, after the showcase, calls the tag APIs as the GeekyKey Service itself, with the client-credentials flow and its own OAuth app. It caches owners in Cloudflare's Cache API (provisional): owned tokens only, never "unclaimed", and a claim or release deletes the token's entry. For how long is chosen at the switch: 5 minutes was planned, and Julian asked for an hour (8 Oct). The Cache API keeps an entry for its `max-age`, but each data centre keeps its own copy and a delete clears only the local one, so a release can go unseen elsewhere for that long. If that's too long, the fallback is Redis or KV.
 - **The deadline.** Each call gives up when its `signal` fires: the station request's shared 4 seconds, or 4 seconds of its own on the screens' calls (the spec's call). There's no retry.
 - **When it can't answer** (no answer in time, a `429` or `5xx`, or a body that doesn't parse), it throws `ClaimsUnavailable`. The station route turns that into `503 claims_unavailable`, the same code before and after the switch, and the screens into "Couldn't reach GeeksHacking. Try again."
 - **UIDs arrive normalised.** Who may release is decided by the routes: an owner passes their own user ID, and a GeekyKey admin passes the owner the token page found when it loaded, so a late or double click can't release a newer claim.
 - **The cap** is 3 tokens, a GeekyKey Service setting, with no exemption for anyone. The claim route checks `tokensOf` before `claim`: a token already among them answers `200` as already yours, whatever the count, and otherwise a user at the cap gets `409 token_limit_reached`, even when the token is someone else's. Accepted: two claims by one user at the same instant could leave them with 4 tokens.
-- **Every release writes a `token_released` log line** saying who released which UID from whom. With no history kept, it's the only trace.
+- **Every release writes a `token_released` log line** saying who released which UID from whom. With no history kept, it's the only trace. The release route writes it, not `Claims`, since only the route knows who's releasing.
 
 **The claims stand-in** keeps the `tokens` table and offers the four calls we're asking the Portal for, in [part 2 of the tag APIs message](assets/message-to-qing-guan-tag-apis.md). Before the split it's simply today's `tokens` table and claim code, moved to Cloud Run with everything else. From checkpoint 3 it's a folder of its own on the Cloud Run server, `claims-stand-in/`, with its own schema file, marked "GeekyKey's stand-in, removed after the switch". Its routes are the spec's call. The fifth, read-only route for "Copy claims to the Portal" went on 8 Oct, with the copy. Each takes `Authorization: Bearer <CLAIMS_STAND_IN_KEY>`, compared in constant time:
 
 | Method | Path | Body or answer |
 |---|---|---|
 | POST | `/claims-stand-in/v1/owners` | `{ "uids": [...] }`, up to 500. Answers `{ "owners": [{ "uid", "user_id" }] }`, leaving unclaimed UIDs out |
-| POST | `/claims-stand-in/v1/tokens/{uid}/claim` | `{ "user_id" }`. Answers `{ "result": "claimed" \| "already_yours" \| "taken", "claimed_at" }` |
+| POST | `/claims-stand-in/v1/tokens/{uid}/claim` | `{ "user_id" }`. Answers `{ "result": "claimed" \| "already_yours" \| "taken", "claimed_at" }`, with `claimed_at` `null` when taken |
 | POST | `/claims-stand-in/v1/tokens/{uid}/release` | `{ "owner_id" }`. Answers `{ "result": "released" \| "not_owner" }` |
 | GET | `/claims-stand-in/v1/users/{user_id}/tokens` | Answers `{ "tokens": [{ "uid", "claimed_at" }] }`, oldest claim first |
 
@@ -586,7 +586,7 @@ Done when:
 
 The endpoints behind the token page and My tokens, plus the station path's protections. Ethan's team builds the screens (see the tracks). The API agreement's section 8 has the shapes.
 
-- **For users:** the token page's lookup, which says whether a token is unclaimed, yours or someone else's, and gives a GeekyKey admin the owner's ID to release with; claiming (`201`, or `200` if it's already yours, `409 token_taken`, `409 token_limit_reached` from the cap check); releasing, by the owner or by a GeekyKey admin; and `/me`, with the user's tokens and the events that have a public address.
+- **For users:** the token page's lookup, which says whether a token is unclaimed, yours or someone else's, and gives a GeekyKey admin the owner's ID to release with; claiming (`201`, or `200` if it's already yours, `409 token_taken`, `409 token_limit_reached` from the cap check); releasing, by the owner or by a GeekyKey admin, each writing a `token_released` log line (section 4); and `/me`, with the user's tokens and the events that have a public address.
 - **For GeekyKey admins,** checked against `GEEKYKEY_ADMINS` on every request: only releasing someone else's token, from the token page. They have no station jobs.
 - **The three limits** on this Worker (section 5.1). Each answers `429` with `{"error": "rate_limited"}` and `Retry-After: 60`, and writes one `rate_limited` log line naming the caller: a station ID once known, or a user ID, never a key.
 
