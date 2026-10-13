@@ -1,7 +1,7 @@
 {
   "mcp": {
     "servers": {
-      "context7": {
+      "linear": {
         "type": "remote",
         "url": "https://mcp.linear.app/mcp"
       }

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDayLabel, formatDate, formatPoints, formatRelative, formatWhen } from "@/lib/format";
+import {
+  formatDate,
+  formatDateTime,
+  formatDayLabel,
+  formatPoints,
+  formatRelative,
+  formatTime,
+  formatTimeWithSeconds,
+  formatWhen,
+} from "@/lib/format";
 
 describe("formatPoints", () => {
   it("pluralises", () => {
@@ -23,7 +32,23 @@ describe("formatRelative", () => {
     expect(formatRelative("not-a-date", now)).toBe("Unknown");
     expect(formatDayLabel("not-a-date", now)).toBe("Unknown date");
     expect(formatWhen("not-a-date", now)).toBe("Unknown");
-    expect(formatDate("not-a-date")).toBe("—");
+    expect(formatDate("not-a-date")).toBe("Not recorded");
+  });
+
+  it("never returns an em-dash or en-dash, in any format", () => {
+    // The copy rules ban both in visible text, and these helpers are the ones that turn
+    // an absent or unparseable timestamp into something a participant reads.
+    for (const formatted of [
+      formatTime("not-a-date"),
+      formatTimeWithSeconds("not-a-date"),
+      formatDate("not-a-date"),
+      formatDateTime("not-a-date"),
+      formatRelative("not-a-date", now),
+      formatDayLabel("not-a-date", now),
+      formatWhen("not-a-date", now),
+    ]) {
+      expect(formatted, `returned a dash: ${formatted}`).not.toMatch(/[\u2014\u2013]/);
+    }
   });
 });
 

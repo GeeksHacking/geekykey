@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime, formatWhen } from "@/lib/format";
+import { EMPTY_CELL, formatDateTime, formatWhen } from "@/lib/format";
 
 import { PassportStationDialog } from "./passport-station-dialog";
 import { usePassportStationDialog } from "./use-passport-station-dialog";
@@ -94,7 +94,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 />
               </TableCell>
               <TableCell className="text-right font-mono">
-                {station.passport?.points ?? "—"}
+                {station.passport?.points ?? EMPTY_CELL}
               </TableCell>
               <TableCell>
                 <OnlineStatus online={station.online} lastSeenAt={station.last_seen_at} />

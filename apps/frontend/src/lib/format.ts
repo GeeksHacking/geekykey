@@ -38,25 +38,34 @@ function parseDate(iso: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/**
+ * Shown where a value is absent. A dash is the usual choice, but the copy rules ban
+ * em-dash and en-dash in visible text, and a figure dash reads the same. So the word
+ * does the work, which also survives a screen reader better than a lone glyph.
+ */
+const EMPTY = "Not recorded";
+/** A table cell with nothing in it. Keeps column width honest without a dash. */
+export const EMPTY_CELL = "";
+
 export function formatTime(iso: string): string {
   const date = parseDate(iso);
-  return date ? timeFormat.format(date) : "—";
+  return date ? timeFormat.format(date) : EMPTY;
 }
 
 export function formatTimeWithSeconds(iso: string): string {
   const date = parseDate(iso);
-  return date ? timeWithSecondsFormat.format(date) : "—";
+  return date ? timeWithSecondsFormat.format(date) : EMPTY;
 }
 
 export function formatDate(iso: string): string {
   const date = parseDate(iso);
-  return date ? fullDateFormat.format(date) : "—";
+  return date ? fullDateFormat.format(date) : EMPTY;
 }
 
 /** "10 Oct, 09:00" */
 export function formatDateTime(iso: string): string {
   const date = parseDate(iso);
-  if (!date) return "—";
+  if (!date) return EMPTY;
   return `${dateFormat.format(date)}, ${timeFormat.format(date)}`;
 }
 

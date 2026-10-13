@@ -28,6 +28,6 @@ export function isMockData(
 }
 
 export function dataSourceMessage(live: boolean = isLiveApiEnabled): string {
-  if (!live) return "Demo data — this screen uses fixture data.";
-  return "Demo data — organiser resource data is still mocked until those API slices are live.";
+  if (!live) return "Demo data. This screen uses fixture data.";
+  return "Demo data. Organiser resource data is still mocked until those API slices are live.";
 }
