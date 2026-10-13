@@ -913,4 +913,6 @@
     The backend on Google Cloud, in production and in staging, has the two keys the GeekyKey
     Service will show when it hands a tap to the Event Service and when it asks the claims
     stand-in who owns a token. Each is random and was generated straight into Google's Secret
-    Manager, so nobody keeps a copy, and only its own service is given access to it.
+    Manager, so nobody keeps a copy, and only its own service is given access to it. Each
+    service now keeps its keys, session secret and database login in one secret, at Julian's
+    suggestion, so Secret Manager stores four versions instead of ten and stays free.
