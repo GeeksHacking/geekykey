@@ -1,12 +1,13 @@
 ---
 name: unslop
-description: Cut AI tells from any writing.
-disable-model-invocation: true
+description: Cut AI tells from any writing. Use before finishing anything an agent writes in this repo, including app text, code comments, docs, reports, tickets and chat messages.
 ---
 
 # Unslop
 
 Edit text to remove AI patterns. Scan for the patterns below, then rewrite. Preserve meaning and match the intended tone.
+
+Apply it to your own writing before you hand it over, not only when someone asks.
 
 ## Patterns to detect and fix
 
@@ -28,7 +29,11 @@ Rule numbers are stable ids that other skills cite. A removed rule leaves a gap.
 
 ### Style
 
-13. **Em and en dashes.** Use neither, anywhere. Replace each with a full stop, a comma, a colon, a colon and a new line, or parentheses, whichever reads best. No hyphen-as-dash substitutes. Where a repo's AGENTS.md or CLAUDE.md sets its own punctuation rules, follow those.
+13. **Em and en dashes.** Use neither (U+2014, U+2013), anywhere. Replace each with a full stop, a comma, a colon, a colon and a new line, or parentheses, whichever reads best. No hyphen-as-dash substitutes. Where a dash is genuinely needed, describe it in words rather than printing the character. To check a file, do not rely on `grep`, which has returned zero on files that contain these characters. Use Python, which does not mangle the bytes:
+
+    ```bash
+    python3 -c "s=open('FILE',encoding='utf-8').read(); print(s.count(chr(0x2014)), s.count(chr(0x2013)))"
+    ```
 14. **Colon overuse.** Colons are fine before a list, an example, or an explanation of what came before them, and as the replacement for a dash under rule 13. The tell is a colon used as framing filler. "If you're coming from traditional automation: instead of registering event handlers, you describe conditions" adds nothing with the colon. Rewrite to let the point stand on its own without comparison framing. "Describing when the scheduler should fire works best as plain English." Same meaning, no crutch punctuation.
 15. **Boldface overuse.** Don't bold every proper noun or acronym.
 16. **Inline-header lists.** The tell is a bold label and colon that restates the line: "**Performance:** Performance improved...". Convert those to prose. A bold lead-in that ends in a period, names the item, and is followed by genuinely new detail ("**Schema in TypeScript.** Tables live in one file.") is fine, not a tell.

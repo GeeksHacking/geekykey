@@ -30,15 +30,7 @@ These documents change often, so re-read them at the start of a task and before 
 
 **No em-dash (U+2014) or en-dash (U+2013) anywhere.** Not in visible app text, not in code comments, not in a report, a ticket, a comment or a chat message. This restates `apps/frontend/CLAUDE.md` and applies to everything an agent writes here, including documents about removing dashes.
 
-Use a full stop, a comma, a colon, a colon and a new line, or parentheses. Where a dash is genuinely needed, describe it in words rather than printing the character.
-
-To check a file, do not rely on `grep`. Use Python, which does not mangle the bytes:
-
-```bash
-python3 -c "s=open('FILE',encoding='utf-8').read(); print(s.count(chr(0x2014)), s.count(chr(0x2013)))"
-```
-
-A `grep` for these characters has returned zero on files that contain them.
+Before handing over anything you wrote, read [.agents/skills/unslop/SKILL.md](.agents/skills/unslop/SKILL.md) and apply it. It lists the dash replacements, the check for dashes in a file, and the other patterns to cut.
 
 ### Pull request descriptions
 
