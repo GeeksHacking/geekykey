@@ -8,8 +8,13 @@ const backend = "http://localhost:8000";
 
 export default defineConfig({
   plugins: [
-    // Must run before the React plugin so route files are transformed first.
-    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    // Must run before the React plugin so route files are transformed first. Tests sit next
+    // to the routes they cover, so the router skips *.test.ts(x) rather than warn about them.
+    tanstackRouter({
+      target: "react",
+      autoCodeSplitting: true,
+      routeFileIgnorePattern: "\\.test\\.tsx?$",
+    }),
     react(),
     tailwindcss(),
   ],
