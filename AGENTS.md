@@ -30,7 +30,7 @@ These documents change often, so re-read them at the start of a task and before 
 
 **No em-dash (U+2014) or en-dash (U+2013) anywhere.** Not in visible app text, not in code comments, not in a report, a ticket, a comment or a chat message. This restates `apps/frontend/CLAUDE.md` and applies to everything an agent writes here, including documents about removing dashes.
 
-Before handing over anything you wrote, read [.agents/skills/unslop/SKILL.md](.agents/skills/unslop/SKILL.md) and apply it. It lists the dash replacements, the check for dashes in a file, and the other patterns to cut.
+Before finishing a PR description, a report, user-facing text, an updates-site entry, a doc, or a Linear ticket or comment meant for people, read [.agents/skills/unslop/SKILL.md](.agents/skills/unslop/SKILL.md) and apply it. Tickets and comments written for an agent don't need it. Screen wording set in section 13 of the API agreement is used exactly as written. The skill also lists the dash replacements and the check for dashes in a file.
 
 ### Pull request descriptions
 

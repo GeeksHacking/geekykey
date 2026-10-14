@@ -1,13 +1,15 @@
 ---
 name: unslop
-description: Cut AI tells from any writing. Use before finishing anything an agent writes in this repo, including app text, code comments, docs, reports, tickets and chat messages.
+description: Cut AI tells from writing that people read and that stays around. Use before finishing a PR description or report, user-facing app text, an updates-site entry, a Linear ticket or comment meant for people, or a doc.
 ---
 
 # Unslop
 
 Edit text to remove AI patterns. Scan for the patterns below, then rewrite. Preserve meaning and match the intended tone.
 
-Apply it to your own writing before you hand it over, not only when someone asks.
+Apply it to your own writing before you hand it over, not only when someone asks. It covers PR descriptions and the reports in `reports/`, user-facing text in the apps, updates-site entries, docs, and Linear tickets and comments meant for people. Skip it for chat replies, code comments, commit subjects, and tickets or comments written for an agent to act on.
+
+Screen wording set in section 13 of `apps/API-AGREEMENT.md` is used exactly as written. Do not rewrite it here, even where a rule below flags it. A change to that wording goes through the agreement.
 
 ## Patterns to detect and fix
 
