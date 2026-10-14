@@ -465,7 +465,8 @@ the Event Service key and `EVENT_SERVICES` built-in values. Never turn it on in 
 Without it, the backend refuses to start unless `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`,
 `EVENT_SERVICE_KEY` and `EVENT_SERVICES` are set, each key as 64 hex characters.
 `EVENT_SERVICES` is a JSON list with one Event Service, the showcase, whose address must
-start with `https://` unless it's on your laptop. `infra/production/settings.env` shows it.
+start with `https://`. Only with dev sign-in on may it be `http://` to your laptop.
+`infra/production/settings.env` shows it.
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
 connects over TLS, checking the database's certificate and name, unless the address is on
 your laptop, such as `127.0.0.1`.
@@ -610,7 +611,7 @@ docker run --detach --rm --name backend --publish 8000:8000 \
   --env SESSION_SECRET=ci-stand-in-not-a-secret \
   --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
   --env EVENT_SERVICE_KEY=$(openssl rand -hex 32) \
-  --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"http://localhost:8000"}]' \
+  --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"https://event-api.geekshacking.com"}]' \
   geekykey-backend
 curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
 docker stop backend

@@ -114,15 +114,16 @@ test("the server won't start without EVENT_SERVICES", async () => {
   assert.match(String(line.reason), /EVENT_SERVICES is required/);
 });
 
-test("an Event Service on plain http, away from this machine, stops the server", async () => {
-  // The Event Service key goes with every request to it.
-  const url = "http://event-api.geekshacking.com";
-  const started = startServer({
-    ...SETTINGS,
-    EVENT_SERVICES: JSON.stringify([{ id: "showcase", name: "Capstone Showcase", url }]),
-  });
-  const line = await fatalError(started);
-  assert.match(String(line.reason), /EVENT_SERVICES 0\.url: must start with https:\/\//);
+test("an Event Service on plain http stops the server, even on this machine", async () => {
+  // The Event Service key goes with every request to it. Only dev sign-in allows localhost.
+  for (const url of ["http://event-api.geekshacking.com", "http://localhost:8000"]) {
+    const started = startServer({
+      ...SETTINGS,
+      EVENT_SERVICES: JSON.stringify([{ id: "showcase", name: "Capstone Showcase", url }]),
+    });
+    const line = await fatalError(started);
+    assert.match(String(line.reason), /EVENT_SERVICES 0\.url: must start with https:\/\//, url);
+  }
 });
 
 test("EVENT_SERVICES that isn't one Event Service stops the server", async () => {

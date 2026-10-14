@@ -70,7 +70,7 @@ const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
 const DEV_KEY = "0".repeat(64);
 
 /** The showcase, as this server on your laptop, in local development. */
-const DEV_EVENT_SERVICES: EventServiceEntry[] = [
+export const DEV_EVENT_SERVICES: EventServiceEntry[] = [
   { id: "showcase", name: "Capstone Showcase", url: "http://localhost:8000" },
 ];
 
@@ -183,33 +183,30 @@ function keyFromEnv(env: Env, name: string, devAuthEnabled: boolean): string {
 }
 
 /**
- * An Event Service's address: `https://`, since the key goes with every
- * request, or `http://` to this machine only.
+ * EVENT_SERVICES' rules. An Event Service's address must start with
+ * `https://`, since its key goes with every request (the API agreement's
+ * section 3). In local development it may be `http://` to this machine.
  */
-const eventServiceUrl = z
-  .url({ protocol: /^https?$/ })
-  .refine(
-    (url) => {
-      const { protocol, hostname } = new URL(url);
-      return protocol === "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
-    },
-    { message: "must start with https://, unless it's on this machine" },
-  )
-  .transform((url) => url.replace(/\/+$/, ""));
-
-const eventServicesSetting = z
-  .array(
-    z.object({
-      id: z.string().regex(/^[a-z0-9_-]+$/),
-      name: z.string().min(1),
-      url: eventServiceUrl,
-    }),
-  )
-  .length(1, "must list exactly one Event Service, the showcase, until BAC-33");
+function eventServicesSetting(devAuthEnabled: boolean) {
+  const url = z
+    .url({ protocol: /^https?$/ })
+    .refine(
+      (url) => {
+        const { protocol, hostname } = new URL(url);
+        if (protocol === "https:") return true;
+        return devAuthEnabled && ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+      },
+      { message: "must start with https://" },
+    )
+    .transform((url) => url.replace(/\/+$/, ""));
+  return z
+    .array(z.object({ id: z.string().regex(/^[a-z0-9_-]+$/), name: z.string().min(1), url }))
+    .length(1, "must list exactly one Event Service, the showcase, until BAC-33");
+}
 
 /**
  * EVENT_SERVICES, a JSON array of `{ "id", "name", "url" }`. Not a secret:
- * each Event Service's key is a setting of its own.
+ * the key the hand-off carries is EVENT_SERVICE_KEY, a setting of its own.
  */
 function eventServicesFromEnv(env: Env, devAuthEnabled: boolean): EventServiceEntry[] {
   const raw = env.EVENT_SERVICES;
@@ -223,7 +220,7 @@ function eventServicesFromEnv(env: Env, devAuthEnabled: boolean): EventServiceEn
   } catch {
     throw new ConfigError("EVENT_SERVICES must be a JSON array, and isn't valid JSON");
   }
-  const parsed = eventServicesSetting.safeParse(json);
+  const parsed = eventServicesSetting(devAuthEnabled).safeParse(json);
   if (!parsed.success) {
     // Such as "EVENT_SERVICES 0.url: must start with https://".
     const [issue] = parsed.error.issues;
