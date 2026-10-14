@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import { requireBearerKey } from "../lib/bearer-key.ts";
-import { jsonBody } from "../lib/validate.ts";
+import { jsonBody, validationFailed } from "../lib/validate.ts";
 import { stations } from "./schema.ts";
 import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
 
@@ -34,18 +34,10 @@ export function handoffRoutes({ key }: { key: string }) {
         );
       } catch (err) {
         if (!(err instanceof UnknownStation)) throw err;
-        return c.json(
-          {
-            error: "validation_failed",
-            issues: [
-              {
-                code: "custom",
-                path: ["station_id"],
-                message: "station_id must be one of this Event Service's stations",
-              },
-            ],
-          },
-          400,
+        return validationFailed(
+          c,
+          ["station_id"],
+          "station_id must be one of this Event Service's stations",
         );
       }
 

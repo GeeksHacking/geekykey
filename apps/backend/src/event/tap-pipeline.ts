@@ -199,6 +199,7 @@ export class TapPipeline {
       .select({ id: stations.id })
       .from(stations)
       .where(eq(stations.id, stationId))
+      .limit(1)
       .for("update");
     return station !== undefined;
   }

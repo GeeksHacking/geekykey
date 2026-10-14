@@ -10,8 +10,8 @@ export type Send = (url: string, init: RequestInit) => Promise<Response>;
 export type UnansweredReason = "timeout" | "unreachable" | "status" | "unparseable";
 
 /**
- * Another service didn't answer properly in time. The caller turns it into
- * its own error, such as ClaimsUnavailable.
+ * Another service didn't answer properly in time. Each caller throws its own
+ * kind, such as ClaimsUnavailable, so a route can tell them apart.
  */
 export class Unanswered extends Error {
   override name = "Unanswered";
@@ -28,10 +28,10 @@ export class Unanswered extends Error {
 
 /**
  * One request to another service, with `key` as its bearer key, and the
- * answer checked against `answer`. Throws Unanswered for anything but a 2xx
- * whose body fits, or when `signal` fires first. There's no retry.
- * `app.request()` doesn't stop when its signal fires, so the wait for its
- * answer is cut short here instead.
+ * answer checked against `answer`. Throws `fail`, a kind of Unanswered, for
+ * anything but a 2xx whose body fits, or when `signal` fires first. There's
+ * no retry. `app.request()` doesn't stop when its signal fires, so the wait
+ * for its answer is cut short here instead.
  */
 export async function askService<T>(
   send: Send,
@@ -42,6 +42,7 @@ export async function askService<T>(
     body,
     answer,
     signal,
+    fail,
   }: {
     method: "GET" | "POST";
     url: string;
@@ -49,10 +50,11 @@ export async function askService<T>(
     body?: unknown;
     answer: ZodType<T>;
     signal: AbortSignal;
+    fail: new (reason: UnansweredReason, status?: number) => Unanswered;
   },
 ): Promise<T> {
   // Out of time already, so not worth asking.
-  if (signal.aborted) throw new Unanswered("timeout");
+  if (signal.aborted) throw new fail("timeout");
   const answered = (async () => {
     let res: Response;
     try {
@@ -68,23 +70,27 @@ export async function askService<T>(
         redirect: "manual",
       });
     } catch {
-      throw new Unanswered(signal.aborted ? "timeout" : "unreachable");
+      throw new fail(signal.aborted ? "timeout" : "unreachable");
     }
     // A 429, a 5xx, a redirect, or a 401 while the two sides' keys differ.
-    if (!res.ok) throw new Unanswered("status", res.status);
+    if (!res.ok) throw new fail("status", res.status);
     const parsed = answer.safeParse(await res.json().catch(() => undefined));
-    if (!parsed.success) throw new Unanswered("unparseable");
+    if (!parsed.success) throw new fail("unparseable");
     return parsed.data;
   })();
-  return await beforeDeadline(answered, signal);
+  return await beforeDeadline(answered, signal, () => new fail("timeout"));
 }
 
-/** `work`'s result, or Unanswered as soon as `signal` fires, whichever comes first. */
-function beforeDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+/** `work`'s result, or `timedOut()` as soon as `signal` fires, whichever comes first. */
+function beforeDeadline<T>(
+  work: Promise<T>,
+  signal: AbortSignal,
+  timedOut: () => Error,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timedOut = () => reject(new Unanswered("timeout"));
-    if (signal.aborted) timedOut();
-    signal.addEventListener("abort", timedOut, { once: true });
-    void work.then(resolve, reject).finally(() => signal.removeEventListener("abort", timedOut));
+    const giveUp = () => reject(timedOut());
+    if (signal.aborted) giveUp();
+    signal.addEventListener("abort", giveUp, { once: true });
+    void work.then(resolve, reject).finally(() => signal.removeEventListener("abort", giveUp));
   });
 }
