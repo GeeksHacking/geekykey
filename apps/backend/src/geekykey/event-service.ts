@@ -1,22 +1,13 @@
 import { type TapsAnswer, tapsAnswerMatching, type TapsRequest } from "@geekykey/handoff";
-import { askService, type Send, Unanswered, type UnansweredReason } from "./service-request.ts";
+import { askService, type Send, Unanswered } from "./service-request.ts";
 
 /**
  * The station's Event Service didn't answer the hand-off properly in time. A
  * station request answers it with `503 event_service_unavailable`, and the
  * station keeps its taps to resend.
  */
-export class EventServiceUnavailable extends Error {
+export class EventServiceUnavailable extends Unanswered {
   override name = "EventServiceUnavailable";
-  readonly reason: UnansweredReason;
-  /** The answer's status, when the reason is `status`. */
-  readonly status: number | undefined;
-
-  constructor(reason: UnansweredReason, status?: number) {
-    super(status === undefined ? reason : `${reason} ${status}`);
-    this.reason = reason;
-    this.status = status;
-  }
 }
 
 /**
@@ -46,19 +37,15 @@ export class EventService {
    * `duplicate` to any tap it already stored.
    */
   async handOffTaps(request: TapsRequest, signal: AbortSignal): Promise<TapsAnswer["results"]> {
-    try {
-      const { results } = await askService(this.#send, {
-        method: "POST",
-        url: `${this.#url}/geekykey/v1/taps`,
-        key: this.#key,
-        body: request,
-        answer: tapsAnswerMatching(request),
-        signal,
-      });
-      return results;
-    } catch (err) {
-      if (err instanceof Unanswered) throw new EventServiceUnavailable(err.reason, err.status);
-      throw err;
-    }
+    const { results } = await askService(this.#send, {
+      method: "POST",
+      url: `${this.#url}/geekykey/v1/taps`,
+      key: this.#key,
+      body: request,
+      answer: tapsAnswerMatching(request),
+      signal,
+      fail: EventServiceUnavailable,
+    });
+    return results;
   }
 }

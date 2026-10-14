@@ -1,5 +1,5 @@
 import { z, type ZodType } from "zod";
-import { askService, type Send, Unanswered, type UnansweredReason } from "./service-request.ts";
+import { askService, type Send, Unanswered } from "./service-request.ts";
 
 /**
  * Who owns each token: the claims stand-in until the switch, then the Portal's
@@ -27,25 +27,13 @@ export interface Claims {
   tokensOf(userId: string, signal: AbortSignal): Promise<{ uid: string; claimedAt: string }[]>;
 }
 
-/** Why the claims couldn't be had, for the `claims_unavailable` log line. */
-export type ClaimsUnavailableReason = UnansweredReason;
-
 /**
  * Whatever holds the claims didn't answer properly in time. A station request
  * answers it with `503 claims_unavailable`, and the screens with "Couldn't
  * reach GeeksHacking. Try again."
  */
-export class ClaimsUnavailable extends Error {
+export class ClaimsUnavailable extends Unanswered {
   override name = "ClaimsUnavailable";
-  readonly reason: ClaimsUnavailableReason;
-  /** The answer's status, when the reason is `status`. */
-  readonly status: number | undefined;
-
-  constructor(reason: ClaimsUnavailableReason, status?: number) {
-    super(status === undefined ? reason : `${reason} ${status}`);
-    this.reason = reason;
-    this.status = status;
-  }
 }
 
 const ownersAnswer = z.object({
@@ -115,18 +103,14 @@ export class StandInClaims implements Claims {
     answer: ZodType<T>,
     signal: AbortSignal,
   ): Promise<T> {
-    try {
-      return await askService(this.#send, {
-        method,
-        url: this.#url + path,
-        key: this.#key,
-        body,
-        answer,
-        signal,
-      });
-    } catch (err) {
-      if (err instanceof Unanswered) throw new ClaimsUnavailable(err.reason, err.status);
-      throw err;
-    }
+    return await askService(this.#send, {
+      method,
+      url: this.#url + path,
+      key: this.#key,
+      body,
+      answer,
+      signal,
+      fail: ClaimsUnavailable,
+    });
   }
 }

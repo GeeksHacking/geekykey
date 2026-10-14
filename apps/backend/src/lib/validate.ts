@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import type { Context } from "hono";
-import type { ZodType } from "zod";
+import type { core, ZodType } from "zod";
 
 /**
  * JSON body validation that fails with the agreement's error shape:
@@ -26,4 +26,13 @@ function failValidation(
   return result.success
     ? undefined
     : c.json({ error: "validation_failed", issues: result.error.issues }, 400);
+}
+
+/**
+ * The same 400, for a check a schema can't make, such as whether a station
+ * is this Event Service's. `message` goes under `path`, as Zod's would.
+ */
+export function validationFailed(c: Context, path: string[], message: string) {
+  const issue: core.$ZodIssueCustom = { code: "custom", path, message, input: undefined };
+  return c.json({ error: "validation_failed", issues: [issue] }, 400);
 }
