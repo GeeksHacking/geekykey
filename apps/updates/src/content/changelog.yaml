@@ -907,7 +907,7 @@
     page, so there the screens keep their own choice or use a colour worked out from the kit's.
 
 - id: event-service-and-claims-keys
-  date: 2026-10-13
+  date: 2026-10-14
   area: backend
   change: >-
     The backend on Google Cloud, in production and in staging, has the two keys the GeekyKey
@@ -915,4 +915,4 @@
     stand-in who owns a token. Each is random and was generated straight into Google's Secret
     Manager, so nobody keeps a copy, and only its own service is given access to it. Each
     service now keeps its keys, session secret and database login in one secret, at Julian's
-    suggestion, so Secret Manager stores four versions instead of ten and stays free.
+    suggestion, so Secret Manager stores four versions instead of ten.
