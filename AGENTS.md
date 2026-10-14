@@ -42,6 +42,22 @@ These documents change often, so re-read them at the start of a task and before 
 
 Before finishing a PR description, a report, user-facing text, an updates-site entry, a doc, or a Linear ticket or comment meant for people, read [.agents/skills/unslop/SKILL.md](.agents/skills/unslop/SKILL.md) and apply it. Tickets and comments written for an agent don't need it. Screen wording set in section 13 of the API agreement is used exactly as written. The skill also lists the dash replacements and the check for dashes in a file.
 
+### PR titles
+
+A PR title has the same shape as a commit subject, because a squash merge makes the title the commit on `main`:
+
+```
+type(scope): what is true after the change (TICKET)
+```
+
+- `type` is lowercase: `feat`, `fix`, `refactor`, `docs`, `test`, `build`, `chore` or `revert`.
+- `scope` names the area: `frontend`, `geekykey-web`, `updates`, `backend`, `infra`, `firmware`, `spec`, `agents` or `report`. Two areas are joined with a comma (`frontend,geekykey-web`); a PR that spans more is split.
+- The summary starts lowercase and states the result, for example `a failed status call shows "Status unknown"`.
+- The Linear ticket goes in brackets at the end. A `chore` with no ticket leaves it out.
+- The whole title fits in about 72 characters, so GitHub's PR list shows it in full.
+
+Example: `feat(backend): tap owners come from the claims stand-in (BAC-31)`
+
 ### Escalation
 
 Any conflict or problem between the sources above, and anything important or likely to affect the project, becomes an issue for Adam. That covers other lanes too: something for the backend or the infrastructure is raised there rather than fixed from the frontend.
