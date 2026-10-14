@@ -48,11 +48,10 @@ export interface Config {
    */
   eventServiceKey: string;
   /**
-   * The Event Services the GeekyKey side hands taps to. Until station keys
-   * are checked against the stations each one has registered (BAC-33), every
-   * station is this server's own, so there's exactly one: the showcase's,
-   * reached through app.request() inside this server, with
-   * EVENT_SERVICE_KEY.
+   * The Event Services whose stations the GeekyKey side takes taps from, and
+   * hands them to. While EVENT_SERVICE_KEY is the only Event Service key,
+   * there's exactly one: the showcase's, reached through app.request()
+   * inside this server.
    */
   eventServices: EventServiceEntry[];
 }
@@ -201,7 +200,10 @@ function eventServicesSetting(devAuthEnabled: boolean) {
     .transform((url) => url.replace(/\/+$/, ""));
   return z
     .array(z.object({ id: z.string().regex(/^[a-z0-9_-]+$/), name: z.string().min(1), url }))
-    .length(1, "must list exactly one Event Service, the showcase, until BAC-33");
+    .length(
+      1,
+      "must list exactly one Event Service, the showcase, while EVENT_SERVICE_KEY is the only key",
+    );
 }
 
 /**

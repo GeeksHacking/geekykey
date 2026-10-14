@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { stationsAnswer } from "./stations.ts";
 import { tapsAnswer, tapsRequest } from "./taps.ts";
 
 /** Each body's schema, by the file its JSON Schema goes in. */
@@ -10,6 +11,10 @@ const SCHEMAS = {
     title: "The answer to the hand-off: POST /geekykey/v1/taps",
     description:
       "Also: one result per tap in the request, in the same order, with the same client_tap_ids.",
+  }),
+  "stations-answer.schema.json": stationsAnswer.meta({
+    title: "The registered stations: GET /geekykey/v1/stations",
+    description: "Enabled stations only. The request has no body.",
   }),
 };
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { onTestFinished, test, vi } from "vitest";
 import { setupFixture, testApp, testDb, TEST_EVENT_SERVICE_KEY } from "../test-helpers.ts";
@@ -180,4 +181,43 @@ test("each stored tap gets a tap_stored line, and a duplicate none", async () =>
       status: "cooldown",
     },
   ]);
+});
+
+// The registered stations, as the GeekyKey side asks for them: the API
+// agreement's 11.1.
+
+/** This Event Service's registered stations, asked for with the Event Service key unless told otherwise. */
+function registeredStations(authorization: string | null = `Bearer ${TEST_EVENT_SERVICE_KEY}`) {
+  return app.request("/geekykey/v1/stations", {
+    headers: authorization === null ? {} : { Authorization: authorization },
+  });
+}
+
+test("the registered stations without the Event Service key, or with another, are refused", async () => {
+  await setupFixture();
+  for (const authorization of [null, `Bearer ${"6".repeat(64)}`]) {
+    const res = await registeredStations(authorization);
+    assert.equal(res.status, 401, `${authorization}`);
+    assert.deepEqual(await res.json(), { error: "invalid_event_service_key" });
+  }
+});
+
+test("the registered stations are the enabled ones, each with its key's hash and nothing else", async () => {
+  const { stationId, stationKey } = await setupFixture();
+  await testDb()
+    .insert(stations)
+    .values({
+      id: "station-disabled",
+      name: "Booth 2",
+      apiKeyHash: "a".repeat(64),
+      disabledAt: "2026-10-14T01:00:00.000Z",
+    });
+
+  const res = await registeredStations();
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    stations: [
+      { station_id: stationId, key_hash: createHash("sha256").update(stationKey).digest("hex") },
+    ],
+  });
 });

@@ -8,6 +8,7 @@ import { jsonBody } from "../lib/validate.ts";
 import { type Claims, ClaimsUnavailable } from "./claims.ts";
 import { type EventService, EventServiceUnavailable } from "./event-service.ts";
 import { stationAuth, type StationEnv } from "./station-auth.ts";
+import type { StationsCopy } from "./stations-copy.ts";
 
 export function tapBodySchema(maxTaps: number) {
   return z.object({
@@ -49,29 +50,28 @@ const tapBody: ReturnType<typeof jsonBody<TapBodySchema>> = (c, next) => {
  * and offline flushes share one code path. Returns a status per tap in request
  * order; firmware may drop a tap from its buffer once any status comes back.
  *
- * Each token's owner comes from `claims`, within one deadline that starts once
- * the key is checked. A tap by a token nobody owns is answered `unknown_token`
- * here and stored nowhere. The rest are handed to `eventService` in one call,
- * as their owners' taps, in whatever is left of the deadline (the API
+ * The key is checked against `stationsCopy`, the stations each Event Service has
+ * registered, within one deadline that starts with the check (station-auth.ts).
+ * Each token's owner comes from `claims`, in what's left of it. A tap by a
+ * token nobody owns is answered `unknown_token` here and stored nowhere. The
+ * rest are handed in one call, as their owners' taps, to the Event Service
+ * that registered the station, in whatever is left of the deadline (the API
  * agreement's 11.2 and 11.5). When the owners can't be had in time, the whole
  * request fails with `503 claims_unavailable`, and when the hand-off isn't
  * answered properly in time, with `503 event_service_unavailable`. Either
  * way, the station keeps its taps to resend. Neither is retried.
- *
- * It still reaches into the Event side once: the key check reads `stations`,
- * until BAC-33 checks it against the stations each Event Service registered.
  */
 export function tapsRoutes({
   claims,
-  eventService,
+  stationsCopy,
 }: {
   claims: Claims;
-  eventService: EventService;
+  stationsCopy: StationsCopy<EventService>;
 }) {
-  return new Hono<TapsEnv>().post("/", stationAuth, tapBody, async (c) => {
-    const { config, station } = c.var;
+  return new Hono<TapsEnv>().post("/", stationAuth(stationsCopy), tapBody, async (c) => {
+    const { station, deadline } = c.var;
+    const { eventService } = station;
     const { taps } = c.req.valid("json");
-    const deadline = AbortSignal.timeout(config.tapDeadlineMs);
 
     let owners: Map<string, string>;
     try {

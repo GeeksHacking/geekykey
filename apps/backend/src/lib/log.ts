@@ -16,6 +16,12 @@ const LOG_LINES = {
   tap_stored: "INFO",
   // A station request failed because its Event Service didn't answer the hand-off properly in time.
   handoff_failed: "ERROR",
+  // The GeekyKey side filled its empty copy of the registered stations on a station's request.
+  stations_copy_filled: "INFO",
+  // An Event Service's registered stations couldn't be had. Its last good list, if any, is kept.
+  stations_unavailable: "ERROR",
+  // A registered station whose ID or key hash appears twice, in one list or in two, so its key is refused.
+  station_refused: "ERROR",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

@@ -32,6 +32,12 @@ export const stations = mysqlTable("stations", {
   /** SHA-256 of the key, in hex. */
   apiKeyHash: varchar("api_key_hash", { length: 64 }).notNull().unique(),
   points: int("points").notNull().default(1),
+  /**
+   * When an organizer disabled the station, or null while it's enabled. A
+   * disabled station drops off the registered stations, so the GeekyKey
+   * Service refuses its key.
+   */
+  disabledAt: isoTimestamp("disabled_at"),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
   lastSeenAt: isoTimestamp("last_seen_at"),
 });

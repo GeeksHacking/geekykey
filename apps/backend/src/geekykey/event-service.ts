@@ -1,4 +1,10 @@
-import { type TapsAnswer, tapsAnswerMatching, type TapsRequest } from "@geekykey/handoff";
+import {
+  type RegisteredStation,
+  stationsAnswer,
+  type TapsAnswer,
+  tapsAnswerMatching,
+  type TapsRequest,
+} from "@geekykey/handoff";
 import { askService, type Send, Unanswered } from "./service-request.ts";
 
 /**
@@ -27,6 +33,23 @@ export class EventService {
     this.#url = url;
     this.#key = key;
     this.#send = send;
+  }
+
+  /**
+   * Its registered stations (11.1): the enabled ones, each with its key's
+   * hash. Throws EventServiceUnavailable for anything else, or when `signal`
+   * fires first. There's no retry: the copy asks again a minute later.
+   */
+  async registeredStations(signal: AbortSignal): Promise<RegisteredStation[]> {
+    const { stations } = await askService(this.#send, {
+      method: "GET",
+      url: `${this.#url}/geekykey/v1/stations`,
+      key: this.#key,
+      answer: stationsAnswer,
+      signal,
+      fail: EventServiceUnavailable,
+    });
+    return stations;
   }
 
   /**

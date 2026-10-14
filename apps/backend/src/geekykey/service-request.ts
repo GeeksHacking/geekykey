@@ -82,7 +82,7 @@ export async function askService<T>(
 }
 
 /** `work`'s result, or `timedOut()` as soon as `signal` fires, whichever comes first. */
-function beforeDeadline<T>(
+export function beforeDeadline<T>(
   work: Promise<T>,
   signal: AbortSignal,
   timedOut: () => Error,

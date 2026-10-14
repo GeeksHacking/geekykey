@@ -126,9 +126,12 @@ A stand-in that doesn't answer properly in time fails the request with
 `503 claims_unavailable`, and an Event Service with `503 event_service_unavailable`. Either
 way the station keeps its taps, and nothing is retried.
 
-One place still reaches across the areas: the station route reads the Event side's
-`stations` to check a key. BAC-33 replaces it with the request it will send once the
-services run apart.
+A station's key is checked against the GeekyKey side's copy of the stations each Event
+Service has registered, which it fills from the Event side's `GET /geekykey/v1/stations`,
+also with `EVENT_SERVICE_KEY`. The copy is kept in memory. A server fills it on the first
+station request after it starts, within the same deadline, and refreshes it at most once a
+minute after that. So a new, replaced or disabled station key takes up to a minute to take
+effect. The GeekyKey side reads no table.
 
 Every line the server logs is one JSON object whose `message` is a fixed name, such as
 `server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging
