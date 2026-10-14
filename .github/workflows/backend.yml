@@ -37,6 +37,16 @@ jobs:
       - name: Typecheck
         run: pnpm --filter @geekykey/backend typecheck
 
+      # packages/handoff, which the backend bundles: the hand-off's schemas,
+      # and the JSON Schema written from them for other teams. Its tests fail
+      # when json-schema/ no longer matches the schemas.
+      - name: Hand-off package
+        run: |
+          pnpm --filter @geekykey/handoff lint
+          pnpm --filter @geekykey/handoff format:check
+          pnpm --filter @geekykey/handoff typecheck
+          pnpm --filter @geekykey/handoff test
+
       # TiDB in Docker from the root compose.yaml, with geekykey_dev and
       # geekykey_test created and migrated, the same way as on a laptop.
       - name: Start TiDB
@@ -53,14 +63,16 @@ jobs:
 
       # Starts the image and asks it for /api/health, so a bundle that builds
       # but can't start fails here. /api/health needs no database, so the
-      # DATABASE_URL only has to be there, and the SESSION_SECRET and
-      # CLAIMS_STAND_IN_KEY are stand-ins that nothing else uses.
+      # DATABASE_URL only has to be there, and the SESSION_SECRET, the two
+      # keys and EVENT_SERVICES are stand-ins that nothing else uses.
       - name: Start the image
         run: |
           docker run --detach --name backend --publish 8000:8000 \
             --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
             --env SESSION_SECRET=ci-stand-in-not-a-secret \
             --env CLAIMS_STAND_IN_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            --env EVENT_SERVICE_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"http://localhost:8000"}]' \
             geekykey-backend
           curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-all-errors \
             http://localhost:8000/api/health || { docker logs backend; exit 1; }

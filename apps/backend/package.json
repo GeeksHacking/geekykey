@@ -20,6 +20,7 @@
     "seed": "node scripts/seed.ts"
   },
   "dependencies": {
+    "@geekykey/handoff": "workspace:*",
     "@hono/node-server": "^2.1.3",
     "@hono/zod-validator": "^0.7.6",
     "drizzle-orm": "^0.45.2",

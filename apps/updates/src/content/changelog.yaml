@@ -926,3 +926,14 @@
     nobody has claimed is answered and logged but no longer stored, and when the owners can't be
     found in time the station keeps its taps and sends them again later. The Event Service no
     longer sends a user's tokens with their passport, since tokens belong to the GeekyKey Service.
+
+- id: taps-handed-off-to-the-event-side
+  date: 2026-10-14
+  area: backend
+  change: >-
+    A station's taps now reach the Event Service as users, never as tokens: the GeekyKey side
+    hands each station's claimed taps over in one request, with the Event Service key, and the
+    Event side stores each one with its user ID and writes a log line for it. When the Event
+    Service doesn't answer properly within the 4 seconds, the station keeps its taps and sends
+    them again later. The request's shapes live in a shared package, which also writes them out
+    as JSON Schema for other teams building an Event Service.

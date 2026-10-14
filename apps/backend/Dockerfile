@@ -18,10 +18,14 @@ WORKDIR /repo
 # The manifests and the lockfile first, so Docker reuses the installed
 # dependencies until one of them changes. --frozen-lockfile installs exactly
 # what pnpm-lock.yaml says, under the rules in pnpm-workspace.yaml.
+# The trailing ... in the filter installs packages/handoff's dependencies too,
+# since the backend imports it and the bundle takes it in.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/backend/package.json apps/backend/
-RUN pnpm install --frozen-lockfile --filter @geekykey/backend
+COPY packages/handoff/package.json packages/handoff/
+RUN pnpm install --frozen-lockfile --filter "@geekykey/backend..."
 
+COPY packages/handoff/ packages/handoff/
 COPY apps/backend/ apps/backend/
 RUN pnpm --filter @geekykey/backend build
 

@@ -52,8 +52,13 @@ export const taps = mysqlTable(
       .references(() => stations.id),
     /** Station-generated ID that makes retries idempotent. Unique per station. */
     clientTapId: varchar("client_tap_id", { length: 128 }).notNull(),
-    tokenUid: tokenUid("token_uid").notNull(),
-    userId: userId("user_id").references(() => users.id),
+    /** No longer written: the Event side never sees a token. Dropped in BAC-36. */
+    tokenUid: tokenUid("token_uid"),
+    /**
+     * The tap's user, with no foreign key, so a tap by someone who has never
+     * logged in to this Event Service is still stored.
+     */
+    userId: userId("user_id"),
     source: mysqlEnum("source", TAP_SOURCES).notNull().default("nfc"),
     status: mysqlEnum("status", STORED_TAP_STATUSES).notNull(),
     /** Device clock time of the tap. Nullable because ESP32 clocks are unreliable. */

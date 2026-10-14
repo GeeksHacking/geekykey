@@ -1,5 +1,7 @@
 import { and, between, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
+import { log } from "../lib/log.ts";
+import { trustedTappedAt } from "../lib/tapped-at.ts";
 import {
   type NewTap,
   type STORED_TAP_STATUSES,
@@ -16,12 +18,10 @@ export type TapResultStatus = StoredTapStatus | "duplicate";
 export interface IncomingTap {
   /** Station-generated ID that makes retries idempotent. Unique per station. */
   clientTapId: string;
-  /** The token's normalised UID, still stored with the tap until BAC-32. */
-  uid: string;
   /** The token's owner. A tap by a token nobody owns never gets this far. */
   userId: string;
   /** Device clock time of the tap, ISO 8601. Optional because ESP32 clocks are unreliable. */
-  tappedAt?: string;
+  tappedAt?: string | null;
 }
 
 export interface TapResult {
@@ -35,14 +35,10 @@ export interface TapPipelineOptions {
   now?: () => Date;
 }
 
-/**
- * A device tapped_at further than this from the server's clock is treated as
- * absent, and the tap is judged by its receipt time instead. An ESP32 that
- * never synced its clock reports 1970, and one wild timestamp would otherwise
- * skew that participant's cooldown at the station for good.
- */
-const MAX_TAP_AGE_MS = 7 * 24 * 60 * 60 * 1000; // an offline buffer may wait days to flush
-const MAX_CLOCK_AHEAD_MS = 5 * 60 * 1000; // a synced clock can still run a little fast
+/** The taps were for a station that isn't one of this Event Service's. Nothing was written. */
+export class UnknownStation extends Error {
+  override name = "UnknownStation";
+}
 
 /** The database inside one ingest's transaction. */
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -50,7 +46,6 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 interface PendingTap {
   index: number;
   clientTapId: string;
-  uid: string;
   tappedAt: string | null;
   /** Time used for ordering and cooldown: device time when given, else server receipt time. */
   effectiveAt: string;
@@ -64,10 +59,11 @@ interface PendingTap {
  * Designed for a remote database: one short transaction that locks the
  * station's row, reads existing IDs and cooldown state, and makes a single
  * multi-row insert. Every non-duplicate tap is stored, including cooldown
- * ones, so organisers can see repeat taps in the log.
+ * ones, so organisers can see repeat taps in the log. Each stored tap gets
+ * a `tap_stored` log line once the transaction commits, so taps lost to a
+ * restore can be rebuilt from the logs.
  *
- * It's still handed each token's UID, to store with the tap. Later in
- * checkpoint 3 it gets only user IDs, and never sees a token.
+ * It sees only users, never a token.
  */
 export class TapPipeline {
   #db: Db;
@@ -89,8 +85,9 @@ export class TapPipeline {
     const now = this.#now();
     const receivedAt = now.toISOString();
 
-    return await this.#db.transaction(async (tx) => {
-      await this.#lockStation(tx, stationId);
+    const stored: PendingTap[] = [];
+    const results = await this.#db.transaction(async (tx) => {
+      if (!(await this.#lockStation(tx, stationId))) throw new UnknownStation();
       const results = Array.from<TapResult>({ length: incoming.length });
 
       // 1. Replays: client IDs already stored for this station, or repeated within this request.
@@ -111,11 +108,10 @@ export class TapPipeline {
           return;
         }
         seen.add(tap.clientTapId);
-        const tappedAt = this.#trustedTappedAt(tap.tappedAt, now);
+        const tappedAt = trustedTappedAt(tap.tappedAt, now);
         pending.push({
           index,
           clientTapId: tap.clientTapId,
-          uid: tap.uid,
           tappedAt,
           effectiveAt: tappedAt ?? receivedAt,
           userId: tap.userId,
@@ -145,7 +141,6 @@ export class TapPipeline {
       const rows: NewTap[] = pending.map((p) => ({
         stationId,
         clientTapId: p.clientTapId,
-        tokenUid: p.uid,
         userId: p.userId,
         source,
         status: p.status,
@@ -166,8 +161,20 @@ export class TapPipeline {
           userId: p.userId,
         };
       }
+      stored.push(...pending);
       return results;
     });
+
+    for (const p of stored) {
+      log("tap_stored", {
+        station_id: stationId,
+        client_tap_id: p.clientTapId,
+        user_id: p.userId,
+        tapped_at: p.tappedAt,
+        status: p.status,
+      });
+    }
+    return results;
   }
 
   /**
@@ -184,24 +191,16 @@ export class TapPipeline {
    * sees the latest rows. (READ COMMITTED would also do it, but Drizzle sets it
    * with a statement of its own before BEGIN, and the locking reads need
    * nothing set.)
+   *
+   * Says whether the station is there to lock.
    */
-  async #lockStation(tx: Tx, stationId: string): Promise<void> {
-    await tx
+  async #lockStation(tx: Tx, stationId: string): Promise<boolean> {
+    const [station] = await tx
       .select({ id: stations.id })
       .from(stations)
       .where(eq(stations.id, stationId))
       .for("update");
-  }
-
-  /** The device time as ISO 8601, or null when it is missing or too far from the server's clock. */
-  #trustedTappedAt(tappedAt: string | undefined, now: Date): string | null {
-    if (!tappedAt) return null;
-    const at = Date.parse(tappedAt);
-    const drift = at - now.getTime();
-    if (Number.isNaN(at) || drift > MAX_CLOCK_AHEAD_MS || -drift > MAX_TAP_AGE_MS) {
-      return null;
-    }
-    return new Date(at).toISOString();
+    return station !== undefined;
   }
 
   #withinCooldown(a: string, b: string): boolean {

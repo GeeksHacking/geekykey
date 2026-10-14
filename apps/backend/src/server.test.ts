@@ -12,6 +12,10 @@ const SETTINGS = {
   DATABASE_URL: localDatabaseUrl("geekykey_test"),
   SESSION_SECRET: "test-secret-at-least-16",
   CLAIMS_STAND_IN_KEY: "c".repeat(64),
+  EVENT_SERVICE_KEY: "e".repeat(64),
+  EVENT_SERVICES: JSON.stringify([
+    { id: "showcase", name: "Capstone Showcase", url: "https://event-api.geekshacking.com" },
+  ]),
   PORT: "0",
 };
 
@@ -100,6 +104,34 @@ test("a CLAIMS_STAND_IN_KEY that isn't 64 hex characters stops the server withou
   assert.doesNotMatch(started.output(), /kQ3v/);
 });
 
+test("the server won't start without EVENT_SERVICE_KEY", async () => {
+  const line = await fatalError(startServer(settingsWithout("EVENT_SERVICE_KEY")));
+  assert.match(String(line.reason), /EVENT_SERVICE_KEY is required/);
+});
+
+test("the server won't start without EVENT_SERVICES", async () => {
+  const line = await fatalError(startServer(settingsWithout("EVENT_SERVICES")));
+  assert.match(String(line.reason), /EVENT_SERVICES is required/);
+});
+
+test("an Event Service on plain http, away from this machine, stops the server", async () => {
+  // The Event Service key goes with every request to it.
+  const url = "http://event-api.geekshacking.com";
+  const started = startServer({
+    ...SETTINGS,
+    EVENT_SERVICES: JSON.stringify([{ id: "showcase", name: "Capstone Showcase", url }]),
+  });
+  const line = await fatalError(started);
+  assert.match(String(line.reason), /EVENT_SERVICES 0\.url: must start with https:\/\//);
+});
+
+test("EVENT_SERVICES that isn't one Event Service stops the server", async () => {
+  for (const eventServices of ["[]", "showcase", '[{"id": "showcase"}]']) {
+    const line = await fatalError(startServer({ ...SETTINGS, EVENT_SERVICES: eventServices }));
+    assert.match(String(line.reason), /^EVENT_SERVICES /, eventServices);
+  }
+});
+
 test("a DATABASE_URL that won't parse stops the server without logging its password", async () => {
   const started = startServer({ ...SETTINGS, DATABASE_URL: "mysql://app:hunter2-not-real@[bad" });
   const line = await fatalError(started);
@@ -107,14 +139,17 @@ test("a DATABASE_URL that won't parse stops the server without logging its passw
   assert.doesNotMatch(started.output(), /hunter2-not-real/);
 });
 
-/** SETTINGS as Cloud Run gives them: the secrets in one APP_SECRETS, and PORT on its own. */
+/** SETTINGS as Cloud Run gives them: the secrets in one APP_SECRETS, and the rest on their own. */
 function bundled(secrets: Record<string, unknown>): Record<string, string> {
-  return { PORT: SETTINGS.PORT, APP_SECRETS: JSON.stringify(secrets) };
+  const { PORT, EVENT_SERVICES } = SETTINGS;
+  return { PORT, EVENT_SERVICES, APP_SECRETS: JSON.stringify(secrets) };
 }
 
 test("the server starts with its secrets in APP_SECRETS", async () => {
-  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY } = SETTINGS;
-  const { listening } = startServer(bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY }));
+  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY, EVENT_SERVICE_KEY } = SETTINGS;
+  const { listening } = startServer(
+    bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY, EVENT_SERVICE_KEY }),
+  );
   const res = await fetch(`${await listening}/api/health`);
   assert.equal(res.status, 200);
 });
@@ -127,25 +162,33 @@ test("an APP_SECRETS that isn't JSON stops the server without logging it", async
 });
 
 test("an APP_SECRETS value that isn't a string stops the server without logging it", async () => {
-  const started = startServer(bundled({ ...SETTINGS, SESSION_SECRET: ["hunter2-not-real"] }));
+  const started = startServer(
+    bundled({ ...SETTINGS, EVENT_SERVICES: undefined, SESSION_SECRET: ["hunter2-not-real"] }),
+  );
   const line = await fatalError(started);
   assert.match(String(line.reason), /SESSION_SECRET in APP_SECRETS must be a string/);
   assert.doesNotMatch(started.output(), /hunter2-not-real/);
 });
 
 test("APP_SECRETS can't hold an ordinary setting, such as DEV_AUTH_ENABLED", async () => {
-  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY } = SETTINGS;
+  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY, EVENT_SERVICE_KEY } = SETTINGS;
   const started = startServer(
-    bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY, DEV_AUTH_ENABLED: "true" }),
+    bundled({
+      DATABASE_URL,
+      SESSION_SECRET,
+      CLAIMS_STAND_IN_KEY,
+      EVENT_SERVICE_KEY,
+      DEV_AUTH_ENABLED: "true",
+    }),
   );
   const line = await fatalError(started);
   assert.match(String(line.reason), /DEV_AUTH_ENABLED can't be in APP_SECRETS/);
 });
 
 test("a secret both in APP_SECRETS and on its own stops the server", async () => {
-  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY } = SETTINGS;
+  const { DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY, EVENT_SERVICE_KEY } = SETTINGS;
   const started = startServer({
-    ...bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY }),
+    ...bundled({ DATABASE_URL, SESSION_SECRET, CLAIMS_STAND_IN_KEY, EVENT_SERVICE_KEY }),
     SESSION_SECRET,
   });
   const line = await fatalError(started);

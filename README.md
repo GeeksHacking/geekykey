@@ -27,6 +27,8 @@ geekykey/
 │   ├── geekykey-web/           GeekyKey screens: the token page and My tokens. Port 5174
 │   ├── backend/                the Node server that stations and the frontend call
 │   └── updates/                progress timeline for our mentors
+├── packages/
+│   └── handoff/                the hand-off's shapes, shared by both sides, and their JSON Schema
 └── firmware/
     └── geekykey_station/       ESP32 reader station
 ```
@@ -43,8 +45,12 @@ geekykey/
 all on mock data. The two sets of screens are separate because they belong to separate
 services. See `apps/API-AGREEMENT.md`.
 
-`pnpm-workspace.yaml` also includes `packages/*`, for code shared between apps. There is
-nothing there yet.
+`pnpm-workspace.yaml` also includes `packages/*`, for code shared between apps.
+`packages/handoff` holds the Zod schemas for what the GeekyKey Service sends an Event Service
+and what it answers (the API agreement's section 11). `apps/backend` bundles it into its
+image. Its `json-schema/` folder holds the same shapes as JSON Schema, for other teams: after
+changing a schema, run `mise exec -- pnpm --filter @geekykey/handoff json-schema` and commit
+what it writes. A test fails while the two differ.
 
 ### How the pieces connect
 
@@ -79,10 +85,12 @@ apps/backend/
 │   ├── app.ts             every route mounted, given the settings and the database
 │   ├── base-app.ts        what every response shares: never cached, errors as JSON, /api/health
 │   ├── config.ts          every setting, with its default
-│   ├── geekykey/          the GeekyKey side: the station routes, the station key check, and
-│   │                      Claims, which asks the claims stand-in who owns each token
-│   ├── event/             the Event side: the tap pipeline, /me, logging in and out, the session,
-│   │                      and its tables (stations, users, taps) in schema.ts
+│   ├── geekykey/          the GeekyKey side: the station routes, the station key check,
+│   │                      Claims, which asks the claims stand-in who owns each token, and
+│   │                      EventService, which hands taps to the Event side
+│   ├── event/             the Event side: the hand-off's routes under /geekykey/v1, the tap
+│   │                      pipeline, /me, logging in and out, the session, and its tables
+│   │                      (stations, users, taps) in schema.ts
 │   ├── claims-stand-in/   who owns each token until the Portal does: its four routes under
 │   │                      /claims-stand-in/v1, and its table (tokens) in schema.ts
 │   ├── db/                the connection pool, the migrator, and the column types both schemas share
@@ -107,16 +115,20 @@ tables in a schema file of their own, and the GeekyKey side has none. Drizzle wr
 set of migrations from both files, since it's one database, and no foreign key crosses
 between them.
 
-The GeekyKey side asks the claims stand-in who owns each token only through the stand-in's
-routes, which check `CLAIMS_STAND_IN_KEY`. Inside the one server it sends them with
-`app.request()`, with the same paths, bodies and key it will send over HTTPS once the
-services run apart, so the key check already runs on production. A station's request gets
-one deadline for it, `TAP_DEADLINE_MS`, 4 seconds: a stand-in that doesn't answer properly
-in time fails the request with `503 claims_unavailable`, and the station keeps its taps.
+The GeekyKey side reaches the other two areas only through their routes. It asks the claims
+stand-in who owns each token, with `CLAIMS_STAND_IN_KEY`, then hands the owners' taps to the
+Event side's `POST /geekykey/v1/taps`, with `EVENT_SERVICE_KEY`, and the Event side stores
+them. Inside the one server it sends both with `app.request()`, with the same paths, bodies
+and keys it will send over HTTPS once the services run apart, so the key checks already run
+on production. The hand-off goes to the one Event Service in the `EVENT_SERVICES` setting,
+the showcase. A station's request gets one deadline for both, `TAP_DEADLINE_MS`, 4 seconds.
+A stand-in that doesn't answer properly in time fails the request with
+`503 claims_unavailable`, and an Event Service with `503 event_service_unavailable`. Either
+way the station keeps its taps, and nothing is retried.
 
-Two places still reach across the areas, and the rest of checkpoint 3 replaces each with the
-request it will send once the services run apart. The station route reads the Event side's
-`stations` to check a key, and calls the tap pipeline itself.
+One place still reaches across the areas: the station route reads the Event side's
+`stations` to check a key. BAC-33 replaces it with the request it will send once the
+services run apart.
 
 Every line the server logs is one JSON object whose `message` is a fixed name, such as
 `server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging
@@ -448,9 +460,12 @@ network, not only your laptop, because real stations call it by the laptop's nam
 anyone on the same Wi-Fi can reach it, dev sign-in included.
 
 `dev.env` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`, which signs in a
-seeded user without a real login, and gives the session secret and the claims stand-in's key
-built-in values. Never turn it on in production. Without it, the backend refuses to start
-unless `SESSION_SECRET` and `CLAIMS_STAND_IN_KEY` are set, the key as 64 hex characters.
+seeded user without a real login, and gives the session secret, the claims stand-in's key,
+the Event Service key and `EVENT_SERVICES` built-in values. Never turn it on in production.
+Without it, the backend refuses to start unless `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`,
+`EVENT_SERVICE_KEY` and `EVENT_SERVICES` are set, each key as 64 hex characters.
+`EVENT_SERVICES` is a JSON list with one Event Service, the showcase, whose address must
+start with `https://` unless it's on your laptop. `infra/production/settings.env` shows it.
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
 connects over TLS, checking the database's certificate and name, unless the address is on
 your laptop, such as `127.0.0.1`.
@@ -583,13 +598,20 @@ mise exec -- pnpm audit --audit-level=high
 mise exec -- pnpm --filter @geekykey/backend lint
 mise exec -- pnpm --filter @geekykey/backend format:check
 mise exec -- pnpm --filter @geekykey/backend typecheck
+mise exec -- pnpm --filter @geekykey/handoff lint                # and the same four for the hand-off package
+mise exec -- pnpm --filter @geekykey/handoff format:check
+mise exec -- pnpm --filter @geekykey/handoff typecheck
+mise exec -- pnpm --filter @geekykey/handoff test
 mise run db:up
 mise run test:backend
 mise exec -- pnpm --filter @geekykey/backend build:image        # the image builds
 docker run --detach --rm --name backend --publish 8000:8000 \
   --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
   --env SESSION_SECRET=ci-stand-in-not-a-secret \
-  --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) geekykey-backend
+  --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
+  --env EVENT_SERVICE_KEY=$(openssl rand -hex 32) \
+  --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"http://localhost:8000"}]' \
+  geekykey-backend
 curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
 docker stop backend
 mise exec -- pnpm --filter @geekykey/backend check:migrations   # every schema change has its migration
@@ -827,9 +849,9 @@ client secret, after the showcase. The migration spec, section 5.2, has the full
    GeekyKey Service and checkpoint 5 for the screens, is rolled back by reverting the
    commit on `main`, which Workers Builds deploys in a few minutes, or by Julian rolling
    back one version.
-6. **The hand-off.** From checkpoint 4, the two services share `packages/handoff`, which
-   doesn't exist yet. A change to it must work with the other service's previous version,
-   because the two deploy separately.
+6. **The hand-off.** The two sides share `packages/handoff`, and from checkpoint 4 the two
+   services do. A change to it must work with the other service's previous version,
+   because from then on the two deploy separately.
 7. **Copies.** Adam takes a copy of production's database before merging a migration, just
    before the test data is cleared, and at the end of the event day. The `db:backup`
    command that takes it is coming. Copies stay on his laptop, never in GitHub or a chat.

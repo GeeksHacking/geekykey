@@ -12,6 +12,10 @@ const LOG_LINES = {
   unknown_token: "INFO",
   // A station request failed because the token owners couldn't be had in time.
   claims_unavailable: "ERROR",
+  // A tap the Event side stored, with enough to store it again after a restore.
+  tap_stored: "INFO",
+  // A station request failed because its Event Service didn't answer the hand-off properly in time.
+  handoff_failed: "ERROR",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;
