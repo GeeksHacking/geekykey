@@ -72,7 +72,7 @@ jobs:
             --env SESSION_SECRET=ci-stand-in-not-a-secret \
             --env CLAIMS_STAND_IN_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             --env EVENT_SERVICE_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
-            --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"http://localhost:8000"}]' \
+            --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"https://event-api.geekshacking.com"}]' \
             geekykey-backend
           curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-all-errors \
             http://localhost:8000/api/health || { docker logs backend; exit 1; }

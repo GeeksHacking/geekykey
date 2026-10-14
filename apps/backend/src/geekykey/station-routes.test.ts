@@ -3,7 +3,12 @@ import { eq } from "drizzle-orm";
 import { onTestFinished, test, vi } from "vitest";
 import type { AppOptions } from "../app.ts";
 import { stations, taps } from "../event/schema.ts";
-import { setupFixture, testApp, TEST_EVENT_SERVICE_KEY } from "../test-helpers.ts";
+import {
+  setupFixture,
+  testApp,
+  TEST_EVENT_SERVICE_KEY,
+  TEST_EVENT_SERVICE_URL,
+} from "../test-helpers.ts";
 
 const app = testApp();
 
@@ -313,10 +318,10 @@ test("the hand-off goes to the Event Service with its key, the station and each 
       { client_tap_id: "t3", uid },
     ],
   });
-  // Once, to the showcase's entry in EVENT_SERVICES, which dev sign-in sets.
+  // Once, to the showcase's entry in EVENT_SERVICES.
   assert.deepEqual(handOffs, [
     {
-      url: "http://localhost:8000/geekykey/v1/taps",
+      url: `${TEST_EVENT_SERVICE_URL}/geekykey/v1/taps`,
       authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}`,
       body: {
         station_id: stationId,
