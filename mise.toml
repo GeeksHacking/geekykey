@@ -1,0 +1,7 @@
+
+# Report. docs/report is a local docdown project (gitignored) linked to the
+# report's Google Docs. Remote edits win when both sides changed.
+
+[tasks."report:sync"]
+description = "Sync docs/report with its Google Docs every 10 seconds, until stopped"
+run = "while true; do docdown sync ./docs/report --on-conflict theirs; sleep 10; done"
