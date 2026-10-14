@@ -8,14 +8,14 @@ describe("service client boundary", () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     const services = createServiceClients(api);
 
-    expect(Object.keys(services)).toEqual(["session", "geekykey", "event"]);
+    expect(Object.keys(services)).toEqual(["session", "event"]);
     expect(Object.keys(services.session).sort()).toEqual(
       ["devLogin", "loginUrl", "logout", "me"].sort(),
     );
-    expect(Object.keys(services.geekykey).sort()).toEqual(["createStation", "listStations"].sort());
     expect(Object.keys(services.event).sort()).toEqual(
       [
         "createFallbackTap",
+        "createStation",
         "exportCsv",
         "listStationBoard",
         "listTaps",
@@ -23,5 +23,14 @@ describe("service client boundary", () => {
         "stats",
       ].sort(),
     );
+  });
+
+  it("has no GeekyKey slice, because the Event screens make no GeekyKey call", () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    const services = createServiceClients(api);
+
+    // Agreement 9.2 and 9.7 to 9.9 put every station call on the Event Service. The
+    // GeekyKey Service owns token claims and releases, which this app never calls.
+    expect(Object.keys(services)).not.toContain("geekykey");
   });
 });

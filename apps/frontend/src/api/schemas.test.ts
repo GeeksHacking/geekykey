@@ -69,15 +69,17 @@ describe("me response contract", () => {
     ).toThrow(NetworkError);
   });
 
-  it("validates the v0.2 station board", () => {
+  it("validates the station board", () => {
     const board = {
-      status_known: true,
       stations: [
         {
           id: "s1",
           label: "Station 1",
-          linked: true,
+          created_at: "2026-10-01T02:00:00.000Z",
+          disabled_at: null,
           passport: null,
+          // A station created by 9.7 and not yet heard from: no hand-off, so no
+          // last_seen_at, and it reads as offline.
           last_seen_at: null,
           online: false,
           firmware_version: null,
@@ -90,6 +92,69 @@ describe("me response contract", () => {
 
     expect(eventStationBoardResponseSchema.safeParse(board).success).toBe(true);
     expect(parseEventStationBoardResponse(board)).toEqual(board);
+  });
+
+  it("drops the fields version 0.3 removed, rather than passing them on", () => {
+    const station = {
+      id: "s1",
+      label: "Station 1",
+      created_at: "2026-10-01T02:00:00.000Z",
+      disabled_at: null,
+      passport: null,
+      last_seen_at: null,
+      online: false,
+      firmware_version: null,
+      buffered_taps: 0,
+      reader_ok: null,
+      last_tap_at: null,
+    };
+
+    // The schema is not strict, so a service still sending the old fields parses and they
+    // are dropped. Nothing downstream can read them, which is what acceptance criterion 1
+    // asks for.
+    const parsed = parseEventStationBoardResponse({
+      status_known: true,
+      stations: [{ ...station, linked: true }],
+    });
+    expect(parsed).not.toHaveProperty("status_known");
+    expect(parsed.stations[0]).not.toHaveProperty("linked");
+  });
+
+  it("rejects a station that is missing created_at or disabled_at, or nulls a required field", () => {
+    const station = {
+      id: "s1",
+      label: "Station 1",
+      created_at: "2026-10-01T02:00:00.000Z",
+      disabled_at: null,
+      passport: null,
+      last_seen_at: null,
+      online: false,
+      firmware_version: null,
+      buffered_taps: 0,
+      reader_ok: null,
+      last_tap_at: null,
+    };
+
+    // The two new fields are required, disabled_at included: 9.2 sends null while enabled.
+    expect(
+      eventStationBoardResponseSchema.safeParse({
+        stations: [{ ...station, created_at: undefined }],
+      }).success,
+    ).toBe(false);
+    expect(
+      eventStationBoardResponseSchema.safeParse({
+        stations: [{ ...station, disabled_at: undefined }],
+      }).success,
+    ).toBe(false);
+    // label and online went from nullable to always present.
+    expect(
+      eventStationBoardResponseSchema.safeParse({ stations: [{ ...station, label: null }] })
+        .success,
+    ).toBe(false);
+    expect(
+      eventStationBoardResponseSchema.safeParse({ stations: [{ ...station, online: null }] })
+        .success,
+    ).toBe(false);
   });
 
   it("rejects a response with a missing required field", () => {

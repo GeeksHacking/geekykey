@@ -5,7 +5,6 @@ import type {
   CreateStationResponse,
   ErrorCode,
   FallbackTapResponse,
-  ListStationsResponse,
   ListTapsQuery,
   ListTapsResponse,
   SetStationPassportResponse,
@@ -113,11 +112,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     // A URL for the browser to visit, not a request, so this one needs no send().
     loginUrl: (returnTo) => `${baseUrl}/auth/login?return_to=${encodeURIComponent(returnTo)}`,
 
-    listStations: () => sendJson<ListStationsResponse>("/api/v1/admin/stations"),
-
+    // Agreement 9.2. The Event Service answers with its own registered stations, so
+    // this is the only call to this path that reads.
     listStationBoard: () =>
       sendJson<unknown>("/api/v1/admin/stations").then(parseEventStationBoardResponse),
 
+    // Agreement 9.7. The response is the one place the key is ever sent.
     createStation: (input) =>
       sendJson<CreateStationResponse>("/api/v1/admin/stations", postJson(input)),
 

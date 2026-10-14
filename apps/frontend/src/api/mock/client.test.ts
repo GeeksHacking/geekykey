@@ -54,18 +54,21 @@ describe("sessions and roles", () => {
   it("gives participants 403 on organiser endpoints", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);
-    await expectApiError(api.listStations(), "forbidden", 403);
+    await expectApiError(api.listStationBoard(), "forbidden", 403);
   });
 
   it("returns a stamp slot for each passport station, in the order settings were added", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);
     const me = await api.me();
+    // "Info Desk" is the disabled fixture. It keeps its slot and its stamps (agreement
+    // 9.2), and its settings were added last, so it comes last.
     expect(me.stamps.map((s) => s.name)).toEqual([
       "Cloud Sponsor",
       "3D Printing Booth",
       "Mentor Lounge",
       "Careers Corner",
+      "Info Desk",
     ]);
     expect(me.stamps.some((s) => s.earned_at === null)).toBe(true);
     expect(me.stamps.some((s) => s.earned_at !== null)).toBe(true);
@@ -81,20 +84,47 @@ describe("sessions and roles", () => {
 });
 
 describe("station board", () => {
-  it("covers linked, passport, offline, buffered, and reader states", async () => {
+  it("covers passport, disabled, offline, buffered, and reader states", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const board = await api.listStationBoard();
 
-    expect(board.status_known).toBe(true);
-    expect(board.stations.some((station) => station.passport === null && station.linked)).toBe(
-      true,
-    );
-    expect(board.stations.some((station) => station.linked === false)).toBe(true);
+    expect(board.stations.some((station) => station.passport === null)).toBe(true);
+    expect(board.stations.some((station) => station.disabled_at !== null)).toBe(true);
     expect(board.stations.some((station) => station.online === false)).toBe(true);
     expect(board.stations.some((station) => (station.buffered_taps ?? 0) > 0)).toBe(true);
     expect(board.stations.some((station) => station.reader_ok === false)).toBe(true);
     expect(board.stations.some((station) => station.last_tap_at !== null)).toBe(true);
+    // The three heartbeat fields are null until a heartbeat reports them (agreement 9.2).
+    expect(board.stations.some((station) => station.reader_ok === null)).toBe(true);
+  });
+
+  it("gives every station a label, a created_at, and no linked or status_known", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.listStationBoard();
+
+    expect(board).not.toHaveProperty("status_known");
+    for (const station of board.stations) {
+      expect(station).not.toHaveProperty("linked");
+      expect(station.label).not.toBe("");
+      expect(station.created_at).not.toBe("");
+    }
+  });
+
+  it("reads a station that has never handed off as offline, with no last_seen_at", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    await api.createStation({ label: "Reader 9" });
+
+    const board = await api.listStationBoard();
+    const fresh = board.stations.find((station) => station.label === "Reader 9")!;
+    // Agreement 9.2: last_seen_at is set by every hand-off, and 9.7 registers the station
+    // at once, so a brand new one has none and is offline until it sends something.
+    expect(fresh.last_seen_at).toBeNull();
+    expect(fresh.online).toBe(false);
+    expect(fresh.passport).toBeNull();
+    expect(fresh.disabled_at).toBeNull();
   });
 });
 
@@ -123,7 +153,7 @@ describe("QR fallback", () => {
   it("accepts once, then cooldown for the same participant at the same station", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
+    const station = api.mock.data.stations.find((s) => s.passport?.name === "3D Printing Booth")!;
     const first = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
     expect(first.result.status).toBe("accepted");
     const second = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
@@ -133,7 +163,7 @@ describe("QR fallback", () => {
   it("accepts a known user_id fallback", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
+    const station = api.mock.data.stations.find((s) => s.passport?.name === "3D Printing Booth")!;
     const result = await api.createFallbackTap({ station_id: station.id, user_id: "u_2e8b" });
     const stored = api.mock.data.taps.find((tap) => tap.id === result.result.id)!;
     expect(result.result.status).toBe("accepted");
@@ -143,7 +173,7 @@ describe("QR fallback", () => {
   it("accepts a user ID that has never logged in", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
+    const station = api.mock.data.stations.find((s) => s.passport?.name === "3D Printing Booth")!;
     const result = await api.createFallbackTap({ station_id: station.id, user_id: "new-user-123" });
     expect(result.result.status).toBe("accepted");
     expect(api.mock.data.taps.find((tap) => tap.id === result.result.id)?.user_id).toBe(
@@ -154,7 +184,7 @@ describe("QR fallback", () => {
   it("rejects a blank user ID", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations.find((s) => s.name === "3D Printing Booth")!;
+    const station = api.mock.data.stations.find((s) => s.passport?.name === "3D Printing Booth")!;
     await expectApiError(
       api.createFallbackTap({ station_id: station.id, user_id: " " }),
       "validation_failed",
@@ -174,15 +204,26 @@ describe("QR fallback", () => {
 });
 
 describe("station keys and export", () => {
-  it("returns the key once, prefixed, and never in the list", async () => {
+  it("returns the key once, prefixed, and never in the board", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const created = await api.createStation({ name: "Robotics Corner", points: 2 });
+    const created = await api.createStation({ label: "Robotics Corner" });
     expect(created.api_key.startsWith("gk_sta_")).toBe(true);
-    const list = await api.listStations();
-    const listed = list.stations.find((s) => s.id === created.station.id);
+    // Agreement 9.7: the station joins the board at once with no passport settings, so its
+    // taps get no_game until 9.1 adds them.
+    expect(created.station.passport).toBeNull();
+    const board = await api.listStationBoard();
+    const listed = board.stations.find((s) => s.id === created.station.id);
     expect(listed).toBeDefined();
-    expect(JSON.stringify(listed)).not.toContain(created.api_key);
+    expect(listed?.label).toBe("Robotics Corner");
+    expect(JSON.stringify(board)).not.toContain(created.api_key);
+  });
+
+  it("rejects a blank or over-long label (agreement 9.7)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    await expectApiError(api.createStation({ label: "  " }), "validation_failed", 400);
+    await expectApiError(api.createStation({ label: "x".repeat(81) }), "validation_failed", 400);
   });
 
   it("exports the agreed ten CSV columns, in order", async () => {

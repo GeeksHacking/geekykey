@@ -4,17 +4,14 @@ import type { ApiClient } from "@/api/client";
 export type SessionApi = Pick<ApiClient, "me" | "devLogin" | "logout" | "loginUrl">;
 
 /**
- * The GeekyKey Service owns token claims and releases. Section 10 has held no
- * endpoints since version 0.3, so the station registry is not here: each Event
- * Service registers and issues its own stations (9.7 to 9.9), and the GeekyKey
- * Service keeps only a copy in memory of what they registered.
+ * The Event Service owns every station call, 9.2 and 9.7 to 9.9, plus the tap log, stats,
+ * the export and the fallback. Version 0.3 left the GeekyKey Service with token claims and
+ * releases, which the Event screens never call, so there is no GeekyKey slice here.
  */
-export type GeekyKeyApi = Pick<ApiClient, "listStations" | "createStation">;
-
-/** The Event Service owns the station board, the tap log, stats, export, and fallback. */
 export type EventApi = Pick<
   ApiClient,
   | "listStationBoard"
+  | "createStation"
   | "setStationPassport"
   | "listTaps"
   | "createFallbackTap"
@@ -24,7 +21,6 @@ export type EventApi = Pick<
 
 export interface ServiceClientBundle {
   session: SessionApi;
-  geekykey: GeekyKeyApi;
   event: EventApi;
 }
 
@@ -40,12 +36,9 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       logout: api.logout.bind(api),
       loginUrl: api.loginUrl.bind(api),
     },
-    geekykey: {
-      listStations: api.listStations.bind(api),
-      createStation: api.createStation.bind(api),
-    },
     event: {
       listStationBoard: api.listStationBoard.bind(api),
+      createStation: api.createStation.bind(api),
       setStationPassport: api.setStationPassport.bind(api),
       listTaps: api.listTaps.bind(api),
       createFallbackTap: api.createFallbackTap.bind(api),

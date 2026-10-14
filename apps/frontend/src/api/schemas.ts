@@ -41,11 +41,12 @@ const eventPassportSchema = z.object({
 
 const eventStationBoardStationSchema = z.object({
   id: z.string(),
-  label: z.string().nullable(),
-  linked: z.boolean().nullable(),
+  label: z.string(),
+  created_at: isoTimestamp,
+  disabled_at: isoTimestamp.nullable(),
   passport: eventPassportSchema.nullable(),
   last_seen_at: isoTimestamp.nullable(),
-  online: z.boolean().nullable(),
+  online: z.boolean(),
   firmware_version: z.string().nullable(),
   buffered_taps: z.number().int().nonnegative().nullable(),
   reader_ok: z.boolean().nullable(),
@@ -53,7 +54,6 @@ const eventStationBoardStationSchema = z.object({
 });
 
 export const eventStationBoardResponseSchema: z.ZodType<EventStationBoardResponse> = z.object({
-  status_known: z.boolean(),
   stations: z.array(eventStationBoardStationSchema),
 });
 

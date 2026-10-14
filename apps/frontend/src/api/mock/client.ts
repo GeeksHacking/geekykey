@@ -19,12 +19,10 @@ import {
   type FallbackTapRequest,
   type FallbackTapResponse,
   type FallbackTapStatus,
-  type ListStationsResponse,
   type ListTapsQuery,
   type ListTapsResponse,
   type MeResponse,
   type SetStationPassportResponse,
-  type Station,
   type StatsResponse,
   type TapStatus,
 } from "@/api/types";
@@ -76,11 +74,6 @@ export interface MockControls {
   failNext(failure: MockFailure): void;
   /** Sign in without going through devLogin. Tests only. */
   setSession(userId: string | null): void;
-  /**
-   * Make the station board behave as if the GeekyKey Service's status call failed,
-   * so every status field comes back null (agreement 9.2). Tests and manual checks.
-   */
-  setStatusKnown(statusKnown: boolean): void;
   readonly data: MockData;
   stop(): void;
 }
@@ -95,7 +88,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;
   let pendingFailure: MockFailure | null = null;
-  let statusKnown = true;
   let nextTapId = data.taps.reduce((max, tap) => Math.max(max, tap.id), 0) + 1;
 
   const iso = (ms: number) => new Date(ms).toISOString();
@@ -161,50 +153,29 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return stored;
   }
 
-  function toStation(station: MockStation): Station {
-    const seen = station.last_seen_at ? new Date(station.last_seen_at).getTime() : null;
-    return {
-      id: station.id,
-      name: station.name,
-      location: station.location,
-      points: station.points,
-      created_at: station.created_at,
-      last_seen_at: station.last_seen_at,
-      online: seen !== null && now() - seen < STATION_ONLINE_WINDOW_MS,
-    };
-  }
-
+  /**
+   * Agreement 9.2. Every field comes from the Event Service's own station row, since
+   * version 0.3 removed the status call this board used to sit behind. `online` is
+   * recomputed on each read so a poll reflects the wall clock, and a station that has
+   * never handed off reads as offline.
+   */
   function toStationBoardStation(station: MockStation): EventStationBoardStation {
     const lastTap = data.taps
       .filter((tap) => tap.station_id === station.id && tap.source === "nfc")
       .sort((a, b) => b.received_at.localeCompare(a.received_at))[0];
-    const full = {
+    const seen = station.last_seen_at ? new Date(station.last_seen_at).getTime() : null;
+    return {
       id: station.id,
       label: station.label,
-      linked: station.linked,
+      created_at: station.created_at,
+      disabled_at: station.disabled_at,
       passport: station.passport,
       last_seen_at: station.last_seen_at,
-      online: toStation(station).online,
+      online: seen !== null && now() - seen < STATION_ONLINE_WINDOW_MS,
       firmware_version: station.firmware_version,
       buffered_taps: station.buffered_taps,
       reader_ok: station.reader_ok,
       last_tap_at: lastTap?.received_at ?? null,
-    };
-
-    // A failed status call nulls every field the GeekyKey Service owns. Passport
-    // settings and the last tap come from the Event Service, so they survive
-    // (agreement 9.2).
-    if (statusKnown) return full;
-
-    return {
-      ...full,
-      label: null,
-      linked: null,
-      last_seen_at: null,
-      online: null,
-      firmware_version: null,
-      buffered_taps: null,
-      reader_ok: null,
     };
   }
 
@@ -282,49 +253,36 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
     loginUrl: (returnTo) => `/auth/login?return_to=${encodeURIComponent(returnTo)}`,
 
-    listStations: () =>
-      call((): ListStationsResponse => {
-        currentOrganizer();
-        return { stations: data.stations.map(toStation) };
-      }),
-
     listStationBoard: () =>
       call((): EventStationBoardResponse => {
         currentOrganizer();
-        return {
-          status_known: statusKnown,
-          stations: data.stations.map(toStationBoardStation),
-        };
+        return { stations: data.stations.map(toStationBoardStation) };
       }),
 
+    // Agreement 9.7. The label is the device's name and the only field, so a new
+    // station has no passport settings yet and reads as "Not in the passport".
     createStation: (input: CreateStationRequest) =>
       call((): CreateStationResponse => {
         currentOrganizer();
         const issues: ApiIssue[] = [];
-        const name = input.name.trim();
-        if (name.length < 1 || name.length > 80)
-          issues.push({ path: ["name"], message: "name must be 1 to 80 characters" });
-        const points = input.points ?? 1;
-        if (!Number.isInteger(points) || points < 0)
-          issues.push({ path: ["points"], message: "points must be an integer of 0 or more" });
+        const label = input.label.trim();
+        if (label.length < 1 || label.length > 80)
+          issues.push({ path: ["label"], message: "label must be 1 to 80 characters" });
         if (issues.length) fail("validation_failed", issues);
         const station: MockStation = {
           id: crypto.randomUUID(),
-          name,
-          location: input.location?.trim() || null,
-          points,
+          label,
           created_at: iso(now()),
+          disabled_at: null,
+          passport: null,
           last_seen_at: null,
           simulate_online: false,
-          label: name,
-          linked: true,
-          passport: null,
           firmware_version: null,
           buffered_taps: 0,
           reader_ok: null,
         };
         data.stations.push(station);
-        return { station: toStation(station), api_key: `gk_sta_${randomBase62(40)}` };
+        return { station: toStationBoardStation(station), api_key: `gk_sta_${randomBase62(40)}` };
       }),
 
     setStationPassport: (stationId, input) =>
@@ -420,7 +378,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             const here = accepted.filter((t) => t.station_id === station.id);
             return {
               station_id: station.id,
-              name: station.name,
+              name: station.passport?.name ?? station.label,
               accepted_taps: here.length,
               unique_participants: unique(here),
             };
@@ -490,9 +448,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         pendingFailure = failure;
       },
       setSession,
-      setStatusKnown: (known) => {
-        statusKnown = known;
-      },
       data,
       stop: () => {
         if (timer) clearInterval(timer);
