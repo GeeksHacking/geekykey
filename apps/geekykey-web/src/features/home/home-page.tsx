@@ -11,7 +11,7 @@ export function HomePage() {
 
   return (
     <main className="flex flex-col">
-      <h1 className="text-3xl font-semibold tracking-tight">My tokens</h1>
+      <h1 className="text-3xl font-semibold tracking-heading">My tokens</h1>
       <p className="mt-4 max-w-xl text-muted-foreground">
         Signed in as <span className="font-mono">{session.me?.user.id}</span>
         {session.me?.user.is_geekykey_admin ? ", a GeekyKey admin." : "."}

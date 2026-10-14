@@ -14,13 +14,13 @@ export function PointsSummary({ points, stamps }: PointsSummaryProps) {
     <section aria-label="Points and stamps" className="grid gap-6 sm:grid-cols-2 sm:gap-8">
       <div>
         <p className="text-sm text-muted-foreground">Points</p>
-        <p className="mt-1 font-mono text-5xl font-semibold tracking-tight">
+        <p className="mt-1 font-mono text-5xl font-semibold tracking-heading">
           {formatCount(points)}
         </p>
       </div>
       <div>
         <p className="text-sm text-muted-foreground">Stamps</p>
-        <p className="mt-1 font-mono text-5xl font-semibold tracking-tight">
+        <p className="mt-1 font-mono text-5xl font-semibold tracking-heading">
           {earned}
           <span className="text-2xl text-muted-foreground"> / {stamps.length}</span>
         </p>

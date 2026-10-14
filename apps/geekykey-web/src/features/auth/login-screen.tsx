@@ -33,7 +33,7 @@ export function LoginScreen({ returnTo }: { returnTo?: string }) {
         <ThemeToggle />
       </div>
       <Wordmark size="lg" />
-      <h1 className="mt-10 text-3xl font-semibold tracking-tight">Sign in to GeekyKey</h1>
+      <h1 className="mt-10 text-3xl font-semibold tracking-heading">Sign in to GeekyKey</h1>
       <p className="mt-3 text-muted-foreground">
         Sign in with your GeeksHacking account to see your tokens.
       </p>

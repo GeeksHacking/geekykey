@@ -11,7 +11,7 @@ export function ForbiddenView() {
       <div className="flex max-w-sm flex-col items-center">
         <Wordmark />
         <Prohibit className="mt-8 h-10 w-10 text-muted-foreground" aria-hidden />
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Organisers only</h1>
+        <h1 className="mt-4 text-2xl font-semibold tracking-heading">Organisers only</h1>
         <p className="mt-2 text-muted-foreground">
           This console is for the event team. Your account does not have organiser access. If you
           are helping run the event, ask the lead organiser to update your role.

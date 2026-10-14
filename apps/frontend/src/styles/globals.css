@@ -6,14 +6,19 @@
 
 /*
   Design tokens. shadcn convention: HSL channels without the hsl() wrapper.
-  Zinc neutrals, one accent, three status colours. Both themes here.
+  The GeeksHacking branding kit's greys, one accent, three status colours. Both themes here.
 
-  The accent is the GeeksHacking yellow, #F9F668 (59 92% 69%). It is a fill colour: buttons,
-  tiles, glyph blocks, always with near-black text on it. Two rules make it work on light:
-  - --primary-edge: a charcoal 1px edge on yellow fills, because yellow against off-white
-    has no luminance contrast. On dark the edge equals the fill, so it disappears.
-  - --primary-text: what links, icons, and active labels use. Yellow on dark, a darkened
-    yellow on light (5.2:1 on the background). Never yellow text on a light surface.
+  The accent is the kit's yellow, #FFF200 (57 100% 50%). It is a fill colour: buttons,
+  tiles, glyph blocks, the current nav item, always with #1C1B1B text on it (14.7:1). Two
+  rules make it work on light:
+  - --primary-edge: a #1C1B1B 1px edge on yellow fills, because yellow on the #F5F5F5 page
+    is 1.07:1. The kit outlines its own components the same way. On dark the edge equals
+    the fill, so it disappears.
+  - --primary-text: what links, icons, and active labels use. Yellow on dark, #706B00 on
+    light (5.1:1 on the background). Never yellow text on a light surface.
+
+  The kit has no dark theme and no secondary text colour that passes on light. Both are
+  derived from its darkest colours below, with the contrast each one reaches.
 */
 
 /*
@@ -22,7 +27,7 @@
   `inline` makes each utility use the var() itself, so the .dark values still apply.
 */
 @theme inline {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Open Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-border: hsl(var(--border));
@@ -53,79 +58,92 @@
   --color-status-cooldown: hsl(var(--status-cooldown));
   --color-status-unknown: hsl(var(--status-unknown));
 
+  /* The kit's 0.5px letter spacing, for headings and the large figures. */
+  --tracking-heading: 0.5px;
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 }
 @layer base {
   :root {
-    --background: 240 5% 96.5%;
-    --foreground: 240 10% 5%;
+    /* #1C1B1B text on the #F5F5F5 page. Cards a step lighter, never pure #fff. */
+    --background: 0 0% 96%;
+    --foreground: 0 1.8% 10.8%;
 
-    --card: 240 5% 99%;
-    --card-foreground: 240 10% 5%;
+    --card: 0 0% 98.4%;
+    --card-foreground: 0 1.8% 10.8%;
 
-    --popover: 240 5% 99%;
-    --popover-foreground: 240 10% 5%;
+    --popover: 0 0% 98.4%;
+    --popover-foreground: 0 1.8% 10.8%;
 
-    --primary: 59 92% 69%;
-    --primary-foreground: 240 10% 6%;
-    --primary-text: 50 100% 24%;
-    --primary-edge: 240 6% 22%;
+    --primary: 57 100% 50%;
+    --primary-foreground: 0 1.8% 10.8%;
+    /* #706B00: the kit's yellow darkened at its own hue, 5.1:1 on the background. */
+    --primary-text: 57 100% 22%;
+    --primary-edge: 0 1.8% 10.8%;
 
-    --secondary: 240 5% 90%;
-    --secondary-foreground: 240 6% 12%;
+    --secondary: 0 0% 91%;
+    --secondary-foreground: 0 1.8% 10.8%;
 
-    --muted: 240 5% 91%;
-    --muted-foreground: 240 4% 38%;
+    --muted: 0 0% 91%;
+    /* #5C5B5D, 6.2:1. The kit's grey #A09FA0 is 2.4:1 here, so a step from its #403F41. */
+    --muted-foreground: 270 1% 36%;
 
-    --accent: 240 5% 91%;
-    --accent-foreground: 240 6% 12%;
+    /* Hover and selected rows take the kit's palest yellow, #FFFCC2. */
+    --accent: 57 100% 88%;
+    --accent-foreground: 0 1.8% 10.8%;
 
     --destructive: 0 70% 42%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 6% 85%;
-    --input: 240 6% 80%;
-    --ring: 50 100% 24%;
+    /* Dividers and card edges in #CFCFCF; controls outlined in #403F41 (9.6:1). */
+    --border: 0 0% 81%;
+    --input: 270 1.6% 25.1%;
+    --ring: 57 100% 22%;
 
     --status-accepted: 152 62% 30%;
     --status-cooldown: 22 88% 36%;
     --status-unknown: 0 68% 44%;
 
-    --radius: 0.5rem;
+    /* The kit's 12px corner on cards and inputs, so buttons and badges get 10px. */
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 240 6% 7%;
-    --foreground: 240 5% 93%;
+    /* Built from the kit's darkest colours: #0A060F page, #1C1B1B cards. */
+    --background: 267 43% 4%;
+    --foreground: 0 0% 96%;
 
-    --card: 240 5% 10%;
-    --card-foreground: 240 5% 93%;
+    --card: 0 1.8% 10.8%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 240 5% 9%;
-    --popover-foreground: 240 5% 93%;
+    --popover: 0 1.8% 10.8%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 59 92% 69%;
-    --primary-foreground: 240 10% 6%;
-    --primary-text: 59 92% 69%;
-    --primary-edge: 59 92% 69%;
+    --primary: 57 100% 50%;
+    --primary-foreground: 0 1.8% 10.8%;
+    --primary-text: 57 100% 50%;
+    --primary-edge: 57 100% 50%;
 
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 240 5% 93%;
+    --secondary: 270 2% 16%;
+    --secondary-foreground: 0 0% 96%;
 
-    --muted: 240 4% 15%;
-    --muted-foreground: 240 5% 66%;
+    --muted: 270 2% 16%;
+    /* The kit's #A09FA0 passes on dark: 6.5:1 on the cards. */
+    --muted-foreground: 300 0.5% 62.5%;
 
-    --accent: 240 4% 16%;
-    --accent-foreground: 240 5% 93%;
+    --accent: 270 2% 16%;
+    --accent-foreground: 0 0% 96%;
 
     --destructive: 0 66% 58%;
     --destructive-foreground: 240 10% 6%;
 
-    --border: 240 4% 18%;
-    --input: 240 4% 24%;
-    --ring: 59 92% 69%;
+    /* #403F41 for edges; the kit's #29282A disappears against the cards. */
+    --border: 270 1.6% 25.1%;
+    /* #6B6A6C, 3.2:1 on the cards: the 3:1 minimum for a control's outline. */
+    --input: 270 1% 42%;
+    --ring: 57 100% 50%;
 
     --status-accepted: 152 56% 54%;
     --status-cooldown: 24 92% 62%;
@@ -145,7 +163,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "cv11", "ss01";
   }
   /* Tailwind 4 gives buttons the default arrow cursor. Keep the pointer, as in Tailwind 3. */
   button:not(:disabled),
