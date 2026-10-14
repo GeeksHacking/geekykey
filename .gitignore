@@ -31,3 +31,7 @@ skills-lock.json
 
 # local report sync
 docs/report
+
+# Ethan's personal agent skills. The shared ones in .agents/skills/ are tracked;
+# these are local only and never go to GitHub.
+.agents/personal/

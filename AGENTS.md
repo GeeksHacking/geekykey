@@ -14,6 +14,18 @@ The five default labels, each named after its role (`needs-triage`, `needs-info`
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+### Personal skills
+
+`.agents/personal/` holds Ethan's own skills for this repo, and it is gitignored, so it never
+reaches GitHub and a fresh clone will not have it. That is deliberate: anything personal is
+written there instead of in `.agents/skills/`, which is the shared, tracked set that the team
+installs from.
+
+Nothing in `.agents/personal/` is a source of product truth. Those skills record how to work
+in this repo, and the sources below still say what to build. [`source-truth-check`](.agents/personal/source-truth-check/SKILL.md)
+is the one to read before answering anything about the contract, the architecture, a date or a
+ticket's state. Add further personal skills as new folders beside it.
+
 ### Source of truth
 
 In order: the API agreement, then the spec, then `CONTEXT.md` and the ADRs, with Linear and our own notes below all of them. Code and tests rank last.
