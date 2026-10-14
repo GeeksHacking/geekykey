@@ -130,7 +130,8 @@ A station's key is checked against the GeekyKey side's copy of the stations each
 Service has registered, which it fills from the Event side's `GET /geekykey/v1/stations`,
 also with `EVENT_SERVICE_KEY`. The copy is kept in memory. A server fills it on the first
 station request after it starts, within the same deadline, and refreshes it at most once a
-minute after that. So a new, replaced or disabled station key takes up to a minute to take
+minute after that. A list that doesn't come back is asked for again at most once a minute
+too, whatever keys arrive. So a new, replaced or disabled station key takes up to a minute to take
 effect. The GeekyKey side reads no table.
 
 Every line the server logs is one JSON object whose `message` is a fixed name, such as

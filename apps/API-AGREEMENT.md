@@ -436,8 +436,8 @@ item has a [`tap_status`](#tap_status).
    then from the Portal. A token nobody has claimed gets `unknown_token`.
 3. It hands every other tap to the Event Service that registered the station in one call, the
    hand-off (11.2), and passes back the statuses it answers unchanged.
-4. Steps 2 and 3 share one deadline of 4 seconds (11.5, provisional). If the owners can't be
-   found properly in time, the whole request fails with `503 claims_unavailable`. If the Event
+4. Steps 2 and 3 share one deadline of 4 seconds (11.5, provisional), with filling an empty
+   copy of the registered stations in step 1. If the owners can't be found properly in time, the whole request fails with `503 claims_unavailable`. If the Event
    Service doesn't answer properly in what's left, it fails with
    `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
@@ -1066,7 +1066,8 @@ Service's list in memory, fills it when it's empty, and refreshes it at most onc
   are, with the `gk_sta_` prefix.
 - When this call fails, the GeekyKey Service keeps the last list it had from you. While it has
   none, a station whose key isn't on another list gets `503 event_service_unavailable`, not
-  `401`. Filling an empty copy counts against the same deadline as a tap (11.5).
+  `401`, and it asks you again at most once a minute, whatever keys arrive. Filling an empty
+  copy counts against the same deadline as a tap (11.5).
 
 **Errors:** `invalid_event_service_key`.
 
@@ -1150,8 +1151,9 @@ failed may still have stored some of its taps (11.5).
 
 ### 11.5 The 4-second deadline
 
-The GeekyKey Service gives each station request one deadline of 4 seconds for finding the tokens'
-owners and the hand-off together, so the hand-off gets whatever the owner lookup leaves. The
+The GeekyKey Service gives each station request one deadline of 4 seconds for filling an empty
+copy of the registered stations (11.1), finding the tokens' owners and the hand-off together, so
+each step gets whatever the ones before it leave. The
 station waits 5. Provisional until our first deploy measures a cold start: a cold start lands on
 the first call that wakes a server, so keep yours warm on event days, or able to answer from
 cold within about 3 seconds.
@@ -1311,4 +1313,4 @@ Closed on 2026-10-10:
 | 2026-10-13 | The claim's checks run in a stated order (8.2): already yours, then the 3-token limit, then `token_taken`, so a user holding 3 hears about the limit even for someone else's token, as the migration spec says. Section 13 sets the `token_taken` sentence, "Someone else already claimed this token.", and keeps it above the token page's fresh lookup even when that lookup says `nobody`. No endpoint or shape changes. |
 | 2026-10-13 | Today's backend now finds each token's owner as 6.1's step 2 says, from the claims stand-in within the 4-second deadline, and answers `503 claims_unavailable` when it can't. `unknown_token` taps are logged and no longer stored (6.1, and `tap_status` in section 4). The Event Service's `GET /api/v1/me` no longer returns `tokens` (8.1), one of the removals version 0.2 allowed. The agreed shapes don't change; only the notes on how today's backend still differs do (BAC-31). |
 | 2026-10-14 | The hand-off, `POST /geekykey/v1/taps` (11.2), is `Implemented`, inside the one server: today's backend now hands each station's claimed taps to its Event Service through it, with the Event Service key, and answers `503 event_service_unavailable` when the hand-off fails (6.1). Its Zod schemas are in `packages/handoff`, and their JSON Schema in `packages/handoff/json-schema/` (11.7). Two rules added to 11.2: a `user_id` is 1 to 128 characters, as a Firebase user ID is, and ours answers `validation_failed` for a `station_id` that isn't its own. The fields don't change, but a `user_id` over 128 characters is now refused (BAC-32). |
-| 2026-10-14 | The registered stations, `GET /geekykey/v1/stations` (11.1), are `Implemented`, inside the one server. Today's backend checks a station's key against its copy of them instead of reading its own stations, so steps 1 to 4 of 6.1 now work as written: `401 invalid_station_key` only when every list is in hand, and `503 event_service_unavailable` while one is missing. Ours leaves out a station whose `disabled_at` is set, though nothing sets it until the organizers' endpoint to disable one (9.9). The answer's Zod schema is in `packages/handoff`, and its JSON Schema in `packages/handoff/json-schema/stations-answer.schema.json` (11.7). No shape changes (BAC-33). |
+| 2026-10-14 | The registered stations, `GET /geekykey/v1/stations` (11.1), are `Implemented`, inside the one server. Today's backend checks a station's key against its copy of them instead of reading its own stations, so steps 1 to 4 of 6.1 now work as written: `401 invalid_station_key` only when every list is in hand, and `503 event_service_unavailable` while one is missing. Ours leaves out a station whose `disabled_at` is set, though nothing sets it until the organizers' endpoint to disable one (9.9). The answer's Zod schema is in `packages/handoff`, and its JSON Schema in `packages/handoff/json-schema/stations-answer.schema.json` (11.7). 11.1 now says a list that doesn't come back is asked for again at most once a minute, and 6.1's step 4 and 11.5 say filling an empty copy shares the 4-second deadline, as 11.1 already did. No shape changes (BAC-33). |
