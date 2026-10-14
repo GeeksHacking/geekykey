@@ -17,7 +17,7 @@ export function DashboardScreen() {
     <div className="space-y-10">
       <div>
         <p className="text-sm text-muted-foreground">Signed in as</p>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-semibold tracking-heading">
           {me.user.display_name ?? "Welcome back"}
         </h1>
         <UserIdRow userId={me.user.id} />

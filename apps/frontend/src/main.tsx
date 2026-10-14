@@ -1,4 +1,4 @@
-import "@fontsource-variable/geist";
+import "@fontsource-variable/open-sans";
 import "@fontsource-variable/geist-mono";
 import "@/styles/globals.css";
 

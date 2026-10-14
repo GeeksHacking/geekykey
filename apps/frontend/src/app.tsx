@@ -1,3 +1,4 @@
+import { IconContext } from "@phosphor-icons/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 
@@ -24,16 +25,21 @@ declare module "@tanstack/react-router" {
 const api = createAppClient();
 const queryClient = createQueryClient();
 
+// The branding kit draws its icons filled. An icon that sets its own weight keeps it.
+const ICONS = { weight: "fill" } as const;
+
 export function App() {
   return (
-    <ThemeProvider>
-      <ApiProvider client={api}>
-        <QueryClientProvider client={queryClient}>
-          <SessionProvider>
-            <RouterProvider router={router} />
-          </SessionProvider>
-        </QueryClientProvider>
-      </ApiProvider>
-    </ThemeProvider>
+    <IconContext.Provider value={ICONS}>
+      <ThemeProvider>
+        <ApiProvider client={api}>
+          <QueryClientProvider client={queryClient}>
+            <SessionProvider>
+              <RouterProvider router={router} />
+            </SessionProvider>
+          </QueryClientProvider>
+        </ApiProvider>
+      </ThemeProvider>
+    </IconContext.Provider>
   );
 }

@@ -28,7 +28,7 @@ export function TokenPage({ uid }: { uid: string }) {
 
   return (
     <main className="flex flex-col px-1 py-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Your token</h1>
+      <h1 className="text-2xl font-semibold tracking-heading">Your token</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         <code className="font-mono text-foreground">{displayed}</code>
       </p>

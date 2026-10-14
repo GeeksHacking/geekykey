@@ -15,7 +15,7 @@ export function PageHeader({ title, description, actions, className }: PageHeade
       className={cn("flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between", className)}
     >
       <div className="min-w-0">
-        <h1 tabIndex={-1} data-page-heading className="text-2xl font-semibold tracking-tight">
+        <h1 tabIndex={-1} data-page-heading className="text-2xl font-semibold tracking-heading">
           {title}
         </h1>
         {description ? (
