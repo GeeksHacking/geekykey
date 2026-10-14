@@ -895,3 +895,13 @@
     Claiming a token now checks the 3-token limit before whether someone else owns it, in the API
     agreement and in the screens' mock, so someone already holding 3 is told to release one. When
     someone else got a token first, the token page says so, and shows underneath whether anyone holds it now.
+
+- id: geekshacking-brand
+  date: 2026-10-14
+  area: frontend
+  change: >-
+    The Event screens and the GeekyKey screens now use the GeeksHacking branding kit: its logos,
+    its yellow and greys, the Open Sans font and filled icons, with the current page marked in
+    yellow in the navigation. The trade-offs we accept: the kit has no dark theme, no status
+    colours and no font for numbers, and its secondary grey is too faint to read on a light
+    page, so there the screens keep their own choice or use a colour worked out from the kit's.
