@@ -45,16 +45,6 @@ export interface MeResponse {
   recent_taps: MeTap[];
 }
 
-export interface Station {
-  id: string;
-  name: string;
-  location: string | null;
-  points: number;
-  created_at: string;
-  last_seen_at: string | null;
-  online: boolean;
-}
-
 export interface EventStationPassport {
   name: string;
   location: string | null;
@@ -74,13 +64,24 @@ export interface SetStationPassportResponse {
   passport: EventStationPassport & { station_id: string };
 }
 
+/**
+ * GET /api/v1/admin/stations on the Event Service (agreement 9.2): every station this
+ * Event Service has registered, enabled or disabled, with its health and passport
+ * settings. Version 0.3 dropped `status_known` and `linked`, because there is no
+ * status call to fail and a station always feeds the Event Service that registered it.
+ *
+ * `label` and `online` are always present. `last_seen_at` is set by every hand-off, so
+ * a station created by 9.7 and not yet heard from has none and reads as offline. The
+ * three heartbeat fields stay null until a heartbeat's hand-off reports them.
+ */
 export interface EventStationBoardStation {
   id: string;
-  label: string | null;
-  linked: boolean | null;
+  label: string;
+  created_at: string;
+  disabled_at: string | null;
   passport: EventStationPassport | null;
   last_seen_at: string | null;
-  online: boolean | null;
+  online: boolean;
   firmware_version: string | null;
   buffered_taps: number | null;
   reader_ok: boolean | null;
@@ -88,26 +89,21 @@ export interface EventStationBoardStation {
 }
 
 export interface EventStationBoardResponse {
-  status_known: boolean;
   stations: EventStationBoardStation[];
 }
 
-/** POST /api/v1/admin/stations */
+/** POST /api/v1/admin/stations (agreement 9.7). The label is the device's name. */
 export interface CreateStationRequest {
-  name: string;
-  location?: string;
-  points?: number;
+  label: string;
 }
 
-/** `api_key` is returned only here, once. */
+/**
+ * `api_key` is returned only here, once, and there is no endpoint to read it back.
+ * The station comes back as the board lists it, with no passport settings yet.
+ */
 export interface CreateStationResponse {
-  station: Station;
+  station: EventStationBoardStation;
   api_key: string;
-}
-
-/** GET /api/v1/admin/stations */
-export interface ListStationsResponse {
-  stations: Station[];
 }
 
 export interface AdminTap {

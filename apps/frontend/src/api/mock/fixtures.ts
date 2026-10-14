@@ -11,27 +11,32 @@ export interface MockUser {
   role: Role;
 }
 
+/**
+ * One row of the Event Service's `stations` table, reshaped as version 0.3 of the
+ * migration spec describes. The old pre-0.3 fields (`name`, `location`, `points`) are
+ * gone: the device's name is `label`, and its passport name, location and points live in
+ * `passport`, which is null until 9.1 adds them.
+ */
 export interface MockStation {
   id: string;
-  name: string;
-  location: string | null;
-  points: number;
+  label: string;
   created_at: string;
-  last_seen_at: string | null;
-  /** Mock only: whether the simulator keeps this station's heartbeat alive. */
-  simulate_online: boolean;
-  /** Event board metadata (agreement 9.2). */
-  label: string | null;
-  linked: boolean | null;
+  /** When an organizer disabled it (9.9), or null while it is enabled. */
+  disabled_at: string | null;
   passport: {
     name: string;
     location: string | null;
     points: number;
     added_at: string;
   } | null;
+  /** Set by every hand-off, so a station created by 9.7 and not yet heard from has none. */
+  last_seen_at: string | null;
+  /** Set by a heartbeat's hand-off. */
   firmware_version: string | null;
   buffered_taps: number | null;
   reader_ok: boolean | null;
+  /** Mock only: whether the simulator keeps this station's heartbeat alive. */
+  simulate_online: boolean;
 }
 
 export interface MockTap {
@@ -104,113 +109,121 @@ export function createFixtures(now: number = Date.now()): MockData {
   const stations: MockStation[] = [
     {
       id: "ca939e19-8216-4b95-8375-5b54e543c5f6",
-      name: "3D Printing Booth",
-      location: "Hall A",
-      points: 1,
-      created_at: iso(eventStart - minutes(90)),
-      last_seen_at: iso(now - 4_000),
-      simulate_online: true,
       label: "Station 1",
-      linked: true,
+      created_at: iso(eventStart - minutes(90)),
+      disabled_at: null,
       passport: {
         name: "3D Printing Booth",
         location: "Hall A",
         points: 1,
         added_at: iso(eventStart - minutes(60)),
       },
+      last_seen_at: iso(now - 4_000),
       firmware_version: "0.3.1",
       buffered_taps: 0,
       reader_ok: true,
+      simulate_online: true,
     },
     {
       id: "5b1d2c70-0c7e-4f7a-9d2e-2b1f6c8a3e41",
-      name: "Cloud Sponsor",
-      location: "Hall B",
-      points: 2,
-      created_at: iso(eventStart - minutes(88)),
-      last_seen_at: iso(now - 11_000),
-      simulate_online: true,
       label: "Station 2",
-      linked: true,
+      created_at: iso(eventStart - minutes(88)),
+      disabled_at: null,
       passport: {
         name: "Cloud Sponsor",
         location: "Hall B",
         points: 2,
         added_at: iso(eventStart - minutes(70)),
       },
+      last_seen_at: iso(now - 11_000),
       firmware_version: "0.3.1",
       buffered_taps: 0,
       reader_ok: true,
+      simulate_online: true,
     },
     {
+      // Offline, not in the passport, and its reader is not responding, so the board has
+      // all three of its faults on one row.
       id: "e0f3a9b2-6c4d-4a1e-8f5b-7d2c9e1a0b63",
-      name: "Hardware Lab",
-      location: "Hall A",
-      points: 1,
-      created_at: iso(eventStart - minutes(85)),
-      last_seen_at: iso(now - minutes(14)),
-      simulate_online: false,
       label: "Station 3",
-      linked: true,
+      created_at: iso(eventStart - minutes(85)),
+      disabled_at: null,
       passport: null,
+      last_seen_at: iso(now - minutes(14)),
       firmware_version: "0.2.9",
       buffered_taps: 0,
       reader_ok: false,
+      simulate_online: false,
     },
     {
       id: "9a7c4e21-3f8b-4d6a-b2e5-1c0d8f7a6b59",
-      name: "Mentor Lounge",
-      location: "Level 2",
-      points: 1,
-      created_at: iso(eventStart - minutes(80)),
-      last_seen_at: iso(now - 27_000),
-      simulate_online: true,
       label: "Station 4",
-      linked: true,
+      created_at: iso(eventStart - minutes(80)),
+      disabled_at: null,
       passport: {
         name: "Mentor Lounge",
         location: "Level 2",
         points: 1,
         added_at: iso(eventStart - minutes(55)),
       },
+      last_seen_at: iso(now - 27_000),
       firmware_version: "0.3.0",
       buffered_taps: 0,
       reader_ok: true,
+      simulate_online: true,
     },
     {
+      // Holding saved taps. The old shape's "no longer linked" fixture is gone with
+      // `linked`: a station always feeds the Event Service that registered it.
       id: "2d6b8f04-9e1a-4c3d-a7f2-5e4b0c9d1a86",
-      name: "Careers Corner",
-      location: "Hall B",
-      points: 2,
-      created_at: iso(eventStart - minutes(70)),
-      last_seen_at: iso(now - 8_000),
-      simulate_online: true,
       label: "Station 5",
-      linked: false,
+      created_at: iso(eventStart - minutes(70)),
+      disabled_at: null,
       passport: {
         name: "Careers Corner",
         location: "Hall B",
         points: 2,
         added_at: iso(eventStart - minutes(45)),
       },
+      last_seen_at: iso(now - 8_000),
       firmware_version: "0.3.1",
       buffered_taps: 3,
       reader_ok: true,
+      simulate_online: true,
     },
     {
+      // Never reported a heartbeat, so the three heartbeat fields are null, and it has no
+      // passport settings yet.
       id: "71e5c3a8-2b9d-4f0e-8a6c-3d1f7b2e9c04",
-      name: "Photo Wall",
-      location: "Foyer",
-      points: 0,
-      created_at: iso(eventStart - minutes(30)),
-      last_seen_at: iso(now - 20_000),
-      simulate_online: true,
       label: "Station 6",
-      linked: true,
+      created_at: iso(eventStart - minutes(30)),
+      disabled_at: null,
       passport: null,
+      last_seen_at: iso(now - 20_000),
       firmware_version: null,
       buffered_taps: 0,
       reader_ok: null,
+      simulate_online: true,
+    },
+    {
+      // Disabled (9.9). Its key stopped working within a minute of `disabled_at`, so it has
+      // not been heard from since. It keeps its passport settings and its slot and stamps
+      // (9.2), which is why it still carries a passport.
+      id: "3d7e5a91-6c2b-4f18-9d40-2a8e6b3c7f52",
+      label: "Station 7",
+      created_at: iso(eventStart - minutes(65)),
+      disabled_at: iso(now - minutes(5)),
+      passport: {
+        name: "Info Desk",
+        location: "Foyer",
+        points: 1,
+        added_at: iso(eventStart - minutes(40)),
+      },
+      last_seen_at: iso(now - minutes(6)),
+      firmware_version: "0.3.1",
+      buffered_taps: 0,
+      reader_ok: true,
+      simulate_online: false,
     },
   ];
 

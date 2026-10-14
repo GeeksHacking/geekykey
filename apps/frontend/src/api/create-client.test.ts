@@ -70,7 +70,7 @@ describe("createAppClient", () => {
     const api = createAppClient({ live: true });
     await api.devLogin("dev-organizer-1");
 
-    await expect(api.listStations()).resolves.toEqual(
+    await expect(api.listStationBoard()).resolves.toEqual(
       expect.objectContaining({ stations: expect.any(Array) }),
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);

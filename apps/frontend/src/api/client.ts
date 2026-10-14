@@ -4,7 +4,6 @@ import type {
   EventStationBoardResponse,
   FallbackTapRequest,
   FallbackTapResponse,
-  ListStationsResponse,
   ListTapsQuery,
   ListTapsResponse,
   MeResponse,
@@ -34,13 +33,14 @@ export interface ApiClient {
    *  it, which is FRO-33. Kept because it is the return-URL rule's only caller today. */
   loginUrl(returnTo: string): string;
 
-  /** GET /api/v1/admin/stations (GeekyKey station registry). */
-  listStations(): Promise<ListStationsResponse>;
-
-  /** GET /api/v1/admin/stations (Event Service v0.2 board). Same path, different response. */
+  /**
+   * GET /api/v1/admin/stations, the Event Service's own registered stations, enabled or
+   * disabled (agreement 9.2). Version 0.3 removed the old station registry that sat
+   * behind the GeekyKey Service, so there is no second stations call.
+   */
   listStationBoard(): Promise<EventStationBoardResponse>;
 
-  /** POST /api/v1/admin/stations. The key in the response is shown once. */
+  /** POST /api/v1/admin/stations (agreement 9.7). The key in the response is shown once. */
   createStation(input: CreateStationRequest): Promise<CreateStationResponse>;
 
   /**

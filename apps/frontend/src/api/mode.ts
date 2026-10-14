@@ -9,7 +9,6 @@ export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE
  * while it is still serving fixtures.
  */
 const MOCKED_METHODS: readonly (keyof ApiClient)[] = [
-  "listStations",
   "listStationBoard",
   "createStation",
   "setStationPassport",
