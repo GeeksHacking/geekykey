@@ -40,28 +40,7 @@ These documents change often, so re-read them at the start of a task and before 
 
 ### Writing style
 
-**No em-dash (U+2014) or en-dash (U+2013) anywhere.** Not in visible app text, not in code comments, not in a report, a ticket, a comment or a chat message. This restates `apps/frontend/CLAUDE.md` and applies to everything an agent writes here, including documents about removing dashes.
-
 Before finishing a PR description, a report, user-facing text, an updates-site entry, a doc, or a Linear ticket or comment meant for people, read [.agents/skills/unslop/SKILL.md](.agents/skills/unslop/SKILL.md) and apply it. Tickets and comments written for an agent don't need it. Screen wording set in section 13 of the API agreement is used exactly as written. The skill also lists the dash replacements and the check for dashes in a file.
-
-### Pull request descriptions
-
-Reports go in `reports/`, which is gitignored, one file per change set. Keep them short and scannable, in this order and no other:
-
-1. `# ` title, naming the ticket and the change. Resolves **FRO-nn**.
-2. `## Summary`, two or three sentences.
-3. `## Key Changes`, one `###` subsection per app or area.
-4. `## Verification`, the gates and counts, as run.
-5. `## Notes for review`, only for decisions a reviewer might want to make differently.
-6. `## Suggested commits`, the Conventional Commits subjects, then the recommended branch name.
-
-Rules that apply to these reports:
-
-- Bullets, not tables. A table collapses when the report is pasted into a chat or a plain text view.
-- No reflection on the debugging process, false alarms, or self-correction. A reviewer needs what changed and why, not how the work was arrived at.
-- No meta-commentary about the report itself, or about conversations with Ethan.
-- Justify a decision in a line or two. If the reasoning needs a paragraph, the decision is probably wrong.
-- Everything stated must be measured or read from the file. No claim from memory, and no inference from reading class names in place of rendering the page.
 
 ### Escalation
 
