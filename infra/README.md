@@ -193,8 +193,8 @@ it and the services must not. The cost is in changing one of the four (see
 
 Until 13 Oct each of the four was a secret of its own: `session-secret` and `database-url`
 from 9 Oct, and `event-service-key` and `claims-stand-in-key` from 13 Oct. The keys were
-deleted the same day, and the other two go once both services run on `app-secrets`
-(step 11).
+deleted the same day, and the other two on 14 Oct, once both services ran on
+`app-secrets` (step 11).
 
 ## 5. The two services
 
@@ -339,8 +339,8 @@ role Secret Manager Secret Accessor, to:
 | `event-service-app-secrets` | `event-service@geekykey-b035a.iam.gserviceaccount.com` |
 | `event-service-staging-app-secrets` | `event-service-staging@geekykey-b035a.iam.gserviceaccount.com` |
 
-Until it's deleted, `event-service-session-secret`'s Permissions tab shows one made on 9 Oct,
-to compare with.
+Each `migration-database-url`'s Permissions tab shows a grant made the same way on 9 Oct,
+to its deploy account, to compare with.
 No value is seen or needed: a grant only lets the service read its own secret.
 
 (On 9 Oct the same grant was made on each service's `session-secret` and `database-url`,
@@ -600,8 +600,8 @@ for service in event-service event-service-staging; do
 done
 ```
 
-Each service's `session-secret` and `database-url` go once both services run on
-`app-secrets`:
+Each service's `session-secret` and `database-url` went on 14 Oct 2026, once both services
+ran on `app-secrets`:
 
 ```bash
 for service in event-service event-service-staging; do
@@ -612,8 +612,10 @@ done
 ```
 
 Deleting a secret can't be undone, and a revision that pins a deleted one can't start, so
-rolling back to it fails too. Check first that both services' latest revisions pin only
-`APP_SECRETS` (see [Adding a secret](#adding-a-secret)), and roll back no further than those.
+rolling back to it fails too. They were deleted once both services' latest revisions pinned
+only `APP_SECRETS` (see [Adding a secret](#adding-a-secret)). So never roll back past
+`event-service-00032-9g9` or `event-service-staging-00009-98z`, the first revisions on
+`APP_SECRETS`.
 
 On 9 Oct staging's app login got two versions, because its `db:logins` ran twice and the
 first URL's password no longer worked. Version 1 was disabled, and on 13 Oct destroyed,
