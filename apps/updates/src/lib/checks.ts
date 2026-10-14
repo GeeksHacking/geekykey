@@ -2,7 +2,7 @@
  * Checks shared by entries and changelog lines: the text rules the schema cannot express.
  */
 
-// The design rules (apps/frontend/.agents/skills/design-taste-frontend/SKILL.md, 9.G) ban
+// The design rules (.agents/skills/design-taste-frontend-v2-experimental/SKILL.md, 9.G) ban
 // en and em dashes anywhere a reader can see them. Written text is where one would slip in.
 const BANNED_DASH = /[–—]/;
 

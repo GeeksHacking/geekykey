@@ -19,8 +19,11 @@ Showcase is 18 Nov 2026. Scope down before adding features.
 1. `apps/API-AGREEMENT.md` is the contract. Build against the shapes there, not against
    backend source or guesses. If the backend disagrees with the agreement, the agreement
    wins and the backend gets fixed.
-2. `.agents/skills/design-taste-frontend/SKILL.md` is the design authority. See
-   "Design direction" below for how it applies to a product UI rather than a landing page.
+2. The taste skill, `.agents/skills/design-taste-frontend-v2-experimental/SKILL.md` at the
+   repo root, is the design authority. It is the single-file, dial-driven version from
+   `Leonxlnx/taste-skill`. The package's newer default, `design-taste-frontend`, is for public
+   pages only, so do not swap it in. See "Design direction" below for how the skill applies
+   to a product UI rather than a landing page.
 3. This file covers what neither of those does: stack, layout, conventions, workflow.
 
 Do not copy content from the agreement or the skill into this file. Link to it.
