@@ -75,9 +75,10 @@ describe("TokenPage", () => {
     renderAs(api, OWNED_BY_PARTICIPANT);
 
     expect(await screen.findByText("This is your token.")).toBeInTheDocument();
-    // Claim belongs on an unclaimed token (FRO-22); Release is FRO-23, so neither button
-    // belongs here.
-    expect(screen.queryByRole("button", { name: /claim|release/i })).not.toBeInTheDocument();
+    // Claim belongs on an unclaimed token (FRO-22), so your own token carries Release
+    // (FRO-23) and nothing else.
+    expect(screen.queryByRole("button", { name: "Claim" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Release" })).toBeInTheDocument();
   });
 
   it("says someone else owns it, with no name and no owner ID", async () => {
