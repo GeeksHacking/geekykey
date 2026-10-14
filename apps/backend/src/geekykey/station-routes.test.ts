@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import type { RegisteredStation } from "@geekykey/handoff";
 import { eq } from "drizzle-orm";
 import { onTestFinished, test, vi } from "vitest";
 import type { AppOptions } from "../app.ts";
@@ -9,15 +10,16 @@ import {
   TEST_EVENT_SERVICE_KEY,
   TEST_EVENT_SERVICE_URL,
 } from "../test-helpers.ts";
-
-const app = testApp();
+import type { Send } from "./service-request.ts";
+import { hashStationKey } from "./station-keys.ts";
 
 /**
- * The fixture, and a way to post to the backend as its station. `app` is the
- * backend the station posts to, with the real claims stand-in unless a test
- * gives it a fake.
+ * The fixture, and a way to post to the backend as its station. `target` is
+ * the backend the station posts to, with the real claims stand-in and Event
+ * side unless a test gives it a fake. Each test has its own, since a backend
+ * keeps its copy of the registered stations while it runs.
  */
-async function harness(target = app) {
+async function harness(target = testApp()) {
   const fx = await setupFixture();
   const post = (body: unknown, key: string | null = fx.stationKey) =>
     target.request("/api/v1/taps", {
@@ -28,7 +30,7 @@ async function harness(target = app) {
       },
       body: JSON.stringify(body),
     });
-  return { ...fx, post };
+  return { ...fx, post, target };
 }
 
 test("rejects requests without a station key", async () => {
@@ -40,12 +42,29 @@ test("rejects requests without a station key", async () => {
 
 test("rejects an unknown station key", async () => {
   const { post, uid } = await harness();
+  loggedLines();
   const res = await post({ taps: [{ client_tap_id: "t1", uid }] }, "gk_sta_not-a-real-key");
   assert.equal(res.status, 401);
   assert.deepEqual(await res.json(), { error: "invalid_station_key" });
 });
 
-/** Every line logged to stdout during this test, each read as one JSON object. */
+test("rejects a disabled station's key", async () => {
+  const { post, uid, db, stationId } = await harness();
+  loggedLines();
+  await db
+    .update(stations)
+    .set({ disabledAt: "2026-10-14T01:00:00.000Z" })
+    .where(eq(stations.id, stationId));
+  const res = await post({ taps: [{ client_tap_id: "t1", uid }] });
+  assert.equal(res.status, 401);
+  assert.deepEqual(await res.json(), { error: "invalid_station_key" });
+});
+
+/**
+ * Every line logged during this test, each read as one JSON object. Not the
+ * line each backend writes as it fills its copy of the registered stations on
+ * its first request, which stations-copy.test.ts covers.
+ */
 function loggedLines() {
   const logged = vi.spyOn(console, "log").mockImplementation(() => {});
   const errors = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -54,9 +73,9 @@ function loggedLines() {
     errors.mockRestore();
   });
   return () =>
-    [...logged.mock.calls, ...errors.mock.calls].map(
-      ([line]) => JSON.parse(line as string) as Record<string, unknown>,
-    );
+    [...logged.mock.calls, ...errors.mock.calls]
+      .map(([line]) => JSON.parse(line as string) as Record<string, unknown>)
+      .filter((line) => line.message !== "stations_copy_filled");
 }
 
 test("a tap is accepted, a resend duplicate, and a second tap cooldown, through the hand-off", async () => {
@@ -152,7 +171,7 @@ test("accepts a full batch of 500 taps", async () => {
   assert.equal((await db.select({ id: taps.id }).from(taps)).length, 500);
 });
 
-test("updates the station's last_seen_at on a successful request", async () => {
+test("the hand-off updates the station's last_seen_at", async () => {
   const { post, uid, db, stationId } = await harness();
   await post({ taps: [{ client_tap_id: "t1", uid }] });
   const [row] = await db
@@ -188,7 +207,7 @@ test("unknown routes and methods return the JSON not_found error", async () => {
     ["GET", "/nope"],
     ["GET", "/api/v1/taps"],
   ]) {
-    const res = await app.request(path, { method });
+    const res = await testApp().request(path, { method });
     assert.equal(res.status, 404, `${method} ${path}`);
     assert.deepEqual(await res.json(), { error: "not_found" });
   }
@@ -196,8 +215,9 @@ test("unknown routes and methods return the JSON not_found error", async () => {
 
 test("treats an unparseable body as a 400, not a backend error", async () => {
   // A station that retried this as a 5xx would resend the same broken payload forever.
-  const { stationKey } = await harness();
-  const res = await app.request("/api/v1/taps", {
+  const { stationKey, target } = await harness();
+  loggedLines();
+  const res = await target.request("/api/v1/taps", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -281,13 +301,24 @@ interface HandOff {
   };
 }
 
+const STATIONS_URL = `${TEST_EVENT_SERVICE_URL}/geekykey/v1/stations`;
+
+/** The Event side's own answer, from a backend of its own. */
+const realEventSide: Send = async (url, init) => testApp().request(url, init);
+
 /**
- * The backend with the Event side replaced by `answer`, called for each
- * hand-off the GeekyKey side sends it, and a deadline short enough for a test.
+ * The backend with the Event side's hand-off replaced by `answer`, called for
+ * each hand-off the GeekyKey side sends it, and a deadline short enough for a
+ * test. Its registered stations come from `stations`, the real Event side's
+ * unless a test fakes them.
  */
-function withEventService(answer: (handOff: HandOff) => Promise<Response>) {
+function withEventService(
+  answer: (handOff: HandOff) => Promise<Response>,
+  stations: Send = realEventSide,
+) {
   const handOffs: HandOff[] = [];
-  const sendToEventService: AppOptions["sendToEventService"] = async (url, init) => {
+  const sendToEventService: Send = async (url, init) => {
+    if (url === STATIONS_URL) return stations(url, init);
     const handOff = {
       url,
       authorization: new Headers(init.headers).get("Authorization"),
@@ -380,6 +411,73 @@ test("another team's own status passes to the station unchanged", async () => {
   assert.deepEqual(results, [{ client_tap_id: "t1", status: "bingo_line" }]);
 });
 
+test("the station's ID and Event Service come from the registered stations, not the stations table", async () => {
+  let registered: RegisteredStation[] = [];
+  const listRequests: (string | null)[] = [];
+  const { target, handOffs } = withEventService(acceptEach, async (_url, init) => {
+    listRequests.push(new Headers(init.headers).get("Authorization"));
+    return Response.json({ stations: registered });
+  });
+  const { post, uid, db, stationId, stationKey } = await harness(target);
+  loggedLines();
+  // Registered under another ID, and gone from the table.
+  registered = [{ station_id: "station-9", key_hash: await hashStationKey(stationKey) }];
+  await db.delete(stations).where(eq(stations.id, stationId));
+
+  for (const id of ["t1", "t2"]) {
+    const res = await post({ taps: [{ client_tap_id: id, uid }] });
+    assert.equal(res.status, 200);
+    assert.equal(((await res.json()) as { station_id: string }).station_id, "station-9");
+  }
+  assert.deepEqual(
+    handOffs.map(({ body }) => body.station_id),
+    ["station-9", "station-9"],
+  );
+  // Asked for once, with the Event Service key, and kept.
+  assert.deepEqual(listRequests, [`Bearer ${TEST_EVENT_SERVICE_KEY}`]);
+});
+
+for (const [what, stationsAnswer] of [
+  ["an answer that never comes", never],
+  ["a 503", async () => new Response("Service Unavailable", { status: 503 })],
+  [
+    "a key instead of its hash",
+    async () => Response.json({ stations: [{ station_id: "station-1", key_hash: "gk_sta_abc" }] }),
+  ],
+] as const) {
+  test(`with ${what} for the registered stations, a station's request is 503 event_service_unavailable, not 401`, async () => {
+    const { target, handOffs } = withEventService(acceptEach, stationsAnswer);
+    const { post, uid } = await harness(target);
+    loggedLines();
+
+    const started = Date.now();
+    const res = await post({ taps: [{ client_tap_id: "t1", uid }] });
+    const took = Date.now() - started;
+
+    assert.equal(res.status, 503);
+    assert.deepEqual(await res.json(), { error: "event_service_unavailable" });
+    // Within the deadline, with a little room for the rest of the request.
+    assert.ok(took < 1000, `took ${took} ms`);
+    assert.deepEqual(handOffs, []);
+  });
+}
+
+test("registered stations that can't be had are logged, without the key", async () => {
+  const { target } = withEventService(acceptEach, async () => new Response("", { status: 503 }));
+  const { post, uid } = await harness(target);
+  const lines = loggedLines();
+  await post({ taps: [{ client_tap_id: "t1", uid }] });
+  assert.deepEqual(lines(), [
+    {
+      severity: "ERROR",
+      message: "stations_unavailable",
+      event_service: "showcase",
+      reason: "status",
+      status: 503,
+    },
+  ]);
+});
+
 for (const [what, answer] of [
   ["an answer that never comes", never],
   ["a 500", async () => Response.json({ error: "internal_error" }, { status: 500 })],
@@ -451,7 +549,8 @@ test("the hand-off gets only what's left of the deadline after the owner lookup"
         await new Promise((resolve) => setTimeout(resolve, 180));
         return testApp().request(url, init);
       },
-      sendToEventService: async (url) => {
+      sendToEventService: async (url, init) => {
+        if (url === STATIONS_URL) return realEventSide(url, init);
         handOffs.push(url);
         return never();
       },

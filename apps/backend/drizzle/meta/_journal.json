@@ -29,6 +29,13 @@
       "when": 1791960760742,
       "tag": "0003_taps_without_token_uids",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1791964206265,
+      "tag": "0004_stations_can_be_disabled",
+      "breakpoints": true
     }
   ]
 }

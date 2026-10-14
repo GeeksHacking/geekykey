@@ -937,3 +937,15 @@
     Service doesn't answer properly within the 4 seconds, the station keeps its taps and sends
     them again later. The request's shapes live in a shared package, which also writes them out
     as JSON Schema for other teams building an Event Service.
+
+- id: station-keys-checked-against-registered-stations
+  date: 2026-10-14
+  area: backend
+  change: >-
+    A station's key is now checked against the stations each Event Service has registered. The
+    GeekyKey side asks each Event Service for its list, with the Event Service key, keeps the
+    lists in memory, and refreshes them at most once a minute. It no longer reads the stations
+    table, so it is ready to run without a database. A disabled station drops off its list, and
+    its key is refused within a minute. Organizers can't disable a station yet; that comes with
+    the station board. When an Event Service's list can't be had, the station keeps its taps and
+    sends them again later instead of being told its key is wrong.

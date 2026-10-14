@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "stations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "station_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique across every Event Service"
+          },
+          "key_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "The SHA-256 of the station key, in lower-case hex. Never the key itself"
+          }
+        },
+        "required": [
+          "station_id",
+          "key_hash"
+        ]
+      }
+    }
+  },
+  "required": [
+    "stations"
+  ],
+  "title": "The registered stations: GET /geekykey/v1/stations",
+  "description": "Enabled stations only. The request has no body."
+}

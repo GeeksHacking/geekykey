@@ -1,5 +1,5 @@
-import { tapsRequest } from "@geekykey/handoff";
-import { eq } from "drizzle-orm";
+import { type StationsAnswer, tapsRequest } from "@geekykey/handoff";
+import { eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import { requireBearerKey } from "../lib/bearer-key.ts";
@@ -16,6 +16,14 @@ import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
 export function handoffRoutes({ key }: { key: string }) {
   return new Hono<AppEnv>()
     .use(requireBearerKey(key, "invalid_event_service_key"))
+    .get("/stations", async (c) => {
+      // The registered stations: the enabled ones, each with its key's hash (11.1).
+      const enabled = await c.var.db
+        .select({ station_id: stations.id, key_hash: stations.apiKeyHash })
+        .from(stations)
+        .where(isNull(stations.disabledAt));
+      return c.json({ stations: enabled } satisfies StationsAnswer);
+    })
     .post("/taps", jsonBody(tapsRequest), async (c) => {
       // The hand-off: a station's taps, each by a token's owner, as users (11.2).
       const { station_id, taps } = c.req.valid("json");

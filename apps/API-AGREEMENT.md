@@ -245,10 +245,11 @@ and only its hash is stored. Firmware sends it on every request to the GeekyKey 
 
 ### Event Service keys
 
-`Implemented` on the hand-off (11.2), and `Checkpoint 3` on the other two requests. Each Event
-Service shares one key with the GeekyKey Service, which sends it as
-`Authorization: Bearer <key>` on every request under `/geekykey/v1`: the registered stations,
-the hand-off and the heartbeat hand-off. Event Services never call the GeekyKey Service.
+`Implemented` on the registered stations (11.1) and the hand-off (11.2), and `Checkpoint 3` on
+the heartbeat hand-off. Each Event Service shares one key with the GeekyKey Service, which sends
+it as `Authorization: Bearer <key>` on every request under `/geekykey/v1`: the registered
+stations, the hand-off and the heartbeat hand-off. Event Services never call the GeekyKey
+Service.
 
 - It is 32 random bytes, written as 64 lower-case hex characters, as `openssl rand -hex 32`
   makes them. Nobody picks one.
@@ -358,7 +359,7 @@ Until checkpoint 4, one server built from `apps/backend` serves both tables.
 | Method | Path | Caller | Status | Purpose |
 |---|---|---|---|---|
 | GET | `/api/health` | anyone | `Checkpoint 4` | Liveness check |
-| GET | `/geekykey/v1/stations` | GeekyKey Service | `Checkpoint 3` | Its registered stations |
+| GET | `/geekykey/v1/stations` | GeekyKey Service | `Implemented` | Its registered stations |
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Checkpoint 3` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Checkpoint 4` | Set `event_session` for a seeded user |
@@ -440,11 +441,10 @@ item has a [`tap_status`](#tap_status).
    Service doesn't answer properly in what's left, it fails with
    `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
-Until the rest of checkpoint 3, today's backend checks the key against its own stations, not
-the registered stations, and its Event Service answers `accepted`, `cooldown` or `duplicate`,
-never `no_game`. Steps 2 to 4 are already as above: the hand-off (11.2) runs inside the one
-server, with `503 claims_unavailable` and `503 event_service_unavailable`, and `unknown_token`
-taps are not stored.
+Until the rest of checkpoint 3, today's Event Service answers `accepted`, `cooldown` or
+`duplicate`, never `no_game`. Steps 1 to 4 are already as above: the registered stations (11.1)
+and the hand-off (11.2) run inside the one server, with `503 claims_unavailable` and
+`503 event_service_unavailable`, and `unknown_token` taps are not stored.
 
 **Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`,
 `claims_unavailable` and `event_service_unavailable` (from checkpoint 3), and `rate_limited`
@@ -1036,7 +1036,7 @@ Adding an Event Service is a reviewed pull request to the GeekyKey Service's set
 its name, its `https://` address, and optionally a public address and name for the buttons on My
 tokens and the token page. Its key is set as a secret on both sides.
 
-### 11.1 Registered stations: `GET /geekykey/v1/stations` — `Checkpoint 3`
+### 11.1 Registered stations: `GET /geekykey/v1/stations` — `Implemented`
 
 Which station keys are this Event Service's. The GeekyKey Service keeps a copy of every Event
 Service's list in memory, fills it when it's empty, and refreshes it at most once a minute.
@@ -1177,8 +1177,8 @@ GeekyKey Service sends it on all three requests.
 
 The bodies of the three requests and their answers are Zod schemas in `packages/handoff`. Both
 our services check against them, and a JSON Schema generated from them with `z.toJSONSchema` is
-for other teams, in `packages/handoff/json-schema/`. The hand-off's two are there now; the other
-two requests' follow at checkpoint 3.
+for other teams, in `packages/handoff/json-schema/`. The registered stations' answer and the
+hand-off's two are there now. The heartbeat hand-off's follows at checkpoint 3.
 
 - The files leave other fields allowed, since fields are only ever added (section 1).
 - A JSON Schema can't say that the hand-off's results match its taps one for one. The
@@ -1311,3 +1311,4 @@ Closed on 2026-10-10:
 | 2026-10-13 | The claim's checks run in a stated order (8.2): already yours, then the 3-token limit, then `token_taken`, so a user holding 3 hears about the limit even for someone else's token, as the migration spec says. Section 13 sets the `token_taken` sentence, "Someone else already claimed this token.", and keeps it above the token page's fresh lookup even when that lookup says `nobody`. No endpoint or shape changes. |
 | 2026-10-13 | Today's backend now finds each token's owner as 6.1's step 2 says, from the claims stand-in within the 4-second deadline, and answers `503 claims_unavailable` when it can't. `unknown_token` taps are logged and no longer stored (6.1, and `tap_status` in section 4). The Event Service's `GET /api/v1/me` no longer returns `tokens` (8.1), one of the removals version 0.2 allowed. The agreed shapes don't change; only the notes on how today's backend still differs do (BAC-31). |
 | 2026-10-14 | The hand-off, `POST /geekykey/v1/taps` (11.2), is `Implemented`, inside the one server: today's backend now hands each station's claimed taps to its Event Service through it, with the Event Service key, and answers `503 event_service_unavailable` when the hand-off fails (6.1). Its Zod schemas are in `packages/handoff`, and their JSON Schema in `packages/handoff/json-schema/` (11.7). Two rules added to 11.2: a `user_id` is 1 to 128 characters, as a Firebase user ID is, and ours answers `validation_failed` for a `station_id` that isn't its own. The fields don't change, but a `user_id` over 128 characters is now refused (BAC-32). |
+| 2026-10-14 | The registered stations, `GET /geekykey/v1/stations` (11.1), are `Implemented`, inside the one server. Today's backend checks a station's key against its copy of them instead of reading its own stations, so steps 1 to 4 of 6.1 now work as written: `401 invalid_station_key` only when every list is in hand, and `503 event_service_unavailable` while one is missing. Ours leaves out a station whose `disabled_at` is set, though nothing sets it until the organizers' endpoint to disable one (9.9). The answer's Zod schema is in `packages/handoff`, and its JSON Schema in `packages/handoff/json-schema/stations-answer.schema.json` (11.7). No shape changes (BAC-33). |
