@@ -1,0 +1,8 @@
+// Formatter settings, as in apps/backend: every option not set here is oxfmt's default.
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    // Written by `pnpm json-schema`, and checked against the schemas by a test.
+    "json-schema/",
+  ],
+}

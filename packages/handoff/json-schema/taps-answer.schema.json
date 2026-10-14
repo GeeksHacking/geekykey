@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "client_tap_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+            "description": "accepted, cooldown, no_game or duplicate from ours. Another team's statuses pass to the station unchanged"
+          }
+        },
+        "required": [
+          "client_tap_id",
+          "status"
+        ]
+      }
+    }
+  },
+  "required": [
+    "results"
+  ],
+  "title": "The answer to the hand-off: POST /geekykey/v1/taps",
+  "description": "Also: one result per tap in the request, in the same order, with the same client_tap_ids."
+}

@@ -1,4 +1,5 @@
 import { z, type ZodType } from "zod";
+import { askService, type Send, Unanswered, type UnansweredReason } from "./service-request.ts";
 
 /**
  * Who owns each token: the claims stand-in until the switch, then the Portal's
@@ -27,7 +28,7 @@ export interface Claims {
 }
 
 /** Why the claims couldn't be had, for the `claims_unavailable` log line. */
-export type ClaimsUnavailableReason = "timeout" | "unreachable" | "status" | "unparseable";
+export type ClaimsUnavailableReason = UnansweredReason;
 
 /**
  * Whatever holds the claims didn't answer properly in time. A station request
@@ -46,12 +47,6 @@ export class ClaimsUnavailable extends Error {
     this.status = status;
   }
 }
-
-/**
- * How the GeekyKey side sends a request: `app.request()` inside the one
- * server, and `fetch` once it's a Worker of its own.
- */
-export type Send = (url: string, init: RequestInit) => Promise<Response>;
 
 const ownersAnswer = z.object({
   owners: z.array(z.object({ uid: z.string(), user_id: z.string() })),
@@ -111,8 +106,7 @@ export class StandInClaims implements Claims {
   /**
    * One request to the stand-in, and its answer checked against `answer`.
    * Throws ClaimsUnavailable for anything but a 2xx whose body fits, or when
-   * `signal` fires first. `app.request()` doesn't stop when its signal fires,
-   * so the wait for its answer is cut short here instead.
+   * `signal` fires first.
    */
   async #call<T>(
     method: "GET" | "POST",
@@ -121,41 +115,18 @@ export class StandInClaims implements Claims {
     answer: ZodType<T>,
     signal: AbortSignal,
   ): Promise<T> {
-    // Out of time already, so not worth asking.
-    if (signal.aborted) throw new ClaimsUnavailable("timeout");
-    const answered = (async () => {
-      let res: Response;
-      try {
-        res = await this.#send(this.#url + path, {
-          method,
-          headers: {
-            Authorization: `Bearer ${this.#key}`,
-            ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-          },
-          body: body === undefined ? undefined : JSON.stringify(body),
-          signal,
-          // A redirect would carry the key wherever it points.
-          redirect: "manual",
-        });
-      } catch {
-        throw new ClaimsUnavailable(signal.aborted ? "timeout" : "unreachable");
-      }
-      // A 429, a 5xx, a redirect, or a 401 while the two sides' keys differ.
-      if (!res.ok) throw new ClaimsUnavailable("status", res.status);
-      const parsed = answer.safeParse(await res.json().catch(() => undefined));
-      if (!parsed.success) throw new ClaimsUnavailable("unparseable");
-      return parsed.data;
-    })();
-    return await beforeDeadline(answered, signal);
+    try {
+      return await askService(this.#send, {
+        method,
+        url: this.#url + path,
+        key: this.#key,
+        body,
+        answer,
+        signal,
+      });
+    } catch (err) {
+      if (err instanceof Unanswered) throw new ClaimsUnavailable(err.reason, err.status);
+      throw err;
+    }
   }
-}
-
-/** `work`'s result, or ClaimsUnavailable as soon as `signal` fires, whichever comes first. */
-function beforeDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timedOut = () => reject(new ClaimsUnavailable("timeout"));
-    if (signal.aborted) timedOut();
-    signal.addEventListener("abort", timedOut, { once: true });
-    void work.then(resolve, reject).finally(() => signal.removeEventListener("abort", timedOut));
-  });
 }

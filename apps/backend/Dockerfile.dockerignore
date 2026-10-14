@@ -10,3 +10,6 @@
 !apps/backend/src/
 apps/backend/src/**/*.test.ts
 apps/backend/src/test-helpers.ts
+!packages/handoff/package.json
+!packages/handoff/src/
+packages/handoff/src/**/*.test.ts

@@ -1,0 +1,27 @@
+{
+  "name": "@geekykey/handoff",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "json-schema": "node scripts/json-schema.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.87.0",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.11"
+  }
+}

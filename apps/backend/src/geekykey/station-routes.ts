@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
-import { type TapResultStatus, TapPipeline } from "../event/tap-pipeline.ts";
 import { log } from "../lib/log.ts";
+import { trustedTappedAt } from "../lib/tapped-at.ts";
 import { normaliseUid, UID_PATTERN } from "../lib/token-uid.ts";
 import { jsonBody } from "../lib/validate.ts";
 import { type Claims, ClaimsUnavailable } from "./claims.ts";
+import { type EventService, EventServiceUnavailable } from "./event-service.ts";
 import { stationAuth, type StationEnv } from "./station-auth.ts";
 
 export function tapBodySchema(maxTaps: number) {
@@ -50,17 +51,25 @@ const tapBody: ReturnType<typeof jsonBody<TapBodySchema>> = (c, next) => {
  *
  * Each token's owner comes from `claims`, within one deadline that starts once
  * the key is checked. A tap by a token nobody owns is answered `unknown_token`
- * here and stored nowhere; the rest go on to the tap pipeline, as their
- * owners' taps. When the owners can't be had in time, the whole request fails
- * with `503 claims_unavailable`, and the station keeps its taps to resend.
+ * here and stored nowhere. The rest are handed to `eventService` in one call,
+ * as their owners' taps, in whatever is left of the deadline (the API
+ * agreement's 11.2 and 11.5). When the owners can't be had in time, the whole
+ * request fails with `503 claims_unavailable`, and when the hand-off isn't
+ * answered properly in time, with `503 event_service_unavailable`. Either
+ * way, the station keeps its taps to resend. Neither is retried.
  *
- * It still reaches into the Event side: the key check reads `stations`, and
- * the tap pipeline is called directly. The rest of checkpoint 3 replaces each
- * with the request it will send once the two services run apart.
+ * It still reaches into the Event side once: the key check reads `stations`,
+ * until BAC-33 checks it against the stations each Event Service registered.
  */
-export function tapsRoutes({ claims }: { claims: Claims }) {
+export function tapsRoutes({
+  claims,
+  eventService,
+}: {
+  claims: Claims;
+  eventService: EventService;
+}) {
   return new Hono<TapsEnv>().post("/", stationAuth, tapBody, async (c) => {
-    const { db, config, station } = c.var;
+    const { config, station } = c.var;
     const { taps } = c.req.valid("json");
     const deadline = AbortSignal.timeout(config.tapDeadlineMs);
 
@@ -73,7 +82,8 @@ export function tapsRoutes({ claims }: { claims: Claims }) {
       return c.json({ error: "claims_unavailable" }, 503);
     }
 
-    const statuses = Array.from<TapResultStatus>({ length: taps.length });
+    // A status an Event Service gives is passed on unchanged, even one of its own.
+    const statuses = Array.from<string>({ length: taps.length });
     const claimed = taps.flatMap((tap, index) => {
       const userId = owners.get(tap.uid);
       if (userId !== undefined) return [{ index, tap, userId }];
@@ -86,17 +96,33 @@ export function tapsRoutes({ claims }: { claims: Claims }) {
       return [];
     });
 
-    const pipeline = new TapPipeline(db, { cooldownSeconds: config.tapCooldownSeconds });
-    const results = await pipeline.ingest(
-      station.id,
-      claimed.map(({ tap, userId }) => ({
-        clientTapId: tap.client_tap_id,
-        uid: tap.uid,
-        userId,
-        tappedAt: tap.tapped_at,
-      })),
-    );
-    results.forEach((result, i) => (statuses[claimed[i]!.index] = result.status));
+    if (claimed.length > 0) {
+      const now = new Date();
+      let results;
+      try {
+        results = await eventService.handOffTaps(
+          {
+            station_id: station.id,
+            taps: claimed.map(({ tap, userId }) => ({
+              client_tap_id: tap.client_tap_id,
+              user_id: userId,
+              tapped_at: trustedTappedAt(tap.tapped_at, now),
+            })),
+          },
+          deadline,
+        );
+      } catch (err) {
+        if (!(err instanceof EventServiceUnavailable)) throw err;
+        log("handoff_failed", {
+          station_id: station.id,
+          event_service: eventService.id,
+          reason: err.reason,
+          status: err.status,
+        });
+        return c.json({ error: "event_service_unavailable" }, 503);
+      }
+      results.forEach((result, i) => (statuses[claimed[i]!.index] = result.status));
+    }
 
     // Deliberately no user details: readers must not hold PII (see RAMS, data privacy row).
     return c.json({

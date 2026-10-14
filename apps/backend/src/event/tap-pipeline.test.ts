@@ -25,8 +25,8 @@ function statuses(db: Db) {
 }
 
 test("accepts a tap by a token's owner and stores it", async () => {
-  const { p, db, stationId, uid, userId } = await pipeline();
-  const results = await p.ingest(stationId, [{ clientTapId: "t1", uid, userId }]);
+  const { p, db, stationId, userId } = await pipeline();
+  const results = await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
   assert.deepEqual(results, [
     {
       clientTapId: "t1",
@@ -44,18 +44,18 @@ test("accepts a tap by a token's owner and stores it", async () => {
 });
 
 test("replaying a client_tap_id returns duplicate and writes nothing new", async () => {
-  const { p, db, stationId, uid, userId } = await pipeline();
-  await p.ingest(stationId, [{ clientTapId: "t1", uid, userId }]);
-  const replay = await p.ingest(stationId, [{ clientTapId: "t1", uid, userId }]);
+  const { p, db, stationId, userId } = await pipeline();
+  await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
+  const replay = await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
   assert.equal(replay[0].status, "duplicate");
   assert.equal((await statuses(db)).length, 1);
 });
 
 test("repeated client_tap_id within one request is a duplicate", async () => {
-  const { p, db, stationId, uid, userId } = await pipeline();
+  const { p, db, stationId, userId } = await pipeline();
   const results = await p.ingest(stationId, [
-    { clientTapId: "t1", uid, userId },
-    { clientTapId: "t1", uid, userId },
+    { clientTapId: "t1", userId },
+    { clientTapId: "t1", userId },
   ]);
   assert.deepEqual(
     results.map((r) => r.status),
@@ -65,13 +65,13 @@ test("repeated client_tap_id within one request is a duplicate", async () => {
 });
 
 test("second tap inside the cooldown window is recorded as cooldown", async () => {
-  const { p, db, stationId, uid, userId, clock } = await pipeline(300);
-  await p.ingest(stationId, [{ clientTapId: "t1", uid, userId }]);
+  const { p, db, stationId, userId, clock } = await pipeline(300);
+  await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
   clock.advanceSeconds(60);
-  const second = await p.ingest(stationId, [{ clientTapId: "t2", uid, userId }]);
+  const second = await p.ingest(stationId, [{ clientTapId: "t2", userId }]);
   assert.equal(second[0].status, "cooldown");
   clock.advanceSeconds(300);
-  const third = await p.ingest(stationId, [{ clientTapId: "t3", uid, userId }]);
+  const third = await p.ingest(stationId, [{ clientTapId: "t3", userId }]);
   assert.equal(third[0].status, "accepted");
   assert.deepEqual(
     (await statuses(db)).map((r) => r.status),
@@ -80,10 +80,10 @@ test("second tap inside the cooldown window is recorded as cooldown", async () =
 });
 
 test("cooldown of zero disables the check", async () => {
-  const { p, stationId, uid, userId } = await pipeline(0);
+  const { p, stationId, userId } = await pipeline(0);
   const results = await p.ingest(stationId, [
-    { clientTapId: "t1", uid, userId },
-    { clientTapId: "t2", uid, userId },
+    { clientTapId: "t1", userId },
+    { clientTapId: "t2", userId },
   ]);
   assert.deepEqual(
     results.map((r) => r.status),
@@ -92,14 +92,14 @@ test("cooldown of zero disables the check", async () => {
 });
 
 test("offline flush is judged by device tapped_at, not arrival order", async () => {
-  const { p, stationId, uid, userId, clock } = await pipeline(300);
+  const { p, stationId, userId, clock } = await pipeline(300);
   // The station comes back online at 10:00 and flushes its buffer.
   clock.advanceSeconds(3600);
   // Buffered out of order: the 09:20 tap arrives before the 09:00 one.
   const results = await p.ingest(stationId, [
-    { clientTapId: "late", uid, userId, tappedAt: "2026-10-10T09:20:00Z" },
-    { clientTapId: "early", uid, userId, tappedAt: "2026-10-10T09:00:00Z" },
-    { clientTapId: "repeat", uid, userId, tappedAt: "2026-10-10T09:02:00Z" },
+    { clientTapId: "late", userId, tappedAt: "2026-10-10T09:20:00Z" },
+    { clientTapId: "early", userId, tappedAt: "2026-10-10T09:00:00Z" },
+    { clientTapId: "repeat", userId, tappedAt: "2026-10-10T09:02:00Z" },
   ]);
   const byId = Object.fromEntries(results.map((r) => [r.clientTapId, r.status]));
   assert.deepEqual(byId, {
@@ -110,19 +110,18 @@ test("offline flush is judged by device tapped_at, not arrival order", async () 
 });
 
 test("an older buffered tap does not reset the cooldown for later taps", async () => {
-  const { p, stationId, uid, userId, clock } = await pipeline(300);
+  const { p, stationId, userId, clock } = await pipeline(300);
   await p.ingest(stationId, [
     {
       clientTapId: "live",
-      uid,
       userId,
       tappedAt: "2026-10-10T09:00:00Z",
     },
   ]);
   clock.advanceSeconds(300);
   const results = await p.ingest(stationId, [
-    { clientTapId: "old", uid, userId, tappedAt: "2026-10-10T08:00:00Z" },
-    { clientTapId: "soon-after-live", uid, userId, tappedAt: "2026-10-10T09:03:00Z" },
+    { clientTapId: "old", userId, tappedAt: "2026-10-10T08:00:00Z" },
+    { clientTapId: "soon-after-live", userId, tappedAt: "2026-10-10T09:03:00Z" },
   ]);
   assert.deepEqual(
     results.map((r) => r.status),
@@ -131,16 +130,15 @@ test("an older buffered tap does not reset the cooldown for later taps", async (
 });
 
 test("a tap that arrives late is judged by the accepted tap nearest in time", async () => {
-  const { p, stationId, uid, userId } = await pipeline(300);
+  const { p, stationId, userId } = await pipeline(300);
   await p.ingest(stationId, [
-    { clientTapId: "t0800", uid, userId, tappedAt: "2026-10-10T08:00:00Z" },
-    { clientTapId: "t0900", uid, userId, tappedAt: "2026-10-10T09:00:00Z" },
+    { clientTapId: "t0800", userId, tappedAt: "2026-10-10T08:00:00Z" },
+    { clientTapId: "t0900", userId, tappedAt: "2026-10-10T09:00:00Z" },
   ]);
   // Two minutes after the accepted 08:00 tap, though long before the newest one.
   const late = await p.ingest(stationId, [
     {
       clientTapId: "t0802",
-      uid,
       userId,
       tappedAt: "2026-10-10T08:02:00Z",
     },
@@ -149,11 +147,10 @@ test("a tap that arrives late is judged by the accepted tap nearest in time", as
 });
 
 test("a tapped_at from a clock that never synced is ignored", async () => {
-  const { p, db, stationId, uid, userId, clock } = await pipeline(300);
+  const { p, db, stationId, userId, clock } = await pipeline(300);
   const first = await p.ingest(stationId, [
     {
       clientTapId: "t1",
-      uid,
       userId,
       tappedAt: "1970-01-01T00:00:05Z",
     },
@@ -161,7 +158,7 @@ test("a tapped_at from a clock that never synced is ignored", async () => {
   assert.equal(first[0].status, "accepted");
   clock.advanceSeconds(60);
   // Judged against t1's receipt time, one minute ago, rather than 1970.
-  const second = await p.ingest(stationId, [{ clientTapId: "t2", uid, userId }]);
+  const second = await p.ingest(stationId, [{ clientTapId: "t2", userId }]);
   assert.equal(second[0].status, "cooldown");
   const [stored] = await db
     .select({ tappedAt: taps.tappedAt })
@@ -171,11 +168,10 @@ test("a tapped_at from a clock that never synced is ignored", async () => {
 });
 
 test("a tapped_at far in the future cannot open a gap in the cooldown", async () => {
-  const { p, db, stationId, uid, userId, clock } = await pipeline(300);
+  const { p, db, stationId, userId, clock } = await pipeline(300);
   await p.ingest(stationId, [
     {
       clientTapId: "t1",
-      uid,
       userId,
       tappedAt: "2026-10-10T09:00:00Z",
     },
@@ -183,7 +179,6 @@ test("a tapped_at far in the future cannot open a gap in the cooldown", async ()
   const future = await p.ingest(stationId, [
     {
       clientTapId: "t2099",
-      uid,
       userId,
       tappedAt: "2099-01-01T00:00:00Z",
     },
@@ -193,7 +188,6 @@ test("a tapped_at far in the future cannot open a gap in the cooldown", async ()
   const next = await p.ingest(stationId, [
     {
       clientTapId: "t2",
-      uid,
       userId,
       tappedAt: "2026-10-10T09:01:00Z",
     },
@@ -207,10 +201,10 @@ test("a tapped_at far in the future cannot open a gap in the cooldown", async ()
 });
 
 test("keeps a tapped_at that is a little fast or days old", async () => {
-  const { p, db, stationId, uid, userId } = await pipeline(300);
+  const { p, db, stationId, userId } = await pipeline(300);
   await p.ingest(stationId, [
-    { clientTapId: "fast", uid, userId, tappedAt: "2026-10-10T09:04:00Z" },
-    { clientTapId: "old", uid, userId, tappedAt: "2026-10-04T09:00:00Z" },
+    { clientTapId: "fast", userId, tappedAt: "2026-10-10T09:04:00Z" },
+    { clientTapId: "old", userId, tappedAt: "2026-10-04T09:00:00Z" },
   ]);
   assert.deepEqual(
     await db.select({ id: taps.clientTapId, tappedAt: taps.tappedAt }).from(taps).orderBy(taps.id),
@@ -223,11 +217,11 @@ test("keeps a tapped_at that is a little fast or days old", async () => {
 
 test("results come back in request order", async () => {
   // Judged in the order the taps happened, 08:50 then 09:10, twenty minutes apart.
-  const { p, stationId, uid, userId } = await pipeline();
+  const { p, stationId, userId } = await pipeline();
   const results = await p.ingest(stationId, [
-    { clientTapId: "b", uid, userId, tappedAt: "2026-10-10T09:10:00Z" },
-    { clientTapId: "a", uid, userId, tappedAt: "2026-10-10T08:50:00Z" },
-    { clientTapId: "b", uid, userId },
+    { clientTapId: "b", userId, tappedAt: "2026-10-10T09:10:00Z" },
+    { clientTapId: "a", userId, tappedAt: "2026-10-10T08:50:00Z" },
+    { clientTapId: "b", userId },
   ]);
   assert.deepEqual(
     results.map((r) => r.clientTapId),
@@ -240,14 +234,14 @@ test("results come back in request order", async () => {
 });
 
 test("cooldown is per station", async () => {
-  const { p, db, stationId, uid, userId } = await pipeline(300);
+  const { p, db, stationId, userId } = await pipeline(300);
   await db.insert(stations).values({
     id: "station-2",
     name: "Booth 2",
     apiKeyHash: "hash-2",
   });
-  await p.ingest(stationId, [{ clientTapId: "t1", uid, userId }]);
-  const other = await p.ingest("station-2", [{ clientTapId: "t1", uid, userId }]);
+  await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
+  const other = await p.ingest("station-2", [{ clientTapId: "t1", userId }]);
   assert.equal(other[0].status, "accepted");
 });
 
@@ -326,10 +320,10 @@ async function overlappingIngests(
 }
 
 test("a resend racing its original on another connection comes back duplicate", async () => {
-  const { db, stationId, uid, userId } = await setupFixture();
+  const { db, stationId, userId } = await setupFixture();
   const overlap = await overlappingIngests(stationId, [
-    { clientTapId: "t1", uid, userId },
-    { clientTapId: "t1", uid, userId },
+    { clientTapId: "t1", userId },
+    { clientTapId: "t1", userId },
   ]);
   assert.deepEqual(overlap.statuses.sort(), ["accepted", "duplicate"]);
   assert.deepEqual(
@@ -340,10 +334,10 @@ test("a resend racing its original on another connection comes back duplicate", 
 });
 
 test("two taps by one participant on two connections give one accepted and one cooldown", async () => {
-  const { db, stationId, uid, userId } = await setupFixture();
+  const { db, stationId, userId } = await setupFixture();
   const overlap = await overlappingIngests(stationId, [
-    { clientTapId: "t1", uid, userId },
-    { clientTapId: "t2", uid, userId },
+    { clientTapId: "t1", userId },
+    { clientTapId: "t2", userId },
   ]);
   assert.deepEqual(overlap.statuses.sort(), ["accepted", "cooldown"]);
   assert.deepEqual((await statuses(db)).map((r) => r.status).sort(), ["accepted", "cooldown"]);
@@ -351,14 +345,14 @@ test("two taps by one participant on two connections give one accepted and one c
 });
 
 test("a failed ingest lets go of the station's lock", async () => {
-  const { stationId, uid, userId } = await setupFixture();
+  const { stationId, userId } = await setupFixture();
   // Longer than the column allows, so the insert fails after the lock is taken.
   await assert.rejects(
-    pipelineOnItsOwnConnection().ingest(stationId, [{ clientTapId: "x".repeat(129), uid, userId }]),
+    pipelineOnItsOwnConnection().ingest(stationId, [{ clientTapId: "x".repeat(129), userId }]),
     /Failed query: insert into `taps`/,
   );
   const [next] = await pipelineOnItsOwnConnection().ingest(stationId, [
-    { clientTapId: "t2", uid, userId },
+    { clientTapId: "t2", userId },
   ]);
   assert.equal(next!.status, "accepted");
 });

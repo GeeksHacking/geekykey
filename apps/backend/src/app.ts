@@ -3,9 +3,12 @@ import { claimsStandInRoutes } from "./claims-stand-in/routes.ts";
 import type { Config } from "./config.ts";
 import type { Db } from "./db/pool.ts";
 import { authRoutes } from "./event/auth-routes.ts";
+import { handoffRoutes } from "./event/handoff-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
-import { type Send, StandInClaims } from "./geekykey/claims.ts";
+import { StandInClaims } from "./geekykey/claims.ts";
+import { EventService } from "./geekykey/event-service.ts";
+import type { Send } from "./geekykey/service-request.ts";
 import { tapsRoutes } from "./geekykey/station-routes.ts";
 
 export type AppEnv = {
@@ -21,6 +24,11 @@ export interface AppOptions {
    * app.request(), to this server's own routes, unless a test fakes them.
    */
   sendToClaimsStandIn?: Send;
+  /**
+   * How the GeekyKey side's hand-offs reach the Event side: through
+   * app.request(), to this server's own routes, unless a test fakes them.
+   */
+  sendToEventService?: Send;
 }
 
 /**
@@ -56,17 +64,28 @@ export function createApp(config: Config, db: Db, options: AppOptions = {}) {
   // The Event side: logging in and out, and what a signed-in user sees.
   app.route("/auth", authRoutes({ session, devAuthEnabled: config.devAuthEnabled }));
   app.route("/api/v1/me", meRoutes({ session }));
+  // What the GeekyKey side hands the Event side, with the Event Service key.
+  app.route("/geekykey/v1", handoffRoutes({ key: config.eventServiceKey }));
 
   // The GeekyKey side: what stations call. It reaches the claims stand-in
-  // only through the stand-in's routes, in the same process, with the same
-  // paths, bodies and key it will send over HTTPS after the split, so the key
-  // check runs on production before then.
+  // and the Event side only through their routes, in the same process, with
+  // the same paths, bodies and keys it will send over HTTPS after the split,
+  // so the key checks run on production before then. app.request() takes the
+  // Event Service's whole address, and answers it from this server's routes.
+  const sendHere: Send = async (url, init) => app.request(url, init);
   const claims = new StandInClaims({
     url: CLAIMS_STAND_IN_PATH,
     key: config.claimsStandInKey,
-    send: options.sendToClaimsStandIn ?? (async (url, init) => app.request(url, init)),
+    send: options.sendToClaimsStandIn ?? sendHere,
   });
-  app.route("/api/v1/taps", tapsRoutes({ claims }));
+  const [showcase] = config.eventServices;
+  const eventService = new EventService({
+    id: showcase!.id,
+    url: showcase!.url,
+    key: config.eventServiceKey,
+    send: options.sendToEventService ?? sendHere,
+  });
+  app.route("/api/v1/taps", tapsRoutes({ claims, eventService }));
 
   // The claims stand-in: who owns each token, for the GeekyKey side only.
   app.route(CLAIMS_STAND_IN_PATH, claimsStandInRoutes({ key: config.claimsStandInKey }));

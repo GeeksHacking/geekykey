@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "station_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One of this Event Service's registered stations"
+    },
+    "taps": {
+      "minItems": 1,
+      "maxItems": 500,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "client_tap_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Made by the station, and unique per station forever"
+          },
+          "user_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "The token owner's user ID"
+          },
+          "tapped_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The station's time for the tap, in UTC with milliseconds. Null when the station sent none, or it was more than 5 minutes ahead or 7 days behind"
+          }
+        },
+        "required": [
+          "client_tap_id",
+          "user_id",
+          "tapped_at"
+        ]
+      }
+    }
+  },
+  "required": [
+    "station_id",
+    "taps"
+  ],
+  "title": "The hand-off: POST /geekykey/v1/taps"
+}

@@ -19,6 +19,9 @@ export interface TestFixture {
 /** The claims stand-in's key in testApp(), which tests send to its routes. */
 export const TEST_CLAIMS_STAND_IN_KEY = "5".repeat(64);
 
+/** The Event Service key in testApp(), which tests send to the Event side's hand-off routes. */
+export const TEST_EVENT_SERVICE_KEY = "e".repeat(64);
+
 /** One pool to geekykey_test for each test file, closed once its tests are done. */
 const testPool = createDbPool(localDatabaseUrl("geekykey_test"));
 afterAll(testPool.close);
@@ -42,6 +45,11 @@ export function testApp(settings: Record<string, string> = {}, options: AppOptio
     DATABASE_URL: localDatabaseUrl("geekykey_test"),
     DEV_AUTH_ENABLED: "true",
     CLAIMS_STAND_IN_KEY: TEST_CLAIMS_STAND_IN_KEY,
+    EVENT_SERVICE_KEY: TEST_EVENT_SERVICE_KEY,
+    // As dev sign-in has it, for the tests that turn that off.
+    EVENT_SERVICES: JSON.stringify([
+      { id: "showcase", name: "Capstone Showcase", url: "http://localhost:8000" },
+    ]),
     ...settings,
   });
   return createApp(config, testDb(), options);

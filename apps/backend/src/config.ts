@@ -1,3 +1,15 @@
+import { z } from "zod";
+
+/** An Event Service the GeekyKey side hands taps to: one entry in EVENT_SERVICES. */
+export interface EventServiceEntry {
+  /** Short and stable, such as `showcase`. Log lines name the Event Service by it. */
+  id: string;
+  /** For people, such as "Capstone Showcase". */
+  name: string;
+  /** Where its routes start, such as `https://event-api.geekshacking.com`, with no `/` at the end. */
+  url: string;
+}
+
 export interface Config {
   /**
    * The database's `mysql://user:password@host:port/db` URL. The server uses
@@ -29,6 +41,20 @@ export interface Config {
    * writes them.
    */
   claimsStandInKey: string;
+  /**
+   * The key the GeekyKey side's requests to the Event side carry, and the
+   * Event side checks: the Event Service key. 64 lower-case hex characters,
+   * as `openssl rand -hex 32` writes them.
+   */
+  eventServiceKey: string;
+  /**
+   * The Event Services the GeekyKey side hands taps to. Until station keys
+   * are checked against the stations each one has registered (BAC-33), every
+   * station is this server's own, so there's exactly one: the showcase's,
+   * reached through app.request() inside this server, with
+   * EVENT_SERVICE_KEY.
+   */
+  eventServices: EventServiceEntry[];
 }
 
 /**
@@ -42,6 +68,11 @@ const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
  * every request are in the one server, so the key only has to match itself.
  */
 const DEV_KEY = "0".repeat(64);
+
+/** The showcase, as this server on your laptop, in local development. */
+const DEV_EVENT_SERVICES: EventServiceEntry[] = [
+  { id: "showcase", name: "Capstone Showcase", url: "http://localhost:8000" },
+];
 
 /**
  * A setting that's missing or wrong. The server logs its message as it stops
@@ -152,6 +183,57 @@ function keyFromEnv(env: Env, name: string, devAuthEnabled: boolean): string {
 }
 
 /**
+ * An Event Service's address: `https://`, since the key goes with every
+ * request, or `http://` to this machine only.
+ */
+const eventServiceUrl = z
+  .url({ protocol: /^https?$/ })
+  .refine(
+    (url) => {
+      const { protocol, hostname } = new URL(url);
+      return protocol === "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+    },
+    { message: "must start with https://, unless it's on this machine" },
+  )
+  .transform((url) => url.replace(/\/+$/, ""));
+
+const eventServicesSetting = z
+  .array(
+    z.object({
+      id: z.string().regex(/^[a-z0-9_-]+$/),
+      name: z.string().min(1),
+      url: eventServiceUrl,
+    }),
+  )
+  .length(1, "must list exactly one Event Service, the showcase, until BAC-33");
+
+/**
+ * EVENT_SERVICES, a JSON array of `{ "id", "name", "url" }`. Not a secret:
+ * each Event Service's key is a setting of its own.
+ */
+function eventServicesFromEnv(env: Env, devAuthEnabled: boolean): EventServiceEntry[] {
+  const raw = env.EVENT_SERVICES;
+  if (!raw) {
+    if (devAuthEnabled) return DEV_EVENT_SERVICES;
+    throw new ConfigError("EVENT_SERVICES is required unless DEV_AUTH_ENABLED is true");
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new ConfigError("EVENT_SERVICES must be a JSON array, and isn't valid JSON");
+  }
+  const parsed = eventServicesSetting.safeParse(json);
+  if (!parsed.success) {
+    // Such as "EVENT_SERVICES 0.url: must start with https://".
+    const [issue] = parsed.error.issues;
+    const where = issue!.path.length === 0 ? "" : ` ${issue!.path.join(".")}:`;
+    throw new ConfigError(`EVENT_SERVICES${where} ${issue!.message}`);
+  }
+  return parsed.data;
+}
+
+/**
  * No default: a server that can't reach its database shouldn't start. Checked
  * here rather than when the pool reads it, so the error never holds the URL,
  * whose password is in it.
@@ -182,5 +264,7 @@ export function loadConfig(env: Env): Config {
     // Dev auth means a developer on http://localhost, where a Secure cookie never comes back.
     sessionCookieSecure: !devAuthEnabled,
     claimsStandInKey: keyFromEnv(env, "CLAIMS_STAND_IN_KEY", devAuthEnabled),
+    eventServiceKey: keyFromEnv(env, "EVENT_SERVICE_KEY", devAuthEnabled),
+    eventServices: eventServicesFromEnv(env, devAuthEnabled),
   };
 }
