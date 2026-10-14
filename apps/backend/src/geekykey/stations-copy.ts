@@ -19,7 +19,10 @@ export interface FoundStation<S extends StationsSource> {
 /** Runs `work` after the request has its answer, as a Worker's `ctx.waitUntil()` does. */
 export type WaitUntil = (work: Promise<unknown>) => void;
 
-/** How old a list may get before a station found on the copy refreshes it. */
+/**
+ * How long after asking an Event Service for its list the copy asks again: on
+ * a station found on the copy, or, for a list it has never had, on any key.
+ */
 const MAX_AGE_MS = 60_000;
 
 /**
@@ -71,7 +74,11 @@ export class StationsCopy<S extends StationsSource> {
     if (hit === undefined) {
       const missing = this.#missing();
       if (missing.length === 0) return { result: "unknown" };
-      await this.#fill(missing, signal, waitUntil);
+      // A request already out costs nothing to join, but a list asked for in
+      // the last minute isn't asked for again, so junk keys can't make us
+      // call an Event Service that's down.
+      const due = missing.filter(({ id }) => this.#asking.has(id) || this.#stale(id));
+      if (due.length > 0) await this.#fill(due, signal, waitUntil);
       hit = this.#byKeyHash.get(keyHash);
     }
     if (hit !== undefined) {
@@ -91,11 +98,15 @@ export class StationsCopy<S extends StationsSource> {
    * again, without waiting for the answers, each on its own.
    */
   #refresh(waitUntil: WaitUntil) {
-    const now = this.#now();
     for (const eventService of this.#eventServices) {
-      const askedAt = this.#askedAt.get(eventService.id);
-      if (askedAt === undefined || now - askedAt > MAX_AGE_MS) waitUntil(this.#ask(eventService));
+      if (this.#stale(eventService.id)) waitUntil(this.#ask(eventService));
     }
+  }
+
+  /** Whether the Event Service was never asked for its list, or last asked more than a minute ago. */
+  #stale(id: string): boolean {
+    const askedAt = this.#askedAt.get(id);
+    return askedAt === undefined || this.#now() - askedAt > MAX_AGE_MS;
   }
 
   /**

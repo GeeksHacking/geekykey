@@ -35,6 +35,8 @@ const down = async (): Promise<never> => {
 };
 const never = () => new Promise<never>(() => {});
 
+const MINUTE = 60_000;
+
 /** A clock a test moves on by hand. */
 function clock() {
   let now = Date.parse("2026-10-14T01:00:00.000Z");
@@ -125,13 +127,29 @@ test("with a list missing, a key on no other list is unavailable, not unknown", 
   });
 });
 
-test("a missing list is asked for again, and a key on it found once it comes back", async () => {
+test("keys checked at once while a list is missing share one request for it", async () => {
+  loggedLines();
+  const other = eventService("other", listOf(["station-2", hashOf("b")]));
+  const { find } = copyOf([other]);
+  const [found, junk] = await Promise.all([find(hashOf("b")), find(hashOf("f"))]);
+  assert.equal(found.result === "found" && found.stationId, "station-2");
+  assert.deepEqual(junk, { result: "unknown" });
+  assert.equal(other.requests, 1);
+});
+
+test("a missing list is asked for again a minute later, whatever the key, and a key on it found once it comes back", async () => {
   loggedLines();
   const other = eventService("other", down);
-  const { find } = copyOf([other]);
+  const { find, time } = copyOf([other]);
   assert.deepEqual(await find(hashOf("b")), { result: "unavailable" });
 
+  // Within the minute, no key asks again, so junk keys can't make us call it.
   other.answer = listOf(["station-2", hashOf("b")]);
+  time.advance(MINUTE);
+  for (const char of "bcdef") assert.deepEqual(await find(hashOf(char)), { result: "unavailable" });
+  assert.equal(other.requests, 1);
+
+  time.advance(1);
   const found = await find(hashOf("b"));
   assert.equal(found.result === "found" && found.stationId, "station-2");
   assert.equal(other.requests, 2);
@@ -146,8 +164,6 @@ test("a fill that runs out of the request's time is unavailable, and answers in 
   const took = Date.now() - started;
   assert.ok(took < 500, `took ${took} ms`);
 });
-
-const MINUTE = 60_000;
 
 test("a copy more than a minute old is used for the request, then refreshed without it waiting", async () => {
   loggedLines();

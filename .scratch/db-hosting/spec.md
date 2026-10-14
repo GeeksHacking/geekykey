@@ -202,7 +202,7 @@ How the GeekyKey Service checks a station's key with no database.
 - **Where the copy lives.** In memory, in each Worker isolate, as the 29 Sep key list did. It's free, needs no setup and behaves the same in tests. Each new isolate starts empty.
 - **An empty copy is filled on the request path,** inside the same 4-second deadline as the owner lookup and the hand-off: one request to each Event Service in the settings.
 - **A copy more than a minute old** is used for the request, then refreshed in `waitUntil()`, so a tap never waits on a refresh. Each Event Service's list is refreshed on its own. When one doesn't answer, or its answer doesn't parse, its last good list is kept, with no time limit, and the failure is logged.
-- **An unknown key never causes a refresh,** so junk keys can't make us call Cloud Run.
+- **An unknown key never causes a refresh,** so junk keys can't make us call Cloud Run. A list that has never come back is asked for again at most once a minute too, whatever keys arrive.
 - **`401` or `503`.** Only when every list is in hand and the key is on none of them does the station get `401`. When a list is missing and the key isn't on the others, it gets `503 event_service_unavailable`, keeps its taps and resends them. A heartbeat is treated the same way: no `server_time` until its key is checked.
 - **A station ID or key hash that appears twice,** in one list or in two, is refused and logged.
 - **A new, replaced or disabled key** takes up to a minute to take effect.
