@@ -64,11 +64,11 @@ works in the web console, so his steps say where each one is there too.
 | [4. The secrets, without values](#4-the-secrets-without-values) | Adam | 9 Oct 2026. `app-secrets`: 13 Oct 2026 |
 | [5. The two services](#5-the-two-services) | Adam | 9 Oct 2026 |
 | [6. The keyless sign-in](#6-the-keyless-sign-in) | Adam, with the access Julian gave | 9 Oct 2026 |
-| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave. `app-secrets`: Julian | 9 Oct 2026. `app-secrets`: not yet |
+| [7. Who may do what](#7-who-may-do-what) | Adam, with the access Julian gave. `app-secrets`: Julian | 9 Oct 2026. `app-secrets`: 14 Oct 2026 |
 | [8. Logs for the team](#8-logs-for-the-team) | Adam, with the access Julian gave | 9 Oct 2026 |
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
-| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. `app-secrets`: not yet |
+| [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. `app-secrets`: 14 Oct 2026 |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
