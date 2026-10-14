@@ -142,8 +142,8 @@ Two things that look like bugs and are not:
 | Routing | TanStack Router, file-based | Typed links, params, and search. `routeTree.gen.ts` is generated and committed; never hand-edit it |
 | Server state | TanStack Query 5 | Queries and mutations live in feature hooks; keys in `src/api/keys.ts`; the session is the `["me"]` query. See "Server state" |
 | Tables | TanStack Table 9 | Organiser scan log only. Features are opt-in through `tableFeatures()`; row, cell, and header methods live on prototypes, so call them on the instance and never spread one |
-| Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default `weight="regular"` |
-| Fonts | Geist, Geist Mono via `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
+| Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
+| Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
 | Motion | CSS/shadcn transitions | No motion library is currently required; do not add one without agreeing it in the stack |
 | Forms | react-hook-form + zod through shadcn `Form` | Two forms in the Event screens: add station, QR fallback |
 | Tests | Vitest + React Testing Library + jsdom | |
@@ -286,6 +286,7 @@ mise run dev:backend
 apps/frontend/
   CLAUDE.md
   index.html                # theme bootstrap script runs before first paint
+  public/brand/             # the branding kit's logos; the secondary one is also the favicon
   vite.config.ts            # react, router and tailwind plugins, proxy /api and /auth to :8000
   vitest.config.ts
   components.json           # shadcn config
@@ -452,26 +453,39 @@ dark. Both token sets live in `globals.css` as CSS variables in the shadcn conve
 A manual toggle in the app shell overrides the system setting and persists in
 `localStorage`. Never flip theme per section. Check every screen in both.
 
-**Palette:** zinc neutrals and one accent, the GeeksHacking yellow `#F9F668` (confirmed by
-Adam on 18 Sep 2026). It is a fill colour with near-black text on it, and it needs two
-helpers on the light theme because yellow has no luminance contrast against off-white:
-`border-primary-edge` puts a charcoal 1px edge on every yellow fill (the logo's own trick),
-and `text-primary-text` is what links, icons, and active labels use, which is yellow on dark
-and a darkened yellow on light. Never `text-primary` for text. No pure `#000` or `#fff`.
-No gradients, no glows.
+**Palette:** the GeeksHacking branding kit (its Figma file), adopted on 14 Oct 2026 after
+Julian approved the prototype. The kit's greys and one accent, its yellow `#FFF200`. The
+yellow is the brand's own colour, so it stays at full saturation although the skill's 4.2
+asks for less (8.B keeps the brand colour recognisable). It is a fill colour with `#1C1B1B`
+text on it, and it needs two helpers on the light theme because yellow on the `#F5F5F5`
+page is 1.07:1. `border-primary-edge` puts a `#1C1B1B` 1px edge on every yellow fill, as
+the kit outlines its own components, and `text-primary-text` is what links, icons, and
+active labels use: yellow on dark, `#706B00` on light. Never `text-primary` for text. The
+current nav item is a solid yellow segment (`components/layout/nav-link.tsx`). The kit has
+no dark theme, and its secondary grey fails on light; `globals.css` says what was derived
+for each and the contrast it reaches. The ghost button is the app's own: the kit's
+half-transparent one looks disabled and fails contrast. No pure `#000` or `#fff`. No
+gradients, no glows.
 
 **Status is never colour alone.** Every `tap_status` and every online/offline indicator
-renders icon plus text plus colour. Accepted green, cooldown orange, no_game red.
+renders icon plus text plus colour. Accepted green, cooldown orange, no_game red. The kit
+has no status colours, so these are the app's own.
 Cooldown is orange on screen rather than the agreement's amber so it never reads as the
 brand yellow. Station LEDs stay amber.
 
-**Type:** Geist for UI. Geist Mono for points, station IDs, timestamps, and counts.
-`tracking-tight` on headings. No oversized display type. The wordmark alone echoes
-the GeeksHacking logo: Geist ExtraBold with `tracking-[0.06em]`, mixed case. Do not add a
-display face to the app; spend that on the showcase poster if wanted.
+**Type:** Open Sans for UI, as the kit's typography page says. Its components page shows
+Figtree, and the typography page wins. Geist Mono for points, station IDs, timestamps, and
+counts, which the kit does not cover. Body text at normal weight, not the kit's 300,
+because participants read in dim venues. The app's own text sizes, because the kit's 45px
+heading is too big for a phone. `tracking-heading` (the kit's 0.5px) on headings and the
+large figures. No oversized display type. The wordmark is the kit's logo, unrecoloured:
+the secondary logo beside "GeekyKey" in the shells, and the primary logo over it on the
+login and loading pages (`components/layout/wordmark.tsx`, files in `public/brand/`). Do
+not add a display face to the app; spend that on the showcase poster if wanted.
 
-**Shape:** one radius scale. `rounded-lg` for cards, dialogs, and inputs; `rounded-md`
-for buttons and badges. Document any exception in this file.
+**Shape:** one radius scale, from the kit's 12px corner. `rounded-lg` (12px) for cards,
+dialogs, and inputs; `rounded-md` (10px) for buttons and badges. Document any exception in
+this file.
 
 **Layout:** participant screens designed at 360 to 430 px first, single column, one-line
 bottom or top nav, `min-h-[100dvh]` never `h-screen`. Organiser screens designed at
