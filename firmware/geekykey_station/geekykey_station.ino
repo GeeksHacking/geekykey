@@ -26,7 +26,13 @@
   so plain http:// is only ever sent to a .local host, whose IP is looked up
   with mDNS because a phone hotspot hands out a new one on every restart.
 
-  The backend contract for POST /api/v1/taps is in apps/API-AGREEMENT.md, section 6.1.
+  The backend contract for POST /api/v1/taps is in apps/API-AGREEMENT.md, section 6.1,
+  and for POST /api/v1/stations/heartbeat in section 6.2.
+
+  The heartbeat goes at boot and every 60 seconds, with any saved taps sent
+  just before it. Its answer's server_time sets the station's clock, and taps
+  carry tapped_at once the clock is set. There is no NTP: some venue WiFi
+  blocks it.
 */
 
 #include <SPI.h>
@@ -38,6 +44,8 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
+#include <sys/time.h>
+#include <time.h>
 #include "secrets.h"
 #include "ca_roots.h"
 #include <Wire.h>
@@ -54,6 +62,13 @@
 #define I2C_SDA 7
 #define I2C_SCL 6
 #define NO_LED -1
+
+// Sent with each heartbeat and shown to organizers on the station board.
+// Change it whenever a new build goes onto the stations.
+#define FIRMWARE_VERSION "2026-10-15"
+
+// How often the station sends a heartbeat, with any saved taps just before it.
+#define HEARTBEAT_INTERVAL_MS 60000UL
 
 // How long a tap's result stays on the screen, with its LED on.
 #define RESULT_SHOW_MS 2000UL
@@ -108,7 +123,6 @@ String lastUid = "";
 unsigned long lastResultEndedAt = 0;
 
 #define QUEUE_CAPACITY 100
-#define QUEUE_RETRY_INTERVAL_MS 60000UL
 #define QUEUE_BATCH_MAX QUEUE_CAPACITY
 
 struct QueuedTap {
@@ -127,7 +141,16 @@ struct QueueAttempt {
 
 uint8_t queueHead = 0;
 uint8_t queueCount = 0;
-unsigned long nextQueueAttemptAt = 0;
+
+// Set once a heartbeat's answer has set the clock. Until then, taps are sent
+// without tapped_at, and the server times them when they arrive.
+bool clockSet = false;
+
+// Whether the RC522 answered when last asked for its chip version. While it
+// doesn't, the screen shows "Reader error" with the red LED on.
+bool readerOk = true;
+
+unsigned long nextHeartbeatAt = 0;
 
 // The Arduino builder skips functions with default arguments when it writes
 // prototypes, so flushQueue is declared here, before loop() calls it.
@@ -159,18 +182,10 @@ void setup() {
     while (true) delay(1000);
   }
 
-  // Hold the RC522's reset pin HIGH ourselves. Given the pin, the library
-  // leaves it a floating input whenever it happens to read HIGH, and the
-  // reader can then drift into power-down: it answers 0xFF and never sees a
-  // tag. A LOW pulse first gives it a clean hard reset on every boot.
+  // The station drives the RC522's reset pin itself (initReader says why).
   pinMode(RST_PIN, OUTPUT);
-  digitalWrite(RST_PIN, LOW);
-  delay(10);
-  digitalWrite(RST_PIN, HIGH);
-  delay(50);
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SS_PIN);
-  rfid.PCD_Init();
-  rfid.PCD_SetRegisterBitMask(MFRC522::RFCfgReg, (0x07 << 4));
+  initReader();
   // Asks the RC522 for its chip version. 0x00 or 0xFF means the ESP32 cannot
   // talk to the reader over SPI: check the wiring and 3.3V power first.
   rfid.PCD_DumpVersionToSerial();
@@ -220,14 +235,16 @@ void setup() {
   secureClient.setHandshakeTimeout(5);
   http.setReuse(true);  // one connection, kept open across requests
 
-  if (WiFi.status() == WL_CONNECTED && resolveServer()) checkBackend();
+  // The first heartbeat replaces a health check, since it also proves the
+  // station key, and sets the clock before anyone taps.
+  if (heartbeatTick() == 401) showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED);
 
   Serial.println("Ready. Tap an NTAG213 tag...");
   showReady();
 }
 
 void loop() {
-  flushQueue();
+  if ((long)(millis() - nextHeartbeatAt) >= 0) heartbeatTick();
 
   if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
     delay(50);
@@ -255,7 +272,8 @@ void loop() {
 // Saves the tap, sends it with any saved taps, and shows the result.
 void handleTap(const String &uid) {
   String clientTapId = takeClientTapId();
-  QueuedTap tap = {clientTapId, uid, ""};
+  // Saved with the tap, so a tap resent later keeps the time it was made.
+  QueuedTap tap = {clientTapId, uid, clockSet ? isoNow() : ""};
   if (!enqueueTap(tap)) {
     if (queueCount >= QUEUE_CAPACITY) {
       showResult("QUEUE FULL", "Storage full", LED_PIN_RED);
@@ -468,8 +486,6 @@ QueueAttempt flushQueue(const String &newTapId) {
     result.retryable = true;
     return result;
   }
-  if (newTapId.length() == 0 && millis() < nextQueueAttemptAt) return result;
-
   uint8_t count = 0;
   while (count < QUEUE_BATCH_MAX && count < queueCount) {
     QueuedTap tap;
@@ -490,7 +506,6 @@ QueueAttempt flushQueue(const String &newTapId) {
   sendBatch(batch, count, newTapId, result);
   Serial.println("Backend answered HTTP " + String(result.httpCode));
   for (uint8_t i = 0; i < count && result.completed[i]; i++) removeQueuedHead();
-  nextQueueAttemptAt = millis() + QUEUE_RETRY_INTERVAL_MS;
   return result;
 }
 
@@ -521,8 +536,15 @@ void showResult(const char *line1, const char *line2, int ledPin) {
   showReady();
 }
 
+// Ready, unless the reader isn't answering: then the red LED stays on and the
+// screen says so until it answers again.
 void showReady() {
-  showScreen("Ready", "Tap a tag");
+  digitalWrite(LED_PIN_RED, readerOk ? LOW : HIGH);
+  if (readerOk) {
+    showScreen("Ready", "Tap a tag");
+  } else {
+    showScreen("Reader error", "Tell organizer");
+  }
 }
 
 // Each line fits 16 characters; anything longer is cut off.
@@ -639,25 +661,132 @@ bool beginRequest(const String &path) {
   return http.begin(plainClient, serverBase + path);
 }
 
-// Boot self-test: confirms the backend is reachable before anyone taps.
-void checkBackend() {
-  if (!beginRequest("/api/health")) {
-    Serial.println("Backend NOT reachable: bad URL");
-    return;
+// Gives the RC522 a clean hard reset, then sets it up. The station holds
+// RST_PIN HIGH itself: given the pin, the library leaves it a floating input
+// whenever it happens to read HIGH, and the reader can then drift into
+// power-down, answer 0xFF and never see a tag. The LOW pulse is the reset.
+void initReader() {
+  digitalWrite(RST_PIN, LOW);
+  delay(10);
+  digitalWrite(RST_PIN, HIGH);
+  delay(50);
+  rfid.PCD_Init();
+  rfid.PCD_SetRegisterBitMask(MFRC522::RFCfgReg, (0x07 << 4));
+}
+
+// The RC522's chip version, or 0x00 or 0xFF when it isn't answering over SPI.
+bool readerAnswers() {
+  const byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
+  return version != 0x00 && version != 0xFF;
+}
+
+// Asks the RC522 for its chip version, for the heartbeat's reader_ok. A reader
+// that doesn't answer is reset once and asked again, which also sets up one
+// that was unplugged and plugged back in.
+void checkReader() {
+  bool ok = readerAnswers();
+  if (!ok) {
+    initReader();
+    ok = readerAnswers();
   }
+  if (ok == readerOk) return;
+  readerOk = ok;
+  Serial.println(readerOk ? "Reader answers again" : "Reader not answering");
+  showReady();
+}
+
+// Every 60 seconds and at boot: checks the reader, sends any saved taps, then
+// sends the heartbeat, so buffered_taps counts what is still saved. Returns
+// the heartbeat's HTTP code, or 0 when it wasn't sent.
+int heartbeatTick() {
+  nextHeartbeatAt = millis() + HEARTBEAT_INTERVAL_MS;
+  checkReader();
+  flushQueue();
+  return sendHeartbeat();
+}
+
+// POST /api/v1/stations/heartbeat (the API agreement's 6.2). A 200 sets the
+// clock from server_time. Any other answer changes nothing here: a 401 or a
+// 503 also fails the taps, which are saved and sent again.
+int sendHeartbeat() {
+  if (WiFi.status() != WL_CONNECTED) return 0;
+  if (serverBase.length() == 0 && !resolveServer()) return 0;
+
+  JsonDocument request;
+  request["firmware_version"] = FIRMWARE_VERSION;
+  request["buffered_taps"] = queueCount;
+  request["reader_ok"] = readerOk;
+  String body;
+  if (serializeJson(request, body) == 0) return 0;
+
+  if (!beginRequest("/api/v1/stations/heartbeat")) return 0;
+  // As for a tap: until checkpoint 4 the server answers once it has passed
+  // the heartbeat on, which takes up to 4 seconds.
   http.setConnectTimeout(2000);
   http.setTimeout(5000);
-  int code = http.GET();
-  // Read the answer even though it isn't used. The connection stays open for
-  // the next request, and an unread body would be taken as that request's
-  // answer (on hardware, a reused connection then returned HTTP 5).
-  if (code > 0) http.getString();
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", String("Bearer ") + stationKey);
+  const int code = http.POST(body);
+  // Read even when unused: on the kept-open connection, an unread body would
+  // be taken as the next request's answer.
+  const String response = code > 0 ? http.getString() : "";
   http.end();
-  if (code == 200) {
-    Serial.println("Backend reachable");
-  } else if (code <= 0) {
-    Serial.println("Backend NOT reachable: " + HTTPClient::errorToString(code));
-  } else {
-    Serial.println("Backend answered HTTP " + String(code));
+
+  if (code <= 0) {
+    // The laptop may have a new IP since we looked it up, as for a tap.
+    serverBase = "";
+    Serial.println("Heartbeat: no answer, " + HTTPClient::errorToString(code));
+    return code;
   }
+  if (code != 200) {
+    Serial.println("Heartbeat: HTTP " + String(code));
+    return code;
+  }
+  JsonDocument answer;
+  if (deserializeJson(answer, response) || !setClockFrom(answer["server_time"].as<const char *>())) {
+    Serial.println("Heartbeat: answer had no usable server_time");
+    return code;
+  }
+  Serial.println("Heartbeat: clock set to " + isoNow());
+  return code;
+}
+
+// Sets the clock from a time the server sent, such as
+// "2026-10-15T01:23:45.678Z": always UTC, with milliseconds.
+bool setClockFrom(const char *iso) {
+  int year, month, day, hour, minute, second, millisecond;
+  if (!iso || sscanf(iso, "%4d-%2d-%2dT%2d:%2d:%2d.%3dZ", &year, &month, &day, &hour, &minute,
+                     &second, &millisecond) != 7) {
+    return false;
+  }
+  struct timeval now;
+  now.tv_sec = (time_t)(daysSinceEpoch(year, month, day) * 86400LL + hour * 3600 + minute * 60 + second);
+  now.tv_usec = millisecond * 1000;
+  if (settimeofday(&now, nullptr) != 0) return false;
+  clockSet = true;
+  return true;
+}
+
+// Days from 1970-01-01 to a date, by Howard Hinnant's days_from_civil, so no
+// time zone setting can shift it.
+int64_t daysSinceEpoch(int year, int month, int day) {
+  year -= month <= 2;
+  const int era = (year >= 0 ? year : year - 399) / 400;
+  const int yearOfEra = year - era * 400;
+  const int dayOfYear = (153 * (month > 2 ? month - 3 : month + 9) + 2) / 5 + day - 1;
+  const int dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear;
+  return (int64_t)era * 146097 + dayOfEra - 719468;
+}
+
+// The clock's time as the server writes it, such as "2026-10-15T01:23:45.678Z".
+String isoNow() {
+  struct timeval now;
+  gettimeofday(&now, nullptr);
+  struct tm utc;
+  gmtime_r(&now.tv_sec, &utc);
+  char text[32];
+  snprintf(text, sizeof(text), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", utc.tm_year + 1900,
+           utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec,
+           (int)(now.tv_usec / 1000));
+  return String(text);
 }
