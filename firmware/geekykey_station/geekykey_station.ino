@@ -682,7 +682,9 @@ bool readerAnswers() {
 
 // Asks the RC522 for its chip version, for the heartbeat's reader_ok. A reader
 // that doesn't answer is reset once and asked again, which also sets up one
-// that was unplugged and plugged back in.
+// that was unplugged and plugged back in. Pulling only its 3.3V wire may not
+// show: on 15 Oct 2026 the chip kept answering, likely powered through the
+// reset and chip-select lines the ESP32 holds HIGH. Pulling MISO showed it.
 void checkReader() {
   bool ok = readerAnswers();
   if (!ok) {
@@ -709,8 +711,14 @@ int heartbeatTick() {
 // clock from server_time. Any other answer changes nothing here: a 401 or a
 // 503 also fails the taps, which are saved and sent again.
 int sendHeartbeat() {
-  if (WiFi.status() != WL_CONNECTED) return 0;
-  if (serverBase.length() == 0 && !resolveServer()) return 0;
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Heartbeat: not sent, no WiFi");
+    return 0;
+  }
+  if (serverBase.length() == 0 && !resolveServer()) {
+    Serial.println("Heartbeat: not sent, server not found");
+    return 0;
+  }
 
   JsonDocument request;
   request["firmware_version"] = FIRMWARE_VERSION;
