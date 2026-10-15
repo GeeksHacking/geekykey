@@ -134,6 +134,13 @@ minute after that. A list that doesn't come back is asked for again at most once
 too, whatever keys arrive. So a new, replaced or disabled station key takes up to a minute to take
 effect. The GeekyKey side reads no table.
 
+A station's heartbeat, `POST /api/v1/stations/heartbeat`, has its key checked the same way.
+Once it is, the station gets `server_time` straight away. The GeekyKey side then passes what
+the station said of its health to the Event side's `POST /geekykey/v1/heartbeats`, also with
+`EVENT_SERVICE_KEY`, without waiting for the answer. So a heartbeat sets a station's clock even
+while the Event side is down. A heartbeat hand-off that fails is logged as
+`heartbeat_handoff_failed` and not retried, since the station sends another a minute later.
+
 Every line the server logs is one JSON object whose `message` is a fixed name, such as
 `server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging
 shows that name as the line's headline, and takes its `severity`. A log line never holds a

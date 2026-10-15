@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { heartbeatsRequest } from "./heartbeats.ts";
 import { stationsAnswer } from "./stations.ts";
 import { tapsAnswer, tapsRequest } from "./taps.ts";
 
@@ -15,6 +16,10 @@ const SCHEMAS = {
   "stations-answer.schema.json": stationsAnswer.meta({
     title: "The registered stations: GET /geekykey/v1/stations",
     description: "Enabled stations only. The request has no body.",
+  }),
+  "heartbeats-request.schema.json": heartbeatsRequest.meta({
+    title: "The heartbeat hand-off: POST /geekykey/v1/heartbeats",
+    description: "Answered 204, with no body.",
   }),
 };
 

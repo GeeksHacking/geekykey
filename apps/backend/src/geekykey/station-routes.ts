@@ -1,12 +1,14 @@
+import { type HeartbeatsRequest, heartbeatsRequest } from "@geekykey/handoff";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
-import { log } from "../lib/log.ts";
+import { errorFields, log } from "../lib/log.ts";
 import { trustedTappedAt } from "../lib/tapped-at.ts";
 import { normaliseUid, UID_PATTERN } from "../lib/token-uid.ts";
 import { jsonBody } from "../lib/validate.ts";
 import { type Claims, ClaimsUnavailable } from "./claims.ts";
 import { type EventService, EventServiceUnavailable } from "./event-service.ts";
+import { Unanswered } from "./service-request.ts";
 import { stationAuth, type StationEnv } from "./station-auth.ts";
 import type { StationsCopy } from "./stations-copy.ts";
 
@@ -30,7 +32,7 @@ export function tapBodySchema(maxTaps: number) {
   });
 }
 
-type TapsEnv = AppEnv & StationEnv;
+type StationRoutesEnv = AppEnv & StationEnv;
 type TapBodySchema = ReturnType<typeof tapBodySchema>;
 
 /**
@@ -39,7 +41,7 @@ type TapBodySchema = ReturnType<typeof tapBodySchema>;
  */
 const tapBody: ReturnType<typeof jsonBody<TapBodySchema>> = (c, next) => {
   // jsonBody's check doesn't know this route's variables, so they're named here.
-  const { config } = c.var as TapsEnv["Variables"];
+  const { config } = c.var as StationRoutesEnv["Variables"];
   return jsonBody(tapBodySchema(config.maxTapsPerRequest))(c, next);
 };
 
@@ -68,7 +70,7 @@ export function tapsRoutes({
   claims: Claims;
   stationsCopy: StationsCopy<EventService>;
 }) {
-  return new Hono<TapsEnv>().post("/", stationAuth(stationsCopy), tapBody, async (c) => {
+  return new Hono<StationRoutesEnv>().post("/", stationAuth(stationsCopy), tapBody, async (c) => {
     const { station, deadline } = c.var;
     const { eventService } = station;
     const { taps } = c.req.valid("json");
@@ -133,4 +135,65 @@ export function tapsRoutes({
       })),
     });
   });
+}
+
+/**
+ * A heartbeat's body: the station's own three fields, all optional, with the
+ * rules the heartbeat hand-off passes them on with (the agreement's 6.2 and
+ * 11.3).
+ */
+const heartbeatBody = heartbeatsRequest.omit({ station_id: true });
+
+/**
+ * POST /  (mounted at /api/v1/stations/heartbeat)
+ *
+ * The station's clock, and its health for the station board. The key is
+ * checked as a tap's is, so a key that can't be checked gets `503
+ * event_service_unavailable`, and no time. Once it is, the station gets
+ * `server_time` straight away, and what it said of its health is passed on
+ * to the Event Service that registered it afterwards, without waiting (the
+ * agreement's 6.2 and 11.3). So a heartbeat sets the clock even while the
+ * Event Service is down.
+ */
+export function heartbeatRoutes({ stationsCopy }: { stationsCopy: StationsCopy<EventService> }) {
+  return new Hono<StationRoutesEnv>().post(
+    "/",
+    stationAuth(stationsCopy),
+    jsonBody(heartbeatBody),
+    (c) => {
+      const { station, deadline } = c.var;
+      const answer = { station_id: station.id, server_time: new Date().toISOString() };
+      // The one server keeps running after it answers, as a Worker's
+      // waitUntil() would keep it.
+      void passOnHeartbeat(
+        station.eventService,
+        { station_id: station.id, ...c.req.valid("json") },
+        deadline,
+      );
+      return c.json(answer);
+    },
+  );
+}
+
+/**
+ * The heartbeat hand-off, within what's left of the station request's
+ * deadline, with no retry: a lost one is replaced a minute later. Never
+ * throws: a failure is logged.
+ */
+async function passOnHeartbeat(
+  eventService: EventService,
+  request: HeartbeatsRequest,
+  deadline: AbortSignal,
+) {
+  try {
+    await eventService.handOffHeartbeat(request, deadline);
+  } catch (err) {
+    log("heartbeat_handoff_failed", {
+      station_id: request.station_id,
+      event_service: eventService.id,
+      ...(err instanceof Unanswered
+        ? { reason: err.reason, status: err.status }
+        : errorFields(err)),
+    });
+  }
 }

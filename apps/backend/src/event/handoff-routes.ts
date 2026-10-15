@@ -1,4 +1,4 @@
-import { type StationsAnswer, tapsRequest } from "@geekykey/handoff";
+import { heartbeatsRequest, type StationsAnswer, tapsRequest } from "@geekykey/handoff";
 import { eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
@@ -58,5 +58,36 @@ export function handoffRoutes({ key }: { key: string }) {
       return c.json({
         results: results.map((r) => ({ client_tap_id: r.clientTapId, status: r.status })),
       });
+    })
+    .post("/heartbeats", jsonBody(heartbeatsRequest), async (c) => {
+      // The heartbeat hand-off: the station's health, as it sent it (11.3).
+      const { station_id, firmware_version, buffered_taps, reader_ok } = c.req.valid("json");
+      const { db } = c.var;
+
+      const [station] = await db
+        .select({ id: stations.id })
+        .from(stations)
+        .where(eq(stations.id, station_id));
+      if (station === undefined) {
+        return validationFailed(
+          c,
+          ["station_id"],
+          "station_id must be one of this Event Service's stations",
+        );
+      }
+
+      // Heard from just now. A field the station left out is undefined, which
+      // Drizzle leaves out of the update, so it keeps what the last one said.
+      await db
+        .update(stations)
+        .set({
+          lastSeenAt: new Date().toISOString(),
+          firmwareVersion: firmware_version,
+          bufferedTaps: buffered_taps,
+          readerOk: reader_ok,
+        })
+        .where(eq(stations.id, station_id));
+
+      return c.body(null, 204);
     });
 }

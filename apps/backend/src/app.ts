@@ -9,7 +9,7 @@ import type { SessionOptions } from "./event/session-auth.ts";
 import { StandInClaims } from "./geekykey/claims.ts";
 import { EventService } from "./geekykey/event-service.ts";
 import type { Send } from "./geekykey/service-request.ts";
-import { tapsRoutes } from "./geekykey/station-routes.ts";
+import { heartbeatRoutes, tapsRoutes } from "./geekykey/station-routes.ts";
 import { StationsCopy } from "./geekykey/stations-copy.ts";
 
 export type AppEnv = {
@@ -27,7 +27,7 @@ export interface AppOptions {
   sendToClaimsStandIn?: Send;
   /**
    * How the GeekyKey side's requests reach the Event side, for its
-   * registered stations and the hand-off: through app.request(), to this
+   * registered stations and the two hand-offs: through app.request(), to this
    * server's own routes, unless a test fakes them.
    */
   sendToEventService?: Send;
@@ -96,6 +96,7 @@ export function createApp(config: Config, db: Db, options: AppOptions = {}) {
     fetchTimeoutMs: config.tapDeadlineMs,
   });
   app.route("/api/v1/taps", tapsRoutes({ claims, stationsCopy }));
+  app.route("/api/v1/stations/heartbeat", heartbeatRoutes({ stationsCopy }));
 
   // The claims stand-in: who owns each token, for the GeekyKey side only.
   app.route(CLAIMS_STAND_IN_PATH, claimsStandInRoutes({ key: config.claimsStandInKey }));

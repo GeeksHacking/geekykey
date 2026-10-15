@@ -16,6 +16,8 @@ const LOG_LINES = {
   tap_stored: "INFO",
   // A station request failed because its Event Service didn't answer the hand-off properly in time.
   handoff_failed: "ERROR",
+  // A station's heartbeat, already answered, that its Event Service didn't take properly in time.
+  heartbeat_handoff_failed: "ERROR",
   // The GeekyKey side filled its empty copy of the registered stations on a station's request.
   stations_copy_filled: "INFO",
   // An Event Service's registered stations couldn't be had. Its last good list, if any, is kept.

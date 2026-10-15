@@ -1,10 +1,12 @@
 import {
+  type HeartbeatsRequest,
   type RegisteredStation,
   stationsAnswer,
   type TapsAnswer,
   tapsAnswerMatching,
   type TapsRequest,
 } from "@geekykey/handoff";
+import { z } from "zod";
 import { askService, type Send, Unanswered } from "./service-request.ts";
 
 /**
@@ -70,5 +72,24 @@ export class EventService {
       fail: EventServiceUnavailable,
     });
     return results;
+  }
+
+  /**
+   * The heartbeat hand-off (11.3): what a station's heartbeat said of its
+   * health. Any 2xx will do, since ours answers `204` with no body, which
+   * askService reads as undefined and z.unknown() takes. Throws
+   * EventServiceUnavailable for anything else, or when `signal` fires first.
+   * There's no retry: the station's next heartbeat comes a minute later.
+   */
+  async handOffHeartbeat(request: HeartbeatsRequest, signal: AbortSignal): Promise<void> {
+    await askService(this.#send, {
+      method: "POST",
+      url: `${this.#url}/geekykey/v1/heartbeats`,
+      key: this.#key,
+      body: request,
+      answer: z.unknown(),
+      signal,
+      fail: EventServiceUnavailable,
+    });
   }
 }

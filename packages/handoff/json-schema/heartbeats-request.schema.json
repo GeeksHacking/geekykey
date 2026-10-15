@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "station_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One of this Event Service's registered stations"
+    },
+    "firmware_version": {
+      "description": "The station's firmware version, shown to organizers on the station board",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "buffered_taps": {
+      "description": "Taps saved on the station and not yet sent",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647
+    },
+    "reader_ok": {
+      "description": "False when the NFC reader doesn't answer the station's own check",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "station_id"
+  ],
+  "title": "The heartbeat hand-off: POST /geekykey/v1/heartbeats",
+  "description": "Answered 204, with no body."
+}

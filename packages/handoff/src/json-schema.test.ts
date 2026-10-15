@@ -25,6 +25,16 @@ test("the request's JSON Schema keeps the agreement's rules", () => {
   assert.deepEqual(schema.required, ["station_id", "taps"]);
 });
 
+test("the heartbeat hand-off's JSON Schema keeps the agreement's rules", () => {
+  const schema = JSON.parse(jsonSchemaFiles()["heartbeats-request.schema.json"]!);
+  // Only the station is always there; the station's own three are left out when it left them out.
+  assert.deepEqual(schema.required, ["station_id"]);
+  assert.equal(schema.properties.firmware_version.maxLength, 64);
+  assert.equal(schema.properties.buffered_taps.type, "integer");
+  assert.equal(schema.properties.buffered_taps.minimum, 0);
+  assert.equal(schema.properties.buffered_taps.maximum, 2_147_483_647);
+});
+
 test("a field added later doesn't break a team checking with an older JSON Schema", () => {
   // Fields are only ever added (the agreement's section 1), so none may be refused.
   for (const contents of Object.values(jsonSchemaFiles())) {

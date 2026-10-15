@@ -36,6 +36,13 @@
       "when": 1791964206265,
       "tag": "0004_stations_can_be_disabled",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1792027078764,
+      "tag": "0005_stations_hold_their_health",
+      "breakpoints": true
     }
   ]
 }
