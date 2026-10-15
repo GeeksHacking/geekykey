@@ -77,8 +77,8 @@ export const passportStations = mysqlTable("passport_stations", {
 });
 
 export const TAP_SOURCES = ["nfc", "qr_fallback"] as const;
-/** `unknown_token` is no longer written, since only the GeekyKey side answers it. */
-export const STORED_TAP_STATUSES = ["accepted", "cooldown", "unknown_token", "no_game"] as const;
+/** `duplicate` and the GeekyKey side's `unknown_token` are answered, never stored. */
+export const STORED_TAP_STATUSES = ["accepted", "cooldown", "no_game"] as const;
 
 /**
  * The migration adds `AUTO_ID_CACHE=1` to this table by hand, since Drizzle

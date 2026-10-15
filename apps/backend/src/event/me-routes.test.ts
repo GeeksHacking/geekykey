@@ -302,19 +302,12 @@ test("recent taps are in the order the backend received them", async () => {
 });
 
 test("shows only the signed-in participant's own taps", async () => {
-  // One tap by another participant, and one by a token nobody had claimed yet.
   const { meAs, addTap, db, userId } = await harness();
   await db.insert(users).values({ id: "user-2", displayName: "Wei Lin" });
   await addTap({
     userId: "user-2",
     tokenUid: "0455D2F1C83A91",
     receivedAt: "2026-10-10T09:00:00.000Z",
-  });
-  await addTap({
-    userId: null,
-    tokenUid: "DEADBEEF",
-    status: "unknown_token",
-    receivedAt: "2026-10-10T09:01:00.000Z",
   });
   const me = await meAs(userId);
   assert.equal(me.points, 0);
