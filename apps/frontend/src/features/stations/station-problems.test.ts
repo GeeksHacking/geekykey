@@ -13,7 +13,8 @@ function station(overrides: Partial<EventStationBoardStation> = {}): EventStatio
   return {
     id: "station-1",
     label: "Station 1",
-    linked: true,
+    created_at: "2026-10-01T00:00:00.000Z",
+    disabled_at: null,
     passport: {
       name: "3D Printing Booth",
       location: "Hall A",
@@ -73,27 +74,32 @@ describe("stationProblems", () => {
     expect(stationProblems(quiet)).toEqual([]);
   });
 
-  it("treats an unknown status as unknown, not as a fault", () => {
-    // Agreement 9.2: when the status call fails these are all null, and the screen
-    // must not show them as offline.
-    const unknown = station({
-      label: null,
-      linked: null,
-      last_seen_at: null,
-      online: null,
+  it("treats a station that has not reported a heartbeat as not at fault", () => {
+    // Agreement 9.2: the three heartbeat fields are null until a heartbeat's hand-off
+    // reports them, and a null reading must never send an organiser to restart anything.
+    const unreported = station({
       firmware_version: null,
       buffered_taps: null,
       reader_ok: null,
     });
 
-    expect(stationProblems(unknown)).toEqual([]);
+    expect(stationProblems(unreported)).toEqual([]);
   });
 
-  it("still finds a missing passport when the status is unknown", () => {
-    // Passport settings come from the Event Service, so they survive a failed status call.
-    const unknown = station({ online: null, reader_ok: null, passport: null });
+  it("still finds a missing passport when no heartbeat has been reported", () => {
+    // Passport settings are the organizer's own, so they are independent of the reader.
+    const unreported = station({ reader_ok: null, passport: null });
 
-    expect(stationProblems(unknown)).toEqual(["notInPassport"]);
+    expect(stationProblems(unreported)).toEqual(["notInPassport"]);
+  });
+
+  it("does not treat being disabled as a problem of its own", () => {
+    // 9.2 lists the four faults separately from disabled, and disabled only changes where
+    // the row sits. A disabled station keeps its slot and its stamps.
+    const disabled = station({ disabled_at: "2026-10-10T09:00:01.250Z" });
+
+    expect(stationProblems(disabled)).toEqual([]);
+    expect(hasStationProblem(disabled)).toBe(false);
   });
 
   it("gives every problem a word to show", () => {
@@ -152,6 +158,47 @@ describe("sortStationsByTrouble", () => {
 
   it("returns nothing to complain about for an empty board", () => {
     expect(sortStationsByTrouble([])).toEqual([]);
+  });
+
+  it("puts a disabled station last, whatever else is true of it", () => {
+    const disabled = station({ id: "disabled", disabled_at: "2026-10-10T09:00:01.250Z" });
+
+    expect(sortStationsByTrouble([disabled, healthy, quiet]).map((entry) => entry.id)).toEqual([
+      "healthy",
+      "quiet",
+      "disabled",
+    ]);
+  });
+
+  it("puts a disabled station last even when it is also broken", () => {
+    // 9.2 makes the disabled rule unconditional and lists it apart from the four faults.
+    const disabled = station({
+      id: "disabled",
+      disabled_at: "2026-10-10T09:00:01.250Z",
+      online: false,
+      passport: null,
+    });
+
+    expect(sortStationsByTrouble([disabled, offline]).map((entry) => entry.id)).toEqual([
+      "offline",
+      "disabled",
+    ]);
+  });
+
+  it("keeps the problem-first order among disabled stations", () => {
+    const quietDisabled = station({
+      id: "quiet-disabled",
+      disabled_at: "2026-10-10T09:00:00.000Z",
+    });
+    const brokenDisabled = station({
+      id: "broken-disabled",
+      disabled_at: "2026-10-10T09:00:00.000Z",
+      reader_ok: false,
+    });
+
+    expect(
+      sortStationsByTrouble([quietDisabled, brokenDisabled, healthy]).map((entry) => entry.id),
+    ).toEqual(["healthy", "broken-disabled", "quiet-disabled"]);
   });
 
   it("leaves the caller's array alone", () => {

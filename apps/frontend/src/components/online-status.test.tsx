@@ -17,25 +17,11 @@ describe("OnlineStatus", () => {
   });
 
   it("says Never connected for a station that has never checked in", () => {
+    // Agreement 9.2: last_seen_at is set by every hand-off, so a station created by 9.7
+    // and not yet heard from has none, and it is offline rather than unknown.
     render(<OnlineStatus online={false} lastSeenAt={null} />);
 
     expect(screen.getByText("Never connected")).toBeInTheDocument();
-  });
-
-  it("says Status unknown, not Offline, when the status is unknown", () => {
-    // Agreement 9.2: a failed status call must not make an organiser restart a
-    // healthy station.
-    render(<OnlineStatus online={null} lastSeenAt={null} />);
-
-    expect(screen.getByText("Status unknown")).toBeInTheDocument();
-    expect(screen.queryByText("Offline")).not.toBeInTheDocument();
-    expect(screen.queryByText("Never connected")).not.toBeInTheDocument();
-  });
-
-  it("prefers Status unknown over Offline even when a last-seen time exists", () => {
-    render(<OnlineStatus online={null} lastSeenAt="2026-10-10T09:00:00.000Z" />);
-
-    expect(screen.getByText("Status unknown")).toBeInTheDocument();
     expect(screen.queryByText("Offline")).not.toBeInTheDocument();
   });
 });

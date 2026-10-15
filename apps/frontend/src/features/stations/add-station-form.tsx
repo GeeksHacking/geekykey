@@ -21,14 +21,11 @@ import { useCreateStation } from "@/features/stations/use-create-station";
 import { applyApiIssues } from "@/lib/form-errors";
 
 const schema = z.object({
-  name: z
+  label: z
     .string()
     .trim()
-    .min(1, "Give the station a name.")
+    .min(1, "Give the station a label.")
     .max(80, "Keep it under 80 characters."),
-  location: z.string().trim().max(80, "Keep it under 80 characters."),
-  // Kept as text so the input stays controlled; converted on submit.
-  points: z.string().trim().regex(/^\d+$/, "Whole numbers only, 0 or more."),
 });
 
 type StationValues = z.infer<typeof schema>;
@@ -41,18 +38,14 @@ export function AddStationForm({
   const createStation = useCreateStation();
   const form = useForm<StationValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", location: "", points: "1" },
+    defaultValues: { label: "" },
   });
   const [formError, setFormError] = useState<string | null>(null);
 
   async function onSubmit(values: StationValues) {
     setFormError(null);
     try {
-      const result = await createStation.mutateAsync({
-        name: values.name,
-        location: values.location || undefined,
-        points: Number(values.points),
-      });
+      const result = await createStation.mutateAsync({ label: values.label });
       onCreated(result);
     } catch (error) {
       if (isApiError(error) && error.code === "validation_failed") {
@@ -76,41 +69,19 @@ export function AddStationForm({
         </DialogHeader>
         <FormField
           control={form.control}
-          name="name"
+          name="label"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel>Label</FormLabel>
               <FormControl>
-                <Input {...field} autoComplete="off" placeholder="3D Printing Booth" />
+                <Input {...field} autoComplete="off" placeholder="Reader 3" />
               </FormControl>
-              <FormDescription>Shown on the participant's passport.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Location</FormLabel>
-              <FormControl>
-                <Input {...field} autoComplete="off" placeholder="Hall A" />
-              </FormControl>
-              <FormDescription>Optional. Helps participants find it.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="points"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Points per accepted tap</FormLabel>
-              <FormControl>
-                <Input {...field} inputMode="numeric" className="w-24 font-mono" />
-              </FormControl>
+              {/* 9.7 takes only a label. The name a participant's passport shows, its
+                  location and its points are passport settings, added with 9.1 from the
+                  board once the station is registered. */}
+              <FormDescription>
+                The device&apos;s name. Set the name on the passport separately.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

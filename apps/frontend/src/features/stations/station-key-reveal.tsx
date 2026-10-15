@@ -42,7 +42,7 @@ export function StationKeyReveal({ result, onDone }: StationKeyRevealProps) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{result.station.name} is ready</DialogTitle>
+        <DialogTitle>{result.station.label} is ready</DialogTitle>
         <DialogDescription>
           Put this key into the station's configuration. To rotate it later, create a new station.
         </DialogDescription>

@@ -18,12 +18,16 @@ vi.mock("@/components/ui/dialog", () => {
 const result: CreateStationResponse = {
   station: {
     id: "station-1",
-    name: "Print Lab",
-    location: "Hall A",
-    points: 1,
+    label: "Reader 3",
     created_at: "2026-10-10T00:00:00.000Z",
+    disabled_at: null,
+    passport: null,
     last_seen_at: null,
     online: false,
+    firmware_version: null,
+    buffered_taps: 0,
+    reader_ok: null,
+    last_tap_at: null,
   },
   api_key: "gk_sta_example",
 };
