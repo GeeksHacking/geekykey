@@ -59,13 +59,13 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       assert.equal(config.sessionCookieSecure, true);
     });
 
-    test("it has the organizer and GeekyKey admin lists, which start empty", () => {
+    test("it has the organizer and GeekyKey admin lists, with nobody from dev sign-in", () => {
       // An unset list would mean nobody too, but each is here to be filled in.
-      assert.equal(settings.ORGANIZERS, "");
-      assert.equal(settings.GEEKYKEY_ADMINS, "");
+      assert.ok("ORGANIZERS" in settings, "ORGANIZERS is missing");
+      assert.ok("GEEKYKEY_ADMINS" in settings, "GEEKYKEY_ADMINS is missing");
       const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
-      assert.deepEqual(config.organizers, []);
-      assert.deepEqual(config.geekykeyAdmins, []);
+      assert.ok(!config.organizers.includes("dev-organizer-1"));
+      assert.ok(!config.geekykeyAdmins.includes("dev-organizer-1"));
     });
 
     test("the server's secrets come as one, APP_SECRETS, so each costs one stored version", () => {

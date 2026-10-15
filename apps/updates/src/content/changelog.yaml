@@ -967,8 +967,9 @@
   change: >-
     The passport now keeps its own list of stations, each with the name, location and points it
     shows, apart from the stations themselves. Only stations on that list are stamp slots, in the
-    order they joined it, so a station added later goes last. A tap at a station that isn't on
-    the list is still kept, but it earns nothing, and the station hears "not in a game". Every
+    order they joined it, so a station added later goes last. The Event Service still keeps a tap
+    at a station that isn't on the list, but it earns nothing, and the station shows "Not in a
+    game". Every
     station that existed already joined the list, so their taps count as before. Who is an
     organizer now comes from a list in the Event Service's settings, not from a user's record,
     and the lists for production and staging start empty.

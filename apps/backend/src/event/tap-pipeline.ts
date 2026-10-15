@@ -60,10 +60,10 @@ interface PendingTap {
  * Designed for a remote database: one short transaction that locks the
  * station's row, reads existing IDs and cooldown state, and makes a single
  * multi-row insert. Every non-duplicate tap is stored, including cooldown
- * ones, so organisers can see repeat taps in the log. The passport is the
- * only game, so a tap at a station without passport settings is `no_game`. Each stored tap gets
- * a `tap_stored` log line once the transaction commits, so taps lost to a
- * restore can be rebuilt from the logs.
+ * ones, so organizers can see repeat taps in the log. The passport is the
+ * only game, so a tap at a station without passport settings is `no_game`.
+ * Each stored tap gets a `tap_stored` log line once the transaction commits,
+ * so taps lost to a restore can be rebuilt from the logs.
  *
  * It sees only users, never a token.
  */
@@ -199,9 +199,8 @@ export class TapPipeline {
    * with a statement of its own before BEGIN, and the locking reads need
    * nothing set.)
    *
-   * Reads the station's passport settings in the same round trip, which
-   * locks them too, so they can't change under the ingest. Says whether
-   * the station is in the passport, or undefined when there's no station.
+   * Reads whether the station has passport settings in the same round trip.
+   * Says whether it's in the passport, or undefined when there's no station.
    */
   async #lockStation(tx: Tx, stationId: string): Promise<{ inPassport: boolean } | undefined> {
     const [station] = await tx

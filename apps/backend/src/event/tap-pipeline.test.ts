@@ -262,11 +262,13 @@ test("a station without passport settings stores its taps as no_game, with no co
   );
 });
 
-test("a no_game tap never puts a later tap at a passport station in cooldown", async () => {
-  const { p, db, stationId, userId } = await pipeline(300);
+test("no_game taps don't hold back the first tap after the station joins the passport", async () => {
+  const { p, db, userId, clock } = await pipeline(300);
   await db.insert(stations).values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2" });
   await p.ingest("station-2", [{ clientTapId: "t1", userId }]);
-  const results = await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
+  await db.insert(passportStations).values({ stationId: "station-2", name: "Booth 2" });
+  clock.advanceSeconds(60);
+  const results = await p.ingest("station-2", [{ clientTapId: "t2", userId }]);
   assert.equal(results[0].status, "accepted");
 });
 
