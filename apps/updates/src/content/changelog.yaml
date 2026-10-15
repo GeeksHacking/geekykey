@@ -984,3 +984,12 @@
     the time it was made, even one saved offline and sent later. Saved taps go just before each
     heartbeat. When the reader stops answering, the screen shows "Reader error" and "Tell
     organizer" with the red light on until it answers again.
+
+- id: old-columns-dropped-and-areas-kept-apart
+  date: 2026-10-15
+  area: backend
+  change: >-
+    The database drops the columns nothing reads any more, such as a tap's token ID and a
+    station's passport name, and deletes old test taps with no user, while every station keeps
+    its ID and key. A lint check stops the GeekyKey side, the Event side and the claims stand-in
+    from importing each other's code, so they reach each other only through their requests.
