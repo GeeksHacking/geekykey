@@ -6,7 +6,7 @@
 -- is stored as no_game. The version still running reads stations' old
 -- columns, which stay until a later migration (BAC-36), and never creates a
 -- station, so a label it doesn't write is never missing.
--- The steps that copy the rows, and label's two steps, were added by hand.
+-- The steps that copy the rows, and label's three steps, were added by hand.
 CREATE TABLE `passport_stations` (
 	`station_id` varchar(64) NOT NULL,
 	`name` text NOT NULL,

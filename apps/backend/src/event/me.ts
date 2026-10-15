@@ -6,7 +6,7 @@ import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
 /** How many of their latest taps a participant sees, any status. */
 export const RECENT_TAP_LIMIT = 50;
 
-/** A passport station's place in a participant's passport. See CONTEXT.md. */
+/** A station's place in a participant's passport. See CONTEXT.md. */
 export interface StampSlot {
   stationId: string;
   name: string;

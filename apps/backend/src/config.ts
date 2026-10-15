@@ -78,8 +78,11 @@ const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
  */
 const DEV_KEY = "0".repeat(64);
 
-/** The user on the local organizer and GeekyKey admin lists, whom the seed creates. */
+/** The local organizer list: the organizer the seed creates. */
 const DEV_ORGANIZERS = ["dev-organizer-1"];
+
+/** The local GeekyKey admin list, with the same user, so releasing someone else's token can be developed. */
+const DEV_GEEKYKEY_ADMINS = ["dev-organizer-1"];
 
 /** The showcase, as this server on your laptop, in local development. */
 export const DEV_EVENT_SERVICES: EventServiceEntry[] = [
@@ -197,11 +200,11 @@ function keyFromEnv(env: Env, name: string, devAuthEnabled: boolean): string {
 /**
  * A list of user IDs, separated by commas, such as ORGANIZERS. Empty means
  * nobody. Unset means nobody too, except in local development, where it's
- * dev-organizer-1.
+ * `devList`.
  */
-function userIdsFromEnv(env: Env, key: string, devAuthEnabled: boolean): string[] {
+function userIdsFromEnv(env: Env, key: string, devAuthEnabled: boolean, devList: string[]) {
   const raw = env[key];
-  if (raw === undefined) return devAuthEnabled ? DEV_ORGANIZERS : [];
+  if (raw === undefined) return devAuthEnabled ? devList : [];
   return raw
     .split(",")
     .map((id) => id.trim())
@@ -292,7 +295,7 @@ export function loadConfig(env: Env): Config {
     claimsStandInKey: keyFromEnv(env, "CLAIMS_STAND_IN_KEY", devAuthEnabled),
     eventServiceKey: keyFromEnv(env, "EVENT_SERVICE_KEY", devAuthEnabled),
     eventServices: eventServicesFromEnv(env, devAuthEnabled),
-    organizers: userIdsFromEnv(env, "ORGANIZERS", devAuthEnabled),
-    geekykeyAdmins: userIdsFromEnv(env, "GEEKYKEY_ADMINS", devAuthEnabled),
+    organizers: userIdsFromEnv(env, "ORGANIZERS", devAuthEnabled, DEV_ORGANIZERS),
+    geekykeyAdmins: userIdsFromEnv(env, "GEEKYKEY_ADMINS", devAuthEnabled, DEV_GEEKYKEY_ADMINS),
   };
 }
