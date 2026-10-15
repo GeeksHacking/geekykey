@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { describeError, isApiError, isApiErrorCode } from "@/api/errors";
-import type { FallbackTapRequest, FallbackTapResponse, Station } from "@/api/types";
+import type { FallbackTapRequest, FallbackTapResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FallbackResult } from "@/features/fallback/fallback-result";
+import type { StationOption } from "@/features/stations/station-options";
 import { useLogFallbackTap } from "@/features/fallback/use-log-fallback-tap";
 import { applyApiIssues } from "@/lib/form-errors";
 
@@ -42,7 +43,7 @@ const schema = z.object({
 
 type FallbackValues = z.infer<typeof schema>;
 
-export function FallbackForm({ stations }: { stations: Station[] }) {
+export function FallbackForm({ stations }: { stations: StationOption[] }) {
   const logTap = useLogFallbackTap();
   const form = useForm<FallbackValues>({
     resolver: zodResolver(schema),

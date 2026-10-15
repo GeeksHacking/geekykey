@@ -1,4 +1,4 @@
-import type { Station, TapStatus } from "@/api/types";
+import type { TapStatus } from "@/api/types";
 import { TAP_STATUS_META, TAP_STATUSES } from "@/components/tap-status-meta";
 import { Label } from "@/components/ui/label";
 import {
@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { StationOption } from "@/features/stations/station-options";
 import type { ScanLogFilters as Filters } from "@/features/taps/use-scan-log";
 
 const ALL = "all";
@@ -15,7 +16,7 @@ const ALL = "all";
 interface ScanLogFiltersProps {
   filters: Filters;
   onChange: (filters: Filters) => void;
-  stations: Station[];
+  stations: StationOption[];
 }
 
 export function ScanLogFilters({ filters, onChange, stations }: ScanLogFiltersProps) {
