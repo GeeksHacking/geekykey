@@ -54,6 +54,16 @@ export interface Config {
    * inside this server.
    */
   eventServices: EventServiceEntry[];
+  /**
+   * The Event side's organizers, by user ID. Everyone else is a participant.
+   * Read once at start-up, and checked on every request.
+   */
+  organizers: string[];
+  /**
+   * The GeekyKey side's admins, by user ID, who may release someone else's
+   * token. Nothing reads it until the GeekyKey side's /me and release.
+   */
+  geekykeyAdmins: string[];
 }
 
 /**
@@ -67,6 +77,9 @@ const DEV_SESSION_SECRET = "geekykey-dev-session-secret-not-for-production";
  * every request are in the one server, so the key only has to match itself.
  */
 const DEV_KEY = "0".repeat(64);
+
+/** The user on the local organizer and GeekyKey admin lists, whom the seed creates. */
+const DEV_ORGANIZERS = ["dev-organizer-1"];
 
 /** The showcase, as this server on your laptop, in local development. */
 export const DEV_EVENT_SERVICES: EventServiceEntry[] = [
@@ -182,6 +195,20 @@ function keyFromEnv(env: Env, name: string, devAuthEnabled: boolean): string {
 }
 
 /**
+ * A list of user IDs, separated by commas, such as ORGANIZERS. Empty means
+ * nobody. Unset means nobody too, except in local development, where it's
+ * dev-organizer-1.
+ */
+function userIdsFromEnv(env: Env, key: string, devAuthEnabled: boolean): string[] {
+  const raw = env[key];
+  if (raw === undefined) return devAuthEnabled ? DEV_ORGANIZERS : [];
+  return raw
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id !== "");
+}
+
+/**
  * EVENT_SERVICES' rules. An Event Service's address must start with
  * `https://`, since its key goes with every request (the API agreement's
  * section 3). In local development it may be `http://` to this machine.
@@ -265,5 +292,7 @@ export function loadConfig(env: Env): Config {
     claimsStandInKey: keyFromEnv(env, "CLAIMS_STAND_IN_KEY", devAuthEnabled),
     eventServiceKey: keyFromEnv(env, "EVENT_SERVICE_KEY", devAuthEnabled),
     eventServices: eventServicesFromEnv(env, devAuthEnabled),
+    organizers: userIdsFromEnv(env, "ORGANIZERS", devAuthEnabled),
+    geekykeyAdmins: userIdsFromEnv(env, "GEEKYKEY_ADMINS", devAuthEnabled),
   };
 }

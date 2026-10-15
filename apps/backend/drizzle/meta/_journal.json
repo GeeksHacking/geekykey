@@ -43,6 +43,13 @@
       "when": 1792027078764,
       "tag": "0005_stations_hold_their_health",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1792042653326,
+      "tag": "0006_the_passport_reads_passport_stations",
+      "breakpoints": true
     }
   ]
 }

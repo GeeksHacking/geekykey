@@ -299,7 +299,6 @@ Every tap a station sends comes back with one of these.
   `no_game` appear in the tap log, the export and `recent_taps`.
 - Another team's Event Service may answer statuses of its own, which the GeekyKey Service
   passes on unchanged. A station treats any status it doesn't know as recorded.
-- `no_game` starts at checkpoint 3. Today's backend doesn't send it yet.
 - `no_event`, in version 0.2, is retired: every station belongs to the Event Service that
   registered it, and a key no Event Service has registered gets `401`. No service sends it.
 
@@ -343,7 +342,7 @@ Until checkpoint 4, one server built from `apps/backend` serves both tables.
 | Method | Path | Caller | Status | Purpose |
 |---|---|---|---|---|
 | GET | `/api/health` | anyone | `Implemented` | Liveness check |
-| POST | `/api/v1/taps` | Station | `Implemented, changes at checkpoint 3` | Taps, one or a batch |
+| POST | `/api/v1/taps` | Station | `Implemented` | Taps, one or a batch |
 | POST | `/api/v1/stations/heartbeat` | Station | `Implemented` | Online light, clock, `reader_ok` |
 | POST | `/auth/dev-login` | local only | `Implemented, changes at checkpoint 4` | Set `gk_session` for a user |
 | POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `gk_session` |
@@ -364,7 +363,7 @@ Until checkpoint 4, one server built from `apps/backend` serves both tables.
 | POST | `/auth/dev-login` | local only | `Checkpoint 4` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/logout` | browser | `Checkpoint 4` | Clear `event_session` |
-| GET | `/api/v1/me` | Participant, Organizer | `Implemented, changes at checkpoint 3` | Profile, stamps, points, history |
+| GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
 | GET | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | The station board |
 | POST | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | Create a station, key shown once |
@@ -384,7 +383,7 @@ On the GeekyKey Service, at `https://key-api.geekshacking.com` in production fro
 From checkpoint 2 until then, stations call today's backend at
 `https://event-api.geekshacking.com`, which answers them the same way.
 
-### 6.1 `POST /api/v1/taps` (`Implemented, changes at checkpoint 3`)
+### 6.1 `POST /api/v1/taps` (`Implemented`)
 
 Ingest one or many taps from the authenticated station. Live taps and saved taps use the same
 call; the only difference is the array length.
@@ -440,10 +439,8 @@ item has a [`tap_status`](#tap_status).
    Service doesn't answer properly in what's left, it fails with
    `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
-Until the rest of checkpoint 3, today's Event Service answers `accepted`, `cooldown` or
-`duplicate`, never `no_game`. Steps 1 to 4 are already as above: the registered stations (11.1)
-and the hand-off (11.2) run inside the one server, with `503 claims_unavailable` and
-`503 event_service_unavailable`, and `unknown_token` taps are not stored.
+Until checkpoint 4, the registered stations (11.1) and the hand-off (11.2) run inside today's
+one server.
 
 **Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`,
 `claims_unavailable` and `event_service_unavailable` (from checkpoint 3), and `rate_limited`
@@ -635,7 +632,7 @@ Service, for any logged-in user, and are what the token page and My tokens call.
 doesn't answer properly within 4 seconds. Nothing is saved, and the screens say "Couldn't reach
 GeeksHacking. Try again."
 
-### 8.1 `GET /api/v1/me` on the Event Service (`Implemented, changes at checkpoint 3`)
+### 8.1 `GET /api/v1/me` on the Event Service (`Implemented`)
 
 Everything the participant dashboard and passport view need in one call.
 
@@ -671,9 +668,6 @@ Everything the participant dashboard and passport view need in one call.
   received them. Statuses other than `accepted` are included so a participant can see "that tap
   didn't count". `station_name` is `null` for a station without passport settings.
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
-
-Until the rest of checkpoint 3, today's backend takes `role` from `users.role`, and lists every
-station in `stamps`, in the order the stations were created.
 
 **Errors:** `unauthenticated`.
 
@@ -1323,3 +1317,4 @@ Closed on 2026-10-10:
 | 2026-10-14 | The hand-off, `POST /geekykey/v1/taps` (11.2), is `Implemented`, inside the one server: today's backend now hands each station's claimed taps to its Event Service through it, with the Event Service key, and answers `503 event_service_unavailable` when the hand-off fails (6.1). Its Zod schemas are in `packages/handoff`, and their JSON Schema in `packages/handoff/json-schema/` (11.7). Two rules added to 11.2: a `user_id` is 1 to 128 characters, as a Firebase user ID is, and ours answers `validation_failed` for a `station_id` that isn't its own. The fields don't change, but a `user_id` over 128 characters is now refused (BAC-32). |
 | 2026-10-14 | The registered stations, `GET /geekykey/v1/stations` (11.1), are `Implemented`, inside the one server. Today's backend checks a station's key against its copy of them instead of reading its own stations, so steps 1 to 4 of 6.1 now work as written: `401 invalid_station_key` only when every list is in hand, and `503 event_service_unavailable` while one is missing. Ours leaves out a station whose `disabled_at` is set, though nothing sets it until the organizers' endpoint to disable one (9.9). The answer's Zod schema is in `packages/handoff`, and its JSON Schema in `packages/handoff/json-schema/stations-answer.schema.json` (11.7). 11.1 now says a list that doesn't come back is asked for again at most once a minute, and 6.1's step 4 and 11.5 say filling an empty copy shares the 4-second deadline, as 11.1 already did. No shape changes (BAC-33). |
 | 2026-10-15 | The heartbeat, `POST /api/v1/stations/heartbeat` (6.2), and its hand-off, `POST /geekykey/v1/heartbeats` (11.3), are `Implemented`, inside the one server, so every request in section 11 is now built. The heartbeat answers `server_time` once the key is checked, and passes the station's fields to its Event Service within what's left of the 4 seconds. A hand-off that fails is logged and never fails the heartbeat. Until checkpoint 4 the answer leaves once the hand-off is done, since Cloud Run gives the one server a processor only while a request is in progress, and a refresh of the registered stations (11.1) is done before a station's answer leaves, for the same reason. Ours stores them on the station's row with when it last heard from it. Two rules added to 6.2, which 11.3 follows: `firmware_version` is 1 to 64 characters, and `buffered_taps` at most 2147483647, the largest 32-bit integer. The fields don't change, but a heartbeat breaking either rule now gets `400 validation_failed`. As in 11.2, ours answers `validation_failed` to a heartbeat hand-off for a `station_id` that isn't its own. The heartbeat hand-off's JSON Schema is in `packages/handoff/json-schema/heartbeats-request.schema.json` (11.7), and 6.2 now says the key is checked before the body (BAC-34). |
+| 2026-10-15 | Passport settings live apart from the station in today's backend, so the Event Service's `GET /api/v1/me` (8.1) and `POST /api/v1/taps` (6.1) are `Implemented`. A tap at a station without passport settings is stored and answered `no_game`. `stamps` lists only stations with passport settings, oldest settings first, and `recent_taps` gives `station_name` as `null` for any other station. `user.role` comes from the Event Service's organizer list, read when it starts, instead of from the user's row. Every station already registered kept its name, location and points as its passport settings, so its taps are still `accepted`. No shape changes (BAC-35). |

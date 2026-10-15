@@ -18,15 +18,12 @@ const ORGANIZER_ID = "organizer-1";
 /** A throwaway app with the two gates mounted the way real routes will mount them. */
 async function harness(overrides: Partial<SessionOptions> = {}) {
   const fx = await setupFixture();
-  await fx.db.insert(users).values({
-    id: ORGANIZER_ID,
-    displayName: "Priya",
-    role: "organizer",
-  });
+  await fx.db.insert(users).values({ id: ORGANIZER_ID, displayName: "Priya" });
 
   const options: SessionOptions = {
     secret: "test-secret-at-least-16",
     secure: false,
+    organizers: new Set([ORGANIZER_ID]),
     ...overrides,
   };
 
@@ -118,6 +115,13 @@ test("lets an organizer through", async () => {
   const { signIn, get } = await harness();
   const res = await get("/admin", await signIn(ORGANIZER_ID));
   assert.equal(res.status, 200);
+});
+
+test("a user whose row still says organizer, but who isn't on the list, gets 403", async () => {
+  const { signIn, get, db } = await harness();
+  await db.insert(users).values({ id: "former-organizer", displayName: "Sam", role: "organizer" });
+  const res = await get("/admin", await signIn("former-organizer"));
+  assert.equal(res.status, 403);
 });
 
 test("clearing the session removes the cookie from the browser", async () => {

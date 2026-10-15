@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import type { Db } from "../db/pool.ts";
-import { type User, users } from "./schema.ts";
+import { users } from "./schema.ts";
 
 export const SESSION_COOKIE = "gk_session";
 
@@ -12,7 +12,7 @@ export const SESSION_COOKIE = "gk_session";
  */
 export const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
 
-export type Role = User["role"];
+export type Role = "participant" | "organizer";
 
 export interface SessionUser {
   id: string;
@@ -29,6 +29,8 @@ export interface SessionOptions {
   /** From config.sessionCookieSecure. */
   secure: boolean;
   maxAgeSeconds?: number;
+  /** From config.organizers: who is an organizer. Everyone else is a participant. */
+  organizers: ReadonlySet<string>;
 }
 
 /*
@@ -71,7 +73,9 @@ export function clearSession(c: Context, options: Pick<SessionOptions, "secure">
 /**
  * The user behind the cookie, or null when there is no usable session. Null
  * covers all of: no cookie, a cookie that fails its signature, an expired one,
- * and one naming a user who no longer exists.
+ * and one naming a user who no longer exists. Their role comes from the
+ * organizer list, checked on every request, so a change to it takes effect
+ * without anyone signing in again.
  */
 export async function readSession(
   c: Context<SessionEnv>,
@@ -91,15 +95,12 @@ export async function readSession(
   if (expiresAt <= Date.now()) return null;
 
   const [user] = await c.var.db
-    .select({
-      id: users.id,
-      displayName: users.displayName,
-      role: users.role,
-    })
+    .select({ id: users.id, displayName: users.displayName })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
-  return user ?? null;
+  if (!user) return null;
+  return { ...user, role: options.organizers.has(user.id) ? "organizer" : "participant" };
 }
 
 /**

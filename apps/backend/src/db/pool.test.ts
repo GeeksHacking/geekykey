@@ -32,7 +32,7 @@ test("a query still succeeds when its idle connection died unnoticed, on a new c
 
 test("a query whose reply is lost fails, and isn't sent again", async () => {
   const { db } = poolThroughProxy({ checkAfterIdleMs: 0 });
-  await db.insert(stations).values({ id: "station-1", name: "Booth 1", apiKeyHash: "unused" });
+  await db.insert(stations).values({ id: "station-1", label: "Reader 1", apiKeyHash: "unused" });
 
   proxy.loseNextReply();
   await assert.rejects(

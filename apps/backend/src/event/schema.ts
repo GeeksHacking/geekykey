@@ -16,22 +16,31 @@ import { isoNow, isoTimestamp, stationId, tokenUid, userId } from "../db/columns
  * Timestamps are ISO strings, not DATETIME: src/db/columns.ts says why.
  */
 
-export const USER_ROLES = ["participant", "organizer"] as const;
+/** No longer read or written, since organizers come from the ORGANIZERS setting. */
+const USER_ROLES = ["participant", "organizer"] as const;
 
+/** The users who have logged in to this Event Service, by their user ID. */
 export const users = mysqlTable("users", {
   id: userId("id").primaryKey(),
+  /** No longer written or read, since `id` is the user ID. Dropped in BAC-36. */
   portalUserId: userId("portal_user_id").unique(),
   displayName: text("display_name").notNull(),
+  /** No longer written or read, since ORGANIZERS took over. Dropped in BAC-36. */
   role: mysqlEnum("role", USER_ROLES).notNull().default("participant"),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
 });
 
 export const stations = mysqlTable("stations", {
   id: stationId("id").primaryKey(),
-  name: text("name").notNull(),
+  /** The device's name, such as "Reader 3". Its name in the passport is passport_stations.name. */
+  label: text("label").notNull(),
+  /** No longer written or read, since passport_stations took over. Dropped in BAC-36. */
+  name: text("name"),
+  /** No longer written or read, since passport_stations took over. Dropped in BAC-36. */
   location: text("location"),
   /** SHA-256 of the key, in hex. */
   apiKeyHash: varchar("api_key_hash", { length: 64 }).notNull().unique(),
+  /** No longer written or read, since passport_stations took over. Dropped in BAC-36. */
   points: int("points").notNull().default(1),
   /**
    * When an organizer disabled the station, or null while it's enabled. A
@@ -50,8 +59,26 @@ export const stations = mysqlTable("stations", {
   readerOk: boolean("reader_ok"),
 });
 
+/**
+ * The passport's settings for each station it counts. Only these stations are
+ * stamp slots, oldest settings first; a tap at any other station is `no_game`.
+ */
+export const passportStations = mysqlTable("passport_stations", {
+  stationId: stationId("station_id")
+    .primaryKey()
+    .references(() => stations.id),
+  /** The station's name in the passport, such as "3D Printing Booth". */
+  name: text("name").notNull(),
+  location: text("location"),
+  /** Station points: what one accepted tap there is worth. */
+  points: int("points").notNull().default(1),
+  /** When the station was added to the passport, which orders the stamp slots. */
+  addedAt: isoTimestamp("added_at").notNull().$defaultFn(isoNow),
+});
+
 export const TAP_SOURCES = ["nfc", "qr_fallback"] as const;
-export const STORED_TAP_STATUSES = ["accepted", "cooldown", "unknown_token"] as const;
+/** `unknown_token` is no longer written, since only the GeekyKey side answers it. */
+export const STORED_TAP_STATUSES = ["accepted", "cooldown", "unknown_token", "no_game"] as const;
 
 /**
  * The migration adds `AUTO_ID_CACHE=1` to this table by hand, since Drizzle
@@ -90,5 +117,6 @@ export const taps = mysqlTable(
 
 export type User = typeof users.$inferSelect;
 export type Station = typeof stations.$inferSelect;
+export type PassportStation = typeof passportStations.$inferSelect;
 export type Tap = typeof taps.$inferSelect;
 export type NewTap = typeof taps.$inferInsert;
