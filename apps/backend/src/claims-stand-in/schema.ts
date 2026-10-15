@@ -16,10 +16,6 @@ export const tokens = mysqlTable(
     /** A user ID, with no foreign key: no foreign key crosses into the Event side's tables. */
     userId: userId("user_id").notNull(),
     claimedAt: isoTimestamp("claimed_at").notNull().$defaultFn(isoNow),
-    /** No longer written or read, since claimed_at took over. Dropped in BAC-36. */
-    pairedAt: isoTimestamp("paired_at"),
-    /** No longer written or read, since a release deletes the row. Dropped in BAC-36. */
-    revokedAt: isoTimestamp("revoked_at"),
   },
   (t) => [index("tokens_user_id_idx").on(t.userId)],
 );

@@ -32,20 +32,22 @@ test("a query still succeeds when its idle connection died unnoticed, on a new c
 
 test("a query whose reply is lost fails, and isn't sent again", async () => {
   const { db } = poolThroughProxy({ checkAfterIdleMs: 0 });
-  await db.insert(stations).values({ id: "station-1", label: "Reader 1", apiKeyHash: "unused" });
+  await db
+    .insert(stations)
+    .values({ id: "station-1", label: "Reader 1", apiKeyHash: "unused", bufferedTaps: 1 });
 
   proxy.loseNextReply();
   await assert.rejects(
     db
       .update(stations)
-      .set({ points: sql`${stations.points} + 1` })
+      .set({ bufferedTaps: sql`${stations.bufferedTaps} + 1` })
       .where(eq(stations.id, "station-1")),
     (err: Error) => (err.cause as { code?: string }).code === "ECONNRESET",
   );
 
-  // TiDB ran it once: sent again, it would have added another point.
+  // TiDB ran it once: sent again, it would have added another tap.
   const [station] = await db.select().from(stations).limit(1);
-  assert.equal(station?.points, 2);
+  assert.equal(station?.bufferedTaps, 2);
 });
 
 test("a connection left unused is closed after the idle time", async () => {
