@@ -949,3 +949,14 @@
     station drops off its list, and its key is refused within a minute. Organizers can't disable
     a station yet; that comes with the station board. When an Event Service's list can't be had,
     the station keeps its taps and sends them again later instead of being told its key is wrong.
+
+- id: heartbeat-sets-station-clock
+  date: 2026-10-15
+  area: backend
+  change: >-
+    A station can now send a heartbeat, which gives it the time to set its clock by. The GeekyKey
+    side answers as soon as it has checked the station's key, then passes on what the station
+    says about itself to the Event Service without waiting: its firmware version, how many taps
+    it has saved, and whether its reader works. So a station gets the time even while the Event
+    Service is down. The Event Service keeps these on the station's row, with when it last heard
+    from the station, for the station board to show. The station firmware's side comes next.

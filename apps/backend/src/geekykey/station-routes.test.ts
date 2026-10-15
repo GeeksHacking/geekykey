@@ -14,10 +14,11 @@ import type { Send } from "./service-request.ts";
 import { hashStationKey } from "./station-keys.ts";
 
 /**
- * The fixture, and a way to post to the backend as its station. `target` is
- * the backend the station posts to, with the real claims stand-in and Event
- * side unless a test gives it a fake. Each test has its own, since a backend
- * keeps its copy of the registered stations while it runs.
+ * The fixture, and ways to post taps and heartbeats to the backend as its
+ * station. `target` is the backend the station posts to, with the real
+ * claims stand-in and Event side unless a test gives it a fake. Each test has
+ * its own, since a backend keeps its copy of the registered stations while it
+ * runs.
  */
 async function harness(target = testApp()) {
   const fx = await setupFixture();
@@ -30,7 +31,16 @@ async function harness(target = testApp()) {
       },
       body: JSON.stringify(body),
     });
-  return { ...fx, post, target };
+  const postHeartbeat = (body: unknown, key: string | null = fx.stationKey) =>
+    target.request("/api/v1/stations/heartbeat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key === null ? {} : { Authorization: `Bearer ${key}` }),
+      },
+      body: JSON.stringify(body),
+    });
+  return { ...fx, post, postHeartbeat, target };
 }
 
 test("rejects requests without a station key", async () => {
@@ -566,3 +576,156 @@ test("the hand-off gets only what's left of the deadline after the owner lookup"
   // A deadline of its own for the hand-off would make it about 380 ms.
   assert.ok(took < 300, `took ${took} ms, more than one deadline`);
 });
+
+// The heartbeat: the API agreement's 6.2, and the heartbeat hand-off, 11.3.
+
+/** A heartbeat's answer, which sets the station's clock. */
+interface HeartbeatAnswer {
+  station_id: string;
+  server_time: string;
+}
+
+test("a heartbeat gets the time at once, and the station's row then has its health", async () => {
+  const { postHeartbeat, stationId, db } = await harness();
+  const before = new Date().toISOString();
+  const res = await postHeartbeat({ firmware_version: "0.3.1", buffered_taps: 2, reader_ok: true });
+  const after = new Date().toISOString();
+
+  assert.equal(res.status, 200);
+  const answer = (await res.json()) as HeartbeatAnswer;
+  assert.deepEqual(Object.keys(answer).sort(), ["server_time", "station_id"]);
+  assert.equal(answer.station_id, stationId);
+  // UTC with milliseconds, and now.
+  assert.match(answer.server_time, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+  assert.ok(before <= answer.server_time && answer.server_time <= after, answer.server_time);
+
+  // Passed on after the answer, so the row catches up a moment later.
+  await vi.waitFor(async () => {
+    const [row] = await db
+      .select({
+        lastSeenAt: stations.lastSeenAt,
+        firmwareVersion: stations.firmwareVersion,
+        bufferedTaps: stations.bufferedTaps,
+        readerOk: stations.readerOk,
+      })
+      .from(stations)
+      .where(eq(stations.id, stationId));
+    const { lastSeenAt, ...rest } = row!;
+    assert.ok(lastSeenAt! >= before, `${lastSeenAt}`);
+    assert.deepEqual(rest, { firmwareVersion: "0.3.1", bufferedTaps: 2, readerOk: true });
+  });
+});
+
+test("a heartbeat without a key, or with a wrong one, gets 401 and no time", async () => {
+  const { postHeartbeat } = await harness();
+  loggedLines();
+  const missing = await postHeartbeat({}, null);
+  assert.equal(missing.status, 401);
+  assert.deepEqual(await missing.json(), { error: "missing_station_key" });
+  // Checked before the body, which here is wrong too.
+  const wrong = await postHeartbeat({ buffered_taps: -1 }, "gk_sta_not-a-real-key");
+  assert.equal(wrong.status, 401);
+  assert.deepEqual(await wrong.json(), { error: "invalid_station_key" });
+});
+
+test("a heartbeat whose key can't be checked gets 503 and no time, and isn't passed on", async () => {
+  const { target, handOffs } = withEventService(
+    acceptEach,
+    async () => new Response("", { status: 503 }),
+  );
+  const { postHeartbeat } = await harness(target);
+  loggedLines();
+  const res = await postHeartbeat({ reader_ok: true });
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), { error: "event_service_unavailable" });
+  assert.deepEqual(handOffs, []);
+});
+
+test("a heartbeat with every field left out still sets the clock", async () => {
+  const { postHeartbeat, stationId } = await harness();
+  const res = await postHeartbeat({});
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as HeartbeatAnswer).station_id, stationId);
+});
+
+test("a heartbeat's body is checked once its key is", async () => {
+  const { postHeartbeat } = await harness();
+  for (const body of [
+    { firmware_version: "" },
+    { firmware_version: "1".repeat(65) },
+    { buffered_taps: -1 },
+    { buffered_taps: 1.5 },
+    { buffered_taps: 2 ** 31 },
+    { reader_ok: "yes" },
+    [],
+  ]) {
+    const res = await postHeartbeat(body);
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.equal(((await res.json()) as { error: string }).error, "validation_failed");
+  }
+});
+
+test("the heartbeat hand-off goes to the Event Service with its key, the station and only what the station sent", async () => {
+  const { target, handOffs } = withEventService(async () => new Response(null, { status: 204 }));
+  const { postHeartbeat, stationId } = await harness(target);
+  await postHeartbeat({ buffered_taps: 0, reader_ok: false });
+  await vi.waitFor(() => assert.equal(handOffs.length, 1));
+  assert.deepEqual(handOffs, [
+    {
+      url: `${TEST_EVENT_SERVICE_URL}/geekykey/v1/heartbeats`,
+      authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}`,
+      body: { station_id: stationId, buffered_taps: 0, reader_ok: false },
+    },
+  ]);
+});
+
+test("with the Event side down, a heartbeat still gets the time at once", async () => {
+  // A deadline far longer than the answer may take, so waiting for the
+  // hand-off would show.
+  const handOffs: string[] = [];
+  const target = testApp(
+    { TAP_DEADLINE_MS: "3000" },
+    {
+      sendToEventService: async (url, init) => {
+        if (url === STATIONS_URL) return realEventSide(url, init);
+        handOffs.push(url);
+        return never();
+      },
+    },
+  );
+  const { postHeartbeat } = await harness(target);
+  loggedLines();
+  const started = Date.now();
+  const res = await postHeartbeat({ reader_ok: true });
+  const took = Date.now() - started;
+  assert.equal(res.status, 200);
+  assert.ok(((await res.json()) as HeartbeatAnswer).server_time);
+  assert.ok(took < 1000, `took ${took} ms`);
+  assert.equal(handOffs.length, 1);
+});
+
+for (const [what, answer] of [
+  ["an answer that never comes", never],
+  ["a 503", async () => new Response("Service Unavailable", { status: 503 })],
+  [
+    "a 401, as when the two sides' keys differ",
+    async () => Response.json({ error: "invalid_event_service_key" }, { status: 401 }),
+  ],
+] as const) {
+  test(`${what} to the heartbeat hand-off is logged, once, without the key`, async () => {
+    const { target, handOffs } = withEventService(answer);
+    const { postHeartbeat, stationId } = await harness(target);
+    const lines = loggedLines();
+    const res = await postHeartbeat({ reader_ok: true });
+    assert.equal(res.status, 200);
+    // Within the 200 ms deadline withEventService gives, and not retried.
+    await vi.waitFor(() => assert.equal(lines().length, 1));
+    assert.equal(handOffs.length, 1);
+    const [line] = lines();
+    assert.equal(line!.message, "heartbeat_handoff_failed");
+    assert.equal(line!.severity, "ERROR");
+    assert.equal(line!.station_id, stationId);
+    assert.equal(line!.event_service, "showcase");
+    assert.doesNotMatch(JSON.stringify(line), /e{64}/);
+  });
+}

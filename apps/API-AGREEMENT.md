@@ -245,8 +245,7 @@ and only its hash is stored. Firmware sends it on every request to the GeekyKey 
 
 ### Event Service keys
 
-`Implemented` on the registered stations (11.1) and the hand-off (11.2), and `Checkpoint 3` on
-the heartbeat hand-off. Each Event Service shares one key with the GeekyKey Service, which sends
+`Implemented`. Each Event Service shares one key with the GeekyKey Service, which sends
 it as `Authorization: Bearer <key>` on every request under `/geekykey/v1`: the registered
 stations, the hand-off and the heartbeat hand-off. Event Services never call the GeekyKey
 Service.
@@ -345,7 +344,7 @@ Until checkpoint 4, one server built from `apps/backend` serves both tables.
 |---|---|---|---|---|
 | GET | `/api/health` | anyone | `Implemented` | Liveness check |
 | POST | `/api/v1/taps` | Station | `Implemented, changes at checkpoint 3` | Taps, one or a batch |
-| POST | `/api/v1/stations/heartbeat` | Station | `Checkpoint 3` | Online light, clock, `reader_ok` |
+| POST | `/api/v1/stations/heartbeat` | Station | `Implemented` | Online light, clock, `reader_ok` |
 | POST | `/auth/dev-login` | local only | `Implemented, changes at checkpoint 4` | Set `gk_session` for a user |
 | POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `gk_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
@@ -361,7 +360,7 @@ Until checkpoint 4, one server built from `apps/backend` serves both tables.
 | GET | `/api/health` | anyone | `Checkpoint 4` | Liveness check |
 | GET | `/geekykey/v1/stations` | GeekyKey Service | `Implemented` | Its registered stations |
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
-| POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Checkpoint 3` | The heartbeat hand-off |
+| POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Checkpoint 4` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/logout` | browser | `Checkpoint 4` | Clear `event_session` |
@@ -498,7 +497,7 @@ change. Show each result for about 2 seconds with its LED on, then go back to "R
   `setInsecure()`. Keep one HTTPS connection open, so a tap doesn't pay a new
   handshake each time.
 
-### 6.2 `POST /api/v1/stations/heartbeat` — `Checkpoint 3`
+### 6.2 `POST /api/v1/stations/heartbeat` — `Implemented`
 
 Gives the station its clock, and lets the station board show an online light between taps and
 whether the reader works.
@@ -513,8 +512,8 @@ whether the reader works.
 
 | Field | Type | Rules |
 |---|---|---|
-| `firmware_version` | string | Shown to organizers on the station board |
-| `buffered_taps` | integer, 0 or more | Taps saved on the station and not yet sent |
+| `firmware_version` | string | 1 to 64 chars. Shown to organizers on the station board |
+| `buffered_taps` | integer | 0 to 2147483647, the largest 32-bit integer. Taps saved on the station and not yet sent |
 | `reader_ok` | boolean | `false` when the NFC reader doesn't answer the station's own check. Leave it out if the station doesn't check |
 
 **Response `200`**
@@ -536,8 +535,9 @@ whether the reader works.
   within 120 seconds.
 
 **Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`,
-`event_service_unavailable` when the key can't be checked (from checkpoint 3), and `rate_limited`
-(from checkpoint 6).
+`event_service_unavailable` when the key can't be checked, and `rate_limited` (from checkpoint
+6). The key is checked before the body, so a station with a wrong key gets `401` whatever it
+sends.
 
 ---
 
@@ -1118,7 +1118,7 @@ it that passed the GeekyKey Service's own checks.
 
 **Errors:** `invalid_event_service_key`, `validation_failed`.
 
-### 11.3 The heartbeat hand-off: `POST /geekykey/v1/heartbeats` — `Checkpoint 3`
+### 11.3 The heartbeat hand-off: `POST /geekykey/v1/heartbeats` — `Implemented`
 
 The GeekyKey Service passes on each heartbeat a station sends (6.2), after it has answered the
 station.
@@ -1131,15 +1131,19 @@ station.
 { "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6", "firmware_version": "0.3.1", "buffered_taps": 0, "reader_ok": true }
 ```
 
-`station_id` is always there. The other three are the station's own, as in 6.2, and are left out
-when the station left them out.
+`station_id` is always there. The other three are the station's own, with 6.2's rules, and are
+left out when the station left them out. Ours answers `validation_failed` for a `station_id` that
+isn't its own.
 
 **Response `204`**, no body.
 
-- The GeekyKey Service doesn't wait for the answer and doesn't retry. A lost heartbeat is
-  replaced a minute later.
+- The GeekyKey Service doesn't wait for the answer and doesn't retry. It gives up once what's
+  left of the station request's 4 seconds (11.5) runs out. A lost heartbeat is replaced a minute
+  later.
 - Use it for the station's health, such as an online light. Ours counts a station heard from, by
   a tap or a heartbeat, within 120 seconds as online.
+- Ours stores each field the station sent, and keeps what the last heartbeat said of a field it
+  left out.
 
 **Errors:** `invalid_event_service_key`, `validation_failed`.
 
@@ -1180,7 +1184,7 @@ GeekyKey Service sends it on all three requests.
 The bodies of the three requests and their answers are Zod schemas in `packages/handoff`. Both
 our services check against them, and a JSON Schema generated from them with `z.toJSONSchema` is
 for other teams, in `packages/handoff/json-schema/`. The registered stations' answer and the
-hand-off's two are there now. The heartbeat hand-off's follows at checkpoint 3.
+hand-off's two are there, and so is the heartbeat hand-off's request. Its answer has no body.
 
 - The files leave other fields allowed, since fields are only ever added (section 1).
 - A JSON Schema can't say that the hand-off's results match its taps one for one. The
@@ -1314,3 +1318,4 @@ Closed on 2026-10-10:
 | 2026-10-13 | Today's backend now finds each token's owner as 6.1's step 2 says, from the claims stand-in within the 4-second deadline, and answers `503 claims_unavailable` when it can't. `unknown_token` taps are logged and no longer stored (6.1, and `tap_status` in section 4). The Event Service's `GET /api/v1/me` no longer returns `tokens` (8.1), one of the removals version 0.2 allowed. The agreed shapes don't change; only the notes on how today's backend still differs do (BAC-31). |
 | 2026-10-14 | The hand-off, `POST /geekykey/v1/taps` (11.2), is `Implemented`, inside the one server: today's backend now hands each station's claimed taps to its Event Service through it, with the Event Service key, and answers `503 event_service_unavailable` when the hand-off fails (6.1). Its Zod schemas are in `packages/handoff`, and their JSON Schema in `packages/handoff/json-schema/` (11.7). Two rules added to 11.2: a `user_id` is 1 to 128 characters, as a Firebase user ID is, and ours answers `validation_failed` for a `station_id` that isn't its own. The fields don't change, but a `user_id` over 128 characters is now refused (BAC-32). |
 | 2026-10-14 | The registered stations, `GET /geekykey/v1/stations` (11.1), are `Implemented`, inside the one server. Today's backend checks a station's key against its copy of them instead of reading its own stations, so steps 1 to 4 of 6.1 now work as written: `401 invalid_station_key` only when every list is in hand, and `503 event_service_unavailable` while one is missing. Ours leaves out a station whose `disabled_at` is set, though nothing sets it until the organizers' endpoint to disable one (9.9). The answer's Zod schema is in `packages/handoff`, and its JSON Schema in `packages/handoff/json-schema/stations-answer.schema.json` (11.7). 11.1 now says a list that doesn't come back is asked for again at most once a minute, and 6.1's step 4 and 11.5 say filling an empty copy shares the 4-second deadline, as 11.1 already did. No shape changes (BAC-33). |
+| 2026-10-15 | The heartbeat, `POST /api/v1/stations/heartbeat` (6.2), and its hand-off, `POST /geekykey/v1/heartbeats` (11.3), are `Implemented`, inside the one server, so every request in section 11 is now built. The heartbeat answers `server_time` once the key is checked, then passes the station's fields to its Event Service without waiting, within what's left of the 4 seconds, and logs a hand-off that fails. Ours stores them on the station's row with when it last heard from it. Two rules added to 6.2, which 11.3 follows: `firmware_version` is 1 to 64 characters, and `buffered_taps` at most 2147483647, the largest 32-bit integer. The fields don't change, but a heartbeat breaking either rule now gets `400 validation_failed`. As in 11.2, ours answers `validation_failed` to a heartbeat hand-off for a `station_id` that isn't its own. The heartbeat hand-off's JSON Schema is in `packages/handoff/json-schema/heartbeats-request.schema.json` (11.7), and 6.2 now says the key is checked before the body (BAC-34). |

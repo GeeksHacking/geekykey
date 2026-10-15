@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   int,
   mysqlEnum,
@@ -39,7 +40,14 @@ export const stations = mysqlTable("stations", {
    */
   disabledAt: isoTimestamp("disabled_at"),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
+  /** When a hand-off or a heartbeat last came from the station, for its online light. */
   lastSeenAt: isoTimestamp("last_seen_at"),
+  /** The rest of what the station's last heartbeat said, null until one says it. */
+  firmwareVersion: varchar("firmware_version", { length: 64 }),
+  /** Taps saved on the station and not yet sent. */
+  bufferedTaps: int("buffered_taps"),
+  /** False when the NFC reader didn't answer the station's own check. */
+  readerOk: boolean("reader_ok"),
 });
 
 export const TAP_SOURCES = ["nfc", "qr_fallback"] as const;

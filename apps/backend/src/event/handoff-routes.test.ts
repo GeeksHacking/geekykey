@@ -221,3 +221,99 @@ test("the registered stations are the enabled ones, each with its key's hash and
     ],
   });
 });
+
+// The heartbeat hand-off, as the GeekyKey side sends it: the API agreement's
+// 11.3.
+
+/** A heartbeat hand-off to the Event side, with the Event Service key unless told otherwise. */
+function handOffHeartbeat(
+  body: unknown,
+  authorization: string | null = `Bearer ${TEST_EVENT_SERVICE_KEY}`,
+) {
+  return app.request("/geekykey/v1/heartbeats", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(authorization === null ? {} : { Authorization: authorization }),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+/** What the station board will show of a station's health. */
+async function health(stationId: string) {
+  const [row] = await testDb()
+    .select({
+      lastSeenAt: stations.lastSeenAt,
+      firmwareVersion: stations.firmwareVersion,
+      bufferedTaps: stations.bufferedTaps,
+      readerOk: stations.readerOk,
+    })
+    .from(stations)
+    .where(eq(stations.id, stationId));
+  return row!;
+}
+
+test("a heartbeat hand-off without the Event Service key, or with another, is refused", async () => {
+  const { stationId } = await setupFixture();
+  for (const authorization of [null, `Bearer ${"6".repeat(64)}`]) {
+    const res = await handOffHeartbeat({ station_id: stationId }, authorization);
+    assert.equal(res.status, 401, `${authorization}`);
+    assert.deepEqual(await res.json(), { error: "invalid_event_service_key" });
+  }
+  assert.equal((await health(stationId)).lastSeenAt, null);
+});
+
+test("a heartbeat hand-off is answered 204 and stores the station's health", async () => {
+  const { stationId } = await setupFixture();
+  const before = new Date().toISOString();
+  const res = await handOffHeartbeat({
+    station_id: stationId,
+    firmware_version: "0.3.1",
+    buffered_taps: 4,
+    reader_ok: false,
+  });
+  assert.equal(res.status, 204);
+  assert.equal(await res.text(), "");
+  const { lastSeenAt, ...rest } = await health(stationId);
+  assert.ok(lastSeenAt! >= before, `${lastSeenAt}`);
+  assert.deepEqual(rest, { firmwareVersion: "0.3.1", bufferedTaps: 4, readerOk: false });
+});
+
+test("a field the station left out keeps what the last heartbeat said", async () => {
+  const { stationId } = await setupFixture();
+  await handOffHeartbeat({
+    station_id: stationId,
+    firmware_version: "0.3.1",
+    buffered_taps: 4,
+    reader_ok: true,
+  });
+  const res = await handOffHeartbeat({ station_id: stationId, buffered_taps: 0 });
+  assert.equal(res.status, 204);
+  const { lastSeenAt: _, ...rest } = await health(stationId);
+  assert.deepEqual(rest, { firmwareVersion: "0.3.1", bufferedTaps: 0, readerOk: true });
+});
+
+test("a heartbeat hand-off the schema rejects is a 400, and nothing is stored", async () => {
+  const { stationId } = await setupFixture();
+  for (const body of [
+    {},
+    { station_id: stationId, buffered_taps: -1 },
+    { station_id: stationId, firmware_version: "1".repeat(65) },
+    { station_id: stationId, reader_ok: "yes" },
+  ]) {
+    const res = await handOffHeartbeat(body);
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.equal(((await res.json()) as { error: string }).error, "validation_failed");
+  }
+  assert.equal((await health(stationId)).lastSeenAt, null);
+});
+
+test("a heartbeat for a station that isn't this Event Service's is a 400", async () => {
+  await setupFixture();
+  const res = await handOffHeartbeat({ station_id: "someone-elses-station", reader_ok: true });
+  assert.equal(res.status, 400);
+  const { error, issues } = (await res.json()) as { error: string; issues: { path: string[] }[] };
+  assert.equal(error, "validation_failed");
+  assert.deepEqual(issues[0]!.path, ["station_id"]);
+});
