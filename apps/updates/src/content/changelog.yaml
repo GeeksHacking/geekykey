@@ -960,3 +960,14 @@
     reader works. If that fails, the station still gets the time, so it gets it even while the
     Event Service is down. The Event Service keeps these on the station's row, with when it last heard
     from the station, for the station board to show. The station firmware's side comes next.
+
+- id: station-sends-a-heartbeat
+  date: 2026-10-15
+  area: firmware
+  change: >-
+    The station now sends a heartbeat when it starts and every minute after, with its firmware
+    version, how many taps it has saved, and whether its card reader answers. It sets its clock
+    from the time in each answer, so once the first heartbeat has gone through, every tap carries
+    the time it was made, even one saved offline and sent later. Saved taps go just before each
+    heartbeat. When the reader stops answering, the screen shows "Reader error" and "Tell
+    organizer" with the red light on until it answers again.
