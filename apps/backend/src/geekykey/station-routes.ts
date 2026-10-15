@@ -149,11 +149,12 @@ const heartbeatBody = heartbeatsRequest.omit({ station_id: true });
  *
  * The station's clock, and its health for the station board. The key is
  * checked as a tap's is, so a key that can't be checked gets `503
- * event_service_unavailable`, and no time. Once it is, the station gets
- * `server_time` straight away, and what it said of its health is passed on
- * to the Event Service that registered it afterwards, without waiting (the
- * agreement's 6.2 and 11.3). So a heartbeat sets the clock even while the
- * Event Service is down.
+ * event_service_unavailable`, and no time. Once it is, the answer is made,
+ * and what the station said of its health is passed on to the Event Service
+ * that registered it in `waitUntil` (the agreement's 6.2 and 11.3). A
+ * hand-off that fails never fails the heartbeat, so it sets the clock even
+ * while the Event Service is down. Until checkpoint 4 the answer leaves once
+ * the hand-off is done or the deadline is up (station-auth.ts says why).
  */
 export function heartbeatRoutes({ stationsCopy }: { stationsCopy: StationsCopy<EventService> }) {
   return new Hono<StationRoutesEnv>().post(
@@ -161,14 +162,14 @@ export function heartbeatRoutes({ stationsCopy }: { stationsCopy: StationsCopy<E
     stationAuth(stationsCopy),
     jsonBody(heartbeatBody),
     (c) => {
-      const { station, deadline } = c.var;
+      const { station, deadline, waitUntil } = c.var;
       const answer = { station_id: station.id, server_time: new Date().toISOString() };
-      // The one server keeps running after it answers, as a Worker's
-      // waitUntil() would keep it.
-      void passOnHeartbeat(
-        station.eventService,
-        { station_id: station.id, ...c.req.valid("json") },
-        deadline,
+      waitUntil(
+        passOnHeartbeat(
+          station.eventService,
+          { station_id: station.id, ...c.req.valid("json") },
+          deadline,
+        ),
       );
       return c.json(answer);
     },

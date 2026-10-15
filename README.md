@@ -135,11 +135,17 @@ too, whatever keys arrive. So a new, replaced or disabled station key takes up t
 effect. The GeekyKey side reads no table.
 
 A station's heartbeat, `POST /api/v1/stations/heartbeat`, has its key checked the same way.
-Once it is, the station gets `server_time` straight away. The GeekyKey side then passes what
-the station said of its health to the Event side's `POST /geekykey/v1/heartbeats`, also with
-`EVENT_SERVICE_KEY`, without waiting for the answer. So a heartbeat sets a station's clock even
-while the Event side is down. A heartbeat hand-off that fails is logged as
-`heartbeat_handoff_failed` and not retried, since the station sends another a minute later.
+Once it is, the answer with `server_time` is made, and the GeekyKey side passes what the
+station said of its health to the Event side's `POST /geekykey/v1/heartbeats`, also with
+`EVENT_SERVICE_KEY`. A heartbeat hand-off that fails is logged as `heartbeat_handoff_failed`
+and not retried, since the station sends another a minute later. It never fails the
+heartbeat, so a heartbeat sets a station's clock even while the Event side is down.
+
+Work a station request starts for after its answer, the heartbeat hand-off and a refresh of
+the copy, goes through the request's `waitUntil`, as it will through a Worker's at checkpoint 4.
+Until then the answer waits for that work, up to the deadline. Cloud Run is deployed with
+`--cpu-throttling`, so the server gets a processor only while a request is in progress, and
+work left for after the answer might never finish.
 
 Every line the server logs is one JSON object whose `message` is a fixed name, such as
 `server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging

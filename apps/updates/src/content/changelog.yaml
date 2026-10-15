@@ -954,9 +954,9 @@
   date: 2026-10-15
   area: backend
   change: >-
-    A station can now send a heartbeat, which gives it the time to set its clock by. The GeekyKey
-    side answers as soon as it has checked the station's key, then passes on what the station
-    says about itself to the Event Service without waiting: its firmware version, how many taps
-    it has saved, and whether its reader works. So a station gets the time even while the Event
-    Service is down. The Event Service keeps these on the station's row, with when it last heard
+    A station can now send a heartbeat, which gives it the time to set its clock by. Once the
+    GeekyKey side has checked the station's key, it passes on what the station says about itself
+    to the Event Service: its firmware version, how many taps it has saved, and whether its
+    reader works. If that fails, the station still gets the time, so it gets it even while the
+    Event Service is down. The Event Service keeps these on the station's row, with when it last heard
     from the station, for the station board to show. The station firmware's side comes next.

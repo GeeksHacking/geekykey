@@ -2,8 +2,9 @@ import type { MiddlewareHandler } from "hono";
 import type { Config } from "../config.ts";
 import { bearerKey } from "../lib/bearer-key.ts";
 import type { EventService } from "./event-service.ts";
+import { beforeDeadline } from "./service-request.ts";
 import { hashStationKey } from "./station-keys.ts";
-import type { StationsCopy } from "./stations-copy.ts";
+import type { StationsCopy, WaitUntil } from "./stations-copy.ts";
 
 export interface StationContext {
   id: string;
@@ -12,11 +13,16 @@ export interface StationContext {
 }
 
 /**
- * Reads the request's `config`, and sets `station`, and the request's
- * `deadline`, for the handlers after it.
+ * Reads the request's `config`, and sets `station`, the request's `deadline`
+ * and its `waitUntil`, for the handlers after it.
  */
 export type StationEnv = {
-  Variables: { config: Config; station: StationContext; deadline: AbortSignal };
+  Variables: {
+    config: Config;
+    station: StationContext;
+    deadline: AbortSignal;
+    waitUntil: WaitUntil;
+  };
 };
 
 /**
@@ -27,6 +33,13 @@ export type StationEnv = {
  * only when every Event Service's list is in hand and the key is on none of
  * them, and `503 event_service_unavailable` when a list is missing and the key
  * isn't on the others.
+ *
+ * Work the request starts for after its answer, such as the heartbeat
+ * hand-off or a refresh of the copy, goes to its `waitUntil`, as it will to a
+ * Worker's `ctx.waitUntil()` from checkpoint 4. Until then the answer waits
+ * for that work, up to the deadline, because Cloud Run gives the one server a
+ * processor only while a request is in progress (`--cpu-throttling`), so work
+ * left for after the answer might never finish.
  */
 export function stationAuth(
   stationsCopy: StationsCopy<EventService>,
@@ -36,18 +49,27 @@ export function stationAuth(
     if (key === null) return c.json({ error: "missing_station_key" }, 401);
 
     const deadline = AbortSignal.timeout(c.var.config.tapDeadlineMs);
-    const check = await stationsCopy.find(await hashStationKey(key), {
-      signal: deadline,
-      // The one server keeps running after it answers, so a refresh needs nothing to finish.
-      waitUntil: (work) => void work,
-    });
-    if (check.result === "unknown") return c.json({ error: "invalid_station_key" }, 401);
-    if (check.result === "unavailable") {
-      return c.json({ error: "event_service_unavailable" }, 503);
-    }
+    const afterAnswer: Promise<unknown>[] = [];
+    const waitUntil: WaitUntil = (work) => void afterAnswer.push(work);
+    try {
+      const check = await stationsCopy.find(await hashStationKey(key), {
+        signal: deadline,
+        waitUntil,
+      });
+      if (check.result === "unknown") return c.json({ error: "invalid_station_key" }, 401);
+      if (check.result === "unavailable") {
+        return c.json({ error: "event_service_unavailable" }, 503);
+      }
 
-    c.set("station", { id: check.stationId, eventService: check.eventService });
-    c.set("deadline", deadline);
-    return next();
+      c.set("station", { id: check.stationId, eventService: check.eventService });
+      c.set("deadline", deadline);
+      c.set("waitUntil", waitUntil);
+      return await next();
+    } finally {
+      // Each piece of work logs its own failure, so only the wait is cut short here.
+      await beforeDeadline(Promise.allSettled(afterAnswer), deadline, () => new Error()).catch(
+        () => {},
+      );
+    }
   };
 }

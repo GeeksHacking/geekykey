@@ -585,7 +585,7 @@ interface HeartbeatAnswer {
   server_time: string;
 }
 
-test("a heartbeat gets the time at once, and the station's row then has its health", async () => {
+test("a heartbeat gets the time, and its health is on the station's row by then", async () => {
   const { postHeartbeat, stationId, db } = await harness();
   const before = new Date().toISOString();
   const res = await postHeartbeat({ firmware_version: "0.3.1", buffered_taps: 2, reader_ok: true });
@@ -599,21 +599,20 @@ test("a heartbeat gets the time at once, and the station's row then has its heal
   assert.match(answer.server_time, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
   assert.ok(before <= answer.server_time && answer.server_time <= after, answer.server_time);
 
-  // Passed on after the answer, so the row catches up a moment later.
-  await vi.waitFor(async () => {
-    const [row] = await db
-      .select({
-        lastSeenAt: stations.lastSeenAt,
-        firmwareVersion: stations.firmwareVersion,
-        bufferedTaps: stations.bufferedTaps,
-        readerOk: stations.readerOk,
-      })
-      .from(stations)
-      .where(eq(stations.id, stationId));
-    const { lastSeenAt, ...rest } = row!;
-    assert.ok(lastSeenAt! >= before, `${lastSeenAt}`);
-    assert.deepEqual(rest, { firmwareVersion: "0.3.1", bufferedTaps: 2, readerOk: true });
-  });
+  // Passed on after the answer is made, but done before it leaves: Cloud Run
+  // gives the one server a processor only while a request is in progress.
+  const [row] = await db
+    .select({
+      lastSeenAt: stations.lastSeenAt,
+      firmwareVersion: stations.firmwareVersion,
+      bufferedTaps: stations.bufferedTaps,
+      readerOk: stations.readerOk,
+    })
+    .from(stations)
+    .where(eq(stations.id, stationId));
+  const { lastSeenAt, ...rest } = row!;
+  assert.ok(lastSeenAt! >= before, `${lastSeenAt}`);
+  assert.deepEqual(rest, { firmwareVersion: "0.3.1", bufferedTaps: 2, readerOk: true });
 });
 
 test("a heartbeat without a key, or with a wrong one, gets 401 and no time", async () => {
@@ -679,12 +678,25 @@ test("the heartbeat hand-off goes to the Event Service with its key, the station
   ]);
 });
 
-test("with the Event side down, a heartbeat still gets the time at once", async () => {
-  // A deadline far longer than the answer may take, so waiting for the
-  // hand-off would show.
+test("the heartbeat hand-off is done before the answer leaves", async () => {
+  // Cloud Run gives the one server a processor only while a request is in
+  // progress, so work left for after the answer might never finish.
+  let handedOff = false;
+  const { target } = withEventService(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    handedOff = true;
+    return new Response(null, { status: 204 });
+  });
+  const { postHeartbeat } = await harness(target);
+  const res = await postHeartbeat({ reader_ok: true });
+  assert.equal(res.status, 200);
+  assert.equal(handedOff, true);
+});
+
+test("with the Event side down, a heartbeat still gets the time once the deadline is up", async () => {
   const handOffs: string[] = [];
   const target = testApp(
-    { TAP_DEADLINE_MS: "3000" },
+    { TAP_DEADLINE_MS: "300" },
     {
       sendToEventService: async (url, init) => {
         if (url === STATIONS_URL) return realEventSide(url, init);
@@ -694,14 +706,20 @@ test("with the Event side down, a heartbeat still gets the time at once", async 
     },
   );
   const { postHeartbeat } = await harness(target);
-  loggedLines();
+  const lines = loggedLines();
   const started = Date.now();
   const res = await postHeartbeat({ reader_ok: true });
   const took = Date.now() - started;
   assert.equal(res.status, 200);
   assert.ok(((await res.json()) as HeartbeatAnswer).server_time);
+  // Never longer than the deadline, with a little room for the rest of the request.
   assert.ok(took < 1000, `took ${took} ms`);
   assert.equal(handOffs.length, 1);
+  // Given up on, and logged, before the answer left.
+  assert.deepEqual(
+    lines().map((line) => [line.message, line.reason]),
+    [["heartbeat_handoff_failed", "timeout"]],
+  );
 });
 
 for (const [what, answer] of [
