@@ -117,13 +117,6 @@ test("lets an organizer through", async () => {
   assert.equal(res.status, 200);
 });
 
-test("a user whose row still says organizer, but who isn't on the list, gets 403", async () => {
-  const { signIn, get, db } = await harness();
-  await db.insert(users).values({ id: "former-organizer", displayName: "Sam", role: "organizer" });
-  const res = await get("/admin", await signIn("former-organizer"));
-  assert.equal(res.status, 403);
-});
-
 test("clearing the session removes the cookie from the browser", async () => {
   const { app } = await harness();
   const res = await app.request("/logout", { method: "POST" });

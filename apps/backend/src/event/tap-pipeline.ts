@@ -269,7 +269,6 @@ export class TapPipeline {
 
     const byUser = new Map<string, string[]>();
     for (const row of rows) {
-      if (!row.userId) continue;
       byUser.set(row.userId, [...(byUser.get(row.userId) ?? []), row.at]);
     }
     return byUser;

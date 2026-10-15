@@ -4,5 +4,140 @@
   // The frontends stay on ESLint for now, for the React hooks rules Oxlint lacks.
   // Files git ignores, such as the bundle in dist/, are skipped without being listed.
   "plugins": ["eslint", "typescript", "unicorn", "oxc"],
-  "categories": { "correctness": "error" }
+  "categories": { "correctness": "error" },
+  // The three areas in src/ talk only through their requests, so none imports another
+  // (spec section 3.1), and src/areas.test.ts checks these rules. Each imports only its own
+  // schema, and the GeekyKey side none, since it keeps no database. Until the split at
+  // checkpoint 4 the areas are one server, so a test may still read another area's tables, and
+  // use the whole server through src/test-helpers.ts.
+  "overrides": [
+    {
+      "files": ["src/geekykey/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/app.ts", "**/test-helpers.ts"],
+                "allowTypeImports": true,
+                "message": "The server's root brings in every area, so an area takes only its types."
+              },
+              {
+                "group": ["**/event/**", "**/claims-stand-in/**"],
+                "message": "The GeekyKey side reaches the others only through their requests."
+              },
+              {
+                "group": ["**/schema.ts", "**/db/**"],
+                "message": "The GeekyKey side keeps no database."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/event/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/app.ts", "**/test-helpers.ts"],
+                "allowTypeImports": true,
+                "message": "The server's root brings in every area, so an area takes only its types."
+              },
+              {
+                "group": ["**/geekykey/**", "**/claims-stand-in/**"],
+                "message": "The Event side reaches the others only through their requests."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/claims-stand-in/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/app.ts", "**/test-helpers.ts"],
+                "allowTypeImports": true,
+                "message": "The server's root brings in every area, so an area takes only its types."
+              },
+              {
+                "group": ["**/geekykey/**", "**/event/**"],
+                "message": "The claims stand-in reaches the others only through their requests."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/geekykey/**/*.test.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/event/**",
+                  "!**/event/schema.ts",
+                  "**/claims-stand-in/**",
+                  "!**/claims-stand-in/schema.ts"
+                ],
+                "message": "A test may read another area's tables, and nothing else of it."
+              },
+              {
+                "group": ["**/db/**"],
+                "message": "The GeekyKey side keeps no database."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/event/**/*.test.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/geekykey/**",
+                  "**/claims-stand-in/**",
+                  "!**/claims-stand-in/schema.ts"
+                ],
+                "message": "A test may read another area's tables, and nothing else of it."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/claims-stand-in/**/*.test.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/geekykey/**", "**/event/**", "!**/event/schema.ts"],
+                "message": "A test may read another area's tables, and nothing else of it."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

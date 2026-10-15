@@ -11,12 +11,11 @@ test("the fixture's station, participant and token read back through the pool", 
 
   const [station] = await db.select().from(stations).where(eq(stations.id, stationId)).limit(1);
   assert.equal(station?.apiKeyHash, await hashStationKey(stationKey));
-  assert.equal(station.points, 1);
   // The code sets timestamps, since the database can't.
   assert.equal(new Date(station.createdAt).toISOString(), station.createdAt);
 
   const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-  assert.equal(user?.role, "participant");
+  assert.equal(user?.displayName, "Alex");
 
   const [token] = await db.select().from(tokens).where(eq(tokens.uid, uid)).limit(1);
   assert.equal(token?.userId, userId);
@@ -26,7 +25,6 @@ test("the fixture's station, participant and token read back through the pool", 
   await db.insert(taps).values({
     stationId,
     clientTapId: "t1",
-    tokenUid: uid,
     userId,
     status: "accepted",
     receivedAt: new Date().toISOString(),

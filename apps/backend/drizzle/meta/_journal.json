@@ -57,6 +57,13 @@
       "when": 1792044441001,
       "tag": "0007_taps_are_never_unknown_token",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1792047049601,
+      "tag": "0008_the_old_columns_go",
+      "breakpoints": true
     }
   ]
 }

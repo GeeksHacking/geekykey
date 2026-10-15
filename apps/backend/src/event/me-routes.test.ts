@@ -62,7 +62,6 @@ async function harness() {
     fx.db.insert(taps).values({
       stationId: fx.stationId,
       clientTapId: `tap-${++tapCount}`,
-      tokenUid: fx.uid,
       userId: fx.userId,
       status: "accepted",
       ...tap,
@@ -306,7 +305,6 @@ test("shows only the signed-in participant's own taps", async () => {
   await db.insert(users).values({ id: "user-2", displayName: "Wei Lin" });
   await addTap({
     userId: "user-2",
-    tokenUid: "0455D2F1C83A91",
     receivedAt: "2026-10-10T09:00:00.000Z",
   });
   const me = await meAs(userId);
@@ -339,16 +337,15 @@ test("an organizer on the list gets the same view of their own account", async (
   assert.equal((await meAs("dev-user-1")).user.role, "participant");
 });
 
-test("the role comes from the organizer list, never from the user's row", async () => {
+test("the role comes from the organizer list", async () => {
   const { db } = await harness();
-  // Rows from before the list still say organizer.
   await db.insert(users).values([
     { id: "organizer-1", displayName: "Priya" },
-    { id: "former-organizer", displayName: "Sam", role: "organizer" },
+    { id: "participant-1", displayName: "Sam" },
   ]);
   const listed = meClient(testApp({ ORGANIZERS: " organizer-1 ,someone-else," }));
   assert.equal((await listed.meAs("organizer-1")).user.role, "organizer");
-  assert.equal((await listed.meAs("former-organizer")).user.role, "participant");
+  assert.equal((await listed.meAs("participant-1")).user.role, "participant");
   // An empty list, as production's starts.
   const empty = meClient(testApp({ ORGANIZERS: "" }));
   assert.equal((await empty.meAs("organizer-1")).user.role, "participant");

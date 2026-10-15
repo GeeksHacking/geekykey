@@ -41,14 +41,13 @@ test("a hand-off without the Event Service key, or with another, is refused", as
   }
 });
 
-/** Each stored tap's station, client_tap_id, user, token UID and status, oldest first. */
+/** Each stored tap's station, client_tap_id, user and status, oldest first. */
 function storedTaps() {
   return testDb()
     .select({
       station: taps.stationId,
       id: taps.clientTapId,
       user: taps.userId,
-      uid: taps.tokenUid,
       status: taps.status,
     })
     .from(taps)
@@ -70,10 +69,10 @@ test("a tap is accepted, a resend duplicate, and a second tap cooldown", async (
     { results: [{ client_tap_id: "t1", status: "duplicate" }] },
     { results: [{ client_tap_id: "t2", status: "cooldown" }] },
   ]);
-  // With its user ID, and no token UID: the Event side never sees a token.
+  // With its user ID: the Event side never sees a token.
   assert.deepEqual(await storedTaps(), [
-    { station: stationId, id: "t1", user: userId, uid: null, status: "accepted" },
-    { station: stationId, id: "t2", user: userId, uid: null, status: "cooldown" },
+    { station: stationId, id: "t1", user: userId, status: "accepted" },
+    { station: stationId, id: "t2", user: userId, status: "cooldown" },
   ]);
 });
 
@@ -102,7 +101,7 @@ test("a tap at a station without passport settings is stored and answered no_gam
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { results: [{ client_tap_id: "t1", status: "no_game" }] });
   assert.deepEqual(await storedTaps(), [
-    { station: "station-2", id: "t1", user: userId, uid: null, status: "no_game" },
+    { station: "station-2", id: "t1", user: userId, status: "no_game" },
   ]);
 });
 

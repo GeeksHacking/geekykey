@@ -8,7 +8,7 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core";
-import { isoNow, isoTimestamp, stationId, tokenUid, userId } from "../db/columns.ts";
+import { isoNow, isoTimestamp, stationId, userId } from "../db/columns.ts";
 
 /**
  * The Event side's tables. The claims stand-in's `tokens` is in
@@ -16,17 +16,13 @@ import { isoNow, isoTimestamp, stationId, tokenUid, userId } from "../db/columns
  * Timestamps are ISO strings, not DATETIME: src/db/columns.ts says why.
  */
 
-/** No longer read or written, since organizers come from the ORGANIZERS setting. */
-const USER_ROLES = ["participant", "organizer"] as const;
-
-/** The users who have logged in to this Event Service, by their user ID. */
+/**
+ * The users who have logged in to this Event Service, by their user ID. Who
+ * is an organizer comes from the ORGANIZERS setting, not from here.
+ */
 export const users = mysqlTable("users", {
   id: userId("id").primaryKey(),
-  /** No longer written or read, since `id` is the user ID. Dropped in BAC-36. */
-  portalUserId: userId("portal_user_id").unique(),
   displayName: text("display_name").notNull(),
-  /** No longer written or read, since ORGANIZERS took over. Dropped in BAC-36. */
-  role: mysqlEnum("role", USER_ROLES).notNull().default("participant"),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
 });
 
@@ -34,14 +30,8 @@ export const stations = mysqlTable("stations", {
   id: stationId("id").primaryKey(),
   /** The device's name, such as "Reader 3". Its name in the passport is passport_stations.name. */
   label: text("label").notNull(),
-  /** No longer written or read, since passport_stations took over. Dropped in BAC-36. */
-  name: text("name"),
-  /** No longer written or read, since passport_stations took over. Dropped in BAC-36. */
-  location: text("location"),
   /** SHA-256 of the key, in hex. */
   apiKeyHash: varchar("api_key_hash", { length: 64 }).notNull().unique(),
-  /** No longer written or read, since passport_stations took over. Dropped in BAC-36. */
-  points: int("points").notNull().default(1),
   /**
    * When an organizer disabled the station, or null while it's enabled. A
    * disabled station drops off the registered stations, so the GeekyKey
@@ -93,13 +83,12 @@ export const taps = mysqlTable(
       .references(() => stations.id),
     /** Station-generated ID that makes retries idempotent. Unique per station. */
     clientTapId: varchar("client_tap_id", { length: 128 }).notNull(),
-    /** No longer written: the Event side never sees a token. Dropped in BAC-36. */
-    tokenUid: tokenUid("token_uid"),
     /**
      * The tap's user, with no foreign key, so a tap by someone who has never
-     * logged in to this Event Service is still stored.
+     * logged in to this Event Service is still stored. The Event side never
+     * sees a token.
      */
-    userId: userId("user_id"),
+    userId: userId("user_id").notNull(),
     source: mysqlEnum("source", TAP_SOURCES).notNull().default("nfc"),
     status: mysqlEnum("status", STORED_TAP_STATUSES).notNull(),
     /** Device clock time of the tap. Nullable because ESP32 clocks are unreliable. */

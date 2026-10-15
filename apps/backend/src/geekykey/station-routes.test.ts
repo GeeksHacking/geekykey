@@ -103,14 +103,14 @@ test("a tap is accepted, a resend duplicate, and a second tap cooldown, through 
     { station_id: stationId, results: [{ client_tap_id: "t1", status: "duplicate" }] },
     { station_id: stationId, results: [{ client_tap_id: "t2", status: "cooldown" }] },
   ]);
-  // Stored with the owner's user ID, and no token UID.
+  // Stored with the owner's user ID.
   const stored = await db
-    .select({ id: taps.clientTapId, user: taps.userId, uid: taps.tokenUid })
+    .select({ id: taps.clientTapId, user: taps.userId })
     .from(taps)
     .orderBy(taps.id);
   assert.deepEqual(stored, [
-    { id: "t1", user: userId, uid: null },
-    { id: "t2", user: userId, uid: null },
+    { id: "t1", user: userId },
+    { id: "t2", user: userId },
   ]);
 });
 
