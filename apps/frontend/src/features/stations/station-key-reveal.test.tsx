@@ -80,4 +80,32 @@ describe("StationKeyReveal", () => {
     view.unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  // 9.7 says the key is returned only in the create response and there is no endpoint to
+  // read it back, so the clipboard is the only way it leaves this dialog. The key copied has
+  // to be the one the service returned, not the label or a trimmed version of it.
+  it("copies the key the service returned, and says it did", async () => {
+    renderReveal();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy key" }));
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("gk_sta_example");
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+
+  // A refused clipboard must not claim success, because the organizer would close the dialog
+  // believing the key is somewhere it can reach. The toast itself is not asserted: no other
+  // test in this app mounts a Toaster or mocks sonner, so the button's own state is the
+  // only thing on screen that tells the truth either way.
+  it("leaves the button saying Copy key when the clipboard refuses", async () => {
+    vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error("denied"));
+    renderReveal();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy key" }));
+    });
+
+    expect(screen.getByRole("button", { name: "Copy key" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copied" })).not.toBeInTheDocument();
+  });
 });
