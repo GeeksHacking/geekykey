@@ -51,6 +51,7 @@ export function createApp(config: Config, db: Db, options: AppOptions = {}) {
   const session: SessionOptions = {
     secret: config.sessionSecret,
     secure: config.sessionCookieSecure,
+    organizers: new Set(config.organizers),
   };
 
   const app = createBaseApp<AppEnv>();

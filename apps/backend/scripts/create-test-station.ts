@@ -13,6 +13,11 @@
  *
  *   mise exec -- pnpm db:test-station --production --env-file <file> --uid 04:A1:B2:C3:D4:E5:F6
  *
+ * The station joins the passport, so its taps are accepted, unless
+ * --outside-passport keeps it out, so they're no_game:
+ *
+ *   mise exec -- pnpm db:test-station --production --env-file <file> --outside-passport
+ *
  * The login's URL names the database, so staging's file adds them to
  * geekykey_staging instead:
  *
@@ -34,6 +39,7 @@ const { values } = parseArgs({
     production: { type: "boolean", default: false },
     "env-file": { type: "string" },
     station: { type: "string", default: "Test station" },
+    "outside-passport": { type: "boolean", default: false },
     uid: { type: "string" },
   },
 });
@@ -45,7 +51,10 @@ const connection = login
 const db = drizzle({ client: connection });
 
 try {
-  const station = await addStation(db, values.station);
+  const station = await addStation(db, {
+    label: values.station,
+    outsidePassport: values["outside-passport"],
+  });
   const participant = { id: "test-participant", displayName: "Test participant" };
   const [held] = await db
     .select({ uid: tokens.uid })
@@ -59,7 +68,9 @@ try {
   console.log(
     `Database:     ${login ? `${login.database} on GeeksHacking's TiDB` : "geekykey_dev"}`,
   );
-  console.log(`Station:      ${values.station} (${station.id})`);
+  console.log(
+    `Station:      ${values.station} (${station.id}), ${values["outside-passport"] ? "outside" : "in"} the passport`,
+  );
   console.log(`Station key:  ${station.key}   <- shown once, only the hash is stored`);
   console.log(`Participant:  ${participant.displayName} (${participant.id}), holding token ${uid}`);
   console.log();

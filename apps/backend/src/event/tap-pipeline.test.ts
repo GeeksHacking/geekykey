@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { test } from "vitest";
 import type { Db } from "../db/pool.ts";
 import { fakeClock, setupFixture, testDb } from "../test-helpers.ts";
-import { stations, taps } from "./schema.ts";
+import { passportStations, stations, taps } from "./schema.ts";
 import { type IncomingTap, TapPipeline } from "./tap-pipeline.ts";
 
 async function pipeline(cooldownSeconds = 300) {
@@ -235,14 +235,41 @@ test("results come back in request order", async () => {
 
 test("cooldown is per station", async () => {
   const { p, db, stationId, userId } = await pipeline(300);
-  await db.insert(stations).values({
-    id: "station-2",
-    name: "Booth 2",
-    apiKeyHash: "hash-2",
-  });
+  await db.insert(stations).values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2" });
+  await db.insert(passportStations).values({ stationId: "station-2", name: "Booth 2" });
   await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
   const other = await p.ingest("station-2", [{ clientTapId: "t1", userId }]);
   assert.equal(other[0].status, "accepted");
+});
+
+test("a station without passport settings stores its taps as no_game, with no cooldown", async () => {
+  // Reader 2 is registered, but no game counts its taps.
+  const { p, db, userId, clock } = await pipeline(300);
+  await db.insert(stations).values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2" });
+  const first = await p.ingest("station-2", [
+    { clientTapId: "t1", userId },
+    { clientTapId: "t1", userId },
+  ]);
+  clock.advanceSeconds(60);
+  const second = await p.ingest("station-2", [{ clientTapId: "t2", userId }]);
+  assert.deepEqual(
+    [...first, ...second].map((r) => r.status),
+    ["no_game", "duplicate", "no_game"],
+  );
+  assert.deepEqual(
+    (await statuses(db)).map((r) => r.status),
+    ["no_game", "no_game"],
+  );
+});
+
+test("no_game taps don't hold back the first tap after the station joins the passport", async () => {
+  const { p, db, userId, clock } = await pipeline(300);
+  await db.insert(stations).values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2" });
+  await p.ingest("station-2", [{ clientTapId: "t1", userId }]);
+  await db.insert(passportStations).values({ stationId: "station-2", name: "Booth 2" });
+  clock.advanceSeconds(60);
+  const results = await p.ingest("station-2", [{ clientTapId: "t2", userId }]);
+  assert.equal(results[0].status, "accepted");
 });
 
 // Two ingests from one station at once, each on a connection of its own, as

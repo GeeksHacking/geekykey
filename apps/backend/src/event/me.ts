@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, min } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { stations, taps } from "./schema.ts";
+import { passportStations, taps } from "./schema.ts";
 import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
 
 /** How many of their latest taps a participant sees, any status. */
@@ -13,14 +13,15 @@ export interface StampSlot {
   location: string | null;
   /** Station points: what one accepted tap there is worth, not what this participant earned there. */
   points: number;
-  /** When the backend received the first accepted tap there. Null while the slot is empty. */
+  /** When the Event Service received the first accepted tap there. Null while the slot is empty. */
   earnedAt: string | null;
 }
 
 export interface RecentTap {
   id: number;
   stationId: string;
-  stationName: string;
+  /** Its name in the passport, or null for a station outside the passport. */
+  stationName: string | null;
   status: StoredTapStatus;
   source: TapSource;
   tappedAt: string | null;
@@ -47,17 +48,18 @@ export interface MeView {
  * The next poll catches up.
  */
 export async function loadMe(db: Db, userId: string): Promise<MeView> {
-  const [allStations, visits, recentTaps] = await Promise.all([
+  const [passport, visits, recentTaps] = await Promise.all([
+    // Only passport stations are stamp slots.
     db
       .select({
-        id: stations.id,
-        name: stations.name,
-        location: stations.location,
-        points: stations.points,
+        id: passportStations.stationId,
+        name: passportStations.name,
+        location: passportStations.location,
+        points: passportStations.points,
       })
-      .from(stations)
-      // Creation order keeps every slot in place when a station is added mid-event.
-      .orderBy(asc(stations.createdAt), asc(stations.id)),
+      .from(passportStations)
+      // The order they were added keeps every slot in place when a station is added mid-event.
+      .orderBy(asc(passportStations.addedAt), asc(passportStations.stationId)),
     // One row per station this participant has an accepted tap at.
     db
       .select({
@@ -73,14 +75,14 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
       .select({
         id: taps.id,
         stationId: taps.stationId,
-        stationName: stations.name,
+        stationName: passportStations.name,
         status: taps.status,
         source: taps.source,
         tappedAt: taps.tappedAt,
         receivedAt: taps.receivedAt,
       })
       .from(taps)
-      .innerJoin(stations, eq(taps.stationId, stations.id))
+      .leftJoin(passportStations, eq(taps.stationId, passportStations.stationId))
       .where(eq(taps.userId, userId))
       .orderBy(desc(taps.receivedAt), desc(taps.id))
       .limit(RECENT_TAP_LIMIT),
@@ -88,14 +90,14 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
   const visitsByStation = new Map(visits.map((visit) => [visit.stationId, visit]));
 
   // Every accepted tap earns its station's points, so a repeat visit after the cooldown counts again.
-  const points = allStations.reduce(
+  const points = passport.reduce(
     (sum, station) => sum + station.points * (visitsByStation.get(station.id)?.accepted ?? 0),
     0,
   );
 
   return {
     points,
-    passport: allStations.map((station) => ({
+    passport: passport.map((station) => ({
       stationId: station.id,
       name: station.name,
       location: station.location,
