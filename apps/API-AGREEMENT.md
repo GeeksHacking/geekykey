@@ -384,7 +384,7 @@ On the GeekyKey Service, at `https://key-api.geekshacking.com` in production fro
 From checkpoint 2 until then, stations call today's backend at
 `https://event-api.geekshacking.com`, which answers them the same way.
 
-### 6.1 `POST /api/v1/taps` — `Implemented, changes at checkpoint 3`
+### 6.1 `POST /api/v1/taps` (`Implemented, changes at checkpoint 3`)
 
 Ingest one or many taps from the authenticated station. Live taps and saved taps use the same
 call; the only difference is the array length.
@@ -497,7 +497,7 @@ change. Show each result for about 2 seconds with its LED on, then go back to "R
   `setInsecure()`. Keep one HTTPS connection open, so a tap doesn't pay a new
   handshake each time.
 
-### 6.2 `POST /api/v1/stations/heartbeat` — `Implemented`
+### 6.2 `POST /api/v1/stations/heartbeat` (`Implemented`)
 
 Gives the station its clock, and lets the station board show an online light between taps and
 whether the reader works.
@@ -551,7 +551,7 @@ Each service has its own set, on its screens' hostname. The GeekyKey Service's s
 the Event Service's set `event_session`. Both accept logins from the same Firebase project,
 `geekykey-b035a`, so a user has the same ID in both.
 
-### 7.1 `POST /auth/dev-login` — GeekyKey Service `Implemented, changes at checkpoint 4`, Event Service `Checkpoint 4`
+### 7.1 `POST /auth/dev-login` (GeekyKey Service `Implemented, changes at checkpoint 4`, Event Service `Checkpoint 4`)
 
 Only mounted when the service runs with `DEV_AUTH_ENABLED=true`, from its local development
 settings: for today's backend, the committed `apps/backend/dev.env`. Never enabled in production.
@@ -572,7 +572,7 @@ settings: for today's backend, the committed `apps/backend/dev.env`. Never enabl
 - Until checkpoint 4, today's backend has one dev-login, which sets `gk_session` for a seeded
   user and answers `not_found` for anyone else.
 
-### 7.2 `POST /auth/firebase` — `Checkpoint 5`
+### 7.2 `POST /auth/firebase` (`Checkpoint 5`)
 
 Logs the user in with the ID token Firebase gave the screens. The service checks it against
 Google's public keys, then sets its cookie. There's no redirect: the screens stay where they
@@ -620,7 +620,7 @@ another site can't log someone in.
 **Errors:** `validation_failed`; `invalid_token` (401); `login_unavailable` (503) when Google's
 keys couldn't be fetched, so the token may be fine and the screens offer to try again.
 
-### 7.3 `POST /auth/logout` — GeekyKey Service `Implemented`, Event Service `Checkpoint 4`
+### 7.3 `POST /auth/logout` (GeekyKey Service `Implemented`, Event Service `Checkpoint 4`)
 
 **Response `204`**, clears that service's cookie. The screens also call Firebase's `signOut()`,
 so a shared device doesn't stay signed in to Firebase.
@@ -635,7 +635,7 @@ Service, for any logged-in user, and are what the token page and My tokens call.
 doesn't answer properly within 4 seconds. Nothing is saved, and the screens say "Couldn't reach
 GeeksHacking. Try again."
 
-### 8.1 `GET /api/v1/me` on the Event Service — `Implemented, changes at checkpoint 3`
+### 8.1 `GET /api/v1/me` on the Event Service (`Implemented, changes at checkpoint 3`)
 
 Everything the participant dashboard and passport view need in one call.
 
@@ -677,7 +677,7 @@ station in `stamps`, in the order the stations were created.
 
 **Errors:** `unauthenticated`.
 
-### 8.2 `POST /api/v1/tokens/{uid}/claim` on the GeekyKey Service — `Checkpoint 6`
+### 8.2 `POST /api/v1/tokens/{uid}/claim` on the GeekyKey Service (`Checkpoint 6`)
 
 Claim a token for the current user, from the token page or My tokens' claim-by-code form. The
 first claim wins, and a user holds at most 3 tokens.
@@ -702,7 +702,7 @@ then a user holding 3 gets `token_limit_reached`, even for someone else's token;
 Taps turned away as `unknown_token` before the claim are not credited afterwards: they were
 never stored.
 
-### 8.3 `DELETE /api/v1/tokens/{uid}` on the GeekyKey Service — `Checkpoint 6`
+### 8.3 `DELETE /api/v1/tokens/{uid}` on the GeekyKey Service (`Checkpoint 6`)
 
 Release a token, for example a lost one, so anyone can claim it again. Releasing deletes the
 claim. Taps made with the token before still count.
@@ -716,7 +716,7 @@ page loaded, so a late or double click can't release a newer claim.
 **Errors:** `not_found` if the token isn't claimed by the current user, or by `owner_id` when
 given; `forbidden` if someone who isn't a GeekyKey admin sends `owner_id`.
 
-### 8.4 `GET /api/v1/me` on the GeekyKey Service — `Checkpoint 6`
+### 8.4 `GET /api/v1/me` on the GeekyKey Service (`Checkpoint 6`)
 
 Everything My tokens needs, and the "Am I logged in?" call for the GeekyKey screens.
 
@@ -743,7 +743,7 @@ Everything My tokens needs, and the "Am I logged in?" call for the GeekyKey scre
 
 **Errors:** `unauthenticated`.
 
-### 8.5 `GET /api/v1/tokens/{uid}` on the GeekyKey Service — `Checkpoint 6`
+### 8.5 `GET /api/v1/tokens/{uid}` on the GeekyKey Service (`Checkpoint 6`)
 
 What the token page shows. The page calls it only once someone is logged in. Before that it
 shows a login prompt and looks nothing up.
@@ -778,7 +778,7 @@ On the Event Service. All require `event_session` for a user on the Event Servic
 list. Anyone else gets `forbidden`. Organizers also look after their event's stations: 9.7 to 9.9
 create them, replace their keys, and disable and enable them.
 
-### 9.1 `PUT /api/v1/admin/stations/{id}/passport` — `Checkpoint 7`
+### 9.1 `PUT /api/v1/admin/stations/{id}/passport` (`Checkpoint 7`)
 
 Add a station to the passport, or change its settings. `{id}` is the station's ID from the
 station board.
@@ -805,7 +805,7 @@ station board.
 **Errors:** `validation_failed`, and `not_found` for a station this Event Service didn't
 register.
 
-### 9.2 `GET /api/v1/admin/stations` — `Checkpoint 7`
+### 9.2 `GET /api/v1/admin/stations` (`Checkpoint 7`)
 
 The station board: every station this Event Service has registered, enabled or disabled, with
 its health, its passport settings and its last tap.
@@ -848,7 +848,7 @@ its health, its passport settings and its last tap.
 
 Poll this every 10 to 15 seconds for the station board.
 
-### 9.3 `GET /api/v1/admin/taps` — `Checkpoint 7`
+### 9.3 `GET /api/v1/admin/taps` (`Checkpoint 7`)
 
 The live scan log, newest first.
 
@@ -888,7 +888,7 @@ The live scan log, newest first.
 - `next_before_id` is `null` when there are no older taps. For a live feed, poll every 5 seconds
   with no cursor and merge by `id`.
 
-### 9.4 `POST /api/v1/admin/taps` — `Checkpoint 7`
+### 9.4 `POST /api/v1/admin/taps` (`Checkpoint 7`)
 
 The QR fallback, for when a tap can't go through a station, such as a reader that dies during
 the event. An organizer scans a participant's QR code, or types their user ID, and logs a
@@ -915,7 +915,7 @@ Both fields are required. The Event Service generates the `client_tap_id`.
 
 **Errors:** `validation_failed`, and `not_found` for a station without passport settings.
 
-### 9.5 `GET /api/v1/admin/stats` — `Checkpoint 7`
+### 9.5 `GET /api/v1/admin/stats` (`Checkpoint 7`)
 
 **Response `200`**
 
@@ -933,7 +933,7 @@ Both fields are required. The Event Service generates the `client_tap_id`.
 `total_taps` counts every stored tap: `accepted`, `cooldown` and `no_game`. `stations` lists the
 passport stations, in the order they were added.
 
-### 9.6 `GET /api/v1/admin/export.csv` — `Checkpoint 7`
+### 9.6 `GET /api/v1/admin/export.csv` (`Checkpoint 7`)
 
 Stored taps as CSV with `Content-Disposition: attachment`. One row per stored tap, whose
 `status` is `accepted`, `cooldown` or `no_game`.
@@ -947,7 +947,7 @@ who has never logged in to this event.
 This is the data feed for the Sprint 2 A/B analysis, so it must not be cut from scope. The
 analysis needs neither token UIDs nor taps by unclaimed tokens (Joshua, 28 Sep).
 
-### 9.7 `POST /api/v1/admin/stations` — `Checkpoint 7`
+### 9.7 `POST /api/v1/admin/stations` (`Checkpoint 7`)
 
 Create a station for this event.
 
@@ -974,7 +974,7 @@ Create a station for this event.
 
 **Errors:** `validation_failed`.
 
-### 9.8 `POST /api/v1/admin/stations/{id}/key` — `Checkpoint 7`
+### 9.8 `POST /api/v1/admin/stations/{id}/key` (`Checkpoint 7`)
 
 Replace a station's key, keeping its ID, its passport settings and its stamps. The old key stops
 working within a minute, and Zi Tao enters the new one through the station's setup mode.
@@ -994,7 +994,7 @@ As when a station is created, `api_key` is returned only here.
 
 **Errors:** `not_found`.
 
-### 9.9 `POST /api/v1/admin/stations/{id}/disable` and `/enable` — `Checkpoint 7`
+### 9.9 `POST /api/v1/admin/stations/{id}/disable` and `/enable` (`Checkpoint 7`)
 
 **Request:** no body.
 
@@ -1040,7 +1040,7 @@ Adding an Event Service is a reviewed pull request to the GeekyKey Service's set
 its name, its `https://` address, and optionally a public address and name for the buttons on My
 tokens and the token page. Its key is set as a secret on both sides.
 
-### 11.1 Registered stations: `GET /geekykey/v1/stations` — `Implemented`
+### 11.1 Registered stations: `GET /geekykey/v1/stations` (`Implemented`)
 
 Which station keys are this Event Service's. The GeekyKey Service keeps a copy of every Event
 Service's list in memory, fills it when it's empty, and refreshes it at most once a minute.
@@ -1075,7 +1075,7 @@ Service's list in memory, fills it when it's empty, and refreshes it at most onc
 
 **Errors:** `invalid_event_service_key`.
 
-### 11.2 The hand-off: `POST /geekykey/v1/taps` — `Implemented`
+### 11.2 The hand-off: `POST /geekykey/v1/taps` (`Implemented`)
 
 The GeekyKey Service calls this on the Event Service once per station request, with every tap in
 it that passed the GeekyKey Service's own checks.
@@ -1122,7 +1122,7 @@ it that passed the GeekyKey Service's own checks.
 
 **Errors:** `invalid_event_service_key`, `validation_failed`.
 
-### 11.3 The heartbeat hand-off: `POST /geekykey/v1/heartbeats` — `Implemented`
+### 11.3 The heartbeat hand-off: `POST /geekykey/v1/heartbeats` (`Implemented`)
 
 The GeekyKey Service passes on each heartbeat a station sends (6.2), after it has answered the
 station.
