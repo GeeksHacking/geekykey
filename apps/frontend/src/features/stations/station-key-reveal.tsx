@@ -44,7 +44,8 @@ export function StationKeyReveal({ result, onDone }: StationKeyRevealProps) {
       <DialogHeader>
         <DialogTitle>{result.station.label} is ready</DialogTitle>
         <DialogDescription>
-          Put this key into the station's configuration. To rotate it later, create a new station.
+          Put this key into the station&apos;s setup mode. You can replace it later, and the station
+          keeps its ID, its passport settings and its stamps.
         </DialogDescription>
       </DialogHeader>
       <div className="flex items-start gap-2 rounded-lg border border-status-cooldown/40 bg-status-cooldown/10 p-3 text-sm">

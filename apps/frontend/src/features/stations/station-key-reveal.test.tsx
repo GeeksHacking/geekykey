@@ -132,4 +132,33 @@ describe("StationKeyReveal", () => {
     expect(field.selectionStart).toBe(0);
     expect(field.selectionEnd).toBe("gk_sta_example".length);
   });
+
+  // 9.8 replaces a key while keeping the station's ID, its passport settings and its
+  // stamps, so telling an organizer to create a new station sent them off to lose all
+  // three. The agreement does not say how a brand new station's key reaches it, but 9.8 and
+  // the 8 Oct 2026 change both say the setup mode, and rule out a reflash.
+  //
+  // Asserted against the container's text, not an element: this file mocks the dialog parts
+  // as pass-throughs, so the description has no element of its own here.
+  it("says the key goes into the setup mode, and that replacing it keeps the station", () => {
+    const { container } = renderReveal();
+    const shown = container.textContent ?? "";
+
+    // The whole sentence, not a fragment, so the JSX line wrap has to collapse to single
+    // spaces or this fails.
+    expect(shown).toContain(
+      "Put this key into the station's setup mode. You can replace it later, and the station keeps its ID, its passport settings and its stamps.",
+    );
+    expect(shown).not.toContain("create a new station");
+  });
+
+  // 9.7 returns the key in the create response and says no endpoint reads it back, so this
+  // warning is the only place an organizer learns the key cannot be recovered.
+  it("warns that the key is shown once and cannot be seen again", () => {
+    const { container } = renderReveal();
+
+    expect(container.textContent).toContain(
+      "Copy it now. It is shown once, and closing this dialog hides it for good.",
+    );
+  });
 });
