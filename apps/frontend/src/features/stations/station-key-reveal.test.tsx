@@ -108,4 +108,28 @@ describe("StationKeyReveal", () => {
     expect(screen.getByRole("button", { name: "Copy key" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copied" })).not.toBeInTheDocument();
   });
+
+  // The field is read-only on purpose. Nothing reads the key back, so a key edited here is a
+  // key the service never issued and the organizer finds out at the station, not here.
+  it("shows the key the service returned, and will not let it be edited", () => {
+    renderReveal();
+
+    const field = screen.getByLabelText("Station key");
+    expect(field).toHaveValue("gk_sta_example");
+    expect(field).toHaveAttribute("readonly");
+  });
+
+  // Focusing selects the whole key, so a second copy takes all of it rather than the word
+  // under the caret. A key is long and unreadable, and nobody drags to the end of one. The
+  // test measures the fixture's own length rather than a number written in, because the
+  // agreement fixes the gk_sta_ prefix and no length.
+  it("selects the whole key when it takes focus", () => {
+    renderReveal();
+    const field = screen.getByLabelText("Station key") as HTMLInputElement;
+
+    fireEvent.focus(field);
+
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe("gk_sta_example".length);
+  });
 });
