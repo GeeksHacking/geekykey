@@ -1,26 +1,20 @@
-import { QuestionMark, WifiHigh, WifiSlash } from "@phosphor-icons/react";
+import { WifiHigh, WifiSlash } from "@phosphor-icons/react";
 
 interface OnlineStatusProps {
-  /** Null when the GeekyKey Service's status call failed (agreement 9.2). */
-  online: boolean | null;
+  /** Whether the station was heard from in the last 120 seconds (agreement 9.2). */
+  online: boolean;
   lastSeenAt: string | null;
 }
 
 /**
  * Icon plus word in every state, so it survives colour-blindness and bad projector contrast.
  *
- * An unknown status reads as unknown, never as offline. Agreement 9.2 is explicit: showing a
- * healthy station as offline would send an organiser to restart it for no reason.
+ * There is no unknown state. The board had one only while a status call to the GeekyKey
+ * Service could fail, and version 0.3 removed that call. A station with no `lastSeenAt` has
+ * never been heard from at all, which is a different thing from a fault and reads as
+ * "Never connected".
  */
 export function OnlineStatus({ online, lastSeenAt }: OnlineStatusProps) {
-  if (online === null) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-status-unknown">
-        <QuestionMark weight="bold" className="h-4 w-4" aria-hidden />
-        Status unknown
-      </span>
-    );
-  }
   if (online) {
     return (
       <span className="inline-flex items-center gap-1.5 text-sm font-medium text-status-accepted">

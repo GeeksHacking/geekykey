@@ -2,6 +2,7 @@ import { WarningCircle } from "@phosphor-icons/react";
 
 import type { EventStationBoardStation } from "@/api/types";
 import { OnlineStatus } from "@/components/online-status";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -51,7 +52,12 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
             >
               <TableCell>
                 <p className="font-medium">
-                  {station.passport?.name ?? station.label ?? "Unnamed station"}
+                  {station.passport?.name ?? station.label}
+                  {station.disabled_at !== null ? (
+                    <Badge variant="muted" className="ml-2 align-middle">
+                      Disabled
+                    </Badge>
+                  ) : null}
                 </p>
                 <p
                   className={
@@ -64,9 +70,6 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                     ? (station.passport.location ?? "No location")
                     : "Not in the passport"}
                 </p>
-                {station.linked === false ? (
-                  <p className="mt-1 text-xs font-medium text-status-unknown">No longer linked</p>
-                ) : null}
                 {listed.length > 0 ? (
                   <ul className="mt-1 space-y-0.5">
                     {listed.map((problem) => (
@@ -134,7 +137,7 @@ function PassportButton({
       className="h-auto px-0 text-xs"
       onClick={onOpen}
       aria-label={`${editing ? "Change passport settings for" : "Add to passport"} ${
-        station.passport?.name ?? station.label ?? "this station"
+        station.passport?.name ?? station.label
       }`}
     >
       {editing ? "Edit passport settings" : "Add to passport"}

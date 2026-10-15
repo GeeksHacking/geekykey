@@ -18,7 +18,7 @@ Object.defineProperty(globalThis, "ResizeObserver", {
 });
 
 describe("StationsScreen", () => {
-  it("renders the v0.2 board and keeps the mock add-station dialog working", async () => {
+  it("renders the board and keeps the mock add-station dialog working", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);
     const { Providers } = createTestProviders(api);
@@ -30,10 +30,10 @@ describe("StationsScreen", () => {
     );
 
     expect((await screen.findAllByText("Not in the passport")).length).toBeGreaterThan(0);
-    expect(screen.getByText("No longer linked")).toBeInTheDocument();
+    expect(screen.queryByText("No longer linked")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add station" }));
-    await user.type(screen.getByLabelText("Name"), "Test Station");
+    await user.type(screen.getByLabelText("Label"), "Test Station");
     await user.click(screen.getByRole("button", { name: "Create station" }));
 
     expect(
@@ -53,7 +53,7 @@ describe("StationsScreen", () => {
 
     await screen.findAllByText("Not in the passport");
 
-    const names = screen
+    const rows = screen
       .getAllByRole("row")
       .slice(1)
       .map((row) => row.textContent ?? "");
@@ -64,20 +64,26 @@ describe("StationsScreen", () => {
       "Not responding",
     ];
     const isProblem = (name: string) => problems.some((problem) => name.includes(problem));
-    const flagged = names
+    // The disabled fixture is offline as well as disabled, and 9.2 puts a disabled station
+    // last whatever else is true of it, so it is counted apart from the two groups.
+    const enabled = rows.filter((row) => !row.includes("Disabled"));
+    const flagged = enabled
       .map((name, index) => (isProblem(name) ? index : -1))
       .filter((i) => i >= 0);
-    const quiet = names.map((name, index) => (isProblem(name) ? -1 : index)).filter((i) => i >= 0);
+    const quiet = enabled
+      .map((name, index) => (isProblem(name) ? -1 : index))
+      .filter((i) => i >= 0);
 
     expect(flagged.length).toBeGreaterThan(0);
     expect(quiet.length).toBeGreaterThan(0);
     expect(Math.max(...flagged)).toBeLessThan(Math.min(...quiet));
+    expect(rows.filter((row) => row.includes("Disabled"))).toHaveLength(1);
+    expect(rows[rows.length - 1]).toContain("Disabled");
   });
 
-  it("shows a notice and 'Status unknown' when the status call failed", async () => {
+  it("never says the status is unknown, because no status call is left to fail", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);
-    api.mock.setStatusKnown(false);
     const { Providers } = createTestProviders(api);
     render(
       <Providers>
@@ -85,16 +91,18 @@ describe("StationsScreen", () => {
       </Providers>,
     );
 
-    expect(await screen.findByText(/Couldn't get the stations' status/)).toBeInTheDocument();
-    expect(screen.getAllByText("Status unknown").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Offline")).not.toBeInTheDocument();
-    expect(screen.queryByText("Never connected")).not.toBeInTheDocument();
+    await screen.findAllByText("Not in the passport");
+
+    expect(screen.queryByText(/Couldn't get the stations' status/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Status unknown")).not.toBeInTheDocument();
+    // Every station now has a real answer, so nothing reads as unknown or never connected
+    // on a healthy mock board.
+    expect(screen.getAllByText("Online").length).toBeGreaterThan(0);
   });
 
-  it("still shows passport details and last taps when the status is unknown", async () => {
+  it("badges the disabled fixture and puts it last", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);
-    api.mock.setStatusKnown(false);
     const { Providers } = createTestProviders(api);
     render(
       <Providers>
@@ -102,27 +110,14 @@ describe("StationsScreen", () => {
       </Providers>,
     );
 
-    // Passport names and locations come from the Event Service, so they survive.
-    expect(await screen.findByText("3D Printing Booth")).toBeInTheDocument();
-    expect(screen.getByText("Hall A")).toBeInTheDocument();
-  });
+    await screen.findAllByText("Not in the passport");
 
-  it("turns nothing red just because the status is unknown", async () => {
-    const api = createMockClient({ latencyMs: [0, 0], storage: null });
-    api.mock.setSession(SEEDED_ORGANIZER_ID);
-    api.mock.setStatusKnown(false);
-    const { Providers } = createTestProviders(api);
-    render(
-      <Providers>
-        <StationsScreen />
-      </Providers>,
-    );
+    // The mock's seventh fixture is disabled, and keeps its passport name (9.2).
+    expect(screen.getByText("Disabled")).toBeInTheDocument();
+    expect(screen.getByText("Info Desk")).toBeInTheDocument();
 
-    await screen.findByText(/Couldn't get the stations' status/);
-
-    expect(screen.queryByText("Not responding")).not.toBeInTheDocument();
-    expect(screen.queryByText("Reader not responding")).not.toBeInTheDocument();
-    expect(screen.queryByText("Holding saved taps")).not.toBeInTheDocument();
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows.at(-1)?.textContent ?? "").toContain("Info Desk");
   });
 
   it("keeps the board and shows a quiet note when a poll is rate limited", async () => {
@@ -196,22 +191,5 @@ describe("StationsScreen", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Showing the last update.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
-  });
-
-  it("says nothing about the status when the status call worked", async () => {
-    const api = createMockClient({ latencyMs: [0, 0], storage: null });
-    api.mock.setSession(SEEDED_ORGANIZER_ID);
-    const { Providers } = createTestProviders(api);
-    render(
-      <Providers>
-        <StationsScreen />
-      </Providers>,
-    );
-
-    await screen.findAllByText("Not in the passport");
-
-    expect(screen.queryByText(/Couldn't get the stations' status/)).not.toBeInTheDocument();
-    expect(screen.queryByText("Status unknown")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Online").length).toBeGreaterThan(0);
   });
 });

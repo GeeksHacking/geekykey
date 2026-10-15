@@ -16,10 +16,13 @@ export type StationProblem = keyof typeof STATION_PROBLEMS;
 /**
  * Which problems a station has, most urgent first.
  *
- * `online` and `reader_ok` are `null` when the GeekyKey Service's status call failed
- * or timed out (agreement 9.2), so `null` is deliberately not a problem: an unknown
- * status must never make an organiser restart a healthy station. Same for a station
- * that is only quiet, which has no problem at all.
+ * Since version 0.3 the board has no status call behind it, so `online` is always a real
+ * answer: whether the station was heard from within the last 120 seconds (agreement 9.2).
+ * A station created by 9.7 and not yet heard from is offline, which is true rather than
+ * unknown. `reader_ok` and `buffered_taps` stay null until a heartbeat's hand-off reports
+ * them, so only a definite `false`, or a count above zero, is a problem. 9.2 is explicit
+ * that showing a healthy station as at fault would send an organiser to restart it for no
+ * reason. A station that is only quiet has no problem at all.
  */
 export function stationProblems(station: EventStationBoardStation): StationProblem[] {
   const problems: StationProblem[] = [];
@@ -37,11 +40,20 @@ export function hasStationProblem(station: EventStationBoardStation): boolean {
 }
 
 /**
- * Problem stations first, then everyone else. Both groups keep the order they arrived
- * in, so a poll that returns the same list does not shuffle the board under the reader.
+ * Disabled stations last, and problem stations first among the rest (agreement 9.2).
+ *
+ * 9.2 makes the disabled rule unconditional and lists it separately from the four faults,
+ * so it wins: a disabled station that is also offline still goes to the bottom. Both
+ * groups keep the order they arrived in, so a poll that returns the same list does not
+ * shuffle the board under the reader.
  */
 export function sortStationsByTrouble(
   stations: readonly EventStationBoardStation[],
 ): EventStationBoardStation[] {
-  return [...stations].sort((a, b) => Number(hasStationProblem(b)) - Number(hasStationProblem(a)));
+  return [...stations].sort((a, b) => {
+    const aDisabled = a.disabled_at !== null;
+    const bDisabled = b.disabled_at !== null;
+    if (aDisabled !== bDisabled) return aDisabled ? 1 : -1;
+    return Number(hasStationProblem(b)) - Number(hasStationProblem(a));
+  });
 }

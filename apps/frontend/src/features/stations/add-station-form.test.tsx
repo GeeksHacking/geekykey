@@ -26,28 +26,48 @@ function setup() {
 }
 
 describe("AddStationForm", () => {
-  it("only describes fields that render a description", async () => {
+  it("asks only for a label, and says where the passport name goes", async () => {
     setup();
 
+    // Agreement 9.7 takes { label } and nothing else. Name, location and points are
+    // passport settings, added with 9.1 from the board.
     await waitFor(() =>
-      expect(screen.getByLabelText("Name")).toHaveAccessibleDescription(
-        "Shown on the participant's passport.",
+      expect(screen.getByLabelText("Label")).toHaveAccessibleDescription(
+        "The device's name. Set the name on the passport separately.",
       ),
     );
-    expect(screen.getByLabelText("Points per accepted tap")).not.toHaveAttribute(
-      "aria-describedby",
-    );
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Location")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Points per accepted tap")).not.toBeInTheDocument();
   });
 
   it("shows a form-level error when validation fails without issues", async () => {
     const { api, user } = setup();
     api.mock.failNext("validation_failed");
 
-    await user.type(screen.getByLabelText("Name"), "Print Lab");
+    await user.type(screen.getByLabelText("Label"), "Reader 3");
     await user.click(screen.getByRole("button", { name: "Create station" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Some of the details are not valid. Check the form and try again.",
     );
+  });
+
+  it("puts a too-long label on the label field and sends nothing", async () => {
+    const { api, user } = setup();
+
+    await user.type(screen.getByLabelText("Label"), "x".repeat(81));
+    await user.click(screen.getByRole("button", { name: "Create station" }));
+
+    expect(await screen.findByText("Keep it under 80 characters.")).toBeInTheDocument();
+    expect(api.mock.data.stations.every((station) => station.label.length <= 80)).toBe(true);
+  });
+
+  it("will not submit an empty label", async () => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Create station" }));
+
+    expect(await screen.findByText("Give the station a label.")).toBeInTheDocument();
   });
 });

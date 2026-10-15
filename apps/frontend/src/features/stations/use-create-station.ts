@@ -4,7 +4,7 @@ import { useApi } from "@/api/context";
 import { queryKeys } from "@/api/keys";
 import type { CreateStationRequest } from "@/api/types";
 
-/** POST /admin/stations. The board refetches on success; the one-time key stays with the caller. */
+/** POST /api/v1/admin/stations (agreement 9.7). The board refetches on success. */
 export function useCreateStation() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -12,7 +12,6 @@ export function useCreateStation() {
     mutationFn: (input: CreateStationRequest) => api.createStation(input),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.stations }),
         queryClient.invalidateQueries({ queryKey: queryKeys.stationBoard }),
         queryClient.invalidateQueries({ queryKey: queryKeys.stats }),
       ]);
