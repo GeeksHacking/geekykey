@@ -90,7 +90,7 @@ apps/backend/
 │   │                      EventService, which hands taps to the Event side
 │   ├── event/             the Event side: the hand-off's routes under /geekykey/v1, the tap
 │   │                      pipeline, /me, logging in and out, the session, and its tables
-│   │                      (stations, users, taps) in schema.ts
+│   │                      (stations, passport_stations, users, taps) in schema.ts
 │   ├── claims-stand-in/   who owns each token until the Portal does: its four routes under
 │   │                      /claims-stand-in/v1, and its table (tokens) in schema.ts
 │   ├── db/                the connection pool, the migrator, and the column types both schemas share
@@ -437,6 +437,13 @@ ESP32:
 mise run seed -- --station "Booth 3"
 ```
 
+Each seeded station is in the passport, worth 1 point a tap. To add one that no game counts,
+whose taps come back `no_game`, add `--outside-passport`:
+
+```bash
+mise run seed -- --station "Reader 9" --outside-passport
+```
+
 ### The local database
 
 TiDB runs in Docker, from the root `compose.yaml`, at the version GeeksHacking's cluster
@@ -484,6 +491,12 @@ Without it, the backend refuses to start unless `SESSION_SECRET`, `CLAIMS_STAND_
 `EVENT_SERVICES` is a JSON list with one Event Service, the showcase, whose address must
 start with `https://`. Only with dev sign-in on may it be `http://` to your laptop.
 `infra/production/settings.env` shows it.
+
+`ORGANIZERS` lists the user IDs who are organizers on the Event side, and `GEEKYKEY_ADMINS`
+the ones who may release someone else's token on the GeekyKey side, each separated by commas.
+Everyone else is a participant. The server reads both when it starts, so a change takes a
+restart, or a deploy in production. Empty or unset means nobody. With dev sign-in on, an unset
+list holds `dev-organizer-1`, so Priya Raman from the seed is an organizer.
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
 connects over TLS, checking the database's certificate and name, unless the address is on
 your laptop, such as `127.0.0.1`.
@@ -780,7 +793,9 @@ Things to know:
 
   `--production` means GeeksHacking's cluster, and the login decides which database. It
   also adds a test participant holding one token. It prints the station key once, and the
-  token's UID, so keep both outside the repo.
+  token's UID, so keep both outside the repo. The station is in the passport, so a claimed
+  token's tap there is `accepted`. With `--outside-passport` it isn't, and the tap is
+  `no_game`.
 - **Its logs** are in Cloud Logging, which Adam and Ethan can read.
 
 ### Secrets

@@ -90,6 +90,22 @@ test("a tap by someone who has never logged in is still stored", async () => {
   );
 });
 
+test("a tap at a station without passport settings is stored and answered no_game", async () => {
+  const { userId } = await setupFixture();
+  await testDb()
+    .insert(stations)
+    .values({ id: "station-2", label: "Reader 2", apiKeyHash: "b".repeat(64) });
+  const res = await handOff({
+    station_id: "station-2",
+    taps: [{ client_tap_id: "t1", user_id: userId, tapped_at: null }],
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { results: [{ client_tap_id: "t1", status: "no_game" }] });
+  assert.deepEqual(await storedTaps(), [
+    { station: "station-2", id: "t1", user: userId, uid: null, status: "no_game" },
+  ]);
+});
+
 test("a body the schema rejects is a 400, and nothing is stored", async () => {
   const { stationId, userId } = await setupFixture();
   const tap = { client_tap_id: "t1", user_id: userId, tapped_at: null };
@@ -208,7 +224,7 @@ test("the registered stations are the enabled ones, each with its key's hash and
     .insert(stations)
     .values({
       id: "station-disabled",
-      name: "Booth 2",
+      label: "Reader 2",
       apiKeyHash: "a".repeat(64),
       disabledAt: "2026-10-14T01:00:00.000Z",
     });

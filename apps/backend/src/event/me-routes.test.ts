@@ -2,18 +2,14 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { setupFixture, testApp } from "../test-helpers.ts";
-import { type NewTap, stations, taps, users } from "./schema.ts";
+import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
 
 const app = testApp();
 
 /** Pinned so slot order does not depend on the day the tests run. */
-const BOOTH_CREATED_AT = "2026-10-10T08:00:00.000Z";
+const BOOTH_ADDED_AT = "2026-10-10T08:00:00.000Z";
 
-/**
- * GET /api/v1/me in today's shape: section 8.1 of API-AGREEMENT.md is the
- * agreed shape, and the paragraph after its list says how today's backend
- * still differs from it.
- */
+/** GET /api/v1/me, in the shape section 8.1 of API-AGREEMENT.md agrees. */
 interface MeBody {
   user: { id: string; display_name: string; role: string };
   points: number;
@@ -27,7 +23,7 @@ interface MeBody {
   recent_taps: {
     id: number;
     station_id: string;
-    station_name: string;
+    station_name: string | null;
     status: string;
     source: string;
     tapped_at: string | null;
@@ -44,42 +40,21 @@ interface MeBody {
 async function harness() {
   const fx = await setupFixture();
   await fx.db
-    .update(stations)
-    .set({ createdAt: BOOTH_CREATED_AT })
-    .where(eq(stations.id, fx.stationId));
+    .update(passportStations)
+    .set({ addedAt: BOOTH_ADDED_AT })
+    .where(eq(passportStations.stationId, fx.stationId));
 
-  const getMe = (cookie?: string) =>
-    app.request("/api/v1/me", {
-      headers: cookie ? { Cookie: cookie } : {},
-    });
-
-  /** Signs in through dev-login and returns the /me body, which must be a 200. */
-  const meAs = async (userId: string): Promise<MeBody> => {
-    const login = await app.request("/auth/dev-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId }),
-    });
-    assert.equal(login.status, 204);
-    // Only the name=value pair travels back, the way a browser sends it.
-    const cookie = (login.headers.get("Set-Cookie") ?? "").split(";")[0];
-    const res = await getMe(cookie);
-    assert.equal(res.status, 200);
-    return (await res.json()) as MeBody;
+  /**
+   * Adds a station, with passport settings unless it's left out. /me never
+   * reads station keys, so each gets a placeholder hash.
+   */
+  const addStation = async (
+    id: string,
+    passport?: { name: string; addedAt: string; location?: string; points?: number },
+  ) => {
+    await fx.db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
+    if (passport) await fx.db.insert(passportStations).values({ stationId: id, ...passport });
   };
-
-  /** /me never reads station keys, so each extra station gets a placeholder hash. */
-  const addStation = (station: {
-    id: string;
-    name: string;
-    createdAt: string;
-    location?: string;
-    points?: number;
-  }) =>
-    fx.db.insert(stations).values({
-      apiKeyHash: `unused-${station.id}`,
-      ...station,
-    });
 
   let tapCount = 0;
   /** Stores a tap. Unless told otherwise: accepted, NFC, Alex, Booth 1. */
@@ -93,7 +68,32 @@ async function harness() {
       ...tap,
     });
 
-  return { ...fx, getMe, meAs, addStation, addTap };
+  return { ...fx, ...meClient(app), addStation, addTap };
+}
+
+/** Ways to call GET /api/v1/me on `target`, as nobody or as a signed-in user. */
+function meClient(target: ReturnType<typeof testApp>) {
+  const getMe = (cookie?: string) =>
+    target.request("/api/v1/me", {
+      headers: cookie ? { Cookie: cookie } : {},
+    });
+
+  /** Signs in through dev-login and returns the /me body, which must be a 200. */
+  const meAs = async (userId: string): Promise<MeBody> => {
+    const login = await target.request("/auth/dev-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    assert.equal(login.status, 204);
+    // Only the name=value pair travels back, the way a browser sends it.
+    const cookie = (login.headers.get("Set-Cookie") ?? "").split(";")[0];
+    const res = await getMe(cookie);
+    assert.equal(res.status, 200);
+    return (await res.json()) as MeBody;
+  };
+
+  return { getMe, meAs };
 }
 
 test("answers unauthenticated when nobody is signed in", async () => {
@@ -157,12 +157,11 @@ test("a cooldown tap is listed but earns nothing", async () => {
 test("points count every accepted tap, while a slot shows what its station is worth", async () => {
   // Alex visits Booth 1 (1 point) three times, 10 minutes apart, and Cloud Sponsor (2 points) once.
   const { meAs, addStation, addTap, userId, stationId } = await harness();
-  await addStation({
-    id: "cloud",
+  await addStation("cloud", {
     name: "Cloud Sponsor",
     location: "Hall B",
     points: 2,
-    createdAt: "2026-10-10T08:05:00.000Z",
+    addedAt: "2026-10-10T08:05:00.000Z",
   });
   await addTap({ receivedAt: "2026-10-10T09:00:00.000Z" });
   await addTap({ receivedAt: "2026-10-10T09:10:00.000Z" });
@@ -188,29 +187,57 @@ test("points count every accepted tap, while a slot shows what its station is wo
   ]);
 });
 
-test("every station gets a slot, oldest station first", async () => {
+test("every passport station gets a slot, oldest settings first", async () => {
   // Neither name order nor insert order gives this sequence. Robotics Lab and
-  // AI Corner were created in the same millisecond, so their ids break the tie.
+  // AI Corner were added in the same millisecond, so their ids break the tie.
   const { meAs, addStation, userId } = await harness();
-  await addStation({
-    id: "station-b",
-    name: "AI Corner",
-    createdAt: "2026-10-10T08:30:00.000Z",
-  });
-  await addStation({
-    id: "station-a",
-    name: "Robotics Lab",
-    createdAt: "2026-10-10T08:30:00.000Z",
-  });
-  await addStation({
-    id: "station-c",
-    name: "Welcome Desk",
-    createdAt: "2026-10-10T07:00:00.000Z",
-  });
+  await addStation("station-b", { name: "AI Corner", addedAt: "2026-10-10T08:30:00.000Z" });
+  await addStation("station-a", { name: "Robotics Lab", addedAt: "2026-10-10T08:30:00.000Z" });
+  await addStation("station-c", { name: "Welcome Desk", addedAt: "2026-10-10T07:00:00.000Z" });
   const me = await meAs(userId);
   assert.deepEqual(
     me.stamps.map((s) => s.name),
     ["Welcome Desk", "Booth 1", "Robotics Lab", "AI Corner"],
+  );
+});
+
+test("a station outside the passport has no slot, and its taps earn nothing", async () => {
+  // Reader 2 is registered, and Alex tapped it, but no game counts its taps.
+  const { meAs, addStation, addTap, userId, stationId } = await harness();
+  await addStation("station-2");
+  await addTap({
+    stationId: "station-2",
+    status: "no_game",
+    receivedAt: "2026-10-10T09:00:00.000Z",
+  });
+  const me = await meAs(userId);
+  assert.equal(me.points, 0);
+  assert.deepEqual(
+    me.stamps.map((s) => s.station_id),
+    [stationId],
+  );
+  assert.deepEqual(
+    me.recent_taps.map(({ station_id, station_name, status }) => ({
+      station_id,
+      station_name,
+      status,
+    })),
+    [{ station_id: "station-2", station_name: null, status: "no_game" }],
+  );
+});
+
+test("a station added to the passport later goes last, wherever it was created", async () => {
+  // Reader 0 was registered before Booth 1, but joined the passport after it.
+  const { meAs, addStation, db, userId, stationId } = await harness();
+  await addStation("station-0", { name: "Late Booth", addedAt: "2026-10-10T12:00:00.000Z" });
+  await db
+    .update(stations)
+    .set({ createdAt: "2026-10-01T00:00:00.000Z" })
+    .where(eq(stations.id, "station-0"));
+  const me = await meAs(userId);
+  assert.deepEqual(
+    me.stamps.map((s) => s.station_id),
+    [stationId, "station-0"],
   );
 });
 
@@ -234,11 +261,10 @@ test("recent taps are in the order the backend received them", async () => {
   // organizer logs a QR fallback tap for Alex at Cloud Sponsor. Booth 1 comes
   // back and sends its tap at 09:20, so that tap is listed first.
   const { meAs, addStation, addTap, userId, stationId } = await harness();
-  await addStation({
-    id: "cloud",
+  await addStation("cloud", {
     name: "Cloud Sponsor",
     points: 2,
-    createdAt: "2026-10-10T08:05:00.000Z",
+    addedAt: "2026-10-10T08:05:00.000Z",
   });
   await addTap({
     stationId: "cloud",
@@ -296,15 +322,15 @@ test("shows only the signed-in participant's own taps", async () => {
   assert.deepEqual(me.recent_taps, []);
 });
 
-test("an organizer gets the same view of their own account", async () => {
+test("an organizer on the list gets the same view of their own account", async () => {
+  // dev-organizer-1 is on the local organizer list, and dev-user-1 isn't.
   const { meAs, db, stationId } = await harness();
-  await db.insert(users).values({
-    id: "organizer-1",
-    displayName: "Priya",
-    role: "organizer",
-  });
-  assert.deepEqual(await meAs("organizer-1"), {
-    user: { id: "organizer-1", display_name: "Priya", role: "organizer" },
+  await db.insert(users).values([
+    { id: "dev-organizer-1", displayName: "Priya" },
+    { id: "dev-user-1", displayName: "Wei Lin" },
+  ]);
+  assert.deepEqual(await meAs("dev-organizer-1"), {
+    user: { id: "dev-organizer-1", display_name: "Priya", role: "organizer" },
     points: 0,
     stamps: [
       {
@@ -317,4 +343,20 @@ test("an organizer gets the same view of their own account", async () => {
     ],
     recent_taps: [],
   });
+  assert.equal((await meAs("dev-user-1")).user.role, "participant");
+});
+
+test("the role comes from the organizer list, never from the user's row", async () => {
+  const { db } = await harness();
+  // Rows from before the list still say organizer.
+  await db.insert(users).values([
+    { id: "organizer-1", displayName: "Priya" },
+    { id: "former-organizer", displayName: "Sam", role: "organizer" },
+  ]);
+  const listed = meClient(testApp({ ORGANIZERS: " organizer-1 ,someone-else," }));
+  assert.equal((await listed.meAs("organizer-1")).user.role, "organizer");
+  assert.equal((await listed.meAs("former-organizer")).user.role, "participant");
+  // An empty list, as production's starts.
+  const empty = meClient(testApp({ ORGANIZERS: "" }));
+  assert.equal((await empty.meAs("organizer-1")).user.role, "participant");
 });

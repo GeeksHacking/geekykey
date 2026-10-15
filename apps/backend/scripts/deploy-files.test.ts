@@ -31,6 +31,17 @@ function pinnedSecrets(deployEnv: Record<string, string>) {
   );
 }
 
+/**
+ * A stand-in for the secrets Cloud Run would fill in, each shaped like the
+ * real one: a URL for DATABASE_URL, and 64 hex characters for a key.
+ */
+const STAND_IN_SECRETS = JSON.stringify({
+  SESSION_SECRET: "a-stand-in-for-the-secret",
+  DATABASE_URL: "mysql://a-stand-in-for-the-secret@stand-in/db",
+  EVENT_SERVICE_KEY: "0".repeat(64),
+  CLAIMS_STAND_IN_KEY: "0".repeat(64),
+});
+
 const TARGETS = {
   production: { service: "event-service" },
   staging: { service: "event-service-staging" },
@@ -43,19 +54,18 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
     const secrets = pinnedSecrets(deployEnv);
 
     test("its settings and secrets are enough for the server to start, with dev sign-in off", () => {
-      const env: Record<string, string> = { ...settings };
-      // A stand-in for the secrets Cloud Run would fill in, each shaped like
-      // the real one: a URL for DATABASE_URL, and 64 hex characters for a key.
-      env.APP_SECRETS = JSON.stringify({
-        SESSION_SECRET: "a-stand-in-for-the-secret",
-        DATABASE_URL: "mysql://a-stand-in-for-the-secret@stand-in/db",
-        EVENT_SERVICE_KEY: "0".repeat(64),
-        CLAIMS_STAND_IN_KEY: "0".repeat(64),
-      });
-
-      const config = loadConfig(unpackAppSecrets(env));
+      const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
       assert.equal(config.devAuthEnabled, false);
       assert.equal(config.sessionCookieSecure, true);
+    });
+
+    test("it has the organizer and GeekyKey admin lists, which start empty", () => {
+      // An unset list would mean nobody too, but each is here to be filled in.
+      assert.equal(settings.ORGANIZERS, "");
+      assert.equal(settings.GEEKYKEY_ADMINS, "");
+      const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
+      assert.deepEqual(config.organizers, []);
+      assert.deepEqual(config.geekykeyAdmins, []);
     });
 
     test("the server's secrets come as one, APP_SECRETS, so each costs one stored version", () => {

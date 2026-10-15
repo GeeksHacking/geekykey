@@ -3,7 +3,7 @@ import type { RegisteredStation } from "@geekykey/handoff";
 import { eq } from "drizzle-orm";
 import { onTestFinished, test, vi } from "vitest";
 import type { AppOptions } from "../app.ts";
-import { stations, taps } from "../event/schema.ts";
+import { passportStations, stations, taps } from "../event/schema.ts";
 import {
   setupFixture,
   testApp,
@@ -112,6 +112,18 @@ test("a tap is accepted, a resend duplicate, and a second tap cooldown, through 
     { id: "t1", user: userId, uid: null },
     { id: "t2", user: userId, uid: null },
   ]);
+});
+
+test("a tap at a station outside the passport is no_game, through the hand-off", async () => {
+  const { post, uid, stationId, db } = await harness();
+  loggedLines();
+  await db.delete(passportStations).where(eq(passportStations.stationId, stationId));
+  const res = await post({ taps: [{ client_tap_id: "t1", uid }] });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    station_id: stationId,
+    results: [{ client_tap_id: "t1", status: "no_game" }],
+  });
 });
 
 test("a tap by a token nobody owns is unknown_token, logged, and stored nowhere", async () => {
@@ -432,6 +444,7 @@ test("the station's ID and Event Service come from the registered stations, not 
   loggedLines();
   // Registered under another ID, and gone from the table.
   registered = [{ station_id: "station-9", key_hash: await hashStationKey(stationKey) }];
+  await db.delete(passportStations).where(eq(passportStations.stationId, stationId));
   await db.delete(stations).where(eq(stations.id, stationId));
 
   for (const id of ["t1", "t2"]) {

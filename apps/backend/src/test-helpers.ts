@@ -4,7 +4,7 @@ import { type AppOptions, createApp } from "./app.ts";
 import { DEV_EVENT_SERVICES, loadConfig } from "./config.ts";
 import { createDbPool, type Db } from "./db/pool.ts";
 import { tokens } from "./claims-stand-in/schema.ts";
-import { stations, users } from "./event/schema.ts";
+import { passportStations, stations, users } from "./event/schema.ts";
 import { generateStationKey, hashStationKey } from "./geekykey/station-keys.ts";
 
 export interface TestFixture {
@@ -58,7 +58,7 @@ export function testApp(settings: Record<string, string> = {}, options: AppOptio
   return createApp(config, testDb(), options);
 }
 
-/** One station, and one participant holding one token. */
+/** One station in the passport, and one participant holding one token. */
 export async function setupFixture(): Promise<TestFixture> {
   const db = testDb();
 
@@ -69,9 +69,10 @@ export async function setupFixture(): Promise<TestFixture> {
 
   await db.insert(stations).values({
     id: stationId,
-    name: "Booth 1",
+    label: "Reader 1",
     apiKeyHash: await hashStationKey(stationKey),
   });
+  await db.insert(passportStations).values({ stationId, name: "Booth 1" });
   await db.insert(users).values({ id: userId, displayName: "Alex" });
   await db.insert(tokens).values({ uid, userId });
 

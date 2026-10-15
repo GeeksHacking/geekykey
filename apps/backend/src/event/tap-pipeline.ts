@@ -4,6 +4,7 @@ import { log } from "../lib/log.ts";
 import { trustedTappedAt } from "../lib/tapped-at.ts";
 import {
   type NewTap,
+  passportStations,
   type STORED_TAP_STATUSES,
   stations,
   type TAP_SOURCES,
@@ -59,7 +60,8 @@ interface PendingTap {
  * Designed for a remote database: one short transaction that locks the
  * station's row, reads existing IDs and cooldown state, and makes a single
  * multi-row insert. Every non-duplicate tap is stored, including cooldown
- * ones, so organisers can see repeat taps in the log. Each stored tap gets
+ * ones, so organisers can see repeat taps in the log. The passport is the
+ * only game, so a tap at a station without passport settings is `no_game`. Each stored tap gets
  * a `tap_stored` log line once the transaction commits, so taps lost to a
  * restore can be rebuilt from the logs.
  *
@@ -87,7 +89,8 @@ export class TapPipeline {
 
     const stored: PendingTap[] = [];
     const results = await this.#db.transaction(async (tx) => {
-      if (!(await this.#lockStation(tx, stationId))) throw new UnknownStation();
+      const station = await this.#lockStation(tx, stationId);
+      if (station === undefined) throw new UnknownStation();
       const results = Array.from<TapResult>({ length: incoming.length });
 
       // 1. Replays: client IDs already stored for this station, or repeated within this request.
@@ -115,7 +118,7 @@ export class TapPipeline {
           tappedAt,
           effectiveAt: tappedAt ?? receivedAt,
           userId: tap.userId,
-          status: "accepted",
+          status: station.inPassport ? "accepted" : "no_game",
         });
       });
       if (pending.length === 0) return results;
@@ -123,9 +126,13 @@ export class TapPipeline {
       // 2. Cooldown: a user's tap is `cooldown` when one of their accepted taps at this
       //    station, stored or earlier in this batch, is inside the window on either side of it.
       //    Walking the batch in time order means an offline flush is judged by when taps happened.
-      const accepted = await this.#acceptedTimes(tx, stationId, pending);
+      //    No game counts a station outside the passport, so nothing there is held back.
+      const accepted = station.inPassport
+        ? await this.#acceptedTimes(tx, stationId, pending)
+        : new Map<string, string[]>();
       const inTimeOrder = [...pending].sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt));
       for (const p of inTimeOrder) {
+        if (p.status !== "accepted") continue;
         const times = accepted.get(p.userId) ?? [];
         if (times.some((at) => this.#withinCooldown(at, p.effectiveAt))) {
           p.status = "cooldown";
@@ -192,16 +199,19 @@ export class TapPipeline {
    * with a statement of its own before BEGIN, and the locking reads need
    * nothing set.)
    *
-   * Says whether the station is there to lock.
+   * Reads the station's passport settings in the same round trip, which
+   * locks them too, so they can't change under the ingest. Says whether
+   * the station is in the passport, or undefined when there's no station.
    */
-  async #lockStation(tx: Tx, stationId: string): Promise<boolean> {
+  async #lockStation(tx: Tx, stationId: string): Promise<{ inPassport: boolean } | undefined> {
     const [station] = await tx
-      .select({ id: stations.id })
+      .select({ passportStationId: passportStations.stationId })
       .from(stations)
+      .leftJoin(passportStations, eq(passportStations.stationId, stations.id))
       .where(eq(stations.id, stationId))
       .limit(1)
       .for("update");
-    return station !== undefined;
+    return station && { inPassport: station.passportStationId !== null };
   }
 
   #withinCooldown(a: string, b: string): boolean {

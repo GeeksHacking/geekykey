@@ -961,6 +961,18 @@
     Event Service is down. The Event Service keeps these on the station's row, with when it last heard
     from the station, for the station board to show. The station firmware's side comes next.
 
+- id: passport-has-its-own-stations
+  date: 2026-10-15
+  area: backend
+  change: >-
+    The passport now keeps its own list of stations, each with the name, location and points it
+    shows, apart from the stations themselves. Only stations on that list are stamp slots, in the
+    order they joined it, so a station added later goes last. A tap at a station that isn't on
+    the list is still kept, but it earns nothing, and the station hears "not in a game". Every
+    station that existed already joined the list, so their taps count as before. Who is an
+    organizer now comes from a list in the Event Service's settings, not from a user's record,
+    and the lists for production and staging start empty.
+
 - id: station-sends-a-heartbeat
   date: 2026-10-15
   area: firmware

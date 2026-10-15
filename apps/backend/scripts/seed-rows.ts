@@ -5,17 +5,27 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../src/db/pool.ts";
 import { tokens } from "../src/claims-stand-in/schema.ts";
-import { stations, users } from "../src/event/schema.ts";
+import { passportStations, stations, users } from "../src/event/schema.ts";
 import { generateStationKey, hashStationKey } from "../src/geekykey/station-keys.ts";
 
 /**
- * Adds a station with a new key. The key is handed back to be shown once:
- * only its hash is stored.
+ * Adds a station with a new key, named `label`. The key is handed back to be
+ * shown once: only its hash is stored. Unless it's `outsidePassport`, the
+ * station joins the passport under the same name, worth 1 point a tap;
+ * outside it, its taps are `no_game`.
  */
-export async function addStation(db: Db, name: string): Promise<{ id: string; key: string }> {
+export async function addStation(
+  db: Db,
+  station: { label: string; outsidePassport?: boolean },
+): Promise<{ id: string; key: string }> {
   const id = crypto.randomUUID();
   const key = generateStationKey();
-  await db.insert(stations).values({ id, name, apiKeyHash: await hashStationKey(key) });
+  await db
+    .insert(stations)
+    .values({ id, label: station.label, apiKeyHash: await hashStationKey(key) });
+  if (!station.outsidePassport) {
+    await db.insert(passportStations).values({ stationId: id, name: station.label });
+  }
   return { id, key };
 }
 
@@ -25,10 +35,10 @@ export async function addStation(db: Db, name: string): Promise<{ id: string; ke
  */
 export async function addParticipant(
   db: Db,
-  participant: { id: string; portalUserId?: string; displayName: string; uid: string },
+  participant: { id: string; displayName: string; uid: string },
 ): Promise<void> {
-  const { id, portalUserId, displayName, uid } = participant;
-  await addUser(db, { id, portalUserId, displayName });
+  const { id, displayName, uid } = participant;
+  await addUser(db, { id, displayName });
   // "Add it unless it's already there" is an update that changes nothing,
   // never INSERT IGNORE, which also turns bad values into warnings and stores them.
   await db
@@ -38,7 +48,7 @@ export async function addParticipant(
 }
 
 /** Adds a user, unless they're already there. */
-export async function addUser(db: Db, user: typeof users.$inferInsert): Promise<void> {
+export async function addUser(db: Db, user: { id: string; displayName: string }): Promise<void> {
   await db
     .insert(users)
     .values(user)
