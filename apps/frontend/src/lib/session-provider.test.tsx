@@ -77,13 +77,13 @@ describe("SessionProvider", () => {
       await result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
-    queryClient.setQueryData(queryKeys.stations, { stations: [] });
+    queryClient.setQueryData(queryKeys.stationBoard, { stations: [] });
     api.mock.failNext("internal_error");
 
     await expect(result.current.signOut()).rejects.toBeDefined();
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(result.current.me).toBeNull();
-    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.stationBoard)).toBeUndefined();
   });
 
   it("keeps a 403 available to the role gate", async () => {
@@ -95,7 +95,7 @@ describe("SessionProvider", () => {
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
 
     api.mock.failNext("forbidden");
-    await expect(api.listStations()).rejects.toBeDefined();
+    await expect(api.listStationBoard()).rejects.toBeDefined();
     await waitFor(() => expect(result.current.authorizationError).toBeDefined());
     expect(result.current.me?.user.role).toBe("organizer");
     await act(async () => {
@@ -111,13 +111,13 @@ describe("SessionProvider", () => {
       await result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
-    queryClient.setQueryData(queryKeys.stations, { stations: [] });
+    queryClient.setQueryData(queryKeys.stationBoard, { stations: [] });
 
     api.mock.failNext("unauthenticated");
-    await expect(api.listStations()).rejects.toBeDefined();
+    await expect(api.listStationBoard()).rejects.toBeDefined();
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(result.current.me).toBeNull();
-    expect(queryClient.getQueryData(queryKeys.stations)).toBeUndefined();
+    expect(queryClient.getQueryData(queryKeys.stationBoard)).toBeUndefined();
   });
 
   it("stays authenticated when a /me poll is rate limited", async () => {

@@ -52,12 +52,9 @@ Rules that make this possible:
   uneven data. No round numbers, no "John Doe".
 - The mock client simulates latency and can be told to fail with any error code from the
   agreement, so loading and error states are real from day one. `api.mock.failNext(code)`
-  fails the next call with that code, or with `"network"`; tests use it.
-  `api.mock.setStatusKnown(false)` makes the station board behave as if the GeekyKey
-  Service's status call failed, so every status field comes back null (agreement 9.2).
-  With
-  `simulate: true` (the default in `api/create-client.ts`) a station simulator keeps the online stations'
-  heartbeat fresh and drips in new taps, so polling has something to show.
+  fails the next call with that code, or with `"network"`; tests use it. With
+  `simulate: true` (the default in `api/create-client.ts`) a station simulator keeps the
+  online stations' heartbeat fresh and drips in new taps, so polling has something to show.
 
 ## Wiring an endpoint to the real backend
 
@@ -87,14 +84,13 @@ Service's (9.2) is the Organizer's station board, which the fallback picker and 
 filter need. Agreement section 10 has held no endpoints since version 0.3, so the GeekyKey
 Service's former station registry and `createStation` are no longer part of the contract: each
 Event Service registers and issues its own stations (9.7 to 9.9), and the GeekyKey Service
-keeps only a copy in memory of what they registered. The bundle still names a
-`geekykey.listStations`, and both entries still call the one `listStations()`; that split is
-FRO-32's to settle, and the type above keeps the method until it does.
+keeps only a copy in memory of what they registered. There is one call to the stations path,
+`listStationBoard`, and it answers with the board (9.2).
 
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
 | 1 | Session | `devLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
-| 2 | Stations | `listStationBoard`, `listStations`, `createStation`, `setStationPassport` | `/admin/stations`, the picker on `/admin/fallback` |
+| 2 | Stations | `listStationBoard`, `createStation`, `setStationPassport` | `/admin/stations`, the picker on `/admin/fallback` |
 | 3 | Scan log | `listTaps` | `/admin/taps` |
 | 4 | Event tail | `createFallbackTap`, `stats`, `exportCsv` | `/admin/summary`, `/admin/fallback` |
 
@@ -325,7 +321,7 @@ apps/frontend/
       ui/                   # shadcn generated and customised. No app logic here.
       layout/               # shells, nav, page header, theme toggle, account menu, empty/error/loading views
       tap-status.tsx        # shared by several features, alongside online-status and participant-tap-list
-      online-status.tsx     # online, offline, never connected, or "Status unknown" (agreement 9.2)
+      online-status.tsx     # online, offline, or never connected (agreement 9.2)
     api/
       types.ts              # mirrors API-AGREEMENT.md exactly
       client.ts             # the interface every feature consumes
@@ -417,9 +413,8 @@ Rules:
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
 
 `/admin/stations` and `/admin/fallback` both read the Event board, from
-`listStationBoard()`, which shares the `GET /api/v1/admin/stations` path with the
-GeekyKey registry's `listStations()` but returns a different response type. The
-registry list is not on screen yet. The export is not a link: `features/stats/export-button.tsx`
+`listStationBoard()`, which is the only call to `GET /api/v1/admin/stations` (9.2).
+The export is not a link: `features/stats/export-button.tsx`
 fetches it and hands the browser a Blob.
 
 Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens

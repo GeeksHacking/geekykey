@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
-import type { Station } from "@/api/types";
 import { FallbackForm } from "@/features/fallback/fallback-form";
+import type { StationOption } from "@/features/stations/station-options";
 import { createTestProviders } from "@/test/providers";
 
 Object.defineProperty(globalThis, "ResizeObserver", {
@@ -17,17 +17,13 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   },
 });
 
-const station: Station = {
+const station: StationOption = {
   id: "ca939e19-8216-4b95-8375-5b54e543c5f6",
   name: "Print Lab",
-  location: "Hall A",
-  points: 1,
-  created_at: "2026-10-10T00:00:00.000Z",
-  last_seen_at: null,
   online: false,
 };
 
-function setup(stations: Station[] = [station]) {
+function setup(stations: StationOption[] = [station]) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_ORGANIZER_ID);
   const { Providers } = createTestProviders(api);
@@ -72,11 +68,10 @@ describe("FallbackForm", () => {
   });
 
   it("explains when a station is not in the passport", async () => {
-    const photoWall: Station = {
+    const photoWall: StationOption = {
       ...station,
       id: "71e5c3a8-2b9d-4f0e-8a6c-3d1f7b2e9c04",
       name: "Photo Wall",
-      points: 0,
     };
     const { user } = setup([photoWall]);
     const select = document.querySelector("select");
