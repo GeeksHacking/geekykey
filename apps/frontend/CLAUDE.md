@@ -74,14 +74,14 @@ as a unit: a live `me()` with a mock `devLogin()` means nobody can sign in.
 
 `apps/API-AGREEMENT.md` v0.2 separates the GeekyKey Service from the Event Service. The
 current screens still consume one `ApiClient` so existing hooks do not change during the
-staged migration. `src/api/service-client.ts` provides a non-breaking session/GeekyKey/Event
-bundle for new code. Do not move a route to that bundle until its backend endpoint and
-response contract are implemented; the bundle is organizational preparation, not a second
-live switch.
+staged migration. `src/api/service-client.ts` provides a non-breaking session/Event
+bundle for new code, and has no GeekyKey slice because these screens make no GeekyKey
+call. Do not move a route to that bundle until its backend endpoint and response contract are
+implemented; the bundle is organizational preparation, not a second live switch.
 
-`GET /api/v1/admin/stations` is on both services with different responses. The Event
-Service's (9.2) is the Organizer's station board, which the fallback picker and the scan-log
-filter need. Agreement section 10 has held no endpoints since version 0.3, so the GeekyKey
+`GET /api/v1/admin/stations` is on the Event Service. It is the Organizer's station board
+(9.2), which the station screen, the fallback picker and the scan-log filter need.
+Agreement section 10 has held no endpoints since version 0.3, so the GeekyKey
 Service's former station registry and `createStation` are no longer part of the contract: each
 Event Service registers and issues its own stations (9.7 to 9.9), and the GeekyKey Service
 keeps only a copy in memory of what they registered. There is one call to the stations path,
