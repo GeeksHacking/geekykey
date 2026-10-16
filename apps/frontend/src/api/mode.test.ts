@@ -27,6 +27,7 @@ describe("frontend data source mode", () => {
 
     liveMethods.add("listStationBoard");
     liveMethods.add("createStation");
+    liveMethods.add("replaceStationKey");
     liveMethods.add("setStationPassport");
     liveMethods.add("listTaps");
     liveMethods.add("createFallbackTap");
@@ -42,6 +43,7 @@ describe("frontend data source mode", () => {
       "logout",
       "loginUrl",
       "createStation",
+      "replaceStationKey",
       "listTaps",
       "createFallbackTap",
       "stats",
@@ -58,6 +60,7 @@ describe("frontend data source mode", () => {
       "logout",
       "loginUrl",
       "createStation",
+      "replaceStationKey",
       "listStationBoard",
       "listTaps",
       "createFallbackTap",
