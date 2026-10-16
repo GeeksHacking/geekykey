@@ -3,7 +3,7 @@
  * `geekykey-service` at key-api.geekshacking.com in production.
  *
  * It reads its settings once, here, as the Worker starts: from wrangler.jsonc
- * and the Worker's secrets, or .dev.vars locally. A missing or malformed one
+ * and the Worker's secrets, or dev.env locally. A missing or malformed one
  * throws ConfigError, which stops it starting, and names the setting but
  * never its value.
  */

@@ -25,7 +25,8 @@ geekykey/
 │   ├── API-AGREEMENT.md        the contract between the frontend, backend, and stations
 │   ├── frontend/               Event screens for participants and organisers, port 5173
 │   ├── geekykey-web/           GeekyKey screens: the token page and My tokens. Port 5174
-│   ├── event-service/          the Node server that stations and the frontend call
+│   ├── geekykey-service/       the Cloudflare Worker that stations and the GeekyKey screens call, port 8000
+│   ├── event-service/          the Node server that keeps the database, which the Event screens call, port 8001
 │   └── updates/                progress timeline for our mentors
 ├── packages/
 │   └── handoff/                the hand-off's shapes, shared by both sides, and their JSON Schema
@@ -37,6 +38,7 @@ geekykey/
 |---|---|---|
 | `apps/frontend` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/frontend/CLAUDE.md` |
 | `apps/geekykey-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/geekykey-web/CLAUDE.md` |
+| `apps/geekykey-service` | Hono on a Cloudflare Worker, with no database | `src/worker.ts`, then `src/app.ts` |
 | `apps/event-service` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and its three areas |
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
@@ -55,20 +57,33 @@ what it writes. A test fails while the two differ.
 ### How the pieces connect
 
 ```text
+browser ──▶ GeekyKey screens :5174 ── /api and /auth ──┐
+                                                       ▼
 NFC token ──tap──▶ ESP32 station ──POST /api/v1/taps──▶ GeekyKey Service :8000
                                                           │ owners and hand-off
                                                           ▼
                                                         Event Service :8001 ──▶ TiDB :4000
                                                           ▲
-browser ──▶ frontend :5173 ── /api and /auth ─────────────┘
+browser ──▶ Event screens :5173 ── /api and /auth ────────┘
 ```
 
 The GeekyKey Service, a Cloudflare Worker in `wrangler dev`, checks the station's key, asks
-the claims stand-in on the Event Service who owns each token, and hands the taps on. The
-frontend's dev server forwards `/api` and `/auth` to the Event Service on port 8001, so the
-browser only ever talks to one address. By default the frontend runs on mock data and never
-calls the backend. Endpoints are switched over to the backend one at a time (see "With the
-frontend" below).
+the claims stand-in on the Event Service who owns each token, and hands the taps on. Each set
+of screens has a dev server that forwards `/api` and `/auth` to its own service, so the
+browser only ever talks to one address. On their own, both sets of screens run on mock data
+and never call a service. Endpoints are switched over one at a time (see "With the frontend"
+below).
+
+Locally everything runs on `localhost`:
+
+| Port | What | Started by |
+|---|---|---|
+| 8000 | The GeekyKey Service, in `wrangler dev` | `mise run dev:geekykey-service` |
+| 8001 | The Event Service, on Node | `mise run dev:event-service` |
+| 5173 | The Event screens (`apps/frontend`) | `mise run dev:frontend` |
+| 5174 | The GeekyKey screens (`apps/geekykey-web`) | `mise run dev:geekykey-web` |
+
+`mise run dev` starts all four at once. See [Running the backend](#running-the-backend).
 
 ### Inside the frontend
 
@@ -294,6 +309,7 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | Task | What it does |
 |---|---|
 | `install` | Install dependencies for every workspace package |
+| `dev` | Both services and both sets of screens, on ports 8000, 8001, 5173 and 5174, with dev sign-in on and the Event screens calling the Event Service |
 | `dev:frontend` | Frontend dev server on http://localhost:5173 |
 | `test:frontend` | Frontend unit tests, run once |
 | `build:frontend` | Typecheck the frontend, then build it to `apps/frontend/dist` |
@@ -305,7 +321,7 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `dev:event-service` | The Event Service on Node on http://localhost:8001, reloading when a file changes, with dev sign-in turned on |
 | `test:event-service` | Event Service tests (Vitest on Node) against `geekykey_test`, run once |
 | `format:event-service` | Format the Event Service code in place with oxfmt |
-| `dev:geekykey-service` | The GeekyKey Service in `wrangler dev` on http://localhost:8000, with its settings from `apps/geekykey-service/.dev.vars` |
+| `dev:geekykey-service` | The GeekyKey Service in `wrangler dev` on http://localhost:8000, with its settings from `apps/geekykey-service/dev.env`, where dev sign-in is turned on |
 | `test:geekykey-service` | GeekyKey Service tests (Vitest inside workerd), run once. No database needed |
 | `format:geekykey-service` | Format the GeekyKey Service code in place with oxfmt |
 | `db:up` | Start TiDB in Docker, then create and migrate `geekykey_dev` and `geekykey_test` |
@@ -414,24 +430,35 @@ The backend is two services: the Event Service, which keeps the database, and th
 Service, which stations call. Open a second terminal, `cd` into the repo, then:
 
 ```bash
-mise run dev:event-service   # http://localhost:8001
+mise run dev
 ```
 
-It is ready when it prints a line with `"message":"server_started"`. Leave it running: it
-restarts when you save a file under `apps/event-service/src`. To stop it, press Ctrl-C.
-pnpm may print an error as it stops; that is normal.
+That starts both services and both sets of screens, each line of output starting with the
+folder it came from:
 
-Open a third terminal for the GeekyKey Service. The first time, copy its local settings:
+- the GeekyKey Service on http://localhost:8000, ready when it prints
+  `Ready on http://0.0.0.0:8000`;
+- the Event Service on http://localhost:8001, ready when it prints a line with
+  `"message":"server_started"`;
+- the Event screens on http://localhost:5173, calling the Event Service for what
+  `apps/frontend/src/api/create-client.ts` lists (see [With the frontend](#with-the-frontend));
+- the GeekyKey screens on http://localhost:5174, still on mock data until checkpoint 6.
 
-```bash
-cp apps/geekykey-service/.dev.vars.example apps/geekykey-service/.dev.vars
-mise run dev:geekykey-service   # http://localhost:8000
-```
+No settings file is needed. Each service turns dev sign-in on by itself and reads a committed
+`dev.env`, which points the GeekyKey Service at the Event Service on 8001, with the keys the
+Event Service uses locally. Leave `mise run dev` running: each service reloads when you save a
+file under its `src`. To stop all four, press Ctrl-C. pnpm may print an error as it stops;
+that is normal.
 
-It is ready when it prints `Ready on http://0.0.0.0:8000`, and it reloads when you save a
-file under `apps/geekykey-service/src`. `.dev.vars` points it at the Event Service on 8001,
-with the keys the Event Service uses locally. Without it, the Worker stops as it starts,
-with an error naming the first setting it's missing.
+To start only one, use its own task in a terminal of its own: `mise run dev:event-service`,
+`mise run dev:geekykey-service`, `mise run dev:frontend` or `mise run dev:geekykey-web`.
+
+Each service signs its users in with a cookie of its own: `event_session` from the Event
+Service and `gk_session` from the GeekyKey Service. Cookies on `localhost` ignore the port, so
+the two names let you stay signed in on both sets of screens at once, as different users if
+you like. Dev sign-in on the Event Service accepts only the seeded users, `dev-user-1` and
+`dev-organizer-1`. On the GeekyKey Service it accepts any user ID, since that service keeps no
+users, and `dev-organizer-1` is a GeekyKey admin there too.
 
 ### 4. Send a tap
 
@@ -443,8 +470,9 @@ It should answer with something like:
 {"station_id":"...","results":[{"client_tap_id":"tap-1","status":"accepted"}]}
 ```
 
-If nothing prints, the GeekyKey Service is not running: look at the third terminal. A
-`503` means it can't reach the Event Service: look at the second.
+If nothing prints, the GeekyKey Service is not running: look for lines starting with
+`apps/geekykey-service` in the second terminal. A `503` means it can't reach the Event
+Service: look for lines starting with `apps/event-service`.
 
 `accepted` means the tap is stored in `geekykey_dev`. Send the same command again and the
 status is `duplicate`, because the station has already sent `tap-1`. Change `tap-1` to
@@ -503,7 +531,7 @@ Never put a secret in `dev.env`. In production, Cloud Run sets the settings, and
 secrets come from Google's Secret Manager.
 
 The port is the `PORT` setting, which `dev.env` sets to 8001, since the GeekyKey Service
-holds 8000. The frontend's dev server and the GeekyKey Service's `.dev.vars` expect 8001, so
+holds 8000. The frontend's dev server and the GeekyKey Service's `dev.env` expect 8001, so
 change them too if you move it. The backend listens on your whole
 network, not only your laptop, because real stations call it by the laptop's name. So
 anyone on the same Wi-Fi can reach it, dev sign-in included.
@@ -525,6 +553,17 @@ list holds `dev-organizer-1`, so Priya Raman from the seed is an organizer.
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
 connects over TLS, checking the database's certificate and name, unless the address is on
 your laptop, such as `127.0.0.1`.
+
+The GeekyKey Service's settings are in `apps/geekykey-service/wrangler.jsonc`, which is
+deployed, and its secrets are set on the Worker. `mise run dev:geekykey-service` runs
+`wrangler dev --env-file dev.env --var DEV_AUTH_ENABLED:true`, so locally
+`apps/geekykey-service/dev.env` replaces both. It is committed and holds no real secret.
+`DEV_AUTH_ENABLED=true` adds `POST /auth/dev-login` and takes `Secure` off the session cookie.
+It never appears in `wrangler.jsonc`, since unset is off. A setting in your shell wins over `dev.env`, for one run, as in
+`TAP_DEADLINE_MS=1000 mise run dev:geekykey-service`. `wrangler dev` takes from `dev.env` and
+your shell only the secrets and the settings `wrangler.jsonc` already names, and the Worker
+stops as it starts, naming the setting, if one is missing or malformed. `mise run dev` doesn't
+read a `.dev.vars`.
 
 ### Other backend commands
 
@@ -582,9 +621,10 @@ stops it.
 
 ### With the frontend
 
-`mise exec -- pnpm dev:live`, from `apps/frontend`, starts the frontend with
-`VITE_LIVE_API=1`. That sends the methods listed in `apps/frontend/src/api/create-client.ts`
-to the Event Service on port 8001 and keeps everything else on mock data. So far the list has
+`mise run dev` starts the frontend with `VITE_LIVE_API=1`, and so does
+`mise exec -- pnpm dev:live` from `apps/frontend`, which starts the frontend alone. That sends
+the methods listed in `apps/frontend/src/api/create-client.ts` to the Event Service on port
+8001 and keeps everything else on mock data. So far the list has
 signing in and out (`devLogin` and `logout`) and `me`, which says who is signed in and
 carries a participant's points, stamps and recent taps. So with the backend running and
 seeded, you can sign in as Alex Tan or Priya Raman for real. The plan for switching the

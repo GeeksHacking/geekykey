@@ -39,8 +39,15 @@ export interface Config {
    * seconds, so this leaves it room for the network.
    */
   tapDeadlineMs: number;
-  /** HMAC key the gk_session cookie is signed with, from checkpoint 5. Changing it signs everyone out. */
+  /**
+   * Mounts POST /auth/dev-login, which signs in any user ID without Firebase.
+   * Local development only, never true in production.
+   */
+  devAuthEnabled: boolean;
+  /** HMAC key the gk_session cookie is signed with. Changing it signs everyone out. */
   sessionSecret: string;
+  /** `Secure` on the session cookie. A Secure cookie is never sent back over plain http. */
+  sessionCookieSecure: boolean;
 }
 
 /**
@@ -54,7 +61,7 @@ export class ConfigError extends Error {
 
 /**
  * The Worker's `env`: the settings under `vars` in wrangler.jsonc, which keep
- * their JSON types, and the secrets, which are strings. Locally, .dev.vars
+ * their JSON types, and the secrets, which are strings. Locally, dev.env
  * can replace either, always as a string.
  */
 type Env = Record<string, unknown>;
@@ -66,7 +73,7 @@ function required(env: Env, name: string): unknown {
   return value;
 }
 
-/** A setting that holds JSON: as wrangler.jsonc gives it, or a string of it from .dev.vars. */
+/** A setting that holds JSON: as wrangler.jsonc gives it, or a string of it from dev.env. */
 function jsonSetting(env: Env, name: string): unknown {
   const value = required(env, name);
   if (typeof value !== "string") return value;
@@ -126,7 +133,7 @@ const eventServicesSetting = z
 
 const userIdsSetting = z.array(z.string().min(1));
 
-/** A whole number above 0, as a number from wrangler.jsonc or a string from .dev.vars. */
+/** A whole number above 0, as a number from wrangler.jsonc or a string from dev.env. */
 function positiveIntFromEnv(env: Env, name: string): number {
   const value = required(env, name);
   const number = typeof value === "string" ? Number(value) : value;
@@ -134,6 +141,18 @@ function positiveIntFromEnv(env: Env, name: string): number {
     throw new ConfigError(`${name} must be a whole number above 0`);
   }
   return number;
+}
+
+/**
+ * True or false, as a string from `wrangler dev --var` or dev.env. Unset is
+ * false: a local-only setting such as DEV_AUTH_ENABLED never appears in
+ * wrangler.jsonc, which is deployed.
+ */
+function boolFromEnv(env: Env, name: string): boolean {
+  const value = env[name];
+  if (value === undefined || value === "" || value === false || value === "false") return false;
+  if (value === true || value === "true") return true;
+  throw new ConfigError(`${name} must be true or false`);
 }
 
 /** A key a request carries: 64 lower-case hex characters, as `openssl rand -hex 32` writes them. */
@@ -161,6 +180,7 @@ function sessionSecretFromEnv(env: Env): string {
  */
 export function loadConfig(settings: object): Config {
   const env = settings as Env;
+  const devAuthEnabled = boolFromEnv(env, "DEV_AUTH_ENABLED");
   const eventServices = checkedSetting(
     "EVENT_SERVICES",
     eventServicesSetting,
@@ -182,6 +202,9 @@ export function loadConfig(settings: object): Config {
     ),
     maxTapsPerRequest: positiveIntFromEnv(env, "MAX_TAPS_PER_REQUEST"),
     tapDeadlineMs: positiveIntFromEnv(env, "TAP_DEADLINE_MS"),
+    devAuthEnabled,
     sessionSecret: sessionSecretFromEnv(env),
+    // Dev auth means a developer on http://localhost, where a Secure cookie never comes back.
+    sessionCookieSecure: !devAuthEnabled,
   };
 }

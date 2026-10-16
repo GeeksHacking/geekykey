@@ -4,7 +4,7 @@ import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import type { Db } from "../db/pool.ts";
 import { users } from "./schema.ts";
 
-export const SESSION_COOKIE = "gk_session";
+export const SESSION_COOKIE = "event_session";
 
 /**
  * One event day. Long enough that nobody is signed out mid-event, short enough
@@ -46,7 +46,7 @@ export interface SessionOptions {
 */
 
 /**
- * Signs in `userId` by setting gk_session. The one place cookie attributes are
+ * Signs in `userId` by setting event_session. The one place cookie attributes are
  * chosen, so POST /auth/dev-login and GET /auth/callback cannot drift apart.
  */
 export async function issueSession(

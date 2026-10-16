@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --env-file dev.env --var DEV_AUTH_ENABLED:true",
     "test": "vitest run",
     "typecheck": "wrangler types && tsc",
     "lint": "oxlint --deny-warnings",

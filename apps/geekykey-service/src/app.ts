@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { authRoutes } from "./auth-routes.ts";
 import { StandInClaims } from "./claims.ts";
 import type { Config } from "./config.ts";
 import { EventService } from "./event-service.ts";
@@ -48,6 +49,14 @@ export function createApp(config: Config, { send }: { send: Send }) {
 
   app.get("/api/health", (c) =>
     c.json({ status: "ok", service: "geekykey-service", timestamp: new Date().toISOString() }),
+  );
+
+  app.route(
+    "/auth",
+    authRoutes({
+      session: { secret: config.sessionSecret, secure: config.sessionCookieSecure },
+      devAuthEnabled: config.devAuthEnabled,
+    }),
   );
 
   const claims = new StandInClaims({ ...config.claimsStandIn, send });
