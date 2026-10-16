@@ -1,0 +1,74 @@
+// The GeekyKey Service as a Cloudflare Worker, with no database (the migration
+// spec's 5.1). `wrangler dev` runs it locally on workerd, the runtime
+// Cloudflare runs in production.
+//
+// Settings live here and change through a reviewed pull request. This file is
+// the source of truth: a deploy overwrites settings and routes changed in the
+// Cloudflare dashboard. Secrets never live here: locally they go in the
+// gitignored .dev.vars (copy .dev.vars.example), and in production Julian sets
+// them on the Worker itself.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The Worker Julian created on 1 Oct 2026, which holds key-api.
+  "name": "geekykey-service",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-12",
+  // Wrangler sends anonymous usage data unless told not to.
+  "send_metrics": false,
+
+  // No workers.dev address and no preview URLs: the custom domain below is
+  // the only way in.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // The address stations call. Julian attached it in the dashboard first.
+  // It's listed here too, so a deploy keeps it.
+  "routes": [{ "pattern": "key-api.geekshacking.com", "custom_domain": true }],
+
+  // Secrets the Worker can't start without: a deploy fails if one isn't set
+  // on the Worker, and src/config.ts stops it starting without one. Each
+  // Event Service in EVENT_SERVICES has its own key, named after its ID, so
+  // adding one adds its key here too. Listing them also changes `wrangler
+  // dev`: from .dev.vars it takes only these and the settings under `vars`,
+  // and ignores anything else.
+  "secrets": {
+    "required": ["SESSION_SECRET", "CLAIMS_STAND_IN_KEY", "EVENT_SERVICE_KEY_SHOWCASE"],
+  },
+
+  // Logs every request, with its CPU time, to Workers Logs. New Workers have
+  // this on anyway, but the log check at checkpoint 4 depends on it, so it's
+  // written down rather than left to a default.
+  "observability": {
+    "enabled": true,
+  },
+
+  // Where stations already point. Every network interface, not only
+  // localhost, because real stations call this laptop by name, such as
+  // http://A-Mac.local:8000. The Event Service runs on 8001.
+  "dev": {
+    "ip": "0.0.0.0",
+    "port": 8000,
+  },
+
+  "vars": {
+    // The Event Services whose stations this Worker takes taps from, and
+    // hands them to: an ID, a name, and an https:// address with no / at the
+    // end. Locally, .dev.vars points the showcase at http://localhost:8001.
+    "EVENT_SERVICES": [
+      {
+        "id": "showcase",
+        "name": "Capstone Showcase",
+        "url": "https://event-api.geekshacking.com",
+      },
+    ],
+    // Who owns each token, until the switch to the Portal's tag APIs.
+    "CLAIMS_STAND_IN_URL": "https://event-api.geekshacking.com/claims-stand-in/v1",
+    // User IDs who may release someone else's token. Nobody until login
+    // arrives at checkpoint 5, when the showcase's user IDs are known.
+    "GEEKYKEY_ADMINS": [],
+    "MAX_TAPS_PER_REQUEST": 500,
+    // One deadline for a station request's calls out (the API agreement's
+    // 11.5). The station waits 5 seconds.
+    "TAP_DEADLINE_MS": 4000,
+  },
+}

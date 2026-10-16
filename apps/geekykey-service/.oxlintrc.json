@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Oxlint's defaults, as in the Event Service. Files git ignores, such as the
+  // types `wrangler types` writes, are skipped without being listed.
+  "plugins": ["eslint", "typescript", "unicorn", "oxc"],
+  "categories": { "correctness": "error" }
+}

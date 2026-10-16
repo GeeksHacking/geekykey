@@ -38,9 +38,14 @@ blockExoticSubdeps: true
 # to be looked at by a human before its script may run.
 #
 # esbuild ships a postinstall that fetches its platform binary. 0.28.2 is
-# Vite's and tsx's, 0.25.12 is drizzle-kit's, and 0.18.20 arrives under
-# drizzle-kit via the deprecated @esbuild-kit/esm-loader -- that last one
-# should drop out when drizzle-kit is upgraded. The backend bundles with
+# Vite's, tsx's and Wrangler's, 0.25.12 is drizzle-kit's, and 0.18.20 arrives
+# under drizzle-kit via the deprecated @esbuild-kit/esm-loader -- that last one
+# should drop out when drizzle-kit is upgraded. The Event Service bundles with
 # Rolldown, which needs no install script.
+#
+# workerd, the Workers runtime that Wrangler and the GeekyKey Service's tests
+# run on, fetches its platform binary the same way. Each Wrangler upgrade
+# brings a new workerd version, which someone has to look at and add here.
 allowBuilds:
   "esbuild@0.28.2 || 0.25.12 || 0.18.20": true
+  "workerd@1.20261012.1": true

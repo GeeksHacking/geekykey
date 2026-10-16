@@ -25,6 +25,10 @@ infra/
 Change a setting or a secret's version in those files, through a pull request, never in
 the console. The next deploy sets them, and anything changed by hand is overwritten.
 
+One step isn't on Google Cloud: [step 12](#12-the-geekykey-services-build-on-cloudflare),
+how Cloudflare builds and deploys the GeekyKey Service (`apps/geekykey-service`), a Worker
+the Event Service's hand-offs come from. It's here so the one runbook has every service.
+
 ## What lives where
 
 | What | Name | What it's for |
@@ -69,6 +73,7 @@ works in the web console, so his steps say where each one is there too.
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. `app-secrets`: 14 Oct 2026 |
+| [12. The GeekyKey Service's build on Cloudflare](#12-the-geekykey-services-build-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-44) | Not yet |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
@@ -625,6 +630,52 @@ only destroy one whose value is dead:
 ```bash
 gcloud secrets versions destroy 1 --secret=event-service-staging-database-url
 ```
+
+## 12. The GeekyKey Service's build on Cloudflare
+
+The Worker `geekykey-service`, which holds `key-api.geekshacking.com`, lives in
+GeeksHacking's Cloudflare account, where only Julian can set its secrets or connect it.
+Once connected, Workers Builds deploys it from `main` on every merge that touches it.
+Nothing in this repo deploys it, and GitHub holds no Cloudflare token. Its settings that
+aren't secret are in `apps/geekykey-service/wrangler.jsonc`, which every deploy applies.
+
+**The secrets go on first.** A deploy fails while a secret listed under
+`secrets.required` in `wrangler.jsonc` isn't set on the Worker, and so would the first
+build. In the dashboard: Workers & Pages, then `geekykey-service`, then Settings, then
+Variables and Secrets. Julian adds each as the Secret type, not as text:
+
+| Secret | Value |
+|---|---|
+| `EVENT_SERVICE_KEY_SHOWCASE` | The `EVENT_SERVICE_KEY` in production's `app-secrets`, at the version `infra/production/deploy.env` pins. Julian copies it across himself, so it never passes through a chat |
+| `CLAIMS_STAND_IN_KEY` | The `CLAIMS_STAND_IN_KEY` in the same version |
+| `SESSION_SECRET` | A new random value of at least 32 characters, from a password generator, which nobody keeps |
+
+**Then the build.** On the same Worker, Settings, then Builds, then Connect, with this
+repo:
+
+| Setting | Value | Why |
+|---|---|---|
+| Branch | `main` | Only reviewed code deploys |
+| Non-production branch builds | Off | The Worker has no preview URLs (`preview_urls` is `false`) |
+| Root directory | `apps/geekykey-service` | Where its `wrangler.jsonc` is, and where both commands run |
+| Build command | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/geekykey-service...` | Installs from the repo's root, where the lockfile is, only what this Worker needs (the trailing `...` takes in `packages/handoff`), and fails rather than change the lockfile, as CI does |
+| Deploy command | `pnpm exec wrangler deploy` | The Wrangler version in its `package.json` |
+| Build watch paths, include | `apps/geekykey-service/*`, `packages/handoff/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` | Its own code, the package it bundles, and its dependencies. A merge touching none of them doesn't rebuild it |
+| Build watch paths, exclude | None | |
+| Build variable `NODE_VERSION` | `24.21.0` | The Node the rest of the repo pins, in `.mise.toml` |
+| Build variable `PNPM_VERSION` | `12.5.1` | The pnpm in the root `package.json`, so the build installs as CI and our laptops do. The build image's own is 10.11.1 |
+| Build variable `SKIP_DEPENDENCY_INSTALL` | `1` | So the one install is the build command's, from the repo's root. Otherwise Workers Builds installs on its own first, in the root directory |
+| Build variable `WRANGLER_SEND_METRICS` | `false` | Wrangler sends anonymous usage data unless told not to |
+| API token | The one Workers Builds makes | |
+
+Adam tried the build command on a clean copy of the repo on 16 Oct 2026: it installs 128
+packages, and `wrangler deploy --dry-run` then bundles the Worker. Whether the build image
+runs pnpm 12.5.1 from `PNPM_VERSION` is only known once the first build has run. If its log
+shows another version, or the install fails, Julian changes the build and this table changes
+with it.
+
+After the first build, the checks are in checkpoint 4 of the migration spec: a test
+station's tap through `key-api.`, and the log check on the Worker's invocation logs.
 
 ## Day to day
 

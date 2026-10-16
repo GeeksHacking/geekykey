@@ -1,0 +1,9 @@
+# Local secrets and settings for `wrangler dev` (template: .dev.vars.example)
+.dev.vars*
+!.dev.vars.example
+.env
+.env.*
+# Wrangler's local state and build output
+.wrangler/
+# Written by `wrangler types` from wrangler.jsonc
+worker-configuration.d.ts

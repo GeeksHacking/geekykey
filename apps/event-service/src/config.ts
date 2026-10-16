@@ -86,7 +86,7 @@ const DEV_GEEKYKEY_ADMINS = ["dev-organizer-1"];
 
 /** The showcase, as this server on your laptop, in local development. */
 export const DEV_EVENT_SERVICES: EventServiceEntry[] = [
-  { id: "showcase", name: "Capstone Showcase", url: "http://localhost:8000" },
+  { id: "showcase", name: "Capstone Showcase", url: "http://localhost:8001" },
 ];
 
 /**

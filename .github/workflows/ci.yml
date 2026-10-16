@@ -94,6 +94,48 @@ jobs:
       - name: Build
         run: pnpm build:geekykey-web
 
+  # The Worker at key-api. Nothing here deploys it: Workers Builds does, on
+  # Cloudflare, once Julian connects it (infra/README.md). Its hand-off
+  # package is checked in the Event Service's job.
+  geekykey-service:
+    name: GeekyKey Service
+    runs-on: ubuntu-latest
+    env:
+      # Wrangler sends anonymous usage data unless told not to.
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.7.12
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Neither of these is part of the typecheck or the tests, so without them
+      # lint errors and unformatted files pile up unnoticed.
+      - name: Lint
+        run: pnpm --filter @geekykey/geekykey-service lint
+
+      - name: Format
+        run: pnpm --filter @geekykey/geekykey-service format:check
+
+      # `wrangler types` first writes the Worker's types from wrangler.jsonc.
+      - name: Typecheck
+        run: pnpm --filter @geekykey/geekykey-service typecheck
+
+      # Inside workerd, with the Event Service and the claims stand-in faked,
+      # so no database is needed.
+      - name: Test
+        run: pnpm test:geekykey-service
+
+      # Bundles the Worker and checks wrangler.jsonc as a deploy would,
+      # without deploying: what Workers Builds runs, short of uploading.
+      - name: Build
+        run: pnpm --filter @geekykey/geekykey-service check:build
+
   # The steps are in event-service.yml, which deploy.yml runs too.
   event-service:
     name: Event Service

@@ -55,12 +55,17 @@ what it writes. A test fails while the two differ.
 ### How the pieces connect
 
 ```text
-NFC token ──tap──▶ ESP32 station ──POST /api/v1/taps──▶ backend :8000 ──▶ TiDB :4000
+NFC token ──tap──▶ ESP32 station ──POST /api/v1/taps──▶ GeekyKey Service :8000
+                                                          │ owners and hand-off
+                                                          ▼
+                                                        Event Service :8001 ──▶ TiDB :4000
                                                           ▲
 browser ──▶ frontend :5173 ── /api and /auth ─────────────┘
 ```
 
-The frontend's dev server forwards `/api` and `/auth` to the backend on port 8000, so the
+The GeekyKey Service, a Cloudflare Worker in `wrangler dev`, checks the station's key, asks
+the claims stand-in on the Event Service who owns each token, and hands the taps on. The
+frontend's dev server forwards `/api` and `/auth` to the Event Service on port 8001, so the
 browser only ever talks to one address. By default the frontend runs on mock data and never
 calls the backend. Endpoints are switched over to the backend one at a time (see "With the
 frontend" below).
@@ -297,9 +302,12 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `test:geekykey-web` | GeekyKey screens unit tests, run once |
 | `build:geekykey-web` | Typecheck the GeekyKey screens, then build them |
 | `format:geekykey-web` | Format the GeekyKey screens code in place with oxfmt |
-| `dev:event-service` | The Event Service on Node on http://localhost:8000, reloading when a file changes, with dev sign-in turned on |
+| `dev:event-service` | The Event Service on Node on http://localhost:8001, reloading when a file changes, with dev sign-in turned on |
 | `test:event-service` | Event Service tests (Vitest on Node) against `geekykey_test`, run once |
 | `format:event-service` | Format the Event Service code in place with oxfmt |
+| `dev:geekykey-service` | The GeekyKey Service in `wrangler dev` on http://localhost:8000, with its settings from `apps/geekykey-service/.dev.vars` |
+| `test:geekykey-service` | GeekyKey Service tests (Vitest inside workerd), run once. No database needed |
+| `format:geekykey-service` | Format the GeekyKey Service code in place with oxfmt |
 | `db:up` | Start TiDB in Docker, then create and migrate `geekykey_dev` and `geekykey_test` |
 | `db:reset` | Throw away all TiDB data, then start again with empty, migrated databases |
 | `db:down` | Stop TiDB, keeping its data for the next `db:up` |
@@ -402,26 +410,41 @@ that sends a tap with it. Keep this terminal open: you need that command in step
 
 ### 3. Start the backend
 
-Open a second terminal, `cd` into the repo, then:
+The backend is two services: the Event Service, which keeps the database, and the GeekyKey
+Service, which stations call. Open a second terminal, `cd` into the repo, then:
 
 ```bash
-mise run dev:event-service   # http://localhost:8000
+mise run dev:event-service   # http://localhost:8001
 ```
 
 It is ready when it prints a line with `"message":"server_started"`. Leave it running: it
 restarts when you save a file under `apps/event-service/src`. To stop it, press Ctrl-C.
 pnpm may print an error as it stops; that is normal.
 
+Open a third terminal for the GeekyKey Service. The first time, copy its local settings:
+
+```bash
+cp apps/geekykey-service/.dev.vars.example apps/geekykey-service/.dev.vars
+mise run dev:geekykey-service   # http://localhost:8000
+```
+
+It is ready when it prints `Ready on http://0.0.0.0:8000`, and it reloads when you save a
+file under `apps/geekykey-service/src`. `.dev.vars` points it at the Event Service on 8001,
+with the keys the Event Service uses locally. Without it, the Worker stops as it starts,
+with an error naming the first setting it's missing.
+
 ### 4. Send a tap
 
 Back in the first terminal, paste the whole `curl` command the seed printed, all four
-lines. The backend should answer with something like:
+lines. It goes to the GeekyKey Service on 8000, which hands the tap to the Event Service.
+It should answer with something like:
 
 ```json
 {"station_id":"...","results":[{"client_tap_id":"tap-1","status":"accepted"}]}
 ```
 
-If nothing prints, the backend is not running: look at the second terminal.
+If nothing prints, the GeekyKey Service is not running: look at the third terminal. A
+`503` means it can't reach the Event Service: look at the second.
 
 `accepted` means the tap is stored in `geekykey_dev`. Send the same command again and the
 status is `duplicate`, because the station has already sent `tap-1`. Change `tap-1` to
@@ -479,8 +502,9 @@ before:
 Never put a secret in `dev.env`. In production, Cloud Run sets the settings, and the
 secrets come from Google's Secret Manager.
 
-The port is the `PORT` setting, 8000 unless set. The frontend's dev server and the
-stations expect 8000, so change them too if you move it. The backend listens on your whole
+The port is the `PORT` setting, which `dev.env` sets to 8001, since the GeekyKey Service
+holds 8000. The frontend's dev server and the GeekyKey Service's `.dev.vars` expect 8001, so
+change them too if you move it. The backend listens on your whole
 network, not only your laptop, because real stations call it by the laptop's name. So
 anyone on the same Wi-Fi can reach it, dev sign-in included.
 
@@ -560,7 +584,7 @@ stops it.
 
 `mise exec -- pnpm dev:live`, from `apps/frontend`, starts the frontend with
 `VITE_LIVE_API=1`. That sends the methods listed in `apps/frontend/src/api/create-client.ts`
-to the backend on port 8000 and keeps everything else on mock data. So far the list has
+to the Event Service on port 8001 and keeps everything else on mock data. So far the list has
 signing in and out (`devLogin` and `logout`) and `me`, which says who is signed in and
 carries a participant's points, stamps and recent taps. So with the backend running and
 seeded, you can sign in as Alex Tan or Priya Raman for real. The plan for switching the
@@ -625,6 +649,13 @@ mise run build:geekykey-web
 
 # Dependency audit job
 mise exec -- pnpm audit --audit-level=high
+
+# GeekyKey Service job
+mise exec -- pnpm --filter @geekykey/geekykey-service lint
+mise exec -- pnpm --filter @geekykey/geekykey-service format:check
+mise exec -- pnpm --filter @geekykey/geekykey-service typecheck     # writes its types from wrangler.jsonc first
+mise run test:geekykey-service
+mise exec -- pnpm --filter @geekykey/geekykey-service check:build   # wrangler deploy --dry-run
 
 # Event Service job (Docker Desktop must be running)
 mise exec -- pnpm --filter @geekykey/event-service lint
