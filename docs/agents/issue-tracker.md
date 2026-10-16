@@ -7,7 +7,7 @@ Work is split between two places:
 
 ## Linear conventions
 
-- **Team**: the team whose area the work is in. Backend (`BAC`) for `apps/backend`; Frontend (`FRO`) for the screens in `apps/`; Hardware (`HAR`) for `firmware/` and the tokens. Ask if it isn't clear. Everything sits under the initiative "GeekyKey at the showcase", in one of its projects.
+- **Team**: the team whose area the work is in. Backend (`BAC`) for `apps/event-service`; Frontend (`FRO`) for the screens in `apps/`; Hardware (`HAR`) for `firmware/` and the tokens. Ask if it isn't clear. Everything sits under the initiative "GeekyKey at the showcase", in one of its projects.
 - **Project and milestone**: the Linear project for the effort (for example "Move to TiDB and Cloudflare"). Each spec checkpoint gets its own milestone, named like "Checkpoint 1: today's backend on workerd and TiDB".
 - **New tickets**: status `Todo`, assigned to the person driving the session, with the triage label from `triage-labels.md`.
 - **Blocking**: use Linear's native blocked-by relations (`save_issue` with `blockedBy`). Also list the blockers in the issue body, so someone reading only the text can see them.

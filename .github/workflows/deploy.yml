@@ -1,7 +1,6 @@
 name: Deploy
 
-# Deploys the backend to Google Cloud Run, as the Event Service, once the
-# backend's checks pass:
+# Deploys the Event Service to Google Cloud Run once its checks pass:
 #
 # - every push to main deploys production, event-service;
 # - running it by hand (Actions > Deploy > Run workflow), from any branch,
@@ -23,13 +22,13 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Backend
-    uses: ./.github/workflows/backend.yml
+  event-service:
+    name: Event Service
+    uses: ./.github/workflows/event-service.yml
 
   deploy:
     name: Deploy
-    needs: backend
+    needs: event-service
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -68,7 +67,7 @@ jobs:
       - name: Build the image and push it to Artifact Registry
         run: |
           gcloud auth configure-docker "${IMAGE%%/*}" --quiet
-          docker build --file apps/backend/Dockerfile --tag "$IMAGE:$GITHUB_SHA" .
+          docker build --file apps/event-service/Dockerfile --tag "$IMAGE:$GITHUB_SHA" .
           docker push "$IMAGE:$GITHUB_SHA"
           echo "IMAGE_DIGEST=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$GITHUB_SHA")" >> "$GITHUB_ENV"
 
@@ -79,7 +78,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install
-        run: pnpm install --frozen-lockfile --filter @geekykey/backend
+        run: pnpm install --frozen-lockfile --filter @geekykey/event-service
 
       # Before the deploy, so the new code never meets an old schema. The
       # version still running meets the new schema for a moment, which is why
@@ -90,7 +89,7 @@ jobs:
         run: |
           url=$(gcloud secrets versions access "${MIGRATION_SECRET##*:}" --secret="${MIGRATION_SECRET%:*}")
           echo "::add-mask::$url"
-          TIDB_MIGRATION_URL="$url" pnpm --filter @geekykey/backend db:migrate --production
+          TIDB_MIGRATION_URL="$url" pnpm --filter @geekykey/event-service db:migrate --production
 
       # --env-vars-file and --set-secrets replace every setting and secret the
       # service had, so it runs with exactly what infra/ says. Its size and

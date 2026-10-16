@@ -94,10 +94,10 @@ jobs:
       - name: Build
         run: pnpm build:geekykey-web
 
-  # The steps are in backend.yml, which deploy.yml runs too.
-  backend:
-    name: Backend
-    uses: ./.github/workflows/backend.yml
+  # The steps are in event-service.yml, which deploy.yml runs too.
+  event-service:
+    name: Event Service
+    uses: ./.github/workflows/event-service.yml
 
   updates:
     name: Updates site

@@ -6,8 +6,8 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | Part | What it does | Code |
 |---|---|---|
-| GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | Inside `apps/backend` until checkpoint 4, then `apps/geekykey-service` |
-| Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/backend`, which becomes `apps/event-service` at checkpoint 4 |
+| GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | Inside `apps/event-service` until checkpoint 4, then `apps/geekykey-service` |
+| Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/event-service` |
 | GeekyKey screens | The token page and My tokens | `apps/geekykey-web` |
 | Event screens | The dashboard, passport, activity and organizer screens, including the station board | `apps/frontend`, which becomes `apps/event-web` at checkpoint 4 |
 
@@ -25,7 +25,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | Tag | Meaning |
 |---|---|
-| `Implemented` | Live in `apps/backend` with tests, as described here. Changes need a pull request that also edits this file. |
+| `Implemented` | Live in `apps/event-service` with tests, as described here. Changes need a pull request that also edits this file. |
 | `Implemented, changes at checkpoint N` | Live today in an older shape. This file describes the shape from checkpoint N, and says what differs until then. |
 | `Checkpoint N` | Built at that checkpoint of the migration plan. The shape is agreed; fields may still be added. |
 
@@ -335,7 +335,7 @@ them.
 
 ## 5. Endpoint index
 
-Until checkpoint 4, one server built from `apps/backend` serves both tables.
+Until checkpoint 4, one server built from `apps/event-service` serves both tables.
 
 **The GeekyKey Service**
 
@@ -551,7 +551,7 @@ the Event Service's set `event_session`. Both accept logins from the same Fireba
 ### 7.1 `POST /auth/dev-login` (GeekyKey Service `Implemented, changes at checkpoint 4`, Event Service `Checkpoint 4`)
 
 Only mounted when the service runs with `DEV_AUTH_ENABLED=true`, from its local development
-settings: for today's backend, the committed `apps/backend/dev.env`. Never enabled in production.
+settings: for today's backend, the committed `apps/event-service/dev.env`. Never enabled in production.
 
 **Request**
 
@@ -1261,12 +1261,12 @@ There are no GeekyKey admin screens.
 Local setup, from checkpoint 1:
 
 ```
-mise run db:up         # starts TiDB in Docker, and creates and migrates the local databases
-mise run seed          # prints a station key, and creates dev-user-1 and dev-organizer-1
-mise run dev:backend   # the service on http://localhost:8000
+mise run db:up               # starts TiDB in Docker, and creates and migrates the local databases
+mise run seed                # prints a station key, and creates dev-user-1 and dev-organizer-1
+mise run dev:event-service   # the service on http://localhost:8000
 ```
 
-`mise run dev:backend` turns on `DEV_AUTH_ENABLED` by itself, so no local settings file is needed. From
+`mise run dev:event-service` turns on `DEV_AUTH_ENABLED` by itself, so no local settings file is needed. From
 checkpoint 4, one `pnpm dev` at the repo root starts both services and both sets of screens. Then
 `POST /auth/dev-login` with `{"user_id":"dev-user-1"}` from the screens, and every other call on
 that service works.
@@ -1318,3 +1318,4 @@ Closed on 2026-10-10:
 | 2026-10-14 | The registered stations, `GET /geekykey/v1/stations` (11.1), are `Implemented`, inside the one server. Today's backend checks a station's key against its copy of them instead of reading its own stations, so steps 1 to 4 of 6.1 now work as written: `401 invalid_station_key` only when every list is in hand, and `503 event_service_unavailable` while one is missing. Ours leaves out a station whose `disabled_at` is set, though nothing sets it until the organizers' endpoint to disable one (9.9). The answer's Zod schema is in `packages/handoff`, and its JSON Schema in `packages/handoff/json-schema/stations-answer.schema.json` (11.7). 11.1 now says a list that doesn't come back is asked for again at most once a minute, and 6.1's step 4 and 11.5 say filling an empty copy shares the 4-second deadline, as 11.1 already did. No shape changes (BAC-33). |
 | 2026-10-15 | The heartbeat, `POST /api/v1/stations/heartbeat` (6.2), and its hand-off, `POST /geekykey/v1/heartbeats` (11.3), are `Implemented`, inside the one server, so every request in section 11 is now built. The heartbeat answers `server_time` once the key is checked, and passes the station's fields to its Event Service within what's left of the 4 seconds. A hand-off that fails is logged and never fails the heartbeat. Until checkpoint 4 the answer leaves once the hand-off is done, since Cloud Run gives the one server a processor only while a request is in progress, and a refresh of the registered stations (11.1) is done before a station's answer leaves, for the same reason. Ours stores them on the station's row with when it last heard from it. Two rules added to 6.2, which 11.3 follows: `firmware_version` is 1 to 64 characters, and `buffered_taps` at most 2147483647, the largest 32-bit integer. The fields don't change, but a heartbeat breaking either rule now gets `400 validation_failed`. As in 11.2, ours answers `validation_failed` to a heartbeat hand-off for a `station_id` that isn't its own. The heartbeat hand-off's JSON Schema is in `packages/handoff/json-schema/heartbeats-request.schema.json` (11.7), and 6.2 now says the key is checked before the body (BAC-34). |
 | 2026-10-15 | Passport settings live apart from the station in today's backend, so the Event Service's `GET /api/v1/me` (8.1) and `POST /api/v1/taps` (6.1) are `Implemented`. A tap at a station without passport settings is stored and answered `no_game`. `stamps` lists only stations with passport settings, oldest settings first, and `recent_taps` gives `station_name` as `null` for any other station. `user.role` comes from the Event Service's organizer list, read when it starts, instead of from the user's row. Every station already registered kept its name, location and points as its passport settings, so its taps are still `accepted`. No shape changes (BAC-35). |
+| 2026-10-16 | Housekeeping, no endpoint or shape changes. The Event Service's code moved from `apps/backend` to `apps/event-service` ahead of checkpoint 4. The table at the top, 7.1's `dev.env` and section 13's local setup name the new folder. `mise run dev:backend` is now `mise run dev:event-service` (BAC-40). |

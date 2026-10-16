@@ -1,8 +1,9 @@
-name: Backend checks
+name: Event Service checks
 
-# The backend's checks, in one place, so CI runs them on every pull request and
-# deploy.yml runs them again before it deploys. A workflow that calls this one
-# gives it its own permissions, which are only ever to read the repo.
+# The Event Service's checks, in one place, so CI runs them on every pull
+# request and deploy.yml runs them again before it deploys. A workflow that
+# calls this one gives it its own permissions, which are only ever to read the
+# repo.
 on:
   workflow_call:
 
@@ -10,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Backend
+  event-service:
+    name: Event Service
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,17 +30,17 @@ jobs:
       # leaves drizzle/ out of the format check, because drizzle-kit rewrites
       # those files in its own style on every generate.
       - name: Lint
-        run: pnpm --filter @geekykey/backend lint
+        run: pnpm --filter @geekykey/event-service lint
 
       - name: Format
-        run: pnpm --filter @geekykey/backend format:check
+        run: pnpm --filter @geekykey/event-service format:check
 
       - name: Typecheck
-        run: pnpm --filter @geekykey/backend typecheck
+        run: pnpm --filter @geekykey/event-service typecheck
 
-      # packages/handoff, which the backend bundles: the hand-off's schemas,
-      # and the JSON Schema written from them for other teams. Its tests fail
-      # when json-schema/ no longer matches the schemas.
+      # packages/handoff, which the Event Service bundles: the hand-off's
+      # schemas, and the JSON Schema written from them for other teams. Its
+      # tests fail when json-schema/ no longer matches the schemas.
       - name: Hand-off package
         run: |
           pnpm --filter @geekykey/handoff lint
@@ -53,13 +54,13 @@ jobs:
         run: pnpm db:up
 
       - name: Test
-        run: pnpm test:backend
+        run: pnpm test:event-service
 
       # Builds the image Cloud Run runs, without pushing it anywhere. This is
       # what proves the bundle and the image build: the tests load the code a
       # different way.
       - name: Build the image
-        run: pnpm --filter @geekykey/backend build:image
+        run: pnpm --filter @geekykey/event-service build:image
 
       # Starts the image and asks it for /api/health, so a bundle that builds
       # but can't start fails here. /api/health needs no database, so the
@@ -67,18 +68,18 @@ jobs:
       # keys and EVENT_SERVICES are stand-ins that nothing else uses.
       - name: Start the image
         run: |
-          docker run --detach --name backend --publish 8000:8000 \
+          docker run --detach --name event-service --publish 8000:8000 \
             --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
             --env SESSION_SECRET=ci-stand-in-not-a-secret \
             --env CLAIMS_STAND_IN_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             --env EVENT_SERVICE_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"https://event-api.geekshacking.com"}]' \
-            geekykey-backend
+            geekykey-event-service
           curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-all-errors \
-            http://localhost:8000/api/health || { docker logs backend; exit 1; }
+            http://localhost:8000/api/health || { docker logs event-service; exit 1; }
 
       # Every change to a schema file must come with the migration
       # drizzle-kit writes for it. scripts/check-migrations.ts says why this
       # can't just trust drizzle-kit's exit code.
       - name: Check every schema change has its migration
-        run: pnpm --filter @geekykey/backend check:migrations
+        run: pnpm --filter @geekykey/event-service check:migrations

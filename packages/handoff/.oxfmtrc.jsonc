@@ -1,4 +1,4 @@
-// Formatter settings, as in apps/backend: every option not set here is oxfmt's default.
+// Formatter settings, as in apps/event-service: every option not set here is oxfmt's default.
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": [

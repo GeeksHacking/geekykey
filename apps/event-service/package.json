@@ -1,5 +1,5 @@
 {
-  "name": "@geekykey/backend",
+  "name": "@geekykey/event-service",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     "dev": "node --watch scripts/dev-server.ts",
     "test": "vitest run",
     "build": "rolldown src/server.ts --platform node --format cjs --sourcemap --file dist/server.cjs",
-    "build:image": "docker build --file Dockerfile --tag geekykey-backend ../..",
+    "build:image": "docker build --file Dockerfile --tag geekykey-event-service ../..",
     "typecheck": "tsc",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
