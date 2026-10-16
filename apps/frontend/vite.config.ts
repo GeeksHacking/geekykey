@@ -4,7 +4,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const backend = "http://localhost:8000";
+const backend = "http://localhost:8001";
 
 export default defineConfig({
   plugins: [
