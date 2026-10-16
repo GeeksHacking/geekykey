@@ -19,6 +19,7 @@ describe("service client boundary", () => {
         "exportCsv",
         "listStationBoard",
         "listTaps",
+        "replaceStationKey",
         "setStationPassport",
         "stats",
       ].sort(),

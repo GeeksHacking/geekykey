@@ -219,6 +219,58 @@ describe("station keys and export", () => {
     expect(JSON.stringify(board)).not.toContain(created.api_key);
   });
 
+  // 9.8 replaces the key and nothing else. These take the board station either side of the
+  // call and ask for equality, which is the whole promise in one assertion: the same id, the
+  // same passport settings with the same added_at, the same disabled_at, the same health and
+  // the same last tap.
+  it("replaces the key and leaves the station exactly as it was (agreement 9.8)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    // The first fixture carries passport settings, so it has a stamp to keep.
+    const before = (await api.listStationBoard()).stations[0]!;
+
+    const replaced = await api.replaceStationKey(before.id);
+
+    const after = (await api.listStationBoard()).stations.find((s) => s.id === before.id);
+    expect(replaced.api_key).toMatch(/^gk_sta_/);
+    expect(after).toEqual(before);
+    expect(replaced.station).toEqual(before);
+  });
+
+  it("mints a different key each time, and never puts it in the board", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const id = (await api.listStationBoard()).stations[0]!.id;
+
+    const first = await api.replaceStationKey(id);
+    const second = await api.replaceStationKey(id);
+
+    expect(second.api_key).not.toBe(first.api_key);
+    // 9.7 promises the key is never in the board, and 9.8 repeats it: only the response
+    // that issued a key carries it.
+    const board = JSON.stringify(await api.listStationBoard());
+    expect(board).not.toContain(first.api_key);
+    expect(board).not.toContain(second.api_key);
+  });
+
+  it("keeps the station's stamp", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const id = (await api.listStationBoard()).stations[0]!.id;
+    const before = (await api.me()).stamps.find((s) => s.station_id === id);
+
+    await api.replaceStationKey(id);
+
+    expect((await api.me()).stamps.find((s) => s.station_id === id)).toEqual(before);
+  });
+
+  it("answers not_found for a station this Event Service did not register", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    await expectApiError(api.replaceStationKey("no-such-station"), "not_found", 404);
+  });
+
   it("rejects a blank or over-long label (agreement 9.7)", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);

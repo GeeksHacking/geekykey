@@ -121,6 +121,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     createStation: (input) =>
       sendJson<StationKeyResponse>("/api/v1/admin/stations", postJson(input)),
 
+    // 9.8 sends no body, so this is the shape logout already uses rather than jsonBody.
+    replaceStationKey: (stationId) =>
+      sendJson<StationKeyResponse>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/key`, {
+        method: "POST",
+      }),
+
     setStationPassport: (stationId, input) =>
       sendJson<SetStationPassportResponse>(
         `/api/v1/admin/stations/${encodeURIComponent(stationId)}/passport`,
