@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { describeError, isApiError } from "@/api/errors";
-import type { CreateStationResponse } from "@/api/types";
+import type { StationKeyResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -30,11 +30,7 @@ const schema = z.object({
 
 type StationValues = z.infer<typeof schema>;
 
-export function AddStationForm({
-  onCreated,
-}: {
-  onCreated: (result: CreateStationResponse) => void;
-}) {
+export function AddStationForm({ onCreated }: { onCreated: (result: StationKeyResponse) => void }) {
   const createStation = useCreateStation();
   const form = useForm<StationValues>({
     resolver: zodResolver(schema),

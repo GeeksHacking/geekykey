@@ -2,14 +2,14 @@ import { Check, Copy, Warning } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { CreateStationResponse } from "@/api/types";
+import type { StationKeyResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface StationKeyRevealProps {
-  result: CreateStationResponse;
+  result: StationKeyResponse;
   onDone: () => void;
 }
 

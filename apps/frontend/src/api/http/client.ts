@@ -2,7 +2,7 @@ import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import type {
   ApiIssue,
-  CreateStationResponse,
+  StationKeyResponse,
   ErrorCode,
   FallbackTapResponse,
   ListTapsQuery,
@@ -119,7 +119,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     // Agreement 9.7. The response is the one place the key is ever sent.
     createStation: (input) =>
-      sendJson<CreateStationResponse>("/api/v1/admin/stations", postJson(input)),
+      sendJson<StationKeyResponse>("/api/v1/admin/stations", postJson(input)),
 
     setStationPassport: (stationId, input) =>
       sendJson<SetStationPassportResponse>(
