@@ -994,6 +994,17 @@
     its ID and key. A lint check stops the GeekyKey side, the Event side and the claims stand-in
     from importing each other's code, so they reach each other only through their requests.
 
+- id: checkpoint-3-passed-on-production
+  date: 2026-10-15
+  area: backend
+  change: >-
+    Production passes the third step of the move. Inside the one server, a test station's taps go
+    from the GeekyKey side to the claims stand-in and the Event side, and come back unknown token,
+    accepted, duplicate and cooldown as they should. Only the accepted and cooldown taps are
+    stored, under the participant's user ID with no token ID. A heartbeat gets the server's time
+    back and records when the station was last heard from and how it is doing. Every log line is
+    one JSON object with a fixed name, and none holds a station key, a cookie or a name.
+
 - id: checkpoint-4-tickets
   date: 2026-10-16
   area: admin
