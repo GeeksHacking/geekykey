@@ -11,6 +11,7 @@ export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE
 const MOCKED_METHODS: readonly (keyof ApiClient)[] = [
   "listStationBoard",
   "createStation",
+  "replaceStationKey",
   "setStationPassport",
   "listTaps",
   "createFallbackTap",
