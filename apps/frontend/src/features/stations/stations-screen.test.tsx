@@ -32,7 +32,7 @@ describe("StationsScreen", () => {
     expect((await screen.findAllByText("Not in the passport")).length).toBeGreaterThan(0);
     expect(screen.queryByText("No longer linked")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Add station" }));
+    await user.click(screen.getByRole("button", { name: "Create station" }));
     await user.type(screen.getByLabelText("Label"), "Test Station");
     await user.click(screen.getByRole("button", { name: "Create station" }));
 
@@ -59,7 +59,7 @@ describe("StationsScreen", () => {
     // Before the create, to be sure the row below is the one this test added.
     expect((await screen.findAllByText("Not in the passport")).length).toBeGreaterThan(1);
 
-    await user.click(screen.getByRole("button", { name: "Add station" }));
+    await user.click(screen.getByRole("button", { name: "Create station" }));
     await user.type(screen.getByLabelText("Label"), "Reader 9");
     await user.click(screen.getByRole("button", { name: "Create station" }));
     await user.click(await screen.findByRole("button", { name: "Done" }));

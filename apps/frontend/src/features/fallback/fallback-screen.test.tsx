@@ -29,7 +29,7 @@ describe("FallbackScreen", () => {
     );
 
     expect(await screen.findByText("No stations to log for")).toBeInTheDocument();
-    const action = screen.getByRole("link", { name: "Add a station" });
+    const action = screen.getByRole("link", { name: "Create a station" });
     expect(action).toHaveAttribute("href", "/admin/stations");
   });
 });

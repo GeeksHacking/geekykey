@@ -23,7 +23,7 @@ function setup() {
 
 /** Opens the dialog, creates a station with `label`, and waits for the key field. */
 async function createAStation(user: ReturnType<typeof userEvent.setup>, label: string) {
-  await user.click(screen.getByRole("button", { name: "Add station" }));
+  await user.click(screen.getByRole("button", { name: "Create station" }));
   await user.type(screen.getByLabelText("Label"), label);
   await user.click(screen.getByRole("button", { name: "Create station" }));
   return screen.findByLabelText("Station key");
@@ -59,9 +59,9 @@ describe("AddStationDialog", () => {
 
     await user.click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByLabelText("Station key")).not.toBeInTheDocument());
-    await waitFor(() => screen.getByRole("button", { name: "Add station" }));
+    await waitFor(() => screen.getByRole("button", { name: "Create station" }));
 
-    await user.click(screen.getByRole("button", { name: "Add station" }));
+    await user.click(screen.getByRole("button", { name: "Create station" }));
 
     expect(await screen.findByLabelText("Label")).toBeInTheDocument();
     expect(screen.queryByLabelText("Station key")).not.toBeInTheDocument();
