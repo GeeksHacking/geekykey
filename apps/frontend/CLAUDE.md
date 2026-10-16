@@ -106,7 +106,7 @@ One slice, start to finish:
    the backend for a network failure, sign out for a 401, and sign in as `dev-user-1` and
    open `/admin/stations` for a 403.
 5. Compare the real JSON against `src/api/types.ts` field by field, for example
-   `curl -s localhost:8000/api/v1/admin/stations | jq`. If they differ, the agreement wins
+   `curl -s localhost:8001/api/v1/admin/stations | jq`. If they differ, the agreement wins
    and the backend is fixed. Never widen `types.ts` to match a backend that drifted.
 6. `pnpm typecheck`, `pnpm lint` and `pnpm test` still pass with the flag off.
 
@@ -283,7 +283,7 @@ apps/frontend/
   CLAUDE.md
   index.html                # theme bootstrap script runs before first paint
   public/brand/             # the branding kit's logos; the secondary one is also the favicon
-  vite.config.ts            # react, router and tailwind plugins, proxy /api and /auth to :8000
+  vite.config.ts            # react, router and tailwind plugins, proxy /api and /auth to :8001
   vitest.config.ts
   components.json           # shadcn config
   tsconfig.json             # solution file; also carries the @/ alias for the shadcn CLI
@@ -369,9 +369,9 @@ Rules:
 - In dev, login is `POST /auth/dev-login` with a seeded user ID. In production it is a
   redirect to `/auth/login`. The screen after login is identical either way. The dev-login
   form only renders when `import.meta.env.DEV` is true.
-- The Vite dev server proxies `/api` and `/auth` to `http://localhost:8000`, so requests
-  are same-origin and the cookie just works. The HTTP client still sends
-  `credentials: "include"` so it also works without the proxy.
+- The Vite dev server proxies `/api` and `/auth` to the Event Service on
+  `http://localhost:8001`, so requests are same-origin and the cookie just works. The HTTP
+  client still sends `credentials: "include"` so it also works without the proxy.
 - The user ID always comes from the session. Never put a user ID in a request body except
   where the agreement says so (QR fallback).
 - The frontend never computes stamps, points, or cooldown. Display what the backend returns.
