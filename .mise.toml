@@ -67,7 +67,7 @@ env = { ASTRO_TELEMETRY_DISABLED = "1" }
 # Event Service
 
 [tasks."dev:event-service"]
-description = "The Event Service on Node on http://localhost:8000, reloading on save, with dev-login on"
+description = "The Event Service on Node on http://localhost:8001, reloading on save, with dev-login on"
 run = "pnpm dev:event-service"
 
 [tasks."test:event-service"]
@@ -77,6 +77,20 @@ run = "pnpm test:event-service"
 [tasks."format:event-service"]
 description = "Format the Event Service code in place (oxfmt)"
 run = "pnpm format:event-service"
+
+# GeekyKey Service
+
+[tasks."dev:geekykey-service"]
+description = "The GeekyKey Service in wrangler dev on http://localhost:8000, reading apps/geekykey-service/.dev.vars"
+run = "pnpm dev:geekykey-service"
+
+[tasks."test:geekykey-service"]
+description = "GeekyKey Service tests (Vitest in workerd), run once"
+run = "pnpm test:geekykey-service"
+
+[tasks."format:geekykey-service"]
+description = "Format the GeekyKey Service code in place (oxfmt)"
+run = "pnpm format:geekykey-service"
 
 # TiDB in Docker for apps/event-service, from the root compose.yaml. Docker
 # must be running first.

@@ -1,0 +1,29 @@
+# Local secrets and settings for `wrangler dev` (`mise run dev:geekykey-service`).
+# Copy this file to .dev.vars, which git ignores:
+#
+#   cp .dev.vars.example .dev.vars
+#
+# Never move a secret into wrangler.jsonc, which is deployed. Production's
+# secrets are set on the Worker itself, by Julian.
+#
+# `wrangler dev` takes only two kinds of line from .dev.vars and ignores the
+# rest: the secrets listed under `secrets.required` in wrangler.jsonc, and
+# settings already under `vars` there. It ignores your shell's variables while
+# this file exists. Without a secret, the Worker won't start.
+
+# The values below are the Event Service's own local stand-ins, which it uses
+# when its DEV_AUTH_ENABLED is true (apps/event-service/src/config.ts), so the
+# two match with nothing else set. None of them is a secret anywhere else.
+
+# Signs the gk_session cookie, from checkpoint 5. At least 16 characters.
+SESSION_SECRET=geekykey-dev-session-secret-not-for-production
+
+# The keys this Worker's requests to the Event Service carry. 64 lower-case
+# hex characters, as `openssl rand -hex 32` writes them.
+CLAIMS_STAND_IN_KEY=0000000000000000000000000000000000000000000000000000000000000000
+EVENT_SERVICE_KEY_SHOWCASE=0000000000000000000000000000000000000000000000000000000000000000
+
+# The Event Service on this laptop, from `mise run dev:event-service`, in
+# place of event-api.geekshacking.com. http:// is allowed only to this machine.
+EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"http://localhost:8001"}]
+CLAIMS_STAND_IN_URL=http://localhost:8001/claims-stand-in/v1
