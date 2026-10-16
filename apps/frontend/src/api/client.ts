@@ -44,6 +44,13 @@ export interface ApiClient {
   createStation(input: CreateStationRequest): Promise<StationKeyResponse>;
 
   /**
+   * POST /api/v1/admin/stations/{id}/key (agreement 9.8). Replaces the key, keeping the
+   * station's ID, its passport settings and its stamps. No request body, and the same answer
+   * as a create, with the new key shown once.
+   */
+  replaceStationKey(stationId: string): Promise<StationKeyResponse>;
+
+  /**
    * PUT /api/v1/admin/stations/{id}/passport. Adds the station to the passport or changes
    * its settings. Agreement 9.1.
    */

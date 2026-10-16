@@ -285,6 +285,19 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return { station: toStationBoardStation(station), api_key: `gk_sta_${randomBase62(40)}` };
       }),
 
+    replaceStationKey: (stationId) =>
+      call((): StationKeyResponse => {
+        currentOrganizer();
+        const station = stationById(stationId);
+        if (!station) throw new ApiError(404, "not_found");
+
+        // 9.8 replaces the key and nothing else, so this deliberately does not touch the
+        // station: its id, its passport settings and their added_at, its disabled_at and its
+        // last tap all stay as they are. Replacing a disabled station's key is therefore
+        // defined, and does not enable it, which the spec's disable-then-replace path needs.
+        return { station: toStationBoardStation(station), api_key: `gk_sta_${randomBase62(40)}` };
+      }),
+
     setStationPassport: (stationId, input) =>
       call((): SetStationPassportResponse => {
         currentOrganizer();

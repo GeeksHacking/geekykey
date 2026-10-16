@@ -12,6 +12,7 @@ export type EventApi = Pick<
   ApiClient,
   | "listStationBoard"
   | "createStation"
+  | "replaceStationKey"
   | "setStationPassport"
   | "listTaps"
   | "createFallbackTap"
@@ -39,6 +40,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
     event: {
       listStationBoard: api.listStationBoard.bind(api),
       createStation: api.createStation.bind(api),
+      replaceStationKey: api.replaceStationKey.bind(api),
       setStationPassport: api.setStationPassport.bind(api),
       listTaps: api.listTaps.bind(api),
       createFallbackTap: api.createFallbackTap.bind(api),
