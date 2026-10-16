@@ -41,6 +41,18 @@ describe("AddStationForm", () => {
     expect(screen.queryByLabelText("Points per accepted tap")).not.toBeInTheDocument();
   });
 
+  // The agreement's Station keys section says the key goes out on every request, not only
+  // on taps, because the heartbeat authenticates the same way. "Every tap" understated it.
+  it("says the station sends the key on every request", () => {
+    setup();
+
+    expect(
+      screen.getByText(
+        "Creates the station and returns its key, which the station sends on every request.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("shows a form-level error when validation fails without issues", async () => {
     const { api, user } = setup();
     api.mock.failNext("validation_failed");
