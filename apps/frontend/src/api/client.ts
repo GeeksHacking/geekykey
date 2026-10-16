@@ -1,6 +1,6 @@
 import type {
   CreateStationRequest,
-  CreateStationResponse,
+  StationKeyResponse,
   EventStationBoardResponse,
   FallbackTapRequest,
   FallbackTapResponse,
@@ -41,7 +41,7 @@ export interface ApiClient {
   listStationBoard(): Promise<EventStationBoardResponse>;
 
   /** POST /api/v1/admin/stations (agreement 9.7). The key in the response is shown once. */
-  createStation(input: CreateStationRequest): Promise<CreateStationResponse>;
+  createStation(input: CreateStationRequest): Promise<StationKeyResponse>;
 
   /**
    * PUT /api/v1/admin/stations/{id}/passport. Adds the station to the passport or changes

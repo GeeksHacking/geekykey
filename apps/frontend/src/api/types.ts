@@ -98,10 +98,11 @@ export interface CreateStationRequest {
 }
 
 /**
- * `api_key` is returned only here, once, and there is no endpoint to read it back.
- * The station comes back as the board lists it, with no passport settings yet.
+ * 9.7 creating a station and 9.8 replacing its key answer the same shape, so one name
+ * covers both. The station comes back as the board lists it. `api_key` is returned only
+ * in the response that issued it, once, and there is no endpoint to read it back.
  */
-export interface CreateStationResponse {
+export interface StationKeyResponse {
   station: EventStationBoardStation;
   api_key: string;
 }

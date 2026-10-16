@@ -12,7 +12,7 @@ import {
   type AdminTap,
   type ApiIssue,
   type CreateStationRequest,
-  type CreateStationResponse,
+  type StationKeyResponse,
   type ErrorCode,
   type EventStationBoardResponse,
   type EventStationBoardStation,
@@ -262,7 +262,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     // Agreement 9.7. The label is the device's name and the only field, so a new
     // station has no passport settings yet and reads as "Not in the passport".
     createStation: (input: CreateStationRequest) =>
-      call((): CreateStationResponse => {
+      call((): StationKeyResponse => {
         currentOrganizer();
         const issues: ApiIssue[] = [];
         const label = input.label.trim();

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CreateStationResponse } from "@/api/types";
+import type { StationKeyResponse } from "@/api/types";
 import { StationKeyReveal } from "@/features/stations/station-key-reveal";
 
 vi.mock("@/components/ui/dialog", () => {
@@ -15,7 +15,7 @@ vi.mock("@/components/ui/dialog", () => {
   };
 });
 
-const result: CreateStationResponse = {
+const result: StationKeyResponse = {
   station: {
     id: "station-1",
     label: "Reader 3",

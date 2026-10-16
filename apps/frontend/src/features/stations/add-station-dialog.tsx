@@ -1,7 +1,7 @@
 import { Plus } from "@phosphor-icons/react";
 import { useState } from "react";
 
-import type { CreateStationResponse } from "@/api/types";
+import type { StationKeyResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { AddStationForm } from "@/features/stations/add-station-form";
@@ -10,7 +10,7 @@ import { StationKeyReveal } from "@/features/stations/station-key-reveal";
 /** Two steps in one dialog: the form, then the one-time key. Closing clears the key from memory. */
 export function AddStationDialog() {
   const [open, setOpen] = useState(false);
-  const [created, setCreated] = useState<CreateStationResponse | null>(null);
+  const [created, setCreated] = useState<StationKeyResponse | null>(null);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
