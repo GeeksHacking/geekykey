@@ -29,10 +29,10 @@ export function FallbackScreen() {
       <EmptyState
         icon={Broadcast}
         title="No stations to log for"
-        description="Add a station before using QR fallback to record a tap."
+        description="Create a station before using QR fallback to record a tap."
         action={
           <Button asChild>
-            <Link to="/admin/stations">Add a station</Link>
+            <Link to="/admin/stations">Create a station</Link>
           </Button>
         }
       />

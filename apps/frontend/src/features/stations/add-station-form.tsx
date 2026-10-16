@@ -62,7 +62,7 @@ export function AddStationForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <DialogHeader>
-          <DialogTitle>Add a station</DialogTitle>
+          <DialogTitle>Create a station</DialogTitle>
           <DialogDescription>
             Creates the station and returns its key, which the station sends with every tap.
           </DialogDescription>

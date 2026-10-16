@@ -22,7 +22,7 @@ export function AddStationDialog() {
       <DialogTrigger asChild>
         <Button>
           <Plus aria-hidden />
-          Add station
+          Create station
         </Button>
       </DialogTrigger>
       <DialogContent>
