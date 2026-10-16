@@ -414,8 +414,8 @@ So a workflow on another branch can't deploy production or read its migration lo
 | Event screens | Vite on 5173, proxying `/api` and `/auth` to 8000 until the split, then to 8001 |
 | GeekyKey screens | Vite on 5174, proxying to 8000 |
 | Database | TiDB v8.5.3 in Docker from the root `compose.yaml`, with `geekykey_dev` and `geekykey_test`. The server connects to it with `mysql2` directly |
-| Secrets | A gitignored `.env` for the Node server and `.dev.vars` for the Worker, each holding `SESSION_SECRET` and the local keys. Never in a deployed config. Each service's `pnpm dev` turns dev-login on itself, so a fresh clone runs with neither file |
-| Logging in | dev-login signs in seeded users. Firebase works too, since it allows `localhost` by default |
+| Secrets | Local stand-ins for `SESSION_SECRET` and the keys, which are secret nowhere else: built into the Node server for when dev-login is on, and in the Worker's committed `dev.env`. A gitignored `.env` overrides the Node server's settings, and the shell overrides either service's. Never in a deployed config. Each service's `pnpm dev` turns dev-login on itself, so a fresh clone runs with no settings file (BAC-42) |
+| Logging in | The Event Service's dev-login signs in seeded users, and the GeekyKey Service's any user ID. Firebase works too, since it allows `localhost` by default |
 
 From checkpoint 4, one root `pnpm dev` starts all four. Mock mode stays for work on screens.
 
