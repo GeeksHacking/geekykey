@@ -48,7 +48,11 @@ afterEach(() => {
 });
 
 function renderReveal() {
-  return render(<StationKeyReveal result={result} onDone={vi.fn()} />);
+  return render(<StationKeyReveal kind="create" result={result} onDone={vi.fn()} />);
+}
+
+function renderReplacement() {
+  return render(<StationKeyReveal kind="replace" result={result} onDone={vi.fn()} />);
 }
 
 describe("StationKeyReveal", () => {
@@ -160,5 +164,29 @@ describe("StationKeyReveal", () => {
     expect(container.textContent).toContain(
       "Copy it now. It is shown once, and closing this dialog hides it for good.",
     );
+  });
+
+  // 9.8 replaces the key in place, so 9.8's own two facts are what the dialog owes the
+  // organizer: the old key stops working within a minute, and the station carries on as the
+  // same one. CONTEXT.md's glossary says the same thing, that replacing keeps it the same
+  // station. The create title would tell them a station had just been made, which is not so.
+  it("says the old key is going and the station carries on, on a replacement", () => {
+    const { container } = renderReplacement();
+    const shown = container.textContent ?? "";
+
+    expect(shown).toContain("Reader 3 has a new key");
+    expect(shown).toContain(
+      "Put this key into the station's setup mode. The old key stops working within a minute. It is the same station, so its ID, its passport settings and its stamps all stay.",
+    );
+  });
+
+  // Asserted as an absence, because the failure is an organizer reading that they can replace
+  // the key later and walking away without entering this one. "is ready" belongs to 9.7's
+  // create, and reads as news of a station that did not exist before.
+  it("never offers a later replacement, once the key is being replaced", () => {
+    const { container } = renderReplacement();
+
+    expect(container.textContent).not.toContain("You can replace it later");
+    expect(container.textContent).not.toContain("is ready");
   });
 });

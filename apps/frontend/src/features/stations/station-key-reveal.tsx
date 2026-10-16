@@ -9,14 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface StationKeyRevealProps {
+  /** 9.7 creates a station and 9.8 replaces one key, so only a replacement has an old key to lose. */
+  kind: "create" | "replace";
   result: StationKeyResponse;
   onDone: () => void;
 }
 
 /** The agreement returns the key exactly once. Nothing here stores it; it lives only in this dialog. */
-export function StationKeyReveal({ result, onDone }: StationKeyRevealProps) {
+export function StationKeyReveal({ kind, result, onDone }: StationKeyRevealProps) {
   const [copied, setCopied] = useState(false);
   const copiedResetTimer = useRef<number | null>(null);
+
+  const isReplacement = kind === "replace";
+  const title = isReplacement
+    ? `${result.station.label} has a new key`
+    : `${result.station.label} is ready`;
+  // The setup mode is where either key goes. A replacement also has to say the old one is
+  // going, because 9.8 stops it within a minute, and that the station is untouched.
+  const description = isReplacement
+    ? "Put this key into the station's setup mode. The old key stops working within a minute. It is the same station, so its ID, its passport settings and its stamps all stay."
+    : "Put this key into the station's setup mode. You can replace it later, and the station keeps its ID, its passport settings and its stamps.";
 
   useEffect(
     () => () => {
@@ -42,11 +54,8 @@ export function StationKeyReveal({ result, onDone }: StationKeyRevealProps) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{result.station.label} is ready</DialogTitle>
-        <DialogDescription>
-          Put this key into the station&apos;s setup mode. You can replace it later, and the station
-          keeps its ID, its passport settings and its stamps.
-        </DialogDescription>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <div className="flex items-start gap-2 rounded-lg border border-status-cooldown/40 bg-status-cooldown/10 p-3 text-sm">
         <Warning
