@@ -1027,3 +1027,12 @@
     The next step of the move splits the folders inside the one repo, so the sign-in to Google
     Cloud, the shared hand-off schemas and the smoke test don't change before the backend freeze
     on 11 Nov.
+
+- id: geekykey-service-worker
+  date: 2026-10-16
+  area: backend
+  change: >-
+    On a laptop, the GeekyKey Service now runs as its own Cloudflare Worker, which takes a
+    station's taps and heartbeats and passes them to the Event Service over HTTP, with the same
+    answers as before. CI checks the Worker on every pull request, and nothing deploys it until
+    Julian connects it at key-api.
