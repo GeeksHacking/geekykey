@@ -1036,3 +1036,12 @@
     station's taps and heartbeats and passes them to the Event Service over HTTP, with the same
     answers as before. CI checks the Worker on every pull request, and nothing deploys it until
     Julian connects it at key-api.
+
+- id: one-pnpm-dev
+  date: 2026-10-16
+  area: tooling
+  change: >-
+    On a laptop, one command starts both services and both sets of screens, with no settings
+    file to copy first. Each service signs its users in with a cookie of its own, so someone can
+    be signed in on the Event screens and the GeekyKey screens at once without one sign-in
+    replacing the other.
