@@ -66,4 +66,17 @@ describe("AddStationDialog", () => {
     expect(await screen.findByLabelText("Label")).toBeInTheDocument();
     expect(screen.queryByLabelText("Station key")).not.toBeInTheDocument();
   });
+
+  // The reveal reads the kind from a prop, so nothing but this holds the one call site to
+  // 9.7's half of the copy. With kind="replace" the dialog would greet an organizer with a
+  // station they have never seen and an old key nobody lost, and the reveal's own tests would
+  // stay green, because they render it directly rather than through here.
+  it("opens on 9.7's copy, never on the replacement's", async () => {
+    const { user } = setup();
+
+    await createAStation(user, "Reader 9");
+
+    expect(await screen.findByText("Reader 9 is ready")).toBeInTheDocument();
+    expect(screen.queryByText("Reader 9 has a new key")).not.toBeInTheDocument();
+  });
 });

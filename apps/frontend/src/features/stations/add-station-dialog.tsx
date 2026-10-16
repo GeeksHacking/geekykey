@@ -27,7 +27,7 @@ export function AddStationDialog() {
       </DialogTrigger>
       <DialogContent>
         {created ? (
-          <StationKeyReveal result={created} onDone={() => handleOpenChange(false)} />
+          <StationKeyReveal kind="create" result={created} onDone={() => handleOpenChange(false)} />
         ) : (
           <AddStationForm onCreated={setCreated} />
         )}
