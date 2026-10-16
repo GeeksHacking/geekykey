@@ -993,3 +993,17 @@
     station's passport name, and deletes old test taps with no user, while every station keeps
     its ID and key. A lint check stops the GeekyKey side, the Event side and the claims stand-in
     from importing each other's code, so they reach each other only through their requests.
+
+- id: checkpoint-4-tickets
+  date: 2026-10-16
+  area: admin
+  change: >-
+    The next step of the move is planned as eight backend tickets and one for the screens. The
+    GeekyKey Service leaves the one server for its own Cloudflare Worker at key-api, which calls
+    the Event Service over HTTPS, every station moves to it, and a check on every pull request
+    sends a station's tap through both services to the database. Julian copies the two keys the
+    Worker needs from Google Cloud into it himself, so no key is sent in a message, and the Worker
+    gets no staging copy unless the stress test needs one. Whether the Event Service moves to its
+    own repo now or after the showcase is a question for Julian. The trade-offs we accept: the
+    Worker is tried only on a laptop and in CI before production, and the Event Service keeps its
+    copy of the station endpoints until the last station has moved.
