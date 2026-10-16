@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Station partners: capstone projects</title>
+<style>
+  :root {
+    --bg: #0A060F;
+    --card: #1C1B1B;
+    --raised: #28272A;
+    --fg: #F5F5F5;
+    --muted: #A09FA0;
+    --border: #3A393B;
+    --yellow: #FFF200;
+    --on-yellow: #1C1B1B;
+    --yellow-text: #FFF200;
+    --yellow-edge: #FFF200;
+    --pale: #2E2D24;
+    --warn: #F0A35E;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #F5F5F5;
+      --card: #FBFBFB;
+      --raised: #E8E8E8;
+      --fg: #1C1B1B;
+      --muted: #5C5B5D;
+      --border: #CFCFCF;
+      --yellow-text: #706B00;
+      --yellow-edge: #1C1B1B;
+      --pale: #FFFCC2;
+      --warn: #A34A0B;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.55 "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1, h2, h3 { letter-spacing: 0.5px; line-height: 1.25; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 44px 0 12px; }
+  h3 { font-size: 16px; margin: 0 0 8px; }
+  p { margin: 0 0 10px; }
+  a { color: var(--yellow-text); }
+  .lede { color: var(--muted); max-width: 70ch; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+  ol.flow { margin: 0; padding-left: 20px; }
+  ol.flow li { margin-bottom: 6px; }
+  ul.tight { margin: 0; padding-left: 20px; }
+  ul.tight li { margin-bottom: 4px; }
+  .note { color: var(--muted); font-size: 13.5px; margin-top: 10px; }
+
+  /* Shortlist */
+  .picks { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); counter-reset: pick; }
+  .pick { position: relative; padding-top: 16px; }
+  .pick .order {
+    display: inline-block; min-width: 26px; padding: 1px 7px; margin-right: 8px;
+    background: var(--yellow); color: var(--on-yellow); border: 1px solid var(--yellow-edge);
+    border-radius: 10px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .pick .code { font-weight: 700; }
+  .pick .cat { color: var(--muted); font-size: 13px; }
+  .pick p { margin-top: 8px; font-size: 14px; }
+  .reserve { margin-top: 12px; color: var(--muted); font-size: 14px; }
+
+  /* Controls */
+  .controls { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin-top: 12px; }
+  .weight label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; }
+  .weight output { color: var(--yellow-text); font-variant-numeric: tabular-nums; }
+  .weight input { width: 100%; accent-color: var(--yellow); }
+  .controls-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+  button.plain {
+    font: inherit; font-size: 14px; color: var(--fg); background: var(--raised);
+    border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px; cursor: pointer;
+  }
+  button.plain:hover { border-color: var(--yellow-edge); }
+  button:focus-visible, th button:focus-visible, tr.row:focus-visible { outline: 2px solid var(--yellow-text); outline-offset: 2px; }
+
+  /* Tables */
+  .table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; }
+  th, td { text-align: left; padding: 10px 12px; vertical-align: top; }
+  thead th { font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th button {
+    font: inherit; color: inherit; background: none; border: 0; padding: 2px 4px; margin: -2px -4px;
+    cursor: pointer; border-radius: 6px;
+  }
+  th button[aria-pressed="true"] { background: var(--yellow); color: var(--on-yellow); }
+  th.num, td.num { text-align: center; }
+  tr.row { cursor: pointer; border-top: 1px solid var(--border); }
+  tbody tr.row:first-child { border-top: 0; }
+  tr.row:hover, tr.row[aria-expanded="true"] { background: var(--pale); }
+  td.rank { color: var(--muted); font-variant-numeric: tabular-nums; width: 36px; }
+  td.code { font-weight: 700; white-space: nowrap; }
+  td.title .sub { display: block; color: var(--muted); font-size: 13.5px; }
+  .pips { display: inline-flex; gap: 3px; }
+  .pip { width: 10px; height: 10px; border-radius: 3px; border: 1px solid var(--muted); }
+  .pip.on { background: var(--yellow); border-color: var(--yellow-edge); }
+  .total {
+    display: inline-block; min-width: 34px; padding: 1px 8px; border-radius: 10px;
+    background: var(--yellow); color: var(--on-yellow); border: 1px solid var(--yellow-edge);
+    font-weight: 700; font-variant-numeric: tabular-nums; text-align: center;
+  }
+  .flag { color: var(--warn); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .chosen {
+    display: inline-block; padding: 0 7px; border-radius: 8px; font-size: 12px; font-weight: 700; white-space: nowrap;
+    background: var(--yellow); color: var(--on-yellow); border: 1px solid var(--yellow-edge);
+  }
+  tr.detail td { padding: 4px 16px 16px 48px; background: var(--pale); font-size: 14px; }
+  tr.detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+  tr.detail dt { color: var(--muted); font-weight: 600; }
+  tr.detail dd { margin: 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Legend and contacts */
+  .legend { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .legend .card p { font-size: 14px; }
+  .legend ol { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
+  .contacts { display: grid; gap: 8px 20px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); font-size: 14px; }
+  .contacts div { padding: 8px 0; border-top: 1px solid var(--border); }
+  .contacts strong { display: block; }
+  .contacts span { color: var(--muted); }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Station partners: capstone projects</h1>
+<p class="lede">Which capstone groups to ask about hosting a GeekyKey station at their booth at the Capstone Showcase on 18 Nov. Each project from the project list is scored on five things and ranked within its category. Six are chosen for now. Five projects we believe have no group are left out. Draft, 14 Oct 2026. The scores are a reading of the project descriptions, not something the groups have told us.</p>
+
+<h2>How a tap at a partner booth would work</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>The visitor's side</h3>
+    <ol class="flow">
+      <li>A visitor taps their token on the station at, say, STM 1's booth. The station shows the stamp, as it does now.</li>
+      <li>The Event Service stores the tap against that visitor.</li>
+      <li>The visitor's event page notices the new tap and asks: "You tapped at STM 1. Open their page?"</li>
+      <li>The button opens the booth's page: the group's own app or site, or a page we host with their summary and one challenge. A booth game starts the same way.</li>
+    </ol>
+    <p class="note">A browser won't open a page on its own, so the visitor presses the button. The prompt only shows while the event page is open, and appears when they next look at their phone. Building it needs a link for each station and a change to the API agreement.</p>
+  </div>
+  <div class="card">
+    <h3>What we'd ask of each group</h3>
+    <ul class="tight">
+      <li>A spot on their table for the station, and a power socket unless it runs on battery.</li>
+      <li>A link to their app or site, or a few lines for a page we write.</li>
+      <li>One question or challenge that only their team can settle, so visitors talk to them instead of tapping and leaving.</li>
+    </ul>
+    <h3 style="margin-top:14px">What they get</h3>
+    <ul class="tight">
+      <li>Visitor numbers by hour after the showcase, for their report.</li>
+      <li>Their page on every visitor's phone that tapped.</li>
+      <li>For some, a feature or data for their own project (see "Gain for them" below).</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Chosen for now, in the order to ask</h2>
+<p class="lede">Six groups across the three categories, chosen on 14 Oct. If we build fewer stations, cut from the bottom. Ms Karen Teo supervises two of them (STM 1 and TTSH 2) and the first reserve (DSO 1), so one conversation with her covers all three.</p>
+<div class="picks" id="picks"></div>
+<p class="reserve" id="reserves"></p>
+
+<h2>Rank by what matters to you</h2>
+<p class="lede">Each criterion is scored 1 to 3. The weights set how much each one counts toward the total. Click a column heading to rank by that criterion alone, and click a row for the details.</p>
+<div class="card">
+  <div class="controls" id="weights"></div>
+  <div class="controls-foot">
+    <button class="plain" type="button" id="reset">Equal weights</button>
+    <button class="plain" type="button" id="talkfirst">Julian's view: talk hook counts triple</button>
+    <span class="note" id="sortnote" style="margin:0"></span>
+  </div>
+</div>
+
+<h2>Community projects</h2>
+<div class="table-wrap"><table id="t-community"></table></div>
+
+<h2>Industrial projects</h2>
+<div class="table-wrap"><table id="t-industrial"></table></div>
+
+<h2>Research projects</h2>
+<p class="lede">All six are lab projects with a poster for a booth, so they score lower on fit. A station gives them their only interactive part. One research booth on the trail is enough, so that visitors pass through all three kinds of project.</p>
+<div class="table-wrap"><table id="t-research"></table></div>
+
+<h2>What the scores mean</h2>
+<div class="legend" id="legend"></div>
+
+<h2>Who to ask</h2>
+<p class="lede">The SST supervisors named on the project list, with the projects each one covers, most first.</p>
+<div class="contacts" id="contacts"></div>
+
+<h2>Check before approaching anyone</h2>
+<div class="card">
+  <ul class="tight">
+    <li>This is the list of projects offered, not the list of groups. Check which projects have a group and a booth on 18 Nov, and where the booths are, so the stations spread across the hall.</li>
+    <li>AWWA 3, AWWA 4, TTSH 1, KKH C2 and BAS 1 are on the project list but left out here, because we believe no group took them (14 Oct). The words "Not available" on the list come right after BAS 1's description, which fits.</li>
+    <li>We've heard that only 16 projects have a group. This page still lists 21, so five more may have none. Confirm which before approaching anyone.</li>
+    <li>Several healthcare projects work with patient data or animal research, and DSO 1 is for a defence lab. Their pages and challenges use public or synthetic material only, agreed with their mentors.</li>
+    <li>Where a booth game should earn points beyond the stamp, the API agreement needs a new endpoint. Leaderboards and quests are out of scope for the showcase today (API agreement section 12).</li>
+  </ul>
+</div>
+
+<footer>Sources: the capstone project list and DSO 1's description (both pasted 14 Oct 2026); apps/API-AGREEMENT.md sections 8.1, 9.1 and 12; the 8 Oct meeting notes, which first raised custom screens per booth.</footer>
+</main>
+
+<script>
+const CRITERIA = [
+  { key: "tech", label: "Tech overlap", short: "Tech",
+    what: "How close their project is to what GeekyKey does with a tap.",
+    levels: ["Software or lab work only", "Hardware or electronics", "NFC, RFID, or a job a tap already does: attendance, payment, borrowing"] },
+  { key: "pull", label: "Booth pull", short: "Pull",
+    what: "Whether visitors stop at the booth, which brings them to the station.",
+    levels: ["A poster and a talk", "A screen demo, or objects to look at", "Something hands-on to try"] },
+  { key: "page", label: "Page ready", short: "Page",
+    what: "Whether the tap has something to open on the visitor's phone without us building it.",
+    levels: ["We write the page with them", "An app or demo that may need a public version", "They build a web app or phone app anyway"] },
+  { key: "talk", label: "Talk hook", short: "Talk",
+    what: "Whether the booth activity makes the visitor talk to the team, which was Julian's concern about tap-to-score games.",
+    levels: ["Something the visitor does alone on their phone", "Something to try at the booth with the team on hand", "A choice or guess at the booth that the team has to explain"] },
+  { key: "gain", label: "Gain for them", short: "Gain",
+    what: "What the group gets from hosting, which decides whether they say yes.",
+    levels: ["Visitor numbers only", "Visitor numbers and an interactive part they lack", "A feature or data for their own project or report"] },
+];
+
+const PROJECTS = [
+  // Community
+  { cat: "community", code: "HWN C1", title: "Volunteer training simulator",
+    sub: "A digital tool that runs on-ground scenarios so youth volunteers practise decisions before deployment.",
+    s: { tech: 1, pull: 2, page: 3, talk: 3, gain: 3 },
+    idea: "The tap opens one of their scenarios on the visitor's phone. The visitor picks what they would do, then asks the team what volunteers actually do.",
+    gainNote: "Every visitor's choice is test data for their scenarios.",
+    check: "Their tool may need a public demo mode.",
+    sup: "Miss Afiah, Mr Don Seah, Mr Irfan" },
+  { cat: "community", code: "KKH C1", title: "Neonatal resuscitation buddy",
+    sub: "A phone app for neonatal doctors: drug doses by weight, checklists for high-risk deliveries, and department protocols.",
+    s: { tech: 1, pull: 2, page: 2, talk: 3, gain: 3 },
+    idea: "Race the app. The visitor works out the dose for a baby of a given weight by hand, then with the app. The team checks both answers and explains why seconds matter at a delivery.",
+    gainNote: "Time and accuracy with and without the app, from every visitor who tries. That is evidence for the quick and accurate preparation their brief asks for, though visitors aren't doctors.",
+    check: "Clinical content for doctors. Use a made-up drug and doses agreed with the KKH mentors, and check whether the app opens in a phone browser or has to be installed.",
+    sup: "Ms Praveena Mohan, Mdm Wong Lai Fong" },
+  { cat: "community", code: "TTSH 2", title: "Linen defect detection",
+    sub: "Computer vision that spots torn, stained or defective linen and pyjamas.",
+    s: { tech: 1, pull: 3, page: 2, talk: 3, gain: 3 },
+    idea: "You against the AI. The visitor spots the defects in photos on their phone, then the team runs the same cloth past the camera.",
+    gainNote: "Visitors' accuracy is a human baseline to compare their model with.",
+    sup: "Ms Jovita Tang, Ms Karen Teo" },
+  { cat: "community", code: "SGH 1", title: "Clinical text de-identification",
+    sub: "An AI model that removes personal details from Singapore-style clinical notes.",
+    s: { tech: 1, pull: 2, page: 2, talk: 3, gain: 2 },
+    idea: "You against the AI. Find the personal details in a made-up clinical note, then see what the model caught.",
+    check: "Synthetic notes only. No real patient text on visitors' phones.",
+    sup: "Mr Chee Meng Teck, Mrs Genevieve Tia" },
+  { cat: "community", code: "AWWA 1", title: "Car transfer robot",
+    sub: "A robot that moves clients between a wheelchair and a car, so caregivers don't have to lift them.",
+    s: { tech: 2, pull: 3, page: 1, talk: 2, gain: 1 },
+    idea: "The robot draws the crowd. The tap opens a short page on why hoists can't do car transfers.",
+    sup: "Miss Esther Tan" },
+  { cat: "community", code: "AWWA 2", title: "Mobility tool for therapeutic play",
+    sub: "A wheeled device that moves in many directions, so children practise full hip and shoulder movement through play.",
+    s: { tech: 2, pull: 3, page: 1, talk: 2, gain: 1 },
+    idea: "Visitors try the device with the team. The tap opens what each movement trains.",
+    sup: "Miss Esther Tan" },
+  { cat: "community", code: "AWWA 5", title: "Toys for play, second iteration",
+    sub: "Toys that teach cause and effect, social skills and throwing, with balls, instruments and bubbles.",
+    s: { tech: 2, pull: 3, page: 1, talk: 2, gain: 2 },
+    idea: "A tap starts a play round and counts plays for each toy. More engagement is what their brief asks for.",
+    sup: "Miss Esther Tan" },
+  { cat: "community", code: "AWWA 6", title: "Multilingual community chatbot",
+    sub: "A chatbot in English, Malay, Mandarin and Tamil for People's Association and Residents' Network activities.",
+    s: { tech: 1, pull: 2, page: 3, talk: 1, gain: 3 },
+    idea: "The tap opens the chatbot on the visitor's phone, in their language. Visitors talk to the bot, not to the team, so it scores low on talk.",
+    gainNote: "Real questions in four languages to test with.",
+    sup: "Miss Esther Tan" },
+
+  // Industrial
+  { cat: "industrial", code: "STM 1", title: "STEM demo unit for career fairs",
+    sub: "A portable STM32 game or toy that gets primary and secondary students curious about electronics.",
+    s: { tech: 3, pull: 3, page: 1, talk: 2, gain: 3 },
+    idea: "A tap starts a round on their unit and records the score. Their brief is to draw students at fairs, so plays and repeat visits are evidence for their report.",
+    gainNote: "Play counts and repeat visits, measured for them.",
+    sup: "Mr Zeng Wei, Ms Karen Teo" },
+  { cat: "industrial", code: "SICK S1", title: "RFID tool tracking for an R&D lab",
+    sub: "Tagged lab tools, with readers that log who borrowed and returned what.",
+    s: { tech: 3, pull: 2, page: 2, talk: 2, gain: 3 },
+    idea: "Borrow a tagged tool with your token. Their borrowing and returning is the same pattern as our claiming and releasing.",
+    gainNote: "If their readers work at 13.56 MHz, our tokens can be their borrower cards.",
+    check: "Their tags may be long-range UHF RFID, which can't read our 13.56 MHz NTAG213 tokens.",
+    sup: "Mr Andy Chia, Ms Jamie Wong" },
+  { cat: "industrial", code: "DSO 1", title: "Sound countermeasure robot",
+    sub: "A robot that patrols an area without hitting obstacles, picks up a disturbing sound, and plays it back at a set delay to counter it. Sound stands in for radio signals.",
+    s: { tech: 2, pull: 3, page: 1, talk: 3, gain: 2 },
+    idea: "The tap opens a page that plays a sound from the visitor's phone. The visitor guesses what the robot will do with it, then the team explains the delay and how the same idea works on radio signals.",
+    check: "A defence lab project. Ask the DSO mentors what can be shown and recorded at a public booth. Hall noise may drown out the sound the robot listens for. Students are interviewed for this project, so check a group exists.",
+    sup: "Ms Karen Teo, Mr Ivan Tan" },
+  { cat: "industrial", code: "BII 1", title: "AI for lung infection or inflammation",
+    sub: "An AI model that tells lung infection from inflammation in cancer patients.",
+    s: { tech: 1, pull: 1, page: 1, talk: 3, gain: 1 },
+    idea: "You against the AI: infection or inflammation? The team explains what the model looks for.",
+    check: "Only with public or synthetic images that the mentor allows.",
+    sup: "Miss Choo Hui En" },
+  { cat: "industrial", code: "BII 2", title: "AI for ring-enhancing brain lesions",
+    sub: "An AI model that sorts ring-shaped brain lesions on CT and MRI scans into infective and non-infective.",
+    s: { tech: 1, pull: 1, page: 1, talk: 3, gain: 1 },
+    idea: "You against the AI on brain scans. The team explains why the difference matters for treatment.",
+    check: "Only with public or synthetic images that the mentor allows.",
+    sup: "Miss Choo Hui En" },
+  { cat: "industrial", code: "SIT 1", title: "Wheelchair armrest for stroke rehab",
+    sub: "A customisable 3D-printed armrest that fits existing wheelchairs and suits mass production.",
+    s: { tech: 1, pull: 3, page: 1, talk: 2, gain: 1 },
+    idea: "Visitors sit and try the armrest. The tap opens how it is customised and printed.",
+    sup: "Ms Karen Teo, Mr Chee Meng Teck, Mdm Lim Yi Wen" },
+  { cat: "industrial", code: "SIT 2", title: "Side-cutting hip reamer",
+    sub: "A surgical reamer that cuts at the side, tested on sawbone models with pressure sensors.",
+    s: { tech: 2, pull: 2, page: 1, talk: 2, gain: 1 },
+    idea: "Guess which reamer is safer, then the team shows the pressure data.",
+    sup: "Ms Karen Teo, Mr Chee Meng Teck, Mdm Lim Yi Wen" },
+
+  // Research
+  { cat: "research", code: "NNI 1", title: "Antibody for stroke and brain injury",
+    sub: "Lab work on a humanised antibody that blocks the TRPM4 channel, in animal models.",
+    s: { tech: 1, pull: 1, page: 1, talk: 1, gain: 2 },
+    idea: "A short quiz page about their poster, and a stamp.",
+    check: "Two students at most.",
+    sup: "Ms Merlene Paik, Miss Lim Chuay Sia" },
+  { cat: "research", code: "NHCS 1", title: "Heart rhythm in sepsis",
+    sub: "Mouse studies of how sepsis changes the heart's electrical activity and tissue.",
+    s: { tech: 1, pull: 1, page: 1, talk: 2, gain: 2 },
+    idea: "Spot the irregular heartbeat in ECG traces, then the team explains atrial fibrillation.",
+    check: "Animal research. Keep the page suitable for school visitors.",
+    sup: "Ms Amelia Loh" },
+  { cat: "research", code: "BAC 1", title: "Skin microbiome in young adults",
+    sub: "PCR tests that link skin microbes to conditions such as acne and eczema.",
+    s: { tech: 1, pull: 1, page: 1, talk: 1, gain: 2 },
+    idea: "A quiz on what lives on your skin.",
+    check: "Two students at most.",
+    sup: "Ms Merlene Paik, Mrs Lim Woon Foong" },
+  { cat: "research", code: "NCCS 1", title: "Anti-cancer drug in head and neck cancer",
+    sub: "Cell culture tests of how well a drug kills cancer cells, and why.",
+    s: { tech: 1, pull: 1, page: 1, talk: 1, gain: 2 },
+    idea: "A quiz page about their poster, and a stamp.",
+    check: "Two students at most.",
+    sup: "Miss Lim Chuay Sia" },
+  { cat: "research", code: "NIE(MBT) 1", title: "Medicines from Singapore's sea sponges",
+    sub: "Testing extracts from local intertidal sponges for compounds that fight infection.",
+    s: { tech: 1, pull: 2, page: 1, talk: 2, gain: 2 },
+    idea: "Guess which sponge's extract fought the bacteria, then the team reveals the result.",
+    sup: "Mr Ng Guohui" },
+  { cat: "research", code: "NIE(ENV) 1", title: "Plasma-activated water for hydroponics",
+    sub: "A plasma reactor that treats water, tested as a fertiliser-free growth booster for hydroponic plants.",
+    s: { tech: 2, pull: 2, page: 1, talk: 3, gain: 2 },
+    idea: "Plants grown with and without plasma water side by side. Guess which got it, then the team explains with their data.",
+    sup: "Mr Dillon Szeto, Miss Wong Koi Lin" },
+];
+
+const SHORTLIST = [
+  { code: "STM 1", why: "A game built to draw students at fairs. We record plays and scores for their report." },
+  { code: "TTSH 2", why: "You against the AI, with real cloth at the booth, and visitors' accuracy as a baseline for their model." },
+  { code: "HWN C1", why: "A scenario choice on the visitor's phone that the team has to talk through. Every choice is test data for them." },
+  { code: "SICK S1", why: "Borrowing a tool with a tap replaces a sign-out sheet. It is the clearest fewer-steps story on the list." },
+  { code: "AWWA 5", why: "Toys visitors play with. A tap starts a round and counts plays, which is the engagement their brief asks for." },
+  { code: "NIE(ENV) 1", why: "The research booth with the most to see, and a guess the team has to explain." },
+];
+const RESERVES = ["DSO 1", "KKH C1", "SGH 1"];
+const CHOSEN = new Set(SHORTLIST.map(item => item.code));
+
+const CAT_NAME = { community: "Community", industrial: "Industrial", research: "Research" };
+const byCode = Object.fromEntries(PROJECTS.map(p => [p.code, p]));
+const EQUAL = Object.fromEntries(CRITERIA.map(c => [c.key, 1]));
+let weights = { ...EQUAL };
+let sortKey = "total";
+const open = new Set();
+
+function total(p) {
+  return CRITERIA.reduce((sum, c) => sum + p.s[c.key] * weights[c.key], 0);
+}
+function maxTotal() {
+  return CRITERIA.reduce((sum, c) => sum + 3 * weights[c.key], 0);
+}
+function pips(n) {
+  let html = '<span class="pips" aria-hidden="true">';
+  for (let i = 1; i <= 3; i++) html += `<span class="pip${i <= n ? " on" : ""}"></span>`;
+  return html + `</span><span class="sr">${n} of 3</span>`;
+}
+function esc(text) {
+  return String(text).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+}
+
+function sorted(list) {
+  return [...list].sort((a, b) => {
+    const primary = sortKey === "total" ? total(b) - total(a) : b.s[sortKey] - a.s[sortKey];
+    return primary || total(b) - total(a) || a.code.localeCompare(b.code);
+  });
+}
+
+function renderTable(cat) {
+  const table = document.getElementById("t-" + cat);
+  const head = CRITERIA.map(c =>
+    `<th class="num" scope="col"><button type="button" data-sort="${c.key}" aria-pressed="${sortKey === c.key}" title="${esc(c.what)}">${c.label}</button></th>`
+  ).join("");
+  let html = `<thead><tr><th scope="col">#</th><th scope="col">Code</th><th scope="col">Project</th>${head}` +
+    `<th class="num" scope="col"><button type="button" data-sort="total" aria-pressed="${sortKey === "total"}">Total</button></th></tr></thead><tbody>`;
+  sorted(PROJECTS.filter(p => p.cat === cat)).forEach((p, i) => {
+    const id = "d-" + p.code.replace(/[^A-Za-z0-9]/g, "");
+    const expanded = open.has(p.code);
+    const cells = CRITERIA.map(c => `<td class="num">${pips(p.s[c.key])}</td>`).join("");
+    const flag = (CHOSEN.has(p.code) ? ' <span class="chosen">Chosen</span>' : "") +
+      (p.flag ? ` <span class="flag">${esc(p.flag)}</span>` : "");
+    html += `<tr class="row" tabindex="0" data-code="${esc(p.code)}" aria-expanded="${expanded}" aria-controls="${id}">` +
+      `<td class="rank">${i + 1}</td><td class="code">${esc(p.code)}</td>` +
+      `<td class="title">${esc(p.title)}${flag}<span class="sub">${esc(p.sub)}</span></td>${cells}` +
+      `<td class="num"><span class="total">${Number.isInteger(total(p)) ? total(p) : total(p).toFixed(1)}</span></td></tr>`;
+    let detail = `<dt>Station idea</dt><dd>${esc(p.idea)}</dd>`;
+    if (p.gainNote) detail += `<dt>Gain for them</dt><dd>${esc(p.gainNote)}</dd>`;
+    if (p.check) detail += `<dt>Check first</dt><dd>${esc(p.check)}</dd>`;
+    detail += `<dt>SST supervisors</dt><dd>${esc(p.sup)}</dd>`;
+    html += `<tr class="detail" id="${id}"${expanded ? "" : " hidden"}><td colspan="${CRITERIA.length + 4}"><dl>${detail}</dl></td></tr>`;
+  });
+  table.innerHTML = html + "</tbody>";
+}
+
+function renderAll() {
+  ["community", "industrial", "research"].forEach(renderTable);
+  const label = sortKey === "total" ? "the weighted total" : CRITERIA.find(c => c.key === sortKey).label.toLowerCase();
+  document.getElementById("sortnote").textContent =
+    `Ranked by ${label}. Highest possible total with these weights: ${maxTotal()}.`;
+}
+
+function renderWeights() {
+  document.getElementById("weights").innerHTML = CRITERIA.map(c =>
+    `<div class="weight"><label for="w-${c.key}">${c.label} <output id="o-${c.key}">${weights[c.key]}</output></label>` +
+    `<input id="w-${c.key}" type="range" min="0" max="3" step="1" value="${weights[c.key]}" data-weight="${c.key}"></div>`
+  ).join("");
+}
+
+function renderShortlist() {
+  document.getElementById("picks").innerHTML = SHORTLIST.map((item, i) => {
+    const p = byCode[item.code];
+    return `<div class="card pick"><div><span class="order">${i + 1}</span><span class="code">${esc(p.code)}</span> ` +
+      `<span class="cat">${CAT_NAME[p.cat]}</span></div><h3 style="margin:8px 0 0">${esc(p.title)}</h3><p>${esc(item.why)}</p></div>`;
+  }).join("");
+  document.getElementById("reserves").textContent =
+    "Reserves, in order: " + RESERVES.map(code => `${code} (${byCode[code].title.toLowerCase()})`).join(", ") + ".";
+}
+
+function renderLegend() {
+  document.getElementById("legend").innerHTML = CRITERIA.map(c =>
+    `<div class="card"><h3>${c.label}</h3><p>${esc(c.what)}</p><ol>${c.levels.map(l => `<li>${esc(l)}</li>`).join("")}</ol></div>`
+  ).join("");
+}
+
+function renderContacts() {
+  const map = new Map();
+  PROJECTS.forEach(p => p.sup.split(",").map(s => s.trim()).forEach(name => {
+    if (!map.has(name)) map.set(name, []);
+    map.get(name).push(p.code);
+  }));
+  const rows = [...map.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  document.getElementById("contacts").innerHTML = rows.map(([name, codes]) =>
+    `<div><strong>${esc(name)}</strong><span>${codes.length} project${codes.length > 1 ? "s" : ""}: ${codes.map(esc).join(", ")}</span></div>`
+  ).join("");
+}
+
+document.addEventListener("input", e => {
+  const key = e.target.dataset && e.target.dataset.weight;
+  if (!key) return;
+  weights[key] = Number(e.target.value);
+  document.getElementById("o-" + key).textContent = weights[key];
+  renderAll();
+});
+document.addEventListener("click", e => {
+  const sortBtn = e.target.closest("button[data-sort]");
+  if (sortBtn) { sortKey = sortBtn.dataset.sort; renderAll(); return; }
+  const row = e.target.closest("tr.row");
+  if (row) toggle(row.dataset.code);
+});
+document.addEventListener("keydown", e => {
+  const row = e.target.closest && e.target.closest("tr.row");
+  if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggle(row.dataset.code); }
+});
+function toggle(code) {
+  open.has(code) ? open.delete(code) : open.add(code);
+  renderAll();
+  const row = document.querySelector(`tr.row[data-code="${CSS.escape(code)}"]`);
+  if (row) row.focus();
+}
+document.getElementById("reset").addEventListener("click", () => {
+  weights = { ...EQUAL }; sortKey = "total"; renderWeights(); renderAll();
+});
+document.getElementById("talkfirst").addEventListener("click", () => {
+  weights = { ...EQUAL, talk: 3 }; sortKey = "total"; renderWeights(); renderAll();
+});
+
+renderWeights();
+renderShortlist();
+renderLegend();
+renderContacts();
+renderAll();
+</script>
+</body>
+</html>
