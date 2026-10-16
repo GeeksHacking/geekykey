@@ -1,7 +1,7 @@
 # Tool versions and task shortcuts for the whole monorepo.
 # this file is the source of truth for tool versions. `packageManager` in
-# package.json must match the pnpm pin here, and apps/backend/Dockerfile pins
-# the same Node and pnpm.
+# package.json must match the pnpm pin here, and apps/event-service/Dockerfile
+# pins the same Node and pnpm.
 #
 #   mise install            install the pinned tools
 #   mise run <task>         run a task with those tools on PATH, even if the
@@ -64,22 +64,22 @@ description = "Build the updates site to apps/updates/dist"
 run = "pnpm build:updates"
 env = { ASTRO_TELEMETRY_DISABLED = "1" }
 
-# Backend
+# Event Service
 
-[tasks."dev:backend"]
-description = "The backend on Node on http://localhost:8000, reloading on save, with dev-login on"
-run = "pnpm dev:backend"
+[tasks."dev:event-service"]
+description = "The Event Service on Node on http://localhost:8000, reloading on save, with dev-login on"
+run = "pnpm dev:event-service"
 
-[tasks."test:backend"]
-description = "Backend tests (Vitest on Node) against geekykey_test, run once"
-run = "pnpm test:backend"
+[tasks."test:event-service"]
+description = "Event Service tests (Vitest on Node) against geekykey_test, run once"
+run = "pnpm test:event-service"
 
-[tasks."format:backend"]
-description = "Format the backend code in place (oxfmt)"
-run = "pnpm format:backend"
+[tasks."format:event-service"]
+description = "Format the Event Service code in place (oxfmt)"
+run = "pnpm format:event-service"
 
-# TiDB in Docker for apps/backend, from the root compose.yaml. Docker must be
-# running first.
+# TiDB in Docker for apps/event-service, from the root compose.yaml. Docker
+# must be running first.
 
 [tasks."db:up"]
 description = "Start TiDB on 127.0.0.1:4000, then create and migrate geekykey_dev and geekykey_test"
@@ -90,7 +90,7 @@ description = "Throw away all TiDB data, then start it again with empty, migrate
 run = "pnpm db:reset"
 
 [tasks."db:migrate"]
-description = "Apply new migrations from apps/backend/drizzle to geekykey_dev and geekykey_test"
+description = "Apply new migrations from apps/event-service/drizzle to geekykey_dev and geekykey_test"
 run = "pnpm db:migrate"
 
 [tasks.seed]

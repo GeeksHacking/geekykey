@@ -1,7 +1,7 @@
 /**
- * The server with your laptop's settings, for `mise run dev:backend`, which
- * runs this file with `node --watch`. It restarts when you save a file the
- * server imports.
+ * The server with your laptop's settings, for `mise run dev:event-service`,
+ * which runs this file with `node --watch`. It restarts when you save a file
+ * the server imports.
  *
  * Settings come from three places, each winning over the one before:
  * dev.env, which is committed; your own .env, if you have one; and your

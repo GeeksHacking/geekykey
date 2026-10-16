@@ -2,7 +2,7 @@
  * Fails when a schema file (src/event/schema.ts or
  * src/claims-stand-in/schema.ts) has a change that no migration in drizzle/
  * covers. CI runs it on every pull request, and anyone can run it with
- * `pnpm --filter @geekykey/backend check:migrations`.
+ * `pnpm --filter @geekykey/event-service check:migrations`.
  *
  * It runs `drizzle-kit generate` and passes only when that says there is
  * nothing to write, and wrote nothing. drizzle-kit's exit code is no help:
@@ -12,7 +12,7 @@
  *
  * When it fails, it has usually just written the missing migration into
  * drizzle/: look it over and commit it. After a rename it writes nothing, so
- * run `pnpm --filter @geekykey/backend db:generate` in a terminal, where
+ * run `pnpm --filter @geekykey/event-service db:generate` in a terminal, where
  * drizzle-kit can ask.
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -44,7 +44,7 @@ if (generate.status !== 0 || !saidNothingToDo || changed !== "") {
   if (changed !== "") console.error(`\nChanged in drizzle/:\n${changed}`);
   console.error(
     "drizzle-kit generate failed, or found a schema change with no migration. " +
-      "Commit the migration it wrote, or run `pnpm --filter @geekykey/backend db:generate` " +
+      "Commit the migration it wrote, or run `pnpm --filter @geekykey/event-service db:generate` " +
       "in a terminal and commit what it writes.",
   );
   process.exit(1);

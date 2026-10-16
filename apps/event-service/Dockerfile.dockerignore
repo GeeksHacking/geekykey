@@ -1,15 +1,15 @@
-# What apps/backend/Dockerfile's build sees of the repo. Everything is left
-# out, then only what the image needs is let back in, so no local secret such
-# as a .env can end up in it.
+# What apps/event-service/Dockerfile's build sees of the repo. Everything is
+# left out, then only what the image needs is let back in, so no local secret
+# such as a .env can end up in it.
 *
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
-!apps/backend/package.json
-!apps/backend/tsconfig.json
-!apps/backend/src/
-apps/backend/src/**/*.test.ts
-apps/backend/src/test-helpers.ts
+!apps/event-service/package.json
+!apps/event-service/tsconfig.json
+!apps/event-service/src/
+apps/event-service/src/**/*.test.ts
+apps/event-service/src/test-helpers.ts
 !packages/handoff/package.json
 !packages/handoff/src/
 packages/handoff/src/**/*.test.ts

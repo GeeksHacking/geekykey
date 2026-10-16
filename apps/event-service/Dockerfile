@@ -1,8 +1,8 @@
-# The backend's image, which Cloud Run runs. Build it with `pnpm build:image`
-# in apps/backend, which builds from the repo root, since pnpm installs from
-# the whole workspace's lockfile.
+# The Event Service's image, which Cloud Run runs. Build it with
+# `pnpm build:image` in apps/event-service, which builds from the repo root,
+# since pnpm installs from the whole workspace's lockfile.
 #
-# The first stage installs the backend's dependencies and bundles
+# The first stage installs the Event Service's dependencies and bundles
 # src/server.ts and everything it imports into one file with Rolldown. The
 # second puts only that file on a bare Node, so the image holds no source, no
 # node_modules and no pnpm. Dockerfile.dockerignore lists what the build sees.
@@ -19,20 +19,20 @@ WORKDIR /repo
 # dependencies until one of them changes. --frozen-lockfile installs exactly
 # what pnpm-lock.yaml says, under the rules in pnpm-workspace.yaml.
 # The trailing ... in the filter installs packages/handoff's dependencies too,
-# since the backend imports it and the bundle takes it in.
+# since the Event Service imports it and the bundle takes it in.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/backend/package.json apps/backend/
+COPY apps/event-service/package.json apps/event-service/
 COPY packages/handoff/package.json packages/handoff/
-RUN pnpm install --frozen-lockfile --filter "@geekykey/backend..."
+RUN pnpm install --frozen-lockfile --filter "@geekykey/event-service..."
 
 COPY packages/handoff/ packages/handoff/
-COPY apps/backend/ apps/backend/
-RUN pnpm --filter @geekykey/backend build
+COPY apps/event-service/ apps/event-service/
+RUN pnpm --filter @geekykey/event-service build
 
 FROM node:24.21.0-slim
 
 WORKDIR /app
-COPY --from=build /repo/apps/backend/dist/ ./
+COPY --from=build /repo/apps/event-service/dist/ ./
 
 # Not root, so the server can't change the image's own files.
 USER node

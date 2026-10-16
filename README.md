@@ -18,14 +18,14 @@ geekykey/
 ├── compose.yaml                TiDB in Docker, the backend's database on your laptop and in CI
 ├── .github/workflows/
 │   ├── ci.yml                  lint, test, build, and audit on every push and pull request
-│   ├── backend.yml             the backend's checks, which ci.yml and deploy.yml both run
+│   ├── event-service.yml       the Event Service's checks, which ci.yml and deploy.yml both run
 │   └── deploy.yml              deploys the backend to Google Cloud Run: production from main, staging by hand
 ├── infra/                      the backend's Google Cloud setup: the runbook, and what deploy.yml deploys with
 ├── apps/
 │   ├── API-AGREEMENT.md        the contract between the frontend, backend, and stations
 │   ├── frontend/               Event screens for participants and organisers, port 5173
 │   ├── geekykey-web/           GeekyKey screens: the token page and My tokens. Port 5174
-│   ├── backend/                the Node server that stations and the frontend call
+│   ├── event-service/          the Node server that stations and the frontend call
 │   └── updates/                progress timeline for our mentors
 ├── packages/
 │   └── handoff/                the hand-off's shapes, shared by both sides, and their JSON Schema
@@ -37,7 +37,7 @@ geekykey/
 |---|---|---|
 | `apps/frontend` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/frontend/CLAUDE.md` |
 | `apps/geekykey-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/geekykey-web/CLAUDE.md` |
-| `apps/backend` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and its three areas |
+| `apps/event-service` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and its three areas |
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
 
@@ -47,8 +47,8 @@ services. See `apps/API-AGREEMENT.md`.
 
 `pnpm-workspace.yaml` also includes `packages/*`, for code shared between apps.
 `packages/handoff` holds the Zod schemas for what the GeekyKey Service sends an Event Service
-and what it answers (the API agreement's section 11). `apps/backend` bundles it into its
-image. Its `json-schema/` folder holds the same shapes as JSON Schema, for other teams: after
+and what it answers (the API agreement's section 11). `apps/event-service` bundles it into
+its image. Its `json-schema/` folder holds the same shapes as JSON Schema, for other teams: after
 changing a schema, run `mise exec -- pnpm --filter @geekykey/handoff json-schema` and commit
 what it writes. A test fails while the two differ.
 
@@ -79,7 +79,7 @@ apps/frontend/src/
 ### Inside the backend
 
 ```text
-apps/backend/
+apps/event-service/
 ├── src/
 │   ├── server.ts          the entry point: reads the settings, starts the server, stops it cleanly
 │   ├── app.ts             every route mounted, given the settings and the database
@@ -100,7 +100,7 @@ apps/backend/
 ├── scripts/           Node scripts for the dev server, the database tasks, the seed, and the migration check
 ├── test-support/      test setup, and a proxy that breaks database connections on purpose
 ├── Dockerfile         builds the image Cloud Run runs
-├── dev.env            the settings `mise run dev:backend` starts with, committed
+├── dev.env            the settings `mise run dev:event-service` starts with, committed
 ├── .env.example       a template for .env, your own local settings and secrets
 └── vitest.config.ts   runs every test on Node, against TiDB in Docker
 ```
@@ -297,9 +297,9 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `test:geekykey-web` | GeekyKey screens unit tests, run once |
 | `build:geekykey-web` | Typecheck the GeekyKey screens, then build them |
 | `format:geekykey-web` | Format the GeekyKey screens code in place with oxfmt |
-| `dev:backend` | Backend on Node on http://localhost:8000, reloading when a file changes, with dev sign-in turned on |
-| `test:backend` | Backend tests (Vitest on Node) against `geekykey_test`, run once |
-| `format:backend` | Format the backend code in place with oxfmt |
+| `dev:event-service` | The Event Service on Node on http://localhost:8000, reloading when a file changes, with dev sign-in turned on |
+| `test:event-service` | Event Service tests (Vitest on Node) against `geekykey_test`, run once |
+| `format:event-service` | Format the Event Service code in place with oxfmt |
 | `db:up` | Start TiDB in Docker, then create and migrate `geekykey_dev` and `geekykey_test` |
 | `db:reset` | Throw away all TiDB data, then start again with empty, migrated databases |
 | `db:down` | Stop TiDB, keeping its data for the next `db:up` |
@@ -320,8 +320,8 @@ pnpm dev:frontend                          root package.json
 ```
 
 The backend tasks follow the same chain, ending in a script from
-`apps/backend/package.json`. For `mise run dev:backend`, that script is
-`node --watch scripts/dev-server.ts`, which reads `apps/backend/dev.env`, where dev
+`apps/event-service/package.json`. For `mise run dev:event-service`, that script is
+`node --watch scripts/dev-server.ts`, which reads `apps/event-service/dev.env`, where dev
 sign-in is turned on.
 `db:up`, `db:reset` and `db:down` are the exception: their commands are written out in the
 root `package.json`, because they start and stop TiDB with `docker compose` and the root
@@ -341,7 +341,7 @@ To change one of the backend's settings for a single run, set it in front of the
 command:
 
 ```bash
-TAP_COOLDOWN_SECONDS=0 mise run dev:backend
+TAP_COOLDOWN_SECONDS=0 mise run dev:event-service
 ```
 
 A setting in your shell wins over the backend's settings files. See [Settings](#settings).
@@ -364,13 +364,13 @@ description = "Frontend lint (eslint)"
 run = "pnpm --filter @geekykey/frontend lint"
 ```
 
-Add `dir = "apps/backend"` if the command has to run from a particular folder.
+Add `dir = "apps/event-service"` if the command has to run from a particular folder.
 
 ## Running the backend
 
 The backend is a Node server. In production, Google Cloud Run runs it from a container
 image (see [The image](#the-image)). On your laptop, Node runs it straight from the
-TypeScript in `apps/backend/src`, and its database is TiDB in Docker.
+TypeScript in `apps/event-service/src`, and its database is TiDB in Docker.
 
 Do steps 1 and 2 of [Running the frontend](#running-the-frontend) first.
 
@@ -405,12 +405,12 @@ that sends a tap with it. Keep this terminal open: you need that command in step
 Open a second terminal, `cd` into the repo, then:
 
 ```bash
-mise run dev:backend     # http://localhost:8000
+mise run dev:event-service   # http://localhost:8000
 ```
 
 It is ready when it prints a line with `"message":"server_started"`. Leave it running: it
-restarts when you save a file under `apps/backend/src`. To stop it, press Ctrl-C. pnpm may
-print an error as it stops; that is normal.
+restarts when you save a file under `apps/event-service/src`. To stop it, press Ctrl-C.
+pnpm may print an error as it stops; that is normal.
 
 ### 4. Send a tap
 
@@ -459,19 +459,20 @@ runs. It holds two databases: `geekykey_dev` for the dev server and the seed, an
 ### Settings
 
 Every setting is an environment variable, read once when the backend starts.
-`apps/backend/src/config.ts` explains each one and gives its default. The one you are most
-likely to change:
+`apps/event-service/src/config.ts` explains each one and gives its default. The one you are
+most likely to change:
 
 | Setting | Default | Why you would change it |
 |---|---|---|
 | `TAP_COOLDOWN_SECONDS` | `300` | Set it to `0` so repeat taps at the same station count while you test |
 
-`mise run dev:backend` reads them from three places. Each one wins over the one before:
+`mise run dev:event-service` reads them from three places. Each one wins over the one
+before:
 
-1. `apps/backend/dev.env`, which is committed. It turns dev sign-in on and points the
+1. `apps/event-service/dev.env`, which is committed. It turns dev sign-in on and points the
    backend at `geekykey_dev`. Change it only for something everyone should get.
-2. `apps/backend/.env`, your own, which git ignores. Copy `.env.example` to start it, and
-   put a setting there to keep it, such as `TAP_COOLDOWN_SECONDS=0`.
+2. `apps/event-service/.env`, your own, which git ignores. Copy `.env.example` to start it,
+   and put a setting there to keep it, such as `TAP_COOLDOWN_SECONDS=0`.
 3. Your shell, for one run, as in
    [Passing arguments and settings](#passing-arguments-and-settings).
 
@@ -506,11 +507,11 @@ your laptop, such as `127.0.0.1`.
 These work from any folder in the repo:
 
 ```bash
-mise run test:backend      # tests, run once. TiDB must be up (mise run db:up)
-mise run format:backend    # format the code in place (oxfmt)
+mise run test:event-service     # tests, run once. TiDB must be up (mise run db:up)
+mise run format:event-service   # format the code in place (oxfmt)
 ```
 
-For the rest, `cd apps/backend` first. If your shell is activated, you can leave off
+For the rest, `cd apps/event-service` first. If your shell is activated, you can leave off
 `mise exec --`.
 
 ```bash
@@ -534,11 +535,11 @@ The comment at the top of each script in `scripts/` says what it does.
 
 ### The image
 
-Cloud Run runs the backend from a container image, which `apps/backend/Dockerfile`
-builds. Docker Desktop must be running. From `apps/backend`:
+Cloud Run runs the backend from a container image, which `apps/event-service/Dockerfile`
+builds. Docker Desktop must be running. From `apps/event-service`:
 
 ```bash
-mise exec -- pnpm build:image     # builds the image geekykey-backend
+mise exec -- pnpm build:image     # builds the image geekykey-event-service
 ```
 
 To start it, give it the three settings it can't start without, as Cloud Run does:
@@ -548,7 +549,7 @@ docker run --rm --publish 8001:8000 \
   --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_dev \
   --env SESSION_SECRET=any-16-characters-or-more \
   --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
-  geekykey-backend
+  geekykey-event-service
 ```
 
 Then http://localhost:8001/api/health answers. Inside the container, `127.0.0.1` is the
@@ -625,27 +626,27 @@ mise run build:geekykey-web
 # Dependency audit job
 mise exec -- pnpm audit --audit-level=high
 
-# Backend job (Docker Desktop must be running)
-mise exec -- pnpm --filter @geekykey/backend lint
-mise exec -- pnpm --filter @geekykey/backend format:check
-mise exec -- pnpm --filter @geekykey/backend typecheck
-mise exec -- pnpm --filter @geekykey/handoff lint                # and the same four for the hand-off package
+# Event Service job (Docker Desktop must be running)
+mise exec -- pnpm --filter @geekykey/event-service lint
+mise exec -- pnpm --filter @geekykey/event-service format:check
+mise exec -- pnpm --filter @geekykey/event-service typecheck
+mise exec -- pnpm --filter @geekykey/handoff lint                     # and the same four for the hand-off package
 mise exec -- pnpm --filter @geekykey/handoff format:check
 mise exec -- pnpm --filter @geekykey/handoff typecheck
 mise exec -- pnpm --filter @geekykey/handoff test
 mise run db:up
-mise run test:backend
-mise exec -- pnpm --filter @geekykey/backend build:image        # the image builds
-docker run --detach --rm --name backend --publish 8000:8000 \
+mise run test:event-service
+mise exec -- pnpm --filter @geekykey/event-service build:image        # the image builds
+docker run --detach --rm --name event-service --publish 8000:8000 \
   --env DATABASE_URL=mysql://geekykey:geekykey@127.0.0.1:4000/geekykey_test \
   --env SESSION_SECRET=ci-stand-in-not-a-secret \
   --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
   --env EVENT_SERVICE_KEY=$(openssl rand -hex 32) \
   --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"https://event-api.geekshacking.com"}]' \
-  geekykey-backend
+  geekykey-event-service
 curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
-docker stop backend
-mise exec -- pnpm --filter @geekykey/backend check:migrations   # every schema change has its migration
+docker stop event-service
+mise exec -- pnpm --filter @geekykey/event-service check:migrations   # every schema change has its migration
 
 # Updates site job
 mise run build:updates
@@ -655,9 +656,9 @@ mise run build:updates
 out of date: run `mise run install` and commit what changed.
 
 When `check:migrations` fails, run it on your laptop. It usually writes the missing
-migration into `apps/backend/drizzle/`: look it over and commit it. If it writes nothing,
-you probably renamed something, so run `mise exec -- pnpm db:generate` from `apps/backend`
-and answer its question about the rename.
+migration into `apps/event-service/drizzle/`: look it over and commit it. If it writes
+nothing, you probably renamed something, so run `mise exec -- pnpm db:generate` from
+`apps/event-service` and answer its question about the rename.
 
 ## Deploying
 
@@ -668,8 +669,8 @@ showcase:
 
 | Part | Built from | Runs on | Address |
 |---|---|---|---|
-| `event-service` | `apps/backend` | Google Cloud Run | `https://event-api.geekshacking.com`, behind Cloudflare's proxy, and its `run.app` address |
-| `event-service-staging`, the staging copy | `apps/backend` | Google Cloud Run | Its `run.app` address only, listed in `infra/README.md`, step 5 |
+| `event-service` | `apps/event-service` | Google Cloud Run | `https://event-api.geekshacking.com`, behind Cloudflare's proxy, and its `run.app` address |
+| `event-service-staging`, the staging copy | `apps/event-service` | Google Cloud Run | Its `run.app` address only, listed in `infra/README.md`, step 5 |
 | `geekykey-service`, coming at checkpoint 4 | `apps/geekykey-service` | A Cloudflare Worker | `https://key-api.geekshacking.com` |
 | `geekykey-web` and `event-web`, the two sets of screens, coming at checkpoint 5 | `apps/geekykey-web` and `apps/event-web` (today's `apps/frontend`) | Cloudflare Workers | `https://key.geekshacking.com` and `https://event.geekshacking.com` |
 
@@ -686,7 +687,7 @@ a commit pushed straight to `main`, a docs change included. `main` isn't protect
 anyone who can push to it deploys. Nobody runs a deploy command. Each push starts a run of
 the deploy workflow, listed under Actions, then Deploy, which:
 
-1. checks `apps/backend`, with the same checks as CI, and stops there if one fails;
+1. checks `apps/event-service`, with the same checks as CI, and stops there if one fails;
 2. signs in to Google Cloud as production's deploy account, which only a run on `main` can
    use;
 3. builds the image and pushes it to Artifact Registry;
@@ -756,7 +757,7 @@ Nobody deploys from their laptop. Run the deploy workflow by hand, from any bran
 1. On GitHub, open Actions, then Deploy, then Run workflow.
 2. Under "Use workflow from", pick your branch, and press Run workflow.
 
-The run checks `apps/backend` first,
+The run checks `apps/event-service` first,
 with the same checks as CI, and stops there if one fails. Then it signs in to Google Cloud
 as staging's deploy account, and:
 
@@ -785,7 +786,7 @@ Things to know:
   GeeksHacking's cluster gets a free amount each month. Staging's queries use the same
   allowance as production's.
 - **A test station.** Adam makes one in `geekykey_staging` from his laptop, with staging's
-  migration login. From `apps/backend`:
+  migration login. From `apps/event-service`:
 
   ```bash
   mise exec -- pnpm db:test-station --production --env-file ~/.config/geekykey/tidb-staging-migration.env
@@ -873,10 +874,10 @@ client secret, after the showcase. The migration spec, section 5.2, has the full
 3. **Staging first.** A change to how the server starts, its settings, its Google Cloud
    setup or how it reaches the database runs on `event-service-staging` before it merges.
 4. **The freeze.** From Wed 11 Nov, a week before the showcase, only fixes merge to
-   `apps/backend`. The last merge of all is on Mon 16 Nov. From then until the showcase ends on
-   Wed 18 Nov, nothing goes onto `main` except a fix Adam approves and announces in the
-   team chat, so nothing deploys the night before. Every push migrates, so the freeze
-   stops migrations too.
+   `apps/event-service`. The last merge of all is on Mon 16 Nov. From then until the
+   showcase ends on Wed 18 Nov, nothing goes onto `main` except a fix Adam approves and
+   announces in the team chat, so nothing deploys the night before. Every push migrates,
+   so the freeze stops migrations too.
 5. **Rolling back.** The Event Service is rolled back by revision, then the bad commit is
    reverted, as in [Rolling back](#rolling-back). A Worker, from checkpoint 4 for the
    GeekyKey Service and checkpoint 5 for the screens, is rolled back by reverting the

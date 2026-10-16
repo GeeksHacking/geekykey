@@ -166,7 +166,7 @@ importers:
 
   .: {}
 
-  apps/backend:
+  apps/event-service:
     dependencies:
       '@geekykey/handoff':
         specifier: workspace:*

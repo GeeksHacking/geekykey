@@ -4,7 +4,7 @@
  * GeekyKey admin screens exist. It prints the station key once, and the
  * token's UID: keep both outside the repo.
  *
- *   cd apps/backend
+ *   cd apps/event-service
  *   mise exec -- pnpm db:test-station --production --env-file ~/.config/geekykey/tidb-migration.env
  *
  * Without --production it adds them to geekykey_dev instead, to try it first.

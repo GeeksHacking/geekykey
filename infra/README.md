@@ -1,6 +1,6 @@
 # The Event Service's Google Cloud setup
 
-This is the runbook for everything the Event Service (`apps/backend` until the split) uses
+This is the runbook for everything the Event Service (`apps/event-service`) uses
 on Google Cloud. Nothing here is infrastructure as code yet. Julian asked on 8 Oct 2026
 for the services to be set up by hand while the architecture settles, and turned into code
 later. So every `gcloud` command that made something is written down here, in the order it
@@ -31,7 +31,7 @@ the console. The next deploy sets them, and anything changed by hand is overwrit
 |---|---|---|
 | Project | `geekykey-b035a` ("GeekyKey") | Our own project, on GeeksHacking's billing account. It is also our Firebase project |
 | Region | `asia-southeast1` | Singapore, where TiDB is |
-| Image repository | `event-service` | Holds the backend's images, which the deploy builds |
+| Image repository | `event-service` | Holds the Event Service's images, which the deploy builds |
 | Cloud Run services | `event-service`, `event-service-staging` | Production at `event-api.geekshacking.com`, and staging at its `run.app` address only |
 | Service accounts the services run as | `event-service`, `event-service-staging` | Each can read only its own service's `app-secrets` |
 | Service accounts the deploy signs in as | `event-service-deployer`, `event-service-staging-deployer` | Production's works only from `main`. Staging's works from any branch and can't touch production |
@@ -550,7 +550,7 @@ The values reach `jq` as environment variables, which only your own account can 
 as arguments, which any account on the laptop can list, and `jq -j` writes no newline:
 
 ```bash
-cd apps/backend   # from the repo's root: db:logins is the backend's script
+cd apps/event-service   # from the repo's root: db:logins is the Event Service's script
 
 # $1 is the service; the rest go to db:logins.
 app_secrets() {

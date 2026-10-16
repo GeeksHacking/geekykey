@@ -4,7 +4,7 @@
  * with (logins.ts says what each may do). Adam runs it from his laptop,
  * because it needs the cluster's root login:
  *
- *   cd apps/backend
+ *   cd apps/event-service
  *   mise exec -- pnpm db:logins --env-file ~/.config/geekykey/tidb.env
  *
  * It saves the migration login to ~/.config/geekykey/tidb-migration.env,
