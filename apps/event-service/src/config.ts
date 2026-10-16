@@ -31,7 +31,7 @@ export interface Config {
    * portal. Local development only, never true in production.
    */
   devAuthEnabled: boolean;
-  /** HMAC key the gk_session cookie is signed with. Changing it signs everyone out. */
+  /** HMAC key the event_session cookie is signed with. Changing it signs everyone out. */
   sessionSecret: string;
   /** `Secure` on the session cookie. A Secure cookie is never sent back over plain http. */
   sessionCookieSecure: boolean;

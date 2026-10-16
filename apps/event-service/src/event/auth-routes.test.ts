@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { SESSION_COOKIE } from "./session-auth.ts";
 import { setupFixture, testApp } from "../test-helpers.ts";
 
 /** The backend as `pnpm dev` starts it, with dev-login on. */
@@ -27,15 +26,35 @@ async function harness({ production = false } = {}) {
   return { ...fx, post };
 }
 
-test("dev-login signs in a seeded user and sets the session cookie", async () => {
+test("dev-login signs in a seeded user and sets event_session", async () => {
   const { post, userId } = await harness();
   const res = await post("/auth/dev-login", { user_id: userId });
   assert.equal(res.status, 204);
 
   const cookie = res.headers.get("Set-Cookie") ?? "";
-  assert.match(cookie, new RegExp(`^${SESSION_COOKIE}=`));
+  assert.match(cookie, /^event_session=/);
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /SameSite=Lax/);
+  assert.match(cookie, /Path=\//);
+  assert.doesNotMatch(cookie, /Domain=/);
+});
+
+test("the cookie dev-login sets is what /me reads, and gk_session is not", async () => {
+  const { post, userId } = await harness();
+  const res = await post("/auth/dev-login", { user_id: userId });
+  // Only the name=value pair travels back, the way a browser sends it.
+  const cookie = (res.headers.get("Set-Cookie") ?? "").split(";")[0]!;
+  const value = cookie.slice(cookie.indexOf("=") + 1);
+
+  const me = await devApp.request("/api/v1/me", { headers: { Cookie: cookie } });
+  assert.equal(me.status, 200);
+  assert.equal(((await me.json()) as { user: { id: string } }).user.id, userId);
+
+  // The GeekyKey Service's cookie, which shares localhost with this one, signs nobody in here.
+  const other = await devApp.request("/api/v1/me", {
+    headers: { Cookie: `gk_session=${value}` },
+  });
+  assert.equal(other.status, 401);
 });
 
 test("dev-login answers not_found for a user who was never seeded", async () => {
@@ -65,13 +84,13 @@ test("dev-login does not exist unless dev auth is enabled", async () => {
   assert.equal(res.headers.get("Set-Cookie"), null);
 });
 
-test("logout clears the cookie, whether or not anyone was signed in", async () => {
+test("logout clears event_session, whether or not anyone was signed in", async () => {
   const { post } = await harness();
   const res = await post("/auth/logout");
   assert.equal(res.status, 204);
 
   const cookie = res.headers.get("Set-Cookie") ?? "";
-  assert.match(cookie, new RegExp(`^${SESSION_COOKIE}=;`));
+  assert.match(cookie, /^event_session=;/);
   assert.match(cookie, /Max-Age=0/);
 });
 

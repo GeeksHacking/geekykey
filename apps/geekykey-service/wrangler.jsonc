@@ -4,9 +4,9 @@
 //
 // Settings live here and change through a reviewed pull request. This file is
 // the source of truth: a deploy overwrites settings and routes changed in the
-// Cloudflare dashboard. Secrets never live here: locally they go in the
-// gitignored .dev.vars (copy .dev.vars.example), and in production Julian sets
-// them on the Worker itself.
+// Cloudflare dashboard. Secrets never live here: locally `pnpm dev` reads
+// stand-ins from the committed dev.env, and in production Julian sets them on
+// the Worker itself.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // The Worker Julian created on 1 Oct 2026, which holds key-api.
@@ -29,7 +29,7 @@
   // on the Worker, and src/config.ts stops it starting without one. Each
   // Event Service in EVENT_SERVICES has its own key, named after its ID, so
   // adding one adds its key here too. Listing them also changes `wrangler
-  // dev`: from .dev.vars it takes only these and the settings under `vars`,
+  // dev`: from dev.env it takes only these and the settings under `vars`,
   // and ignores anything else.
   "secrets": {
     "required": ["SESSION_SECRET", "CLAIMS_STAND_IN_KEY", "EVENT_SERVICE_KEY_SHOWCASE"],
@@ -53,7 +53,7 @@
   "vars": {
     // The Event Services whose stations this Worker takes taps from, and
     // hands them to: an ID, a name, and an https:// address with no / at the
-    // end. Locally, .dev.vars points the showcase at http://localhost:8001.
+    // end. Locally, dev.env points the showcase at http://localhost:8001.
     "EVENT_SERVICES": [
       {
         "id": "showcase",
@@ -70,5 +70,7 @@
     // One deadline for a station request's calls out (the API agreement's
     // 11.5). The station waits 5 seconds.
     "TAP_DEADLINE_MS": 4000,
+    // No DEV_AUTH_ENABLED, which adds POST /auth/dev-login: unset is off.
+    // Locally `pnpm dev` turns it on with `wrangler dev --var`.
   },
 }

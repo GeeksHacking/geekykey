@@ -16,6 +16,10 @@ pnpm = "12.5.1"
 description = "Install every workspace package (run from anywhere)"
 run = "pnpm install"
 
+[tasks.dev]
+description = "Both services and both sets of screens: the GeekyKey Service on 8000, the Event Service on 8001, the Event screens on 5173 and the GeekyKey screens on 5174"
+run = "pnpm dev"
+
 # Frontend
 
 [tasks."dev:frontend"]
@@ -81,7 +85,7 @@ run = "pnpm format:event-service"
 # GeekyKey Service
 
 [tasks."dev:geekykey-service"]
-description = "The GeekyKey Service in wrangler dev on http://localhost:8000, reading apps/geekykey-service/.dev.vars"
+description = "The GeekyKey Service in wrangler dev on http://localhost:8000, with dev-login on"
 run = "pnpm dev:geekykey-service"
 
 [tasks."test:geekykey-service"]

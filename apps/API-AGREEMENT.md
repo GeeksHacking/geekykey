@@ -25,7 +25,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | Tag | Meaning |
 |---|---|
-| `Implemented` | Live in `apps/event-service` with tests, as described here. Changes need a pull request that also edits this file. |
+| `Implemented` | Live in `apps/event-service` or `apps/geekykey-service` with tests, as described here. Changes need a pull request that also edits this file. |
 | `Implemented, changes at checkpoint N` | Live today in an older shape. This file describes the shape from checkpoint N, and says what differs until then. |
 | `Checkpoint N` | Built at that checkpoint of the migration plan. The shape is agreed; fields may still be added. |
 
@@ -177,7 +177,7 @@ the session cookie by default.
 | Cookie | Set by | Attributes |
 |---|---|---|
 | `gk_session` | The GeekyKey Service | `HttpOnly`, `SameSite=Lax`, `Path=/`, no `Domain`, and `Secure` outside local development |
-| `event_session` | The Event Service, from checkpoint 4 | The same |
+| `event_session` | The Event Service | The same |
 
 - With no `Domain`, each cookie belongs only to the hostname that set it. The screens cannot
   and should not read it.
@@ -346,7 +346,7 @@ Until checkpoint 4, one server built from `apps/event-service` serves both table
 | GET | `/api/health` | anyone | `Implemented` | Liveness check |
 | POST | `/api/v1/taps` | Station | `Implemented` | Taps, one or a batch |
 | POST | `/api/v1/stations/heartbeat` | Station | `Implemented` | Online light, clock, `reader_ok` |
-| POST | `/auth/dev-login` | local only | `Implemented, changes at checkpoint 4` | Set `gk_session` for a user |
+| POST | `/auth/dev-login` | local only | `Implemented` | Set `gk_session` for any user ID |
 | POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `gk_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
 | GET | `/api/v1/me` | User | `Checkpoint 6` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
@@ -358,13 +358,13 @@ Until checkpoint 4, one server built from `apps/event-service` serves both table
 
 | Method | Path | Caller | Status | Purpose |
 |---|---|---|---|---|
-| GET | `/api/health` | anyone | `Checkpoint 4` | Liveness check |
+| GET | `/api/health` | anyone | `Implemented` | Liveness check |
 | GET | `/geekykey/v1/stations` | GeekyKey Service | `Implemented` | Its registered stations |
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
-| POST | `/auth/dev-login` | local only | `Checkpoint 4` | Set `event_session` for a seeded user |
+| POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `event_session` |
-| POST | `/auth/logout` | browser | `Checkpoint 4` | Clear `event_session` |
+| POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
 | GET | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | The station board |
@@ -550,10 +550,11 @@ Each service has its own set, on its screens' hostname. The GeekyKey Service's s
 the Event Service's set `event_session`. Both accept logins from the same Firebase project,
 `geekykey-b035a`, so a user has the same ID in both.
 
-### 7.1 `POST /auth/dev-login` (GeekyKey Service `Implemented, changes at checkpoint 4`, Event Service `Checkpoint 4`)
+### 7.1 `POST /auth/dev-login` (`Implemented`)
 
 Only mounted when the service runs with `DEV_AUTH_ENABLED=true`, from its local development
-settings: for today's backend, the committed `apps/event-service/dev.env`. Never enabled in production.
+settings: the committed `apps/event-service/dev.env` and `apps/geekykey-service/dev.env`, which
+each service's `pnpm dev` reads. Never enabled in production.
 
 **Request**
 
@@ -568,8 +569,6 @@ settings: for today's backend, the committed `apps/event-service/dev.env`. Never
   views can be developed.
 - **The GeekyKey Service** signs in any `user_id`, because it keeps no users. `dev-organizer-1`
   is also on its local GeekyKey admin list, so releasing someone else's token can be developed.
-- Until checkpoint 4, today's backend has one dev-login, which sets `gk_session` for a seeded
-  user and answers `not_found` for anyone else.
 
 ### 7.2 `POST /auth/firebase` (`Checkpoint 5`)
 
@@ -619,7 +618,7 @@ another site can't log someone in.
 **Errors:** `validation_failed`; `invalid_token` (401); `login_unavailable` (503) when Google's
 keys couldn't be fetched, so the token may be fine and the screens offer to try again.
 
-### 7.3 `POST /auth/logout` (GeekyKey Service `Implemented`, Event Service `Checkpoint 4`)
+### 7.3 `POST /auth/logout` (`Implemented`)
 
 **Response `204`**, clears that service's cookie. The screens also call Firebase's `signOut()`,
 so a shared device doesn't stay signed in to Firebase.
@@ -1263,16 +1262,16 @@ There are no GeekyKey admin screens.
 Local setup, from checkpoint 1:
 
 ```
-mise run db:up               # starts TiDB in Docker, and creates and migrates the local databases
-mise run seed                # prints a station key, and creates dev-user-1 and dev-organizer-1
-mise run dev:event-service   # the Event Service on http://localhost:8001
-mise run dev:geekykey-service   # the GeekyKey Service on http://localhost:8000, after copying apps/geekykey-service/.dev.vars.example to .dev.vars
+mise run db:up    # starts TiDB in Docker, and creates and migrates the local databases
+mise run seed     # prints a station key, and creates dev-user-1 and dev-organizer-1
+mise run dev      # pnpm dev: the GeekyKey Service on 8000, the Event Service on 8001,
+                  # the Event screens on 5173 and the GeekyKey screens on 5174
 ```
 
-`mise run dev:event-service` turns on `DEV_AUTH_ENABLED` by itself, so no local settings file is needed. From
-checkpoint 4, one `pnpm dev` at the repo root starts both services and both sets of screens. Then
-`POST /auth/dev-login` with `{"user_id":"dev-user-1"}` from the screens, and every other call on
-that service works.
+Each service's `pnpm dev` turns on `DEV_AUTH_ENABLED` by itself, so no local settings file is
+needed. Then `POST /auth/dev-login` with `{"user_id":"dev-user-1"}` from either set of screens,
+and every other call on that service works. The two cookies have different names, so a sign-in
+on one set of screens leaves the other's alone.
 
 ---
 
@@ -1323,3 +1322,4 @@ Closed on 2026-10-10:
 | 2026-10-15 | Passport settings live apart from the station in today's backend, so the Event Service's `GET /api/v1/me` (8.1) and `POST /api/v1/taps` (6.1) are `Implemented`. A tap at a station without passport settings is stored and answered `no_game`. `stamps` lists only stations with passport settings, oldest settings first, and `recent_taps` gives `station_name` as `null` for any other station. `user.role` comes from the Event Service's organizer list, read when it starts, instead of from the user's row. Every station already registered kept its name, location and points as its passport settings, so its taps are still `accepted`. No shape changes (BAC-35). |
 | 2026-10-16 | Housekeeping, no endpoint or shape changes. The Event Service's code moved from `apps/backend` to `apps/event-service` ahead of checkpoint 4. The table at the top, 7.1's `dev.env` and section 13's local setup name the new folder. `mise run dev:backend` is now `mise run dev:event-service` (BAC-40). |
 | 2026-10-16 | Housekeeping, no endpoint or shape changes. Locally the Event Service now runs on port 8001, as the table at the top already said for checkpoint 4, and the GeekyKey Service on 8000, in `wrangler dev`. Section 13's local setup names the new port, and starts the GeekyKey Service too. Until its own dev-login arrives, the GeekyKey Service on 8000 has no `POST /auth/dev-login` or `POST /auth/logout`. [Event Service keys](#event-service-keys) now states the one exception to `https://`: locally, `http://` to the same machine, as the code already allowed (BAC-41). |
+| 2026-10-16 | Each service signs its own users in locally, as sections 2 and 7 already said for checkpoint 4. The Event Service's session cookie is now `event_session`, not `gk_session`; nobody is signed in on production yet, so the rename signs nobody out. The GeekyKey Service has its own `POST /auth/dev-login` (7.1), which signs in any `user_id` and sets `gk_session`, and its own `POST /auth/logout` (7.3). Dev-login exists on each only with `DEV_AUTH_ENABLED=true`, and logout always. The Event Service's dev-login, logout and `GET /api/health` are `Implemented`, and the GeekyKey Service's dev-login no longer "changes at checkpoint 4". Section 13's local setup is one `pnpm dev` at the repo root, which starts all four on 8000, 8001, 5173 and 5174 with no settings file. The status legend's `Implemented` names both services' folders. No shape changes (BAC-42). |

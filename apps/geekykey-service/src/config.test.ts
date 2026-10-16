@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { env } from "cloudflare:test";
 import { test } from "vitest";
 import { ConfigError, loadConfig } from "./config.ts";
+import devEnv from "../dev.env?raw";
 
 // The settings the Worker reads once as it starts (the migration spec's 5.1),
 // and the ones that stop it starting.
@@ -25,6 +26,14 @@ function settings(changes: Record<string, unknown> = {}): Record<string, unknown
     EVENT_SERVICE_KEY_SHOWCASE,
     ...changes,
   };
+}
+
+/** The `NAME=value` lines of an env file, leaving out blank lines and comments. */
+function parseEnv(text: string): Record<string, string> {
+  const lines = text.split("\n").filter((line) => line.trim() !== "" && !line.startsWith("#"));
+  return Object.fromEntries(
+    lines.map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]),
+  );
 }
 
 /** Asserts the settings stop the Worker starting, with an error naming `name` and none of `settings`' values. */
@@ -68,11 +77,13 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
     geekykeyAdmins: [],
     maxTapsPerRequest: 500,
     tapDeadlineMs: 4000,
+    devAuthEnabled: false,
     sessionSecret: SESSION_SECRET,
+    sessionCookieSecure: true,
   });
 });
 
-test("settings from .dev.vars, which are all strings, are read the same", () => {
+test("settings from dev.env, which are all strings, are read the same", () => {
   const config = loadConfig(
     settings({
       EVENT_SERVICES:
@@ -81,6 +92,7 @@ test("settings from .dev.vars, which are all strings, are read the same", () => 
       GEEKYKEY_ADMINS: '["dev-organizer-1"]',
       MAX_TAPS_PER_REQUEST: "500",
       TAP_DEADLINE_MS: "4000",
+      DEV_AUTH_ENABLED: "true",
     }),
   );
   assert.equal(config.eventServices[0]!.url, "http://localhost:8001");
@@ -88,6 +100,27 @@ test("settings from .dev.vars, which are all strings, are read the same", () => 
   assert.deepEqual(config.geekykeyAdmins, ["dev-organizer-1"]);
   assert.equal(config.maxTapsPerRequest, 500);
   assert.equal(config.tapDeadlineMs, 4000);
+  assert.equal(config.devAuthEnabled, true);
+});
+
+test("without DEV_AUTH_ENABLED, as in production, dev-login is off and the cookie is Secure", () => {
+  const config = loadConfig(settings());
+  assert.equal(config.devAuthEnabled, false);
+  assert.equal(config.sessionCookieSecure, true);
+  assert.equal(loadConfig(settings({ DEV_AUTH_ENABLED: "false" })).devAuthEnabled, false);
+});
+
+test("dev.env, with the DEV_AUTH_ENABLED `pnpm dev` adds, starts the Worker with dev-login on", () => {
+  // `wrangler dev` takes from dev.env only names wrangler.jsonc lists, so
+  // `pnpm dev` passes DEV_AUTH_ENABLED with --var instead.
+  assert.ok(!("DEV_AUTH_ENABLED" in parseEnv(devEnv)), "dev.env sets DEV_AUTH_ENABLED");
+  const config = loadConfig({ ...env, ...parseEnv(devEnv), DEV_AUTH_ENABLED: "true" });
+  assert.equal(config.devAuthEnabled, true);
+  // On http://localhost, where a Secure cookie never comes back.
+  assert.equal(config.sessionCookieSecure, false);
+  assert.equal(config.eventServices[0]!.url, "http://localhost:8001");
+  assert.equal(config.claimsStandIn.url, "http://localhost:8001/claims-stand-in/v1");
+  assert.deepEqual(config.geekykeyAdmins, ["dev-organizer-1"]);
 });
 
 test("without a secret it needs, the Worker doesn't start, and says which", () => {
@@ -182,6 +215,8 @@ test("a missing or malformed setting stops the Worker, and says which", () => {
     ["TAP_DEADLINE_MS", undefined],
     ["TAP_DEADLINE_MS", 1.5],
     ["TAP_DEADLINE_MS", -1],
+    ["DEV_AUTH_ENABLED", "yes"],
+    ["DEV_AUTH_ENABLED", 1],
   ] as const) {
     assertRefused({ [name]: value }, name);
   }
