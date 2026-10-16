@@ -13,7 +13,7 @@ import type {
 import { parseEventStationBoardResponse, parseMeResponse } from "@/api/schemas";
 
 export interface HttpClientOptions {
-  /** Prefix for every path. Empty in dev: Vite proxies /api and /auth to the backend on :8000. */
+  /** Prefix for every path. Empty in dev: Vite proxies /api and /auth to the Event Service on :8001. */
   baseUrl?: string;
   /** Maximum time to wait for one HTTP exchange. */
   requestTimeoutMs?: number;
