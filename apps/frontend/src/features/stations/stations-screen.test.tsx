@@ -41,6 +41,41 @@ describe("StationsScreen", () => {
     ).toBeInTheDocument();
   });
 
+  // FRO-24's first acceptance criterion: a new station joins the board as "Not in the
+  // passport", with the button that adds its settings. The test above creates one and stops
+  // at the dialog, so nothing had proved the board picks it up. use-create-station.ts
+  // invalidates stationBoard, and this is what pins that.
+  it("puts a station added through the dialog on the board, not in the passport", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    const { Providers } = createTestProviders(api);
+    const user = userEvent.setup();
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+
+    // Before the create, to be sure the row below is the one this test added.
+    expect((await screen.findAllByText("Not in the passport")).length).toBeGreaterThan(1);
+
+    await user.click(screen.getByRole("button", { name: "Add station" }));
+    await user.type(screen.getByLabelText("Label"), "Reader 9");
+    await user.click(screen.getByRole("button", { name: "Create station" }));
+    await user.click(await screen.findByRole("button", { name: "Done" }));
+
+    const row = await waitFor(() => {
+      const found = screen
+        .getAllByRole("row")
+        .find((candidate) => (candidate.textContent ?? "").includes("Reader 9"));
+      expect(found).toBeDefined();
+      return found as HTMLElement;
+    });
+
+    expect(row).toHaveTextContent("Not in the passport");
+    expect(screen.getByRole("button", { name: "Add to passport Reader 9" })).toBeInTheDocument();
+  });
+
   it("puts the mock's problem stations first, so trouble is at the top", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);
