@@ -1036,3 +1036,13 @@
     station's taps and heartbeats and passes them to the Event Service over HTTP, with the same
     answers as before. CI checks the Worker on every pull request, and nothing deploys it until
     Julian connects it at key-api.
+
+- id: smoke-test-every-pull-request
+  date: 2026-10-17
+  area: tooling
+  change: >-
+    Every pull request now starts both services together in CI and sends a station's taps and a
+    heartbeat through the GeekyKey Service's Worker to the Event Service. The check then reads the
+    database: the Event Service must store a claimed token's tap under its owner's user ID, store
+    nothing for an unclaimed token, and record that the heartbeat came. When the two services
+    hold different keys, the check fails and names the step that broke.
