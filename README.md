@@ -117,7 +117,8 @@ apps/event-service/
 │   └── lib/               small helpers every area uses (validation, the no-caching header, log lines,
 │                          token UIDs, and the key check on requests between the areas)
 ├── drizzle/           SQL migrations generated from the two schema files, for the one database
-├── scripts/           Node scripts for the dev server, the database tasks, the seed, and the migration check
+├── scripts/           Node scripts for the dev server, the database tasks, the seed, the migration
+│                      check, and the end-to-end smoke test
 ├── test-support/      test setup, and a proxy that breaks database connections on purpose
 ├── Dockerfile         builds the image Cloud Run runs
 ├── dev.env            the settings `mise run dev:event-service` starts with, committed
@@ -324,6 +325,7 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `dev:geekykey-service` | The GeekyKey Service in `wrangler dev` on http://localhost:8000, with its settings from `apps/geekykey-service/dev.env`, where dev sign-in is turned on |
 | `test:geekykey-service` | GeekyKey Service tests (Vitest inside workerd), run once. No database needed |
 | `format:geekykey-service` | Format the GeekyKey Service code in place with oxfmt |
+| `test:smoke` | Start both services on 8100 and 8101, then send a station's tap and heartbeat through the Worker and check `geekykey_test`. Needs `db:up` first |
 | `db:up` | Start TiDB in Docker, then create and migrate `geekykey_dev` and `geekykey_test` |
 | `db:reset` | Throw away all TiDB data, then start again with empty, migrated databases |
 | `db:down` | Stop TiDB, keeping its data for the next `db:up` |
@@ -718,6 +720,10 @@ docker run --detach --rm --name event-service --publish 8000:8000 \
 curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
 docker stop event-service
 mise exec -- pnpm --filter @geekykey/event-service check:migrations   # every schema change has its migration
+
+# End-to-end smoke test job (Docker Desktop must be running)
+mise run db:up
+mise run test:smoke
 
 # Updates site job
 mise run build:updates

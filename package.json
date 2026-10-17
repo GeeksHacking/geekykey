@@ -15,6 +15,7 @@
     "dev:geekykey-service": "pnpm --filter @geekykey/geekykey-service dev",
     "test:geekykey-service": "pnpm --filter @geekykey/geekykey-service test",
     "format:geekykey-service": "pnpm --filter @geekykey/geekykey-service format",
+    "test:smoke": "pnpm --filter @geekykey/event-service test:smoke",
     "dev:frontend": "pnpm --filter @geekykey/frontend dev",
     "build:frontend": "pnpm --filter @geekykey/frontend build",
     "test:frontend": "pnpm --filter @geekykey/frontend test",
