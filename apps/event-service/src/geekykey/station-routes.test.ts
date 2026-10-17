@@ -363,10 +363,14 @@ async function acceptEach({ body }: HandOff) {
 test("the hand-off goes to the Event Service with its key, the station and each owner", async () => {
   const { target, handOffs } = withEventService(acceptEach);
   const { post, uid, stationId, userId } = await harness(target);
+  // An hour ago, as a station 8 hours ahead of UTC writes it, so the tap is
+  // always inside the 7 days a tapped_at is kept for.
+  const tappedAt = new Date(Math.floor(Date.now() / 1000) * 1000 - 60 * 60 * 1000);
+  const tappedAtPlus8 = `${new Date(tappedAt.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 19)}+08:00`;
   loggedLines();
   await post({
     taps: [
-      { client_tap_id: "t1", uid, tapped_at: "2026-10-10T09:00:00+08:00" },
+      { client_tap_id: "t1", uid, tapped_at: tappedAtPlus8 },
       { client_tap_id: "t2", uid: "DEADBEEF" },
       { client_tap_id: "t3", uid },
     ],
@@ -380,7 +384,7 @@ test("the hand-off goes to the Event Service with its key, the station and each 
         station_id: stationId,
         // Not the token nobody owns, and never a UID.
         taps: [
-          { client_tap_id: "t1", user_id: userId, tapped_at: "2026-10-10T01:00:00.000Z" },
+          { client_tap_id: "t1", user_id: userId, tapped_at: tappedAt.toISOString() },
           { client_tap_id: "t3", user_id: userId, tapped_at: null },
         ],
       },

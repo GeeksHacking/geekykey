@@ -226,10 +226,14 @@ test("the owners are asked for with the stand-in's key, once for each UID", asyn
 
 test("the hand-off goes to the Event Service with its key, the station and each owner", async () => {
   const { config, post, sentTo } = await harness();
+  // An hour ago, as a station 8 hours ahead of UTC writes it, so the tap is
+  // always inside the 7 days a tapped_at is kept for.
+  const tappedAt = new Date(Math.floor(Date.now() / 1000) * 1000 - 60 * 60 * 1000);
+  const tappedAtPlus8 = `${new Date(tappedAt.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 19)}+08:00`;
   loggedLines();
   await post({
     taps: [
-      { client_tap_id: "t1", uid: UID, tapped_at: "2026-10-10T09:00:00+08:00" },
+      { client_tap_id: "t1", uid: UID, tapped_at: tappedAtPlus8 },
       { client_tap_id: "t2", uid: "DEADBEEF" },
       { client_tap_id: "t3", uid: UID },
     ],
@@ -246,7 +250,7 @@ test("the hand-off goes to the Event Service with its key, the station and each 
         station_id: STATION_ID,
         // Not the token nobody owns, and never a UID.
         taps: [
-          { client_tap_id: "t1", user_id: USER_ID, tapped_at: "2026-10-10T01:00:00.000Z" },
+          { client_tap_id: "t1", user_id: USER_ID, tapped_at: tappedAt.toISOString() },
           { client_tap_id: "t3", user_id: USER_ID, tapped_at: null },
         ],
       },
