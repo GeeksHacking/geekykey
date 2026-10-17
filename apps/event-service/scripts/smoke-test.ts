@@ -105,7 +105,7 @@ before(async () => {
   const workerSettings = {
     SESSION_SECRET: randomKey(),
     CLAIMS_STAND_IN_KEY: claimsStandInKey,
-    EVENT_SERVICE_KEY_SHOWCASE: randomKey(),
+    EVENT_SERVICE_KEY_SHOWCASE: eventServiceKey,
     EVENT_SERVICES: JSON.stringify([
       { id: "showcase", name: "Capstone Showcase", url: eventServiceUrl },
     ]),
