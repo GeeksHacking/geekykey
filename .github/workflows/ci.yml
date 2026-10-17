@@ -141,6 +141,38 @@ jobs:
     name: Event Service
     uses: ./.github/workflows/event-service.yml
 
+  # Both services together: the Event Service on Node and the Worker in
+  # `wrangler dev`, with a station's tap and heartbeat sent through the
+  # Worker and read back from the database. It runs on every pull request,
+  # whichever app it touches, since a change on either side can break the
+  # hand-off between them. apps/event-service/scripts/smoke-test.ts has the
+  # checks.
+  smoke-test:
+    name: End-to-end smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Wrangler sends anonymous usage data unless told not to.
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.7.12
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # TiDB in Docker from the root compose.yaml, with geekykey_test created
+      # and migrated, the same way as on a laptop.
+      - name: Start TiDB
+        run: pnpm db:up
+
+      - name: Smoke test
+        run: pnpm test:smoke
+
   updates:
     name: Updates site
     runs-on: ubuntu-latest

@@ -96,6 +96,10 @@ run = "pnpm test:geekykey-service"
 description = "Format the GeekyKey Service code in place (oxfmt)"
 run = "pnpm format:geekykey-service"
 
+[tasks."test:smoke"]
+description = "End-to-end smoke test: a station's tap and heartbeat through both services to geekykey_test"
+run = "pnpm test:smoke"
+
 # TiDB in Docker for apps/event-service, from the root compose.yaml. Docker
 # must be running first.
 
