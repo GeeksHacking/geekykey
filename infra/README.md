@@ -651,12 +651,14 @@ Variables and Secrets. Julian adds each as the Secret type, not as text:
 | `SESSION_SECRET` | A new random value of at least 32 characters, from a password generator, which nobody keeps |
 
 **Then the build.** On the same Worker, Settings, then Builds, then Connect, with this
-repo:
+repo. The form saves whatever is typed without checking it: a stray `/*`, comma or new line
+stays in the value, so each one is typed exactly as below, with nothing around it. The watch
+paths aren't on the Connect form. They appear under Settings, then Builds, once it's saved.
 
 | Setting | Value | Why |
 |---|---|---|
 | Branch | `main` | Only reviewed code deploys |
-| Non-production branch builds | Off | The Worker has no preview URLs (`preview_urls` is `false`) |
+| Enable Preview builds | Unticked | The Worker has no preview URLs (`preview_urls` is `false`) |
 | Root directory | `apps/geekykey-service` | Where its `wrangler.jsonc` is, and where both commands run |
 | Build command | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/geekykey-service...` | Installs from the repo's root, where the lockfile is, only what this Worker needs (the trailing `...` takes in `packages/handoff`), and fails rather than change the lockfile, as CI does |
 | Deploy command | `pnpm exec wrangler deploy` | The Wrangler version in its `package.json` |
@@ -668,11 +670,20 @@ repo:
 | Build variable `WRANGLER_SEND_METRICS` | `false` | Wrangler sends anonymous usage data unless told not to |
 | API token | The one Workers Builds makes | |
 
-Adam tried the build command on a clean copy of the repo on 16 Oct 2026: it installs 128
-packages, and `wrangler deploy --dry-run` then bundles the Worker. Whether the build image
-runs pnpm 12.5.1 from `PNPM_VERSION` is only known once the first build has run. If its log
-shows another version, or the install fails, Julian changes the build and this table changes
-with it.
+**Then the first build.** Connecting starts no build. The first one runs on the next merge
+to `main` that touches a watch path, so once Julian has connected the Worker, Adam merges a
+pull request that changes something in `apps/geekykey-service`. Julian sees the build in the
+Worker's Deployments tab, under View build history, and a failed one can be run again from
+there with Retry build.
+
+Adam rehearsed this build on his own Cloudflare account on 18 Oct 2026, from a fork of the
+repo, with these settings and three made-up secrets. The deploy command was
+`pnpm exec wrangler versions upload` instead, because `key-api.` isn't on his account. The
+build passed in 30 seconds. Its log shows `nodejs@24.21.0, pnpm@12.5.1`, so the build image
+honours both variables, and the install added 127 packages from the lockfile unchanged.
+Wrangler 4.151.0 then uploaded the Worker, 146 KiB gzipped, with a 16 ms start-up. What
+the rehearsal couldn't try is `wrangler deploy` attaching `key-api.`, which only the
+production account can do.
 
 After the first build, the checks are in checkpoint 4 of the migration spec: a test
 station's tap through `key-api.`, and the log check on the Worker's invocation logs.
