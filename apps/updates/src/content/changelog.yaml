@@ -1046,3 +1046,11 @@
     database: the Event Service must store a claimed token's tap under its owner's user ID, store
     nothing for an unclaimed token, and record that the heartbeat came. When the two services
     hold different keys, the check fails and names the step that broke.
+
+- id: worker-build-rehearsed
+  date: 2026-10-18
+  area: tooling
+  change: >-
+    The GeekyKey Service's Worker builds on Cloudflare with the settings Julian will use, tried
+    first on Adam's own account: it installs with the repo's pnpm and Node, and uploads in 30
+    seconds. The runbook now has the dashboard's real labels and says how the first build starts.
