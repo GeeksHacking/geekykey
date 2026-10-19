@@ -1074,3 +1074,15 @@
     no tap from one event reaches another. The trade-offs we accept: anyone with a cable can
     change a station, which they could already do by reading its flash, and the station board
     shows a station turned elsewhere as offline.
+
+- id: checkpoint-4-proof-on-production
+  date: 2026-10-19
+  area: backend
+  change: >-
+    On production, a test station's taps go through the GeekyKey Service at key-api to Cloud Run
+    and come back unknown token, accepted, duplicate and cooldown, and a heartbeat records when
+    the station was last heard from. In the Worker's logs Cloudflare masks the station key, and
+    the keys the Worker sends to Cloud Run never appear. A batch of 500 taps used 18 ms of CPU,
+    over the free plan's 10 ms a request. Zod's checks were most of it, so a change in review runs
+    a plain check first. On a test copy of the Worker it took the median batch from 12 to 15 ms
+    down to 6 or 7 ms.
