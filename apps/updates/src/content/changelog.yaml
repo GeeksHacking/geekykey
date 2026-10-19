@@ -1063,3 +1063,14 @@
     deploys it from main. Julian set its three secrets and connected the build. The first build
     failed because the secrets were in the build's own settings, where only the build can read
     them. Once he moved them onto the Worker, the deploy passed.
+
+- id: station-setup-mode
+  date: 2026-10-19
+  area: firmware
+  change: >-
+    A station now takes a new server address, station key or Wi-Fi network over its USB cable,
+    typed into a terminal, with no reflash. A replaced key keeps the station's saved taps, which
+    count once they are sent. A key from another event sends them first and clears the rest, so
+    no tap from one event reaches another. The trade-offs we accept: anyone with a cable can
+    change a station, which they could already do by reading its flash, and the station board
+    shows a station turned elsewhere as offline.
