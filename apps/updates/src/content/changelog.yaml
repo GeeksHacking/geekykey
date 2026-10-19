@@ -1054,3 +1054,12 @@
     The GeekyKey Service's Worker builds on Cloudflare with the settings Julian will use, tried
     first on Adam's own account: it installs with the repo's pnpm and Node, and uploads in 30
     seconds. The runbook now has the dashboard's real labels and says how the first build starts.
+
+- id: geekykey-service-on-cloudflare
+  date: 2026-10-19
+  area: backend
+  change: >-
+    The GeekyKey Service now runs on Cloudflare at key-api.geekshacking.com, and Workers Builds
+    deploys it from main. Julian set its three secrets and connected the build. The first build
+    failed because the secrets were in the build's own settings, where only the build can read
+    them. Once he moved them onto the Worker, the deploy passed.
