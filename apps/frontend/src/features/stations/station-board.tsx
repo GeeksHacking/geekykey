@@ -15,7 +15,9 @@ import {
 import { EMPTY_CELL, formatDateTime, formatWhen } from "@/lib/format";
 
 import { PassportStationDialog } from "./passport-station-dialog";
+import { ReplaceStationKeyDialog } from "./replace-station-key-dialog";
 import { usePassportStationDialog } from "./use-passport-station-dialog";
+import { useReplaceStationKeyDialog } from "./use-replace-station-key-dialog";
 import {
   hasStationProblem,
   sortStationsByTrouble,
@@ -27,6 +29,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
   // Trouble first, so whoever is at the desk sees the rows that need them (agreement 9.2).
   const sorted = sortStationsByTrouble(stations);
   const passport = usePassportStationDialog();
+  const replaceKey = useReplaceStationKeyDialog();
 
   return (
     <Table>
@@ -83,16 +86,32 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                     ))}
                   </ul>
                 ) : null}
-                <PassportButton
-                  station={station}
-                  onOpen={() => passport.openFor(station.id)}
-                  editing={station.passport !== null}
-                />
+                <div className="flex items-center gap-3">
+                  <PassportButton
+                    station={station}
+                    onOpen={() => passport.openFor(station.id)}
+                    editing={station.passport !== null}
+                  />
+                  {/* FRO-28 says each station has this, with no word about enabled ones, and
+                      spec section 10 has an organizer disable a station that has gone missing
+                      and then replace its key. So it is on every row, disabled included. */}
+                  <ReplaceKeyButton
+                    station={station}
+                    onOpen={() => replaceKey.openFor(station.id)}
+                  />
+                </div>
                 <PassportStationDialog
                   station={station}
                   open={passport.isOpenFor(station.id)}
                   onOpenChange={(open) => {
                     if (!open) passport.close();
+                  }}
+                />
+                <ReplaceStationKeyDialog
+                  station={station}
+                  open={replaceKey.isOpenFor(station.id)}
+                  onOpenChange={(open) => {
+                    if (!open) replaceKey.close();
                   }}
                 />
               </TableCell>
@@ -141,6 +160,30 @@ function PassportButton({
       }`}
     >
       {editing ? "Edit passport settings" : "Add to passport"}
+    </Button>
+  );
+}
+
+/** FRO-28, on 9.8. The link style and the named aria-label match PassportButton above. */
+function ReplaceKeyButton({
+  station,
+  onOpen,
+}: {
+  station: EventStationBoardStation;
+  onOpen: () => void;
+}) {
+  const name = station.passport?.name ?? station.label;
+
+  return (
+    <Button
+      type="button"
+      variant="link"
+      size="sm"
+      className="h-auto px-0 text-xs"
+      onClick={onOpen}
+      aria-label={`Replace key for ${name}`}
+    >
+      Replace key
     </Button>
   );
 }
