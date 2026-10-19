@@ -2,17 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 import { describeError, isApiErrorCode } from "@/api/errors";
 import { ErrorState } from "@/components/layout/error-state";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ReleaseTokenBlock } from "@/components/release-token-block";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatWhen } from "@/lib/format";
@@ -160,7 +150,7 @@ function YouOwnIt({
           <p className="text-sm text-muted-foreground">Claimed {formatWhen(claimedAt)}.</p>
         ) : null}
       </div>
-      <ReleaseBlock release={release} mine />
+      <ReleaseTokenBlock release={release} mine />
     </div>
   );
 }
@@ -181,102 +171,7 @@ function SomeoneElseHasIt({
   return (
     <div className="flex flex-col items-start gap-4">
       <p className="text-base">This token belongs to someone else.</p>
-      {isAdmin ? <ReleaseBlock release={release} ownerId={ownerId} mine={false} /> : null}
-    </div>
-  );
-}
-
-/**
- * Release, behind a confirmation because it cannot be undone: after it anyone can claim
- * the token, so the copy says what still counts (agreement 8.3: taps made with the token
- * before the release still count).
- *
- * `mine` picks whose taps are being counted. The ticket fixes the wording for the owner,
- * where "you" is the person who tapped. A GeekyKey admin releasing someone else's token
- * has made no taps at all, so that view says the same thing without putting words in
- * their mouth.
- */
-function ReleaseButton({
-  release,
-  ownerId,
-  mine,
-}: {
-  release: ReturnType<typeof useReleaseToken>;
-  ownerId?: string | null;
-  mine: boolean;
-}) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        {/* Disabled while the release is in flight, for the reason 8.3 gives for a double
-            click. A second DELETE would come back not_found, which ReleaseError would then
-            read as "someone else claimed this token now", to someone who had just released
-            their own token. */}
-        <Button variant="outline" disabled={release.isPending}>
-          {release.isPending ? "Releasing" : "Release"}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Release this token?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {mine
-              ? "Anyone will be able to claim this token. Taps you've already made still count."
-              : "Anyone will be able to claim this token. The taps already made with it still count."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep it</AlertDialogCancel>
-          {/* Named differently from the trigger, so the two buttons are not the same
-              control twice and a screen reader announces the final action for what it is. */}
-          <AlertDialogAction
-            disabled={release.isPending}
-            onClick={() => release.mutate(ownerId ?? undefined)}
-          >
-            Release token
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-/**
- * A failed release. 8.3's not_found means the token was already released, or claimed by
- * someone else since the page loaded, so the page's data is stale and describeError's
- * "That was not found. It may have been removed." would be wrong: the token still exists.
- */
-function ReleaseError({ error }: { error: unknown }) {
-  if (isApiErrorCode(error, "not_found")) {
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        Someone else has claimed this token now, or it has already been released.
-      </p>
-    );
-  }
-  // forbidden, claims_unavailable and rate_limited are all things describeError already
-  // words for, and section 13 fixes the wording for two of them.
-  return (
-    <p role="alert" className="text-sm text-destructive">
-      {describeError(error)}
-    </p>
-  );
-}
-
-/** Shown under a Release that failed, above the button so the button stays reachable. */
-function ReleaseBlock({
-  release,
-  ownerId,
-  mine,
-}: {
-  release: ReturnType<typeof useReleaseToken>;
-  ownerId?: string | null;
-  mine: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-start gap-3">
-      {release.error ? <ReleaseError error={release.error} /> : null}
-      <ReleaseButton release={release} ownerId={ownerId} mine={mine} />
+      {isAdmin ? <ReleaseTokenBlock release={release} ownerId={ownerId} mine={false} /> : null}
     </div>
   );
 }
