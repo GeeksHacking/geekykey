@@ -650,6 +650,11 @@ Variables and Secrets. Julian adds each as the Secret type, not as text:
 | `CLAIMS_STAND_IN_KEY` | The `CLAIMS_STAND_IN_KEY` in the same version |
 | `SESSION_SECRET` | A new random value of at least 32 characters, from a password generator, which nobody keeps |
 
+They go under Variables and Secrets only. The Builds page has its own Variables and secrets
+box, for the build variables below, and a secret put there exists only while the build runs.
+The deploy can't see it, so it fails with "The following required secrets have not been
+set", as the first build did on 19 Oct 2026.
+
 **Then the build.** On the same Worker, Settings, then Builds, then Connect, with this
 repo. The form saves whatever is typed without checking it: a stray `/*`, comma or new line
 stays in the value, so each one is typed exactly as below, with nothing around it. The watch
@@ -684,6 +689,12 @@ honours both variables, and the install added 127 packages from the lockfile unc
 Wrangler 4.151.0 then uploaded the Worker, 146 KiB gzipped, with a 16 ms start-up. What
 the rehearsal couldn't try is `wrangler deploy` attaching `key-api.`, which only the
 production account can do.
+
+Julian connected the Worker on 19 Oct 2026. Once he had moved the secrets out of the Builds
+box, the deploy passed, and `key-api.geekshacking.com/api/health` answered with
+`"service":"geekykey-service"`. The deploy also took off `event-service.geekshacking.com`,
+a custom domain added in the dashboard, because every deploy sets the Worker's custom
+domains to the ones in `wrangler.jsonc`.
 
 After the first build, the checks are in checkpoint 4 of the migration spec: a test
 station's tap through `key-api.`, and the log check on the Worker's invocation logs.
