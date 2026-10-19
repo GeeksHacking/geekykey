@@ -28,6 +28,8 @@ describe("frontend data source mode", () => {
     liveMethods.add("listStationBoard");
     liveMethods.add("createStation");
     liveMethods.add("replaceStationKey");
+    liveMethods.add("disableStation");
+    liveMethods.add("enableStation");
     liveMethods.add("setStationPassport");
     liveMethods.add("listTaps");
     liveMethods.add("createFallbackTap");

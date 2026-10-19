@@ -340,3 +340,76 @@ describe("station keys and export", () => {
     await expect(api.stats()).resolves.toBeDefined();
   });
 });
+
+// Agreement 9.9. Disabling is the board's outward-off action, so these tests hold the
+// same promise the 9.8 block does: the row comes back as exactly the before row, with
+// disabled_at the only move. The fixtures already carry both directions: Station 1 is
+// enabled, and the Info Desk row was disabled five minutes before the seed ran.
+describe("disable and enable stations", () => {
+  it("disables an enabled station and answers it as the board lists it", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const before = (await api.listStationBoard()).stations.find((s) => s.label === "Station 1")!;
+    expect(before.disabled_at).toBeNull();
+
+    const disabled = await api.disableStation(before.id);
+
+    const after = (await api.listStationBoard()).stations.find((s) => s.id === before.id)!;
+    expect(after.disabled_at).toBeTypeOf("string");
+    expect({ ...after, disabled_at: null }).toEqual(before);
+    expect(disabled.station).toEqual(after);
+  });
+
+  it("enables the disabled fixture and clears only disabled_at", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const before = (await api.listStationBoard()).stations.find(
+      (s) => s.passport?.name === "Info Desk",
+    )!;
+    expect(before.disabled_at).not.toBeNull();
+
+    const enabled = await api.enableStation(before.id);
+
+    expect(enabled.station).toEqual({ ...before, disabled_at: null });
+    const after = (await api.listStationBoard()).stations.find((s) => s.id === before.id)!;
+    expect(after).toEqual({ ...before, disabled_at: null });
+  });
+
+  // 9.9: "Doing either twice changes nothing." A re-disable keeps the original
+  // disabled_at rather than moving it, and a re-enable stays empty.
+  it("changes nothing when either action runs a second time (agreement 9.9)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.listStationBoard();
+    const enabled = board.stations.find((s) => s.label === "Station 1")!;
+    const disabled = board.stations.find((s) => s.passport?.name === "Info Desk")!;
+
+    const reenabled = await api.enableStation(enabled.id);
+    const redisabled = await api.disableStation(disabled.id);
+
+    expect(reenabled.station).toEqual(enabled);
+    expect(redisabled.station).toEqual(disabled);
+    const fresh = await api.listStationBoard();
+    expect(fresh.stations.find((s) => s.id === enabled.id)).toEqual(enabled);
+    expect(fresh.stations.find((s) => s.id === disabled.id)).toEqual(disabled);
+  });
+
+  it("keeps the station's stamp, the way 9.2 keeps it for a disabled station", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const id = (await api.listStationBoard()).stations[0]!.id;
+    const before = (await api.me()).stamps.find((s) => s.station_id === id);
+
+    await api.disableStation(id);
+
+    expect((await api.me()).stamps.find((s) => s.station_id === id)).toEqual(before);
+  });
+
+  it("answers not_found for a station this Event Service did not register", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    await expectApiError(api.disableStation("no-such-station"), "not_found", 404);
+    await expectApiError(api.enableStation("no-such-station"), "not_found", 404);
+  });
+});

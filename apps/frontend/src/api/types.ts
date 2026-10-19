@@ -107,6 +107,15 @@ export interface StationKeyResponse {
   api_key: string;
 }
 
+/**
+ * 9.9 disabling and enabling a station answer the same shape, so one name covers both.
+ * The station comes back as the board lists it, with `disabled_at` set on a disable
+ * and cleared again on an enable. No key is in this answer.
+ */
+export interface StationResponse {
+  station: EventStationBoardStation;
+}
+
 export interface AdminTap {
   id: number;
   client_tap_id: string;
