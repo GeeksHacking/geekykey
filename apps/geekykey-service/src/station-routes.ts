@@ -1,6 +1,7 @@
 import { type HeartbeatsRequest, heartbeatsRequest } from "@geekykey/handoff";
 import { Hono } from "hono";
 import { z } from "zod";
+import { regexes } from "zod/v4/core";
 import { errorFields, log } from "./lib/log.ts";
 import { trustedTappedAt } from "./lib/tapped-at.ts";
 import { normaliseUid, UID_PATTERN } from "./lib/token-uid.ts";
@@ -29,6 +30,59 @@ export function tapBodySchema(maxTaps: number) {
       .min(1)
       .max(maxTaps),
   });
+}
+
+/** The pattern `z.iso.datetime({ offset: true })` checks tapped_at with, from Zod itself. */
+const TAPPED_AT_PATTERN = regexes.datetime({ offset: true });
+
+/**
+ * A plain check of a taps body, tried before tapBodySchema (lib/validate.ts).
+ * It returns what the schema would, or undefined for anything it isn't sure
+ * of, which the schema then checks as usual. So it never lets through a body
+ * the schema would refuse, and a body that fails still gets Zod's issues.
+ *
+ * Why it's needed: GeeksHacking's Cloudflare account is on the Workers free
+ * plan, which allows a request 10 ms of CPU time. On Cloudflare a 500-tap
+ * batch used 9 to 63 ms (BAC-45, 19 Oct 2026), and most of that is spent
+ * while a fresh isolate's V8 is still interpreting the code, which is most
+ * isolates at our traffic. Profiled that way, Zod's check of the taps was
+ * about three quarters of a batch's own work: it runs its general machinery
+ * once for each of the 500 taps. This loop does the same checks in about a
+ * tenth of the time. With it, the median batch on Cloudflare fell from 12 to
+ * 15 ms to 6 to 7 ms. Keep it in step with tapBodySchema: the tests check
+ * the two agree.
+ */
+export function quickTapBody(maxTaps: number) {
+  return (value: unknown): TapBody | undefined => {
+    if (!isObject(value) || !Array.isArray(value.taps)) return undefined;
+    const raw: unknown[] = value.taps;
+    if (raw.length < 1 || raw.length > maxTaps) return undefined;
+    const taps: TapBody["taps"] = [];
+    for (const tap of raw) {
+      if (!isObject(tap)) return undefined;
+      const { client_tap_id, uid, tapped_at } = tap;
+      if (typeof client_tap_id !== "string" || client_tap_id.length < 1) return undefined;
+      if (client_tap_id.length > 128) return undefined;
+      if (typeof uid !== "string" || uid.length < 1 || uid.length > 64) return undefined;
+      const normalised = normaliseUid(uid);
+      if (!UID_PATTERN.test(normalised)) return undefined;
+      if (tapped_at === undefined) {
+        taps.push({ client_tap_id, uid: normalised });
+      } else if (typeof tapped_at === "string" && TAPPED_AT_PATTERN.test(tapped_at)) {
+        taps.push({ client_tap_id, uid: normalised, tapped_at });
+      } else {
+        return undefined;
+      }
+    }
+    return { taps };
+  };
+}
+
+type TapBody = z.output<ReturnType<typeof tapBodySchema>>;
+
+/** An object read from JSON, as Zod's z.object() takes it: not null, and not an array. */
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -62,7 +116,8 @@ export function tapsRoutes({
   maxTaps: number;
 }) {
   const auth = stationAuth(stationsCopy, deadlineMs);
-  return new Hono<StationEnv>().post("/", auth, jsonBody(tapBodySchema(maxTaps)), async (c) => {
+  const body = jsonBody(tapBodySchema(maxTaps), quickTapBody(maxTaps));
+  return new Hono<StationEnv>().post("/", auth, body, async (c) => {
     const { station, deadline } = c.var;
     const { eventService } = station;
     const { taps } = c.req.valid("json");

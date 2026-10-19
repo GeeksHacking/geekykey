@@ -32,6 +32,11 @@ export class Unanswered extends Error {
  * anything but a 2xx whose body fits, or when `signal` fires first. There's
  * no retry. A fake `send` may not stop when its signal fires, so the wait for
  * its answer is cut short here too.
+ *
+ * `quickAnswer`, when given, is a plain check tried before `answer`, for an
+ * answer big enough that Zod's own check costs too much CPU (see
+ * quickTapsAnswer in event-service.ts). It returns what `answer` would, or
+ * undefined for anything it isn't sure of, which `answer` then checks.
  */
 export async function askService<T>(
   send: Send,
@@ -41,6 +46,7 @@ export async function askService<T>(
     key,
     body,
     answer,
+    quickAnswer,
     signal,
     fail,
   }: {
@@ -49,6 +55,7 @@ export async function askService<T>(
     key: string;
     body?: unknown;
     answer: ZodType<T>;
+    quickAnswer?: (value: unknown) => T | undefined;
     signal: AbortSignal;
     fail: new (reason: UnansweredReason, status?: number) => Unanswered;
   },
@@ -74,7 +81,10 @@ export async function askService<T>(
     }
     // A 429, a 5xx, a redirect, or a 401 while the two sides' keys differ.
     if (!res.ok) throw new fail("status", res.status);
-    const parsed = answer.safeParse(await res.json().catch(() => undefined));
+    const value: unknown = await res.json().catch(() => undefined);
+    const quick = quickAnswer?.(value);
+    if (quick !== undefined) return quick;
+    const parsed = answer.safeParse(value);
     if (!parsed.success) throw new fail("unparseable");
     return parsed.data;
   })();
