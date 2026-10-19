@@ -1,40 +1,140 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createMockClient } from "@/api/mock/client";
+import { ApiProvider } from "@/api/provider";
+import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import { ApiError } from "@/api/errors";
+import { RequireSession } from "@/features/auth/require-session";
 import { HomePage } from "@/features/home/home-page";
-import { createTestProviders } from "@/test/providers";
+import { SessionProvider } from "@/lib/session-provider";
+import { ThemeProvider } from "@/lib/theme-provider";
 
-describe("HomePage", () => {
-  it("names the signed-in user from the session", async () => {
-    const api = createMockClient({ latencyMs: [0, 0], storage: null });
-    api.mock.setSession(SEEDED_PARTICIPANT_ID);
-    const { Providers } = createTestProviders(api, { session: true });
+/*
+  My tokens (FRO-27): the list, the empty state and a release, one test per
+  acceptance case. The screen is rendered behind the real gate and the real
+  session, as it is in the app: HomePage's useMe() only exists once the session
+  has resolved, so a direct render without RequireSession would throw while /me
+  was still in flight.
 
-    render(
-      <Providers>
+  A failing release arrives through spyOn rather than failNext, because the
+  session's me call runs on mount and would spend a queued failure first (the
+  token page's release tests make the same choice).
+*/
+
+const OLDEST = "04 A1 B2 C3 D4 E5 F6";
+const NEWEST = "04 B7 C9 E1 F3 A5";
+
+let api: MockApiClient;
+
+beforeEach(() => {
+  api = createMockClient({ latencyMs: [0, 0], storage: null });
+});
+
+function renderHome() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, retryDelay: 0, staleTime: 5_000 },
+      mutations: { retryDelay: 0 },
+    },
+  });
+  const rootRoute = createRootRoute({ component: () => <Outlet /> });
+  const home = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/",
+    component: () => (
+      <RequireSession>
         <HomePage />
-      </Providers>,
-    );
-
-    expect(screen.getByRole("heading", { name: "My tokens" })).toBeInTheDocument();
-    // The session query is async, so the ID arrives a tick later.
-    expect(await screen.findByText(SEEDED_PARTICIPANT_ID)).toBeInTheDocument();
-    expect(screen.getByText(/Claiming and releasing arrive with them/)).toBeInTheDocument();
+      </RequireSession>
+    ),
+  });
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([home]),
+    history: createMemoryHistory({ initialEntries: ["/"] }),
   });
 
-  it("says so when the user is a GeekyKey admin", async () => {
-    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+  return render(
+    <ApiProvider client={api}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <SessionProvider>
+            <RouterProvider router={router as never} />
+          </SessionProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ApiProvider>,
+  );
+}
+
+/** Locates a row by its displayed UID, so a click lands on the right token's Release. */
+function rowFor(displayedUid: string) {
+  const li = screen.getByText(displayedUid).closest("li");
+  if (!li) throw new Error(`no list row renders ${displayedUid}`);
+  return within(li);
+}
+
+describe("My tokens", () => {
+  it("lists the signed-in user's tokens oldest claim first, as on the token page", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+
+    expect(await screen.findByRole("heading", { name: "My tokens" })).toBeInTheDocument();
+    // The paired mono format is the token page's, so both screens name a token alike.
+    const oldest = screen.getByText(OLDEST);
+    const newest = screen.getByText(NEWEST);
+    expect(oldest.compareDocumentPosition(newest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Release" })).toHaveLength(2);
+    expect(screen.getAllByText(/^Claimed /)).toHaveLength(2);
+  });
+
+  it("says what to do next when the user holds no tokens", async () => {
     api.mock.setSession(SEEDED_ADMIN_ID);
-    const { Providers } = createTestProviders(api, { session: true });
+    renderHome();
 
-    render(
-      <Providers>
-        <HomePage />
-      </Providers>,
-    );
+    expect(
+      await screen.findByText(
+        "You haven't claimed a token yet. Tap one with your phone to claim it.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
+  });
 
-    expect(await screen.findByText(/a GeekyKey admin/)).toBeInTheDocument();
+  it("releases a token from its row, and the list drops it", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+    await screen.findByText(OLDEST);
+
+    await userEvent.click(rowFor(OLDEST).getByRole("button", { name: "Release" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Release token" }));
+
+    await waitFor(() => expect(screen.queryByText(OLDEST)).not.toBeInTheDocument());
+    expect(screen.getByText(NEWEST)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Release" })).toHaveLength(1);
+  });
+
+  it("keeps the row and the section 13 wording on a release the service cannot answer", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    vi.spyOn(api, "releaseToken").mockRejectedValueOnce(new ApiError(503, "claims_unavailable"));
+    renderHome();
+    await screen.findByText(OLDEST);
+
+    await userEvent.click(rowFor(OLDEST).getByRole("button", { name: "Release" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Release token" }));
+
+    expect(await screen.findByText("Couldn't reach GeeksHacking. Try again.")).toBeInTheDocument();
+    // Nothing was saved, so the list is unchanged and the Release is offered again.
+    expect(screen.getByText(OLDEST)).toBeInTheDocument();
+    expect(rowFor(OLDEST).getByRole("button", { name: "Release" })).toBeInTheDocument();
   });
 });
