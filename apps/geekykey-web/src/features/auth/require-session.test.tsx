@@ -11,6 +11,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useRef } from "react";
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "@/api/errors";
 import type { MeResponse } from "@/api/types";
 import { RequireSession } from "@/features/auth/require-session";
 import { useGoAfterLogin } from "@/features/auth/use-go-after-login";
@@ -23,11 +24,15 @@ const me: MeResponse = {
   events: [{ id: "showcase", name: "Capstone Showcase", url: "https://event.geekshacking.com" }],
 };
 
-function sessionWith(status: SessionState["status"], payload: MeResponse | null): SessionState {
+function sessionWith(
+  status: SessionState["status"],
+  payload: MeResponse | null,
+  error: unknown = undefined,
+): SessionState {
   return {
     status,
     me: payload,
-    error: undefined,
+    error,
     refresh: async () => {},
     signIn: async () => me,
     signOut: async () => {},
@@ -214,5 +219,35 @@ describe("RequireSession", () => {
     expect(await screen.findByText("Could not load your account")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(screen.queryByText("Secret token page")).not.toBeInTheDocument();
+  });
+
+  it("says section 13's claims_unavailable sentence as the whole message", async () => {
+    render(
+      <SessionContext.Provider
+        value={sessionWith("error", null, new ApiError(503, "claims_unavailable"))}
+      >
+        <RouterProvider router={makeRouter("/t/04A1B2C3D4E5F6")} />
+      </SessionContext.Provider>,
+    );
+
+    // Found once or not at all: a duplicate from describeError would fail this find.
+    expect(await screen.findByText("Couldn't reach GeeksHacking. Try again.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByText("Secret token page")).not.toBeInTheDocument();
+  });
+
+  it("says section 13's rate_limited sentence as the whole message", async () => {
+    render(
+      <SessionContext.Provider
+        value={sessionWith("error", null, new ApiError(429, "rate_limited"))}
+      >
+        <RouterProvider router={makeRouter("/t/04A1B2C3D4E5F6")} />
+      </SessionContext.Provider>,
+    );
+
+    expect(
+      await screen.findByText("Too many tries. Wait a minute and try again."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 });
