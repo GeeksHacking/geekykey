@@ -16,6 +16,8 @@ describe("service client boundary", () => {
       [
         "createFallbackTap",
         "createStation",
+        "disableStation",
+        "enableStation",
         "exportCsv",
         "listStationBoard",
         "listTaps",

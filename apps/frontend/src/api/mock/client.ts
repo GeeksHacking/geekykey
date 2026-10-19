@@ -23,6 +23,7 @@ import {
   type ListTapsResponse,
   type MeResponse,
   type SetStationPassportResponse,
+  type StationResponse,
   type StatsResponse,
   type TapStatus,
 } from "@/api/types";
@@ -296,6 +297,31 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         // last tap all stay as they are. Replacing a disabled station's key is therefore
         // defined, and does not enable it, which the spec's disable-then-replace path needs.
         return { station: toStationBoardStation(station), api_key: `gk_sta_${randomBase62(40)}` };
+      }),
+
+    // Agreement 9.9. Disabling sets disabled_at and touches nothing else: the station keeps
+    // its taps, and by 9.2 its stamp slot and stamps; enabling clears disabled_at so the
+    // saved taps count once they arrive. Doing either twice changes nothing, so a
+    // re-disable keeps the original disabled_at. The key getting 401 within a minute is
+    // the GeekyKey Service's copy refreshing, which no client here sees or computes.
+    disableStation: (stationId) =>
+      call((): StationResponse => {
+        currentOrganizer();
+        const station = stationById(stationId);
+        if (!station) throw new ApiError(404, "not_found");
+        // The "twice changes nothing" half of 9.9: a re-disable keeps the original
+        // disabled_at rather than moving it.
+        if (station.disabled_at === null) station.disabled_at = iso(now());
+        return { station: toStationBoardStation(station) };
+      }),
+
+    enableStation: (stationId) =>
+      call((): StationResponse => {
+        currentOrganizer();
+        const station = stationById(stationId);
+        if (!station) throw new ApiError(404, "not_found");
+        station.disabled_at = null;
+        return { station: toStationBoardStation(station) };
       }),
 
     setStationPassport: (stationId, input) =>

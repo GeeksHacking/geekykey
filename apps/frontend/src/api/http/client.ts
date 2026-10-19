@@ -3,6 +3,7 @@ import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import type {
   ApiIssue,
   StationKeyResponse,
+  StationResponse,
   ErrorCode,
   FallbackTapResponse,
   ListTapsQuery,
@@ -124,6 +125,17 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     // 9.8 sends no body, so this is the shape logout already uses rather than jsonBody.
     replaceStationKey: (stationId) =>
       sendJson<StationKeyResponse>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/key`, {
+        method: "POST",
+      }),
+
+    // 9.9 is the same bodyless shape, answered with the station alone instead of a key.
+    disableStation: (stationId) =>
+      sendJson<StationResponse>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/disable`, {
+        method: "POST",
+      }),
+
+    enableStation: (stationId) =>
+      sendJson<StationResponse>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/enable`, {
         method: "POST",
       }),
 

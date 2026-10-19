@@ -1,6 +1,7 @@
 import type {
   CreateStationRequest,
   StationKeyResponse,
+  StationResponse,
   EventStationBoardResponse,
   FallbackTapRequest,
   FallbackTapResponse,
@@ -49,6 +50,12 @@ export interface ApiClient {
    * as a create, with the new key shown once.
    */
   replaceStationKey(stationId: string): Promise<StationKeyResponse>;
+
+  /** POST /api/v1/admin/stations/{id}/disable (agreement 9.9). Sets `disabled_at`. */
+  disableStation(stationId: string): Promise<StationResponse>;
+
+  /** POST /api/v1/admin/stations/{id}/enable (agreement 9.9). Clears `disabled_at`. */
+  enableStation(stationId: string): Promise<StationResponse>;
 
   /**
    * PUT /api/v1/admin/stations/{id}/passport. Adds the station to the passport or changes
