@@ -88,6 +88,16 @@ its station points, is set by the event's games, not by the station. An organize
 station, turning away everything it sends until it is enabled again.
 _Avoid_: reader, device
 
+**Station hardware**:
+The box itself: the ESP32, its RC522 and its screen. It is one station at a time. Moved to another
+event, it becomes a new station there, with that event's station key.
+_Avoid_: reader, which means the RC522 alone
+
+**Setup mode**:
+How someone with a USB cable gives station hardware a new server address, station key or Wi-Fi
+network without a reflash. A replaced key keeps it the same station; a move to another event makes
+it a new one, so its saved taps are sent first and the rest are cleared.
+
 **Station key**:
 The secret a station sends with every request to prove which station it is, issued by the Event
 Service that registered it. It is shown once, when the station is created or its key is replaced.
