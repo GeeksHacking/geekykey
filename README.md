@@ -39,7 +39,7 @@ geekykey/
 | `apps/event-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/event-web/CLAUDE.md` |
 | `apps/geekykey-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/geekykey-web/CLAUDE.md` |
 | `apps/geekykey-service` | Hono on a Cloudflare Worker, with no database | `src/worker.ts`, then `src/app.ts` |
-| `apps/event-service` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and its three areas |
+| `apps/event-service` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and its two areas |
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
 
@@ -59,13 +59,17 @@ what it writes. A test fails while the two differ.
 ```text
 browser ──▶ GeekyKey screens :5174 ── /api and /auth ──┐
                                                        ▼
-NFC token ──tap──▶ ESP32 station ──POST /api/v1/taps──▶ GeekyKey Service :8000
+NFC token ──tap──▶ ESP32 station ──POST /api/v1/taps──▶ GeekyKey Service :8000, key-api.
                                                           │ owners and hand-off
                                                           ▼
-                                                        Event Service :8001 ──▶ TiDB :4000
+                                                        Event Service :8001, event-api. ──▶ TiDB :4000
                                                           ▲
 browser ──▶ Event screens :5173 ── /api and /auth ────────┘
 ```
+
+In production a station calls only the GeekyKey Service, at
+`https://key-api.geekshacking.com`. The Event Service, at `https://event-api.geekshacking.com`,
+has no station endpoints: a tap sent there gets `404`.
 
 The GeekyKey Service, a Cloudflare Worker in `wrangler dev`, checks the station's key, asks
 the claims stand-in on the Event Service who owns each token, and hands the taps on. Each set
@@ -105,17 +109,14 @@ apps/event-service/
 │   ├── app.ts             every route mounted, given the settings and the database
 │   ├── base-app.ts        what every response shares: never cached, errors as JSON, /api/health
 │   ├── config.ts          every setting, with its default
-│   ├── geekykey/          the GeekyKey side: the station routes, the station key check,
-│   │                      Claims, which asks the claims stand-in who owns each token, and
-│   │                      EventService, which hands taps to the Event side
 │   ├── event/             the Event side: the hand-off's routes under /geekykey/v1, the tap
-│   │                      pipeline, /me, logging in and out, the session, and its tables
-│   │                      (stations, passport_stations, users, taps) in schema.ts
+│   │                      pipeline, /me, logging in and out, the session, station keys, and
+│   │                      its tables (stations, passport_stations, users, taps) in schema.ts
 │   ├── claims-stand-in/   who owns each token until the Portal does: its four routes under
 │   │                      /claims-stand-in/v1, and its table (tokens) in schema.ts
 │   ├── db/                the connection pool, the migrator, and the column types both schemas share
-│   └── lib/               small helpers every area uses (validation, the no-caching header, log lines,
-│                          token UIDs, and the key check on requests between the areas)
+│   └── lib/               small helpers both areas use (validation, the no-caching header, log lines,
+│                          token UIDs, and the key check on the GeekyKey Service's requests)
 ├── drizzle/           SQL migrations generated from the two schema files, for the one database
 ├── scripts/           Node scripts for the dev server, the database tasks, the seed, the migration
 │                      check, and the end-to-end smoke test
@@ -128,45 +129,17 @@ apps/event-service/
 
 Each test sits next to the code it tests, as a `.test.ts` file.
 
-The three folders under `src/` follow the line between the two services the backend
-becomes at checkpoint 4: the GeekyKey side becomes a Worker, while the Event side and the
-claims stand-in stay on Cloud Run. Until then the three share one server, its settings and
-its database pool, which sit beside them. The Event side and the stand-in each keep their
-tables in a schema file of their own, and the GeekyKey side has none. Drizzle writes one
-set of migrations from both files, since it's one database, and no foreign key crosses
-between them.
+The two folders under `src/` are the Event side and the claims stand-in, which share one
+server, its settings and its database pool until the stand-in goes at the switch to the
+Portal. Each keeps its tables in a schema file of its own. Drizzle writes one set of
+migrations from both files, since it's one database, and no foreign key crosses between them.
+Neither imports the other: the lint rule in `.oxlintrc.json` stops it, and `src/areas.test.ts`
+checks the rule.
 
-The GeekyKey side reaches the other two areas only through their routes. It asks the claims
-stand-in who owns each token, with `CLAIMS_STAND_IN_KEY`, then hands the owners' taps to the
-Event side's `POST /geekykey/v1/taps`, with `EVENT_SERVICE_KEY`, and the Event side stores
-them. Inside the one server it sends both with `app.request()`, with the same paths, bodies
-and keys it will send over HTTPS once the services run apart, so the key checks already run
-on production. The hand-off goes to the one Event Service in the `EVENT_SERVICES` setting,
-the showcase. A station's request gets one deadline for both, `TAP_DEADLINE_MS`, 4 seconds.
-A stand-in that doesn't answer properly in time fails the request with
-`503 claims_unavailable`, and an Event Service with `503 event_service_unavailable`. Either
-way the station keeps its taps, and nothing is retried.
-
-A station's key is checked against the GeekyKey side's copy of the stations each Event
-Service has registered, which it fills from the Event side's `GET /geekykey/v1/stations`,
-also with `EVENT_SERVICE_KEY`. The copy is kept in memory. A server fills it on the first
-station request after it starts, within the same deadline, and refreshes it at most once a
-minute after that. A list that doesn't come back is asked for again at most once a minute
-too, whatever keys arrive. So a new, replaced or disabled station key takes up to a minute to take
-effect. The GeekyKey side reads no table.
-
-A station's heartbeat, `POST /api/v1/stations/heartbeat`, has its key checked the same way.
-Once it is, the answer with `server_time` is made, and the GeekyKey side passes what the
-station said of its health to the Event side's `POST /geekykey/v1/heartbeats`, also with
-`EVENT_SERVICE_KEY`. A heartbeat hand-off that fails is logged as `heartbeat_handoff_failed`
-and not retried, since the station sends another a minute later. It never fails the
-heartbeat, so a heartbeat sets a station's clock even while the Event side is down.
-
-Work a station request starts for after its answer, the heartbeat hand-off and a refresh of
-the copy, goes through the request's `waitUntil`, as it will through a Worker's at checkpoint 4.
-Until then the answer waits for that work, up to the deadline. Cloud Run is deployed with
-`--cpu-throttling`, so the server gets a processor only while a request is in progress, and
-work left for after the answer might never finish.
+The Event Service has no station endpoints. Stations call the GeekyKey Service (see
+[Inside the GeekyKey Service](#inside-the-geekykey-service)), which reaches this server only
+through its routes: the claims stand-in's under `/claims-stand-in/v1`, with
+`CLAIMS_STAND_IN_KEY`, and the Event side's under `/geekykey/v1`, with `EVENT_SERVICE_KEY`.
 
 Every line the server logs is one JSON object whose `message` is a fixed name, such as
 `server_started` or `internal_error`, from the list in `src/lib/log.ts`. Cloud Logging
@@ -186,6 +159,37 @@ replaced before the query is sent, so no query is ever sent twice.
 The image holds one file. `pnpm build` uses Rolldown to bundle `src/server.ts` and
 everything it imports into `dist/server.cjs`, and the `Dockerfile` runs that on Node 24.
 See [The image](#the-image) to build and start it yourself.
+
+### Inside the GeekyKey Service
+
+`apps/geekykey-service` is a Cloudflare Worker with no database. `src/worker.ts` reads its
+settings once and hands each request to `src/app.ts`.
+
+It asks the claims stand-in on the Event Service who owns each token, with
+`CLAIMS_STAND_IN_KEY`, then hands the owners' taps to the Event side's
+`POST /geekykey/v1/taps`, with the showcase's Event Service key, and the Event side stores
+them. The hand-off goes to the one Event Service in the `EVENT_SERVICES` setting, the
+showcase. A station's request gets one deadline for both, `TAP_DEADLINE_MS`, 4 seconds.
+A stand-in that doesn't answer properly in time fails the request with
+`503 claims_unavailable`, and an Event Service with `503 event_service_unavailable`. Either
+way the station keeps its taps, and nothing is retried.
+
+The Worker checks a station's key against its copy of the stations each Event Service has
+registered, which it fills from the Event side's `GET /geekykey/v1/stations`. The copy is
+kept in memory. The Worker fills it on the first station request after it starts, within the
+same deadline, and refreshes it at most once a minute after that. A list that doesn't come
+back is asked for again at most once a minute too, whatever keys arrive. So a new, replaced
+or disabled station key takes up to a minute to take effect.
+
+The Worker checks the key on a station's heartbeat, `POST /api/v1/stations/heartbeat`, the
+same way. Once it has, the answer with `server_time` goes back, and the Worker then passes
+what the station said of its health to the Event side's `POST /geekykey/v1/heartbeats`. A
+heartbeat hand-off that fails is logged as `heartbeat_handoff_failed` and not retried, since the
+station sends another a minute later. It never fails the heartbeat, so a heartbeat sets a
+station's clock even while the Event Service is down.
+
+Work a station request starts for after its answer, the heartbeat hand-off and a refresh of
+the copy, goes through the Worker's `waitUntil`, so the answer doesn't wait for it.
 
 ## Running the Event screens
 
@@ -540,17 +544,14 @@ only your laptop, because real stations call it by the laptop's name. So anyone 
 same Wi-Fi can reach it, dev sign-in included.
 
 `dev.env` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`, which signs in a
-seeded user without a real login, and gives the session secret, the claims stand-in's key,
-the Event Service key and `EVENT_SERVICES` built-in values. Never turn it on in production.
-Without it, the backend refuses to start unless `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`,
-`EVENT_SERVICE_KEY` and `EVENT_SERVICES` are set, each key as 64 hex characters.
-`EVENT_SERVICES` is a JSON list with one Event Service, the showcase, whose address must
-start with `https://`. Only with dev sign-in on may it be `http://` to your laptop.
-`infra/production/settings.env` shows it.
+seeded user without a real login, and gives the session secret, the claims stand-in's key
+and the Event Service key built-in values, the same ones the GeekyKey Service's `dev.env`
+sends. Never turn it on in production. Without it, the backend refuses to start unless
+`SESSION_SECRET`, `CLAIMS_STAND_IN_KEY` and `EVENT_SERVICE_KEY` are set, each key as 64 hex
+characters.
 
-`ORGANIZERS` lists the user IDs who are organizers on the Event side, and `GEEKYKEY_ADMINS`
-the ones who may release someone else's token on the GeekyKey side, each separated by commas.
-Everyone else is a participant. The server reads both when it starts, so a change takes a
+`ORGANIZERS` lists the user IDs who are organizers on the Event side, separated by commas.
+Everyone else is a participant. The server reads it when it starts, so a change takes a
 restart, or a deploy in production. Empty or unset means nobody. With dev sign-in on, an unset
 list holds `dev-organizer-1`, so Priya Raman from the seed is an organizer.
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
@@ -665,7 +666,8 @@ To point a station at a backend running on your laptop:
 3. Put the laptop and the station on the same network.
 
 The server setting is a base URL: `http://your-laptop.local:8000` for a laptop, or
-`https://key-api.geekshacking.com` for production. An `https://` URL is checked against
+`https://key-api.geekshacking.com` for production. The setup mode changes it on a station
+without a reflash. An `https://` URL is checked against
 the root certificates in `ca_roots.h`; a plain `http://` URL is only sent to a host ending
 in `.local`, since the station key must not cross a network unencrypted.
 
@@ -716,7 +718,6 @@ docker run --detach --rm --name event-service --publish 8000:8000 \
   --env SESSION_SECRET=ci-stand-in-not-a-secret \
   --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
   --env EVENT_SERVICE_KEY=$(openssl rand -hex 32) \
-  --env 'EVENT_SERVICES=[{"id":"showcase","name":"Capstone Showcase","url":"https://event-api.geekshacking.com"}]' \
   geekykey-event-service
 curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
 docker stop event-service
@@ -740,16 +741,15 @@ nothing, you probably renamed something, so run `mise exec -- pnpm db:generate` 
 
 ## Deploying
 
-Today we deploy one service, the Event Service, and a copy of it for trying changes
-first. The rest are coming, at the checkpoints of the migration spec
-(`.scratch/db-hosting/spec.md`, section 6), its steps from today's one server to the
-showcase:
+Today we deploy two services, the Event Service and the GeekyKey Service, and a copy of the
+Event Service for trying changes first. The screens are coming, at checkpoint 5 of the
+migration spec (`.scratch/db-hosting/spec.md`, section 6):
 
 | Part | Built from | Runs on | Address |
 |---|---|---|---|
 | `event-service` | `apps/event-service` | Google Cloud Run | `https://event-api.geekshacking.com`, behind Cloudflare's proxy, and its `run.app` address |
 | `event-service-staging`, the staging copy | `apps/event-service` | Google Cloud Run | Its `run.app` address only, listed in `infra/README.md`, step 5 |
-| `geekykey-service`, coming at checkpoint 4 | `apps/geekykey-service` | A Cloudflare Worker | `https://key-api.geekshacking.com` |
+| `geekykey-service`, which stations call | `apps/geekykey-service` | A Cloudflare Worker, deployed by Workers Builds from `main` | `https://key-api.geekshacking.com` |
 | `geekykey-web` and `event-web`, the two sets of screens, coming at checkpoint 5 | `apps/geekykey-web` and `apps/event-web` | Cloudflare Workers | `https://key.geekshacking.com` and `https://event.geekshacking.com` |
 
 Both Cloud Run services are deployed by one GitHub workflow, `.github/workflows/deploy.yml`.
@@ -929,7 +929,7 @@ This says where each one is, never its value. Each is kept only where the table 
 | TiDB app logins, production's and staging's | Secret Manager, as `DATABASE_URL` in each service's `APP_SECRETS` | Adam makes each with `db:logins` and adds it from his laptop, keeping no copy | Adam gives it a new password, a new version of `APP_SECRETS` holds it, and a pull request pins the service to that |
 | TiDB migration logins, production's and staging's | Secret Manager, as each service's `MIGRATION_DATABASE_URL`, and `~/.config/geekykey/` on Adam's laptop | Adam, with `db:logins` | Adam gives it a new password, and adds a new version |
 | `SESSION_SECRET`, one per service | Secret Manager, in `APP_SECRETS` | Adam, as a random value nobody keeps | A new one signs everyone out of that service |
-| `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`, one of each per service | Secret Manager, in `APP_SECRETS`. From checkpoint 4, production's two are also Workers secrets on the GeekyKey Service | Adam, as random values nobody keeps. At checkpoint 4 Julian copies production's two onto the Worker, since Adam's account can't read them (still to confirm, spec section 12) | Set a new one on both sides, outside the event. Taps fail with `503` until both match, and stations resend them. `CLAIMS_STAND_IN_KEY` is deleted on both sides after the switch to the Portal |
+| `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`, one of each per service | Secret Manager, in `APP_SECRETS`. Production's two are also Workers secrets on the GeekyKey Service | Adam, as random values nobody keeps. Julian copied production's two onto the Worker at checkpoint 4, since Adam's account can't read them | Set a new one on both sides, outside the event. Taps fail with `503` until both match, and stations resend them. `CLAIMS_STAND_IN_KEY` is deleted on both sides after the switch to the Portal |
 | Station key | The station's gitignored `secrets.h`. The database keeps only its hash | Adam, with `db:test-station`, until organizers can make one on the station board (coming) | Tell Adam. Replacing a key while keeping the station's ID comes with the station board |
 | Wi-Fi details | Each station's `secrets.h`, until the station's setup mode can store them (coming, HAR-14) | Zi Tao | Change the password, and put the new one on each station |
 | Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, tokens can never be rewritten |

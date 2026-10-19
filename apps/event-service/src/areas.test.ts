@@ -45,40 +45,21 @@ async function assertLints(cases: Case[]): Promise<void> {
   }
 }
 
-test("no area imports another, not even its schema", async () => {
+test("neither area imports the other, not even its schema", async () => {
   await assertLints([
-    ["geekykey/station-routes.ts", from("../event/tap-pipeline.ts"), false],
-    ["geekykey/station-routes.ts", from("../claims-stand-in/routes.ts"), false],
-    ["event/handoff-routes.ts", from("../geekykey/station-keys.ts"), false],
+    ["event/handoff-routes.ts", from("../claims-stand-in/routes.ts"), false],
     ["event/handoff-routes.ts", from("../claims-stand-in/schema.ts"), false],
-    ["claims-stand-in/routes.ts", from("../geekykey/claims.ts"), false],
+    ["claims-stand-in/routes.ts", from("../event/tap-pipeline.ts"), false],
     ["claims-stand-in/routes.ts", from("../event/schema.ts"), false],
-  ]);
-});
-
-test("the GeekyKey side imports no schema and no database", async () => {
-  await assertLints([
-    ["geekykey/station-routes.ts", from("../db/columns.ts"), false],
-    ["geekykey/station-routes.ts", from("../db/pool.ts"), false],
   ]);
 });
 
 test("an area takes only types from the server's root, which brings in every area", async () => {
   await assertLints([
     [
-      "geekykey/station-routes.ts",
-      'import type { AppEnv } from "../app.ts"; export type Env = AppEnv;',
-      true,
-    ],
-    [
       "event/me-routes.ts",
       'import type { AppEnv } from "../app.ts"; export type Env = AppEnv;',
       true,
-    ],
-    [
-      "geekykey/station-routes.ts",
-      'import { createApp } from "../app.ts"; export const app = createApp;',
-      false,
     ],
     [
       "event/me-routes.ts",
@@ -97,17 +78,15 @@ test("an area may import itself and the shared code", async () => {
   await assertLints([
     ["event/tap-pipeline.ts", from("./schema.ts"), true],
     ["event/tap-pipeline.ts", from("../db/pool.ts"), true],
+    ["event/handoff-routes.ts", from("../lib/log.ts"), true],
+    ["event/handoff-routes.ts", from("@geekykey/handoff"), true],
     ["claims-stand-in/routes.ts", from("./schema.ts"), true],
-    ["geekykey/station-routes.ts", from("./claims.ts"), true],
-    ["geekykey/station-routes.ts", from("../lib/log.ts"), true],
-    ["geekykey/station-routes.ts", from("@geekykey/handoff"), true],
   ]);
 });
 
-test("a test may use the whole server and read another area's tables, and nothing else of it", async () => {
-  // Until checkpoint 4 the areas are one server, and a test sees what a request left in the database.
+test("a test may use the whole server and read the other area's tables, and nothing else of it", async () => {
+  // The two areas are one server, and a test sees what a request left in the database.
   await assertLints([
-    ["geekykey/station-routes.test.ts", from("../event/schema.ts"), true],
     ["event/me-routes.test.ts", from("../claims-stand-in/schema.ts"), true],
     ["claims-stand-in/routes.test.ts", from("../event/schema.ts"), true],
     [
@@ -115,7 +94,7 @@ test("a test may use the whole server and read another area's tables, and nothin
       'import { testApp } from "../test-helpers.ts"; export const app = testApp;',
       true,
     ],
-    ["geekykey/station-routes.test.ts", from("../event/tap-pipeline.ts"), false],
-    ["event/me-routes.test.ts", from("../geekykey/claims.ts"), false],
+    ["event/me-routes.test.ts", from("../claims-stand-in/routes.ts"), false],
+    ["claims-stand-in/routes.test.ts", from("../event/tap-pipeline.ts"), false],
   ]);
 });

@@ -5,37 +5,12 @@
   // Files git ignores, such as the bundle in dist/, are skipped without being listed.
   "plugins": ["eslint", "typescript", "unicorn", "oxc"],
   "categories": { "correctness": "error" },
-  // The three areas in src/ talk only through their requests, so none imports another
+  // The two areas in src/ talk only through their requests, so neither imports the other
   // (spec section 3.1), and src/areas.test.ts checks these rules. Each imports only its own
-  // schema, and the GeekyKey side none, since it keeps no database. Until the split at
-  // checkpoint 4 the areas are one server, so a test may still read another area's tables, and
-  // use the whole server through src/test-helpers.ts.
+  // schema. Until the claims stand-in goes at the switch to the Portal, the areas are one
+  // server, so a test may still read the other area's tables, and use the whole server through
+  // src/test-helpers.ts.
   "overrides": [
-    {
-      "files": ["src/geekykey/**"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": ["**/app.ts", "**/test-helpers.ts"],
-                "allowTypeImports": true,
-                "message": "The server's root brings in every area, so an area takes only its types."
-              },
-              {
-                "group": ["**/event/**", "**/claims-stand-in/**"],
-                "message": "The GeekyKey side reaches the others only through their requests."
-              },
-              {
-                "group": ["**/schema.ts", "**/db/**"],
-                "message": "The GeekyKey side keeps no database."
-              }
-            ]
-          }
-        ]
-      }
-    },
     {
       "files": ["src/event/**"],
       "rules": {
@@ -49,8 +24,8 @@
                 "message": "The server's root brings in every area, so an area takes only its types."
               },
               {
-                "group": ["**/geekykey/**", "**/claims-stand-in/**"],
-                "message": "The Event side reaches the others only through their requests."
+                "group": ["**/claims-stand-in/**"],
+                "message": "The Event side reaches the claims stand-in only through its requests."
               }
             ]
           }
@@ -70,33 +45,8 @@
                 "message": "The server's root brings in every area, so an area takes only its types."
               },
               {
-                "group": ["**/geekykey/**", "**/event/**"],
-                "message": "The claims stand-in reaches the others only through their requests."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["src/geekykey/**/*.test.ts"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": [
-                  "**/event/**",
-                  "!**/event/schema.ts",
-                  "**/claims-stand-in/**",
-                  "!**/claims-stand-in/schema.ts"
-                ],
-                "message": "A test may read another area's tables, and nothing else of it."
-              },
-              {
-                "group": ["**/db/**"],
-                "message": "The GeekyKey side keeps no database."
+                "group": ["**/event/**"],
+                "message": "The claims stand-in reaches the Event side only through its requests."
               }
             ]
           }
@@ -111,11 +61,7 @@
           {
             "patterns": [
               {
-                "group": [
-                  "**/geekykey/**",
-                  "**/claims-stand-in/**",
-                  "!**/claims-stand-in/schema.ts"
-                ],
+                "group": ["**/claims-stand-in/**", "!**/claims-stand-in/schema.ts"],
                 "message": "A test may read another area's tables, and nothing else of it."
               }
             ]
@@ -131,7 +77,7 @@
           {
             "patterns": [
               {
-                "group": ["**/geekykey/**", "**/event/**", "!**/event/schema.ts"],
+                "group": ["**/event/**", "!**/event/schema.ts"],
                 "message": "A test may read another area's tables, and nothing else of it."
               }
             ]

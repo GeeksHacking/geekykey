@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
 import type { Db } from "../src/db/pool.ts";
 import { tokens } from "../src/claims-stand-in/schema.ts";
 import { passportStations, stations, users } from "../src/event/schema.ts";
-import { generateStationKey, hashStationKey } from "../src/geekykey/station-keys.ts";
+import { generateStationKey, hashStationKey } from "../src/event/station-keys.ts";
 
 /**
  * Adds a station with a new key, named `label`. The key is handed back to be

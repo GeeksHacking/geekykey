@@ -5,7 +5,7 @@ import { onTestFinished, test, vi } from "vitest";
 import { setupFixture, testApp, testDb, TEST_EVENT_SERVICE_KEY } from "../test-helpers.ts";
 import { stations, taps } from "./schema.ts";
 
-// The Event side's hand-off, as the GeekyKey side sends it: the API
+// The Event side's hand-off, as the GeekyKey Service sends it: the API
 // agreement's 11.2.
 
 const app = testApp();
@@ -116,7 +116,7 @@ test("a body the schema rejects is a 400, and nothing is stored", async () => {
       station_id: stationId,
       taps: [{ client_tap_id: "t1", uid: "04A1B2C3D4E5F6", tapped_at: null }],
     },
-    // The GeekyKey side sends UTC with milliseconds.
+    // The GeekyKey Service sends UTC with milliseconds.
     { station_id: stationId, taps: [{ ...tap, tapped_at: "2026-10-10T09:00:00+08:00" }] },
   ]) {
     const res = await handOff(body);
@@ -198,7 +198,7 @@ test("each stored tap gets a tap_stored line, and a duplicate none", async () =>
   ]);
 });
 
-// The registered stations, as the GeekyKey side asks for them: the API
+// The registered stations, as the GeekyKey Service asks for them: the API
 // agreement's 11.1.
 
 /** This Event Service's registered stations, asked for with the Event Service key unless told otherwise. */
@@ -237,7 +237,7 @@ test("the registered stations are the enabled ones, each with its key's hash and
   });
 });
 
-// The heartbeat hand-off, as the GeekyKey side sends it: the API agreement's
+// The heartbeat hand-off, as the GeekyKey Service sends it: the API agreement's
 // 11.3.
 
 /** A heartbeat hand-off to the Event side, with the Event Service key unless told otherwise. */

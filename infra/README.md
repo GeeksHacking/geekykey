@@ -182,12 +182,11 @@ What's inside each `app-secrets`:
 |---|---|
 | `SESSION_SECRET` | Signs the session cookie |
 | `DATABASE_URL` | The TiDB app login |
-| `EVENT_SERVICE_KEY` | The key the GeekyKey side's requests to the Event side carry, from checkpoint 3 |
-| `CLAIMS_STAND_IN_KEY` | The key the GeekyKey side's requests to the claims stand-in carry, from checkpoint 3 until the switch |
+| `EVENT_SERVICE_KEY` | The key the GeekyKey Service's requests to the Event side carry, from checkpoint 3 |
+| `CLAIMS_STAND_IN_KEY` | The key the GeekyKey Service's requests to the claims stand-in carry, from checkpoint 3 until the switch |
 
-Until the split, both ends of those requests are inside the one server, so it both sends
-and checks each key. From checkpoint 4, the GeekyKey Service sends them from a Worker,
-which keeps its own copy of production's two as Workers secrets, named
+The Event Service checks each key. The GeekyKey Service sends them from a Worker, which
+keeps its own copy of production's two as Workers secrets, named
 `EVENT_SERVICE_KEY_SHOWCASE` and `CLAIMS_STAND_IN_KEY` there.
 
 The four live in one secret because Secret Manager bills each stored version, after the
