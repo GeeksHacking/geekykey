@@ -29,8 +29,12 @@ const CONFIRMATION =
  * dialog, so the alert asks and then steps aside.
  *
  * Nothing here needs an API client. Radix mounts dialog content only once it opens, so the
- * mutation sits in the content below rather than here, which is what leaves StationBoard
- * renderable with no provider. That is how PassportStationDialog already does it.
+ * mutation sits in the content below rather than in this wrapper, the way
+ * PassportStationDialog already does it.
+ *
+ * Since FRO-26 the board's rows hold an API client too: EnableStationButton mounts the enable
+ * mutation directly in the row, and StationBoard therefore renders inside its providers in
+ * tests, as its own test file's renderBoard already shows.
  */
 export function ReplaceStationKeyDialog({
   station,
