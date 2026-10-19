@@ -68,6 +68,7 @@ export class EventService {
       key: this.#key,
       body: request,
       answer: tapsAnswerMatching(request),
+      quickAnswer: quickTapsAnswer(request),
       signal,
       fail: EventServiceUnavailable,
     });
@@ -92,4 +93,37 @@ export class EventService {
       fail: EventServiceUnavailable,
     });
   }
+}
+
+/** The pattern tapsAnswer checks each status with, in @geekykey/handoff. */
+const STATUS_PATTERN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
+
+/**
+ * A plain check of the hand-off's answer, tried before tapsAnswerMatching
+ * (service-request.ts). It returns what the schema would, or undefined for
+ * anything it isn't sure of, which the schema then checks as usual. So it
+ * never takes an answer the schema would refuse.
+ *
+ * It's needed for the same reason as quickTapBody in station-routes.ts: on
+ * the Workers free plan a request has 10 ms of CPU, and Zod checking 500
+ * results one by one costs several times what this loop does while V8 is
+ * still interpreting the code, as it is in most isolates at our traffic
+ * (BAC-45). Keep it in step with tapsAnswer and tapsAnswerMatching: the
+ * tests check they agree.
+ */
+export function quickTapsAnswer(request: TapsRequest) {
+  return (value: unknown): TapsAnswer | undefined => {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+    const raw: unknown = (value as Record<string, unknown>).results;
+    if (!Array.isArray(raw) || raw.length !== request.taps.length) return undefined;
+    const results: TapsAnswer["results"] = [];
+    for (const [i, result] of raw.entries()) {
+      if (typeof result !== "object" || result === null || Array.isArray(result)) return undefined;
+      const { client_tap_id, status } = result as Record<string, unknown>;
+      if (client_tap_id !== request.taps[i]!.client_tap_id) return undefined;
+      if (typeof status !== "string" || !STATUS_PATTERN.test(status)) return undefined;
+      results.push({ client_tap_id, status });
+    }
+    return { results };
+  };
 }

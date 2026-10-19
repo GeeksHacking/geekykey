@@ -9,6 +9,7 @@ import {
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { hashStationKey } from "./station-keys.ts";
+import { quickTapBody, tapBodySchema } from "./station-routes.ts";
 
 // The station endpoints (the API agreement's 6.1 and 6.2), with the Event
 // Service and the claims stand-in faked behind `fetch`.
@@ -160,6 +161,56 @@ test("a body that fails validation is 400 validation_failed", async () => {
     const res = await post(body);
     assert.equal(res.status, 400, `expected 400 for ${JSON.stringify(body).slice(0, 80)}`);
     assert.equal(((await res.json()) as { error: string }).error, "validation_failed");
+  }
+});
+
+test("the quick check of a taps body agrees with tapBodySchema", () => {
+  const schema = tapBodySchema(3);
+  const quick = quickTapBody(3);
+  const tap = { client_tap_id: "t1", uid: UID };
+  // Bodies a station sends, which the quick check must take itself, or it saves nothing.
+  const usual: unknown[] = [
+    { taps: [tap] },
+    { taps: [tap, { ...tap, client_tap_id: "t2" }, { ...tap, client_tap_id: "t3" }] },
+    { taps: [{ ...tap, uid: "04:a1:b2:c3:d4:e5:f6" }] },
+    { taps: [{ ...tap, tapped_at: "2026-10-19T02:54:42.123Z" }] },
+    { taps: [{ ...tap, tapped_at: "2026-10-19T10:54:42+08:00" }] },
+    { taps: [{ ...tap, client_tap_id: "x".repeat(128) }], extra: true },
+    { taps: [{ ...tap, extra: "dropped, as Zod drops it" }] },
+  ];
+  const others: unknown[] = [
+    null,
+    [],
+    "taps",
+    {},
+    { taps: {} },
+    { taps: [] },
+    { taps: [tap, tap, tap, tap] },
+    { taps: [null] },
+    { taps: [[tap]] },
+    { taps: [{ uid: UID }] },
+    { taps: [{ ...tap, client_tap_id: "" }] },
+    { taps: [{ ...tap, client_tap_id: "x".repeat(129) }] },
+    { taps: [{ ...tap, client_tap_id: 1 }] },
+    { taps: [{ client_tap_id: "t1" }] },
+    { taps: [{ ...tap, uid: "" }] },
+    { taps: [{ ...tap, uid: "zz" }] },
+    { taps: [{ ...tap, uid: "04A1B2" }] },
+    { taps: [{ ...tap, uid: "0".repeat(22) }] },
+    { taps: [{ ...tap, uid: `04A1B2C3${":".repeat(57)}` }] },
+    { taps: [{ ...tap, tapped_at: null }] },
+    { taps: [{ ...tap, tapped_at: "yesterday" }] },
+    { taps: [{ ...tap, tapped_at: "2026-10-19T02:54:42" }] },
+    { taps: [{ ...tap, tapped_at: "2026-13-19T02:54:42Z" }] },
+    { taps: [{ ...tap, tapped_at: 1792390482123 }] },
+  ];
+  for (const body of [...usual, ...others]) {
+    const parsed = schema.safeParse(body).data;
+    const fast = quick(body);
+    const what = String(JSON.stringify(body)).slice(0, 80);
+    // Never takes a body the schema refuses, and never makes it into something else.
+    if (fast !== undefined) assert.deepEqual(fast, parsed, what);
+    if (usual.includes(body)) assert.ok(fast, `the quick check took ${what}`);
   }
 });
 
