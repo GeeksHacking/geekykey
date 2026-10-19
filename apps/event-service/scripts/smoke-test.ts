@@ -81,8 +81,7 @@ before(async () => {
     uid: claimedUid,
   });
 
-  // As on Cloud Run, with dev sign-in off. Its own copy of the station
-  // endpoints isn't called here, so its EVENT_SERVICES only has to be valid.
+  // As on Cloud Run, with dev sign-in off.
   eventService = start("event-service", "node", ["src/server.ts"], {
     cwd: join(appsDir, "event-service"),
     env: {
@@ -93,9 +92,6 @@ before(async () => {
       SESSION_SECRET: randomKey(),
       CLAIMS_STAND_IN_KEY: claimsStandInKey,
       EVENT_SERVICE_KEY: eventServiceKey,
-      EVENT_SERVICES: JSON.stringify([
-        { id: "showcase", name: "Capstone Showcase", url: "https://event-api.geekshacking.com" },
-      ]),
     },
   });
 

@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { test } from "vitest";
 import { tokens } from "./claims-stand-in/schema.ts";
 import { stations, taps, users } from "./event/schema.ts";
-import { hashStationKey } from "./geekykey/station-keys.ts";
+import { hashStationKey } from "./event/station-keys.ts";
 import { setupFixture, testDb } from "./test-helpers.ts";
 
 test("the fixture's station, participant and token read back through the pool", async () => {

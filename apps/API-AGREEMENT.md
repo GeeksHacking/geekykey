@@ -6,7 +6,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | Part | What it does | Code |
 |---|---|---|
-| GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | Inside `apps/event-service` until checkpoint 4, then `apps/geekykey-service` |
+| GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | `apps/geekykey-service` |
 | Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/event-service` |
 | GeekyKey screens | The token page and My tokens | `apps/geekykey-web` |
 | Event screens | The dashboard, passport, activity and organizer screens, including the station board | `apps/event-web` |
@@ -35,9 +35,9 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 | Checkpoint | What it delivers |
 |---|---|
 | 1 | Today's backend on TiDB, unchanged on the wire. Done |
-| 2 | Today's backend moved to Google Cloud Run, at `https://event-api.geekshacking.com` |
-| 3 | The GeekyKey Service and the Event Service drawn inside one server, talking only through their requests |
-| 4 | The GeekyKey Service cut out as a Worker at `https://key-api.geekshacking.com`, and the stations moved to it |
+| 2 | Today's backend moved to Google Cloud Run, at `https://event-api.geekshacking.com`. Done |
+| 3 | The GeekyKey Service and the Event Service drawn inside one server, talking only through their requests. Done |
+| 4 | The GeekyKey Service cut out as a Worker at `https://key-api.geekshacking.com`, and the stations moved to it. Done |
 | 5 | Login through Firebase, with Google or GeeksHacking's login, and both sets of screens deployed |
 | 6 | The GeekyKey Service's features: claiming and releasing, rate limits |
 | 7 | The Event Service's features: the organizers' station endpoints, the station board, passport settings, the tap log, stats, the export, the QR fallback |
@@ -70,8 +70,8 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 
 | Who | Local | Production |
 |---|---|---|
-| Stations, to the GeekyKey Service | `http://localhost:8000` | `https://key-api.geekshacking.com` from checkpoint 4. From checkpoint 2 until then, `https://event-api.geekshacking.com` |
-| The GeekyKey Service, to our Event Service | `http://localhost:8001` from checkpoint 4 | `https://event-api.geekshacking.com` |
+| Stations, to the GeekyKey Service | `http://localhost:8000` | `https://key-api.geekshacking.com` |
+| The GeekyKey Service, to our Event Service | `http://localhost:8001` | `https://event-api.geekshacking.com` |
 | Browsers, for the GeekyKey screens | `http://localhost:5174` | `https://key.geekshacking.com` |
 | Browsers, for the Event Service's screens | `http://localhost:5173` | `https://event.geekshacking.com` |
 
@@ -83,8 +83,8 @@ service's address.
 - A real station on the local network uses the laptop's `.local` name, such as
   `http://A-Mac.local:8000`.
 - The Event Service's own address, `event-api.`, is for the GeekyKey Service and the Event
-  screens' Worker. Browsers never call it directly. Until checkpoint 4 both services run inside
-  one server, on port 8000 locally and at `event-api.` in production, and stations call it there.
+  screens' Worker. Browsers never call it directly, and nor do stations: it has no station
+  endpoints, so a station's request there gets `404 not_found`.
 
 All resource endpoints live under `/api/v1`. Auth endpoints live under `/auth` because they are
 browser redirects, not JSON resources. Health is at `/api/health`. What the GeekyKey Service asks
@@ -337,8 +337,6 @@ them.
 
 ## 5. Endpoint index
 
-Until checkpoint 4, one server built from `apps/event-service` serves both tables.
-
 **The GeekyKey Service**
 
 | Method | Path | Caller | Status | Purpose |
@@ -381,9 +379,8 @@ Until checkpoint 4, one server built from `apps/event-service` serves both table
 
 ## 6. Station endpoints
 
-On the GeekyKey Service, at `https://key-api.geekshacking.com` in production from checkpoint 4.
-From checkpoint 2 until then, stations call today's backend at
-`https://event-api.geekshacking.com`, which answers them the same way.
+On the GeekyKey Service, at `https://key-api.geekshacking.com` in production. The Event Service
+has none, and answers them `404 not_found`.
 
 ### 6.1 `POST /api/v1/taps` (`Implemented`)
 
@@ -441,9 +438,6 @@ item has a [`tap_status`](#tap_status).
    Service doesn't answer properly in what's left, it fails with
    `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
-Until checkpoint 4, the registered stations (11.1) and the hand-off (11.2) run inside today's
-one server.
-
 **Errors:** `missing_station_key`, `invalid_station_key`, `validation_failed`,
 `claims_unavailable` and `event_service_unavailable` (from checkpoint 3), and `rate_limited`
 (from checkpoint 6).
@@ -492,8 +486,7 @@ change. Show each result for about 2 seconds with its LED on, then go back to "R
 - Never print the key on the serial port, even in debug output.
 - In production, trust the 14 root certificates of the certificate authorities Cloudflare uses,
   listed in [the message to Zi Tao](../.scratch/db-hosting/assets/message-to-zi-tao-station-contract.md),
-  which also cover the Google Trust Services certificate of `event-api.`, and never use
-  `setInsecure()`. Keep one HTTPS connection open, so a tap doesn't pay a new
+  and never use `setInsecure()`. Keep one HTTPS connection open, so a tap doesn't pay a new
   handshake each time.
 
 ### 6.2 `POST /api/v1/stations/heartbeat` (`Implemented`)
@@ -530,10 +523,7 @@ whether the reader works.
 - The GeekyKey Service answers as soon as the key is checked, and passes the other fields to the
   station's Event Service afterwards, without waiting (11.3). So a heartbeat succeeds, and sets
   the clock, even while the Event Service is down.
-- Until checkpoint 4, the answer leaves once that hand-off is done, or once what's left of the 4
-  seconds runs out, because Cloud Run gives the one server a processor only while a request is
-  in progress. `server_time` is still the time the key was checked. Wait 5 seconds for an
-  answer, as for a tap.
+- Wait 5 seconds for an answer, as for a tap.
 - A station is shown as online when its Event Service heard from it, by a tap or a heartbeat,
   within 120 seconds.
 
@@ -1324,3 +1314,4 @@ Closed on 2026-10-10:
 | 2026-10-16 | Housekeeping, no endpoint or shape changes. Locally the Event Service now runs on port 8001, as the table at the top already said for checkpoint 4, and the GeekyKey Service on 8000, in `wrangler dev`. Section 13's local setup names the new port, and starts the GeekyKey Service too. Until its own dev-login arrives, the GeekyKey Service on 8000 has no `POST /auth/dev-login` or `POST /auth/logout`. [Event Service keys](#event-service-keys) now states the one exception to `https://`: locally, `http://` to the same machine, as the code already allowed (BAC-41). |
 | 2026-10-16 | Each service signs its own users in locally, as sections 2 and 7 already said for checkpoint 4. The Event Service's session cookie is now `event_session`, not `gk_session`; nobody is signed in on production yet, so the rename signs nobody out. The GeekyKey Service has its own `POST /auth/dev-login` (7.1), which signs in any `user_id` and sets `gk_session`, and its own `POST /auth/logout` (7.3). Dev-login exists on each only with `DEV_AUTH_ENABLED=true`, and logout always. The Event Service's dev-login, logout and `GET /api/health` are `Implemented`, and the GeekyKey Service's dev-login no longer "changes at checkpoint 4". Section 13's local setup is one `pnpm dev` at the repo root, which starts all four on 8000, 8001, 5173 and 5174 with no settings file. The status legend's `Implemented` names both services' folders. No shape changes (BAC-42). |
 | 2026-10-20 | Housekeeping, no endpoint or shape changes. The Event screens' code moved from `apps/frontend` to `apps/event-web`, and its package to `@geekykey/event-web`. The table at the top and section 13's Event screens heading name the new folder, and the root scripts, the mise tasks and CI follow it (FRO-37). |
+| 2026-10-20 | Checkpoint 4 is done: every station calls the GeekyKey Service at `https://key-api.geekshacking.com`, its only production address. `POST /api/v1/taps` (6.1) and `POST /api/v1/stations/heartbeat` (6.2) are gone from the Event Service, which answers them `404 not_found`, and the notes on how they ran inside one server until checkpoint 4 are gone from sections 2, 5, 6, 6.1 and 6.2. The heartbeat's answer no longer waits for its hand-off. The Event Service's routes under `/geekykey/v1` and the claims stand-in's under `/claims-stand-in/v1` don't change. No shape changes (BAC-46). |

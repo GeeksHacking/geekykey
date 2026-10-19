@@ -35,7 +35,7 @@ export interface SessionOptions {
 
 /*
   Browser sessions for participants and organizers. Stations do not use this;
-  they carry a bearer key, see src/geekykey/station-auth.ts.
+  they call the GeekyKey Service with a bearer key (apps/geekykey-service).
 
   The session is the cookie. There is no sessions table: the cookie holds an
   expiry and a user ID, signed with the configured secret, so a forged or edited

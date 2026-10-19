@@ -11,7 +11,7 @@ import { tokens } from "./schema.ts";
 /** The most UIDs one request may ask about: a station's largest batch. */
 const MAX_UIDS = 500;
 
-/** Only the GeekyKey side calls the stand-in, and it normalises every UID first. */
+/** Only the GeekyKey Service calls the stand-in, and it normalises every UID first. */
 const uid = z.string().regex(UID_PATTERN, "uid must be 4 to 10 hex bytes, normalised");
 /** As long as the columns allow. */
 const userId = z.string().min(1).max(128);
@@ -20,7 +20,7 @@ const tokenPath = pathParams(z.object({ uid }));
 /**
  * The claims stand-in's routes (mounted at /claims-stand-in/v1): who owns
  * each token, until the GeekyKey Service asks the Portal's tag APIs instead.
- * Only the GeekyKey side calls them, with CLAIMS_STAND_IN_KEY, so they aren't
+ * Only the GeekyKey Service calls them, with CLAIMS_STAND_IN_KEY, so they aren't
  * in the API agreement. Their shapes are the migration spec's, section 4.
  *
  * GeekyKey's stand-in, removed after the switch.

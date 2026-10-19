@@ -21,6 +21,19 @@ test("every /api and /auth response says not to cache it, even an error", async 
   }
 });
 
+test("a station's tap or heartbeat finds nothing here, since stations call the GeekyKey Service", async () => {
+  // A station still pointed at event-api. hears 404, keeps its taps and shows a setup error.
+  for (const path of ["/api/v1/taps", "/api/v1/stations/heartbeat"]) {
+    const res = await app.request(path, {
+      method: "POST",
+      headers: { Authorization: "Bearer gk_sta_any-key", "Content-Type": "application/json" },
+      body: "{}",
+    });
+    assert.equal(res.status, 404, path);
+    assert.deepEqual(await res.json(), { error: "not_found" }, path);
+  }
+});
+
 test("a request gets the settings the app started with, and its database", async () => {
   // A route only this test has, to look at what a real route would be handed.
   const app = testApp({ TAP_COOLDOWN_SECONDS: "7" });

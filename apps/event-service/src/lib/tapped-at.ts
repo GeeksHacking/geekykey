@@ -10,8 +10,9 @@ const MAX_CLOCK_AHEAD_MS = 5 * 60 * 1000; // a synced clock can still run a litt
 /**
  * A station's time for a tap, in UTC with milliseconds, or null when it sent
  * none or it's more than 5 minutes ahead of `now` or 7 days behind it. The
- * GeekyKey side applies it before the hand-off, as the API agreement says,
- * and the Event side again, since it can't rely on every caller doing so.
+ * GeekyKey Service applies it before the hand-off, as the API agreement
+ * says, and the Event side again, since it can't rely on every caller doing
+ * so.
  */
 export function trustedTappedAt(tappedAt: string | null | undefined, now: Date): string | null {
   if (!tappedAt) return null;

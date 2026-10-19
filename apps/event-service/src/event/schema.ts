@@ -67,7 +67,7 @@ export const passportStations = mysqlTable("passport_stations", {
 });
 
 export const TAP_SOURCES = ["nfc", "qr_fallback"] as const;
-/** `duplicate` and the GeekyKey side's `unknown_token` are answered, never stored. */
+/** `duplicate` and the GeekyKey Service's `unknown_token` are answered, never stored. */
 export const STORED_TAP_STATUSES = ["accepted", "cooldown", "no_game"] as const;
 
 /**

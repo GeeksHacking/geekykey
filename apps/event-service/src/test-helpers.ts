@@ -1,11 +1,11 @@
 import { afterAll } from "vitest";
 import { localDatabaseUrl } from "../scripts/local-tidb.ts";
-import { type AppOptions, createApp } from "./app.ts";
-import { DEV_EVENT_SERVICES, loadConfig } from "./config.ts";
+import { createApp } from "./app.ts";
+import { loadConfig } from "./config.ts";
 import { createDbPool, type Db } from "./db/pool.ts";
 import { tokens } from "./claims-stand-in/schema.ts";
 import { passportStations, stations, users } from "./event/schema.ts";
-import { generateStationKey, hashStationKey } from "./geekykey/station-keys.ts";
+import { generateStationKey, hashStationKey } from "./event/station-keys.ts";
 
 export interface TestFixture {
   db: Db;
@@ -18,9 +18,6 @@ export interface TestFixture {
 
 /** The claims stand-in's key in testApp(), which tests send to its routes. */
 export const TEST_CLAIMS_STAND_IN_KEY = "5".repeat(64);
-
-/** Where testApp() hands taps. Inside the one server, they never leave it. */
-export const TEST_EVENT_SERVICE_URL = "https://event-api.test";
 
 /** The Event Service key in testApp(), which tests send to the Event side's hand-off routes. */
 export const TEST_EVENT_SERVICE_KEY = "e".repeat(64);
@@ -38,24 +35,19 @@ export function testDb(): Db {
 }
 
 /**
- * The backend as `pnpm dev` starts it, with dev-login on, but against
+ * The Event Service as `pnpm dev` starts it, with dev-login on, but against
  * geekykey_test. `settings` are added to, or replace, its environment
- * variables, and `options` can fake one side's requests to another. Send it
- * a request with `app.request(path, init)`.
+ * variables. Send it a request with `app.request(path, init)`.
  */
-export function testApp(settings: Record<string, string> = {}, options: AppOptions = {}) {
+export function testApp(settings: Record<string, string> = {}) {
   const config = loadConfig({
     DATABASE_URL: localDatabaseUrl("geekykey_test"),
     DEV_AUTH_ENABLED: "true",
     CLAIMS_STAND_IN_KEY: TEST_CLAIMS_STAND_IN_KEY,
     EVENT_SERVICE_KEY: TEST_EVENT_SERVICE_KEY,
-    // As dev sign-in has it, but on https, for the tests that turn dev sign-in off.
-    EVENT_SERVICES: JSON.stringify(
-      DEV_EVENT_SERVICES.map((entry) => ({ ...entry, url: TEST_EVENT_SERVICE_URL })),
-    ),
     ...settings,
   });
-  return createApp(config, testDb(), options);
+  return createApp(config, testDb());
 }
 
 /** One station in the passport, and one participant holding one token. */
