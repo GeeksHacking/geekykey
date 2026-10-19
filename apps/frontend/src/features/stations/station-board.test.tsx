@@ -1,8 +1,32 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-
-import type { EventStationBoardStation } from "@/api/types";
+import userEvent from "@testing-library/user-event";
+import type { EventStationBoardStation, StationResponse } from "@/api/types";
 import { StationBoard } from "@/features/stations/station-board";
+import { describe, expect, it, vi } from "vitest";
+
+import { createMockClient } from "@/api/mock/client";
+import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
+import { createTestProviders } from "@/test/providers";
+
+/**
+ * The board's rows hold the enable mutation since FRO-26, so the board needs the app's
+ * providers around it even to render. This wraps it the way the dialog tests do, with the
+ * client returned so a test can prepare the 9.9 calls behind the same rows it rendered.
+ */
+function renderBoard(
+  stations: EventStationBoardStation[],
+  api = createMockClient({ latencyMs: [0, 0], storage: null }),
+) {
+  const { Providers } = createTestProviders(api);
+  return {
+    api,
+    ...render(
+      <Providers>
+        <StationBoard stations={stations} />
+      </Providers>,
+    ),
+  };
+}
 
 function station(overrides: Partial<EventStationBoardStation> = {}): EventStationBoardStation {
   return {
@@ -76,7 +100,7 @@ const healthyStation = station({
 
 describe("StationBoard", () => {
   it("shows passport, not-in-passport, and last-tap states", () => {
-    render(<StationBoard stations={[offlineBuffered, deadReader]} />);
+    renderBoard([offlineBuffered, deadReader]);
 
     expect(screen.getByText("Careers Corner")).toBeInTheDocument();
     expect(screen.getByText("Station 3")).toBeInTheDocument();
@@ -84,29 +108,38 @@ describe("StationBoard", () => {
     expect(screen.getByText("Never")).toBeInTheDocument();
   });
 
+  // FRO-26. The switch follows the row's state, in both directions at once: the same row
+  // cannot hold both, and the named labels are how a row's action stays addressable.
+  it("gives an enabled station Disable, and no Enable, named for its row", () => {
+    renderBoard([healthyStation]);
+
+    expect(screen.getByRole("button", { name: "Disable Healthy Booth" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /^Enable / })).not.toBeInTheDocument();
+  });
+
   it("no longer says 'No longer linked', which cannot happen any more", () => {
     // A station always feeds the Event Service that registered it, so agreement 9.2 has no
     // link field and the old line had nothing left to report.
-    render(<StationBoard stations={[offlineBuffered, deadReader, healthyStation]} />);
+    renderBoard([offlineBuffered, deadReader, healthyStation]);
 
     expect(screen.queryByText("No longer linked")).not.toBeInTheDocument();
   });
 
   it("names every problem on a station that has several", () => {
-    render(<StationBoard stations={[offlineBuffered]} />);
+    renderBoard([offlineBuffered]);
 
     expect(screen.getByText("Not responding")).toBeInTheDocument();
     expect(screen.getByText("Holding saved taps")).toBeInTheDocument();
   });
 
   it("marks a dead reader in words, not colour alone", () => {
-    render(<StationBoard stations={[deadReader]} />);
+    renderBoard([deadReader]);
 
     expect(screen.getByText("Reader not responding")).toBeInTheDocument();
   });
 
   it("leaves a station that is only quiet uncoloured and unlabelled", () => {
-    render(<StationBoard stations={[quietStation]} />);
+    renderBoard([quietStation]);
 
     expect(screen.getByText("Quiet Booth")).toBeInTheDocument();
     expect(screen.queryByText("Not responding")).not.toBeInTheDocument();
@@ -115,13 +148,13 @@ describe("StationBoard", () => {
   });
 
   it("says 'Not in the passport' once per station, not twice", () => {
-    render(<StationBoard stations={[deadReader]} />);
+    renderBoard([deadReader]);
 
     expect(screen.getAllByText("Not in the passport")).toHaveLength(1);
   });
 
   it("puts problem stations above healthy ones, keeping arrival order within each group", () => {
-    render(<StationBoard stations={[healthyStation, quietStation, deadReader]} />);
+    renderBoard([healthyStation, quietStation, deadReader]);
 
     const names = screen
       .getAllByRole("row")
@@ -135,20 +168,27 @@ describe("StationBoard", () => {
 
   describe("a disabled station", () => {
     it("shows a Disabled badge", () => {
-      render(<StationBoard stations={[disabledStation]} />);
+      renderBoard([disabledStation]);
 
       expect(screen.getByText("Disabled")).toBeInTheDocument();
     });
 
+    it("has an Enable action, and no Disable one, named for its row", () => {
+      renderBoard([disabledStation]);
+
+      expect(screen.getByRole("button", { name: "Enable Careers Corner" })).toBeEnabled();
+      expect(screen.queryByRole("button", { name: /^Disable / })).not.toBeInTheDocument();
+    });
+
     it("leaves an enabled station without the badge", () => {
-      render(<StationBoard stations={[healthyStation]} />);
+      renderBoard([healthyStation]);
 
       expect(screen.queryByText("Disabled")).not.toBeInTheDocument();
     });
 
     it("keeps its slot and its stamps, so its passport name and points still show", () => {
       // Agreement 9.2: disabling does not take the station out of the passport.
-      render(<StationBoard stations={[disabledStation]} />);
+      renderBoard([disabledStation]);
 
       expect(screen.getByText("Careers Corner")).toBeInTheDocument();
       expect(screen.getByText("Hall B")).toBeInTheDocument();
@@ -156,7 +196,7 @@ describe("StationBoard", () => {
     });
 
     it("is not flagged as a problem just for being disabled", () => {
-      render(<StationBoard stations={[disabledStation]} />);
+      renderBoard([disabledStation]);
 
       expect(screen.queryByText("Not responding")).not.toBeInTheDocument();
       expect(screen.queryByText("Reader not responding")).not.toBeInTheDocument();
@@ -164,7 +204,7 @@ describe("StationBoard", () => {
     });
 
     it("goes last, below problem and healthy stations alike", () => {
-      render(<StationBoard stations={[disabledStation, healthyStation, deadReader]} />);
+      renderBoard([disabledStation, healthyStation, deadReader]);
 
       const names = screen
         .getAllByRole("row")
@@ -190,20 +230,20 @@ describe("StationBoard", () => {
     });
 
     it("reads as never connected, not as status unknown", () => {
-      render(<StationBoard stations={[fresh]} />);
+      renderBoard([fresh]);
 
       expect(screen.getByText("Never connected")).toBeInTheDocument();
       expect(screen.queryByText("Status unknown")).not.toBeInTheDocument();
     });
 
     it("still shows its label, since a station always has one", () => {
-      render(<StationBoard stations={[fresh]} />);
+      renderBoard([fresh]);
 
       expect(screen.getByText("Station 7")).toBeInTheDocument();
     });
 
     it("flags the missing passport and being offline, but not the unreported reader", () => {
-      render(<StationBoard stations={[fresh]} />);
+      renderBoard([fresh]);
 
       expect(screen.getByText("Not in the passport")).toBeInTheDocument();
       // It was registered at once by 9.7 and has never been heard from, so 9.2's
@@ -212,6 +252,79 @@ describe("StationBoard", () => {
       // The reader has simply not reported yet, and that is not a fault.
       expect(screen.queryByText("Reader not responding")).not.toBeInTheDocument();
       expect(screen.queryByText("Holding saved taps")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("enabling a station", () => {
+    // 9.9 is an organiser endpoint, and the mock refuses it without a session. The rows come
+    // from 9.2, which is where the board gets them, so every id is one 9.9 knows.
+    async function setup() {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      api.mock.setSession(SEEDED_ORGANIZER_ID);
+      const stations = (await api.listStationBoard()).stations;
+      const user = userEvent.setup();
+      renderBoard(stations, api);
+      const disabled =
+        stations.find((one) => one.disabled_at !== null) ?? stations[stations.length - 1]!;
+      const name = disabled.passport?.name ?? disabled.label;
+      return { api, user, name, id: disabled.id };
+    }
+
+    // FRO-26 gives enabling no confirmation, 9.9 answers the station, and the board's
+    // refresh is the enable hook's own board-only invalidation.
+    it("acts at once, with no confirmation in the way", async () => {
+      const { api, user, name, id } = await setup();
+      const sent = vi.spyOn(api, "enableStation");
+
+      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+
+      expect(sent).toHaveBeenCalledTimes(1);
+      expect(sent).toHaveBeenCalledWith(id);
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+
+    // Read through 9.2 again rather than the prop, which never changes in this test.
+    it("reads the station back as enabled through 9.2", async () => {
+      const { api, user, name, id } = await setup();
+
+      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+
+      const after = (await api.listStationBoard()).stations.find((one) => one.id === id);
+      expect(after?.disabled_at).toBeNull();
+    });
+
+    // 9.9 answers not_found for a station this Event Service does not have, and FRO-26 asks
+    // for a plain message. There is no dialog to hold it, so the row itself says it.
+    it("says so plainly in the row when the station is gone", async () => {
+      const { api, user, name } = await setup();
+      api.mock.failNext("not_found");
+
+      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "That was not found. It may have been removed.",
+      );
+      // The row is still the prop's station, so the action comes back with it.
+      expect(screen.getByRole("button", { name: `Enable ${name}` })).toBeEnabled();
+    });
+
+    // The ticket: disable the button while the request is in flight. The spy never
+    // resolves, which is the in-flight case with no timing guess, and a click on the held
+    // button must not send a second enable either. While it runs the label swaps to
+    // "Enabling", but the aria-label stays the row's.
+    it("waits while one enable is in the air, and one click is one call", async () => {
+      const { api, user, name } = await setup();
+      vi.spyOn(api, "enableStation").mockImplementationOnce(
+        () => new Promise<StationResponse>(() => {}),
+      );
+
+      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+
+      expect(screen.getByRole("button", { name: `Enable ${name}` })).toBeDisabled();
+      expect(screen.getByRole("button", { name: `Enable ${name}` })).toHaveTextContent("Enabling");
+
+      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+      expect(api.enableStation).toHaveBeenCalledTimes(1);
     });
   });
 });

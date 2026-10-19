@@ -1,5 +1,7 @@
 import { WarningCircle } from "@phosphor-icons/react";
+import { useState } from "react";
 
+import { describeError } from "@/api/errors";
 import type { EventStationBoardStation } from "@/api/types";
 import { OnlineStatus } from "@/components/online-status";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useEnableStation } from "@/features/stations/use-enable-station";
 import { EMPTY_CELL, formatDateTime, formatWhen } from "@/lib/format";
 
+import { DisableStationDialog } from "./disable-station-dialog";
 import { PassportStationDialog } from "./passport-station-dialog";
 import { ReplaceStationKeyDialog } from "./replace-station-key-dialog";
+import { useDisableStationDialog } from "./use-disable-station-dialog";
 import { usePassportStationDialog } from "./use-passport-station-dialog";
 import { useReplaceStationKeyDialog } from "./use-replace-station-key-dialog";
 import {
@@ -30,6 +35,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
   const sorted = sortStationsByTrouble(stations);
   const passport = usePassportStationDialog();
   const replaceKey = useReplaceStationKeyDialog();
+  const disableDialog = useDisableStationDialog();
 
   return (
     <Table>
@@ -99,6 +105,17 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                     station={station}
                     onOpen={() => replaceKey.openFor(station.id)}
                   />
+                  {/* FRO-26. One switch per row, by its state: an enabled station has
+                      Disable, whose ask lives behind the confirmation alert; a disabled one
+                      has Enable, which acts at once because the ticket gives it none. */}
+                  {station.disabled_at === null ? (
+                    <DisableStationButton
+                      station={station}
+                      onOpen={() => disableDialog.openFor(station.id)}
+                    />
+                  ) : (
+                    <EnableStationButton station={station} />
+                  )}
                 </div>
                 <PassportStationDialog
                   station={station}
@@ -112,6 +129,13 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                   open={replaceKey.isOpenFor(station.id)}
                   onOpenChange={(open) => {
                     if (!open) replaceKey.close();
+                  }}
+                />
+                <DisableStationDialog
+                  station={station}
+                  open={disableDialog.isOpenFor(station.id)}
+                  onOpenChange={(open) => {
+                    if (!open) disableDialog.close();
                   }}
                 />
               </TableCell>
@@ -185,5 +209,67 @@ function ReplaceKeyButton({
     >
       Replace key
     </Button>
+  );
+}
+
+/**
+ * FRO-26, on 9.9. The row's off switch. The ask is elsewhere: this only opens the alert,
+ * which holds the disable call. The default variant is the ticket's decision; the smaller
+ * size keeps it inside the row the link buttons above set.
+ */
+function DisableStationButton({
+  station,
+  onOpen,
+}: {
+  station: EventStationBoardStation;
+  onOpen: () => void;
+}) {
+  const name = station.passport?.name ?? station.label;
+
+  return (
+    <Button type="button" size="sm" onClick={onOpen} aria-label={`Disable ${name}`}>
+      Disable
+    </Button>
+  );
+}
+
+/**
+ * FRO-26, on 9.9. The row's on switch. Enabling needs no confirmation (the ticket), so
+ * this one acts at once, and a 9.9 refusal says so in the row itself, since there is no
+ * dialog to hold the message.
+ */
+function EnableStationButton({ station }: { station: EventStationBoardStation }) {
+  const enable = useEnableStation();
+  const [error, setError] = useState<string | null>(null);
+  const name = station.passport?.name ?? station.label;
+
+  async function handleEnable() {
+    setError(null);
+    try {
+      await enable.mutateAsync(station.id);
+    } catch (caught) {
+      // 9.9 answers not_found for a station this Event Service does not have. Nothing was
+      // enabled, so the row says so and the button comes back with it.
+      setError(describeError(caught));
+    }
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => void handleEnable()}
+        disabled={enable.isPending}
+        aria-label={`Enable ${name}`}
+      >
+        {enable.isPending ? "Enabling" : "Enable"}
+      </Button>
+      {error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </>
   );
 }
