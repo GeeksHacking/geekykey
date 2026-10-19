@@ -16,7 +16,11 @@
     "ArduinoJson" (version 7)
 
   Setup: copy secrets.example.h to secrets.h in this folder and fill it in.
-  secrets.h is gitignored, so credentials never reach the repo.
+  secrets.h is gitignored, so credentials never reach the repo. Those values
+  are only the first defaults: type "setup" and Enter on the USB serial port to
+  give the station a new server address, station key or Wi-Fi network without a
+  reflash. What the setup mode stores wins over secrets.h, even after a reflash,
+  until its "reset" command forgets it. firmware/README.md has the commands.
 
   The server is a full base URL in secrets.h (SERVER_URL), such as
   "https://event-api.geekshacking.com" in production or
@@ -65,7 +69,7 @@
 
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-10-15"
+#define FIRMWARE_VERSION "2026-10-19"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
@@ -74,8 +78,17 @@
 #define RESULT_SHOW_MS 2000UL
 
 // How long boot waits for WiFi before carrying on without it. The ESP32 keeps
-// trying in the background, and taps are saved until it connects.
-#define WIFI_BOOT_WAIT_MS 20000UL
+// trying in the background, and taps are saved until it connects. The setup
+// mode's "wifi" command waits as long before saying it could not join.
+#define WIFI_JOIN_WAIT_MS 20000UL
+
+// The setup mode restarts the station after this long with nothing typed, so a
+// station left in it by mistake goes back to taking taps.
+#define SETUP_IDLE_MS 300000UL
+
+// The longest line the serial port takes. A server address is the longest
+// thing typed; anything past this is dropped.
+#define SERIAL_LINE_MAX 200
 
 // A token that slips off the reader and back while its result shows is read
 // again straight after, and the server would only answer `cooldown`. So the
@@ -85,17 +98,31 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-const char* ssid = WIFI_SSID;
-const char* password = WIFI_PASSWORD;
-const char* stationKey = STATION_KEY;
+// The four settings, read at boot by loadSettings: what the setup mode stored,
+// or else secrets.h. The Wi-Fi name and password are stored together, so one
+// flag says where both came from. An empty password means an open network.
+String serverUrl = "";
+String stationKey = "";
+String wifiSsid = "";
+String wifiPassword = "";
+bool serverFromSetup = false;
+bool keyFromSetup = false;
+bool wifiFromSetup = false;
 
-// SERVER_URL split into its parts at boot (parseServerUrl). An https:// URL
+// The setup mode's own namespace, apart from the taps', so "reset" can forget
+// every setting at once without touching the saved taps or the tap counter.
+Preferences settings;
+
+// A server address split into its parts (parseServerUrl). An https:// URL
 // keeps its host as written: the ESP32's DNS resolves it and the certificate is
 // checked against the hostname in it.
-bool urlIsHttps = false;      // SERVER_URL starts with "https://"
-bool urlHostIsLocal = false;  // the host ends in ".local", so mDNS looks up its IP
-String urlHost = "";          // the host, without any port
-uint16_t urlPort = 443;       // from SERVER_URL, or the scheme's default
+struct ServerUrl {
+  bool isHttps = false;      // starts with "https://"
+  bool hostIsLocal = false;  // the host ends in ".local", so mDNS looks up its IP
+  String host = "";          // the host, without any port
+  uint16_t port = 443;       // from the address, or the scheme's default
+};
+ServerUrl server;
 
 // The base URL every request is sent to. For a .local host it holds the
 // looked-up IP, and is emptied again when a send fails, so it is looked up
@@ -109,7 +136,7 @@ String serverBase = "";
 // could pose as the server and station keys would be collected, and no
 // setFollowRedirects, since a redirect would carry the station key to wherever
 // it points. HTTPClient leaves redirects off by default. The station key is
-// never printed on the serial port.
+// never printed on the serial port, beyond its last 4 characters.
 WiFiClient plainClient;
 NetworkClientSecure secureClient;
 HTTPClient http;
@@ -173,13 +200,41 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
-  // Read the server setting before anything else. A URL the station may not
-  // use is a setup error: it shows on the screen and nothing is ever sent, so
-  // the station key cannot cross the venue WiFi in plain text.
-  if (!parseServerUrl()) {
+  // The settings and the saved taps are read first, so the setup mode can
+  // change them even when the station stops below on a setup error.
+  settings.begin("gk_settings", false);
+  loadSettings();
+  // client_tap_id must be unique per station forever, so the counter lives in
+  // flash. If it reset on reboot, every tap after a restart would be a
+  // `duplicate` and silently discarded by the backend.
+  prefs.begin("geekykey", false);
+  nextTapId = prefs.getUInt("tap_id", 0);
+  loadQueueState();
+  printSettings();
+
+  // Every https request checks the server's certificate against these 14 roots
+  // (Cloudflare's and Google's certificate authorities) and nothing else. An
+  // empty string here would refuse every connection rather than fall back to
+  // no checking, which is the right failure, but the roots are filled in.
+  secureClient.setCACert(CA_ROOTS);
+  // The handshake gets its own deadline: the default is 120 seconds, and a
+  // server that accepts the TCP connection but stalls the handshake would
+  // otherwise hold up every tap for those two minutes. It takes about one.
+  secureClient.setHandshakeTimeout(5);
+  http.setReuse(true);  // one connection, kept open across requests
+
+  // A server address the station may not use is a setup error: it shows on the
+  // screen and nothing is ever sent, so the station key cannot cross the venue
+  // WiFi in plain text. The setup mode refuses such an address, so it can only
+  // come from secrets.h, and the setup mode is still there to fix it.
+  if (!parseServerUrl(serverUrl, server)) {
     showScreen("SETUP ERROR", "Check secrets.h");
-    Serial.println("Setup error: SERVER_URL in secrets.h is not usable. Sending nothing.");
-    while (true) delay(1000);
+    Serial.println("Setup error: the server address is not usable. Sending nothing.");
+    Serial.println("Type setup and Enter to give the station another one.");
+    while (true) {
+      pollSerial();
+      delay(50);
+    }
   }
 
   // The station drives the RC522's reset pin itself (initReader says why).
@@ -190,21 +245,14 @@ void setup() {
   // talk to the reader over SPI: check the wiring and 3.3V power first.
   rfid.PCD_DumpVersionToSerial();
 
-  // client_tap_id must be unique per station forever, so the counter lives in
-  // flash. If it reset on reboot, every tap after a restart would be a
-  // `duplicate` and silently discarded by the backend.
-  prefs.begin("geekykey", false);
-  nextTapId = prefs.getUInt("tap_id", 0);
-  loadQueueState();
-
   // The station runs on mains power, so keep the radio awake: WiFi's power
   // saving adds 100-300 ms to every answer from the backend.
   WiFi.setSleep(false);
-  WiFi.begin(ssid, password);
+  beginWifi();
   Serial.print("Connecting to WiFi");
   showScreen("Connecting", "to WiFi...");
   const unsigned long wifiStartedAt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - wifiStartedAt < WIFI_BOOT_WAIT_MS) {
+  while (WiFi.status() != WL_CONNECTED && millis() - wifiStartedAt < WIFI_JOIN_WAIT_MS) {
     delay(500);
     Serial.print(".");
   }
@@ -224,17 +272,6 @@ void setup() {
     delay(2000);
   }
 
-  // Every https request checks the server's certificate against these 14 roots
-  // (Cloudflare's and Google's certificate authorities) and nothing else. An
-  // empty string here would refuse every connection rather than fall back to
-  // no checking, which is the right failure, but the roots are filled in.
-  secureClient.setCACert(CA_ROOTS);
-  // The handshake gets its own deadline: the default is 120 seconds, and a
-  // server that accepts the TCP connection but stalls the handshake would
-  // otherwise hold up every tap for those two minutes. It takes about one.
-  secureClient.setHandshakeTimeout(5);
-  http.setReuse(true);  // one connection, kept open across requests
-
   // The first heartbeat replaces a health check, since it also proves the
   // station key, and sets the clock before anyone taps.
   if (heartbeatTick() == 401) showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED);
@@ -244,6 +281,7 @@ void setup() {
 }
 
 void loop() {
+  pollSerial();
   if ((long)(millis() - nextHeartbeatAt) >= 0) heartbeatTick();
 
   if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
@@ -384,6 +422,22 @@ void removeQueuedHead() {
   queueHead = nextHead;
   queueCount = nextCount;
   prefs.remove(queueSlotKey(removedSlot).c_str());
+}
+
+// Drops every saved tap: only the setup mode does, when the station moves to
+// another event. The count goes to zero first, so a power cut part way through
+// leaves stray entries that the next taps write over, never a count that
+// points at taps already gone.
+bool clearSavedTaps() {
+  const uint8_t head = queueHead;
+  const uint8_t count = queueCount;
+  if (!saveQueueState(0, 0)) return false;
+  queueHead = 0;
+  queueCount = 0;
+  for (uint8_t i = 0; i < count; i++) {
+    prefs.remove(queueSlotKey((head + i) % QUEUE_CAPACITY).c_str());
+  }
+  return true;
 }
 
 void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
@@ -576,23 +630,25 @@ String takeClientTapId() {
   return "tap-" + String(id);
 }
 
-// Splits SERVER_URL into its parts and decides whether the station may send at
-// all. Returns false for a URL the station must not use, which parks it on a
-// setup error: the setting is only usable as https://, or as plain http:// to a
-// host ending in .local. Anything else would send the station key across the
-// venue WiFi in plain text, before anything could redirect it to HTTPS.
-bool parseServerUrl() {
-  String rest = SERVER_URL;
+// Splits a server address into its parts and decides whether the station may
+// send to it at all. Returns false for an address the station must not use,
+// with the reason on the serial port: the address is only usable as https://,
+// or as plain http:// to a host ending in .local. Anything else would send the
+// station key across the venue WiFi in plain text, before anything could
+// redirect it to HTTPS. `out` is only filled in when the address is usable.
+bool parseServerUrl(const String &url, ServerUrl &out) {
+  ServerUrl parsed;
+  String rest = url;
   if (rest.startsWith("https://")) {
-    urlIsHttps = true;
-    urlPort = 443;
+    parsed.isHttps = true;
+    parsed.port = 443;
     rest.remove(0, 8);
   } else if (rest.startsWith("http://")) {
-    urlIsHttps = false;
-    urlPort = 80;
+    parsed.isHttps = false;
+    parsed.port = 80;
     rest.remove(0, 7);
   } else {
-    Serial.println("SERVER_URL must start with https:// or http://");
+    Serial.println("The server address must start with https:// or http://");
     return false;
   }
   // A base URL has no path; a trailing one is left out rather than sent.
@@ -605,21 +661,22 @@ bool parseServerUrl() {
     const int port = rest.substring(colon + 1).toInt();
     rest.remove(colon);
     if (port > 0 && port < 65536) {
-      urlPort = (uint16_t)port;
+      parsed.port = (uint16_t)port;
     } else {
-      Serial.println("SERVER_URL's port is not a number, using " + String(urlPort));
+      Serial.println("The server address's port is not a number, using " + String(parsed.port));
     }
   }
-  urlHost = rest;
-  if (urlHost.length() == 0) {
-    Serial.println("SERVER_URL has no host");
+  parsed.host = rest;
+  if (parsed.host.length() == 0) {
+    Serial.println("The server address has no host");
     return false;
   }
-  urlHostIsLocal = urlHost.endsWith(".local");
-  if (!urlIsHttps && !urlHostIsLocal) {
-    Serial.println("SERVER_URL is plain http:// to a host that isn't .local");
+  parsed.hostIsLocal = parsed.host.endsWith(".local");
+  if (!parsed.isHttps && !parsed.hostIsLocal) {
+    Serial.println("The server address is plain http:// to a host that isn't .local");
     return false;
   }
+  out = parsed;
   return true;
 }
 
@@ -628,27 +685,29 @@ bool parseServerUrl() {
 // and gets the laptop's current IP back, because a phone hotspot hands out a
 // new one whenever it restarts. Any other host is https and is used as written:
 // the ESP32's DNS resolves it and the certificate is checked against the
-// hostname in the URL.
+// hostname in the URL. With no usable address (a setup error at boot), there
+// is nothing to resolve.
 bool resolveServer() {
-  if (!urlHostIsLocal) {
-    serverBase = String(urlIsHttps ? "https://" : "http://") + urlHost + ":" + String(urlPort);
+  if (server.host.length() == 0) return false;
+  if (!server.hostIsLocal) {
+    serverBase = String(server.isHttps ? "https://" : "http://") + server.host + ":" + String(server.port);
     return true;
   }
-  String name = urlHost;
+  String name = server.host;
   name.remove(name.length() - 6);  // mDNS queries take the name without .local
   IPAddress ip = MDNS.queryHost(name.c_str(), 3000);
   if (ip == IPAddress(0, 0, 0, 0)) {
-    Serial.println("Could not find " + urlHost + " on this network. Is the laptop on the same WiFi?");
+    Serial.println("Could not find " + server.host + " on this network. Is the laptop on the same WiFi?");
     return false;
   }
-  String resolved = String(urlIsHttps ? "https://" : "http://") + ip.toString() + ":" + String(urlPort);
+  String resolved = String(server.isHttps ? "https://" : "http://") + ip.toString() + ":" + String(server.port);
   if (serverBase.length() > 0 && resolved != serverBase) {
     // The laptop has a new IP. The kept-open connection points at the old one
     // and, with reuse on, HTTPClient would send to it again, so close it.
     if (plainClient.connected()) plainClient.stop();
   }
   serverBase = resolved;
-  Serial.println("Backend: " + urlHost + " -> " + serverBase);
+  Serial.println("Backend: " + server.host + " -> " + serverBase);
   return true;
 }
 
@@ -657,8 +716,18 @@ bool resolveServer() {
 // .local host. begin() only parses the URL and opens nothing: the connection
 // made for a request is kept for the next one (see setReuse in setup()).
 bool beginRequest(const String &path) {
-  if (urlIsHttps) return http.begin(secureClient, serverBase + path);
+  if (server.isHttps) return http.begin(secureClient, serverBase + path);
   return http.begin(plainClient, serverBase + path);
+}
+
+// Closes the kept-open connection and forgets the looked-up address, so the
+// next request starts afresh. With reuse on, HTTPClient would otherwise send
+// to the old server or over the old network.
+void dropConnection() {
+  http.end();
+  plainClient.stop();
+  secureClient.stop();
+  serverBase = "";
 }
 
 // Gives the RC522 a clean hard reset, then sets it up. The station holds
@@ -797,4 +866,365 @@ String isoNow() {
            utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec,
            (int)(now.tv_usec / 1000));
   return String(text);
+}
+
+// The setup mode gives the station a new server address, station key or Wi-Fi
+// network over the USB serial port, without a reflash. firmware/README.md says
+// how to use it. Typing "setup" and Enter enters it at any time; that takes a
+// cable and a terminal, so it can't happen by accident at a venue. Taps and
+// heartbeats stop until the station restarts, on "exit" or after SETUP_IDLE_MS
+// with nothing typed.
+//
+// A new key comes in one of two ways, because the station can't tell them
+// apart. "key" is a replaced key for the same station: its saved taps stay and
+// go out with the new key (API agreement 6.1 and 9.8). "move" is a key from
+// another event, which makes this a new station there: its saved taps are sent
+// with the old key first, and whatever is left is cleared, so taps from one
+// event never reach another (CONTEXT.md, Setup mode).
+
+// Reads the four settings: what the setup mode stored, or else secrets.h.
+void loadSettings() {
+  serverFromSetup = settings.isKey("server");
+  serverUrl = serverFromSetup ? settings.getString("server") : String(SERVER_URL);
+  keyFromSetup = settings.isKey("key");
+  stationKey = keyFromSetup ? settings.getString("key") : String(STATION_KEY);
+  wifiFromSetup = settings.isKey("wifi_ssid");
+  wifiSsid = wifiFromSetup ? settings.getString("wifi_ssid") : String(WIFI_SSID);
+  wifiPassword = wifiFromSetup ? settings.getString("wifi_pass") : String(WIFI_PASSWORD);
+}
+
+// Stores one setting, and says whether it was stored in full. An empty value,
+// an open network's password, stores nothing to compare, so it counts as stored.
+bool storeSetting(const char *key, const String &value) {
+  return settings.putString(key, value) == value.length();
+}
+
+// The settings, and where each came from. The key shows only its last 4
+// characters and the Wi-Fi password never shows, so a log or a screenshot of
+// the terminal gives neither away.
+void printSettings() {
+  Serial.println("Server:     " + serverUrl + settingSource(serverFromSetup));
+  Serial.println("Key:        " + maskedKey(stationKey) + settingSource(keyFromSetup));
+  Serial.println("Wi-Fi:      " + wifiSsid + settingSource(wifiFromSetup));
+  Serial.println(String("Password:   ") + (wifiPassword.length() > 0 ? "set" : "none, an open network") +
+                 settingSource(wifiFromSetup));
+  Serial.println("Saved taps: " + String(queueCount));
+}
+
+String settingSource(bool fromSetup) {
+  return fromSetup ? "  (setup mode)" : "  (secrets.h)";
+}
+
+String maskedKey(const String &key) {
+  if (!isStationKey(key)) return "not a station key";
+  return "gk_sta_..." + key.substring(key.length() - 4);
+}
+
+// A station key starts with gk_sta_ and holds no spaces. Ours are 32 random
+// bytes after the prefix, but another Event Service may write them otherwise.
+bool isStationKey(const String &key) {
+  return key.startsWith("gk_sta_") && key.length() >= 12 && key.indexOf(' ') < 0;
+}
+
+// Starts joining the Wi-Fi network in the settings. An empty password is an
+// open network, which takes no password at all.
+void beginWifi() {
+  WiFi.begin(wifiSsid.c_str(), wifiPassword.length() > 0 ? wifiPassword.c_str() : nullptr);
+}
+
+// What has been typed on the serial port so far, towards the next line.
+String serialLine = "";
+bool serialLastWasCR = false;
+
+// Collects what is typed on the serial port and returns true once a whole line
+// is in `line`. A line ends at Enter, whichever of CR, LF or CR LF the terminal
+// sends; a CR LF counts once, so an empty line (an open network's password)
+// still comes through. Backspace works. With `echo` off nothing typed is
+// printed back, for the key and the Wi-Fi password.
+bool takeSerialLine(String &line, bool echo) {
+  while (Serial.available() > 0) {
+    const char c = Serial.read();
+    if (c == '\n' && serialLastWasCR) {
+      serialLastWasCR = false;
+      continue;
+    }
+    serialLastWasCR = c == '\r';
+    if (c == '\r' || c == '\n') {
+      Serial.println();
+      line = serialLine;
+      serialLine = "";
+      return true;
+    }
+    if (c == '\b' || c == 0x7F) {
+      if (serialLine.length() > 0) {
+        serialLine.remove(serialLine.length() - 1);
+        if (echo) Serial.print("\b \b");
+      }
+      continue;
+    }
+    if (serialLine.length() < SERIAL_LINE_MAX) {
+      serialLine += c;
+      if (echo) Serial.print(c);
+    }
+  }
+  return false;
+}
+
+// Called from loop() and while stopped on a setup error, so reading the serial
+// port never holds up a tap. Only "setup" does anything.
+void pollSerial() {
+  String line;
+  if (!takeSerialLine(line, true)) return;
+  line.trim();
+  line.toLowerCase();
+  if (line == "setup") {
+    runSetupMode();
+  } else if (line.length() > 0) {
+    Serial.println("Type setup and Enter to change the server, the station key or the Wi-Fi network.");
+  }
+}
+
+// Waits for one line in the setup mode, and restarts the station if nothing
+// comes for SETUP_IDLE_MS. Not trimmed: a Wi-Fi name or password may start or
+// end with a space.
+String readSetupLine(bool echo) {
+  const unsigned long startedAt = millis();
+  String line;
+  while (!takeSerialLine(line, echo)) {
+    if (millis() - startedAt >= SETUP_IDLE_MS) {
+      Serial.println("\nNothing typed for 5 minutes. Restarting.");
+      restartStation();
+    }
+    delay(10);
+  }
+  return line;
+}
+
+void restartStation() {
+  showScreen("Restarting", "");
+  Serial.flush();
+  delay(200);
+  ESP.restart();
+}
+
+void printSetupHelp() {
+  Serial.println("Commands:");
+  Serial.println("  show    the settings, and where each came from");
+  Serial.println("  server  a new server address");
+  Serial.println("  key     a replaced key for this same station; saved taps are kept");
+  Serial.println("  move    a key from another event; saved taps are sent, then cleared");
+  Serial.println("  wifi    a new Wi-Fi network name and password");
+  Serial.println("  reset   forget the stored settings and go back to secrets.h");
+  Serial.println("  exit    restart with the new settings");
+}
+
+// Never returns: the station restarts to leave it, so every setting takes
+// effect through the same start-up as always.
+void runSetupMode() {
+  showScreen("Setup mode", "Use USB serial");
+  digitalWrite(LED_PIN_BLUE, LOW);
+  digitalWrite(LED_PIN_RED, LOW);
+  digitalWrite(LED_PIN_YELLOW, LOW);
+  Serial.println("\nSetup mode. Taps are paused until the station restarts.");
+  printSettings();
+  printSetupHelp();
+  while (true) {
+    Serial.print("> ");
+    String command = readSetupLine(true);
+    command.trim();
+    command.toLowerCase();
+    if (command.length() == 0) continue;
+    if (command == "show") {
+      printSettings();
+    } else if (command == "server") {
+      setServer();
+    } else if (command == "key") {
+      replaceKey();
+    } else if (command == "move") {
+      moveToEvent();
+    } else if (command == "wifi") {
+      setWifi();
+    } else if (command == "reset") {
+      resetSettings();
+    } else if (command == "exit") {
+      Serial.println("Restarting with these settings.");
+      restartStation();
+    } else if (command == "help") {
+      printSetupHelp();
+    } else {
+      Serial.println("Unknown command. Type help for the list.");
+    }
+  }
+}
+
+void setServer() {
+  Serial.print("New server address, such as https://key-api.geekshacking.com: ");
+  String url = readSetupLine(true);
+  url.trim();
+  // The same check as at start-up, so an address the station may not use is
+  // never stored.
+  ServerUrl parsed;
+  if (!parseServerUrl(url, parsed)) {
+    Serial.println("Not changed.");
+    return;
+  }
+  if (!storeSetting("server", url)) {
+    Serial.println("Could not store it. Not changed.");
+    return;
+  }
+  serverUrl = url;
+  serverFromSetup = true;
+  server = parsed;
+  dropConnection();
+  Serial.println("Server stored. The " + String(queueCount) + " saved tap(s) are kept.");
+  reportHeartbeat();
+}
+
+// Asks for a station key without printing it. Returns "" for anything that
+// isn't one, having said so.
+String askForKey(const char *prompt) {
+  Serial.print(prompt);
+  String key = readSetupLine(false);
+  key.trim();
+  if (!isStationKey(key)) {
+    Serial.println("That isn't a station key, which starts with gk_sta_. Not changed.");
+    return "";
+  }
+  return key;
+}
+
+void replaceKey() {
+  String key = askForKey("This station's new key (hidden as you type): ");
+  if (key.length() == 0) return;
+  if (!storeSetting("key", key)) {
+    Serial.println("Could not store it. Not changed.");
+    return;
+  }
+  stationKey = key;
+  keyFromSetup = true;
+  Serial.println("Key stored: " + maskedKey(stationKey) + ". The " + String(queueCount) +
+                 " saved tap(s) are kept and go out with it.");
+  reportHeartbeat();
+}
+
+void moveToEvent() {
+  String key = askForKey("The other event's key for this station (hidden as you type): ");
+  if (key.length() == 0) return;
+  // The saved taps go, or are cleared, before the new key is stored: if the
+  // power fails in between, the station still has its old key and no taps
+  // from the old event can reach the new one.
+  if (!sendOrClearSavedTaps()) return;
+  if (!storeSetting("key", key)) {
+    Serial.println("Could not store the key. It's still the old one.");
+    return;
+  }
+  stationKey = key;
+  keyFromSetup = true;
+  Serial.println("Key stored: " + maskedKey(stationKey) + ". This is now a new station at the other event.");
+  reportHeartbeat();
+}
+
+// Sends the saved taps with the current key. If any are left, says how many
+// and why, and clears them only once "clear" is typed. Returns false when the
+// person cancels, leaving the key and the taps as they were.
+bool sendOrClearSavedTaps() {
+  if (queueCount == 0) return true;
+  Serial.println("Sending the " + String(queueCount) + " saved tap(s) with the old key...");
+  const QueueAttempt attempt = flushQueue();
+  if (queueCount == 0) {
+    Serial.println("All saved taps sent.");
+    return true;
+  }
+  String why;
+  if (WiFi.status() != WL_CONNECTED) {
+    why = "no Wi-Fi";
+  } else if (attempt.httpCode == 401) {
+    why = "the old key was rejected (401)";
+  } else if (attempt.httpCode <= 0) {
+    why = "no answer";
+  } else {
+    why = "HTTP " + String(attempt.httpCode);
+  }
+  Serial.println(String(queueCount) + " tap(s) still saved (" + why + ").");
+  Serial.print("Type clear to drop them, anything else to cancel: ");
+  String answer = readSetupLine(true);
+  answer.trim();
+  if (answer != "clear") {
+    Serial.println("Cancelled. The key and the saved taps are unchanged.");
+    return false;
+  }
+  if (!clearSavedTaps()) {
+    Serial.println("Could not clear them. The key is unchanged.");
+    return false;
+  }
+  Serial.println("Saved taps cleared.");
+  return true;
+}
+
+void setWifi() {
+  Serial.print("Wi-Fi name: ");
+  String ssid = readSetupLine(true);
+  if (ssid.length() == 0 || ssid.length() > 32) {
+    Serial.println("A Wi-Fi name is 1 to 32 characters. Not changed.");
+    return;
+  }
+  Serial.print("Wi-Fi password (hidden as you type; just Enter for an open network): ");
+  String pass = readSetupLine(false);
+  if (pass.length() > 0 && (pass.length() < 8 || pass.length() > 63)) {
+    Serial.println("A Wi-Fi password is 8 to 63 characters, or none for an open network. Not changed.");
+    return;
+  }
+  if (!storeSetting("wifi_ssid", ssid) || !storeSetting("wifi_pass", pass)) {
+    Serial.println("Could not store it. Type wifi to try again.");
+    return;
+  }
+  wifiSsid = ssid;
+  wifiPassword = pass;
+  wifiFromSetup = true;
+
+  // Kept whether or not it joins: a station set up the night before can't
+  // reach tomorrow's venue.
+  Serial.println("Stored. Trying " + wifiSsid + " for up to 20 seconds...");
+  dropConnection();
+  WiFi.disconnect();
+  delay(100);
+  beginWifi();
+  const unsigned long startedAt = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < WIFI_JOIN_WAIT_MS) delay(500);
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Joined " + wifiSsid + ", IP " + WiFi.localIP().toString() + ".");
+  } else {
+    Serial.println("Could not join " + wifiSsid + ". It's kept, and the station tries it again after it restarts.");
+  }
+}
+
+void resetSettings() {
+  // Going back to a different key in secrets.h is a move to that key's event.
+  if (stationKey != String(STATION_KEY)) {
+    Serial.println("secrets.h has a different station key, so its saved taps are handled as for move.");
+    if (!sendOrClearSavedTaps()) return;
+  }
+  settings.clear();
+  loadSettings();
+  Serial.println("Stored settings forgotten. secrets.h applies once the station restarts: type exit.");
+  printSettings();
+}
+
+// After a new server or key: one heartbeat, to show the pair works before
+// anyone walks away from the station.
+void reportHeartbeat() {
+  Serial.println("Checking with a heartbeat...");
+  const int code = sendHeartbeat();
+  if (code == 200) {
+    Serial.println("OK: the server knows this station's key.");
+  } else if (code == 401) {
+    Serial.println("Key rejected (401): the server doesn't know this key, or the station is disabled.");
+  } else if (code < 0) {
+    Serial.println("No answer from the server.");
+  } else if (code == 0) {
+    // sendHeartbeat has said why it wasn't sent.
+    Serial.println("Not checked now. The station checks it when it restarts.");
+  } else {
+    Serial.println("The server answered HTTP " + String(code) + ".");
+  }
 }

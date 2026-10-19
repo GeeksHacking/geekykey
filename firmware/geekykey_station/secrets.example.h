@@ -1,6 +1,10 @@
 // Template for secrets.h. Copy this file to secrets.h in the same folder and
 // fill in real values. secrets.h is gitignored; this template is not, so never
 // put real credentials here.
+//
+// These are only the first defaults. The setup mode (firmware/README.md) can
+// give the station a new Wi-Fi network, server address or key without a
+// reflash, and what it stores wins over this file until its "reset" command.
 
 #pragma once
 
