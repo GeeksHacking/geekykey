@@ -134,7 +134,7 @@ Sources: [Which parts of today's backend belong to the GeekyKey Service, and whi
 | `event-service` | Cloud Run, from checkpoint 2 | `apps/backend`, which becomes `apps/event-service` at checkpoint 4 | The hand-offs, the registered stations, the claims stand-in, and the Event screens' `/api` and `/auth`. Until checkpoint 4, stations too | `event-api.geekshacking.com`, and its `run.app` address | TiDB, through one `mysql2` pool |
 | `event-service-staging` | Cloud Run, from checkpoint 2 | The same | The same, for trying changes | Its `run.app` address only | `geekykey_staging` |
 | `geekykey-web` | Worker, from checkpoint 5 | `apps/geekykey-web` | The token page and My tokens | `key.geekshacking.com`, also written on every token | `geekykey-service` through a service binding |
-| `event-web` | Worker, from checkpoint 5 | `apps/event-web` (today's `apps/frontend`) | The dashboard, passport, activity and organizer screens, including the station board | `event.geekshacking.com` | `event-api.geekshacking.com` over HTTPS |
+| `event-web` | Worker, from checkpoint 5 | `apps/event-web` | The dashboard, passport, activity and organizer screens, including the station board | `event.geekshacking.com` | `event-api.geekshacking.com` over HTTPS |
 
 **The Workers.**
 
@@ -339,7 +339,6 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 | Size | | As in section 3.2. Minimum instances 0, and 1 on event days |
 | Setting | `ORGANIZERS` | User IDs. `dev-organizer-1` locally |
 | Setting | `TAP_COOLDOWN_SECONDS` | `300`. 900 was suggested on 8 Oct, for Adam to decide (section 12) |
-| Setting | `MAX_TAPS_PER_REQUEST` | `500` |
 | Setting | `FIREBASE_PROJECT_ID` | As for the GeekyKey Service |
 | Secret | `APP_SECRETS` | One JSON object holding the four values below, by name (13 Oct) |
 | In `APP_SECRETS` | `SESSION_SECRET` | Signs `event_session` from checkpoint 4, and `gk_session` before that |
@@ -347,6 +346,8 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 | In `APP_SECRETS` | `EVENT_SERVICE_KEY` | From checkpoint 3. The same value as the GeekyKey Service's `EVENT_SERVICE_KEY_SHOWCASE` |
 | In `APP_SECRETS` | `CLAIMS_STAND_IN_KEY` | From checkpoint 3 until the switch |
 | Secret | `MIGRATION_DATABASE_URL` | Read only by the deploy job, for `db:migrate` |
+
+*Changed 19 Oct (Adam, BAC-46):* `MAX_TAPS_PER_REQUEST` left the Event Service with the station endpoints, since nothing there reads it. The hand-off's own limit of 500 taps is in `packages/handoff` (API agreement 11.2). The GeekyKey side's settings left with it: `TAP_DEADLINE_MS`, `EVENT_SERVICES` and `GEEKYKEY_ADMINS` are the Worker's only.
 
 The service pins each secret to a version number in its `deploy.env` in `infra/`, which the deploy workflow reads, so changing one is a reviewed change and a new revision. The settings are read once at start-up, and a missing secret stops the server starting. The server unpacks `APP_SECRETS` into its four settings before it reads them, and checks each as before; an error in it names the setting, never a value. Locally the four stay separate settings. `event-service-staging` has the same names, with its own values and `geekykey_staging`.
 
@@ -433,7 +434,7 @@ Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then
 | 1 | Today's backend on workerd and TiDB | **Done** (BAC-1 to BAC-6) | |
 | 2 | The move to Cloud Run | A tap to `event-api.geekshacking.com` is stored in TiDB, after staging; the log check; the cold start is measured | Julian: the project, the keyless sign-in and the roles (agreed 8 Oct), disconnecting Workers Builds, and the DNS record, once we're ready |
 | 3 | The line drawn inside | **Done** (BAC-29 to BAC-37, 15 Oct). One server, with the GeekyKey side, the Event side and the claims stand-in talking only through their requests, on the new tables | Nothing outside the team |
-| 4 | The GeekyKey Service cut out | `geekykey-service` runs at `key-api.`, the stations have moved to it, and the smoke test runs on every pull request | Julian: the Worker's secrets and Workers Builds (BAC-44). Done: the setup mode (HAR-14) and moving the stations (HAR-13), both taken over by Adam on 19 and 20 Oct |
+| 4 | The GeekyKey Service cut out | **Done** (BAC-40 to BAC-46 and FRO-37, 20 Oct). `geekykey-service` runs at `key-api.`, the stations have moved to it, and the smoke test runs on every pull request | Julian: the Worker's secrets and Workers Builds (BAC-44). Done: the setup mode (HAR-14) and moving the stations (HAR-13), both taken over by Adam on 19 and 20 Oct |
 | 5 | Login, and the screens deployed | Both logins work through Firebase, the passport shows on a phone, the cookies are checked, the passport poll is measured | Qing Guan: an OIDC client for GeeksHacking's login, asked before Mr Pang (10 Oct). Julian or Qing Guan: two domains. Done: Google sign-in and the check that a Worker can verify its login (Adam, 10 Oct), and billing on the Firebase project (Julian, by 9 Oct) |
 | 6 | The GeekyKey Service's features | Tokens are claimed and released, and the limits hold | Ethan's team: the `geekykey-web` screens |
 | 7 | The Event Service's features | Organizers create and disable stations, set up the passport and watch taps, and the export is right | Ethan's team: the `event-web` changes |
@@ -567,6 +568,8 @@ Done when the smoke test passes in CI, a station's tap on production goes throug
 
 **The stations moved on 20 Oct** (HAR-13), and Adam did it, not Zi Tao. Production had registered only two stations, both test stations, so no registered station was left on `event-api.`. Neither key had been used since BAC-45's script on 19 Oct. The main station, the ESP32-S3 from BAC-11 and HAR-14, ran on a laptop's address with a development key and 0 saved taps. So it didn't keep its key: it had no production key to keep. Through the setup mode it took `https://key-api.geekshacking.com` with `server`, then the BAC-11 test station's key with `key`. Going from a development station to a production one is closer to `move`, but with 0 saved taps the two do the same. The heartbeat answered `OK`. After a restart, the test token got `accepted` and was stored on production. The station's row then had a new `last_seen_at`, 0 saved taps and `reader_ok` true. The station board itself wasn't checked, since the screens deploy at checkpoint 5. The board now shares the BAC-11 test station with BAC-45's script, so another run of that script adds taps and heartbeats under the same station. With no station left on `event-api.`, BAC-46 can remove the station endpoints from the Event Service.
 
+**Checkpoint 4 is done on 20 Oct** (BAC-46). Step 5's merge took `POST /api/v1/taps`, `POST /api/v1/stations/heartbeat` and the GeekyKey side's code out of `apps/event-service`, with their tests, so a tap sent to `event-api.` gets `404` and a tap through `key-api.` still gets `accepted`. What's left there is the Event side and the claims stand-in, whose routes under `/geekykey/v1` and `/claims-stand-in/v1` didn't change. `event-service`'s settings on staging and production match section 5.1, and `APP_SECRETS` keeps all four values, since the Event Service still checks `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY`. It ran on `event-service-staging` from the branch before it merged. Ethan's team moved `apps/frontend` to `apps/event-web` the same day (FRO-37), so the folders are as this checkpoint names them.
+
 ### Checkpoint 5. Login, and the screens deployed
 
 Changed on 8 Oct: the showcase logs in through Firebase, not the Portal ([ADR 0004](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)).
@@ -645,7 +648,7 @@ Waits on Qing Guan's tag APIs, and on events logging in through the Portal. Juli
 
 Until then, anyone with write access could push to `main` and deploy, so the team's rule is pull requests only.
 
-**The screens** (Ethan's team). They build against the mock client from the API agreement, and wire each screen as its endpoint lands, as `apps/frontend/CLAUDE.md` describes.
+**The screens** (Ethan's team). They build against the mock client from the API agreement, and wire each screen as its endpoint lands, as `apps/event-web/CLAUDE.md` describes.
 
 - **`apps/geekykey-web`:**
   - the token page at `/t/<UID>`, with its five views, landing back on it after login, and a button for each event in the owner's view;
@@ -653,7 +656,7 @@ Until then, anyone with write access could push to `main` and deploy, so the tea
   - "Couldn't reach GeeksHacking. Try again." on `claims_unavailable`, and "You already have 3 tokens. Release one on My tokens first." on `token_limit_reached`;
   - "Someone else already claimed this token." on `token_taken`, and on the token page, the view from a fresh lookup underneath, whatever it answers;
   - no GeekyKey admin screens: a GeekyKey admin releases a found token on its token page.
-- **In `apps/frontend`, which becomes `apps/event-web` at checkpoint 4:**
+- **In `apps/event-web`:**
   - **Done:** the passport without pairing, the Portal user ID to copy, passport stations only, the tap log and export of version 0.2, the QR fallback by user ID, and passport settings from the station board.
   - **The station board, changed by version 0.3:** it reads the Event Service's own stations, so "status unknown", "no longer linked" and `status_known` go. Organizers create a station (its key shown once), replace its key, and disable or enable it there, so the station dialogs stay in `event-web` rather than moving to `geekykey-web`. Stations that are offline, holding saved taps, not in the passport, or whose reader isn't responding still turn red and go first.
   - `429`: screens that poll keep showing their last data.
@@ -715,7 +718,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### 8.2 Other docs
 
-- **`apps/frontend/CLAUDE.md`,** which becomes `apps/event-web/CLAUDE.md` at the split, for Ethan to update: the backend is Node on Cloud Run, not a Worker; the station screens (creating a station, its key, disabling it) stay on the organizers' station board; there is no status call.
+- **`apps/event-web/CLAUDE.md`,** for Ethan to update: the backend is Node on Cloud Run, not a Worker; the station screens (creating a station, its key, disabling it) stay on the organizers' station board; there is no status call.
 - **`apps/geekykey-web/CLAUDE.md`:** no GeekyKey admin screens; a GeekyKey admin releases a found token on its token page.
 - **The Single Source of Truth** still says 17 Nov for the showcase, and Docker on Cloud Run with SQLite; it's the team's to correct.
 
@@ -742,7 +745,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 ### Ethan
 
 - ~~**Review version 0.3 of the API agreement**~~ (section 7). *Done:* his approval of 0.4 on 10 Oct covers it (Adam, 12 Oct).
-- **The screens track** in section 6, with his team, the Linear tickets the rewrite changes (listed in "Fold the answers into the spec"), and the edits to `apps/frontend/CLAUDE.md` (section 8.2).
+- **The screens track** in section 6, with his team, the Linear tickets the rewrite changes (listed in "Fold the answers into the spec"), and the edits to `apps/event-web/CLAUDE.md` (section 8.2).
 - **Own the two forwarding Workers** once Adam has written them. Adam reviews any change to their list of paths.
 - **Access:** none on Cloudflare (Julian, 1 Oct 2026); his screens deploy when his pull requests merge, and roll back by reverting. Logs Viewer on Google Cloud, for the Event Service's logs, and no deploy role there.
 - **Install Docker** to run the backend locally.
@@ -907,7 +910,7 @@ Boost stays on, as the runbook already has it: cold taps were a little faster wi
 - **A server-side tap queue** (backlog, BAC-22, Julian, 8 Oct). Taps would be put on a queue and stored a moment later, so a burst can't overwhelm TiDB. The catch: the station waits for each tap's verdict, for amber "too soon" and "claim this token" ("Does a station wait for the Event Service's verdict?"), and a queue can't give a verdict at once. The stress test decides whether we need one; if we do, the options to weigh are a queue inside the server with the verdict still worked out first, or Cloud Tasks or Pub/Sub with the station answered "recorded".
 - ~~**Getting the keys onto the Worker at checkpoint 4** (13 Oct).~~ *Settled 15 Oct:* Julian copies each value from Secret Manager into the Worker's secrets himself, and section 5.2 and checkpoint 4 say so. What was asked: its step 1 had Adam read `EVENT_SERVICE_KEY` and `CLAIMS_STAND_IN_KEY` once and send them to Julian, but Adam's Editor role can't read a secret. The same goes for any later replacement, such as one the log check calls for. The choices: Julian, as Owner, copies each value from Secret Manager into the Worker's secrets himself, so no key ever passes through a chat (suggested); or Julian gives Adam read access to production's two keys for the day. Settle it before checkpoint 4.
 - **Seeing the GeekyKey Service without access** (Julian, 1 Oct 2026), asked again on 8 Oct with no answer. The Event Service's logs and the station board are ours, on Google Cloud. What the team still can't see is the GeekyKey Service's logs (failed key checks, owner lookups and hand-offs, `stations_copy_filled`) and the account's Workers requests. The choices: ask Julian for read-only access to Workers Observability and the account's usage; Julian, who will be at the showcase, or someone he names, watches them on the day; or rely on what the stations and the station board show. Settle it before the rehearsal.
-- **Two repos at the split** (Julian, 1 Oct 2026). The Event Service's repo goes under the GeeksHacking organisation (8 Oct). At the move: how both repos get `packages/handoff`'s schemas; whether the end-to-end smoke test still runs on every pull request, and in which repo, now across two platforms; the move of `apps/frontend`, which becomes `event-web` there, for Ethan's team; and the claims stand-in, `infra/` and the deploy workflow, which go with the Event Service. The keyless sign-in trusts only this repo's ID (`1310668143`), so the new repo needs the provider's condition and both deploy accounts' bindings redone (the runbook's step 6), which takes a role that can grant (13 Oct). *Settled 16 Oct* (Julian, BAC-39): the move happens after the showcase on 18 Nov, for example during the handover on 19 and 20 Nov. Checkpoint 4 splits the folders inside this repo, and these questions wait until the move.
+- **Two repos at the split** (Julian, 1 Oct 2026). The Event Service's repo goes under the GeeksHacking organisation (8 Oct). At the move: how both repos get `packages/handoff`'s schemas; whether the end-to-end smoke test still runs on every pull request, and in which repo, now across two platforms; the move of `apps/event-web` for Ethan's team; and the claims stand-in, `infra/` and the deploy workflow, which go with the Event Service. The keyless sign-in trusts only this repo's ID (`1310668143`), so the new repo needs the provider's condition and both deploy accounts' bindings redone (the runbook's step 6), which takes a role that can grant (13 Oct). *Settled 16 Oct* (Julian, BAC-39): the move happens after the showcase on 18 Nov, for example during the handover on 19 and 20 Nov. Checkpoint 4 splits the folders inside this repo, and these questions wait until the move.
 - ~~**Whether the GeekyKey Service gets a staging copy,** decided at the split. The stress test would use it.~~ *Settled 15 Oct:* none at checkpoint 4. Local `wrangler dev` and the smoke test cover it. Whether to add one is decided with the stress test (BAC-21), the only thing that needs it.
 - **The Sprint 2 A/B test.** The roadmap runs the A/B/C test at an SSTInc or CCA event between 5 and 18 Oct, on a date Mr Pang gives. It isn't confirmed yet, so nothing waits on it until it is. Condition A needs claimed tokens, stations and the passport; Condition B needs QR scanning and the passport; both feed the export. Participants see their passports only by logging in, and dev-login only signs in seeded users. Since 8 Oct, the login no longer waits on the Portal: Firebase's Google sign-in can be set up by Adam alone. The choices, for Adam and Joshua:
   - **on production:** checkpoints 2 to 7 and the Firebase login, within one to three weeks;

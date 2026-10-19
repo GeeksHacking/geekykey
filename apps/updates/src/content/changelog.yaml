@@ -1118,3 +1118,12 @@
     passes with one advisory set aside: an old esbuild that drizzle-kit installs but never runs.
     The trade-offs we accept: a large lockfile change reviewed on its own, and TypeScript 7 waits
     until the screens' linter supports it, so the whole repo moves to it at once.
+
+- id: checkpoint-4-done
+  date: 2026-10-20
+  area: backend
+  change: >-
+    Checkpoint 4 is done. Every station now calls only the GeekyKey Service at key-api, and the
+    station endpoints are gone from the Event Service on Cloud Run, which answers a station's tap
+    with not found. Cloud Run keeps the event's games, the hand-offs and the claims stand-in, and
+    its settings drop the ones only the GeekyKey side read.
