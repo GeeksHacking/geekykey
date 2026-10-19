@@ -66,7 +66,8 @@ describe("the signed-in shell", () => {
   it("reads the GeekyKey admin flag from /me and labels the account, with no admin row", async () => {
     const user = userEvent.setup();
     signedInAs(SEEDED_ADMIN_ID);
-    await screen.findByText(/a GeekyKey admin/);
+    // Wait for the page itself, so the menu opens on a session whose flag is read.
+    await screen.findByRole("heading", { name: "My tokens" });
 
     const menu = await openAccountMenu(user);
 

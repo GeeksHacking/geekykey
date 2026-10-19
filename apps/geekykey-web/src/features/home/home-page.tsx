@@ -1,31 +1,51 @@
-import { useApi } from "@/api/context";
-import { useSession } from "@/lib/session";
+import type { Token } from "@/api/types";
+
+import { TokenRow } from "@/features/home/token-row";
+import { useMe } from "@/lib/session";
 
 /**
- * My tokens is the home page (agreement 8.4). FRO-27 builds the real list; until then this
- * shows the signed-in identity so the session and the account menu have a screen to sit on.
+ * My tokens is the home page of the GeekyKey screens (agreement 8.4, FRO-27). The list
+ * is the session's own me payload: the query that answers "Am I logged in?" already
+ * holds the user's tokens, oldest claim first, so this page keeps no query of its own.
+ * A me call that fails is the gate's business (RequireSession renders the loading view,
+ * the error state and the redirect to /login), so this page only renders with a
+ * signed-in user.
+ *
+ * Not in this ticket: claiming by code is FRO-30 and the event links are FRO-31.
  */
 export function HomePage() {
-  const api = useApi();
-  const session = useSession();
+  const { me } = useMe();
 
   return (
     <main className="flex flex-col">
       <h1 className="text-3xl font-semibold tracking-heading">My tokens</h1>
-      <p className="mt-4 max-w-xl text-muted-foreground">
-        Signed in as <span className="font-mono">{session.me?.user.id}</span>
-        {session.me?.user.is_geekykey_admin ? ", a GeekyKey admin." : "."}
-      </p>
-      <p className="mt-4 max-w-xl text-muted-foreground">
-        Your tokens are listed here by a later ticket. Claiming and releasing arrive with them.
-      </p>
-      {/* The Portal login returns after the showcase (agreement 0.4 moved
-          GET /auth/login out of scope), so this belongs in development only. */}
-      {import.meta.env.DEV ? (
-        <p className="mt-6 text-sm text-muted-foreground">
-          Login address for this page: <span className="font-mono">{api.loginUrl("/")}</span>
-        </p>
-      ) : null}
+      {me.tokens.length === 0 ? <NoTokensYet /> : <TokenList tokens={me.tokens} />}
     </main>
+  );
+}
+
+/**
+ * The ticket fixes the empty state's sentence, and it follows the screens' guide that
+ * an empty state says what to do next. The claim-by-code form arrives with FRO-30, so
+ * today the next step is the phone.
+ */
+function NoTokensYet() {
+  return (
+    <p className="mt-6 max-w-md text-base text-muted-foreground">
+      You haven't claimed a token yet. Tap one with your phone to claim it.
+    </p>
+  );
+}
+
+/** The tokens in the order /me lists them, oldest claim first (agreement 8.4). */
+function TokenList({ tokens }: { tokens: Token[] }) {
+  return (
+    <ul className="mt-6 flex flex-col gap-3">
+      {tokens.map((token) => (
+        <li key={token.uid}>
+          <TokenRow token={token} />
+        </li>
+      ))}
+    </ul>
   );
 }
