@@ -92,8 +92,9 @@ counts as PII (house rule 1).
 1. **No PII, ever.** The site is public. No participant names, no raw survey responses, no
    emails, no keys or `.env` values, no station secrets. The A/B test data gets reported as
    aggregates only. When in doubt, leave it out and tell the mentors in person.
-2. **The repo is private.** Mentors cannot open a commit link, so an entry has to stand on
-   its own. Links are a courtesy for the people who do have access.
+2. **An entry stands on its own.** The repo is public now, but a mentor reading between
+   check-ins should not have to open a commit to follow an entry, so say in words what
+   changed. A link to the code or a pull request is a courtesy for anyone who wants more.
 3. **Write it the week it happens.** An entry reconstructed in November is worth much less
    to the report than one written on the day, and it will be obvious which is which.
 4. **Uncertainty is content.** "We tried X, it did not work, we do not know why yet" is a
@@ -144,8 +145,8 @@ onto real data, the reader doing something new, a prototype printed, a test sess
 Hardware and design count as much as code. Chores that change nothing visible (formatting,
 lockfile bumps, renames) do not get a line.
 
-Write it as one or two plain sentences in the present tense, saying what is now true. No
-Markdown, no commit or PR links (the repo is private), and the house rules above still
+Write it as one or two plain sentences in the present tense, saying what is now true. The site
+shows a line as plain text, so no Markdown and no links, and the house rules above still
 apply: no PII, no en or em dashes.
 
 ## Which entry a line belongs to
