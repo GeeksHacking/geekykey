@@ -19,10 +19,7 @@ export interface FoundStation<S extends StationsSource> {
 /** Runs `work` after the request has its answer, as a Worker's `ctx.waitUntil()` does. */
 export type WaitUntil = (work: Promise<unknown>) => void;
 
-/**
- * How long after asking an Event Service for its list the copy asks again: on
- * a station found on the copy, or, for a list it has never had, on any key.
- */
+/** How long after asking an Event Service for its list the copy asks again, on any key. */
 const MAX_AGE_MS = 60_000;
 
 /**
@@ -72,19 +69,17 @@ export class StationsCopy<S extends StationsSource> {
   ): Promise<KeyCheck<S>> {
     let hit = this.#byKeyHash.get(keyHash);
     if (hit === undefined) {
-      const missing = this.#missing();
-      if (missing.length === 0) return { result: "unknown" };
       // A request already out costs nothing to join, but a list asked for in
       // the last minute isn't asked for again, so junk keys can't make us
       // call an Event Service that's down.
-      const due = missing.filter(({ id }) => this.#asking.has(id) || this.#stale(id));
+      const due = this.#missing().filter(({ id }) => this.#asking.has(id) || this.#stale(id));
       if (due.length > 0) await this.#fill(due, signal, waitUntil);
       hit = this.#byKeyHash.get(keyHash);
     }
-    if (hit !== undefined) {
-      this.#refresh(waitUntil);
-      return { result: "found", ...hit };
-    }
+    // Found or not, so a new station's key works within a minute even when
+    // it's the only one tapping (the API agreement's 9.7).
+    this.#refresh(waitUntil);
+    if (hit !== undefined) return { result: "found", ...hit };
     return this.#missing().length === 0 ? { result: "unknown" } : { result: "unavailable" };
   }
 

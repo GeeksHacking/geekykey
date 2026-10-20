@@ -228,7 +228,52 @@ test("a failed refresh isn't tried again for a minute", async () => {
   assert.equal(showcase.requests, 2);
 });
 
-test("an unknown key never causes a refresh", async () => {
+test("an unknown key is unknown at once, and refreshes a copy more than a minute old, so a new station's key works", async () => {
+  loggedLines();
+  const showcase = eventService("showcase", listOf(["station-1", hashOf("a")]));
+  const { find, settled, time } = copyOf([showcase]);
+  await find(hashOf("a"));
+
+  // Not yet a minute old: no request.
+  time.advance(MINUTE);
+  assert.deepEqual(await find(hashOf("b")), { result: "unknown" });
+  await settled();
+  assert.equal(showcase.requests, 1);
+
+  // Older: the new station's key is unknown while the refresh is still out.
+  let answer!: (list: RegisteredStation[]) => void;
+  showcase.answer = () => new Promise((resolve) => (answer = resolve));
+  time.advance(1);
+  assert.deepEqual(await find(hashOf("b")), { result: "unknown" });
+  assert.equal(showcase.requests, 2);
+
+  // Once the refresh comes back, its next request finds it.
+  answer([
+    { station_id: "station-1", key_hash: hashOf("a") },
+    { station_id: "station-2", key_hash: hashOf("b") },
+  ]);
+  await settled();
+  const found = await find(hashOf("b"));
+  assert.equal(found.result === "found" && found.stationId, "station-2");
+});
+
+test("with a list missing, a key on no other list also refreshes the lists in hand, each asked for once", async () => {
+  loggedLines();
+  const showcase = eventService("showcase", listOf(["station-1", hashOf("a")]));
+  const other = eventService("other", down);
+  const { find, settled, time } = copyOf([showcase, other]);
+  await find(hashOf("a"));
+
+  showcase.answer = listOf(["station-1", hashOf("a")], ["station-2", hashOf("b")]);
+  time.advance(MINUTE + 1);
+  assert.deepEqual(await find(hashOf("b")), { result: "unavailable" });
+  await settled();
+  assert.deepEqual([showcase.requests, other.requests], [2, 2]);
+  const found = await find(hashOf("b"));
+  assert.equal(found.result === "found" && found.stationId, "station-2");
+});
+
+test("unknown keys ask an Event Service for its list at most once a minute, so junk keys can't flood it", async () => {
   loggedLines();
   const showcase = eventService("showcase", listOf(["station-1", hashOf("a")]));
   const { find, settled, time } = copyOf([showcase]);
@@ -237,7 +282,11 @@ test("an unknown key never causes a refresh", async () => {
   time.advance(60 * MINUTE);
   for (const char of "bcdef") assert.deepEqual(await find(hashOf(char)), { result: "unknown" });
   await settled();
-  assert.equal(showcase.requests, 1);
+  assert.equal(showcase.requests, 2);
+  time.advance(MINUTE);
+  for (const char of "bcdef") assert.deepEqual(await find(hashOf(char)), { result: "unknown" });
+  await settled();
+  assert.equal(showcase.requests, 2);
 });
 
 test("a station ID or key hash that appears twice, in one list or in two, is refused and logged", async () => {
