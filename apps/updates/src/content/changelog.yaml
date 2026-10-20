@@ -1086,3 +1086,12 @@
     over the free plan's 10 ms a request. Zod's checks were most of it, so a change in review runs
     a plain check first. On a test copy of the Worker it took the median batch from 12 to 15 ms
     down to 6 or 7 ms.
+
+- id: stations-on-key-api
+  date: 2026-10-20
+  area: firmware
+  change: >-
+    The main station sends its taps and heartbeats to the GeekyKey Service at key-api. It moved
+    there through the setup mode, without a reflash, and its first tap was stored on production.
+    No station still calls the Event Service's own address, so we can remove the Event Service's
+    copy of the station endpoints.
