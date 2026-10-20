@@ -13,7 +13,7 @@ export interface HttpClientOptions {
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 /*
-  The real client, copied from apps/frontend so both apps throw the same ApiError
+  The real client, copied from apps/event-web so both apps throw the same ApiError
   and NetworkError types and a screen cannot tell them apart. Which methods the app
   actually calls through here is decided in src/api/create-client.ts; nothing is
   live yet, because the GeekyKey Service's routes arrive at checkpoint 6.
