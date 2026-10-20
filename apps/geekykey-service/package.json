@@ -14,16 +14,16 @@
   },
   "dependencies": {
     "@geekykey/handoff": "workspace:*",
-    "@hono/zod-validator": "^0.7.6",
-    "hono": "^4.13.8",
-    "zod": "^4.6.5"
+    "@hono/zod-validator": "^0.9.1",
+    "hono": "^4.13.13",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.4.2",
-    "oxfmt": "0.70.0",
+    "@cloudflare/vitest-plugin": "^1.4.4",
+    "oxfmt": "0.73.0",
     "oxlint": "1.87.0",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.11",
-    "wrangler": "^4.151.0"
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.1"
   }
 }

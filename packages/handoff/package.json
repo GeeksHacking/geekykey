@@ -15,13 +15,13 @@
     "json-schema": "node scripts/json-schema.ts"
   },
   "dependencies": {
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^24.19.1",
-    "oxfmt": "0.70.0",
+    "@types/node": "^24.19.2",
+    "oxfmt": "0.73.0",
     "oxlint": "1.87.0",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.5"
   }
 }

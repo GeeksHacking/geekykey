@@ -20,14 +20,14 @@ minimumReleaseAge: 1440
 # which is what a hijacked publishing account tends to look like.
 trustPolicy: no-downgrade
 
-# Two lockfile entries trip `no-downgrade` today. Both are signed by the
-# registry but were published before their projects adopted provenance
-# attestations, so they look like a downgrade against their newer releases.
-# Checked 2026-09-21: both are dev-only, not deprecated, and come from their
-# projects' real repos. Drop an entry once its parent is upgraded past it.
+# One lockfile entry trips `no-downgrade` today. It is signed by the
+# registry but was published before its project adopted provenance
+# attestations, so it looks like a downgrade against newer releases.
+# Checked 2026-09-21: it is dev-only, not deprecated, and comes from the
+# project's real repo. Drop it once its parent is upgraded past it.
+# (undici-types@6.21.0 left with @types/node 22 on 2026-10-20, BAC-47.)
 trustPolicyExclude:
   - "semver@6.3.1"         # via @babel/core, @babel/helper-compilation-targets
-  - "undici-types@6.21.0"  # via @types/node, type definitions only
 
 # Only our own direct dependencies may come from a git repo or a tarball URL.
 # A transitive dependency must resolve from the registry or the workspace.
@@ -40,9 +40,9 @@ blockExoticSubdeps: true
 #
 # esbuild ships a postinstall that fetches its platform binary. 0.28.2 is
 # Vite's, tsx's and Wrangler's, 0.25.12 is drizzle-kit's, and 0.18.20 arrives
-# under drizzle-kit via the deprecated @esbuild-kit/esm-loader -- that last one
-# should drop out when drizzle-kit is upgraded. The Event Service bundles with
-# Rolldown, which needs no install script.
+# under drizzle-kit via the deprecated @esbuild-kit/esm-loader. drizzle-kit
+# 0.31.11, the latest on 2026-10-20, still brings that last one in. The Event
+# Service bundles with Rolldown, which needs no install script.
 #
 # workerd, the Workers runtime that Wrangler and the GeekyKey Service's tests
 # run on, fetches its platform binary the same way. Each Wrangler upgrade
@@ -50,3 +50,14 @@ blockExoticSubdeps: true
 allowBuilds:
   "esbuild@0.28.2 || 0.25.12 || 0.18.20": true
   "workerd@1.20261012.1": true
+
+# Advisories `pnpm audit` skips. CI fails on high or critical ones only, but an
+# entry here keeps the local report clean, so a new advisory stands out. Each
+# entry says why it can't reach us; drop it once the package leaves the tree.
+auditConfig:
+  ignoreGhsas:
+    # esbuild 0.18.20's dev server answers any website's requests. It arrives
+    # through @esbuild-kit/esm-loader, which drizzle-kit 0.31.11 lists as a
+    # dependency but never loads: its code requires its own esbuild 0.25.12
+    # and tsx (checked 2026-10-20). So esbuild 0.18.20 is installed, never run.
+    - GHSA-67mh-4wv8-2f99
