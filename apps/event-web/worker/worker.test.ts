@@ -132,6 +132,23 @@ test("an error from the Event Service comes back unchanged", async () => {
   assert.deepEqual(await res.json(), { error: "unauthenticated" });
 });
 
+test("an Event Service that doesn't answer gets 503 service_unavailable", async () => {
+  // A port nothing listens on: taken, then let go.
+  const gone = await startFakeService();
+  await gone.close();
+  const stranded = await startWorker(gone.url);
+  try {
+    const res = await sendAsBrowser(await stranded.url, "same-origin", "/api/v1/me");
+
+    assert.equal(res.status, 503);
+    assert.equal(res.headers.get("Cache-Control"), "no-store");
+    assert.equal(res.headers.get("Content-Type"), "application/json");
+    assert.deepEqual(await res.json(), { error: "service_unavailable" });
+  } finally {
+    await stranded.dispose();
+  }
+});
+
 test("every other path gets the screens, and never reaches the Event Service", async () => {
   const screens = readFileSync(indexHtml, "utf8");
   for (const path of ["/", "/t/04A1B2C3D4E5F6", "/admin/stations", "/apis", "/authors"]) {

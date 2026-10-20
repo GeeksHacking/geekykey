@@ -119,7 +119,7 @@ of an Event Service lives under `/geekykey/v1`.
 | 409 | Conflict with existing state: a token someone else has claimed, or a user who already holds 3 tokens |
 | 429 | Too many requests from this caller in the last minute. See [Rate limits](#rate-limits) |
 | 500 | A bug in a service. Screens show a generic error and log the request ID if present |
-| 503 | A service this one depends on didn't answer: whatever holds the claims (the claims stand-in, then the Portal), the station's Event Service during a station request, or Google's keys during login |
+| 503 | A service this one depends on didn't answer: whatever holds the claims (the claims stand-in, then the Portal), the station's Event Service during a station request, Google's keys during login, or, for the Worker in front of a set of screens, the service behind it |
 
 ### Error body
 
@@ -154,6 +154,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them |
 | `login_unavailable` | 503 | Google's keys couldn't be fetched to check a Firebase ID token. The token may be fine; the screens say "Couldn't log you in. Try again." |
 | `claims_unavailable` | 503 | Who owns a token couldn't be found in time: from the claims stand-in until the switch after the showcase, then from the Portal. A station keeps its taps and resends them; the screens say "Couldn't reach GeeksHacking. Try again." |
+| `service_unavailable` | 503 | Sent by the Worker that serves a set of screens, under `/api` and `/auth`, when its service gave no answer at all: it was down, or failed before answering. Any answer the service does give, errors included, passes through unchanged |
 
 ### Rate limits
 
@@ -1321,3 +1322,4 @@ Closed on 2026-10-10:
 | 2026-10-20 | The hand-off's answer schema (11.2) now holds the request's bounds, which the agreement already set: 1 to 500 results, and a `client_tap_id` of 1 to 128 characters. Before, `packages/handoff/json-schema/taps-answer.schema.json` took an answer with no results, so a team checking with it alone could build one the GeekyKey Service refuses. Our Event Service always answered within them, so nothing it sends changes (BAC-49). |
 | 2026-10-20 | Our Event Service sends `Cache-Control: no-store` on every response, no longer only under `/api` and `/auth` ([CORS and cookies](#cors-and-cookies)). The registered stations (11.1) carry key hashes and the claims stand-in says who owns which token, so neither should sit in a cache. No shape changes (BAC-51). |
 | 2026-10-20 | The Event Service's `POST /auth/firebase` (7.2) is `Implemented`. It checks the ID token against Google's keys for the project `geekykey-b035a`, then sets `event_session` the same way as `POST /auth/dev-login`. The user's row takes the token's `name`; a token with none, or a blank one, keeps a returning user's name and gives a new user `GeeksHacking member`. A body that isn't `application/json` fails validation. The GeekyKey Service's half follows (BAC-55). No shape changes (BAC-52). |
+| 2026-10-20 | New error code `service_unavailable` (503), and only the screens' Workers send it. Each set of screens is served by a Worker that passes `/api/*` and `/auth/*` to its service. When that service gives no answer at all, the Worker answers `503 {"error": "service_unavailable"}` with `Cache-Control: no-store`, rather than Cloudflare's own HTML error page, which broke the error body's shape and the `no-store` rule. Until the screens know the code, they treat it by its status, as a bare 503. No other shape changes (BAC-53). |

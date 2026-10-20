@@ -1180,6 +1180,5 @@
     Each set of screens has its own Cloudflare Worker, ready for Julian to deploy on
     event.geekshacking.com and key.geekshacking.com. It serves the screens, so reloading a page such as a token's /t/ link works, and passes
     the browser's calls under /api and /auth to its own service, so the login cookie belongs to
-    the screens' address. The trade-off we accept is that a Worker that can't reach its service
-    answers with Cloudflare's own error page, which the screens don't understand, until the API
-    agreement says what it should answer.
+    the screens' address. If the service doesn't answer, the Worker sends the new error
+    service_unavailable instead of Cloudflare's own error page, so the screens can show a message.
