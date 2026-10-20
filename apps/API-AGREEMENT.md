@@ -184,6 +184,9 @@ the session cookie by default.
 - Locally both sets of screens run on `localhost`, where cookies ignore the port, so the two
   names keep the services from overwriting each other's session.
 - Every `/api/*` and `/auth/*` response carries `Cache-Control: no-store`.
+- Our Event Service sends it on every response, including those under `/geekykey/v1` and the
+  claims stand-in's, since the registered stations (11.1) carry key hashes and the stand-in
+  says who owns which token.
 
 ---
 
@@ -1316,3 +1319,4 @@ Closed on 2026-10-10:
 | 2026-10-20 | Housekeeping, no endpoint or shape changes. The Event screens' code moved from `apps/frontend` to `apps/event-web`, and its package to `@geekykey/event-web`. The table at the top and section 13's Event screens heading name the new folder, and the root scripts, the mise tasks and CI follow it (FRO-37). |
 | 2026-10-20 | Checkpoint 4 is done: every station calls the GeekyKey Service at `https://key-api.geekshacking.com`, its only production address. `POST /api/v1/taps` (6.1) and `POST /api/v1/stations/heartbeat` (6.2) are gone from the Event Service, which answers them `404 not_found`, and the notes on how they ran inside one server until checkpoint 4 are gone from sections 2, 5, 6, 6.1 and 6.2. The heartbeat's answer no longer waits for its hand-off. The Event Service's routes under `/geekykey/v1` and the claims stand-in's under `/claims-stand-in/v1` don't change. No shape changes (BAC-46). |
 | 2026-10-20 | The hand-off's answer schema (11.2) now holds the request's bounds, which the agreement already set: 1 to 500 results, and a `client_tap_id` of 1 to 128 characters. Before, `packages/handoff/json-schema/taps-answer.schema.json` took an answer with no results, so a team checking with it alone could build one the GeekyKey Service refuses. Our Event Service always answered within them, so nothing it sends changes (BAC-49). |
+| 2026-10-20 | Our Event Service sends `Cache-Control: no-store` on every response, no longer only under `/api` and `/auth` ([CORS and cookies](#cors-and-cookies)). The registered stations (11.1) carry key hashes and the claims stand-in says who owns which token, so neither should sit in a cache. No shape changes (BAC-51). |

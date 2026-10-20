@@ -14,8 +14,16 @@ test("health says the service is up, with the time", async () => {
   assert.equal(new Date(timestamp!).toISOString(), timestamp);
 });
 
-test("every /api and /auth response says not to cache it, even an error", async () => {
-  for (const path of ["/api/health", "/api/v1/nothing-here", "/auth/nothing-here"]) {
+test("every response says not to cache it, even an error", async () => {
+  for (const path of [
+    "/",
+    "/api/health",
+    "/api/v1/nothing-here",
+    "/auth/nothing-here",
+    "/geekykey/v1/stations",
+    "/claims-stand-in/v1/owners",
+    "/nothing-here",
+  ]) {
     const res = await app.request(path);
     assert.equal(res.headers.get("Cache-Control"), "no-store", path);
   }
