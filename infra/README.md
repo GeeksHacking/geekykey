@@ -75,7 +75,7 @@ works in the web console, so his steps say where each one is there too.
 | [9. The address](#9-the-address) | Julian, once Adam says it's ready | 11 Oct 2026 |
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. `app-secrets`: 14 Oct 2026 |
-| [12. The GeekyKey Service's build on Cloudflare](#12-the-geekykey-services-build-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-44) | Not yet |
+| [12. The GeekyKey Service's build on Cloudflare](#12-the-geekykey-services-build-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-44) | 19 Oct 2026 |
 | [13. The screens' builds on Cloudflare](#13-the-screens-builds-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-56) | Not yet |
 
 When you run a step, put the date in the table, and change any command you ran
