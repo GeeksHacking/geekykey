@@ -664,7 +664,7 @@ To point a station at a backend running on your laptop:
 3. Put the laptop and the station on the same network.
 
 The server setting is a base URL: `http://your-laptop.local:8000` for a laptop, or
-`https://event-api.geekshacking.com` for production. An `https://` URL is checked against
+`https://key-api.geekshacking.com` for production. An `https://` URL is checked against
 the root certificates in `ca_roots.h`; a plain `http://` URL is only sent to a host ending
 in `.local`, since the station key must not cross a network unencrypted.
 

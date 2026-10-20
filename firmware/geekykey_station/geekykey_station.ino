@@ -23,7 +23,7 @@
   until its "reset" command forgets it. firmware/README.md has the commands.
 
   The server is a full base URL in secrets.h (SERVER_URL), such as
-  "https://event-api.geekshacking.com" in production or
+  "https://key-api.geekshacking.com" in production or
   "http://A-Mac.local:8000" on a laptop. An https:// URL is called as written,
   with the server's certificate checked against the 14 root certificates in
   ca_roots.h: the station key must never cross the venue WiFi in plain text,
@@ -797,8 +797,9 @@ int sendHeartbeat() {
   if (serializeJson(request, body) == 0) return 0;
 
   if (!beginRequest("/api/v1/stations/heartbeat")) return 0;
-  // As for a tap: until checkpoint 4 the server answers once it has passed
-  // the heartbeat on, which takes up to 4 seconds.
+  // The same timeouts as a tap. Before checkpoint 4 the server answered only
+  // once it had passed the heartbeat on, up to 4 seconds later. key-api.
+  // answers without waiting (API agreement 6.2).
   http.setConnectTimeout(2000);
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
