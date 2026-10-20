@@ -1,9 +1,9 @@
 import type { Token } from "@/api/types";
 
 import { ReleaseTokenBlock } from "@/components/release-token-block";
-import { useReleaseToken } from "@/features/token/use-release-token";
 import { formatWhen } from "@/lib/format";
 import { formatUid } from "@/lib/token-uid";
+import { useReleaseToken } from "@/lib/use-release-token";
 
 /**
  * One row of My tokens (agreement 8.4): the UID in the token page's own format, when
