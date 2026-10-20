@@ -1157,3 +1157,10 @@
     minute even when no other station is tapping. The trade-offs we accept: junk keys can make it
     call each Event Service once a minute, where before they could only do that while an Event
     Service's list was missing.
+
+- id: updates-branding-kit
+  date: 2026-10-20
+  area: admin
+  change: >-
+    This site now uses the GeeksHacking branding kit, as the screens do: its greys and yellow,
+    the Open Sans font and its logo. The schedule shows the showcase on 18 November, not 17.

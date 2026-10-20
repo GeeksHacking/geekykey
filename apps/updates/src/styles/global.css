@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 /*
-  Tokens copied from apps/frontend/src/styles/globals.css, so the app and this site share
-  one palette: zinc neutrals and the GeeksHacking yellow. Only the tokens this site uses
-  are here. If the app's values change, change them here too.
+  Tokens copied from apps/event-web/src/styles/globals.css, so the screens and this site
+  share one palette: the GeeksHacking branding kit's greys and its yellow, #FFF200, with
+  the kit's 12px corner, Open Sans and 0.5px heading tracking. Only the tokens this site
+  uses are here. If the app's values change, change them here too. The app's file says
+  where each derived colour comes from and the contrast it reaches.
 
-  The yellow is a fill colour. Text in the accent colour uses --primary-text, and a yellow
-  fill on the light theme gets a 1px --primary-edge, exactly as in the app.
+  The yellow is a fill colour, always with #1C1B1B text on it. Text in the accent colour
+  uses --primary-text (#706B00 on light, yellow on dark), and a yellow fill on the light
+  theme gets a 1px --primary-edge, because yellow on the #F5F5F5 page is 1.07:1.
 
   One difference from the app: it switches themes with a .dark class and a toggle. This
   site ships no JavaScript, so it follows the reader's system setting instead.
@@ -18,7 +21,7 @@
   `inline` makes each utility use the var() itself, so the dark values below still apply.
 */
 @theme inline {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Open Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-background: hsl(var(--background));
@@ -34,6 +37,9 @@
   /* 1px edge for yellow fills. Charcoal on light, invisible on dark. */
   --color-primary-edge: hsl(var(--primary-edge));
 
+  /* The kit's 0.5px letter-spacing on headings. Gives tracking-heading. */
+  --tracking-heading: 0.5px;
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
 }
@@ -42,38 +48,37 @@
   :root {
     color-scheme: light dark;
 
-    --background: 240 5% 96.5%;
-    --foreground: 240 10% 5%;
-    --card: 240 5% 99%;
-    --muted: 240 5% 91%;
-    --muted-foreground: 240 4% 38%;
-    --border: 240 6% 85%;
+    --background: 0 0% 96%;
+    --foreground: 0 1.8% 10.8%;
+    --card: 0 0% 98.4%;
+    --muted: 0 0% 91%;
+    --muted-foreground: 270 1% 36%;
+    --border: 0 0% 81%;
 
-    --primary: 59 92% 69%;
-    --primary-foreground: 240 10% 6%;
-    --primary-text: 50 100% 24%;
-    --primary-edge: 240 6% 22%;
+    --primary: 57 100% 50%;
+    --primary-foreground: 0 1.8% 10.8%;
+    --primary-text: 57 100% 22%;
+    --primary-edge: 0 1.8% 10.8%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --background: 240 6% 7%;
-      --foreground: 240 5% 93%;
-      --card: 240 5% 10%;
-      --muted: 240 4% 15%;
-      --muted-foreground: 240 5% 66%;
-      --border: 240 4% 18%;
+      --background: 267 43% 4%;
+      --foreground: 0 0% 96%;
+      --card: 0 1.8% 10.8%;
+      --muted: 270 2% 16%;
+      --muted-foreground: 300 0.5% 62.5%;
+      --border: 270 1.6% 25.1%;
 
-      --primary-text: 59 92% 69%;
-      --primary-edge: 59 92% 69%;
+      --primary-text: 57 100% 50%;
+      --primary-edge: 57 100% 50%;
     }
   }
 
   body {
     @apply bg-background font-sans text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
   }
 
   /* Dates line up. */
@@ -110,13 +115,13 @@
     @apply mt-4;
   }
   .entry-body h2 {
-    @apply mt-14 scroll-mt-8 border-t border-border pt-10 text-2xl font-semibold tracking-tight;
+    @apply mt-14 scroll-mt-8 border-t border-border pt-10 text-2xl font-semibold tracking-heading;
   }
   .entry-body h2:first-child {
     @apply mt-0 border-t-0 pt-0;
   }
   .entry-body h3 {
-    @apply mt-9 scroll-mt-8 text-lg font-semibold tracking-tight;
+    @apply mt-9 scroll-mt-8 text-lg font-semibold tracking-heading;
   }
   .entry-body :is(h2, h3) + * {
     @apply mt-3;
