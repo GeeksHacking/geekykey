@@ -1,4 +1,4 @@
-# GeekyKey frontend
+# Event screens
 
 React single-page app for GeekyKey, an NFC stamp-collection system for hackathons.
 Participants tap a physical NFC token at ESP32 reader stations. This app is where they
@@ -374,7 +374,7 @@ Rules:
   client still sends `credentials: "include"` so it also works without the proxy.
 - The user ID always comes from the session. Never put a user ID in a request body except
   where the agreement says so (QR fallback).
-- The frontend never computes stamps, points, or cooldown. Display what the backend returns.
+- The Event screens never compute stamps, points, or cooldown. Display what the backend returns.
 - Poll, do not stream. Stations every 10 to 15 s. Scan log every 5 s with no cursor,
   merged by `id`. Polling is Query's `refetchInterval`, which already pauses in hidden
   tabs. No websockets.

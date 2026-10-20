@@ -9,7 +9,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 | GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | Inside `apps/event-service` until checkpoint 4, then `apps/geekykey-service` |
 | Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/event-service` |
 | GeekyKey screens | The token page and My tokens | `apps/geekykey-web` |
-| Event screens | The dashboard, passport, activity and organizer screens, including the station board | `apps/frontend`, which becomes `apps/event-web` at checkpoint 4 |
+| Event screens | The dashboard, passport, activity and organizer screens, including the station board | `apps/event-web` |
 
 | | |
 |---|---|
@@ -1235,7 +1235,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 
 There are no GeekyKey admin screens.
 
-**The Event screens** (`apps/frontend`, which becomes `apps/event-web`, `event.geekshacking.com`)
+**The Event screens** (`apps/event-web`, `event.geekshacking.com`)
 
 | Screen | Calls |
 |---|---|
@@ -1323,3 +1323,4 @@ Closed on 2026-10-10:
 | 2026-10-16 | Housekeeping, no endpoint or shape changes. The Event Service's code moved from `apps/backend` to `apps/event-service` ahead of checkpoint 4. The table at the top, 7.1's `dev.env` and section 13's local setup name the new folder. `mise run dev:backend` is now `mise run dev:event-service` (BAC-40). |
 | 2026-10-16 | Housekeeping, no endpoint or shape changes. Locally the Event Service now runs on port 8001, as the table at the top already said for checkpoint 4, and the GeekyKey Service on 8000, in `wrangler dev`. Section 13's local setup names the new port, and starts the GeekyKey Service too. Until its own dev-login arrives, the GeekyKey Service on 8000 has no `POST /auth/dev-login` or `POST /auth/logout`. [Event Service keys](#event-service-keys) now states the one exception to `https://`: locally, `http://` to the same machine, as the code already allowed (BAC-41). |
 | 2026-10-16 | Each service signs its own users in locally, as sections 2 and 7 already said for checkpoint 4. The Event Service's session cookie is now `event_session`, not `gk_session`; nobody is signed in on production yet, so the rename signs nobody out. The GeekyKey Service has its own `POST /auth/dev-login` (7.1), which signs in any `user_id` and sets `gk_session`, and its own `POST /auth/logout` (7.3). Dev-login exists on each only with `DEV_AUTH_ENABLED=true`, and logout always. The Event Service's dev-login, logout and `GET /api/health` are `Implemented`, and the GeekyKey Service's dev-login no longer "changes at checkpoint 4". Section 13's local setup is one `pnpm dev` at the repo root, which starts all four on 8000, 8001, 5173 and 5174 with no settings file. The status legend's `Implemented` names both services' folders. No shape changes (BAC-42). |
+| 2026-10-20 | Housekeeping, no endpoint or shape changes. The Event screens' code moved from `apps/frontend` to `apps/event-web`, and its package to `@geekykey/event-web`. The table at the top and section 13's Event screens heading name the new folder, and the root scripts, the mise tasks and CI follow it (FRO-37). |

@@ -23,7 +23,7 @@ geekykey/
 ├── infra/                      the backend's Google Cloud setup: the runbook, and what deploy.yml deploys with
 ├── apps/
 │   ├── API-AGREEMENT.md        the contract between the frontend, backend, and stations
-│   ├── frontend/               Event screens for participants and organisers, port 5173
+│   ├── event-web/              Event screens for participants and organisers, port 5173
 │   ├── geekykey-web/           GeekyKey screens: the token page and My tokens. Port 5174
 │   ├── geekykey-service/       the Cloudflare Worker that stations and the GeekyKey screens call, port 8000
 │   ├── event-service/          the Node server that keeps the database, which the Event screens call, port 8001
@@ -36,7 +36,7 @@ geekykey/
 
 | Folder | Stack | Start reading at |
 |---|---|---|
-| `apps/frontend` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/frontend/CLAUDE.md` |
+| `apps/event-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/event-web/CLAUDE.md` |
 | `apps/geekykey-web` | React 19, Vite, TanStack Router and Query, Tailwind, shadcn/ui | `apps/geekykey-web/CLAUDE.md` |
 | `apps/geekykey-service` | Hono on a Cloudflare Worker, with no database | `src/worker.ts`, then `src/app.ts` |
 | `apps/event-service` | Hono on Node, on Google Cloud Run, Drizzle ORM, TiDB | `src/server.ts`, then `src/app.ts` and its three areas |
@@ -71,8 +71,8 @@ The GeekyKey Service, a Cloudflare Worker in `wrangler dev`, checks the station'
 the claims stand-in on the Event Service who owns each token, and hands the taps on. Each set
 of screens has a dev server that forwards `/api` and `/auth` to its own service, so the
 browser only ever talks to one address. On their own, both sets of screens run on mock data
-and never call a service. Endpoints are switched over one at a time (see "With the frontend"
-below).
+and never call a service. Endpoints are switched over one at a time (see "With the Event
+screens" below).
 
 Locally everything runs on `localhost`:
 
@@ -80,15 +80,15 @@ Locally everything runs on `localhost`:
 |---|---|---|
 | 8000 | The GeekyKey Service, in `wrangler dev` | `mise run dev:geekykey-service` |
 | 8001 | The Event Service, on Node | `mise run dev:event-service` |
-| 5173 | The Event screens (`apps/frontend`) | `mise run dev:frontend` |
+| 5173 | The Event screens (`apps/event-web`) | `mise run dev:event-web` |
 | 5174 | The GeekyKey screens (`apps/geekykey-web`) | `mise run dev:geekykey-web` |
 
 `mise run dev` starts all four at once. See [Running the backend](#running-the-backend).
 
-### Inside the frontend
+### Inside the Event screens
 
 ```text
-apps/frontend/src/
+apps/event-web/src/
 ├── routes/       one small file per URL; each says "this URL shows that screen"
 ├── features/     the screens, one folder per area: passport, stations, taps, ...
 ├── components/   pieces used by more than one feature; ui/ holds the shadcn/ui components
@@ -187,9 +187,9 @@ The image holds one file. `pnpm build` uses Rolldown to bundle `src/server.ts` a
 everything it imports into `dist/server.cjs`, and the `Dockerfile` runs that on Node 24.
 See [The image](#the-image) to build and start it yourself.
 
-## Running the frontend
+## Running the Event screens
 
-The frontend currently runs against **mock data** shaped like the API agreement, so you
+The Event screens currently run against **mock data** shaped like the API agreement, so you
 do not need the backend, Docker, or a database to work on it.
 
 ### 1. Install the tools
@@ -233,10 +233,10 @@ computer. That is expected, and they are approved in
 ### 3. Start the dev server
 
 ```bash
-mise run dev:frontend
+mise run dev:event-web
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Edits under `apps/frontend/src`
+Open [http://localhost:5173](http://localhost:5173). Edits under `apps/event-web/src`
 reload in place.
 
 ### 4. Sign in
@@ -257,12 +257,12 @@ taps in the background, so the scan log and station board change while you watch
 These work from any folder in the repo:
 
 ```bash
-mise run test:frontend     # unit tests (Vitest)
-mise run build:frontend    # typecheck, then production build to apps/frontend/dist
-mise run format:frontend   # format the code in place (oxfmt)
+mise run test:event-web     # unit tests (Vitest)
+mise run build:event-web    # typecheck, then production build to apps/event-web/dist
+mise run format:event-web   # format the code in place (oxfmt)
 ```
 
-For the rest, `cd apps/frontend` first. If your shell is activated, you can leave off
+For the rest, `cd apps/event-web` first. If your shell is activated, you can leave off
 `mise exec --`.
 
 ```bash
@@ -280,7 +280,7 @@ mise exec -- pnpm dlx shadcn@latest add <component>   # add a shadcn/ui componen
   shows an import error, run `mise run install` again; a dependency is probably missing after
   a pull.
 - **Port 5173 is taken.** Stop the other process, or start Vite on another port with
-  `mise run dev:frontend -- --port 5174`.
+  `mise run dev:event-web -- --port 5174`.
 - **`node -v` or `pnpm -v` shows a different version than `.mise.toml`.** Your shell is
   not activated, which is fine as long as you use `mise run` or `mise exec --`. If you want
   the plain commands to match, do the `mise activate` step above and open a new terminal.
@@ -288,7 +288,7 @@ mise exec -- pnpm dlx shadcn@latest add <component>   # add a shadcn/ui componen
   `typescript@~6.0.3` because the lint toolchain does not support 7 yet. Run
   `mise run install` to restore the pinned version.
 - **The shadcn CLI wrote files into a folder literally called `@`.** The solution
-  `apps/frontend/tsconfig.json` must keep its `paths` entry; the CLI reads the alias from
+  `apps/event-web/tsconfig.json` must keep its `paths` entry; the CLI reads the alias from
   there. Delete the stray folder and rerun the command.
 
 ## mise commands
@@ -311,10 +311,10 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 |---|---|
 | `install` | Install dependencies for every workspace package |
 | `dev` | Both services and both sets of screens, on ports 8000, 8001, 5173 and 5174, with dev sign-in on and the Event screens calling the Event Service |
-| `dev:frontend` | Frontend dev server on http://localhost:5173 |
-| `test:frontend` | Frontend unit tests, run once |
-| `build:frontend` | Typecheck the frontend, then build it to `apps/frontend/dist` |
-| `format:frontend` | Format the frontend code in place with oxfmt |
+| `dev:event-web` | Event screens dev server on http://localhost:5173 |
+| `test:event-web` | Event screens unit tests, run once |
+| `build:event-web` | Typecheck the Event screens, then build them to `apps/event-web/dist` |
+| `format:event-web` | Format the Event screens code in place with oxfmt |
 | `dev:geekykey-web` | GeekyKey screens dev server on http://localhost:5174 |
 | `test:geekykey-web` | GeekyKey screens unit tests, run once |
 | `build:geekykey-web` | Typecheck the GeekyKey screens, then build them |
@@ -337,12 +337,12 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 ### Where a task's command comes from
 
 Each task is a short name for a command that also works without mise. Most tasks go
-through the root `package.json`. For example, `mise run dev:frontend` runs:
+through the root `package.json`. For example, `mise run dev:event-web` runs:
 
 ```text
-pnpm dev:frontend                          root package.json
-  → pnpm --filter @geekykey/frontend dev   runs the dev script inside apps/frontend
-    → vite                                 apps/frontend/package.json
+pnpm dev:event-web                         root package.json
+  → pnpm --filter @geekykey/event-web dev   runs the dev script inside apps/event-web
+    → vite                                 apps/event-web/package.json
 ```
 
 The backend tasks follow the same chain, ending in a script from
@@ -358,8 +358,8 @@ root `package.json`, because they start and stop TiDB with `docker compose` and 
 Anything after `--` is passed on to the command at the bottom of the chain:
 
 ```bash
-mise run test:frontend -- format               # only test files with "format" in the name
-mise run dev:frontend -- --port 5174           # Vite on another port
+mise run test:event-web -- format         # only test files with "format" in the name
+mise run dev:event-web -- --port 5174      # Vite on another port
 mise run seed -- --station "Booth 3"           # give the new station a name
 ```
 
@@ -385,9 +385,9 @@ Put the real command in the app's `package.json` first, so it works without mise
 a block to `.mise.toml` that calls it:
 
 ```toml
-[tasks."lint:frontend"]
-description = "Frontend lint (eslint)"
-run = "pnpm --filter @geekykey/frontend lint"
+[tasks."lint:event-web"]
+description = "Event web lint (eslint)"
+run = "pnpm --filter @geekykey/event-web lint"
 ```
 
 Add `dir = "apps/event-service"` if the command has to run from a particular folder.
@@ -398,7 +398,7 @@ The backend is a Node server. In production, Google Cloud Run runs it from a con
 image (see [The image](#the-image)). On your laptop, Node runs it straight from the
 TypeScript in `apps/event-service/src`, and its database is TiDB in Docker.
 
-Do steps 1 and 2 of [Running the frontend](#running-the-frontend) first.
+Do steps 1 and 2 of [Running the Event screens](#running-the-event-screens) first.
 
 ### 1. Install Docker
 
@@ -443,7 +443,8 @@ folder it came from:
 - the Event Service on http://localhost:8001, ready when it prints a line with
   `"message":"server_started"`;
 - the Event screens on http://localhost:5173, calling the Event Service for what
-  `apps/frontend/src/api/create-client.ts` lists (see [With the frontend](#with-the-frontend));
+  `apps/event-web/src/api/create-client.ts` lists (see [With the Event
+  screens](#with-the-event-screens));
 - the GeekyKey screens on http://localhost:5174, still on mock data until checkpoint 6.
 
 No settings file is needed. Each service turns dev sign-in on by itself and reads a committed
@@ -453,7 +454,7 @@ file under its `src`. To stop all four, press Ctrl-C. pnpm may print an error as
 that is normal.
 
 To start only one, use its own task in a terminal of its own: `mise run dev:event-service`,
-`mise run dev:geekykey-service`, `mise run dev:frontend` or `mise run dev:geekykey-web`.
+`mise run dev:geekykey-service`, `mise run dev:event-web` or `mise run dev:geekykey-web`.
 
 Each service signs its users in with a cookie of its own: `event_session` from the Event
 Service and `gk_session` from the GeekyKey Service. Cookies on `localhost` ignore the port, so
@@ -533,10 +534,10 @@ Never put a secret in `dev.env`. In production, Cloud Run sets the settings, and
 secrets come from Google's Secret Manager.
 
 The port is the `PORT` setting, which `dev.env` sets to 8001, since the GeekyKey Service
-holds 8000. The frontend's dev server and the GeekyKey Service's `dev.env` expect 8001, so
-change them too if you move it. The backend listens on your whole
-network, not only your laptop, because real stations call it by the laptop's name. So
-anyone on the same Wi-Fi can reach it, dev sign-in included.
+holds 8000. The Event screens' dev server and the GeekyKey Service's `dev.env` expect
+8001, so change them too if you move it. The backend listens on your whole network, not
+only your laptop, because real stations call it by the laptop's name. So anyone on the
+same Wi-Fi can reach it, dev sign-in included.
 
 `dev.env` sets `DEV_AUTH_ENABLED=true`. That adds `POST /auth/dev-login`, which signs in a
 seeded user without a real login, and gives the session secret, the claims stand-in's key,
@@ -621,16 +622,16 @@ Then http://localhost:8001/api/health answers. Inside the container, `127.0.0.1`
 container itself, not your laptop, so the routes that need the database fail. Ctrl-C
 stops it.
 
-### With the frontend
+### With the Event screens
 
-`mise run dev` starts the frontend with `VITE_LIVE_API=1`, and so does
-`mise exec -- pnpm dev:live` from `apps/frontend`, which starts the frontend alone. That sends
-the methods listed in `apps/frontend/src/api/create-client.ts` to the Event Service on port
-8001 and keeps everything else on mock data. So far the list has
+`mise run dev` starts the Event screens with `VITE_LIVE_API=1`, and so does
+`mise exec -- pnpm dev:live` from `apps/event-web`, which starts the Event screens
+alone. That sends the methods listed in `apps/event-web/src/api/create-client.ts` to the
+Event Service on port 8001 and keeps everything else on mock data. So far the list has
 signing in and out (`devLogin` and `logout`) and `me`, which says who is signed in and
 carries a participant's points, stamps and recent taps. So with the backend running and
 seeded, you can sign in as Alex Tan or Priya Raman for real. The plan for switching the
-rest over is in `apps/frontend/CLAUDE.md`, under "Wiring an endpoint to the real backend".
+rest over is in `apps/event-web/CLAUDE.md`, under "Wiring an endpoint to the real backend".
 
 ## Updates site
 
@@ -678,11 +679,11 @@ same tool versions from `.mise.toml`. To run the same checks before you push, st
 the repo root:
 
 ```bash
-# Frontend job
+# Event web job
 mise exec -- pnpm install --frozen-lockfile
-mise exec -- pnpm --filter @geekykey/frontend lint
-mise run test:frontend
-mise run build:frontend
+mise exec -- pnpm --filter @geekykey/event-web lint
+mise run test:event-web
+mise run build:event-web
 
 # GeekyKey screens job
 mise exec -- pnpm --filter @geekykey/geekykey-web lint
@@ -749,7 +750,7 @@ showcase:
 | `event-service` | `apps/event-service` | Google Cloud Run | `https://event-api.geekshacking.com`, behind Cloudflare's proxy, and its `run.app` address |
 | `event-service-staging`, the staging copy | `apps/event-service` | Google Cloud Run | Its `run.app` address only, listed in `infra/README.md`, step 5 |
 | `geekykey-service`, coming at checkpoint 4 | `apps/geekykey-service` | A Cloudflare Worker | `https://key-api.geekshacking.com` |
-| `geekykey-web` and `event-web`, the two sets of screens, coming at checkpoint 5 | `apps/geekykey-web` and `apps/event-web` (today's `apps/frontend`) | Cloudflare Workers | `https://key.geekshacking.com` and `https://event.geekshacking.com` |
+| `geekykey-web` and `event-web`, the two sets of screens, coming at checkpoint 5 | `apps/geekykey-web` and `apps/event-web` | Cloudflare Workers | `https://key.geekshacking.com` and `https://event.geekshacking.com` |
 
 Both Cloud Run services are deployed by one GitHub workflow, `.github/workflows/deploy.yml`.
 What it deploys with (which service, which settings, which secret versions) is in
@@ -974,7 +975,7 @@ client secret, after the showcase. The migration spec, section 5.2, has the full
 
 - `apps/API-AGREEMENT.md` is the contract every part of the system is built against. It
   wins over the migration spec, the older plans, and the code when they disagree.
-- `apps/frontend/CLAUDE.md` is the working agreement for the Event screens: stack, layout,
+- `apps/event-web/CLAUDE.md` is the working agreement for the Event screens: stack, layout,
   contract rules, and the definition of done for a screen.
 - `apps/geekykey-web/CLAUDE.md` is the same for the GeekyKey screens.
 - `docs/agents/` explains how work is tracked: the Linear workspace, the five triage labels,
