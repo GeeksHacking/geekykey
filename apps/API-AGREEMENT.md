@@ -364,7 +364,7 @@ them.
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
-| POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `event_session` |
+| POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
@@ -563,7 +563,7 @@ each service's `pnpm dev` reads. Never enabled in production.
 - **The GeekyKey Service** signs in any `user_id`, because it keeps no users. `dev-organizer-1`
   is also on its local GeekyKey admin list, so releasing someone else's token can be developed.
 
-### 7.2 `POST /auth/firebase` (`Checkpoint 5`)
+### 7.2 `POST /auth/firebase` (`Implemented` on the Event Service, `Checkpoint 5` on the GeekyKey Service)
 
 Logs the user in with the ID token Firebase gave the screens. The service checks it against
 Google's public keys, then sets its cookie. There's no redirect: the screens stay where they
@@ -1320,3 +1320,4 @@ Closed on 2026-10-10:
 | 2026-10-20 | Checkpoint 4 is done: every station calls the GeekyKey Service at `https://key-api.geekshacking.com`, its only production address. `POST /api/v1/taps` (6.1) and `POST /api/v1/stations/heartbeat` (6.2) are gone from the Event Service, which answers them `404 not_found`, and the notes on how they ran inside one server until checkpoint 4 are gone from sections 2, 5, 6, 6.1 and 6.2. The heartbeat's answer no longer waits for its hand-off. The Event Service's routes under `/geekykey/v1` and the claims stand-in's under `/claims-stand-in/v1` don't change. No shape changes (BAC-46). |
 | 2026-10-20 | The hand-off's answer schema (11.2) now holds the request's bounds, which the agreement already set: 1 to 500 results, and a `client_tap_id` of 1 to 128 characters. Before, `packages/handoff/json-schema/taps-answer.schema.json` took an answer with no results, so a team checking with it alone could build one the GeekyKey Service refuses. Our Event Service always answered within them, so nothing it sends changes (BAC-49). |
 | 2026-10-20 | Our Event Service sends `Cache-Control: no-store` on every response, no longer only under `/api` and `/auth` ([CORS and cookies](#cors-and-cookies)). The registered stations (11.1) carry key hashes and the claims stand-in says who owns which token, so neither should sit in a cache. No shape changes (BAC-51). |
+| 2026-10-20 | The Event Service's `POST /auth/firebase` (7.2) is `Implemented`. It checks the ID token against Google's keys for the project `geekykey-b035a`, then sets `event_session` the same way as `POST /auth/dev-login`. The user's row takes the token's `name`; a token with none keeps a returning user's name and gives a new user `GeeksHacking member`. A body that isn't `application/json` fails validation. The GeekyKey Service's half follows (BAC-55). No shape changes (BAC-52). |

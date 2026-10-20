@@ -13,3 +13,7 @@ apps/event-service/src/test-helpers.ts
 !packages/handoff/package.json
 !packages/handoff/src/
 packages/handoff/src/**/*.test.ts
+!packages/firebase-login/package.json
+!packages/firebase-login/src/
+packages/firebase-login/src/**/*.test.ts
+packages/firebase-login/src/testing.ts

@@ -1,3 +1,4 @@
+import { type GoogleSigningKeys, googleSigningKeys } from "@geekykey/firebase-login";
 import { createBaseApp } from "./base-app.ts";
 import { claimsStandInRoutes } from "./claims-stand-in/routes.ts";
 import type { Config } from "./config.ts";
@@ -10,6 +11,12 @@ import type { SessionOptions } from "./event/session-auth.ts";
 export type AppEnv = {
   Variables: { config: Config; db: Db };
 };
+
+/** What the Event Service reaches outside itself, other than its database. */
+export interface AppDeps {
+  /** Google's keys, which POST /auth/firebase checks ID tokens against. Tests fake them. */
+  googleKeys: GoogleSigningKeys;
+}
 
 /**
  * The Event Service, with every route mounted, started with its settings and
@@ -25,7 +32,12 @@ export type AppEnv = {
  * can depend on them: POST /auth/dev-login is only there when
  * DEV_AUTH_ENABLED is true.
  */
-export function createApp(config: Config, db: Db) {
+export function createApp(
+  config: Config,
+  db: Db,
+  // One set of keys for the server's life, so Google's keys are cached between logins.
+  { googleKeys }: AppDeps = { googleKeys: googleSigningKeys() },
+) {
   // Built once and shared, so every route that reads or writes a session agrees on it.
   const session: SessionOptions = {
     secret: config.sessionSecret,
@@ -44,7 +56,14 @@ export function createApp(config: Config, db: Db) {
   });
 
   // The Event side: logging in and out, and what a signed-in user sees.
-  app.route("/auth", authRoutes({ session, devAuthEnabled: config.devAuthEnabled }));
+  app.route(
+    "/auth",
+    authRoutes({
+      session,
+      devAuthEnabled: config.devAuthEnabled,
+      firebase: { projectId: config.firebaseProjectId, keys: googleKeys },
+    }),
+  );
   app.route("/api/v1/me", meRoutes({ session }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route("/geekykey/v1", handoffRoutes({ key: config.eventServiceKey }));

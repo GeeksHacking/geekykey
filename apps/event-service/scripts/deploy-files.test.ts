@@ -66,11 +66,17 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       assert.ok(!config.organizers.includes("dev-organizer-1"));
     });
 
+    test("it logs users in with the showcase's Firebase project, as the GeekyKey Service does", () => {
+      const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
+      assert.equal(config.firebaseProjectId, "geekykey-b035a");
+    });
+
     test("it sets only the Event Service's own settings", () => {
       // The spec's section 5.1 lists them, and DEV_AUTH_ENABLED is here to stay false. The
       // GeekyKey Service's settings, such as EVENT_SERVICES, are in its wrangler.jsonc.
       assert.deepEqual(Object.keys(settings).sort(), [
         "DEV_AUTH_ENABLED",
+        "FIREBASE_PROJECT_ID",
         "ORGANIZERS",
         "TAP_COOLDOWN_SECONDS",
       ]);

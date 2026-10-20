@@ -1158,6 +1158,17 @@
     call each Event Service once a minute, where before they could only do that while an Event
     Service's list was missing.
 
+- id: event-service-firebase-login
+  date: 2026-10-20
+  area: backend
+  change: >-
+    The Event Service now logs a user in with the ID token Firebase gives the screens after a
+    Google sign-in. It checks the token against Google's keys for our Firebase project, saves the
+    user's name, and sets its own session cookie. If Google's keys can't be fetched, it answers
+    that login is unavailable, so a good token is never called bad. The check is shared code that
+    the GeekyKey Service's login will use too. Nothing calls it on production until the screens
+    deploy.
+
 - id: updates-branding-kit
   date: 2026-10-20
   area: admin

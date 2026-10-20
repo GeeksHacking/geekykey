@@ -53,6 +53,9 @@ and what it answers (the API agreement's section 11). `apps/event-service` bundl
 its image. Its `json-schema/` folder holds the same shapes as JSON Schema, for other teams: after
 changing a schema, run `mise exec -- pnpm --filter @geekykey/handoff json-schema` and commit
 what it writes. A test fails while the two differ.
+`packages/firebase-login` checks a Firebase ID token against Google's keys, for each
+service's `POST /auth/firebase` (the API agreement's 7.2). Its `testing` export fakes
+Google's keys, so a service's tests can log in without them.
 
 ### How the pieces connect
 
@@ -550,6 +553,10 @@ sends. Never turn it on in production. Without it, the backend refuses to start 
 `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY` and `EVENT_SERVICE_KEY` are set, each key as 64 hex
 characters.
 
+`FIREBASE_PROJECT_ID` is the Firebase project whose ID tokens `POST /auth/firebase` accepts,
+`geekykey-b035a` in `dev.env` and on Cloud Run alike. The backend refuses to start without it,
+with or without dev sign-in.
+
 `ORGANIZERS` lists the user IDs who are organizers on the Event side, separated by commas.
 Everyone else is a participant. The server reads it when it starts, so a change takes a
 restart, or a deploy in production. Empty or unset means nobody. With dev sign-in on, an unset
@@ -710,6 +717,10 @@ mise exec -- pnpm --filter @geekykey/handoff lint                     # and the 
 mise exec -- pnpm --filter @geekykey/handoff format:check
 mise exec -- pnpm --filter @geekykey/handoff typecheck
 mise exec -- pnpm --filter @geekykey/handoff test
+mise exec -- pnpm --filter @geekykey/firebase-login lint              # and the same four for the Firebase login package
+mise exec -- pnpm --filter @geekykey/firebase-login format:check
+mise exec -- pnpm --filter @geekykey/firebase-login typecheck
+mise exec -- pnpm --filter @geekykey/firebase-login test
 mise run db:up
 mise run test:event-service
 mise exec -- pnpm --filter @geekykey/event-service build:image        # the image builds
@@ -718,6 +729,7 @@ docker run --detach --rm --name event-service --publish 8000:8000 \
   --env SESSION_SECRET=ci-stand-in-not-a-secret \
   --env CLAIMS_STAND_IN_KEY=$(openssl rand -hex 32) \
   --env EVENT_SERVICE_KEY=$(openssl rand -hex 32) \
+  --env FIREBASE_PROJECT_ID=geekykey-b035a \
   geekykey-event-service
 curl --fail --retry 10 --retry-delay 1 --retry-all-errors http://localhost:8000/api/health   # and starts
 docker stop event-service

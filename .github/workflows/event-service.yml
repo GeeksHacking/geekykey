@@ -48,6 +48,15 @@ jobs:
           pnpm --filter @geekykey/handoff typecheck
           pnpm --filter @geekykey/handoff test
 
+      # packages/firebase-login, which the Event Service bundles: the check of
+      # a Firebase ID token behind POST /auth/firebase.
+      - name: Firebase login package
+        run: |
+          pnpm --filter @geekykey/firebase-login lint
+          pnpm --filter @geekykey/firebase-login format:check
+          pnpm --filter @geekykey/firebase-login typecheck
+          pnpm --filter @geekykey/firebase-login test
+
       # TiDB in Docker from the root compose.yaml, with geekykey_dev and
       # geekykey_test created and migrated, the same way as on a laptop.
       - name: Start TiDB
@@ -65,7 +74,8 @@ jobs:
       # Starts the image and asks it for /api/health, so a bundle that builds
       # but can't start fails here. /api/health needs no database, so the
       # DATABASE_URL only has to be there, and the SESSION_SECRET and the two
-      # keys are stand-ins that nothing else uses.
+      # keys are stand-ins that nothing else uses. FIREBASE_PROJECT_ID is the
+      # real one, which isn't a secret.
       - name: Start the image
         run: |
           docker run --detach --name event-service --publish 8000:8000 \
@@ -73,6 +83,7 @@ jobs:
             --env SESSION_SECRET=ci-stand-in-not-a-secret \
             --env CLAIMS_STAND_IN_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
             --env EVENT_SERVICE_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            --env FIREBASE_PROJECT_ID=geekykey-b035a \
             geekykey-event-service
           curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-all-errors \
             http://localhost:8000/api/health || { docker logs event-service; exit 1; }

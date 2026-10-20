@@ -10,6 +10,8 @@ const LOG_LINES = {
   fatal_error: "ERROR",
   // A tap the Event side stored, with enough to store it again after a restore.
   tap_stored: "INFO",
+  // A Firebase login answered 503, because Google's keys couldn't be fetched to check the token.
+  login_unavailable: "ERROR",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;
