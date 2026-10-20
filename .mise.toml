@@ -20,23 +20,23 @@ run = "pnpm install"
 description = "Both services and both sets of screens: the GeekyKey Service on 8000, the Event Service on 8001, the Event screens on 5173 and the GeekyKey screens on 5174"
 run = "pnpm dev"
 
-# Frontend
+# Event web
 
-[tasks."dev:frontend"]
-description = "Vite dev server on http://localhost:5173"
-run = "pnpm dev:frontend"
+[tasks."dev:event-web"]
+description = "Event web dev server on http://localhost:5173"
+run = "pnpm dev:event-web"
 
-[tasks."test:frontend"]
-description = "Frontend unit tests (Vitest)"
-run = "pnpm test:frontend"
+[tasks."test:event-web"]
+description = "Event web unit tests (Vitest)"
+run = "pnpm test:event-web"
 
-[tasks."build:frontend"]
-description = "Typecheck, then production build to apps/frontend/dist"
-run = "pnpm build:frontend"
+[tasks."build:event-web"]
+description = "Typecheck, then production build to apps/event-web/dist"
+run = "pnpm build:event-web"
 
-[tasks."format:frontend"]
-description = "Format the frontend code in place (oxfmt)"
-run = "pnpm format:frontend"
+[tasks."format:event-web"]
+description = "Format the Event web code in place (oxfmt)"
+run = "pnpm format:event-web"
 
 # GeekyKey web
 

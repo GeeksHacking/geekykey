@@ -129,7 +129,7 @@ Two things that look like bugs and are not:
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Runtime, package manager | Node 24, pnpm 12 | Workspace package `@geekykey/frontend`. Exact versions are pinned in the root `.mise.toml` |
+| Runtime, package manager | Node 24, pnpm 12 | Workspace package `@geekykey/event-web`. Exact versions are pinned in the root `.mise.toml` |
 | Framework | React 19 | Function components only |
 | Language | TypeScript 6.0, strict | Pin `typescript@~6.0.3`. See "TypeScript version" |
 | Build | Vite 8 + `@vitejs/plugin-react` | |
@@ -245,7 +245,7 @@ the summary tiles' text moves 1px. What to know:
 
 ## Commands
 
-Run from `apps/frontend`.
+Run from `apps/event-web`.
 
 ```
 pnpm dev          # Vite dev server on http://localhost:5173, fully mocked
@@ -262,8 +262,8 @@ pnpm test:e2e     # playwright Chromium smoke suite against the mock dev server
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
 ```
 
-Root-level equivalents: `pnpm dev:frontend`, `pnpm build:frontend`, `pnpm test:frontend`,
-`pnpm format:frontend`.
+Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test:event-web`,
+`pnpm format:event-web`.
 
 Sign in on the login page with a seeded account. Alex Tan is a participant, Priya Raman is
 an organiser. The mock session survives a reload but not a new tab.
@@ -279,7 +279,7 @@ mise run dev:backend
 ## Directory layout
 
 ```
-apps/frontend/
+apps/event-web/
   CLAUDE.md
   index.html                # theme bootstrap script runs before first paint
   public/brand/             # the branding kit's logos; the secondary one is also the favicon
