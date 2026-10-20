@@ -1147,3 +1147,13 @@
     Before, only the screens' paths carried that rule. The trade-offs we accept: the rule covers
     every path rather than a named few, so a route added later can't be missed, at the cost of
     never caching anything the Event Service sends.
+
+- id: unknown-station-key-refreshes
+  date: 2026-10-20
+  area: backend
+  change: >-
+    A station key the GeekyKey Service doesn't know now makes it ask the Event Services for their
+    stations again, once its copy is a minute old. A new station's key then works within about a
+    minute even when no other station is tapping. The trade-offs we accept: junk keys can make it
+    call each Event Service once a minute, where before they could only do that while an Event
+    Service's list was missing.
