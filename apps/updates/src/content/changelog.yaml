@@ -1137,3 +1137,13 @@
     already said. Our own Event Service never sent such an answer, so nothing changes for ours.
     The trade-offs we accept: a schema still can't say that each result matches its tap, so that
     rule stays in the agreement's words and in the GeekyKey Service's own check.
+
+- id: event-service-no-store
+  date: 2026-10-20
+  area: backend
+  change: >-
+    Every answer from the Event Service now tells caches not to keep it, including the list of
+    stations with their key hashes and the claims stand-in's answers about who owns which token.
+    Before, only the screens' paths carried that rule. The trade-offs we accept: the rule covers
+    every path rather than a named few, so a route added later can't be missed, at the cost of
+    never caching anything the Event Service sends.

@@ -5,15 +5,16 @@ import { errorFields, log } from "./lib/log.ts";
 import { noStore } from "./lib/no-store.ts";
 
 /**
- * The parts of the backend that answer the same wherever it runs: no /api or
- * /auth answer is ever cached, errors use the agreement's JSON envelope, and
+ * The parts of the backend that answer the same wherever it runs: no answer
+ * is ever cached, errors use the agreement's JSON envelope, and
  * `/` and `/api/health` say it's up. src/app.ts starts from this.
  */
 export function createBaseApp<E extends HonoEnv = BlankEnv>() {
   const app = new Hono<E>();
 
-  app.use("/api/*", noStore);
-  app.use("/auth/*", noStore);
+  // Every path, not only the agreement's /api and /auth: the hand-off's list of
+  // stations carries their key hashes, and the claims stand-in says who owns which token.
+  app.use(noStore);
 
   // Hono's default is a plain-text body; the agreement puts every error in the JSON envelope.
   app.notFound((c) => c.json({ error: "not_found" }, 404));
