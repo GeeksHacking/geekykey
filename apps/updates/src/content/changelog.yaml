@@ -1172,3 +1172,14 @@
     The Event Service now logs a user in with the ID token Firebase gives the screens, checking it
     against Google's keys and saving the user's name. The GeekyKey Service's login will use the
     same check, and nothing calls it on production until the screens deploy.
+
+- id: screens-workers
+  date: 2026-10-20
+  area: frontend
+  change: >-
+    Each set of screens has its own Cloudflare Worker, ready for Julian to deploy on
+    event.geekshacking.com and key.geekshacking.com. It serves the screens, so reloading a page such as a token's /t/ link works, and passes
+    the browser's calls under /api and /auth to its own service, so the login cookie belongs to
+    the screens' address. The trade-off we accept is that a Worker that can't reach its service
+    answers with Cloudflare's own error page, which the screens don't understand, until the API
+    agreement says what it should answer.

@@ -1,0 +1,21 @@
+{
+  // The Worker's tests and their Vitest config, which run on Node and start the Worker with
+  // Wrangler. The Worker's own code is checked by tsconfig.json.
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["*.test.ts", "test-support/browser.ts", "vitest.config.ts"]
+}

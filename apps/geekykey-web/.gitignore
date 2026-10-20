@@ -4,3 +4,9 @@
 .claude
 .tanstack/
 ONBOARDING.md
+# The Worker (worker/): Wrangler's local state and build output, the types `wrangler types`
+# writes from wrangler.jsonc, and your own settings for a bare `wrangler dev`, which
+# `pnpm worker:dev` doesn't need
+.wrangler/
+worker/worker-configuration.d.ts
+.dev.vars*

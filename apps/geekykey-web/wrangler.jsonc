@@ -1,0 +1,51 @@
+// The GeekyKey screens as a Cloudflare Worker, `geekykey-web` (the migration spec's 3.2 and
+// 5.1). It serves the Vite build in dist/, and passes the browser's /api/* and /auth/*
+// requests to geekykey-service through a service binding, so the browser sees one address and
+// needs no CORS. Its code is in worker/. Locally, Vite's proxy does the same job for
+// `pnpm dev`, and `pnpm worker:dev` runs this Worker in `wrangler dev`.
+//
+// Settings live here and change through a reviewed pull request: a deploy overwrites
+// settings and routes changed in the Cloudflare dashboard. Ethan's team owns this Worker, and
+// Adam reviews any change to the paths under `run_worker_first`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "geekykey-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-12",
+  // Wrangler sends anonymous usage data unless told not to.
+  "send_metrics": false,
+
+  // No workers.dev address and no preview URLs: the custom domain is the only way in.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // No routes yet. key.geekshacking.com goes here once Julian has attached it (BAC-56), so
+  // that a deploy keeps it. Every token has key.geekshacking.com/t/<UID> written on it.
+
+  "assets": {
+    "directory": "./dist",
+    // A path with no file, such as /t/04A1B2C3D4E5F6, gets index.html, and the router takes
+    // over.
+    "not_found_handling": "single-page-application",
+    // These paths go to the Worker even where a file would match, or where none does.
+    // Without this, a page load under them would get index.html, such as opening the
+    // organisers' CSV export, or the Portal's login redirect after the showcase.
+    "run_worker_first": ["/api/*", "/auth/*"],
+  },
+
+  // geekykey-service, the Worker at key-api.geekshacking.com, called directly inside
+  // Cloudflare rather than over the internet. Locally, `wrangler dev` finds it when
+  // `mise run dev:geekykey-service` is running too.
+  "services": [{ "binding": "GEEKYKEY_SERVICE", "service": "geekykey-service" }],
+
+  // Logs every request, with its CPU time, to Workers Logs. The log check at checkpoint 5
+  // looks for cookies there, so it's written down rather than left to a default.
+  "observability": {
+    "enabled": true,
+  },
+
+  // `pnpm worker:dev`, beside the Vite dev server on 5174.
+  "dev": {
+    "port": 8174,
+  },
+}

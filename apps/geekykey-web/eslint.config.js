@@ -6,7 +6,16 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  { ignores: ["dist", "coverage", "src/routeTree.gen.ts"] },
+  {
+    ignores: [
+      "dist",
+      "coverage",
+      "src/routeTree.gen.ts",
+      // The Worker's local state and the types `wrangler types` writes (worker/).
+      ".wrangler",
+      "worker/worker-configuration.d.ts",
+    ],
+  },
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

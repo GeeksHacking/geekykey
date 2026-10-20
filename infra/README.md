@@ -25,9 +25,11 @@ infra/
 Change a setting or a secret's version in those files, through a pull request, never in
 the console. The next deploy sets them, and anything changed by hand is overwritten.
 
-One step isn't on Google Cloud: [step 12](#12-the-geekykey-services-build-on-cloudflare),
-how Cloudflare builds and deploys the GeekyKey Service (`apps/geekykey-service`), a Worker
-the Event Service's hand-offs come from. It's here so the one runbook has every service.
+Two steps aren't on Google Cloud. [Step 12](#12-the-geekykey-services-build-on-cloudflare)
+is how Cloudflare builds and deploys the GeekyKey Service (`apps/geekykey-service`), a Worker
+the Event Service's hand-offs come from. [Step 13](#13-the-screens-builds-on-cloudflare) does
+the same for the two Workers that serve the screens. They're here so the one runbook has
+every service.
 
 ## What lives where
 
@@ -74,6 +76,7 @@ works in the web console, so his steps say where each one is there too.
 | [10. A budget alert](#10-a-budget-alert) | Julian, still to confirm | Not yet |
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. `app-secrets`: 14 Oct 2026 |
 | [12. The GeekyKey Service's build on Cloudflare](#12-the-geekykey-services-build-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-44) | Not yet |
+| [13. The screens' builds on Cloudflare](#13-the-screens-builds-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-56) | Not yet |
 
 When you run a step, put the date in the table, and change any command you ran
 differently so it says what you actually ran.
@@ -697,6 +700,67 @@ domains to the ones in `wrangler.jsonc`.
 
 After the first build, the checks are in checkpoint 4 of the migration spec: a test
 station's tap through `key-api.`, and the log check on the Worker's invocation logs.
+
+## 13. The screens' builds on Cloudflare
+
+Two Workers serve the screens, each from its own app folder in this repo (BAC-53):
+
+| Worker | Root directory | Serves | Passes `/api/*` and `/auth/*` to |
+|---|---|---|---|
+| `event-web` | `apps/event-web` | The Event screens, at `event.geekshacking.com` | The Event Service, at the `EVENT_API_URL` in its `wrangler.jsonc` |
+| `geekykey-web` | `apps/geekykey-web` | The GeekyKey screens, at `key.geekshacking.com` | `geekykey-service`, through a service binding, so that Worker must already exist on the account (step 12) |
+
+Neither has a secret, so nothing goes under Variables and Secrets. Their settings are in
+each app's `wrangler.jsonc`, which every deploy applies. Neither has a route yet: Julian
+attaches the domains after the first deploy, and a pull request then adds them to `routes`
+so the next deploy keeps them (BAC-56).
+
+**Creating each Worker.** Neither Worker exists yet, so Julian creates each one by importing
+this repo: Workers & Pages, then Create application, then GitHub, then this repo. The
+project name must be the Worker's name exactly (`event-web` or `geekykey-web`), because a
+build fails when the name in the dashboard doesn't match the `name` in the `wrangler.jsonc`
+in the root directory. The root directory is under Advanced settings. As in step 12, the
+form saves whatever is typed, so each value is typed exactly as below, with nothing around
+it. Save and Deploy runs the first build straight away. The watch paths and the preview
+builds setting appear under Settings, then Builds, once it's saved. If the form has no
+place for the build variables either, the first build runs without them. That does no
+harm, since no address reaches the Worker yet: Julian adds them under Settings, then
+Builds, then runs the build again from the Deployments tab with Retry build.
+
+These are `event-web`'s settings. For `geekykey-web`, put `geekykey-web` wherever
+`event-web` appears.
+
+| Setting | Value | Why |
+|---|---|---|
+| Branch | `main` | Only reviewed code deploys |
+| Enable Preview builds | Unticked | The Worker has no preview URLs (`preview_urls` is `false`) |
+| Root directory | `apps/event-web` | Where its `wrangler.jsonc` is, and where both commands run |
+| Build command | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/event-web && pnpm --filter @geekykey/event-web build` | Installs from the repo's root, where the lockfile is, only what these screens need, and fails rather than change the lockfile, as CI does. Then it typechecks the screens and builds them into `dist/`, which the Worker serves |
+| Deploy command | `pnpm exec wrangler deploy` | The Wrangler version in its `package.json` |
+| Build watch paths, include | `apps/event-web/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` | Its own code and its dependencies. A merge touching none of them doesn't rebuild it |
+| Build watch paths, exclude | None | |
+| Build variable `NODE_VERSION` | `24.21.0` | As in step 12 |
+| Build variable `PNPM_VERSION` | `12.5.1` | As in step 12 |
+| Build variable `SKIP_DEPENDENCY_INSTALL` | `1` | As in step 12 |
+| Build variable `WRANGLER_SEND_METRICS` | `false` | As in step 12 |
+| Build variable `VITE_LIVE_API` | `1` | The screens call their service. Without it, the build ships the in-memory mock, and every page shows made-up data |
+| Build variable `VITE_FIREBASE_API_KEY` | `AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc` | Firebase's web config, from section 7.2 of the API agreement. None of it is secret: it ends up in the page anyway |
+| Build variable `VITE_FIREBASE_AUTH_DOMAIN` | `geekykey-b035a.firebaseapp.com` | The same |
+| Build variable `VITE_FIREBASE_PROJECT_ID` | `geekykey-b035a` | The same |
+| Build variable `VITE_FIREBASE_APP_ID` | `1:468223998400:web:19878ad2672a1c7116b025` | The same |
+| API token | The one Workers Builds makes | |
+
+All of these go in the Builds page's own Variables and secrets box, not under Variables and
+Secrets: Vite writes them into the screens while it builds, and the Worker itself never
+reads them. A change to one takes effect at the next build, not the next request.
+
+The four Firebase variables' names are a proposal. FRO-33, which adds the login that reads
+them, hasn't named them yet. If it settles on others, this table changes to match before
+Julian sets them, so he sets them once.
+
+Adam ran both build commands and a `wrangler deploy --dry-run` in a clean copy of the repo
+on 20 Oct 2026, with Wrangler 4.151.1. Both passed. The checks after the first deploy, once
+the domains are attached, are BAC-56's.
 
 ## Day to day
 

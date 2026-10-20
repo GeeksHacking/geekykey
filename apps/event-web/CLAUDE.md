@@ -260,6 +260,10 @@ pnpm test         # vitest run
 pnpm test:watch   # vitest
 pnpm test:e2e     # playwright Chromium smoke suite against the mock dev server
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
+pnpm worker:dev       # live build, then the production Worker in wrangler dev on :8173
+pnpm worker:typecheck # writes the Worker's types from wrangler.jsonc, then tsc
+pnpm worker:test      # the Worker's tests; needs dist/, so build first
+pnpm worker:dry-run   # bundles the Worker and checks wrangler.jsonc, without deploying
 ```
 
 Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test:event-web`,
@@ -276,6 +280,10 @@ mise run seed          # once
 mise run dev:event-service
 ```
 
+`pnpm worker:dev` needs the Event Service running as above. It serves the built screens the
+way production does, so a deep link such as `/admin/stations` reloads, and the cookie
+comes back through the Worker rather than through Vite's proxy.
+
 ## Directory layout
 
 ```
@@ -284,6 +292,11 @@ apps/event-web/
   index.html                # theme bootstrap script runs before first paint
   public/brand/             # the branding kit's logos; the secondary one is also the favicon
   vite.config.ts            # react, router and tailwind plugins, proxy /api and /auth to :8001
+  wrangler.jsonc            # the event-web Worker: serves dist/, forwards /api and /auth
+  worker/                   # the Worker's code, its tests and their tsconfigs
+    index.ts                # forwards to EVENT_API_URL, unchanged both ways
+    config.ts               # checks EVENT_API_URL at start-up
+    worker.test.ts          # runs the Worker in wrangler dev against a fake Event Service
   vitest.config.ts
   components.json           # shadcn config
   tsconfig.json             # solution file; also carries the @/ alias for the shadcn CLI
@@ -372,6 +385,10 @@ Rules:
 - The Vite dev server proxies `/api` and `/auth` to the Event Service on
   `http://localhost:8001`, so requests are same-origin and the cookie just works. The HTTP
   client still sends `credentials: "include"` so it also works without the proxy.
+- In production the Worker in `worker/` does the proxy's job: `/api/*` and `/auth/*` go to
+  the Event Service, and every other path gets the screens. The paths under
+  `run_worker_first` in `wrangler.jsonc` are the agreement's prefixes. A change to them needs
+  Adam's review.
 - The user ID always comes from the session. Never put a user ID in a request body except
   where the agreement says so (QR fallback).
 - The Event screens never compute stamps, points, or cooldown. Display what the backend returns.
