@@ -155,4 +155,25 @@ describe("My tokens", () => {
     expect(screen.getByText(OLDEST)).toBeInTheDocument();
     expect(rowFor(OLDEST).getByRole("button", { name: "Release" })).toBeInTheDocument();
   });
+
+  it("drops a row whose token was released elsewhere, because the page was holding stale data", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+    await screen.findByText(OLDEST);
+
+    // Released on another device after this page loaded, so the row is stale and 8.3
+    // answers not_found.
+    const released = api.mock.data.tokens.find((token) => token.uid === "04A1B2C3D4E5F6");
+    if (!released) throw new Error("the fixture has no token 04A1B2C3D4E5F6");
+    released.owner_id = null;
+
+    await userEvent.click(rowFor(OLDEST).getByRole("button", { name: "Release" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Release token" }));
+
+    // not_found means the list is stale, so the release refetches /me and the token that is
+    // no longer the user's goes, without the user touching anything else.
+    await waitFor(() => expect(screen.queryByText(OLDEST)).not.toBeInTheDocument());
+    expect(screen.getByText(NEWEST)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Release" })).toHaveLength(1);
+  });
 });
