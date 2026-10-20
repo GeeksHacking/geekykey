@@ -760,10 +760,10 @@ setup to stay by hand while the architecture settles.
 
 ### Production
 
-**Every push to `main` deploys `event-service`.** That's any push: a merged pull request, or
-a commit pushed straight to `main`, a docs change included. `main` isn't protected, so
-anyone who can push to it deploys. Nobody runs a deploy command. Each push starts a run of
-the deploy workflow, listed under Actions, then Deploy, which:
+**Every push to `main` deploys `event-service`.** Since 18 Oct 2026 `main` is protected,
+so the only push is a merged pull request, a docs change included, and anyone who can merge
+one deploys. Nobody runs a deploy command. Each merge starts a run of the deploy workflow,
+listed under Actions, then Deploy, which:
 
 1. checks `apps/event-service`, with the same checks as CI, and stops there if one fails;
 2. signs in to Google Cloud as production's deploy account, which only a run on `main` can
