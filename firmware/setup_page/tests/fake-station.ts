@@ -29,6 +29,12 @@ export interface FakeStationOptions {
   tapsLeftAfterSending?: number;
   /** Starts the boot output this long after a restart. */
   bootDelayMs?: number;
+  /** Prints the first key prompt this long after "key", as a station that's slow to answer once. */
+  keyPromptDelayMs?: number;
+  /** Busy and silent this long before it reads what's typed, as in a heartbeat. */
+  busyMs?: number;
+  /** A second board of the same kind is plugged in when the port comes back. */
+  twinBoard?: boolean;
   settings?: {
     server?: string;
     key?: string;
@@ -78,6 +84,7 @@ export function installFakeStation(options: FakeStationOptions) {
   let waiting: { echo: boolean; resolve: (line: string) => void } | null = null;
   let generation = 0;
   let booting = false;
+  let slowedOnce = false;
 
   class FakePort extends EventTarget {
     readable: ReadableStream<Uint8Array> | null = null;
@@ -232,6 +239,7 @@ export function installFakeStation(options: FakeStationOptions) {
         ports.splice(ports.indexOf(lost), 1);
         setTimeout(() => {
           ports.push(new FakePort());
+          if (options.twinBoard) ports.push(new FakePort());
           serial.dispatchEvent(new Event("connect"));
         }, 200);
       }, 200);
@@ -262,6 +270,7 @@ export function installFakeStation(options: FakeStationOptions) {
   // loop(): only "setup" does anything, and only on firmware that has it.
   async function runLoop(mine: number) {
     if (!(options.setupMode ?? true)) return;
+    if (options.busyMs) await sleep(options.busyMs);
     while (mine === generation) {
       const line = (await readLine(true)).trim().toLowerCase();
       if (line === "setup") return runSetupMode(mine);
@@ -330,6 +339,10 @@ export function installFakeStation(options: FakeStationOptions) {
   }
 
   async function replaceKey() {
+    if (options.keyPromptDelayMs && !slowedOnce) {
+      slowedOnce = true;
+      await sleep(options.keyPromptDelayMs);
+    }
     const key = await askForKey(L.keyPrompt);
     if (key.length === 0) return;
     if (fails("key")) {
