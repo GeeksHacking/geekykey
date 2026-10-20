@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, test } from "vitest";
+import { afterAll, afterEach, beforeAll, test, vi } from "vitest";
 import { createTestHarness } from "wrangler";
+import { forward } from "./forward.ts";
 import {
   browser as sendAsBrowser,
   type BrowserRequest,
@@ -37,6 +38,7 @@ beforeAll(async () => {
   ({ url: workerUrl } = await harness.listen());
 });
 
+afterEach(() => vi.restoreAllMocks());
 afterAll(() => harness.close());
 
 /** Sends a request to the Worker as a browser at key.geekshacking.com would. */
@@ -89,6 +91,21 @@ test("an error from geekykey-service comes back unchanged", async () => {
   assert.equal(res.status, 401);
   assert.equal(res.headers.get("Cache-Control"), "no-store");
   assert.deepEqual(await res.json(), { error: "unauthenticated" });
+});
+
+test("a geekykey-service that doesn't answer gets 503 service_unavailable", async () => {
+  // forward() on its own, with a binding that fails as it does on Cloudflare when
+  // geekykey-service throws. Locally, wrangler dev turns that failure into its own error page
+  // before the binding returns, so the Worker above can't show it (checked with Wrangler 4.151).
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const down = { fetch: () => Promise.reject(new Error("geekykey-service is down")) };
+
+  const res = await forward(down, new Request("https://key.geekshacking.com/api/v1/me"));
+
+  assert.equal(res.status, 503);
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.equal(res.headers.get("Content-Type"), "application/json");
+  assert.deepEqual(await res.json(), { error: "service_unavailable" });
 });
 
 test("every other path gets the screens", async () => {
