@@ -3,17 +3,20 @@ import { z } from "zod";
 /** The most taps one hand-off carries: a station's largest batch. */
 export const MAX_HANDOFF_TAPS = 500;
 
+/** A tap's own ID, the same in the request and in its result. */
+const clientTapId = z
+  .string()
+  .min(1)
+  .max(128)
+  .describe("Made by the station, and unique per station forever");
+
 /** The hand-off, `POST /geekykey/v1/taps`: a station's taps, as users (the agreement's 11.2). */
 export const tapsRequest = z.object({
   station_id: z.string().min(1).describe("One of this Event Service's registered stations"),
   taps: z
     .array(
       z.object({
-        client_tap_id: z
-          .string()
-          .min(1)
-          .max(128)
-          .describe("Made by the station, and unique per station forever"),
+        client_tap_id: clientTapId,
         user_id: z.string().min(1).max(128).describe("The token owner's user ID"),
         tapped_at: z.iso
           .datetime({ precision: 3 })
@@ -30,18 +33,21 @@ export const tapsRequest = z.object({
 
 /** The hand-off's answer: one result per tap, in request order. */
 export const tapsAnswer = z.object({
-  results: z.array(
-    z.object({
-      client_tap_id: z.string(),
-      status: z
-        .string()
-        .regex(/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/, "status must be snake_case")
-        .describe(
-          "accepted, cooldown, no_game or duplicate from ours. Another team's statuses " +
-            "pass to the station unchanged",
-        ),
-    }),
-  ),
+  results: z
+    .array(
+      z.object({
+        client_tap_id: clientTapId,
+        status: z
+          .string()
+          .regex(/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/, "status must be snake_case")
+          .describe(
+            "accepted, cooldown, no_game or duplicate from ours. Another team's statuses " +
+              "pass to the station unchanged",
+          ),
+      }),
+    )
+    .min(1)
+    .max(MAX_HANDOFF_TAPS),
 });
 
 export type TapsRequest = z.infer<typeof tapsRequest>;

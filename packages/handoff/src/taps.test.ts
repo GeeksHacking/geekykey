@@ -57,6 +57,19 @@ test("a full batch of 500 taps passes", () => {
   assert.equal(tapsRequest.safeParse({ ...request, taps }).success, true);
 });
 
+test("an answer the agreement doesn't allow is rejected, even before it's matched to its taps", () => {
+  // Other teams check with the JSON Schema alone, so it must hold the request's bounds too.
+  const result = answer.results[0]!;
+  for (const [what, results] of [
+    ["no results", []],
+    ["501 results", Array.from({ length: 501 }, () => result)],
+    ["an empty client_tap_id", [{ ...result, client_tap_id: "" }]],
+    ["a client_tap_id of 129 chars", [{ ...result, client_tap_id: "x".repeat(129) }]],
+  ] as const) {
+    assert.equal(tapsAnswer.safeParse({ results }).success, false, what);
+  }
+});
+
 test("another team's own status passes, as long as it's snake_case", () => {
   const theirs = (status: string) => ({ results: [{ client_tap_id: "t1", status }] });
   assert.equal(tapsAnswer.safeParse(theirs("bingo_square_filled")).success, true);

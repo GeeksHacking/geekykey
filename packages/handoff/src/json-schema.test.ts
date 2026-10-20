@@ -25,6 +25,17 @@ test("the request's JSON Schema keeps the agreement's rules", () => {
   assert.deepEqual(schema.required, ["station_id", "taps"]);
 });
 
+test("the answer's JSON Schema keeps the agreement's rules", () => {
+  const schema = JSON.parse(jsonSchemaFiles()["taps-answer.schema.json"]!);
+  // One result per tap, so as many as the request allows.
+  assert.equal(schema.properties.results.minItems, 1);
+  assert.equal(schema.properties.results.maxItems, 500);
+  const result = schema.properties.results.items;
+  assert.equal(result.properties.client_tap_id.minLength, 1);
+  assert.equal(result.properties.client_tap_id.maxLength, 128);
+  assert.deepEqual(result.required, ["client_tap_id", "status"]);
+});
+
 test("the heartbeat hand-off's JSON Schema keeps the agreement's rules", () => {
   const schema = JSON.parse(jsonSchemaFiles()["heartbeats-request.schema.json"]!);
   // Only the station is always there; the station's own three are left out when it left them out.
