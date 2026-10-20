@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "firmware/setup_page"
 
 # --- Supply-chain settings -------------------------------------------------
 # https://pnpm.io/supply-chain-security

@@ -6,6 +6,7 @@ The code that runs on the GeekyKey stations and the tools around them.
 |---|---|
 | `geekykey_station/` | The station: reads a token's UID and sends the tap to the server |
 | `token_writer/` | Writes the token page's address onto new tokens, on a spare station before an event |
+| `setup_page/` | The setup page: a browser page that sets up a station over USB, without a terminal |
 | `NFC_test/`, `LCD_test/` | Small sketches for checking the RC522 and the screen |
 
 How the station talks to the server is in [the API agreement](../apps/API-AGREEMENT.md), sections
@@ -27,7 +28,39 @@ The setup mode gives a station a new server address, station key or Wi-Fi networ
 reflash. Use it when a station moves to a new venue or another event, when an organizer replaces
 its key on the station board, or when the server address changes.
 
-### Getting in
+There are two ways in: the setup page, for anyone who'd rather not use a terminal, or a serial
+terminal.
+
+### The setup page
+
+`setup_page/setup_page.html` is one file that does everything below from a form. It types what
+you would type, so the station needs nothing extra.
+
+1. Get the file: download it from this folder on GitHub (the download button on the file's page),
+   or have someone send it to you. It doesn't need a web server or a sign-in.
+2. Open it in Chrome or Edge on a laptop. Safari and Firefox can't open a USB port.
+3. Plug the station in, press **Connect** and pick its port. If the station prints nothing, close
+   the Arduino IDE's Serial Monitor: only one program can hold the port.
+4. Fill in only what changes, and press **Set up the station**.
+
+The page puts the station into setup mode and shows its settings. Then it sends the changes in this
+order: a move, the Wi-Fi network, the server, a replaced key. It stops at the first one the station
+refuses, and says why. At the end it restarts the station and reports what the start-up showed:
+whether it joined the Wi-Fi network, and whether the server accepted its heartbeat. Everything the
+station printed is under **What the station printed**.
+
+For a key, you have to pick whether it's a replaced key or a move to another event (see below). If a
+move can't send all the saved taps, the page asks whether to drop them. It never drops them on its
+own.
+
+The key and the Wi-Fi password never show on the page, and the page keeps neither. They go to the
+station and nowhere else.
+
+The page matches the station's lines word for word. If you reword a line the setup mode or the
+start-up prints, update the list at the bottom of `setup_page.html`. Its tests
+(`pnpm test:setup-page`) fail until you do.
+
+### Getting in, from a terminal
 
 1. Plug the station into a laptop with a USB cable.
 2. Open a serial terminal at 115200 baud:

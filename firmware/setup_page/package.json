@@ -1,0 +1,20 @@
+{
+  "name": "@geekykey/setup-page",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.1",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.87.0",
+    "typescript": "~6.0.3"
+  }
+}

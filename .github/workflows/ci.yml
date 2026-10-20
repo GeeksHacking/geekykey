@@ -94,6 +94,39 @@ jobs:
       - name: Build
         run: pnpm build:geekykey-web
 
+  # The station setup page (HAR-16): one HTML file, tested in real Chromium
+  # against a fake station, and checked against the lines the sketch prints.
+  setup-page:
+    name: Setup page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.7.12
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter @geekykey/setup-page lint
+
+      - name: Format
+        run: pnpm --filter @geekykey/setup-page format:check
+
+      - name: Typecheck
+        run: pnpm --filter @geekykey/setup-page typecheck
+
+      # The browser Playwright's version expects, with the system libraries it
+      # needs on Ubuntu.
+      - name: Install Chromium
+        run: pnpm --filter @geekykey/setup-page exec playwright install --with-deps chromium
+
+      - name: Test
+        run: pnpm test:setup-page
+
   # The Worker at key-api. Nothing here deploys it: Workers Builds does, on
   # Cloudflare, once Julian connects it (infra/README.md). Its hand-off
   # package is checked in the Event Service's job.
