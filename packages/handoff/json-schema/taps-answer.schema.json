@@ -3,12 +3,17 @@
   "type": "object",
   "properties": {
     "results": {
+      "minItems": 1,
+      "maxItems": 500,
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "client_tap_id": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Made by the station, and unique per station forever"
           },
           "status": {
             "type": "string",

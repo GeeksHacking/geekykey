@@ -1127,3 +1127,13 @@
     station endpoints are gone from the Event Service on Cloud Run, which answers a station's tap
     with not found. Cloud Run keeps the event's games, the hand-offs and the claims stand-in, and
     its settings drop the ones only the GeekyKey side read.
+
+- id: handoff-answer-schema-bounds
+  date: 2026-10-20
+  area: backend
+  change: >-
+    The JSON Schema we publish for other teams' Event Services now refuses a hand-off answer with
+    no results, more than 500, or a tap ID longer than 128 characters, as the API agreement
+    already said. Our own Event Service never sent such an answer, so nothing changes for ours.
+    The trade-offs we accept: a schema still can't say that each result matches its tap, so that
+    rule stays in the agreement's words and in the GeekyKey Service's own check.
