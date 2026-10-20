@@ -19,9 +19,9 @@ import { Button } from "@/components/ui/button";
 */
 
 /**
- * What a screen passes in for one release: the mutation from useReleaseToken, which was
- * written for this sharing ("Lives on its own so My tokens' Release can use the same
- * mutation"). A structural shape keeps this file from importing back into a feature.
+ * What a screen passes in for one release: the mutation from useReleaseToken, written from
+ * the start to serve the token page and My tokens alike. A structural shape keeps this
+ * file from importing back into a feature.
  */
 export interface ReleaseControls {
   /** The DELETE is running; the button disables while it does. */

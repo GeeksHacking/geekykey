@@ -6,8 +6,9 @@ import { isApiErrorCode } from "@/api/errors";
 import { normalizeUid } from "@/lib/token-uid";
 
 /**
- * DELETE /api/v1/tokens/{uid} (agreement 8.3). Lives on its own so My tokens' Release can
- * use the same mutation.
+ * DELETE /api/v1/tokens/{uid} (agreement 8.3). Lives in lib/ so two features can share it,
+ * the token page's owner view and My tokens' rows (apps/frontend/CLAUDE.md: cross-feature
+ * imports go through components/ or lib/, never feature to feature).
  *
  * `ownerId` is passed by the caller and only a GeekyKey admin sends one: 8.3 releases
  * someone else's token by naming the owner the lookup showed. The service answers
