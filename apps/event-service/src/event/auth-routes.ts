@@ -1,7 +1,7 @@
 import {
   type FirebaseIdentity,
+  type GoogleSigningKeys,
   verifyFirebaseIdToken,
-  type VerifyFirebaseIdTokenOptions,
 } from "@geekykey/firebase-login";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
@@ -26,12 +26,12 @@ const firebaseLoginSchema = z.object({
 });
 
 /** A new user's name when their ID token has none (the API agreement's 7.2). */
-export const DEFAULT_DISPLAY_NAME = "GeeksHacking member";
+const DEFAULT_DISPLAY_NAME = "GeeksHacking member";
 
 export interface AuthRouteDeps {
   session: SessionOptions;
   /** The Firebase project, and Google's keys, that POST /firebase checks ID tokens with. */
-  firebase: Omit<VerifyFirebaseIdTokenOptions, "now">;
+  firebase: { projectId: string; keys: GoogleSigningKeys };
   /**
    * When false, POST /dev-login is never registered. A production deployment
    * has no code path to it at all, rather than one that refuses at runtime.
