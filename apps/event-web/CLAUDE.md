@@ -3,8 +3,8 @@
 React single-page app for GeekyKey, an NFC stamp-collection system for hackathons.
 Participants tap a physical NFC token at ESP32 reader stations. This app is where they
 see their stamps and points, and where organisers watch the event. It is one package in
-the pnpm monorepo; the backend lives in `apps/backend` (Hono on Node, on Google Cloud Run,
-Drizzle ORM, TiDB).
+the pnpm monorepo; the backend lives in `apps/event-service` (Hono on Node, on Google
+Cloud Run, Drizzle ORM, TiDB).
 
 Two audiences, two surfaces:
 
@@ -96,10 +96,10 @@ keeps only a copy in memory of what they registered. There is one call to the st
 
 One slice, start to finish:
 
-1. The endpoint is live in `apps/backend` with tests, and its row in the agreement says
+1. The endpoint is live in `apps/event-service` with tests, and its row in the agreement says
    `Implemented`. Until then, leave it on the mock.
 2. Start the backend: `mise run db:up` and `mise run seed` once (Docker must be running),
-   then `mise run dev:backend`.
+   then `mise run dev:event-service`.
 3. Add one line per method to `liveMethods()` in `src/api/create-client.ts`.
 4. `pnpm dev:live`, then work through each screen in the slice: populated, loading, empty,
    and every error path. Force the errors for real now rather than with `failNext`. Stop
@@ -273,7 +273,7 @@ Backend, for the integration phase only:
 ```
 mise run db:up         # once per session, with Docker running
 mise run seed          # once
-mise run dev:backend
+mise run dev:event-service
 ```
 
 ## Directory layout

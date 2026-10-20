@@ -61,4 +61,4 @@ This section binds agents working for Ethan's frontend team. It doesn't bind age
 
 The frontend is ours: `apps/event-web`, `apps/geekykey-web`, `apps/updates`, and this file.
 
-`apps/backend`, `infra/`, `firmware/` and `compose.yaml` are **not ours and are not to be edited.** Not to fix a bug, not to tidy a type, not to add a test. A problem there is raised as a Linear issue for Adam, with the evidence, and left there. Read them freely to answer questions about the contract; changing them needs Ethan's explicit permission for that specific change.
+`apps/event-service`, `apps/geekykey-service`, `infra/`, `firmware/` and `compose.yaml` are **not ours and are not to be edited.** Not to fix a bug, not to tidy a type, not to add a test. A problem there is raised as a Linear issue for Adam, with the evidence, and left there. Read them freely to answer questions about the contract; changing them needs Ethan's explicit permission for that specific change.

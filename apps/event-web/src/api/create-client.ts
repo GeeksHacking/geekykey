@@ -21,7 +21,7 @@ export interface AppClientOptions {
 
 /**
  * The methods that talk to the real backend. Add a line here when a slice is
- * done, and only then: an endpoint that is not live in apps/backend yet will
+ * done, and only then: an endpoint that is not live in apps/event-service yet will
  * fail every screen that calls it.
  */
 function liveMethods(http: ApiClient): Partial<ApiClient> {

@@ -30,11 +30,11 @@ import {
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 
 /*
-  In-memory stand-in for apps/backend. Same interface as the future HTTP client,
-  same shapes as API-AGREEMENT.md, same status codes. It also mirrors the two
-  backend rules screens need to see in action (cooldown, one-time station key),
-  purely so the mock feels like the real thing. The frontend proper never
-  computes these.
+  In-memory stand-in for apps/event-service. Same interface as the future HTTP
+  client, same shapes as API-AGREEMENT.md, same status codes. It also mirrors
+  the two backend rules screens need to see in action (cooldown, one-time
+  station key), purely so the mock feels like the real thing. The frontend
+  proper never computes these.
 */
 
 const COOLDOWN_MS = 300_000;

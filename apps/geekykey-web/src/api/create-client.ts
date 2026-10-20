@@ -20,7 +20,8 @@ export interface AppClientOptions {
 
 /**
  * The methods that talk to the real backend. Empty on purpose: adding a line here
- * before apps/backend answers with that shape will break every screen that calls it.
+ * before apps/event-service answers with that shape will break every screen that
+ * calls it.
  */
 function liveMethods(http: ApiClient): Partial<ApiClient> {
   // Nothing to send live yet. Each endpoint adds one line here, e.g. `me: () => http.me()`.
