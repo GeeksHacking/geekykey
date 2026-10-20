@@ -137,4 +137,22 @@ describe("My tokens", () => {
     expect(screen.getByText(OLDEST)).toBeInTheDocument();
     expect(rowFor(OLDEST).getByRole("button", { name: "Release" })).toBeInTheDocument();
   });
+
+  it("says section 13's rate_limited sentence on a release the service will not repeat", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    vi.spyOn(api, "releaseToken").mockRejectedValueOnce(new ApiError(429, "rate_limited"));
+    renderHome();
+    await screen.findByText(OLDEST);
+
+    await userEvent.click(rowFor(OLDEST).getByRole("button", { name: "Release" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Release token" }));
+
+    // Section 13 gives the 429 wording to My tokens as well as to the token page.
+    expect(
+      await screen.findByText("Too many tries. Wait a minute and try again."),
+    ).toBeInTheDocument();
+    // The token is still the user's, so the row stays and Release is offered again.
+    expect(screen.getByText(OLDEST)).toBeInTheDocument();
+    expect(rowFor(OLDEST).getByRole("button", { name: "Release" })).toBeInTheDocument();
+  });
 });
