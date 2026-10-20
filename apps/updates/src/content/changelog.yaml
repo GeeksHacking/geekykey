@@ -1100,10 +1100,10 @@
   date: 2026-10-20
   area: firmware
   change: >-
-    A station can be set up from a browser page as well as a terminal. Opened in Chrome or Edge on
-    a laptop, the page reads the station's settings over its USB cable, sends a new server address,
-    key or Wi-Fi network, and reports whether the station joined the network and whether the server
-    accepted its key. It never shows the key or the Wi-Fi password, and it leaves dropping taps a
-    station couldn't send to the person. The trade-offs we accept: it's one file to download, with
-    no hosted link and no login yet, and it reads the station's printed lines word for word, so a
-    reworded line fails its tests until the page changes too.
+    A browser page now sets up a station over its USB cable, for anyone who doesn't use a
+    terminal. In Chrome or Edge it sends a new server address, key or Wi-Fi network, then reports
+    whether the station joined the network and whether the server accepted its key. It never shows
+    the key or the password, and only the person can drop taps a station couldn't send. The
+    trade-offs we accept: it's one file to download, with no hosted link or login yet, and it
+    reads the station's printed lines word for word, so a reworded line fails its tests until the
+    page changes too.

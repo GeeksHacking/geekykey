@@ -69,8 +69,8 @@
   <body>
     <h1>GeekyKey station setup</h1>
     <p>
-      Gives a station a new server address, station key or Wi-Fi network through its setup mode,
-      over a USB cable.
+      This page gives a station a new server address, station key or Wi-Fi network through its setup
+      mode, over a USB cable.
     </p>
 
     <p id="unsupported" class="notice" hidden>
@@ -181,8 +181,8 @@
       <div id="after-restart" hidden>
         <h3>After the restart</h3>
         <ul id="after-restart-lines"></ul>
-        <p><button type="button" id="again">Set up again</button></p>
       </div>
+      <p id="again-row" hidden><button type="button" id="again">Set up again</button></p>
     </section>
 
     <details>
@@ -248,8 +248,15 @@
       // start-up with no Wi-Fi in range takes about 25 seconds.
       const QUIET_MS = 1500;
       const BOOT_MS = 60_000;
-      const ANSWER_MS = 4000;
       const PROMPT_MS = 10_000;
+      // A station in the middle of a heartbeat can be silent for about 13
+      // seconds (mDNS, the TLS handshake, the request) before it reads "setup".
+      const SETUP_ANSWER_MS = 20_000;
+      // After a new server or key the station sends a heartbeat; "wifi" tries
+      // the network for up to 20 seconds; a move sends its saved taps first.
+      const HEARTBEAT_MS = 30_000;
+      const WIFI_MS = 40_000;
+      const MOVE_MS = 60_000;
 
       class StationError extends Error {}
 
@@ -340,7 +347,7 @@
             const timer = setInterval(ask, 100);
             const deadline = setTimeout(() => {
               finish();
-              reject(new StationError(`The station didn't answer (${what}).`));
+              reject(new StationError(`The station stopped answering while ${what}.`));
             }, ms);
             this.listeners.add(ask);
             ask();
@@ -363,12 +370,18 @@
               return prompts.find((prompt) => last === prompt) ?? null;
             },
             ms,
-            "no prompt",
+            "the page waited for its next question",
           );
           return { prompt: found, chunk: this.take() };
         }
 
+        /**
+         * Types one line. Whatever the station printed before it is set aside
+         * first, so a wait after this sees only the answer to this line, never
+         * an old prompt still at the end of the output.
+         */
         async send(line) {
+          this.take();
           await this.writer.write(encoder.encode(line + "\n"));
         }
 
@@ -390,23 +403,37 @@
           }
         }
 
+        // Web Serial gives no serial number, so the board is known again only by
+        // its kind. With two of the same kind plugged in, the person picks.
         async reopen(deadline) {
           const old = this.port;
           const { usbVendorId, usbProductId } = old.getInfo();
           while (Date.now() < deadline) {
             await new Promise((resolve) => setTimeout(resolve, 300));
-            for (const port of await navigator.serial.getPorts()) {
+            const alike = (await navigator.serial.getPorts()).filter((port) => {
               const info = port.getInfo();
-              if (info.usbVendorId !== usbVendorId || info.usbProductId !== usbProductId) continue;
-              try {
-                await this.open(port);
-                return;
-              } catch {
-                // Not back yet, or it's the old port that went away.
-              }
+              return (
+                port !== old &&
+                info.usbVendorId === usbVendorId &&
+                info.usbProductId === usbProductId
+              );
+            });
+            if (alike.length > 1) {
+              throw new StationError(
+                "The station's USB port went away, and more than one board like it is plugged in. Press Connect and pick its port again.",
+              );
+            }
+            if (alike.length === 0) continue;
+            try {
+              await this.open(alike[0]);
+              return;
+            } catch {
+              // Not ready yet.
             }
           }
-          throw new StationError("The station's USB port went away and didn't come back.");
+          throw new StationError(
+            "The station's USB port went away and didn't come back. Press Connect and pick its port again.",
+          );
         }
       }
 
@@ -416,6 +443,17 @@
       }
 
       let link = null;
+
+      function errorText(error) {
+        return error instanceof StationError
+          ? error.message
+          : `Something went wrong: ${error.message}`;
+      }
+
+      /** Whether some start-up output has reached its end: "Ready", or its setup error. */
+      function startedUp(text) {
+        return text.includes(LINES.ready) || text.includes(LINES.setupErrorHint);
+      }
 
       function setStatus(text) {
         $("connect-status").textContent = text;
@@ -435,12 +473,12 @@
         await link.untilThroughRestart(
           () => {
             const text = link.since();
-            if (text.includes(LINES.ready) || text.includes(LINES.setupErrorHint)) return true;
+            if (startedUp(text)) return true;
             if (text.length === 0 && Date.now() - link.openedAt > QUIET_MS) return true;
             return null;
           },
           BOOT_MS,
-          "start-up",
+          "starting up",
         );
         link.take();
       }
@@ -470,7 +508,7 @@
         if (asked.prompt === LINES.prompt) return refused("Wi-Fi", asked.chunk);
         await link.send(password);
         // The station tries the network for up to 20 seconds.
-        const { chunk } = await link.prompt([LINES.prompt], 40_000);
+        const { chunk } = await link.prompt([LINES.prompt], WIFI_MS);
         const lines = linesOf(chunk);
         if (!lines.some((line) => line.startsWith(LINES.wifiStored)))
           return refused("Wi-Fi", chunk);
@@ -502,8 +540,7 @@
         await link.send("server");
         await link.prompt([LINES.serverPrompt]);
         await link.send(url);
-        // The heartbeat after it can take a few seconds.
-        const { chunk } = await link.prompt([LINES.prompt], 30_000);
+        const { chunk } = await link.prompt([LINES.prompt], HEARTBEAT_MS);
         if (!linesOf(chunk).some((line) => line.startsWith(LINES.serverStored))) {
           return refused("Server", chunk);
         }
@@ -515,7 +552,7 @@
         await link.send("key");
         await link.prompt([LINES.keyPrompt]);
         await link.send(key);
-        const { chunk } = await link.prompt([LINES.prompt], 30_000);
+        const { chunk } = await link.prompt([LINES.prompt], HEARTBEAT_MS);
         if (!linesOf(chunk).some((line) => line.endsWith(LINES.keyStored)))
           return refused("Key", chunk);
         addStep(`Key: stored, and its saved taps are kept. ${heartbeatResult(chunk)}`.trim());
@@ -552,13 +589,12 @@
         await link.send("move");
         await link.prompt([LINES.movePrompt]);
         await link.send(key);
-        // Sending the saved taps, then the heartbeat, can take a while.
-        let { prompt, chunk } = await link.prompt([LINES.prompt, LINES.clearPrompt], 60_000);
+        let { prompt, chunk } = await link.prompt([LINES.prompt, LINES.clearPrompt], MOVE_MS);
         if (prompt === LINES.clearPrompt) {
           // Only the person decides whether taps are dropped.
           const drop = await askToDropTaps(chunk);
           await link.send(drop ? "clear" : "cancel");
-          ({ chunk } = await link.prompt([LINES.prompt], 30_000));
+          ({ chunk } = await link.prompt([LINES.prompt], HEARTBEAT_MS));
         }
         const lines = linesOf(chunk);
         if (!lines.some((line) => line.endsWith(LINES.moveStored))) return refused("Move", chunk);
@@ -604,6 +640,12 @@
           results.push("The server didn't answer its heartbeat. Check the server address.");
         } else if (has(LINES.bootHeartbeatNoServer)) {
           results.push("It couldn't find the server on this network.");
+        } else if (has(LINES.bootHeartbeatNoWifi)) {
+          results.push("It sends no heartbeat until it joins.");
+        } else {
+          results.push(
+            "The page couldn't tell how the server took its heartbeat. See what the station printed.",
+          );
         }
         return results;
       }
@@ -616,19 +658,16 @@
         await link.until(
           () => (link.lost || link.since().includes(LINES.restarting) ? true : null),
           PROMPT_MS,
-          "exit",
+          "restarting",
         );
         link.take();
         addStep("Restarting the station...");
         // Out of the setup mode now, so the form waits for "Set up again".
         $("changes").hidden = true;
         await link.untilThroughRestart(
-          () => {
-            const text = link.since();
-            return text.includes(LINES.ready) || text.includes(LINES.setupErrorHint) ? true : null;
-          },
+          () => (startedUp(link.since()) ? true : null),
           BOOT_MS,
-          "restart",
+          "restarting",
         );
         // The start-up prints the settings it's running on.
         const startUp = link.take();
@@ -642,6 +681,7 @@
           list.append(item);
         }
         $("after-restart").hidden = false;
+        $("again-row").hidden = false;
       }
 
       // The station's own checks (parseServerUrl, isStationKey and setWifi in the
@@ -725,6 +765,7 @@
         if (key.length > 0 && keyKind === "replaced") steps.push(() => sendReplacedKey(key));
 
         $("apply").disabled = true;
+        $("again-row").hidden = true;
         $("steps").replaceChildren();
         $("after-restart").hidden = true;
         $("results").hidden = false;
@@ -740,18 +781,31 @@
           }
           await restartAndReport();
         } catch (error) {
-          addStep(
-            error instanceof StationError
-              ? error.message
-              : `Something went wrong: ${error.message}`,
-          );
+          addStep(errorText(error));
+          // What the station is waiting for is unknown now, so the form waits
+          // until it's back at its prompt.
+          $("changes").hidden = true;
+          offerAWayBack();
         } finally {
           $("apply").disabled = false;
         }
       }
 
+      // With the port still open, "Set up again" puts the station back at its
+      // prompt. With the port gone, only Connect can pick it again.
+      function offerAWayBack() {
+        if (link.lost) {
+          $("connect").disabled = false;
+          setStatus("Not connected.");
+        } else {
+          $("again-row").hidden = false;
+        }
+      }
+
       // Types "setup". A station already in the setup mode answers "Unknown
-      // command", which is fine: "show" then prints its settings.
+      // command", or, left at one of its questions, refuses "setup" as the
+      // answer and goes back to its prompt. Either way "show" then prints its
+      // settings.
       async function enterSetupMode() {
         const sentAt = Date.now();
         await link.send("setup");
@@ -759,14 +813,20 @@
           () => {
             const text = link.since();
             if (text.includes(LINES.setupStarted)) return "started";
-            if (text.includes(LINES.unknownCommand)) return "already";
+            const lastLine = text.slice(text.lastIndexOf("\n") + 1);
+            if (
+              text.includes(LINES.unknownCommand) ||
+              (text.includes("\n") && lastLine === LINES.prompt)
+            ) {
+              return "already";
+            }
             // Still printing, such as a start-up that was still going: keep waiting.
             const quietSince = Math.max(sentAt, link.lastDataAt ?? 0);
-            if (Date.now() - quietSince > ANSWER_MS) return "none";
+            if (Date.now() - quietSince > SETUP_ANSWER_MS) return "none";
             return null;
           },
           BOOT_MS,
-          "setup",
+          "going into setup mode",
         );
         if (answer === "none") {
           throw new StationError(
@@ -795,9 +855,7 @@
           setStatus("Connected. Waiting for the station...");
           await waitForStartUp();
         } catch (error) {
-          setStatus(
-            error instanceof StationError ? error.message : `Couldn't connect: ${error.message}`,
-          );
+          setStatus(errorText(error));
           $("connect").disabled = false;
           return;
         }
@@ -810,12 +868,11 @@
           await enterSetupMode();
           setStatus("The station is in setup mode.");
           $("results").hidden = true;
+          $("again-row").hidden = true;
           $("changes").hidden = false;
         } catch (error) {
-          setStatus(
-            error instanceof StationError ? error.message : `Couldn't connect: ${error.message}`,
-          );
-          $("connect").disabled = false;
+          setStatus(errorText(error));
+          offerAWayBack();
         } finally {
           $("again").disabled = false;
         }

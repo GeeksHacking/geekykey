@@ -267,13 +267,15 @@ test("the page never shows the key or the Wi-Fi password back", async ({ page })
 test("a station whose firmware has no setup mode is told apart, and nothing more is sent", async ({
   page,
 }) => {
+  // The page waits 20 seconds of silence first, the longest a heartbeat keeps a station quiet.
+  test.setTimeout(45_000);
   await openPage(page, { setupMode: false });
 
   await page.getByRole("button", { name: "Connect" }).click();
 
   await expect(page.getByRole("status")).toHaveText(
     "This station has no setup mode. Its firmware is older than 19 Oct 2026 and needs a reflash.",
-    { timeout: 10_000 },
+    { timeout: 30_000 },
   );
   await expect(page.getByRole("region", { name: "What changes" })).toBeHidden();
   expect((await station(page)).received).toEqual([]);
@@ -347,6 +349,7 @@ test("a network the station can't join shows as stored but not joined, before an
   await expect(results).toContainText(
     "It isn't on Wi-Fi yet. It keeps trying, and saves taps until it joins.",
   );
+  await expect(results).toContainText("It sends no heartbeat until it joins.");
 });
 
 test("with nothing filled in, the page says so and sends nothing", async ({ page }) => {
@@ -395,4 +398,64 @@ test("after the restart the form goes away until the station is put back into se
     "exit",
     "setup",
   ]);
+});
+
+test("after the station stops answering, the form waits for Set up again, and the key never reaches the wrong prompt", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const key = "gk_sta_secretsecretsecret9876";
+  await openPage(page, { keyPromptDelayMs: 10_500 });
+  await connect(page);
+
+  await page.getByLabel("An organizer replaced this station's key on the station board").check();
+  await page.getByLabel("Station key").fill(key);
+  await page.getByRole("button", { name: "Set up the station" }).click();
+
+  const results = page.getByRole("region", { name: "What happened" });
+  await expect(results).toContainText("The station stopped answering", { timeout: 15_000 });
+  await expect(page.getByRole("region", { name: "What changes" })).toBeHidden();
+
+  // By now the late key prompt is in the output. Going back in must not take it
+  // for the current one.
+  await page.getByRole("button", { name: "Set up again" }).click();
+  await expect(page.getByRole("status")).toHaveText("The station is in setup mode.", {
+    timeout: 15_000,
+  });
+  await page.getByLabel("Station key").fill(key);
+  await page.getByRole("button", { name: "Set up the station" }).click();
+  await expect(results).toContainText("ready for taps", { timeout: 20_000 });
+
+  expect((await station(page)).printed).not.toContain(key);
+  expect(await page.evaluate(() => document.body.innerText)).not.toContain(key);
+});
+
+test("a station busy with a heartbeat when the page connects still goes into setup mode", async ({
+  page,
+}) => {
+  test.setTimeout(30_000);
+  await openPage(page, { restartOnOpen: false, busyMs: 7000 });
+
+  await page.getByRole("button", { name: "Connect" }).click();
+
+  await expect(page.getByRole("status")).toHaveText("The station is in setup mode.", {
+    timeout: 15_000,
+  });
+});
+
+test("with two boards of the same kind plugged in, a dropped port is left for the person to pick", async ({
+  page,
+}) => {
+  await openPage(page, { restartOnOpen: false, dropPortOnRestart: true, twinBoard: true });
+  await connect(page);
+
+  await page.getByLabel("Wi-Fi name").fill("VenueNet");
+  await page.getByLabel("Wi-Fi password").fill("venuepass1");
+  await page.getByRole("button", { name: "Set up the station" }).click();
+
+  await expect(page.getByRole("region", { name: "What happened" })).toContainText(
+    "The station's USB port went away, and more than one board like it is plugged in. Press Connect and pick its port again.",
+    { timeout: 10_000 },
+  );
+  await expect(page.getByRole("button", { name: "Connect" })).toBeEnabled();
 });
