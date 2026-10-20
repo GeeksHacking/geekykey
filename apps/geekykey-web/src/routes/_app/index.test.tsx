@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
-import { createMockClient } from "@/api/mock/client";
+import { createMockClient, type MockFailure } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { createQueryClient } from "@/lib/query-client";
 import { SessionProvider } from "@/lib/session-provider";
@@ -18,10 +18,10 @@ import { routeTree } from "@/routeTree.gen";
   not the home page's. failNext lands on the session's own first call: the gate renders
   nothing else until it is authenticated, so nothing competes for the queued failure.
 */
-function renderHome() {
+function renderHome(failure: MockFailure = "claims_unavailable") {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_PARTICIPANT_ID);
-  api.mock.failNext("claims_unavailable");
+  api.mock.failNext(failure);
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/"] }),
@@ -47,11 +47,28 @@ describe("the home route behind the gate", () => {
     expect(await screen.findByText("Couldn't reach GeeksHacking. Try again.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "My tokens" })).not.toBeInTheDocument();
+    // The section 13 sentence is the whole message, so the generic title is not there too.
+    expect(screen.queryByText("Could not load your account")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("heading", { name: "My tokens" })).toBeInTheDocument();
     // The retry succeeded, so the list is the user's two tokens, oldest claim first.
     expect(screen.getByText("04 A1 B2 C3 D4 E5 F6")).toBeInTheDocument();
     expect(screen.getByText("04 B7 C9 E1 F3 A5")).toBeInTheDocument();
+  });
+
+  it("says section 13's rate_limited sentence on a rate-limited me", async () => {
+    renderHome("rate_limited");
+
+    expect(
+      await screen.findByText("Too many tries. Wait a minute and try again."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "My tokens" })).not.toBeInTheDocument();
+    // The section 13 sentence is the whole message, so the generic title is not there too.
+    expect(screen.queryByText("Could not load your account")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByRole("heading", { name: "My tokens" })).toBeInTheDocument();
   });
 });
