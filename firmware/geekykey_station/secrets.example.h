@@ -15,9 +15,8 @@
 // checks the server's certificate against the 14 roots in ca_roots.h. A plain
 // http:// URL is only sent to a host ending in .local, whose IP is looked up
 // with mDNS, so the station key never crosses the venue WiFi unencrypted.
-//   Production, until checkpoint 4: "https://event-api.geekshacking.com"
-//   After checkpoint 4:               "https://key-api.geekshacking.com"
-//   A laptop running the backend:     "http://your-laptop.local:8000"
+//   Production:                   "https://key-api.geekshacking.com"
+//   A laptop running the backend: "http://your-laptop.local:8000"
 #define SERVER_URL   "http://your-laptop.local:8000"
 
 // Printed once by `mise run seed`. Only its hash is stored,
