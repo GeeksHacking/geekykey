@@ -1,6 +1,8 @@
 /**
  * Project facts the site needs: who is on the team, and the 2026 schedule. Both come from
- * the Single Source of Truth (section 1.1 for the team, section 7 for the dates).
+ * the Single Source of Truth (section 1.1 for the team, section 7 for the dates), except the
+ * showcase's date: the Single Source of Truth says 17 Nov, which is the setup day. The
+ * migration spec (.scratch/db-hosting/spec.md, section 2) has the showcase on 18 Nov.
  */
 
 export const AUTHORS = ["adam", "zitao", "joshua", "ethan"] as const;
@@ -33,4 +35,4 @@ export const SPRINTS = [
   { number: 4, focus: "Showcase prep", from: day("2026-11-02"), to: day("2026-11-13") },
 ];
 
-export const SHOWCASE = day("2026-11-17");
+export const SHOWCASE = day("2026-11-18");
