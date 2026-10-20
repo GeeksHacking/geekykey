@@ -530,7 +530,11 @@
         if (lines.includes(LINES.heartbeatRejected)) {
           return "The server rejected the key (401): it doesn't know it, or the station is disabled.";
         }
-        if (lines.includes(LINES.heartbeatNoAnswer)) return "The server didn't answer.";
+        // In HAR-16's proof on 20 Oct 2026 this was a hotspot with no mobile
+        // data left, not a wrong address.
+        if (lines.includes(LINES.heartbeatNoAnswer)) {
+          return "The server didn't answer. Check that the Wi-Fi network reaches the internet, and the server address.";
+        }
         if (lines.includes(LINES.heartbeatNotChecked))
           return "Not checked yet. It checks when it restarts.";
         return "";
@@ -637,7 +641,9 @@
             `The server answered its heartbeat with HTTP ${http.slice(LINES.bootHeartbeatHttp.length)}.`,
           );
         } else if (has(LINES.bootHeartbeatNoAnswer)) {
-          results.push("The server didn't answer its heartbeat. Check the server address.");
+          results.push(
+            "The server didn't answer its heartbeat. Check that the Wi-Fi network reaches the internet, and the server address.",
+          );
         } else if (has(LINES.bootHeartbeatNoServer)) {
           results.push("It couldn't find the server on this network.");
         } else if (has(LINES.bootHeartbeatNoWifi)) {

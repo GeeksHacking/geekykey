@@ -459,3 +459,21 @@ test("with two boards of the same kind plugged in, a dropped port is left for th
   );
   await expect(page.getByRole("button", { name: "Connect" })).toBeEnabled();
 });
+
+test("a server that doesn't answer points at the network as well as the address", async ({
+  page,
+}) => {
+  await openPage(page, { serverAnswers: false });
+  await connect(page);
+
+  await page.getByLabel("Server address").fill("https://key-api.geekshacking.com");
+  await page.getByRole("button", { name: "Set up the station" }).click();
+
+  const results = page.getByRole("region", { name: "What happened" });
+  await expect(results).toContainText(
+    "Server: stored. The server didn't answer. Check that the Wi-Fi network reaches the internet, and the server address.",
+  );
+  await expect(results).toContainText(
+    "The server didn't answer its heartbeat. Check that the Wi-Fi network reaches the internet, and the server address.",
+  );
+});
