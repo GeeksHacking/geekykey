@@ -30,7 +30,7 @@ export function DevLoginForm() {
     } catch (err) {
       setError(
         isApiErrorCode(err, "not_found")
-          ? "No seeded user with that ID. Run the seed task in apps/backend first."
+          ? "No seeded user with that ID. Run `mise run seed` first."
           : describeError(err),
       );
     } finally {
