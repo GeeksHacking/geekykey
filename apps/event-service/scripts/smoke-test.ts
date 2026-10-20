@@ -92,6 +92,7 @@ before(async () => {
       SESSION_SECRET: randomKey(),
       CLAIMS_STAND_IN_KEY: claimsStandInKey,
       EVENT_SERVICE_KEY: eventServiceKey,
+      FIREBASE_PROJECT_ID: "geekykey-b035a",
     },
   });
 

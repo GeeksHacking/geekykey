@@ -21,6 +21,7 @@
     "seed": "node scripts/seed.ts"
   },
   "dependencies": {
+    "@geekykey/firebase-login": "workspace:*",
     "@geekykey/handoff": "workspace:*",
     "@hono/node-server": "^2.1.5",
     "@hono/zod-validator": "^0.9.1",

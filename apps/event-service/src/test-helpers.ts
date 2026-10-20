@@ -1,6 +1,7 @@
+import { unreachableGoogleKeys } from "@geekykey/firebase-login/testing";
 import { afterAll } from "vitest";
 import { localDatabaseUrl } from "../scripts/local-tidb.ts";
-import { createApp } from "./app.ts";
+import { type AppDeps, createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createDbPool, type Db } from "./db/pool.ts";
 import { tokens } from "./claims-stand-in/schema.ts";
@@ -22,6 +23,9 @@ export const TEST_CLAIMS_STAND_IN_KEY = "5".repeat(64);
 /** The Event Service key in testApp(), which tests send to the Event side's hand-off routes. */
 export const TEST_EVENT_SERVICE_KEY = "e".repeat(64);
 
+/** The Firebase project testApp() accepts ID tokens for. */
+export const TEST_FIREBASE_PROJECT_ID = "geekykey-test";
+
 /** One pool to geekykey_test for each test file, closed once its tests are done. */
 const testPool = createDbPool(localDatabaseUrl("geekykey_test"));
 afterAll(testPool.close);
@@ -38,16 +42,23 @@ export function testDb(): Db {
  * The Event Service as `pnpm dev` starts it, with dev-login on, but against
  * geekykey_test. `settings` are added to, or replace, its environment
  * variables. Send it a request with `app.request(path, init)`.
+ *
+ * It never fetches Google's keys: a test that logs in with Firebase passes
+ * `googleKeys` from fakeGoogle() (@geekykey/firebase-login/testing).
  */
-export function testApp(settings: Record<string, string> = {}) {
+export function testApp(
+  settings: Record<string, string> = {},
+  { googleKeys = unreachableGoogleKeys }: Partial<AppDeps> = {},
+) {
   const config = loadConfig({
     DATABASE_URL: localDatabaseUrl("geekykey_test"),
     DEV_AUTH_ENABLED: "true",
     CLAIMS_STAND_IN_KEY: TEST_CLAIMS_STAND_IN_KEY,
     EVENT_SERVICE_KEY: TEST_EVENT_SERVICE_KEY,
+    FIREBASE_PROJECT_ID: TEST_FIREBASE_PROJECT_ID,
     ...settings,
   });
-  return createApp(config, testDb());
+  return createApp(config, testDb(), { googleKeys });
 }
 
 /** One station in the passport, and one participant holding one token. */

@@ -34,6 +34,12 @@ export interface Config {
    * Read once at start-up, and checked on every request.
    */
   organizers: string[];
+  /**
+   * The Firebase project whose ID tokens POST /auth/firebase accepts, at the
+   * showcase (ADR 0004): `geekykey-b035a`, the same as the GeekyKey
+   * Service's, so a user has the same ID in both.
+   */
+  firebaseProjectId: string;
 }
 
 /**
@@ -188,6 +194,21 @@ function databaseUrlFromEnv(env: Env): string {
 }
 
 /**
+ * No default, not even locally: every sign-in but dev-login checks the token
+ * against it, and a wrong one would turn every real token away. A Google
+ * Cloud project ID is 6 to 30 lower-case letters, digits and hyphens,
+ * starting with a letter and not ending with a hyphen.
+ */
+function firebaseProjectIdFromEnv(env: Env): string {
+  const id = env.FIREBASE_PROJECT_ID;
+  if (!id) throw new ConfigError("FIREBASE_PROJECT_ID is required");
+  if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(id)) {
+    throw new ConfigError(`FIREBASE_PROJECT_ID must be a Firebase project ID, got "${id}"`);
+  }
+  return id;
+}
+
+/**
  * Every setting, read once at start-up. A bad or missing one throws, which
  * stops the server starting rather than failing every request.
  */
@@ -204,5 +225,6 @@ export function loadConfig(env: Env): Config {
     claimsStandInKey: keyFromEnv(env, "CLAIMS_STAND_IN_KEY", devAuthEnabled),
     eventServiceKey: keyFromEnv(env, "EVENT_SERVICE_KEY", devAuthEnabled),
     organizers: userIdsFromEnv(env, "ORGANIZERS", devAuthEnabled, DEV_ORGANIZERS),
+    firebaseProjectId: firebaseProjectIdFromEnv(env),
   };
 }

@@ -13,6 +13,7 @@ const SETTINGS = {
   SESSION_SECRET: "test-secret-at-least-16",
   CLAIMS_STAND_IN_KEY: "c".repeat(64),
   EVENT_SERVICE_KEY: "e".repeat(64),
+  FIREBASE_PROJECT_ID: "geekykey-test",
   PORT: "0",
 };
 
@@ -106,6 +107,17 @@ test("the server won't start without EVENT_SERVICE_KEY", async () => {
   assert.match(String(line.reason), /EVENT_SERVICE_KEY is required/);
 });
 
+test("the server won't start without FIREBASE_PROJECT_ID", async () => {
+  const line = await fatalError(startServer(settingsWithout("FIREBASE_PROJECT_ID")));
+  assert.match(String(line.reason), /FIREBASE_PROJECT_ID is required/);
+});
+
+test("a FIREBASE_PROJECT_ID that can't be a project's ID stops the server", async () => {
+  const id = "https://geekykey-b035a.firebaseapp.com";
+  const line = await fatalError(startServer({ ...SETTINGS, FIREBASE_PROJECT_ID: id }));
+  assert.match(String(line.reason), /FIREBASE_PROJECT_ID must be a Firebase project ID/);
+});
+
 test("a DATABASE_URL that won't parse stops the server without logging its password", async () => {
   const started = startServer({ ...SETTINGS, DATABASE_URL: "mysql://app:hunter2-not-real@[bad" });
   const line = await fatalError(started);
@@ -115,8 +127,8 @@ test("a DATABASE_URL that won't parse stops the server without logging its passw
 
 /** SETTINGS as Cloud Run gives them: the secrets in one APP_SECRETS, and the rest on their own. */
 function bundled(secrets: Record<string, unknown>): Record<string, string> {
-  const { PORT } = SETTINGS;
-  return { PORT, APP_SECRETS: JSON.stringify(secrets) };
+  const { PORT, FIREBASE_PROJECT_ID } = SETTINGS;
+  return { PORT, FIREBASE_PROJECT_ID, APP_SECRETS: JSON.stringify(secrets) };
 }
 
 test("the server starts with its secrets in APP_SECRETS", async () => {

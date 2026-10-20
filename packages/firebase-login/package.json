@@ -1,0 +1,27 @@
+{
+  "name": "@geekykey/firebase-login",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "jose": "^6.2.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "oxfmt": "0.73.0",
+    "oxlint": "1.87.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}
