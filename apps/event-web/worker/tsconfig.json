@@ -1,0 +1,24 @@
+{
+  // The Worker's own code, on the Workers runtime's types, which `wrangler types` writes to
+  // worker-configuration.d.ts from ../wrangler.jsonc. Its tests run on Node, so they have
+  // their own settings, in tsconfig.test.json.
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["worker-configuration.d.ts", "*.ts"],
+  "exclude": ["*.test.ts", "vitest.config.ts"]
+}

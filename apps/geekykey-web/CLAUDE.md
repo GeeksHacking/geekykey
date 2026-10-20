@@ -19,6 +19,10 @@ Read those files before adding screens. They are references, not documents to co
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see "Tailwind 4 notes" in `apps/event-web/CLAUDE.md`).
 - Keep GeekyKey Service and Event Service concerns separate.
 - The Vite dev server proxies `/api` and `/auth` to `http://localhost:8000`.
+- In production the Worker in `worker/` (settings in `wrangler.jsonc`) serves `dist/` and
+  passes `/api/*` and `/auth/*` to `geekykey-service` through a service binding. It works
+  like the Event screens' Worker, and has the same `worker:*` commands. `pnpm worker:dev`
+  needs `mise run dev:geekykey-service` running, and serves on `http://localhost:8174`.
 
 ## Current scope
 

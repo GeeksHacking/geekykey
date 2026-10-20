@@ -20,6 +20,9 @@ jobs:
   event-web:
     name: Event web
     runs-on: ubuntu-latest
+    env:
+      # Wrangler sends anonymous usage data unless told not to.
+      WRANGLER_SEND_METRICS: "false"
     steps:
       # Actions are pinned to a commit SHA rather than a tag, because a tag can
       # be moved to point at different code and a SHA cannot. The trailing
@@ -66,9 +69,25 @@ jobs:
       - name: Build
         run: pnpm build:event-web
 
+      # The Worker that serves the screens and forwards /api and /auth to the
+      # Event Service (worker/ and wrangler.jsonc). Its tests run it in
+      # `wrangler dev` with the build above, so they come after Build.
+      - name: Worker typecheck
+        run: pnpm --filter @geekykey/event-web worker:typecheck
+
+      - name: Worker test
+        run: pnpm --filter @geekykey/event-web worker:test
+
+      # Bundles the Worker and checks wrangler.jsonc as a deploy would,
+      # without deploying: what Workers Builds runs, short of uploading.
+      - name: Worker build
+        run: pnpm --filter @geekykey/event-web worker:dry-run
+
   geekykey-web:
     name: GeekyKey web
     runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
@@ -93,6 +112,17 @@ jobs:
 
       - name: Build
         run: pnpm build:geekykey-web
+
+      # The Worker that serves the screens and forwards /api and /auth to
+      # geekykey-service, as the Event web job checks its own.
+      - name: Worker typecheck
+        run: pnpm --filter @geekykey/geekykey-web worker:typecheck
+
+      - name: Worker test
+        run: pnpm --filter @geekykey/geekykey-web worker:test
+
+      - name: Worker build
+        run: pnpm --filter @geekykey/geekykey-web worker:dry-run
 
   # The station setup page (HAR-16): one HTML file, tested in real Chromium
   # against a fake station, and checked against the lines the sketch prints.

@@ -12,7 +12,11 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "worker:dev": "VITE_LIVE_API=1 vite build && wrangler dev",
+    "worker:typecheck": "wrangler types worker/worker-configuration.d.ts && tsc -p worker && tsc -p worker/tsconfig.test.json",
+    "worker:test": "vitest run --config worker/vitest.config.ts",
+    "worker:dry-run": "wrangler deploy --dry-run"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.3.0",
@@ -56,6 +60,7 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.2",
     "vite": "^8.3.4",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.1"
   }
 }
