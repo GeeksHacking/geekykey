@@ -1107,3 +1107,14 @@
     trade-offs we accept: it's one file to download, with no hosted link or login yet, and it
     reads the station's printed lines word for word, so a reworded line fails its tests until the
     page changes too.
+
+- id: dependencies-refreshed
+  date: 2026-10-20
+  area: tooling
+  change: >-
+    Every app's dependencies are on their latest patch releases, and the lockfile records what
+    pnpm resolves today, so renaming an app's folder changes one line of it instead of 258. The
+    updates site no longer pulls in a TOML parser with a slow-parsing advisory, and the audit
+    passes with one advisory set aside: an old esbuild that drizzle-kit installs but never runs.
+    The trade-offs we accept: a large lockfile change reviewed on its own, and TypeScript 7 waits
+    until the screens' linter supports it, so the whole repo moves to it at once.
