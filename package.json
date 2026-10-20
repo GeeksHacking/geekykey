@@ -24,6 +24,7 @@
     "build:geekykey-web": "pnpm --filter @geekykey/geekykey-web build",
     "test:geekykey-web": "pnpm --filter @geekykey/geekykey-web test",
     "format:geekykey-web": "pnpm --filter @geekykey/geekykey-web format",
+    "test:setup-page": "pnpm --filter @geekykey/setup-page test",
     "dev:updates": "pnpm --filter @geekykey/updates dev",
     "build:updates": "pnpm --filter @geekykey/updates build"
   },

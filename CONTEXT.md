@@ -98,6 +98,11 @@ How someone with a USB cable gives station hardware a new server address, statio
 network without a reflash. A replaced key keeps it the same station; a move to another event makes
 it a new one, so its saved taps are sent first and the rest are cleared.
 
+**Setup page**:
+A browser page that takes someone through a station's setup mode over a USB cable, without a
+terminal.
+_Avoid_: flasher, which would reflash the station
+
 **Station key**:
 The secret a station sends with every request to prove which station it is, issued by the Event
 Service that registered it. It is shown once, when the station is created or its key is replaced.

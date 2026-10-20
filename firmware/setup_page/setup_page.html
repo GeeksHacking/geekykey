@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GeekyKey station setup</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+      }
+      body {
+        max-width: 44rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        font-size: 1.125rem;
+        margin-top: 2rem;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        padding: 0.75rem;
+        border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+        border-radius: 0.375rem;
+      }
+      fieldset {
+        margin: 1rem 0;
+        border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+        border-radius: 0.375rem;
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        max-width: 30rem;
+        box-sizing: border-box;
+        font: inherit;
+        padding: 0.25rem 0.5rem;
+      }
+      button {
+        font: inherit;
+        padding: 0.375rem 0.875rem;
+      }
+      .hint {
+        font-size: 0.875rem;
+        opacity: 0.8;
+      }
+      .error:empty {
+        display: none;
+      }
+      .error {
+        color: #c0392b;
+      }
+      .notice {
+        padding: 0.75rem;
+        border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+        border-radius: 0.375rem;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>GeekyKey station setup</h1>
+    <p>
+      Gives a station a new server address, station key or Wi-Fi network through its setup mode,
+      over a USB cable.
+    </p>
+
+    <p id="unsupported" class="notice" hidden>
+      This page needs Chrome or Edge on a laptop, which can talk to a USB port. Open it there.
+    </p>
+
+    <section aria-labelledby="connect-heading">
+      <h2 id="connect-heading">1. Connect</h2>
+      <p>Plug the station into this laptop with a USB cable, then pick its port.</p>
+      <button type="button" id="connect">Connect</button>
+      <p id="connect-status" role="status"></p>
+    </section>
+
+    <section id="settings" aria-labelledby="settings-heading" hidden>
+      <h2 id="settings-heading">Its settings now</h2>
+      <pre id="settings-lines"></pre>
+    </section>
+
+    <!--
+      Not a <form>, and autocomplete off, so the browser doesn't offer to save
+      the key or the Wi-Fi password.
+    -->
+    <section id="changes" aria-labelledby="changes-heading" hidden>
+      <h2 id="changes-heading">2. What changes</h2>
+      <p>Fill in only what changes. A part left empty stays as it is.</p>
+
+      <fieldset>
+        <legend>Server</legend>
+        <p>
+          <label for="server">Server address</label><br />
+          <input
+            id="server"
+            type="text"
+            inputmode="url"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="https://key-api.geekshacking.com"
+          />
+        </p>
+        <p id="server-error" class="error" role="alert"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Station key</legend>
+        <p>Where does the key come from?</p>
+        <p>
+          <input type="radio" id="key-replaced" name="key-kind" value="replaced" />
+          <label for="key-replaced"
+            >An organizer replaced this station's key on the station board</label
+          >
+          <br />
+          <span class="hint"
+            >It's still the same station. Its saved taps are kept and go out with the new key.</span
+          >
+        </p>
+        <p>
+          <input type="radio" id="key-move" name="key-kind" value="move" />
+          <label for="key-move">This station is moving to another event</label>
+          <br />
+          <span class="hint">
+            It becomes a new station there. Its saved taps are sent first with the old key, and you
+            decide about any that can't be sent.
+          </span>
+        </p>
+        <p>
+          <label for="key">Station key</label><br />
+          <input id="key" type="password" autocomplete="off" data-1p-ignore data-lpignore="true" />
+        </p>
+        <p id="key-error" class="error" role="alert"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Wi-Fi network</legend>
+        <p>
+          <label for="wifi-name">Wi-Fi name</label><br />
+          <input id="wifi-name" type="text" autocomplete="off" spellcheck="false" />
+        </p>
+        <p>
+          <label for="wifi-password">Wi-Fi password</label><br />
+          <input
+            id="wifi-password"
+            type="password"
+            autocomplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+          />
+        </p>
+        <p class="hint">
+          Leave the password empty for an open network. The station only joins 2.4 GHz networks, and
+          can't get past a "log in to continue" page.
+        </p>
+        <p id="wifi-error" class="error" role="alert"></p>
+      </fieldset>
+
+      <p><button type="button" id="apply">Set up the station</button></p>
+      <p id="changes-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="results" aria-labelledby="results-heading" hidden>
+      <h2 id="results-heading">What happened</h2>
+      <ol id="steps"></ol>
+      <div id="move-decision" class="notice" hidden>
+        <p id="move-question"></p>
+        <p class="hint">Dropped taps are gone for good. They never reach either event.</p>
+        <button type="button" id="drop-taps">Drop them and finish the move</button>
+        <button type="button" id="keep-taps">Cancel the move</button>
+      </div>
+      <div id="after-restart" hidden>
+        <h3>After the restart</h3>
+        <ul id="after-restart-lines"></ul>
+        <p><button type="button" id="again">Set up again</button></p>
+      </div>
+    </section>
+
+    <details>
+      <summary>What the station printed</summary>
+      <pre id="log"></pre>
+    </details>
+
+    <!--
+      Every line the page waits for, word for word as geekykey_station.ino prints
+      it. firmware-lines.spec.ts fails if one of them is no longer in the sketch.
+    -->
+    <script type="application/json" id="station-lines">
+      {
+        "ready": "Ready. Tap an NTAG213 tag...",
+        "setupErrorHint": "Type setup and Enter to give the station another one.",
+        "setupStarted": "Setup mode. Taps are paused until the station restarts.",
+        "unknownCommand": "Unknown command. Type help for the list.",
+        "prompt": "> ",
+        "serverPrompt": "New server address, such as https://key-api.geekshacking.com: ",
+        "serverStored": "Server stored.",
+        "keyPrompt": "This station's new key (hidden as you type): ",
+        "keyStored": " saved tap(s) are kept and go out with it.",
+        "movePrompt": "The other event's key for this station (hidden as you type): ",
+        "moveStored": ". This is now a new station at the other event.",
+        "allSent": "All saved taps sent.",
+        "stillSaved": " tap(s) still saved (",
+        "clearPrompt": "Type clear to drop them, anything else to cancel: ",
+        "cancelled": "Cancelled. The key and the saved taps are unchanged.",
+        "tapsCleared": "Saved taps cleared.",
+        "wifiNamePrompt": "Wi-Fi name: ",
+        "wifiPasswordPrompt": "Wi-Fi password (hidden as you type; just Enter for an open network): ",
+        "wifiStored": "Stored. Trying ",
+        "wifiJoined": "Joined ",
+        "wifiNotJoined": "Could not join ",
+        "heartbeatOk": "OK: the server knows this station's key.",
+        "heartbeatRejected": "Key rejected (401): the server doesn't know this key, or the station is disabled.",
+        "heartbeatNoAnswer": "No answer from the server.",
+        "heartbeatNotChecked": "Not checked now. The station checks it when it restarts.",
+        "restarting": "Restarting with these settings.",
+        "bootWifiJoined": "Connected! IP: ",
+        "bootWifiMissing": "No WiFi yet. Taps will be saved until it connects.",
+        "bootHeartbeatOk": "Heartbeat: clock set to ",
+        "bootHeartbeatNoTime": "Heartbeat: answer had no usable server_time",
+        "bootHeartbeatHttp": "Heartbeat: HTTP ",
+        "bootHeartbeatNoAnswer": "Heartbeat: no answer, ",
+        "bootHeartbeatNoWifi": "Heartbeat: not sent, no WiFi",
+        "bootHeartbeatNoServer": "Heartbeat: not sent, server not found"
+      }
+    </script>
+
+    <script type="module">
+      // HAR-16. Everything is in this one file so it works when downloaded alone
+      // and opened from disk: Chrome won't load a separate module into a file://
+      // page. The page types exactly what a person would type into the setup
+      // mode (firmware/README.md), and reads the station's answers from the lines
+      // in #station-lines.
+
+      const LINES = JSON.parse(document.getElementById("station-lines").textContent);
+      const encoder = new TextEncoder();
+      const $ = (id) => document.getElementById(id);
+
+      // How long to wait for the station. Opening the port can restart it, and a
+      // start-up with no Wi-Fi in range takes about 25 seconds.
+      const QUIET_MS = 1500;
+      const BOOT_MS = 60_000;
+      const ANSWER_MS = 4000;
+      const PROMPT_MS = 10_000;
+
+      class StationError extends Error {}
+
+      // The USB port and everything the station has printed on it. `mark` is how
+      // far the page has read, so each wait looks only at what came after.
+      class StationLink {
+        port = null;
+        writer = null;
+        text = "";
+        mark = 0;
+        lost = false;
+        listeners = new Set();
+
+        async open(port) {
+          await port.open({ baudRate: 115200 });
+          this.port = port;
+          this.lost = false;
+          this.writer = port.writable.getWriter();
+          this.openedAt = Date.now();
+          void this.readLoop(port);
+        }
+
+        async readLoop(port) {
+          const reader = port.readable.getReader();
+          const decoder = new TextDecoder();
+          try {
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              this.add(decoder.decode(value, { stream: true }));
+            }
+          } catch {
+            // The port went away, such as the board restarting on its native USB.
+          }
+          if (this.port === port) {
+            this.lost = true;
+            this.notify();
+          }
+        }
+
+        add(text) {
+          this.text += text;
+          this.lastDataAt = Date.now();
+          $("log").textContent += text.replaceAll("\r", "");
+          this.notify();
+        }
+
+        notify() {
+          for (const listener of [...this.listeners]) listener();
+        }
+
+        /** What the station printed since the page last took its output. */
+        since() {
+          return this.text.slice(this.mark);
+        }
+
+        take() {
+          const chunk = this.since();
+          this.mark = this.text.length;
+          return chunk;
+        }
+
+        /**
+         * Resolves with check()'s first answer that isn't null, asked again on
+         * every new output and every 100 ms. Rejects after `ms`.
+         */
+        until(check, ms, what) {
+          return new Promise((resolve, reject) => {
+            const finish = () => {
+              this.listeners.delete(ask);
+              clearInterval(timer);
+              clearTimeout(deadline);
+            };
+            const ask = () => {
+              let answer;
+              try {
+                answer = check();
+              } catch (error) {
+                finish();
+                reject(error);
+                return;
+              }
+              if (answer !== null && answer !== undefined) {
+                finish();
+                resolve(answer);
+              }
+            };
+            const timer = setInterval(ask, 100);
+            const deadline = setTimeout(() => {
+              finish();
+              reject(new StationError(`The station didn't answer (${what}).`));
+            }, ms);
+            this.listeners.add(ask);
+            ask();
+          });
+        }
+
+        /**
+         * Waits for one of `prompts` to be the last, unfinished line, and takes
+         * everything up to it. A prompt only counts at the start of a line, so an
+         * echoed Wi-Fi name that happens to end in "> " isn't taken for one.
+         */
+        async prompt(prompts, ms = PROMPT_MS) {
+          const found = await this.until(
+            () => {
+              if (this.lost) throw new StationError("The station's USB port went away.");
+              const text = this.since();
+              const lineStart = text.lastIndexOf("\n");
+              if (lineStart < 0) return null;
+              const last = text.slice(lineStart + 1);
+              return prompts.find((prompt) => last === prompt) ?? null;
+            },
+            ms,
+            "no prompt",
+          );
+          return { prompt: found, chunk: this.take() };
+        }
+
+        async send(line) {
+          await this.writer.write(encoder.encode(line + "\n"));
+        }
+
+        /**
+         * Waits for check() through a restart. If the port goes away, as the
+         * ESP32-S3's native USB port can when the board restarts, the page opens
+         * the same board's port again without asking, and keeps waiting.
+         */
+        async untilThroughRestart(check, ms, what) {
+          const deadline = Date.now() + ms;
+          while (true) {
+            const answer = await this.until(
+              () => (this.lost ? "lost" : check()),
+              Math.max(deadline - Date.now(), 0),
+              what,
+            );
+            if (answer !== "lost") return answer;
+            await this.reopen(deadline);
+          }
+        }
+
+        async reopen(deadline) {
+          const old = this.port;
+          const { usbVendorId, usbProductId } = old.getInfo();
+          while (Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            for (const port of await navigator.serial.getPorts()) {
+              const info = port.getInfo();
+              if (info.usbVendorId !== usbVendorId || info.usbProductId !== usbProductId) continue;
+              try {
+                await this.open(port);
+                return;
+              } catch {
+                // Not back yet, or it's the old port that went away.
+              }
+            }
+          }
+          throw new StationError("The station's USB port went away and didn't come back.");
+        }
+      }
+
+      /** The whole lines in some of the station's output, without their line ends. */
+      function linesOf(chunk) {
+        return chunk.split("\n").map((line) => line.replace(/\r$/, ""));
+      }
+
+      let link = null;
+
+      function setStatus(text) {
+        $("connect-status").textContent = text;
+      }
+
+      function showSettings(chunk) {
+        const settings = linesOf(chunk).filter((line) =>
+          /^(Server|Key|Wi-Fi|Password|Saved taps):/.test(line),
+        );
+        $("settings-lines").textContent = settings.join("\n");
+        $("settings").hidden = false;
+      }
+
+      // After the port opens: a station that restarted prints its start-up and
+      // ends with "Ready" (or its setup error). One that didn't prints nothing.
+      async function waitForStartUp() {
+        await link.untilThroughRestart(
+          () => {
+            const text = link.since();
+            if (text.includes(LINES.ready) || text.includes(LINES.setupErrorHint)) return true;
+            if (text.length === 0 && Date.now() - link.openedAt > QUIET_MS) return true;
+            return null;
+          },
+          BOOT_MS,
+          "start-up",
+        );
+        link.take();
+      }
+
+      function addStep(text) {
+        const item = document.createElement("li");
+        item.textContent = text;
+        $("steps").append(item);
+      }
+
+      // The station's own reason for not changing a setting: what it printed
+      // between the line it was given and its next prompt.
+      function refused(part, chunk) {
+        const reason = linesOf(chunk)
+          .slice(1, -1)
+          .filter((line) => line.trim().length > 0)
+          .join(" ");
+        addStep(`${part}: not changed. The station said: ${reason}`);
+        return false;
+      }
+
+      async function sendWifi(name, password) {
+        await link.send("wifi");
+        await link.prompt([LINES.wifiNamePrompt]);
+        await link.send(name);
+        const asked = await link.prompt([LINES.wifiPasswordPrompt, LINES.prompt]);
+        if (asked.prompt === LINES.prompt) return refused("Wi-Fi", asked.chunk);
+        await link.send(password);
+        // The station tries the network for up to 20 seconds.
+        const { chunk } = await link.prompt([LINES.prompt], 40_000);
+        const lines = linesOf(chunk);
+        if (!lines.some((line) => line.startsWith(LINES.wifiStored)))
+          return refused("Wi-Fi", chunk);
+        if (lines.some((line) => line.startsWith(LINES.wifiJoined))) {
+          addStep(`Wi-Fi: joined ${name}.`);
+        } else {
+          addStep(
+            `Wi-Fi: stored, but it couldn't join ${name} yet. It tries again after it restarts.`,
+          );
+        }
+        return true;
+      }
+
+      // After a new server or key the station sends one heartbeat and says how
+      // it went.
+      function heartbeatResult(chunk) {
+        const lines = linesOf(chunk);
+        if (lines.includes(LINES.heartbeatOk)) return "The server knows this station's key.";
+        if (lines.includes(LINES.heartbeatRejected)) {
+          return "The server rejected the key (401): it doesn't know it, or the station is disabled.";
+        }
+        if (lines.includes(LINES.heartbeatNoAnswer)) return "The server didn't answer.";
+        if (lines.includes(LINES.heartbeatNotChecked))
+          return "Not checked yet. It checks when it restarts.";
+        return "";
+      }
+
+      async function sendServer(url) {
+        await link.send("server");
+        await link.prompt([LINES.serverPrompt]);
+        await link.send(url);
+        // The heartbeat after it can take a few seconds.
+        const { chunk } = await link.prompt([LINES.prompt], 30_000);
+        if (!linesOf(chunk).some((line) => line.startsWith(LINES.serverStored))) {
+          return refused("Server", chunk);
+        }
+        addStep(`Server: stored. ${heartbeatResult(chunk)}`.trim());
+        return true;
+      }
+
+      async function sendReplacedKey(key) {
+        await link.send("key");
+        await link.prompt([LINES.keyPrompt]);
+        await link.send(key);
+        const { chunk } = await link.prompt([LINES.prompt], 30_000);
+        if (!linesOf(chunk).some((line) => line.endsWith(LINES.keyStored)))
+          return refused("Key", chunk);
+        addStep(`Key: stored, and its saved taps are kept. ${heartbeatResult(chunk)}`.trim());
+        return true;
+      }
+
+      // Shows the station's count and reason, such as "2 tap(s) still saved (no
+      // Wi-Fi).", and resolves true to drop them or false to cancel.
+      function askToDropTaps(chunk) {
+        const line = linesOf(chunk).find((text) => text.includes(LINES.stillSaved)) ?? "";
+        const count = Number.parseInt(line, 10);
+        const why = line
+          .slice(line.indexOf(LINES.stillSaved) + LINES.stillSaved.length)
+          .replace(/\)\.$/, "");
+        const taps = count === 1 ? "1 saved tap" : `${count} saved taps`;
+        $("move-question").textContent =
+          `${taps} couldn't be sent (${why}). Drop them to finish the move?`;
+        $("move-decision").hidden = false;
+        return new Promise((resolve) => {
+          const choose = (drop) => {
+            $("move-decision").hidden = true;
+            $("drop-taps").onclick = null;
+            $("keep-taps").onclick = null;
+            resolve(drop);
+          };
+          $("drop-taps").onclick = () => choose(true);
+          $("keep-taps").onclick = () => choose(false);
+        });
+      }
+
+      // A key from another event. The station first sends its saved taps with
+      // the old key, and asks before dropping any it couldn't send.
+      async function sendMove(key) {
+        await link.send("move");
+        await link.prompt([LINES.movePrompt]);
+        await link.send(key);
+        // Sending the saved taps, then the heartbeat, can take a while.
+        let { prompt, chunk } = await link.prompt([LINES.prompt, LINES.clearPrompt], 60_000);
+        if (prompt === LINES.clearPrompt) {
+          // Only the person decides whether taps are dropped.
+          const drop = await askToDropTaps(chunk);
+          await link.send(drop ? "clear" : "cancel");
+          ({ chunk } = await link.prompt([LINES.prompt], 30_000));
+        }
+        const lines = linesOf(chunk);
+        if (!lines.some((line) => line.endsWith(LINES.moveStored))) return refused("Move", chunk);
+        const taps = lines.includes(LINES.tapsCleared)
+          ? "the saved taps it couldn't send were dropped, and the new key is stored."
+          : lines.includes(LINES.allSent)
+            ? "its saved taps went out with the old key, and the new key is stored."
+            : "the new key is stored.";
+        addStep(
+          `Move: ${taps} It's now a new station at the other event. ${heartbeatResult(chunk)}`.trim(),
+        );
+        return true;
+      }
+
+      // What the station's start-up says about the new settings: whether it
+      // joined the Wi-Fi network, and how the server took its first heartbeat.
+      function startUpResults(chunk) {
+        const lines = linesOf(chunk);
+        const has = (start) => lines.some((line) => line.startsWith(start));
+        const results = [];
+        if (has(LINES.setupErrorHint)) {
+          results.push(
+            "It can't use its server address, so it sends nothing. Connect again and give it a new one.",
+          );
+          return results;
+        }
+        if (has(LINES.bootWifiJoined)) results.push("It's on Wi-Fi.");
+        else if (has(LINES.bootWifiMissing)) {
+          results.push("It isn't on Wi-Fi yet. It keeps trying, and saves taps until it joins.");
+        }
+        const http = lines.find((line) => line.startsWith(LINES.bootHeartbeatHttp));
+        if (has(LINES.bootHeartbeatOk) || has(LINES.bootHeartbeatNoTime)) {
+          results.push("The server accepted its heartbeat, so the key works. It's ready for taps.");
+        } else if (http === `${LINES.bootHeartbeatHttp}401`) {
+          results.push(
+            "The server rejected its key (401). Check the key, and that the station isn't disabled on the station board.",
+          );
+        } else if (http) {
+          results.push(
+            `The server answered its heartbeat with HTTP ${http.slice(LINES.bootHeartbeatHttp.length)}.`,
+          );
+        } else if (has(LINES.bootHeartbeatNoAnswer)) {
+          results.push("The server didn't answer its heartbeat. Check the server address.");
+        } else if (has(LINES.bootHeartbeatNoServer)) {
+          results.push("It couldn't find the server on this network.");
+        }
+        return results;
+      }
+
+      // "exit" restarts the station on its new settings, so its start-up is the
+      // real check of all of them together.
+      async function restartAndReport() {
+        await link.send("exit");
+        // A port that goes away before the line arrives is the restart too.
+        await link.until(
+          () => (link.lost || link.since().includes(LINES.restarting) ? true : null),
+          PROMPT_MS,
+          "exit",
+        );
+        link.take();
+        addStep("Restarting the station...");
+        // Out of the setup mode now, so the form waits for "Set up again".
+        $("changes").hidden = true;
+        await link.untilThroughRestart(
+          () => {
+            const text = link.since();
+            return text.includes(LINES.ready) || text.includes(LINES.setupErrorHint) ? true : null;
+          },
+          BOOT_MS,
+          "restart",
+        );
+        // The start-up prints the settings it's running on.
+        const startUp = link.take();
+        showSettings(startUp);
+        $("steps").lastElementChild.textContent = "The station restarted.";
+        const list = $("after-restart-lines");
+        list.replaceChildren();
+        for (const result of startUpResults(startUp)) {
+          const item = document.createElement("li");
+          item.textContent = result;
+          list.append(item);
+        }
+        $("after-restart").hidden = false;
+      }
+
+      // The station's own checks (parseServerUrl, isStationKey and setWifi in the
+      // sketch), so it should never have to refuse what the page sends. Each
+      // returns the problem, or "" when the value is fine.
+      const bytes = (text) => encoder.encode(text).length;
+      // The sketch takes at most 200 characters on a line.
+      const LINE_MAX = 200;
+
+      function serverProblem(url) {
+        if (url.length === 0) return "";
+        if (bytes(url) > LINE_MAX) return "That address is too long for the station.";
+        const scheme = url.startsWith("https://")
+          ? "https"
+          : url.startsWith("http://")
+            ? "http"
+            : "";
+        if (!scheme) return "A server address starts with https://.";
+        let host = url.slice(scheme.length + 3).split("/")[0];
+        const colon = host.indexOf(":");
+        if (colon >= 0 && host.indexOf(":", colon + 1) < 0) host = host.slice(0, colon);
+        if (host.length === 0) return "The server address has no host.";
+        if (scheme === "http" && !host.endsWith(".local")) {
+          return "Plain http:// only works to a .local address. Use https://.";
+        }
+        return "";
+      }
+
+      function keyProblem(key, keyKind) {
+        if (key.length === 0) return "";
+        if (!key.startsWith("gk_sta_") || key.length < 12 || key.includes(" ")) {
+          return "A station key starts with gk_sta_ and has no spaces.";
+        }
+        if (bytes(key) > LINE_MAX) return "That key is too long for the station.";
+        if (!keyKind)
+          return "Pick where the key comes from: a replaced key, or a move to another event.";
+        return "";
+      }
+
+      function wifiProblem(name, password) {
+        if (name.length === 0) return password.length > 0 ? "Fill in the Wi-Fi name too." : "";
+        if (bytes(name) > 32) return `A Wi-Fi name is 1 to 32 bytes. This one is ${bytes(name)}.`;
+        // Enter, backspace and delete mean something to the station's line editor.
+        if (/[\r\n\b\x7f]/.test(name + password))
+          return "The name or password has a character the station can't take.";
+        const length = bytes(password);
+        if (length > 0 && (length < 8 || length > 63)) {
+          return "A Wi-Fi password is 8 to 63 characters, or empty for an open network.";
+        }
+        return "";
+      }
+
+      async function apply() {
+        const url = $("server").value.trim();
+        const keyKind = document.querySelector('input[name="key-kind"]:checked')?.value;
+        const key = $("key").value.trim();
+        const name = $("wifi-name").value;
+        const password = $("wifi-password").value;
+
+        $("server-error").textContent = serverProblem(url);
+        $("key-error").textContent = keyProblem(key, keyKind);
+        $("wifi-error").textContent = wifiProblem(name, password);
+        $("changes-error").textContent =
+          url.length === 0 && key.length === 0 && name.length === 0
+            ? "Fill in at least one part."
+            : "";
+        const problems = ["server-error", "key-error", "wifi-error", "changes-error"];
+        if (problems.some((id) => $(id).textContent.length > 0)) return;
+
+        // Emptied once they're on their way: from here the secrets live only in
+        // this function.
+        $("key").value = "";
+        $("wifi-password").value = "";
+
+        // A move goes first, so its saved taps go out on the old settings. A
+        // replaced key goes last, so its heartbeat runs on the new Wi-Fi and server.
+        const steps = [];
+        if (key.length > 0 && keyKind === "move") steps.push(() => sendMove(key));
+        if (name.length > 0) steps.push(() => sendWifi(name, password));
+        if (url.length > 0) steps.push(() => sendServer(url));
+        if (key.length > 0 && keyKind === "replaced") steps.push(() => sendReplacedKey(key));
+
+        $("apply").disabled = true;
+        $("steps").replaceChildren();
+        $("after-restart").hidden = true;
+        $("results").hidden = false;
+        try {
+          for (const step of steps) {
+            if (!(await step())) {
+              addStep(
+                "Nothing after it was sent. The station is still in setup mode, so fix that part and set it up again. " +
+                  "It restarts by itself after 5 minutes with nothing typed.",
+              );
+              return;
+            }
+          }
+          await restartAndReport();
+        } catch (error) {
+          addStep(
+            error instanceof StationError
+              ? error.message
+              : `Something went wrong: ${error.message}`,
+          );
+        } finally {
+          $("apply").disabled = false;
+        }
+      }
+
+      // Types "setup". A station already in the setup mode answers "Unknown
+      // command", which is fine: "show" then prints its settings.
+      async function enterSetupMode() {
+        const sentAt = Date.now();
+        await link.send("setup");
+        const answer = await link.until(
+          () => {
+            const text = link.since();
+            if (text.includes(LINES.setupStarted)) return "started";
+            if (text.includes(LINES.unknownCommand)) return "already";
+            // Still printing, such as a start-up that was still going: keep waiting.
+            const quietSince = Math.max(sentAt, link.lastDataAt ?? 0);
+            if (Date.now() - quietSince > ANSWER_MS) return "none";
+            return null;
+          },
+          BOOT_MS,
+          "setup",
+        );
+        if (answer === "none") {
+          throw new StationError(
+            "This station has no setup mode. Its firmware is older than 19 Oct 2026 and needs a reflash.",
+          );
+        }
+        let { chunk } = await link.prompt([LINES.prompt]);
+        if (answer === "already") {
+          await link.send("show");
+          ({ chunk } = await link.prompt([LINES.prompt]));
+        }
+        showSettings(chunk);
+      }
+
+      async function connect() {
+        let port;
+        try {
+          port = await navigator.serial.requestPort();
+        } catch {
+          return; // No port picked.
+        }
+        $("connect").disabled = true;
+        try {
+          link = new StationLink();
+          await link.open(port);
+          setStatus("Connected. Waiting for the station...");
+          await waitForStartUp();
+        } catch (error) {
+          setStatus(
+            error instanceof StationError ? error.message : `Couldn't connect: ${error.message}`,
+          );
+          $("connect").disabled = false;
+          return;
+        }
+        await startSetupMode();
+      }
+
+      async function startSetupMode() {
+        $("again").disabled = true;
+        try {
+          await enterSetupMode();
+          setStatus("The station is in setup mode.");
+          $("results").hidden = true;
+          $("changes").hidden = false;
+        } catch (error) {
+          setStatus(
+            error instanceof StationError ? error.message : `Couldn't connect: ${error.message}`,
+          );
+          $("connect").disabled = false;
+        } finally {
+          $("again").disabled = false;
+        }
+      }
+
+      if (!navigator.serial) {
+        $("unsupported").hidden = false;
+        $("connect").disabled = true;
+      } else {
+        $("connect").addEventListener("click", connect);
+        $("apply").addEventListener("click", apply);
+        $("again").addEventListener("click", startSetupMode);
+      }
+    </script>
+  </body>
+</html>

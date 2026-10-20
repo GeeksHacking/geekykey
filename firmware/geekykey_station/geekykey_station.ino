@@ -882,6 +882,11 @@ String isoNow() {
 // another event, which makes this a new station there: its saved taps are sent
 // with the old key first, and whatever is left is cleared, so taps from one
 // event never reach another (CONTEXT.md, Setup mode).
+//
+// The setup page (firmware/setup_page/) types into this setup mode as a person
+// would, and reads its answers by matching the lines printed here and at
+// start-up, word for word. Reword one of those lines and the page's list in
+// setup_page.html must change with it; its tests fail until it does.
 
 // Reads the four settings: what the setup mode stored, or else secrets.h.
 void loadSettings() {
