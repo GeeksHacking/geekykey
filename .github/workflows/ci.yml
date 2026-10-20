@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  frontend:
-    name: Frontend
+  event-web:
+    name: Event web
     runs-on: ubuntu-latest
     steps:
       # Actions are pinned to a commit SHA rather than a tag, because a tag can
@@ -54,17 +54,17 @@ jobs:
       # Neither of these is part of the typecheck or the tests, so without them
       # lint errors and unformatted files pile up unnoticed. `build` runs the typecheck.
       - name: Lint
-        run: pnpm --filter @geekykey/frontend lint
+        run: pnpm --filter @geekykey/event-web lint
 
       - name: Format
-        run: pnpm --filter @geekykey/frontend format:check
+        run: pnpm --filter @geekykey/event-web format:check
 
       - name: Test
-        run: pnpm test:frontend
+        run: pnpm test:event-web
 
       # `build` runs the typecheck first.
       - name: Build
-        run: pnpm build:frontend
+        run: pnpm build:event-web
 
   geekykey-web:
     name: GeekyKey web

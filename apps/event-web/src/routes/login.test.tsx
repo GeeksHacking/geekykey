@@ -93,7 +93,7 @@ describe("the /login route's return_to rule", () => {
   });
 
   it("does not depend on the other app having the same rule", async () => {
-    // This suite pins apps/frontend's route on its own. If someone reverts the validator to
+    // This suite pins apps/event-web's route on its own. If someone reverts the validator to
     // `{}`, only this file notices.
     const login = await import("@/routes/login");
     const options = (
