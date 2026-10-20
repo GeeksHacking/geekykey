@@ -21,6 +21,8 @@ export interface FakeStationOptions {
   dropPortOnRestart?: boolean;
   /** Whether the station joins the Wi-Fi network it is given. */
   wifiJoins?: boolean;
+  /** False when the network has no way to the server, as a hotspot whose mobile data ran out. */
+  serverAnswers?: boolean;
   /** Keys the server answers 401 for. */
   rejectedKeys?: string[];
   /** Settings the station fails to store, so it answers "Could not store it". */
@@ -201,6 +203,10 @@ export function installFakeStation(options: FakeStationOptions) {
       println("Heartbeat: not sent, no WiFi");
       return 0;
     }
+    if (options.serverAnswers === false) {
+      println("Heartbeat: no answer, connection refused");
+      return -1;
+    }
     if ((options.rejectedKeys ?? []).includes(state.key)) {
       println("Heartbeat: HTTP 401");
       return 401;
@@ -215,6 +221,7 @@ export function installFakeStation(options: FakeStationOptions) {
     if (code === 200) println(L.heartbeatOk);
     else if (code === 401) println(L.heartbeatRejected);
     else if (code === 0) println(L.heartbeatNotChecked);
+    else if (code < 0) println(L.heartbeatNoAnswer);
   }
 
   function restart() {
