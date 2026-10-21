@@ -33,6 +33,13 @@ trustPolicyExclude:
 # A transitive dependency must resolve from the registry or the workspace.
 blockExoticSubdeps: true
 
+# The Firebase web SDK (13.0.0, added 20 Oct for FRO-33) pulls @grpc/grpc-js through
+# @firebase/firestore, which the screens never import, and the version it resolves to has a
+# high advisory (GHSA-m9gg-hp2v-232j). The patched version is 1.13.6, so pin it here rather
+# than carry an exception in the audit below.
+overrides:
+  "@grpc/grpc-js": ">=1.13.6"
+
 # Dependencies may not run install scripts (preinstall/install/postinstall)
 # unless they are listed here. Listing the exact versions, rather than a bare
 # package name, means a new version of an already-approved package still has
@@ -48,7 +55,15 @@ blockExoticSubdeps: true
 # run on, fetches its platform binary the same way. Each Wrangler upgrade
 # brings a new workerd version, which someone has to look at and add here.
 allowBuilds:
+  # The Firebase web SDK (13.0.0, added 20 Oct for FRO-33). @firebase/util's script writes
+  # the config it reads at start-up, and only when FIREBASE_WEBAPP_CONFIG is set, which we
+  # never set: the published package already carries the stub the SDK imports, and the
+  # screens pass the config to initializeApp themselves. protobufjs arrives with
+  # @firebase/firestore, which the screens never use, and its script only prints a warning
+  # about a version scheme. Neither script is needed, so neither runs.
+  '@firebase/util@1.15.3': false
   "esbuild@0.28.2 || 0.25.12 || 0.18.20": true
+  'protobufjs@7.6.6': false
   "workerd@1.20261012.1": true
 
 # Advisories `pnpm audit` skips. CI fails on high or critical ones only, but an
