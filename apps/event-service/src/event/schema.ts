@@ -110,6 +110,23 @@ export const taps = mysqlTable(
   ],
 );
 
+/**
+ * The login links already used (POST /auth/login-link), by their `jti`, so
+ * each logs someone in once. A row is only needed until its link expires,
+ * 60 seconds after the GeekyKey Service made it, and goes at a later login
+ * link's use.
+ */
+export const usedLoginLinks = mysqlTable(
+  "used_login_links",
+  {
+    /** 16 random bytes as 32 lower-case hex characters (the API agreement's 11.9). */
+    jti: varchar("jti", { length: 32 }).primaryKey(),
+    /** The link's `exp`, after which it's refused anyway, so its row can go. */
+    expiresAt: isoTimestamp("expires_at").notNull(),
+  },
+  (t) => [index("used_login_links_expires_at_idx").on(t.expiresAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Station = typeof stations.$inferSelect;
 export type PassportStation = typeof passportStations.$inferSelect;

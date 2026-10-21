@@ -1216,3 +1216,12 @@
     A user can now choose the name the event shows on the passport, the scan log and the export,
     and logging in again never replaces it. Someone whose login has no name, such as a guest, is
     called Guest until they choose one, and the Event Service tells the passport to ask them.
+
+- id: login-links
+  date: 2026-10-21
+  area: backend
+  change: >-
+    The GeekyKey Service now makes a login link for the showcase's button on the token page, and
+    the Event Service logs the same user in with it, guests and Google users alike, so the passport
+    opens without a second login. Each link works once, for a minute. Nothing uses it on production
+    until the screens deploy.

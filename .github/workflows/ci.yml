@@ -158,8 +158,9 @@ jobs:
         run: pnpm test:setup-page
 
   # The Worker at key-api. Nothing here deploys it: Workers Builds does, on
-  # Cloudflare, once Julian connects it (infra/README.md). Its two packages,
-  # the hand-off and the Firebase login, are checked in the Event Service's job.
+  # Cloudflare, once Julian connects it (infra/README.md). Its three packages,
+  # the hand-off, the Firebase login and the login link, are checked in the
+  # Event Service's job.
   geekykey-service:
     name: GeekyKey Service
     runs-on: ubuntu-latest

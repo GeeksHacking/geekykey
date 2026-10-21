@@ -29,7 +29,9 @@ geekykey/
 │   ├── event-service/          the Node server that keeps the database, which the Event screens call, port 8001
 │   └── updates/                progress timeline for our mentors
 ├── packages/
-│   └── handoff/                the hand-off's shapes, shared by both sides, and their JSON Schema
+│   ├── handoff/                the hand-off's shapes, shared by both sides, and their JSON Schema
+│   ├── firebase-login/         the check of a Firebase ID token, shared by both services' logins
+│   └── login-link/             the login link the GeekyKey Service makes and the Event Service reads
 └── firmware/
     └── geekykey_station/       ESP32 reader station
 ```
@@ -56,6 +58,9 @@ what it writes. A test fails while the two differ.
 `packages/firebase-login` checks a Firebase ID token against Google's keys, for each
 service's `POST /auth/firebase` (the API agreement's 7.2). Its `testing` export fakes
 Google's keys, so a service's tests can log in without them.
+`packages/login-link` makes and reads login links (the API agreement's 11.9): the GeekyKey
+Service makes one for its session's user, and the Event Service logs that user in with it.
+Both services bundle it, so the two can't disagree on the format or the key.
 
 ### How the pieces connect
 
@@ -196,11 +201,17 @@ the copy, goes through the Worker's `waitUntil`, so the answer doesn't wait for 
 
 The GeekyKey screens log in with `POST /auth/firebase`, which checks the Firebase ID token with
 `packages/firebase-login`, the same code as the Event Service's, and sets `gk_session`. The
-Worker keeps no users, so the session holds only the user ID. Each isolate fetches Google's
+Worker keeps no users, so the session holds the user ID and the token's name, if it has one. Each isolate fetches Google's
 keys once and keeps them for an hour. `GET /api/v1/me` reads the session, asks the claims
 stand-in for the user's tokens, and lists each Event Service in `EVENT_SERVICES` that has a
 `public_url`, for the screens' buttons. The stand-in has 4 seconds to answer. When it doesn't
 answer properly in that time, the Worker answers `503 claims_unavailable`.
+
+The event buttons call `POST /api/v1/login-links`, which answers the event's address with a
+login link in its fragment, `#login=`, signed with a key derived from that Event Service's key.
+The Event screens send it to the Event Service's `POST /auth/login-link`, which checks it with
+the same package, keeps its ID in `used_login_links` so it works once, and sets
+`event_session` for the same user. The link lasts 60 seconds, and neither service logs it.
 
 ## Running the Event screens
 
@@ -478,6 +489,11 @@ you like. Dev sign-in on the Event Service accepts only the seeded users, `dev-u
 `dev-organizer-1`. On the GeekyKey Service it accepts any user ID, since that service keeps no
 users, and `dev-organizer-1` is a GeekyKey admin there too.
 
+A login link works locally too. Signed in on the GeekyKey Service, `POST /api/v1/login-links`
+with `{"event_id": "showcase"}` answers an address on `http://localhost:5173`, and the Event
+Service on 8001 accepts its link, since both start with the same stand-in Event Service key.
+The link creates the user on the Event Service if they are new, so any user ID works.
+
 ### 4. Send a tap
 
 Back in the first terminal, paste the whole `curl` command the seed printed, all four
@@ -730,6 +746,10 @@ mise exec -- pnpm --filter @geekykey/firebase-login lint              # and the 
 mise exec -- pnpm --filter @geekykey/firebase-login format:check
 mise exec -- pnpm --filter @geekykey/firebase-login typecheck
 mise exec -- pnpm --filter @geekykey/firebase-login test
+mise exec -- pnpm --filter @geekykey/login-link lint                  # and the same four for the login link package
+mise exec -- pnpm --filter @geekykey/login-link format:check
+mise exec -- pnpm --filter @geekykey/login-link typecheck
+mise exec -- pnpm --filter @geekykey/login-link test
 mise run db:up
 mise run test:event-service
 mise exec -- pnpm --filter @geekykey/event-service build:image        # the image builds

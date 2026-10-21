@@ -43,8 +43,6 @@ export interface AuthRouteDeps {
 export function authRoutes({ session, devAuthEnabled, firebase }: AuthRouteDeps) {
   const app = new Hono();
 
-  // The token's name isn't kept yet: the session holds only the user ID until
-  // login links need the name (the API agreement's 7.2 and 8.6, BAC-59).
   app.post("/firebase", jsonBody(firebaseLoginSchema), async (c) => {
     const { id_token } = c.req.valid("json");
     let identity: FirebaseIdentity | null;
@@ -57,14 +55,15 @@ export function authRoutes({ session, devAuthEnabled, firebase }: AuthRouteDeps)
     }
     if (!identity) return c.json({ error: "invalid_token" }, 401);
 
-    await issueSession(c, identity.userId, session);
+    // The session holds the token's name, so a login link can carry it (7.2 and 8.6).
+    await issueSession(c, { userId: identity.userId, name: identity.displayName }, session);
     return c.body(null, 204);
   });
 
   if (devAuthEnabled) {
     // Any user ID: the GeekyKey Service keeps no users, so there's nobody to look up.
     app.post("/dev-login", jsonBody(devLoginSchema), async (c) => {
-      await issueSession(c, c.req.valid("json").user_id, session);
+      await issueSession(c, { userId: c.req.valid("json").user_id, name: null }, session);
       return c.body(null, 204);
     });
   }

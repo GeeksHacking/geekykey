@@ -73,11 +73,10 @@ test("the session dev-login sets is signed with SESSION_SECRET, and names the us
   const res = await post("/auth/dev-login", { user_id: "dev-user-2" });
   const value = await signedSessionValue(res.headers.get("Set-Cookie") ?? "");
   assert.ok(typeof value === "string", "the cookie's signature didn't check out");
-  // `expiry:userId`, as the Event Service's session holds it.
-  const separator = value.indexOf(":");
-  const [expiresAt, userId] = [value.slice(0, separator), value.slice(separator + 1)];
-  assert.equal(userId, "dev-user-2");
-  assert.ok(Number(expiresAt) > Date.now());
+  // An expiry in milliseconds, the user ID, and no name, since dev-login has none.
+  const { exp, ...rest } = JSON.parse(value) as { exp: number };
+  assert.deepEqual(rest, { sub: "dev-user-2", name: null });
+  assert.ok(exp > Date.now());
 });
 
 test("dev-login validates the body", async () => {
@@ -139,8 +138,10 @@ test("a good ID token logs its user in as its sub, with a Secure gk_session", as
   assert.doesNotMatch(cookie, /Domain=/);
   const value = await signedSessionValue(cookie);
   assert.ok(typeof value === "string", "the cookie's signature didn't check out");
-  // The same `expiry:userId` as dev-login's, the user ID being the token's sub.
-  assert.equal(value.slice(value.indexOf(":") + 1), "firebase-uid-1");
+  // The token's sub and name, so a login link can carry the name (7.2).
+  const { exp, ...rest } = JSON.parse(value) as { exp: number };
+  assert.deepEqual(rest, { sub: "firebase-uid-1", name: "Ada Lim" });
+  assert.ok(exp > Date.now());
 });
 
 test("a guest's token logs them in as its sub, like any other", async () => {
@@ -149,7 +150,9 @@ test("a guest's token logs them in as its sub, like any other", async () => {
 
   const value = await signedSessionValue(res.headers.get("Set-Cookie") ?? "");
   assert.ok(typeof value === "string", "the cookie's signature didn't check out");
-  assert.equal(value.slice(value.indexOf(":") + 1), "firebase-guest-1");
+  // A guest's token has no name, so neither does the session.
+  const { sub, name } = JSON.parse(value) as { sub: string; name: string | null };
+  assert.deepEqual({ sub, name }, { sub: "firebase-guest-1", name: null });
 });
 
 test("each token the check refuses gets invalid_token, and no cookie", async () => {
