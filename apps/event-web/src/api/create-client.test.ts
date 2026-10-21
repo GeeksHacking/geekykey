@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAppClient } from "@/api/create-client";
+import { LIVE_METHODS, createAppClient } from "@/api/create-client";
 
 const me = {
   user: { id: "dev-user-1", display_name: "Alex", role: "participant" as const },
@@ -36,11 +36,13 @@ describe("createAppClient", () => {
     fetchMock
       .mockResolvedValueOnce(noContentResponse())
       .mockResolvedValueOnce(jsonResponse(me))
+      .mockResolvedValueOnce(noContentResponse())
       .mockResolvedValueOnce(noContentResponse());
     const api = createAppClient({ live: true });
 
     await api.devLogin("dev-user-1");
     await expect(api.me()).resolves.toEqual(me);
+    await api.firebaseLogin("id-token-from-firebase");
     await api.logout();
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -60,6 +62,16 @@ describe("createAppClient", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
+      "/auth/firebase",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_token: "id-token-from-firebase" }),
+        credentials: "include",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
       "/auth/logout",
       expect.objectContaining({ method: "POST", credentials: "include" }),
     );
@@ -74,5 +86,24 @@ describe("createAppClient", () => {
       expect.objectContaining({ stations: expect.any(Array) }),
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the mock's session when the service cannot answer", async () => {
+    // A 503 says the service is down, not that the session is gone, so the mock
+    // keeps the organiser it had and the mocked screens still work.
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const api = createAppClient({ live: true });
+    await api.devLogin("dev-organizer-1");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "claims_unavailable" }, 503));
+    await expect(api.me()).rejects.toThrow();
+
+    await expect(api.listStationBoard()).resolves.toEqual(
+      expect.objectContaining({ stations: expect.any(Array) }),
+    );
+  });
+
+  it("names the live methods, so the notice and the tests read one list", () => {
+    expect([...LIVE_METHODS].sort()).toEqual(["devLogin", "firebaseLogin", "logout", "me"]);
   });
 });
