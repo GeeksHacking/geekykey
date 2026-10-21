@@ -703,64 +703,111 @@ station's tap through `key-api.`, and the log check on the Worker's invocation l
 
 ## 13. The screens' builds on Cloudflare
 
-Two Workers serve the screens, each from its own app folder in this repo (BAC-53):
+This step is Julian's, in the Cloudflare dashboard (BAC-56). It creates two Workers, one for
+each set of screens, and gives each one its address. Neither Worker has a secret, so nothing
+here is copied from Google Cloud.
 
-| Worker | Root directory | Serves | Passes `/api/*` and `/auth/*` to |
-|---|---|---|---|
-| `event-web` | `apps/event-web` | The Event screens, at `event.geekshacking.com` | The Event Service, at the `EVENT_API_URL` in its `wrangler.jsonc` |
-| `geekykey-web` | `apps/geekykey-web` | The GeekyKey screens, at `key.geekshacking.com` | `geekykey-service`, through a service binding, so that Worker must already exist on the account (step 12) |
-
-Neither has a secret, so nothing goes under Variables and Secrets. Their settings are in
-each app's `wrangler.jsonc`, which every deploy applies. Neither has a route yet: Julian
-attaches the domains after the first deploy, and a pull request then adds them to `routes`
-so the next deploy keeps them (BAC-56).
-
-**Creating each Worker.** Neither Worker exists yet, so Julian creates each one by importing
-this repo: Workers & Pages, then Create application, then GitHub, then this repo. The
-project name must be the Worker's name exactly (`event-web` or `geekykey-web`), because a
-build fails when the name in the dashboard doesn't match the `name` in the `wrangler.jsonc`
-in the root directory. The root directory is under Advanced settings. As in step 12, the
-form saves whatever is typed, so each value is typed exactly as below, with nothing around
-it. Save and Deploy runs the first build straight away. The watch paths and the preview
-builds setting appear under Settings, then Builds, once it's saved. If the form has no
-place for the build variables either, the first build runs without them. That does no
-harm, since no address reaches the Worker yet: Julian adds them under Settings, then
-Builds, then runs the build again from the Deployments tab with Retry build.
-
-These are `event-web`'s settings. For `geekykey-web`, put `geekykey-web` wherever
-`event-web` appears.
-
-| Setting | Value | Why |
+| Worker | Its address | What it does |
 |---|---|---|
-| Branch | `main` | Only reviewed code deploys |
-| Enable Preview builds | Unticked | The Worker has no preview URLs (`preview_urls` is `false`) |
-| Root directory | `apps/event-web` | Where its `wrangler.jsonc` is, and where both commands run |
-| Build command | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/event-web && pnpm --filter @geekykey/event-web build` | Installs from the repo's root, where the lockfile is, only what these screens need, and fails rather than change the lockfile, as CI does. Then it typechecks the screens and builds them into `dist/`, which the Worker serves |
-| Deploy command | `pnpm exec wrangler deploy` | The Wrangler version in its `package.json` |
-| Build watch paths, include | `apps/event-web/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` | Its own code and its dependencies. A merge touching none of them doesn't rebuild it |
-| Build watch paths, exclude | None | |
-| Build variable `NODE_VERSION` | `24.21.0` | As in step 12 |
-| Build variable `PNPM_VERSION` | `12.5.1` | As in step 12 |
-| Build variable `SKIP_DEPENDENCY_INSTALL` | `1` | As in step 12 |
-| Build variable `WRANGLER_SEND_METRICS` | `false` | As in step 12 |
-| Build variable `VITE_LIVE_API` | `1` | The screens call their service. Without it, the build ships the in-memory mock, and every page shows made-up data |
-| Build variable `VITE_FIREBASE_API_KEY` | `AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc` | Firebase's web config, from section 7.2 of the API agreement. None of it is secret: it ends up in the page anyway |
-| Build variable `VITE_FIREBASE_AUTH_DOMAIN` | `geekykey-b035a.firebaseapp.com` | The same |
-| Build variable `VITE_FIREBASE_PROJECT_ID` | `geekykey-b035a` | The same |
-| Build variable `VITE_FIREBASE_APP_ID` | `1:468223998400:web:19878ad2672a1c7116b025` | The same |
-| API token | The one Workers Builds makes | |
+| `event-web` | `event.geekshacking.com` | Serves the Event screens, and passes the browser's `/api/*` and `/auth/*` requests on to the Event Service at `event-api.geekshacking.com` |
+| `geekykey-web` | `key.geekshacking.com` | Serves the GeekyKey screens, including the token page at `key.geekshacking.com/t/<UID>`, which is written on every token. It passes `/api/*` and `/auth/*` on to `geekykey-service` (step 12) inside Cloudflare |
 
-All of these go in the Builds page's own Variables and secrets box, not under Variables and
-Secrets: Vite writes them into the screens while it builds, and the Worker itself never
-reads them. A change to one takes effect at the next build, not the next request.
+Do steps 13.1 to 13.3 for `event-web`, then again for `geekykey-web`, then step 13.4 once.
+
+### 13.1 Create the Worker from this repo
+
+1. Workers & Pages, then Create application, then GitHub, then `GeeksHacking/geekykey`.
+2. Fill in the form from the table below. The root directory is under Advanced settings.
+   The form saves whatever is typed without checking it, and in step 12 a stray `/*` stayed
+   in a value. So type each value exactly as it is here, with nothing before or after it.
+3. If the form has a box for build variables, add the ones in the second table. If it
+   doesn't, carry on: they go in at step 13.2.
+4. Select Save and Deploy. The first build starts straight away. If it ran without the
+   build variables, no harm is done, because no address reaches the Worker yet.
+
+| Setting | `event-web` | `geekykey-web` | Why |
+|---|---|---|---|
+| Project name | `event-web` | `geekykey-web` | The build fails if this isn't the `name` in the Worker's `wrangler.jsonc` |
+| Branch | `main` | `main` | Only reviewed code deploys |
+| Root directory | `apps/event-web` | `apps/geekykey-web` | Where the Worker's `wrangler.jsonc` is, and where both commands run |
+| Build command | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/event-web && pnpm --filter @geekykey/event-web build` | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/geekykey-web && pnpm --filter @geekykey/geekykey-web build` | Installs only what these screens need, from the repo's root where the lockfile is, then checks the screens and builds them into `dist/` |
+| Deploy command | `pnpm exec wrangler deploy` | `pnpm exec wrangler deploy` | Uses the Wrangler version in the app's `package.json` |
+| API token | The one Workers Builds makes | The same | |
+
+Both Workers take the same build variables:
+
+| Build variable | Value | Why |
+|---|---|---|
+| `NODE_VERSION` | `24.21.0` | The Node the rest of the repo uses, as in step 12 |
+| `PNPM_VERSION` | `12.5.1` | The pnpm the repo uses. The build image's own is 10.11.1 |
+| `SKIP_DEPENDENCY_INSTALL` | `1` | The build command does the one install |
+| `WRANGLER_SEND_METRICS` | `false` | Wrangler sends anonymous usage data unless told not to |
+| `VITE_LIVE_API` | `1` | The screens call their service. Without it, every page shows made-up data |
+| `VITE_FIREBASE_API_KEY` | `AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc` | Firebase's web config, from section 7.2 of the API agreement. None of the four is secret, since each one ends up in the page anyway |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `geekykey-b035a.firebaseapp.com` | The same |
+| `VITE_FIREBASE_PROJECT_ID` | `geekykey-b035a` | The same |
+| `VITE_FIREBASE_APP_ID` | `1:468223998400:web:19878ad2672a1c7116b025` | The same |
+
+### 13.2 Finish the build settings, and build again
+
+Some settings only appear once the Worker exists. Open the Worker, then Settings, then
+Builds, and set:
+
+| Setting | `event-web` | `geekykey-web` |
+|---|---|---|
+| Build watch paths, include | `apps/event-web/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` | `apps/geekykey-web/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` |
+| Build watch paths, exclude | None | None |
+| Preview builds | Off | Off |
+| Variables and secrets | Every build variable in the table above | The same |
+
+The build variables go in this Builds page's own Variables and secrets box. They don't go
+under Settings, then Variables and Secrets, because Vite writes them into the screens while
+it builds, and the Worker never reads them.
+
+If you added or changed anything here, build again: Deployments, then View build history,
+then Retry build on the latest build. A change to a build variable reaches the screens only
+at the next build. The build has worked when it shows as successful.
+
+### 13.3 Attach the address
+
+Attach it only after a build with every build variable has passed. A build without
+`VITE_LIVE_API` shows made-up data, and the address would show that to anyone.
+
+1. In geekshacking.com's DNS records, look for a record named `event` (for `geekykey-web`,
+   `key`). If there is one, write down what it points to, then delete it. Cloudflare can't
+   attach a Worker's domain to a name that already has a CNAME record. Leave the `*`
+   record alone. Today it sends both names to the CyberPanel server, which answers `404`.
+   The Worker's domain replaces it for that one name only.
+2. Open the Worker, then the Domains tab (in the older layout, Settings, then Domains &
+   Routes). Select Add, then Custom domain, and enter `event.geekshacking.com` (for
+   `geekykey-web`, `key.geekshacking.com`).
+3. Cloudflare creates the DNS record and the certificate itself. The address can take a few
+   minutes to start working.
+
+Take extra care with `key.geekshacking.com`. Every token has `key.geekshacking.com/t/<UID>`
+written on it, and on 8 Oct 2026 you agreed to keep that address working.
+
+### 13.4 Tell Adam
+
+Message Adam once both Workers have built and both addresses are attached. Only you can see
+the builds, so say whether the first ones passed. Adam then does two things:
+
+- He merges a pull request that adds each address to its Worker's `routes`, so that later
+  deploys keep it. Until it merges, a deploy from `main` may take an address off, as one
+  took `event-service.geekshacking.com` off `geekykey-service` in step 12. If an address
+  stops working before then, attach it again as in 13.3.
+- He runs the checks. Both addresses show their screens, reloading
+  `https://key.geekshacking.com/t/04A1B2C3D4E5F6` shows the token page, and
+  `GET /api/v1/me` without a cookie answers `401 unauthenticated` through each address.
+
+### Notes for the team
 
 The four Firebase variables' names are a proposal. FRO-33, which adds the login that reads
-them, hasn't named them yet. If it settles on others, this table changes to match before
-Julian sets them, so he sets them once.
+them, hasn't named them yet. If it settles on others, the table above changes to match
+before Julian sets them, so he sets them once.
 
 Adam ran both build commands and a `wrangler deploy --dry-run` in a clean copy of the repo
-on 20 Oct 2026, with Wrangler 4.151.1. Both passed. The checks after the first deploy, once
-the domains are attached, are BAC-56's.
+on 20 Oct 2026, with Wrangler 4.151.1. Both passed.
 
 ## Day to day
 
