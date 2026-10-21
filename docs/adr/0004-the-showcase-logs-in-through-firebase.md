@@ -36,6 +36,9 @@ path: the request for two OAuth apps had waited since 1 Oct, and the Sprint 2 A/
   the screens drop its button; nothing else changes, since both logins give the same kind of token.
 - Because showcase users aren't Portal users, "Copy claims to the Portal" is dropped, and the Portal's
   tag APIs start empty after the switch. The QR fallback can't scan the Portal's participant QR code.
+- Guests, who log in with one tap and no account, were added on 21 Oct 2026, with a login link
+  that carries a user from the GeekyKey screens to the Event screens
+  ([ADR 0005](0005-guests-reach-the-passport-through-a-login-link.md)).
 - Another team's Event Service at the showcase would log in through the same Firebase project, so its
   user IDs match ours.
 - Events after the showcase log in through the Portal, as ADR 0002 describes, and Firebase's login

@@ -49,6 +49,13 @@ later events. Their user ID comes from that login. At an event, a user is a part
 organizer.
 _Avoid_: portal user, account
 
+**Guest**:
+A user who logged in at the showcase with one tap and no account. Being a guest is how someone
+logged in, not a role: a guest can be a participant like anyone else. Their user ID lasts only as
+long as the browser keeps their login, so a guest who loses it can't get their tokens back, and a
+GeekyKey admin releases them.
+_Avoid_: anonymous user, visitor
+
 **GeekyKey admin**:
 A GeeksHacking person who can release other people's tokens, by tapping them. Not a role at any
 one event, and not in charge of stations, which belong to each event's Event Service.
@@ -76,6 +83,11 @@ _Avoid_: holder
 The GeekyKey Service's page that a phone opens when it taps a token. It lets a user claim an
 unclaimed token, and shows the owner their own token with a way into each event. Anyone else sees
 only that the token is taken; a GeekyKey admin can also release it there.
+
+**Login link**:
+A short-lived link from the GeekyKey Service's pages that logs a user in to an event's screens as
+the same user, so they don't log in a second time. It is the only way a guest reaches an event.
+_Avoid_: hand-over, pass, which reads like passport
 
 **My tokens**:
 The GeekyKey Service's page listing the tokens a user has claimed, where they can release one they
@@ -130,7 +142,9 @@ One activity inside an event that stations feed, such as the passport or a treas
 _Avoid_: experience
 
 **Participant**:
-A person attending the event who collects stamps by tapping a token at stations.
+A person attending the event who collects stamps by tapping a token at stations. At the showcase
+that includes the parents and mentors who visit in the afternoon.
+_Avoid_: visitor
 
 **Organizer**:
 Event staff who create the event's stations, look after them on the day and can log a tap on a

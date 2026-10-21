@@ -574,12 +574,15 @@ Done when the smoke test passes in CI, a station's tap on production goes throug
 
 Changed on 8 Oct: the showcase logs in through Firebase, not the Portal ([ADR 0004](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md)).
 
+*Changed 21 Oct (BAC-54):* the showcase has guests, and login links ([ADR 0005](../../docs/adr/0005-guests-reach-the-passport-through-a-login-link.md)). The showcase's public segment, after lunch, brings parents and mentors whose phones are often not signed in to Google, and a tap is credited only once its token is claimed. So the GeekyKey screens offer "Continue as guest", through Firebase's anonymous sign-in, beside Google and GeeksHacking's login. A guest can't sign in on `event.`, where Firebase would make them a new guest, so the event buttons on the token page and My tokens open a login link that logs any user in there as the same user. The passport asks a user with no name what to call them. The desk still helps people claim in the afternoon. The shapes are in API agreement 0.5 (sections 7.2, 7.4, 8.6, 8.7 and 11.9). Built in BAC-58, BAC-59 and BAC-60, with the screens in Ethan's FRO tickets.
+
 **Before it, the Firebase setup and one check:**
 
 - Adam turns on Google sign-in in our Firebase project and adds `key.geekshacking.com` and `event.geekshacking.com` to its authorised domains (*done 10 Oct*, runbook step 12). Julian links GeeksHacking's billing account to the project, which the Identity Platform upgrade needs (*done by 9 Oct*). *Changed 10 Oct (Adam):* GeeksHacking's login is added now, and Mr Pang is asked afterwards. Qing Guan issues an OIDC client for Firebase's redirect URL, and Adam upgrades the project to Identity Platform and adds it as a provider (runbook step 12). If Mr Pang says no, the provider is turned off and the screens drop its button. OIDC sign-ins are free for 49 users a month, then US$0.015 each.
 - **The check** (Adam, BAC-20): a Worker verifies a Firebase ID token against Google's public keys, and the CPU time per login is measured against the free plan's 10 ms. *Passed 10 Oct:* a median of 1 ms of CPU with Google's keys cached and 2 ms with them fetched, and Google sign-in works on `localhost` ([the check](research/firebase-login-check.md)).
 
-- **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changed with it, in version 0.4 (10 Oct). Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID.
+- **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changed with it, in version 0.4 (10 Oct). Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID and, since 0.5, the login's name, which a login link carries.
+- **Guests and login links** (BAC-54). Adam turns on Firebase's Anonymous provider and the automatic deletion of anonymous accounts after 30 days, and the limit of 100 new accounts an hour from one IP address is raised for the rehearsal and for 17 to 18 Nov (runbook step 12). The login link's key is derived from the Event Service key (agreement 11.9), so there's no new secret. The Event Service keeps each used link's ID until it expires, in a new table, and `users` records whether the user set their name.
 - **The forwarding Workers.** A small `worker/` folder in `apps/event-web` and in `apps/geekykey-web`, with its own Wrangler config (section 5.1). Adam writes them. Afterwards Ethan owns them, and Adam reviews any change to their list of paths.
 - **`apps/geekykey-web`** exists by now, from the screens track, with at least its login and shell.
 
@@ -588,6 +591,7 @@ The deploy: Julian or Qing Guan attaches `event.geekshacking.com` to `event-web`
 Done when:
 
 - logging in and out works on both hostnames, and the passport shows on a phone;
+- on a phone, a guest logs in on `key.`, claims a token, taps it, and opens the passport from "Open Capstone Showcase" as the same user, with their stamp; a Google user gets there without a second login;
 - **the log check** for `Cookie`, with Julian on the three Workers and in Cloud Logging for the Event Service: if a cookie shows, turn invocation logs off on that Worker and replace the service's `SESSION_SECRET`, which logs everyone out;
 - **the passport poll is measured** for section 11.1: Workers requests per poll, and the Event Service's time per poll.
 
@@ -903,6 +907,8 @@ Boost stays on, as the runbook already has it: cold taps were a little faster wi
 - **Whether the Portal's web app is on GeeksHacking's Cloudflare account, and runs a Worker on each page load,** which would count against the same free day (asked 8 Oct, not answered).
 - **The showcase's hours,** and whether Adam or Ethan presents at set times.
 - **What the QR fallback scans.** It takes a user ID only, and the showcase's users aren't Portal users, so the Portal's participant QR code no longer fits. Likely a QR code of the user ID on the passport, which Ethan's team would add.
+
+- **Julian's and Qing Guan's agreement to guests** (ADR 0005), asked at the meeting on Fri 23 Oct, since guests add a way to sign in to what they decided on 8 Oct.
 
 **Open, for Adam:**
 
