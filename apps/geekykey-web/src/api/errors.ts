@@ -47,9 +47,10 @@ export function describeError(error: unknown): string {
       case "unauthenticated":
         return "You are signed out. Sign in again to continue.";
       case "invalid_token":
-        // The Firebase ID token is not signed by Google, is for another project, or has
-        // expired, so signing in again is the fix. Agreement 0.4 names no wording for this.
-        return "Couldn't log you in. Sign in again.";
+        // The token sent to log in cannot be trusted. FRO-33 gives both login errors the
+        // same sentence, and BAC-55's pull request adds invalid_token to section 13's login
+        // line to match.
+        return "Couldn't log you in. Try again.";
       case "forbidden":
         return "Your account is not allowed to do that.";
       case "not_found":

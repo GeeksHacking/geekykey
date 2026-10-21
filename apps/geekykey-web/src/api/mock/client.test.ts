@@ -27,6 +27,18 @@ async function codeOf(work: () => Promise<unknown>): Promise<ErrorCode> {
 }
 
 describe("geekykey-web mock client", () => {
+  describe("sessions", () => {
+    it("signs in as the seeded participant when the login comes from Firebase", async () => {
+      // The mock has no Firebase to ask, so it picks the account the fixtures were built
+      // around, and the screens read /me as they do live.
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+
+      await api.firebaseLogin("id-token");
+
+      await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
+    });
+  });
+
   describe("token UIDs", () => {
     it("normalises separators and case to one token", () => {
       expect(normalizeUid("04:a1:b2:c3:d4:e5:f6")).toBe("04A1B2C3D4E5F6");

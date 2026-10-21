@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/api/errors";
+import { ApiError, AUTH_ERROR_EVENT } from "@/api/errors";
 import type { ErrorCode } from "@/api/types";
 import { createHttpClient } from "@/api/http/client";
 
@@ -138,6 +138,65 @@ describe("geekykey-web http client", () => {
     const api = createHttpClient();
 
     await expect(api.me()).rejects.toMatchObject({ status: 503, code: "claims_unavailable" });
+  });
+
+  it("gives a 401 on the login invalid_token, not a lost session", async () => {
+    // Agreement 7.2: the login answers 401 invalid_token. Every other 401 is
+    // unauthenticated, which the session provider reads as a signed-out user.
+    stubFetch(() => new Response("not json", { status: 401 }));
+    const api = createHttpClient();
+
+    await expect(api.firebaseLogin("id-token")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+      code: "invalid_token",
+    });
+  });
+
+  it("gives a 503 on the login login_unavailable, not the claims stand-in", async () => {
+    // Agreement 7.2: the login answers 503 login_unavailable, so Google's keys could not be
+    // fetched and the token may be fine.
+    stubFetch(() => new Response("not json", { status: 503 }));
+    const api = createHttpClient();
+
+    await expect(api.firebaseLogin("id-token")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 503,
+      code: "login_unavailable",
+    });
+  });
+
+  it("keeps the code a readable body on the login says", async () => {
+    // The Worker in front of the screens answers 503 service_unavailable under /api and
+    // /auth (agreement 2), and the service's own codes are the truth, so a body the client
+    // can read wins over the endpoint's table.
+    stubFetch(() => json({ error: "unauthenticated" }, 401));
+    const api = createHttpClient();
+
+    await expect(api.firebaseLogin("id-token")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+      code: "unauthenticated",
+    });
+  });
+
+  it("does not publish the auth error for a refused token", async () => {
+    // publishAuthError fires on unauthenticated and forbidden, and the session provider
+    // reads it as a signed-out user. A refused token is a failed sign-in, not a lost
+    // session, so the person stays signed in and can try again.
+    const seen: unknown[] = [];
+    const listener = (event: Event) => seen.push((event as CustomEvent).detail);
+    window.addEventListener(AUTH_ERROR_EVENT, listener);
+    try {
+      stubFetch(() => new Response("not json", { status: 401 }));
+      await createHttpClient()
+        .firebaseLogin("id-token")
+        .catch(() => undefined);
+    } finally {
+      window.removeEventListener(AUTH_ERROR_EVENT, listener);
+    }
+
+    expect(seen).toEqual([]);
   });
 
   it("turns a transport failure into a NetworkError", async () => {

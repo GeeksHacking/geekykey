@@ -44,10 +44,12 @@ describe("API error messages", () => {
     );
   });
 
-  it("tells a bad Firebase token to sign in again, not just to retry", () => {
-    // The token is refused rather than unverifiable, so "Try again" alone would mislead.
+  it("uses the agreement's wording for invalid_token, the same sentence as login_unavailable", () => {
+    // FRO-33 gives both login errors one sentence, so a refused token and an unverifiable
+    // one read the same. Ethan approved it on 20 Oct, and BAC-55's pull request adds
+    // invalid_token to section 13's login line to match.
     expect(describeError(new ApiError(401, "invalid_token"))).toBe(
-      "Couldn't log you in. Sign in again.",
+      "Couldn't log you in. Try again.",
     );
   });
 });

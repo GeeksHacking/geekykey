@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, NetworkError } from "@/api/errors";
+import { ApiError, AUTH_ERROR_EVENT, NetworkError } from "@/api/errors";
 import { createHttpClient } from "@/api/http/client";
 import type { ErrorCode } from "@/api/types";
 
@@ -121,6 +121,54 @@ describe("HTTP client transport", () => {
     const error = await apiError(createHttpClient().listTaps());
     expect(error.code).toBe("event_service_unavailable");
     expect(error.status).toBe(503);
+  });
+
+  it("gives a 401 on the login invalid_token, not a lost session", async () => {
+    // Agreement 7.2: the login answers 401 invalid_token. Every other 401 is
+    // unauthenticated, which the session provider reads as a signed-out user.
+    fetchMock.mockResolvedValue(new Response("not json", { status: 401 }));
+
+    const error = await apiError(createHttpClient().firebaseLogin("id-token"));
+    expect(error.code).toBe("invalid_token");
+    expect(error.status).toBe(401);
+  });
+
+  it("gives a 503 on the login login_unavailable, not a service that did not answer", async () => {
+    // Agreement 7.2: the login answers 503 login_unavailable, so Google's keys could not be
+    // fetched and the token may be fine.
+    fetchMock.mockResolvedValue(new Response("not json", { status: 503 }));
+
+    const error = await apiError(createHttpClient().firebaseLogin("id-token"));
+    expect(error.code).toBe("login_unavailable");
+    expect(error.status).toBe(503);
+  });
+
+  it("keeps the code a readable body on the login says", async () => {
+    // The Worker in front of the screens answers 503 service_unavailable under /api and
+    // /auth (agreement 2), and the service's own codes are the truth, so a body the client
+    // can read wins over the endpoint's table.
+    fetchMock.mockResolvedValue(response({ error: "unauthenticated" }, 401));
+
+    const error = await apiError(createHttpClient().firebaseLogin("id-token"));
+    expect(error.code).toBe("unauthenticated");
+    expect(error.status).toBe(401);
+  });
+
+  it("does not publish the auth error for a refused token", async () => {
+    // publishAuthError fires on unauthenticated and forbidden, and the session provider
+    // reads it as a signed-out user. A refused token is a failed sign-in, not a lost
+    // session, so the person stays signed in and can try again.
+    const seen: unknown[] = [];
+    const listener = (event: Event) => seen.push((event as CustomEvent).detail);
+    window.addEventListener(AUTH_ERROR_EVENT, listener);
+    try {
+      fetchMock.mockResolvedValue(new Response("not json", { status: 401 }));
+      await apiError(createHttpClient().firebaseLogin("id-token"));
+    } finally {
+      window.removeEventListener(AUTH_ERROR_EVENT, listener);
+    }
+
+    expect(seen).toEqual([]);
   });
 
   it("reads every code from the error body, so a missing set entry cannot hide", async () => {

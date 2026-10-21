@@ -21,6 +21,13 @@ export interface ApiClient {
   /** POST /auth/dev-login. Local development only. */
   devLogin(userId: string): Promise<void>;
 
+  /**
+   * POST /auth/firebase (agreement 7.2). Signs in with the ID token Firebase's web SDK
+   * gave the screens. The service checks it and sets its own cookie, and the screens read
+   * GET /api/v1/me as usual afterwards.
+   */
+  firebaseLogin(idToken: string): Promise<void>;
+
   /** POST /auth/logout */
   logout(): Promise<void>;
 
