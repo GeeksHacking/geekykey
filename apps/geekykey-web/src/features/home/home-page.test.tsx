@@ -21,6 +21,21 @@ import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
 
 /*
+  Whether a live build still sends releaseToken to the mock. The rest of the module
+  is the real one, so only this test's switch differs from the app.
+*/
+const releaseLeftOnMock = vi.hoisted(() => ({ value: false }));
+
+vi.mock("@/api/mode", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/mode")>();
+  return {
+    ...actual,
+    isLeftOnMock: (method: Parameters<typeof actual.isLeftOnMock>[0]) =>
+      method === "releaseToken" ? releaseLeftOnMock.value : actual.isLeftOnMock(method),
+  };
+});
+
+/*
   My tokens (FRO-27): the list, the empty state and a release, one test per
   acceptance case. The screen is rendered behind the real gate and the real
   session, as it is in the app: HomePage's useMe() only exists once the session
@@ -39,6 +54,7 @@ let api: MockApiClient;
 
 beforeEach(() => {
   api = createMockClient({ latencyMs: [0, 0], storage: null });
+  releaseLeftOnMock.value = false;
 });
 
 function renderHome() {
@@ -95,6 +111,18 @@ describe("My tokens", () => {
     expect(oldest.compareDocumentPosition(newest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Release" })).toHaveLength(2);
     expect(screen.getAllByText(/^Claimed /)).toHaveLength(2);
+  });
+
+  it("hides Release while a live build still sends it to the mock", async () => {
+    // The rows are the service's tokens, so a Release on the mock would act on a
+    // sample token instead of the one on screen.
+    releaseLeftOnMock.value = true;
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+
+    expect(await screen.findByText(OLDEST)).toBeInTheDocument();
+    expect(screen.getByText(NEWEST)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
   });
 
   it("says what to do next when the user holds no tokens", async () => {

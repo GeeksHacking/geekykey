@@ -136,6 +136,21 @@ describe("createAppClient", () => {
     );
   });
 
+  it("keeps the mock's session when a dev login fails", async () => {
+    // The failed login leaves the service's cookie as it was, so the mock keeps
+    // the user it had.
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const client = appClient(true);
+    await client.devLogin(SEEDED_PARTICIPANT_ID);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
+    await expect(client.devLogin("someone-else")).rejects.toThrow();
+
+    await expect(client.getToken("04A1B2C3D4E5F6")).resolves.toEqual(
+      expect.objectContaining({ owner: "you" }),
+    );
+  });
+
   it("drops the mock's session when a Firebase login starts", async () => {
     // A /me that cannot answer once the login is through must not leave the mock
     // signed in as the user who was there before.
@@ -163,7 +178,7 @@ describe("createAppClient", () => {
     await expect(client.getToken("04A1B2C3D4E5F6")).rejects.toThrow("unauthenticated");
   });
 
-  it("names the live methods, so nothing waits for a list of its own", () => {
+  it("names the live methods, so a method that goes live changes them all at once", () => {
     expect([...LIVE_METHODS].sort()).toEqual(["devLogin", "firebaseLogin", "logout", "me"]);
   });
 

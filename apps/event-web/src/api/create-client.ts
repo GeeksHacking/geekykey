@@ -57,14 +57,11 @@ function liveMethods(
       }
     },
 
+    // A dev login that fails leaves the service's cookie as it was, so the mock
+    // keeps its session too, as me does on anything but a 401.
     devLogin: async (userId) => {
-      try {
-        await http.devLogin(userId);
-        mock.setSession(userId);
-      } catch (error) {
-        mock.setSession(null);
-        throw error;
-      }
+      await http.devLogin(userId);
+      mock.setSession(userId);
     },
 
     // The service sets its own cookie, so the screens keep nothing. The mock's

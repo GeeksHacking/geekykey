@@ -6,8 +6,8 @@ import { DataSourceNotice } from "@/components/layout/data-source-notice";
 
 describe("data source notice", () => {
   it("distinguishes mock-only mode from a staged live slice", () => {
-    expect(dataSourceMessage(false)).toContain("fixture data");
-    expect(dataSourceMessage(true)).toContain("resource data is still mocked");
+    expect(dataSourceMessage(false)).toContain("sample data");
+    expect(dataSourceMessage(true)).toContain("sample stations and taps");
   });
 
   it("renders an accessible persistent notice", () => {

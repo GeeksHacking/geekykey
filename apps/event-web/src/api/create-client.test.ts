@@ -105,6 +105,21 @@ describe("createAppClient", () => {
     );
   });
 
+  it("keeps the mock's session when a dev login fails", async () => {
+    // The failed login leaves the service's cookie as it was, so the mock keeps
+    // the organiser it had.
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const api = createAppClient({ live: true });
+    await api.devLogin("dev-organizer-1");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
+    await expect(api.devLogin("dev-user-1")).rejects.toThrow();
+
+    await expect(api.listStationBoard()).resolves.toEqual(
+      expect.objectContaining({ stations: expect.any(Array) }),
+    );
+  });
+
   it("drops the mock's session when a Firebase login starts", async () => {
     // A /me that cannot answer once the login is through must not leave the mock
     // signed in as the user who was there before.

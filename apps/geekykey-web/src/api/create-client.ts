@@ -13,7 +13,7 @@ import { createMockClient, type MockControls } from "@/api/mock/client";
   checkpoint 6. See "Wiring an endpoint to the real backend" in
   apps/event-web/CLAUDE.md.
 */
-const LIVE_API = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
+export const LIVE_API = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
 
 export interface AppClientOptions {
   /** Overrides VITE_LIVE_API in tests; application code uses the environment default. */
@@ -30,8 +30,8 @@ export interface AppClientOptions {
 const LIVE_METHOD_NAMES = ["me", "devLogin", "firebaseLogin", "logout"] as const;
 
 /**
- * The live methods, as a set. The "Demo data" notice and the tests read this, so
- * they never need a list of their own.
+ * The live methods, as a set. The "Demo data" notice, My tokens' Release and the
+ * tests read this, so a method that goes live changes them all at once.
  */
 export const LIVE_METHODS: ReadonlySet<keyof ApiClient> = new Set(LIVE_METHOD_NAMES);
 
@@ -58,14 +58,11 @@ function liveMethods(
       }
     },
 
+    // A dev login that fails leaves the service's cookie as it was, so the mock
+    // keeps its session too, as me does on anything but a 401.
     devLogin: async (userId) => {
-      try {
-        await http.devLogin(userId);
-        mock.setSession(userId);
-      } catch (error) {
-        mock.setSession(null);
-        throw error;
-      }
+      await http.devLogin(userId);
+      mock.setSession(userId);
     },
 
     // The service sets its own cookie, so the screens keep nothing. The mock's

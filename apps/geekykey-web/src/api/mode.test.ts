@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { ApiClient } from "@/api/client";
-import { dataSourceMessage, isMockData } from "@/api/mode";
+import { dataSourceMessage, isLeftOnMock, isMockData } from "@/api/mode";
 
 describe("frontend data source mode", () => {
   it("marks token data as demo in full mock mode", () => {
     expect(isMockData(false)).toBe(true);
-    expect(dataSourceMessage(false)).toContain("fixture data");
+    expect(dataSourceMessage(false)).toBe("Demo data. This screen shows sample data.");
   });
 
   it("uses no em-dash or en-dash in either notice", () => {
@@ -18,9 +18,10 @@ describe("frontend data source mode", () => {
   });
 
   it("keeps the notice while any token method is still mocked", () => {
-    // Matched case-insensitively: the sentence after the full stop is capitalised, and
-    // the assertion is about which notice this is, not how it is punctuated.
-    expect(dataSourceMessage(true)).toMatch(/token data is still mocked/i);
+    // Section 13's wording, exactly.
+    expect(dataSourceMessage(true)).toBe(
+      "Demo data. This page shows sample tokens, so claiming or releasing one changes nothing.",
+    );
     const liveMethods = new Set<keyof ApiClient>(["me", "devLogin", "firebaseLogin", "logout"]);
 
     expect(isMockData(true, liveMethods)).toBe(true);
@@ -42,5 +43,14 @@ describe("frontend data source mode", () => {
     ]);
 
     expect(isMockData(true, liveMethods)).toBe(true);
+  });
+
+  it("leaves a method on the mock only in a live build that has not wired it", () => {
+    const liveMethods = new Set<keyof ApiClient>(["me", "devLogin", "firebaseLogin", "logout"]);
+
+    expect(isLeftOnMock("releaseToken", true, liveMethods)).toBe(true);
+    expect(isLeftOnMock("me", true, liveMethods)).toBe(false);
+    // A mock build has no service answers to mix the mock's up with.
+    expect(isLeftOnMock("releaseToken", false, liveMethods)).toBe(false);
   });
 });

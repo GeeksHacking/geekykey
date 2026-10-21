@@ -45,7 +45,9 @@ the token lookup, claiming and releasing (agreement 8.2, 8.3 and 8.5) stay on th
 checkpoint 6. Until then the token page answers from the mock's fixtures while My tokens
 answers from the service, so the two do not agree about who owns a token. The token page says
 where its data came from in a "Demo data" notice, the way the Event screens' organiser
-console does, so a claim there cannot look like a claim on the service.
+console does, so a claim there cannot look like a claim on the service. The notice's wording
+is section 13's. My tokens lists the service's tokens, so a live build hides its Release
+while `releaseToken` is still on the mock (`isLeftOnMock` in `src/api/mode.ts`).
 
 `pnpm dev` runs the app on the mock. `pnpm dev:live` sends the live slice to the service, and
 `mise run dev` starts it that way with the rest of the stack.
