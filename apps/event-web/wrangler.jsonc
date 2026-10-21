@@ -19,8 +19,9 @@
   "workers_dev": false,
   "preview_urls": false,
 
-  // No routes yet. event.geekshacking.com goes here once Julian has attached it (BAC-56),
-  // so that a deploy keeps it.
+  // Julian attached this address in the dashboard (BAC-56). It's written here too, because a
+  // deploy removes any address that isn't.
+  "routes": [{ "pattern": "event.geekshacking.com", "custom_domain": true }],
 
   "assets": {
     "directory": "./dist",
