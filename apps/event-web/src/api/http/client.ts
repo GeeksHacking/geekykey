@@ -116,9 +116,6 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       await send("/auth/logout", { method: "POST" });
     },
 
-    // A URL for the browser to visit, not a request, so this one needs no send().
-    loginUrl: (returnTo) => `${baseUrl}/auth/login?return_to=${encodeURIComponent(returnTo)}`,
-
     // Agreement 9.2. The Event Service answers with its own registered stations, so
     // this is the only call to this path that reads.
     listStationBoard: () =>

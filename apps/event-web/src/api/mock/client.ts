@@ -260,8 +260,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         setSession(null);
       }),
 
-    loginUrl: (returnTo) => `/auth/login?return_to=${encodeURIComponent(returnTo)}`,
-
     listStationBoard: () =>
       call((): EventStationBoardResponse => {
         currentOrganizer();

@@ -31,10 +31,6 @@ function liveMethods(http: ApiClient): Partial<ApiClient> {
     me: () => http.me(),
     devLogin: (userId) => http.devLogin(userId),
     logout: () => http.logout(),
-
-    // loginUrl builds a URL and sends no request, so both clients return the
-    // same string. It sits here as the worked example of the pattern.
-    loginUrl: (returnTo) => http.loginUrl(returnTo),
   };
 }
 
