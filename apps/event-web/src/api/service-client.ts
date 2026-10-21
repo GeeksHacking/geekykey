@@ -1,10 +1,7 @@
 import type { ApiClient } from "@/api/client";
 
 /** Session calls are shared by both services during the staged migration. */
-export type SessionApi = Pick<
-  ApiClient,
-  "me" | "devLogin" | "firebaseLogin" | "logout" | "loginUrl"
->;
+export type SessionApi = Pick<ApiClient, "me" | "devLogin" | "firebaseLogin" | "logout">;
 
 /**
  * The Event Service owns every station call, 9.2 and 9.7 to 9.9, plus the tap log, stats,
@@ -41,7 +38,6 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       devLogin: api.devLogin.bind(api),
       firebaseLogin: api.firebaseLogin.bind(api),
       logout: api.logout.bind(api),
-      loginUrl: api.loginUrl.bind(api),
     },
     event: {
       listStationBoard: api.listStationBoard.bind(api),

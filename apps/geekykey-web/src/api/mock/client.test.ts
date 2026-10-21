@@ -297,11 +297,6 @@ describe("geekykey-web mock client", () => {
       expect(await codeOf(() => api.me())).toBe("unauthenticated");
     });
 
-    it("builds the login URL from a return path", () => {
-      const api = setup();
-      expect(api.loginUrl("/t/04A1B2C3D4E5F6")).toBe("/auth/login?return_to=%2Ft%2F04A1B2C3D4E5F6");
-    });
-
     it("fails exactly the next call with the given code", async () => {
       const api = setup();
       api.mock.failNext("rate_limited");

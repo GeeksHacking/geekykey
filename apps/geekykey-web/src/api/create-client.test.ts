@@ -41,7 +41,6 @@ describe("createAppClient", () => {
         "devLogin",
         "firebaseLogin",
         "getToken",
-        "loginUrl",
         "logout",
         "me",
         "releaseToken",

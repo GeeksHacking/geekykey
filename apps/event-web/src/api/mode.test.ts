@@ -21,7 +21,7 @@ describe("frontend data source mode", () => {
     // Matched case-insensitively: the sentence after the full stop is capitalised, and the
     // assertion is about which notice this is, not how it is punctuated.
     expect(dataSourceMessage(true)).toMatch(/organiser resource data/i);
-    const liveMethods = new Set<keyof ApiClient>(["me", "devLogin", "logout", "loginUrl"]);
+    const liveMethods = new Set<keyof ApiClient>(["me", "devLogin", "logout"]);
 
     expect(isMockData(true, liveMethods)).toBe(true);
 
@@ -43,7 +43,6 @@ describe("frontend data source mode", () => {
       "me",
       "devLogin",
       "logout",
-      "loginUrl",
       "createStation",
       "replaceStationKey",
       "listTaps",
@@ -60,7 +59,6 @@ describe("frontend data source mode", () => {
       "me",
       "devLogin",
       "logout",
-      "loginUrl",
       "createStation",
       "replaceStationKey",
       "listStationBoard",

@@ -110,9 +110,6 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     logout: () => sendNoContent("/auth/logout", { method: "POST" }),
 
-    // A URL for the browser to visit, not a request, so this one needs no send().
-    loginUrl: (returnTo) => `${baseUrl}/auth/login?return_to=${encodeURIComponent(returnTo)}`,
-
     getToken: (uid) => sendJson<unknown>(tokenPath(uid)).then(parseTokenLookupResponse),
 
     // 201 when newly claimed, 200 when already yours. The body is the same either way.

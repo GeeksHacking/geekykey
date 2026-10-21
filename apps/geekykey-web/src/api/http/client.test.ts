@@ -89,14 +89,6 @@ describe("geekykey-web http client", () => {
     expect(calls[0]?.url).toBe("/api/v1/tokens/04A1B2C3D4E5F6");
   });
 
-  it("builds the login URL without sending a request", () => {
-    const { calls } = stubFetch(() => json({}));
-    const api = createHttpClient();
-
-    expect(api.loginUrl("/t/04A1B2C3D4E5F6")).toBe("/auth/login?return_to=%2Ft%2F04A1B2C3D4E5F6");
-    expect(calls).toHaveLength(0);
-  });
-
   it("turns a login_unavailable body into that code", async () => {
     // Agreement 0.4 section 7.2, POST /auth/firebase: Google's keys could not be fetched.
     stubFetch(() => json({ error: "login_unavailable" }, 503));
