@@ -804,9 +804,9 @@ the builds, so say whether the first ones passed. Adam then does two things:
 
 ### Notes for the team
 
-The four Firebase variables' names are a proposal. FRO-33, which adds the login that reads
-them, hasn't named them yet. If it settles on others, the table above changes to match
-before Julian sets them, so he sets them once.
+Julian set up both Workers and attached both addresses on 21 Oct 2026. Adam's checks
+from 13.4 passed the same day, and a pull request put both addresses in the Workers'
+`routes`.
 
 Adam ran both build commands and a `wrangler deploy --dry-run` in a clean copy of the repo
 on 20 Oct 2026, with Wrangler 4.151.1. Both passed.

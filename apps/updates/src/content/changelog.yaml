@@ -1233,3 +1233,12 @@
     0.1 seconds on a tap, and the rest depends on which Cloudflare data centre answers it: under
     0.7 seconds through Singapore, and up to 3.7 through Paris or Marseille. A Worker setting that
     runs the GeekyKey Service near Cloud Run may fix the slow ones, and is open for a decision.
+
+- id: screens-deployed
+  date: 2026-10-21
+  area: frontend
+  change: >-
+    Both sets of screens are live: the Event screens at event.geekshacking.com and the GeekyKey
+    screens at key.geekshacking.com, each built from main by Cloudflare. Both show the login
+    screen. The Event screens ask the real Event Service who is logged in. The GeekyKey screens
+    still run on mock data until their calls go live.
