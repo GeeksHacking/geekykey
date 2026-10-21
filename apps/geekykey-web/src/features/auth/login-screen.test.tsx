@@ -1,20 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createMockClient, type MockApiClient } from "@/api/mock/client";
-import { SEEDED_ADMIN_ID } from "@/api/mock/fixtures";
+import { createMockClient } from "@/api/mock/client";
+import type { MeResponse } from "@/api/types";
+import { ApiProvider } from "@/api/provider";
 import { LoginScreen } from "@/features/auth/login-screen";
-import { createTestProviders } from "@/test/providers";
-
-Object.defineProperty(globalThis, "ResizeObserver", {
-  configurable: true,
-  value: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-});
+import { SessionContext, type SessionState } from "@/lib/session";
+import { ThemeProvider } from "@/lib/theme-provider";
 
 const { goAfterLogin } = vi.hoisted(() => ({ goAfterLogin: vi.fn() }));
 
@@ -22,105 +14,93 @@ vi.mock("@/features/auth/use-go-after-login", () => ({
   useGoAfterLogin: () => goAfterLogin,
 }));
 
+vi.mock("firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
+vi.mock("firebase/auth", () => ({
+  getAuth: vi.fn(() => ({ name: "auth" })),
+  GoogleAuthProvider: vi.fn(),
+  OAuthProvider: vi.fn(),
+  signInWithPopup: vi.fn(),
+  signOut: vi.fn(),
+}));
+
+// The screen only needs the module's config check. The buttons' own behaviour is in
+// features/auth/firebase-sign-in.test.tsx.
+vi.mock("@/lib/firebase", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/firebase")>()),
+  hasFirebaseConfig: () => true,
+}));
+
+const me: MeResponse = {
+  user: { id: "dev-user-1", is_geekykey_admin: false },
+  tokens: [],
+  events: [],
+};
+
+function session(status: SessionState["status"]): SessionState {
+  return {
+    status,
+    me: status === "authenticated" ? me : null,
+    error: undefined,
+    refresh: async () => {},
+    signIn: async () => me,
+    signInWithFirebase: async () => me,
+    signOut: async () => {},
+  };
+}
+
+function renderLogin(returnTo?: string) {
+  const api = createMockClient({ latencyMs: [0, 0], storage: null });
+  const view = (status: SessionState["status"]) => (
+    <ThemeProvider>
+      <ApiProvider client={api}>
+        <SessionContext.Provider value={session(status)}>
+          <LoginScreen returnTo={returnTo} />
+        </SessionContext.Provider>
+      </ApiProvider>
+    </ThemeProvider>
+  );
+  const { rerender } = render(view("anonymous"));
+  return { api, rerender, view };
+}
+
 beforeEach(() => {
   goAfterLogin.mockReset();
 });
 
-function renderLogin(returnTo?: string) {
-  const api: MockApiClient = createMockClient({ latencyMs: [0, 0], storage: null });
-  const { Providers } = createTestProviders(api, { session: true });
-  render(
-    <Providers>
-      <LoginScreen returnTo={returnTo} />
-    </Providers>,
-  );
-  return { api };
-}
-
-/**
- * Opens the account list with the keyboard rather than a click. A Radix Select opened by a
- * synthetic click only mounts in the first test of a file, so a later test would fail with
- * "element not found" for a reason that has nothing to do with the app.
- */
-async function openAccountList(user: ReturnType<typeof userEvent.setup>) {
-  screen.getByRole("combobox").focus();
-  await user.keyboard("{Enter}");
-  return screen.findByRole("option", { name: /Alex Tan/ });
-}
-
 describe("LoginScreen", () => {
-  it("builds the sign-in address from the login URL method", async () => {
-    const { api } = renderLogin("/t/04A1B2C3D4E5F6");
+  it("navigates exactly once after a successful sign-in", async () => {
+    const { rerender, view } = renderLogin("/t/04A1B2C3D4E5F6");
+    expect(goAfterLogin).not.toHaveBeenCalled();
 
-    const link = await screen.findByRole("link", { name: "Sign in with GeeksHacking" });
-    // The token page is why return_to matters (agreement 7.2).
-    expect(link).toHaveAttribute("href", api.loginUrl("/t/04A1B2C3D4E5F6"));
-    expect(link.getAttribute("href")).toContain("return_to=%2Ft%2F04A1B2C3D4E5F6");
-  });
-
-  it("falls back to the home page when there is no return_to", async () => {
-    const { api } = renderLogin();
-
-    const link = await screen.findByRole("link", { name: "Sign in with GeeksHacking" });
-    expect(link).toHaveAttribute("href", api.loginUrl("/"));
-  });
-
-  it("offers the two seeded accounts and names the admin one", async () => {
-    const user = userEvent.setup();
-    renderLogin();
-
-    await openAccountList(user);
-
-    // The visible label and the seeded ID are both on the option, so a developer can see
-    // which account they are about to use.
-    expect(await screen.findByRole("option", { name: /Alex Tan, dev-user-1/ })).toBeInTheDocument();
-    expect(
-      screen.getByRole("option", { name: new RegExp(`Priya Raman, ${SEEDED_ADMIN_ID}`) }),
-    ).toHaveTextContent("GeekyKey admin");
-    expect(screen.getAllByRole("option")).toHaveLength(2);
-  });
-
-  it("signs in as the chosen account and hands navigation over once", async () => {
-    const user = userEvent.setup();
-    renderLogin("/t/04A1B2C3D4E5F6");
-
-    await openAccountList(user);
-    await user.click(
-      screen.getByRole("option", { name: new RegExp(`Priya Raman, ${SEEDED_ADMIN_ID}`) }),
-    );
-    await user.click(screen.getByRole("button", { name: "Use this account" }));
+    rerender(view("authenticated"));
 
     await waitFor(() => expect(goAfterLogin).toHaveBeenCalledTimes(1));
-    // The return survives the round trip through sign-in, which is what the token page needs.
     expect(goAfterLogin).toHaveBeenCalledWith("/t/04A1B2C3D4E5F6");
-  });
-
-  it("signs in as the default account", async () => {
-    const user = userEvent.setup();
-    renderLogin("/t/04A1B2C3D4E5F6");
-
-    await user.click(screen.getByRole("button", { name: "Use this account" }));
-
-    await waitFor(() => expect(goAfterLogin).toHaveBeenCalledTimes(1));
-    // The return survives the round trip through sign-in, which is what the token page needs.
-    expect(goAfterLogin).toHaveBeenCalledWith("/t/04A1B2C3D4E5F6");
-  });
-
-  it("does not navigate again when the session republishes the same user", async () => {
-    const user = userEvent.setup();
-    renderLogin();
-    await user.click(screen.getByRole("button", { name: "Use this account" }));
-
-    await waitFor(() => expect(goAfterLogin).toHaveBeenCalledTimes(1));
-    await user.click(document.body);
+    rerender(view("authenticated"));
     expect(goAfterLogin).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the dev form only in development", async () => {
+  it("says what signing in is for, without promising an account", () => {
     renderLogin();
 
-    // import.meta.env.DEV is true under vitest, so the form is present here. The production
-    // branch is a build-time constant; a production build drops it, which the build proves.
-    expect(await screen.findByRole("heading", { name: "Local development" })).toBeInTheDocument();
+    // Agreement 7.2: Google's sign-in is for anyone, and GeeksHacking's own login is only
+    // offered once its provider is set up.
+    expect(screen.getByText("Sign in to see your tokens.")).toBeInTheDocument();
+  });
+
+  it("offers the Firebase sign-in", () => {
+    renderLogin();
+
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+  });
+
+  it("points the local form at the buttons above it", () => {
+    renderLogin();
+
+    expect(
+      screen.getByText(
+        "Use a seeded account. The buttons above are how the showcase signs you in.",
+      ),
+    ).toBeInTheDocument();
   });
 });

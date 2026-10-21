@@ -59,19 +59,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(AUTH_ERROR_EVENT, onAuthError);
   }, [clearIdentityQueries, queryClient]);
 
+  const clearForSignIn = useCallback(() => {
+    // Cancel a pre-login poll so its late response cannot overwrite the new identity.
+    void queryClient.cancelQueries({ queryKey: queryKeys.me });
+    // Clear before the request so a failed sign-in cannot leave the old account visible.
+    queryClient.setQueryData(queryKeys.me, null);
+    setAuthorizationFailure(undefined);
+    clearIdentityQueries();
+  }, [clearIdentityQueries, queryClient]);
+
   const signIn = useMutation({
     mutationFn: async (userId: string) => {
       await api.devLogin(userId);
       return api.me();
     },
-    onMutate: () => {
-      // Cancel a pre-login poll so its late response cannot overwrite the new identity.
-      void queryClient.cancelQueries({ queryKey: queryKeys.me });
-      // Clear before the request so a failed sign-in cannot leave the old account visible.
-      queryClient.setQueryData(queryKeys.me, null);
-      setAuthorizationFailure(undefined);
-      clearIdentityQueries();
+    onMutate: clearForSignIn,
+    onSuccess: (data) => queryClient.setQueryData(queryKeys.me, data),
+  });
+
+  // Agreement 7.2: the screens sign in with the ID token Firebase's web SDK gave them, and
+  // the service sets its own cookie. The screens read GET /api/v1/me as usual afterwards.
+  // FRO-59's returning-user sign-in comes through here too, so there is one path to the
+  // service.
+  const signInWithFirebase = useMutation({
+    mutationFn: async (idToken: string) => {
+      await api.firebaseLogin(idToken);
+      return api.me();
     },
+    onMutate: clearForSignIn,
     onSuccess: (data) => queryClient.setQueryData(queryKeys.me, data),
   });
 
@@ -122,7 +137,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // hands the null session to React on a later tick than the mutation promise, so a screen mounted
   // in that gap must not redirect or render the previous user.
   const status: SessionStatus =
-    me.isPending || signIn.isPending || signOut.isPending
+    me.isPending || signIn.isPending || signInWithFirebase.isPending || signOut.isPending
       ? "loading"
       : me.isError && me.data === undefined
         ? "error"
@@ -134,10 +149,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       me: me.data ?? null,
-      error: me.error ?? signIn.error ?? signOut.error,
+      error: me.error ?? signIn.error ?? signInWithFirebase.error ?? signOut.error,
       authorizationError,
       refresh,
       signIn: signIn.mutateAsync,
+      signInWithFirebase: signInWithFirebase.mutateAsync,
       signOut: signOut.mutateAsync,
     }),
     [
@@ -147,6 +163,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       authorizationError,
       signIn.error,
       signIn.mutateAsync,
+      signInWithFirebase.error,
+      signInWithFirebase.mutateAsync,
       signOut.error,
       signOut.mutateAsync,
       refresh,

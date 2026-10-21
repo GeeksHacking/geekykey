@@ -27,6 +27,11 @@ export interface SessionState {
   refresh: () => Promise<void>;
   /** Dev-login with a user ID. Resolves with the fresh /me payload. */
   signIn: (userId: string) => Promise<MeResponse>;
+  /**
+   * Sign in with the ID token Firebase's web SDK gave the screens (agreement 7.2).
+   * Resolves with the fresh /me payload.
+   */
+  signInWithFirebase: (idToken: string) => Promise<MeResponse>;
   signOut: () => Promise<void>;
 }
 

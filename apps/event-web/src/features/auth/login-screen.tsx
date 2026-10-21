@@ -1,15 +1,13 @@
 import { useEffect, useRef } from "react";
 
-import { useApi } from "@/api/context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Wordmark } from "@/components/layout/wordmark";
-import { Button } from "@/components/ui/button";
 import { DevLoginForm } from "@/features/auth/dev-login-form";
+import { FirebaseSignIn } from "@/features/auth/firebase-sign-in";
 import { useGoAfterLogin } from "@/features/auth/use-go-after-login";
 import { useSession } from "@/lib/session";
 
 export function LoginScreen({ returnTo }: { returnTo?: string }) {
-  const api = useApi();
   const session = useSession();
   const goAfterLogin = useGoAfterLogin();
   const navigated = useRef(false);
@@ -36,12 +34,8 @@ export function LoginScreen({ returnTo }: { returnTo?: string }) {
       <h1 className="mt-10 text-3xl font-semibold tracking-heading">
         Tap in, collect stamps, earn points.
       </h1>
-      <p className="mt-3 text-muted-foreground">
-        Sign in with your GeeksHacking account to open your passport for this event.
-      </p>
-      <Button asChild size="lg" className="mt-8 w-full">
-        <a href={api.loginUrl(returnTo ?? "/")}>Sign in with GeeksHacking</a>
-      </Button>
+      <p className="mt-3 text-muted-foreground">Sign in to open your passport for this event.</p>
+      <FirebaseSignIn />
       {import.meta.env.DEV ? <DevLoginForm /> : null}
     </main>
   );

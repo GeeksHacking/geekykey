@@ -93,4 +93,15 @@ describe("the Firebase module", () => {
     // The provider's id is Firebase's, and the runbook's step 12 sets it up under it.
     expect(OAuthProvider).toHaveBeenCalledWith("oidc.geekshacking");
   });
+
+  it("tells a popup the user closed from a failure", async () => {
+    const firebase = await loadModule();
+
+    expect(firebase.isPopupClosed({ code: "auth/popup-closed-by-user" })).toBe(true);
+    // Agreement 7.2: a second popup cancels the first.
+    expect(firebase.isPopupClosed({ code: "auth/cancelled-popup-request" })).toBe(true);
+    expect(firebase.isPopupClosed({ code: "auth/popup-blocked" })).toBe(false);
+    expect(firebase.isPopupClosed(new Error("boom"))).toBe(false);
+    expect(firebase.isPopupClosed(undefined)).toBe(false);
+  });
 });
