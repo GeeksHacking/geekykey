@@ -89,21 +89,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(AUTH_ERROR_EVENT, onAuthError);
   }, [clearIdentityQueries, queryClient]);
 
+  /**
+   * Writes the session and drops the /me query with it. A poll that was asked for before
+   * the change answers with the session as it was then, so its late answer would undo the
+   * new one, and the change has to drop it wherever it is written.
+   */
+  const settleSession = useCallback(
+    (data: MeResponse | null) => {
+      void queryClient.cancelQueries({ queryKey: queryKeys.me });
+      queryClient.setQueryData(queryKeys.me, data);
+    },
+    [queryClient],
+  );
+
   const clearForSignIn = useCallback(() => {
-    // Cancel a pre-login poll so its late response cannot overwrite the new identity.
-    void queryClient.cancelQueries({ queryKey: queryKeys.me });
-    // Clear before the request so a failed sign-in cannot leave the old account visible.
-    queryClient.setQueryData(queryKeys.me, null);
+    // Drop a pre-login poll so its late response cannot overwrite the new identity, and
+    // clear the session before the request so a failed sign-in cannot leave the old
+    // account visible.
+    settleSession(null);
     setAuthorizationFailure(undefined);
     clearIdentityQueries();
-  }, [clearIdentityQueries, queryClient]);
+  }, [clearIdentityQueries, settleSession]);
 
   const completeSignIn = useCallback(
     (data: MeResponse) => {
       mayLogInAgain.current = true;
-      queryClient.setQueryData(queryKeys.me, data);
+      settleSession(data);
     },
-    [queryClient],
+    [settleSession],
   );
 
   const signIn = useMutation({
@@ -154,11 +167,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       clearIdentityQueries();
     },
     onSuccess: () => {
-      queryClient.setQueryData(queryKeys.me, null);
+      settleSession(null);
       clearIdentityQueries();
     },
     onError: () => {
-      queryClient.setQueryData(queryKeys.me, null);
+      settleSession(null);
       clearIdentityQueries();
     },
   });
