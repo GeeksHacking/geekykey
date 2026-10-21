@@ -1,4 +1,4 @@
-import { errors } from "jose";
+import { decodeJwt, errors } from "jose";
 import { describe, expect, it } from "vitest";
 import { verifyFirebaseIdToken } from "./firebase-id-token.ts";
 import { fakeGoogle, unreachableGoogleKeys } from "./testing.ts";
@@ -17,6 +17,21 @@ describe("fakeGoogle", () => {
     expect(
       await verifyFirebaseIdToken(token, { projectId: PROJECT_ID, keys: other.keys }),
     ).toBeNull();
+  });
+
+  it("signs a guest's token, which the verifier trusts as a user with no name", async () => {
+    const google = await fakeGoogle(PROJECT_ID);
+    const token = await google.signGuestIdToken("firebase-guest-1");
+
+    const claims = decodeJwt(token);
+    expect(claims).toMatchObject({
+      provider_id: "anonymous",
+      firebase: { sign_in_provider: "anonymous" },
+    });
+    expect(claims).not.toHaveProperty("name");
+    expect(
+      await verifyFirebaseIdToken(token, { projectId: PROJECT_ID, keys: google.keys }),
+    ).toEqual({ userId: "firebase-guest-1", displayName: null });
   });
 });
 

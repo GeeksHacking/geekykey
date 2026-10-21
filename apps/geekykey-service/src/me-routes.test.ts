@@ -24,12 +24,18 @@ function harness(changes: Record<string, unknown> = {}, { claimsDeadlineMs = 400
   const fake = fakeServices(config);
   const app = createApp(config, { send: fake.send, googleKeys: google.keys, claimsDeadlineMs });
 
-  /** The gk_session cookie a Firebase login as `userId` sets, as the browser sends it back. */
-  async function logIn(userId: string): Promise<string> {
+  /**
+   * The gk_session cookie a Firebase login as `userId` sets, as the browser
+   * sends it back. A guest logs in with a guest's ID token.
+   */
+  async function logIn(userId: string, { guest = false } = {}): Promise<string> {
+    const idToken = guest
+      ? await google.signGuestIdToken(userId)
+      : await google.signIdToken({ sub: userId });
     const res = await app.request("/auth/firebase", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_token: await google.signIdToken({ sub: userId }) }),
+      body: JSON.stringify({ id_token: idToken }),
     });
     assert.equal(res.status, 204);
     // Only the name=value pair travels back.
@@ -80,6 +86,18 @@ test("a user on GEEKYKEY_ADMINS is a GeekyKey admin", async () => {
   assert.equal(res.status, 200);
   const { user } = (await res.json()) as { user: unknown };
   assert.deepEqual(user, { id: "admin-1", is_geekykey_admin: true });
+});
+
+test("a guest gets their ID and the tokens claimed for it, like any other user", async () => {
+  const { fake, logIn, me } = harness();
+  fake.tokens.set("firebase-guest-1", [
+    { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:00:00.000Z" },
+  ]);
+  const res = await me(await logIn("firebase-guest-1", { guest: true }));
+  assert.equal(res.status, 200);
+  const { user, tokens } = (await res.json()) as { user: unknown; tokens: unknown };
+  assert.deepEqual(user, { id: "firebase-guest-1", is_geekykey_admin: false });
+  assert.deepEqual(tokens, [{ uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:00:00.000Z" }]);
 });
 
 /** A gk_session cookie holding `value`, signed with `secret`, as the browser would send it back. */
