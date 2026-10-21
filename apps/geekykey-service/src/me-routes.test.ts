@@ -44,7 +44,7 @@ function harness(changes: Record<string, unknown> = {}, { claimsDeadlineMs = 400
 
 test("a user gets their ID, their tokens oldest claim first, and the showcase to link to", async () => {
   const { fake, logIn, me } = harness();
-  fake.tokensOf.set("firebase-uid-1", [
+  fake.tokens.set("firebase-uid-1", [
     { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:00:00.000Z" },
     { uid: "DEADBEEF", claimed_at: "2026-11-18T05:30:00.000Z" },
   ]);

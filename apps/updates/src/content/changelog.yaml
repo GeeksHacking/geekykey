@@ -1197,5 +1197,5 @@
   area: backend
   change: >-
     The GeekyKey Service now logs a user in with a Firebase ID token, with the same check as the
-    Event Service's. Its /me tells the GeekyKey screens who is logged in, with their tokens and a
-    link to the showcase. Nothing calls either on production until the screens deploy.
+    Event Service's. Its /me tells the GeekyKey screens who is logged in, with their tokens and the
+    showcase's address for its button. Nothing calls either on production until the screens deploy.

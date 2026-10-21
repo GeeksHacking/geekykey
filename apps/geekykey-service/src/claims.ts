@@ -24,7 +24,13 @@ export interface Claims {
   /** Releases the token, but only if `ownerId` still owns it. */
   release(uid: string, ownerId: string, signal: AbortSignal): Promise<"released" | "not_owner">;
   /** The user's tokens, oldest claim first. */
-  tokensOf(userId: string, signal: AbortSignal): Promise<{ uid: string; claimedAt: string }[]>;
+  tokensOf(userId: string, signal: AbortSignal): Promise<ClaimedToken[]>;
+}
+
+/** One of a user's tokens, and when they claimed it. */
+export interface ClaimedToken {
+  uid: string;
+  claimedAt: string;
 }
 
 /**

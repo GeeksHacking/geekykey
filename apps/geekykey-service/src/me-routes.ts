@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { type Claims, ClaimsUnavailable } from "./claims.ts";
+import { type ClaimedToken, type Claims, ClaimsUnavailable } from "./claims.ts";
 import type { EventServiceEntry } from "./config.ts";
 import { log } from "./lib/log.ts";
 import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
@@ -36,7 +36,7 @@ export function meRoutes({
 
   return new Hono<SessionEnv>().get("/", requireSession(session), async (c) => {
     const { userId } = c.var;
-    let tokens: Awaited<ReturnType<Claims["tokensOf"]>>;
+    let tokens: ClaimedToken[];
     try {
       tokens = await claims.tokensOf(userId, AbortSignal.timeout(deadlineMs));
     } catch (err) {
