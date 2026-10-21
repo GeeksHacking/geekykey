@@ -31,3 +31,18 @@ test("unknown routes and methods get the JSON not_found error", async () => {
     assert.deepEqual(await res.json(), { error: "not_found" });
   }
 });
+
+test("the login and /me are mounted, and need a token and a session", async () => {
+  // A body with no id_token fails before Google's keys are needed.
+  const login = await exports.default.fetch("http://localhost/auth/firebase", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(login.status, 400);
+  assert.equal(((await login.json()) as { error: string }).error, "validation_failed");
+
+  const me = await exports.default.fetch("http://localhost/api/v1/me");
+  assert.equal(me.status, 401);
+  assert.deepEqual(await me.json(), { error: "unauthenticated" });
+});

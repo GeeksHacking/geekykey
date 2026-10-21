@@ -141,7 +141,7 @@ only for `validation_failed` and follows Zod's issue format.
 |---|---|---|
 | `validation_failed` | 400 | See `issues` |
 | `unauthenticated` | 401 | No valid session cookie |
-| `invalid_token` | 401 | The Firebase ID token sent to log in can't be trusted: not signed by Google, for another Firebase project, or expired |
+| `invalid_token` | 401 | The Firebase ID token sent to log in can't be trusted: not signed by Google, for another Firebase project, or expired. The screens say "Couldn't log you in. Try again." |
 | `invalid_login_link` | 401 | The login link sent to log in (7.4) has expired, has been used already, or was changed. The screens say "That link has expired. Tap your token again to get back in." |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
@@ -354,9 +354,9 @@ them.
 | POST | `/api/v1/taps` | Station | `Implemented` | Taps, one or a batch |
 | POST | `/api/v1/stations/heartbeat` | Station | `Implemented` | Online light, clock, `reader_ok` |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `gk_session` for any user ID |
-| POST | `/auth/firebase` | browser | `Checkpoint 5` | Log in with a Firebase ID token, set `gk_session` |
+| POST | `/auth/firebase` | browser | `Implemented`, the name in `gk_session` at checkpoint 5 | Log in with a Firebase ID token, set `gk_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
-| GET | `/api/v1/me` | User | `Checkpoint 6` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
+| GET | `/api/v1/me` | User | `Implemented` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
 | GET | `/api/v1/tokens/{uid}` | User | `Checkpoint 6` | What the token page shows |
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Checkpoint 6` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Checkpoint 6` | Release a token |
@@ -573,7 +573,7 @@ each service's `pnpm dev` reads. Never enabled in production.
 - **The GeekyKey Service** signs in any `user_id`, because it keeps no users. `dev-organizer-1`
   is also on its local GeekyKey admin list, so releasing someone else's token can be developed.
 
-### 7.2 `POST /auth/firebase` (`Implemented, changes at checkpoint 5` on the Event Service, `Checkpoint 5` on the GeekyKey Service)
+### 7.2 `POST /auth/firebase` (`Implemented, changes at checkpoint 5`)
 
 Logs the user in with the ID token Firebase gave the screens. The service checks it against
 Google's public keys, then sets its cookie. There's no redirect: the screens stay where they
@@ -628,7 +628,8 @@ another site can't log someone in.
   name it already has, or uses `Guest` for a new user. Until checkpoint 5 it uses
   `GeeksHacking member`, and every login replaces the name, since nobody can set one yet.
 - **The GeekyKey Service** keeps no users: its session holds only the user ID and the token's
-  `name`, if it has one, so a login link (8.6) can carry the name.
+  `name`, if it has one, so a login link (8.6) can carry the name. Until the login links arrive
+  at checkpoint 5, it holds only the user ID.
 
 **Errors:** `validation_failed`; `invalid_token` (401); `login_unavailable` (503) when Google's
 keys couldn't be fetched, so the token may be fine and the screens offer to try again.
@@ -762,7 +763,7 @@ page loaded, so a late or double click can't release a newer claim.
 **Errors:** `not_found` if the token isn't claimed by the current user, or by `owner_id` when
 given; `forbidden` if someone who isn't a GeekyKey admin sends `owner_id`.
 
-### 8.4 `GET /api/v1/me` on the GeekyKey Service (`Checkpoint 6`)
+### 8.4 `GET /api/v1/me` on the GeekyKey Service (`Implemented`)
 
 Everything My tokens needs, and the "Am I logged in?" call for the GeekyKey screens.
 
@@ -1405,7 +1406,7 @@ There are no GeekyKey admin screens.
   sentence still stays, so the user learns they lost the claim.
 - On `claims_unavailable`, the token page, the claim form and My tokens say "Couldn't reach
   GeeksHacking. Try again."
-- On `login_unavailable`, both logins say "Couldn't log you in. Try again."
+- On `invalid_token` or `login_unavailable`, both logins say "Couldn't log you in. Try again."
 - The GeekyKey screens' login offers **"Continue as guest"**, with the line "No account needed.
   Keep using this phone and browser." under it. The Event screens' login doesn't offer it.
 - On `invalid_login_link`, the Event screens say "That link has expired. Tap your token again to
@@ -1489,3 +1490,4 @@ Closed on 2026-10-10:
 | 2026-10-20 | The Event Service's `POST /auth/firebase` (7.2) is `Implemented`. It checks the ID token against Google's keys for the project `geekykey-b035a`, then sets `event_session` the same way as `POST /auth/dev-login`. The user's row takes the token's `name`; a token with none, or a blank one, keeps a returning user's name and gives a new user `GeeksHacking member`. A body that isn't `application/json` fails validation. The GeekyKey Service's half follows (BAC-55). No shape changes (BAC-52). |
 | 2026-10-20 | New error code `service_unavailable` (503), and only the screens' Workers send it. Each set of screens is served by a Worker that passes `/api/*` and `/auth/*` to its service. When that service gives no answer at all, the Worker answers `503 {"error": "service_unavailable"}` with `Cache-Control: no-store`, rather than Cloudflare's own HTML error page, which broke the error body's shape and the `no-store` rule. Until the screens know the code, they treat it by its status, as a bare 503. No other shape changes (BAC-53). |
 | 2026-10-21 | Version 0.5 (draft): guests, login links, and a name the user sets (ADR 0005, BAC-54). **New:** a guest sign-in on the GeekyKey screens only, through Firebase's `signInAnonymously`, accepted by `POST /auth/firebase` like any other login (7.2); the GeekyKey screens log a returning user in again while Firebase still has them (7.2); `POST /api/v1/login-links` on the GeekyKey Service (8.6) and `POST /auth/login-link` on the Event Service (7.4), with the error `invalid_login_link` (401), so the event buttons log the user in on the Event screens as the same user; the login link's format and key, derived from the Event Service key (11.9); `PATCH /api/v1/me` on the Event Service (8.7) and `user.has_name` on its `GET /api/v1/me` (8.1). **Changed:** a new user with no name is `Guest`, not `GeeksHacking member`; a name the user set is never replaced by a login; `gk_session` holds the login's name as well as the user ID. Section 12 lets users set their name, and says a guest can't become a Google account; leaderboards stay out of scope. Section 13 sets the wording for "Continue as guest", the name prompt and an expired link. One open question closed. |
+| 2026-10-21 | The GeekyKey Service's `POST /auth/firebase` (7.2) is `Implemented`. It checks the ID token with the same code as the Event Service's (`packages/firebase-login`), then sets `gk_session` the same way as `POST /auth/dev-login`. Until the login links, the session holds only the user ID. Its `GET /api/v1/me` (8.4) moves from checkpoint 6 to checkpoint 5 and is `Implemented`, since the GeekyKey screens can't tell whether someone is logged in without it. Its shape doesn't change, so screens built against the mock keep working. `events` lists each Event Service with a public address, which is now an optional `public_url` in the GeekyKey Service's `EVENT_SERVICES` setting. Section 13, and the error table, give `invalid_token` the same sentence as `login_unavailable`, "Couldn't log you in. Try again.", which Ethan approved on 20 Oct. No shape changes (BAC-55). |

@@ -21,6 +21,7 @@ function settings(changes: Record<string, unknown> = {}): Record<string, unknown
     GEEKYKEY_ADMINS: [],
     MAX_TAPS_PER_REQUEST: 500,
     TAP_DEADLINE_MS: 4000,
+    FIREBASE_PROJECT_ID: "geekykey-b035a",
     SESSION_SECRET,
     CLAIMS_STAND_IN_KEY,
     EVENT_SERVICE_KEY_SHOWCASE,
@@ -67,6 +68,7 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
         id: "showcase",
         name: "Capstone Showcase",
         url: "https://event-api.geekshacking.com",
+        publicUrl: "https://event.geekshacking.com",
         key: EVENT_SERVICE_KEY_SHOWCASE,
       },
     ],
@@ -80,6 +82,7 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
     devAuthEnabled: false,
     sessionSecret: SESSION_SECRET,
     sessionCookieSecure: true,
+    firebaseProjectId: "geekykey-b035a",
   });
 });
 
@@ -121,6 +124,24 @@ test("dev.env, with the DEV_AUTH_ENABLED `pnpm dev` adds, starts the Worker with
   assert.equal(config.eventServices[0]!.url, "http://localhost:8001");
   assert.equal(config.claimsStandIn.url, "http://localhost:8001/claims-stand-in/v1");
   assert.deepEqual(config.geekykeyAdmins, ["dev-organizer-1"]);
+  // The Event screens, on 5173.
+  assert.equal(config.eventServices[0]!.publicUrl, "http://localhost:5173");
+});
+
+test("an Event Service without a public address has none, and the screens get no button for it", () => {
+  const config = loadConfig(settings());
+  assert.equal(config.eventServices[0]!.publicUrl, null);
+});
+
+test("a public address is checked like the others, and loses its / at the end", () => {
+  const showcase = { id: "showcase", name: "Capstone Showcase", url: "https://event.test" };
+  const config = loadConfig(
+    settings({ EVENT_SERVICES: [{ ...showcase, public_url: "https://event.example.com/" }] }),
+  );
+  assert.equal(config.eventServices[0]!.publicUrl, "https://event.example.com");
+  for (const public_url of ["http://event.example.com", "event.example.com", ""]) {
+    assertRefused({ EVENT_SERVICES: [{ ...showcase, public_url }] }, "EVENT_SERVICES");
+  }
 });
 
 test("without a secret it needs, the Worker doesn't start, and says which", () => {
@@ -217,6 +238,12 @@ test("a missing or malformed setting stops the Worker, and says which", () => {
     ["TAP_DEADLINE_MS", -1],
     ["DEV_AUTH_ENABLED", "yes"],
     ["DEV_AUTH_ENABLED", 1],
+    ["FIREBASE_PROJECT_ID", undefined],
+    ["FIREBASE_PROJECT_ID", ""],
+    // Not a Firebase project ID: upper case, too short, or ending in a hyphen.
+    ["FIREBASE_PROJECT_ID", "GeekyKey-b035a"],
+    ["FIREBASE_PROJECT_ID", "gk"],
+    ["FIREBASE_PROJECT_ID", "geekykey-"],
   ] as const) {
     assertRefused({ [name]: value }, name);
   }

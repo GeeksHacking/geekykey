@@ -7,7 +7,7 @@ const LOG_LINES = {
   internal_error: "ERROR",
   // A station's tap by a token nobody owns, answered and stored nowhere.
   unknown_token: "INFO",
-  // A station request failed because the token owners couldn't be had in time.
+  // A station's or a user's request failed because the claims stand-in didn't answer properly in time.
   claims_unavailable: "ERROR",
   // A station request failed because its Event Service didn't answer the hand-off properly in time.
   handoff_failed: "ERROR",
@@ -19,6 +19,8 @@ const LOG_LINES = {
   stations_unavailable: "ERROR",
   // A registered station whose ID or key hash appears twice, in one list or in two, so its key is refused.
   station_refused: "ERROR",
+  // A Firebase login answered 503, because Google's keys couldn't be fetched to check the token.
+  login_unavailable: "ERROR",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

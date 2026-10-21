@@ -365,6 +365,9 @@ importers:
 
   apps/geekykey-service:
     dependencies:
+      '@geekykey/firebase-login':
+        specifier: workspace:*
+        version: link:../../packages/firebase-login
       '@geekykey/handoff':
         specifier: workspace:*
         version: link:../../packages/handoff

@@ -194,6 +194,14 @@ station's clock even while the Event Service is down.
 Work a station request starts for after its answer, the heartbeat hand-off and a refresh of
 the copy, goes through the Worker's `waitUntil`, so the answer doesn't wait for it.
 
+The GeekyKey screens log in with `POST /auth/firebase`, which checks the Firebase ID token with
+`packages/firebase-login`, the same code as the Event Service's, and sets `gk_session`. The
+Worker keeps no users, so the session holds only the user ID. Google's keys are fetched once
+and kept for an hour in each isolate. `GET /api/v1/me` reads the session, asks the claims
+stand-in for the user's tokens, and lists each Event Service in `EVENT_SERVICES` that has a
+`public_url`, for the screens' buttons. A user's request gives the stand-in 4 seconds, and
+answers `503 claims_unavailable` when it doesn't answer properly in that time.
+
 ## Running the Event screens
 
 The Event screens currently run against **mock data** shaped like the API agreement, so you
@@ -571,7 +579,8 @@ deployed, and its secrets are set on the Worker. `mise run dev:geekykey-service`
 `apps/geekykey-service/dev.env` replaces both. It is committed and holds no real secret.
 `DEV_AUTH_ENABLED=true` adds `POST /auth/dev-login` and takes `Secure` off the session cookie.
 It never appears in `wrangler.jsonc`, since unset is off. A setting in your shell wins over `dev.env`, for one run, as in
-`TAP_DEADLINE_MS=1000 mise run dev:geekykey-service`. `wrangler dev` takes from `dev.env` and
+`TAP_DEADLINE_MS=1000 mise run dev:geekykey-service`. `FIREBASE_PROJECT_ID`, `geekykey-b035a`,
+is in `wrangler.jsonc`, the same as the Event Service's. `wrangler dev` takes from `dev.env` and
 your shell only the secrets and the settings `wrangler.jsonc` already names, and the Worker
 stops as it starts, naming the setting, if one is missing or malformed. `mise run dev` doesn't
 read a `.dev.vars`.
