@@ -162,6 +162,17 @@ test("a token with no name gives a new user the name GeeksHacking member", async
   });
 });
 
+test("a guest's token logs them in as its sub, like any other with no name", async () => {
+  const res = await logIn(await google.signGuestIdToken("firebase-guest-1"));
+  assert.equal(res.status, 204);
+  assert.match(res.headers.get("Set-Cookie") ?? "", /^event_session=/);
+  assert.deepEqual(await me(res), {
+    id: "firebase-guest-1",
+    display_name: "GeeksHacking member",
+    role: "participant",
+  });
+});
+
 test("each token the check refuses gets invalid_token, and no cookie", async () => {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const forger = await fakeGoogle(TEST_FIREBASE_PROJECT_ID);

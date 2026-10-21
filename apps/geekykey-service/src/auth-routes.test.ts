@@ -143,6 +143,15 @@ test("a good ID token logs its user in as its sub, with a Secure gk_session", as
   assert.equal(value.slice(value.indexOf(":") + 1), "firebase-uid-1");
 });
 
+test("a guest's token logs them in as its sub, like any other", async () => {
+  const res = await logIn(await google.signGuestIdToken("firebase-guest-1"));
+  assert.equal(res.status, 204);
+
+  const value = await signedSessionValue(res.headers.get("Set-Cookie") ?? "");
+  assert.ok(typeof value === "string", "the cookie's signature didn't check out");
+  assert.equal(value.slice(value.indexOf(":") + 1), "firebase-guest-1");
+});
+
 test("each token the check refuses gets invalid_token, and no cookie", async () => {
   const nowSeconds = Math.floor(Date.now() / 1000);
   const forger = await fakeGoogle(env.FIREBASE_PROJECT_ID);
