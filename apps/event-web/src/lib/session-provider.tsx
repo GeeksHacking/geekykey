@@ -82,15 +82,28 @@ export function SessionProvider({
     return () => window.removeEventListener(AUTH_ERROR_EVENT, onAuthError);
   }, [clearIdentityQueries, queryClient]);
 
+  /**
+   * Writes the session and drops the /me query with it. A poll that was asked for before
+   * the change answers with the session as it was then, so its late answer would undo the
+   * new one, and the change has to drop it wherever it is written.
+   */
+  const settleSession = useCallback(
+    (data: MeResponse | null) => {
+      void queryClient.cancelQueries({ queryKey: queryKeys.me });
+      queryClient.setQueryData(queryKeys.me, data);
+    },
+    [queryClient],
+  );
+
   const clearForSignIn = useCallback(() => {
-    // Cancel a pre-login poll so its late response cannot overwrite the new identity.
-    void queryClient.cancelQueries({ queryKey: queryKeys.me });
-    // Clear before the request so a failed sign-in cannot leave the old account visible.
-    queryClient.setQueryData(queryKeys.me, null);
+    // Drop a pre-login poll so its late response cannot overwrite the new identity, and
+    // clear the session before the request so a failed sign-in cannot leave the old
+    // account visible.
+    settleSession(null);
     setAuthorizationFailure(undefined);
     setLoginLinkError(undefined);
     clearIdentityQueries();
-  }, [clearIdentityQueries, queryClient]);
+  }, [clearIdentityQueries, settleSession]);
 
   const signIn = useMutation({
     mutationFn: async (userId: string) => {
@@ -98,7 +111,7 @@ export function SessionProvider({
       return api.me();
     },
     onMutate: clearForSignIn,
-    onSuccess: (data) => queryClient.setQueryData(queryKeys.me, data),
+    onSuccess: (data) => settleSession(data),
   });
 
   // Agreement 7.2: the screens sign in with the ID token Firebase's web SDK gave them, and
@@ -111,7 +124,7 @@ export function SessionProvider({
       return api.me();
     },
     onMutate: clearForSignIn,
-    onSuccess: (data) => queryClient.setQueryData(queryKeys.me, data),
+    onSuccess: (data) => settleSession(data),
   });
 
   const signOut = useMutation({
@@ -139,11 +152,11 @@ export function SessionProvider({
       clearIdentityQueries();
     },
     onSuccess: () => {
-      queryClient.setQueryData(queryKeys.me, null);
+      settleSession(null);
       clearIdentityQueries();
     },
     onError: () => {
-      queryClient.setQueryData(queryKeys.me, null);
+      settleSession(null);
       clearIdentityQueries();
     },
   });
