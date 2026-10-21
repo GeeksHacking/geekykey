@@ -5,7 +5,8 @@ import type { EventServiceEntry } from "./config.ts";
 import { jsonBody } from "./lib/validate.ts";
 import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
 
-const loginLinkSchema = z.object({
+/** What the event buttons send: which event's screens the link is for. */
+const linkRequestSchema = z.object({
   event_id: z.string().min(1),
 });
 
@@ -35,7 +36,7 @@ export function loginLinkRoutes({ session, eventServices }: LoginLinkRouteDeps) 
   return new Hono<SessionEnv>().post(
     "/",
     requireSession(session),
-    jsonBody(loginLinkSchema),
+    jsonBody(linkRequestSchema),
     async (c) => {
       const event = linksTo.get(c.req.valid("json").event_id);
       if (!event) return c.json({ error: "not_found" }, 404);
