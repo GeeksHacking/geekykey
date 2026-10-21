@@ -3,13 +3,13 @@ import {
   type GoogleSigningKeys,
   verifyFirebaseIdToken,
 } from "@geekykey/firebase-login";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
-import type { Db } from "../db/pool.ts";
 import { errorFields, log } from "../lib/log.ts";
 import { jsonBody } from "../lib/validate.ts";
+import { saveLogin } from "./display-names.ts";
 import { users } from "./schema.ts";
 import { clearSession, issueSession, type SessionOptions } from "./session-auth.ts";
 
@@ -24,9 +24,6 @@ const devLoginSchema = z.object({
 const firebaseLoginSchema = z.object({
   id_token: z.string().min(1),
 });
-
-/** A new user's name when their ID token has none (the API agreement's 7.2). */
-const DEFAULT_DISPLAY_NAME = "GeeksHacking member";
 
 export interface AuthRouteDeps {
   session: SessionOptions;
@@ -62,7 +59,7 @@ export function authRoutes({ session, devAuthEnabled, firebase }: AuthRouteDeps)
     }
     if (!identity) return c.json({ error: "invalid_token" }, 401);
 
-    await saveUser(c.var.db, identity);
+    await saveLogin(c.var.db, identity.userId, identity.displayName);
     await issueSession(c, identity.userId, session);
     return c.body(null, 204);
   });
@@ -90,19 +87,4 @@ export function authRoutes({ session, devAuthEnabled, firebase }: AuthRouteDeps)
   });
 
   return app;
-}
-
-/**
- * Creates the user's row, or updates the name on it. A token with no name
- * leaves a returning user's name as it is, and gives a new user
- * DEFAULT_DISPLAY_NAME. One statement, so two logins at once can't both
- * try to create the row.
- */
-async function saveUser(db: Db, { userId, displayName }: FirebaseIdentity) {
-  await db
-    .insert(users)
-    .values({ id: userId, displayName: displayName ?? DEFAULT_DISPLAY_NAME })
-    .onDuplicateKeyUpdate({
-      set: displayName === null ? { id: sql`${users.id}` } : { displayName },
-    });
 }

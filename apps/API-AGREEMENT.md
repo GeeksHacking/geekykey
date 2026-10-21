@@ -372,11 +372,11 @@ them.
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
-| POST | `/auth/firebase` | browser | `Implemented`, the `Guest` name at checkpoint 5 | Log in with a Firebase ID token, set `event_session` |
+| POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/login-link` | browser | `Checkpoint 5` | Log in with a login link, set `event_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
-| GET | `/api/v1/me` | Participant, Organizer | `Implemented`, `has_name` at checkpoint 5 | Profile, stamps, points, history |
-| PATCH | `/api/v1/me` | Participant, Organizer | `Checkpoint 5` | Set the name the event shows |
+| GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
+| PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
 | GET | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | The station board |
 | POST | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | Create a station, key shown once |
@@ -626,8 +626,7 @@ another site can't log someone in.
   `anonymous`, and neither service treats it differently.
 - **The Event Service** creates or updates the user's row with the token's `name`, unless the user
   has set their own name (8.7), which a login never replaces. If the token has none, it keeps the
-  name it already has, or uses `Guest` for a new user. Until checkpoint 5 it uses
-  `GeeksHacking member`, and every login replaces the name, since nobody can set one yet.
+  name it already has, or uses `Guest` for a new user.
 - **The GeekyKey Service** keeps no users: its session holds only the user ID and the token's
   `name`, if it has one, so a login link (8.6) can carry the name. Until the login links arrive
   at checkpoint 5, it holds only the user ID.
@@ -683,7 +682,7 @@ GeekyKey Service, for any logged-in user, and are what the token page and My tok
 doesn't answer properly within 4 seconds. Nothing is saved, and the screens say "Couldn't reach
 GeeksHacking. Try again."
 
-### 8.1 `GET /api/v1/me` on the Event Service (`Implemented, changes at checkpoint 5`)
+### 8.1 `GET /api/v1/me` on the Event Service (`Implemented`)
 
 Everything the participant dashboard and passport view need in one call.
 
@@ -709,7 +708,7 @@ Everything the participant dashboard and passport view need in one call.
   organizer list.
 - `user.has_name` is `false` while `display_name` is the default, `Guest`, because neither a
   login nor the user has given a name. Then the passport asks "What should we call you?" (8.7).
-  It arrives at checkpoint 5, and is absent until then.
+  A name the user sets counts, even `Guest`.
 - `stamps` lists **every** station with passport settings, so the passport can render empty
   slots. They come in the order their settings were added, oldest first. A station without
   passport settings never appears here, even if the user has tapped it.
@@ -852,7 +851,7 @@ users alike.
 **Errors:** `unauthenticated`, `validation_failed`, `not_found` for an `event_id` that isn't in
 `events`, `rate_limited`.
 
-### 8.7 `PATCH /api/v1/me` on the Event Service (`Checkpoint 5`)
+### 8.7 `PATCH /api/v1/me` on the Event Service (`Implemented`)
 
 Sets the name the event shows for the current user: on the passport, the scan log and the
 export. The passport asks for it when `has_name` is `false` (8.1), and lets the user change it
@@ -868,7 +867,8 @@ shown.
 ```
 
 `display_name` is trimmed, then must be 1 to 30 characters, counted as Unicode code points. Any
-script is allowed.
+script is allowed. A name that breaks the rule gets `validation_failed`, with its issue under the
+path `["display_name"]`, and leaves the name as it was.
 
 **Response `200`**, with the `user` object from 8.1:
 
@@ -880,7 +880,8 @@ script is allowed.
 - Nothing checks what a name says. Until something shows names on a public screen, only the user
   and the organizers see it.
 
-**Errors:** `unauthenticated`, `validation_failed`, `rate_limited`.
+**Errors:** `unauthenticated`, `validation_failed`, and `rate_limited` once the Event Service's
+rate limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
 
 ---
 
@@ -1492,3 +1493,4 @@ Closed on 2026-10-10:
 | 2026-10-20 | New error code `service_unavailable` (503), and only the screens' Workers send it. Each set of screens is served by a Worker that passes `/api/*` and `/auth/*` to its service. When that service gives no answer at all, the Worker answers `503 {"error": "service_unavailable"}` with `Cache-Control: no-store`, rather than Cloudflare's own HTML error page, which broke the error body's shape and the `no-store` rule. Until the screens know the code, they treat it by its status, as a bare 503. No other shape changes (BAC-53). |
 | 2026-10-21 | Version 0.5 (draft): guests, login links, and a name the user sets (ADR 0005, BAC-54). **New:** a guest sign-in on the GeekyKey screens only, through Firebase's `signInAnonymously`, accepted by `POST /auth/firebase` like any other login (7.2); the GeekyKey screens log a returning user in again while Firebase still has them (7.2); `POST /api/v1/login-links` on the GeekyKey Service (8.6) and `POST /auth/login-link` on the Event Service (7.4), with the error `invalid_login_link` (401), so the event buttons log the user in on the Event screens as the same user; the login link's format and key, derived from the Event Service key (11.9); `PATCH /api/v1/me` on the Event Service (8.7) and `user.has_name` on its `GET /api/v1/me` (8.1). **Changed:** a new user with no name is `Guest`, not `GeeksHacking member`; a name the user set is never replaced by a login; `gk_session` holds the login's name as well as the user ID. Section 12 lets users set their name, and says a guest can't become a Google account; leaderboards stay out of scope. Section 13 sets the wording for "Continue as guest", the name prompt and an expired link. One open question closed. |
 | 2026-10-21 | The GeekyKey Service's `POST /auth/firebase` (7.2) is `Implemented`. It checks the ID token with the same code as the Event Service's (`packages/firebase-login`), then sets `gk_session` the same way as `POST /auth/dev-login`. Until the login links, the session holds only the user ID. Its `GET /api/v1/me` (8.4) moves from checkpoint 6 to checkpoint 5 and is `Implemented`, since the GeekyKey screens can't tell whether someone is logged in without it. Its shape doesn't change, so screens built against the mock keep working. `events` lists each Event Service with a public address, which is now an optional `public_url` in the GeekyKey Service's `EVENT_SERVICES` setting. Section 13, and the error table, give `invalid_token` the same sentence as `login_unavailable`, "Couldn't log you in. Try again.", which Ethan approved on 20 Oct. Section 3 tags `POST /auth/firebase` `Implemented` on both services. No shape changes (BAC-55). |
+| 2026-10-21 | The Event Service's `PATCH /api/v1/me` (8.7) is `Implemented`, and its `GET /api/v1/me` (8.1) and `POST /auth/firebase` (7.2) no longer change at checkpoint 5. A user can set the name the event shows, trimmed and 1 to 30 code points; `GET /api/v1/me` gives `user.has_name`, `false` while the name is the default, and `true` for a name the user set, even `Guest`; a new user whose login has no name is `Guest`, not `GeeksHacking member`; and a login never replaces a name the user set. Users who already had `GeeksHacking member` become `Guest`, so the passport asks them for a name. 8.7 now says where a refused name's issue goes, and that `rate_limited` waits for checkpoint 7. 7.2 keeps its checkpoint 5 tag, since the GeekyKey Service's half, the name in `gk_session`, waits for BAC-59 (BAC-60). |

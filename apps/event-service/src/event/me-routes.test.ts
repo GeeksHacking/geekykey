@@ -11,7 +11,7 @@ const BOOTH_ADDED_AT = "2026-10-10T08:00:00.000Z";
 
 /** GET /api/v1/me, in the shape section 8.1 of API-AGREEMENT.md agrees. */
 interface MeBody {
-  user: { id: string; display_name: string; role: string };
+  user: { id: string; display_name: string; role: string; has_name: boolean };
   points: number;
   stamps: {
     station_id: string;
@@ -77,8 +77,8 @@ function meClient(target: ReturnType<typeof testApp>) {
       headers: cookie ? { Cookie: cookie } : {},
     });
 
-  /** Signs in through dev-login and returns the /me body, which must be a 200. */
-  const meAs = async (userId: string): Promise<MeBody> => {
+  /** Signs in through dev-login and returns the cookie a browser would send back. */
+  const signIn = async (userId: string): Promise<string> => {
     const login = await target.request("/auth/dev-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -86,13 +86,25 @@ function meClient(target: ReturnType<typeof testApp>) {
     });
     assert.equal(login.status, 204);
     // Only the name=value pair travels back, the way a browser sends it.
-    const cookie = (login.headers.get("Set-Cookie") ?? "").split(";")[0];
-    const res = await getMe(cookie);
+    return (login.headers.get("Set-Cookie") ?? "").split(";")[0]!;
+  };
+
+  /** Signs in through dev-login and returns the /me body, which must be a 200. */
+  const meAs = async (userId: string): Promise<MeBody> => {
+    const res = await getMe(await signIn(userId));
     assert.equal(res.status, 200);
     return (await res.json()) as MeBody;
   };
 
-  return { getMe, meAs };
+  /** PATCH /api/v1/me with `body` as JSON, as nobody or with `cookie`. */
+  const patchMe = (body: unknown, cookie?: string) =>
+    target.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) },
+      body: JSON.stringify(body),
+    });
+
+  return { getMe, signIn, meAs, patchMe };
 }
 
 test("answers unauthenticated when nobody is signed in", async () => {
@@ -106,7 +118,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
   // A user's tokens are on the GeekyKey Service's /me, not this one.
   const { meAs, userId, stationId } = await harness();
   assert.deepEqual(await meAs(userId), {
-    user: { id: userId, display_name: "Alex", role: "participant" },
+    user: { id: userId, display_name: "Alex", role: "participant", has_name: true },
     points: 0,
     stamps: [
       {
@@ -321,7 +333,7 @@ test("an organizer on the list gets the same view of their own account", async (
     { id: "dev-user-1", displayName: "Wei Lin" },
   ]);
   assert.deepEqual(await meAs("dev-organizer-1"), {
-    user: { id: "dev-organizer-1", display_name: "Priya", role: "organizer" },
+    user: { id: "dev-organizer-1", display_name: "Priya", role: "organizer", has_name: true },
     points: 0,
     stamps: [
       {
@@ -349,4 +361,58 @@ test("the role comes from the organizer list", async () => {
   // An empty list, as production's starts.
   const empty = meClient(testApp({ ORGANIZERS: "" }));
   assert.equal((await empty.meAs("organizer-1")).user.role, "participant");
+});
+
+test("a participant sets the name the event shows, and /me shows it", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const res = await patchMe({ display_name: "Ally" }, await signIn(userId));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    user: { id: userId, display_name: "Ally", role: "participant", has_name: true },
+  });
+  assert.equal((await meAs(userId)).user.display_name, "Ally");
+});
+
+test("a name is trimmed, then must be 1 to 30 code points, in any script", async () => {
+  const { signIn, patchMe, getMe, userId } = await harness();
+  const cookie = await signIn(userId);
+  // Each emoji is one code point but two UTF-16 units, so 30 of them would fail a .length check.
+  const accepted: [string, string][] = [
+    ["A", "A"],
+    ["  Ally Tan  ", "Ally Tan"],
+    ["😀".repeat(30), "😀".repeat(30)],
+    [`  ${"x".repeat(30)}  `, "x".repeat(30)],
+    ["陈美玲", "陈美玲"],
+  ];
+  for (const [sent, saved] of accepted) {
+    const res = await patchMe({ display_name: sent }, cookie);
+    assert.equal(res.status, 200, sent);
+    const { user } = (await res.json()) as { user: { display_name: string } };
+    assert.equal(user.display_name, saved, sent);
+  }
+
+  for (const body of [
+    { display_name: "" },
+    { display_name: "   " },
+    { display_name: "😀".repeat(31) },
+    { display_name: "x".repeat(31) },
+    { display_name: 7 },
+    {},
+  ]) {
+    const res = await patchMe(body, cookie);
+    const what = JSON.stringify(body);
+    assert.equal(res.status, 400, what);
+    const json = (await res.json()) as { error: string; issues: { path: string[] }[] };
+    assert.equal(json.error, "validation_failed", what);
+    assert.deepEqual(json.issues[0]?.path, ["display_name"], what);
+  }
+  // A refused name leaves the last good one.
+  assert.equal(((await (await getMe(cookie)).json()) as MeBody).user.display_name, "陈美玲");
+});
+
+test("setting a name needs a session", async () => {
+  const { patchMe } = await harness();
+  const res = await patchMe({ display_name: "Ally" });
+  assert.equal(res.status, 401);
+  assert.deepEqual(await res.json(), { error: "unauthenticated" });
 });

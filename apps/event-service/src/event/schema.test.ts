@@ -5,7 +5,7 @@ import { columnsOf, migrationsUpTo, scratchDatabase } from "../../test-support/m
 import { migrate } from "../db/migrate.ts";
 import { testDb } from "../test-helpers.ts";
 
-test("each Event table has only the columns the spec gives it after checkpoint 3", async () => {
+test("each Event table has only the columns the spec gives it", async () => {
   const expected = {
     stations: [
       "id",
@@ -18,7 +18,7 @@ test("each Event table has only the columns the spec gives it after checkpoint 3
       "buffered_taps",
       "reader_ok",
     ],
-    users: ["id", "display_name", "created_at"],
+    users: ["id", "display_name", "name_set_at", "created_at"],
     taps: [
       "id",
       "station_id",
@@ -89,4 +89,26 @@ test("dropping the old columns keeps the stations, their keys and every tap with
     ),
     /cannot be null/,
   );
+});
+
+test("users given the old default name get the new one, and every name still comes from a login", async () => {
+  const url = await scratchDatabase("geekykey_event_migration");
+  await migrate(url, await migrationsUpTo("0008_the_old_columns_go"));
+  const connection = await createConnection({ uri: url });
+  onTestFinished(() => connection.end());
+  await connection.query(
+    `INSERT INTO users (id, display_name, created_at) VALUES
+      ('google-user', 'Ada Lim', '2026-10-20T05:00:00.000Z'),
+      ('guest', 'GeeksHacking member', '2026-10-21T05:00:00.000Z')`,
+  );
+
+  await migrate(url);
+
+  const [users] = await connection.query(
+    "SELECT id, display_name, name_set_at FROM users ORDER BY id",
+  );
+  assert.deepEqual(users, [
+    { id: "google-user", display_name: "Ada Lim", name_set_at: null },
+    { id: "guest", display_name: "Guest", name_set_at: null },
+  ]);
 });

@@ -1199,3 +1199,11 @@
     The GeekyKey Service now logs a user in with a Firebase ID token, with the same check as the
     Event Service's. Its /me tells the GeekyKey screens who is logged in, with their tokens and the
     showcase's address for its button. Nothing calls either on production until the screens deploy.
+
+- id: event-service-display-names
+  date: 2026-10-21
+  area: backend
+  change: >-
+    A user can now choose the name the event shows on the passport, the scan log and the export,
+    and logging in again never replaces it. Someone whose login has no name, such as a guest, is
+    called Guest until they choose one, and the Event Service tells the passport to ask them.

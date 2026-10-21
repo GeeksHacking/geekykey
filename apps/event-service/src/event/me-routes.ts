@@ -1,5 +1,13 @@
 import { Hono } from "hono";
-import { requireSession, type SessionEnv, type SessionOptions } from "./session-auth.ts";
+import { z } from "zod";
+import { jsonBody } from "../lib/validate.ts";
+import { displayNameSchema, setOwnName } from "./display-names.ts";
+import {
+  requireSession,
+  type SessionEnv,
+  type SessionOptions,
+  type SessionUser,
+} from "./session-auth.ts";
 import { loadMe } from "./me.ts";
 import type { AppEnv } from "../app.ts";
 
@@ -7,20 +15,34 @@ export interface MeRouteDeps {
   session: SessionOptions;
 }
 
+const setNameSchema = z.object({ display_name: displayNameSchema });
+
+/** The `user` object that GET and PATCH /api/v1/me answer with (the API agreement's 8.1). */
+function userBody(user: SessionUser) {
+  return {
+    id: user.id,
+    display_name: user.displayName,
+    role: user.role,
+    has_name: user.hasName,
+  };
+}
+
 /**
- * GET /  (mounted at /api/v1/me)
+ * Mounted at /api/v1/me, for a signed-in user of any role. A 401 is how the
+ * frontend learns that nobody is signed in.
  *
- * Everything the participant dashboard and passport need in one call, for a
- * signed-in user of any role. A 401 is how the frontend learns that nobody is
- * signed in.
+ * GET / is everything the participant dashboard and passport need in one
+ * call. PATCH / sets the name the event shows (display-names.ts).
  */
 export function meRoutes({ session }: MeRouteDeps) {
-  return new Hono<AppEnv & SessionEnv>().get("/", requireSession(session), async (c) => {
+  const app = new Hono<AppEnv & SessionEnv>();
+
+  app.get("/", requireSession(session), async (c) => {
     // The session already loaded the profile, so only the rest is read here.
     const user = c.var.user;
     const me = await loadMe(c.var.db, user.id);
     return c.json({
-      user: { id: user.id, display_name: user.displayName, role: user.role },
+      user: userBody(user),
       points: me.points,
       // The wire calls the passport's slots `stamps`. Fields are never renamed within /api/v1.
       stamps: me.passport.map((slot) => ({
@@ -41,4 +63,12 @@ export function meRoutes({ session }: MeRouteDeps) {
       })),
     });
   });
+
+  app.patch("/", requireSession(session), jsonBody(setNameSchema), async (c) => {
+    const { display_name } = c.req.valid("json");
+    await setOwnName(c.var.db, c.var.user.id, display_name);
+    return c.json({ user: userBody({ ...c.var.user, displayName: display_name, hasName: true }) });
+  });
+
+  return app;
 }

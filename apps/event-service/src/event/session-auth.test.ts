@@ -69,7 +69,7 @@ test("puts the signed-in user on the context", async () => {
   const res = await get("/me", await signIn(userId));
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), {
-    user: { id: userId, displayName: "Alex", role: "participant" },
+    user: { id: userId, displayName: "Alex", hasName: true, role: "participant" },
   });
 });
 

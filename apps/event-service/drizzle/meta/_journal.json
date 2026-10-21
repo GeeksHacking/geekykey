@@ -64,6 +64,13 @@
       "when": 1792047049601,
       "tag": "0008_the_old_columns_go",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1792555027872,
+      "tag": "0009_users_can_set_their_names",
+      "breakpoints": true
     }
   ]
 }
