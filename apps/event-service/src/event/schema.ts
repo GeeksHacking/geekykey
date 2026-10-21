@@ -112,9 +112,9 @@ export const taps = mysqlTable(
 
 /**
  * The login links already used (POST /auth/login-link), by their `jti`, so
- * each logs someone in once. A row is only needed until its link expires,
- * 60 seconds after the GeekyKey Service made it, and goes at a later login
- * link's use.
+ * each logs someone in once. A row is kept until a minute after its link
+ * expires, which is 60 seconds after the GeekyKey Service made it, and goes
+ * at a later login link's use (used-login-links.ts says why the minute).
  */
 export const usedLoginLinks = mysqlTable(
   "used_login_links",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { fakeGoogle } from "@geekykey/firebase-login/testing";
 import { loginLinks } from "@geekykey/login-link";
-import { test } from "vitest";
+import { onTestFinished, test, vi } from "vitest";
 import {
   setupFixture,
   TEST_EVENT_SERVICE_KEY,
@@ -440,4 +440,19 @@ test("a body that isn't JSON with a login_link fails validation, so a form elsew
   }
   // Nothing above used the link up.
   assert.equal((await useLink(link)).status, 204);
+});
+
+test("using a login link, or failing to, logs nothing, so the link is in no log", async () => {
+  const link = await linkFor("firebase-uid-1", "Ada Lim");
+  const spies = (["log", "info", "warn", "error", "debug"] as const).map((method) =>
+    vi.spyOn(console, method).mockImplementation(() => {}),
+  );
+  onTestFinished(() => spies.forEach((spy) => spy.mockRestore()));
+  assert.equal((await useLink(link)).status, 204);
+  assert.equal((await useLink(link)).status, 401);
+  assert.equal((await useLink(`${link}x`)).status, 401);
+  assert.deepEqual(
+    spies.flatMap((spy) => spy.mock.calls),
+    [],
+  );
 });

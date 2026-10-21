@@ -201,17 +201,19 @@ the copy, goes through the Worker's `waitUntil`, so the answer doesn't wait for 
 
 The GeekyKey screens log in with `POST /auth/firebase`, which checks the Firebase ID token with
 `packages/firebase-login`, the same code as the Event Service's, and sets `gk_session`. The
-Worker keeps no users, so the session holds the user ID and the token's name, if it has one. Each isolate fetches Google's
-keys once and keeps them for an hour. `GET /api/v1/me` reads the session, asks the claims
-stand-in for the user's tokens, and lists each Event Service in `EVENT_SERVICES` that has a
-`public_url`, for the screens' buttons. The stand-in has 4 seconds to answer. When it doesn't
-answer properly in that time, the Worker answers `503 claims_unavailable`.
+Worker keeps no users, so the session holds the user ID and the token's name, if it has one.
+Each isolate fetches Google's keys once and keeps them for an hour. `GET /api/v1/me` reads the
+session, asks the claims stand-in for the user's tokens, and lists each Event Service in
+`EVENT_SERVICES` that has a `public_url`, for the screens' buttons. The stand-in has 4 seconds
+to answer. When it doesn't answer properly in that time, the Worker answers
+`503 claims_unavailable`.
 
-The event buttons call `POST /api/v1/login-links`, which answers the event's address with a
-login link in its fragment, `#login=`, signed with a key derived from that Event Service's key.
-The Event screens send it to the Event Service's `POST /auth/login-link`, which checks it with
-the same package, keeps its ID in `used_login_links` so it works once, and sets
-`event_session` for the same user. The link lasts 60 seconds, and neither service logs it.
+The event buttons call `POST /api/v1/login-links`. It answers the event's address with a login
+link in its fragment, `#login=`, signed with a key derived from that Event Service's key. The
+Event screens send the link to the Event Service's `POST /auth/login-link`, which checks it with
+the same package. The Event Service keeps the link's ID in `used_login_links`, so the link works
+once, then sets `event_session` for the same user. The link lasts 60 seconds, and neither
+service logs it.
 
 ## Running the Event screens
 
