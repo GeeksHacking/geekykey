@@ -5,6 +5,7 @@ import { useApi } from "@/api/context";
 import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type { MeResponse } from "@/api/types";
+import { signOutOfFirebase } from "@/lib/firebase";
 import { SessionContext, type SessionStatus } from "@/lib/session";
 
 /*
@@ -75,7 +76,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
 
   const signOut = useMutation({
-    mutationFn: () => api.logout(),
+    mutationFn: async () => {
+      // Agreement 7.3: the screens also sign out of Firebase, so a shared device does not
+      // stay signed in to Firebase. Firebase goes first, because agreement 7.2 has the
+      // screens sign a returning user in again whenever Firebase still has them, and a
+      // sign-out that left it signed in would sign the same person straight back in. Its
+      // failure is logged and not fatal: the service's cookie is the session, and the user
+      // has to see that failing.
+      try {
+        await signOutOfFirebase();
+      } catch (error) {
+        console.error("Signing out of Firebase failed", error);
+      }
+      return api.logout();
+    },
     onMutate: () => {
       // Cancel a poll that could otherwise restore the old identity after logout starts.
       void queryClient.cancelQueries({ queryKey: queryKeys.me });

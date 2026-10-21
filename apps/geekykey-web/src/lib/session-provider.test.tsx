@@ -1,11 +1,20 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { useSession } from "@/lib/session";
 import { createTestProviders } from "@/test/providers";
+
+const { signOutOfFirebase } = vi.hoisted(() => ({ signOutOfFirebase: vi.fn() }));
+
+vi.mock("@/lib/firebase", () => ({ signOutOfFirebase }));
+
+beforeEach(() => {
+  signOutOfFirebase.mockReset();
+  signOutOfFirebase.mockResolvedValue(undefined);
+});
 
 /** A token the seeded participant owns, used as an identity-scoped cache key. */
 const SOME_UID = "04A1B2C3D4E5F6";
@@ -156,6 +165,55 @@ describe("SessionProvider", () => {
     // A failed sign-in must not leave the old account's data visible.
     expect(result.current.me).toBeNull();
     expect(queryClient.getQueryData(queryKeys.token(SOME_UID))).toBeUndefined();
+  });
+
+  it("signs out of Firebase before it signs out of the service", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    const order: string[] = [];
+    signOutOfFirebase.mockImplementation(async () => {
+      order.push("firebase");
+    });
+    vi.spyOn(api, "logout").mockImplementation(async () => {
+      order.push("service");
+    });
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    // Firebase goes first, because the screens sign a returning user in again whenever
+    // Firebase still has them.
+    expect(order).toEqual(["firebase", "service"]);
+  });
+
+  it("still signs out of the service when Firebase's sign-out fails", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    signOutOfFirebase.mockRejectedValue(new Error("firebase is down"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logout = vi.spyOn(api, "logout");
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    // The service's cookie is the session, so a Firebase failure must not stop the
+    // sign-out. It is logged, not shown to the user.
+    expect(logout).toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalled();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    expect(result.current.me).toBeNull();
   });
 
   it("clears identity queries even when logout fails", async () => {

@@ -60,9 +60,24 @@ export function signInWithGeeksHacking(): Promise<string> {
 }
 
 /**
+ * Whether the build carries the config Firebase needs. A build without it has no Firebase
+ * to sign in to, so there is no Firebase session to end and no sign-in to offer.
+ */
+export function hasFirebaseConfig(): boolean {
+  return Boolean(
+    FIREBASE_CONFIG.apiKey &&
+    FIREBASE_CONFIG.authDomain &&
+    FIREBASE_CONFIG.projectId &&
+    FIREBASE_CONFIG.appId,
+  );
+}
+
+/**
  * Agreement 7.3: the screens also sign out of Firebase, so a shared device does not stay
- * signed in to Firebase.
+ * signed in to Firebase. A build with no config has no Firebase session to end, so there is
+ * nothing to do there.
  */
 export function signOutOfFirebase(): Promise<void> {
+  if (!hasFirebaseConfig()) return Promise.resolve();
   return signOutOfFirebaseAuth(firebaseAuth());
 }
