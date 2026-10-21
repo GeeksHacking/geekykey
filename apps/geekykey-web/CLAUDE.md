@@ -37,4 +37,11 @@ FRO-30. The login screen signs in with Firebase's web SDK, through `src/lib/fire
 (agreement 7.2). There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,
 which would have been one, was canceled.
 
-`src/api/create-client.ts` is the only file that changes when an endpoint goes live, and `liveMethods()` is empty until checkpoint 6: the GeekyKey Service's routes do not exist yet, so every method runs on the mock even with `VITE_LIVE_API=1`.
+`src/api/create-client.ts` is the only file that changes when an endpoint goes live. The session
+slice is live: `me`, `devLogin`, `firebaseLogin` and `logout` go to the GeekyKey Service, while
+the token lookup, claiming and releasing (agreement 8.2, 8.3 and 8.5) stay on the mock until
+checkpoint 6. Until then the token page answers from the mock's fixtures while My tokens
+answers from the service, so the two do not agree about who owns a token.
+
+`pnpm dev` runs the app on the mock. `pnpm dev:live` sends the live slice to the service, and
+`mise run dev` starts it that way with the rest of the stack.

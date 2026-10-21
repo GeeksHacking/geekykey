@@ -31,12 +31,10 @@ Do not copy content from the agreement or the skill into this file. Link to it.
 ## Current phase: staged live session, mock resources
 
 The screens are built against the mock and the first live session slice is now enabled:
-`me`, `devLogin`, and `logout` use the backend in live mode. The Firebase sign-in is a
-client method as well (`firebaseLogin`), and FRO-56 makes it live with the rest of the
-session. Admin, fallback, stats, and export remain mock-backed until their service routes
-are implemented. Token claiming lives in the separate GeekyKey app, not in these Event
-screens. The mock/live split is intentional; screens never need to know which client
-supplied a value.
+`me`, `devLogin`, `firebaseLogin`, and `logout` use the backend in live mode. Admin, fallback,
+stats, and export remain mock-backed until their service routes are implemented. Token claiming
+lives in the separate GeekyKey app, not in these Event screens. The mock/live split is
+intentional; screens never need to know which client supplied a value.
 
 `src/api/create-client.ts` is still the only file that changes when an endpoint goes live.
 `src/api/service-client.ts` prepares the future GeekyKey/Event Service split without changing
@@ -61,8 +59,7 @@ Rules that make this possible:
 ## Wiring an endpoint to the real backend
 
 No screen, hook, or query key changes when an endpoint goes live. `src/api/create-client.ts`
-changes, and nothing else. It is worth reading that file before the first slice; it is
-about thirty lines.
+changes, and nothing else. It is worth reading that file before the first slice.
 
 `pnpm dev` is unchanged and still runs entirely on the mock, so nobody doing UI work is
 blocked on a running backend. `pnpm dev:live` sets `VITE_LIVE_API=1`, which sends the
@@ -102,7 +99,9 @@ One slice, start to finish:
    `Implemented`. Until then, leave it on the mock.
 2. Start the backend: `mise run db:up` and `mise run seed` once (Docker must be running),
    then `mise run dev:event-service`.
-3. Add one line per method to `liveMethods()` in `src/api/create-client.ts`.
+3. Add the method's name to `LIVE_METHOD_NAMES` and the method itself to `liveMethods()` in
+   `src/api/create-client.ts`. The type checker asks for both, so a half-done slice does not
+   build.
 4. `pnpm dev:live`, then work through each screen in the slice: populated, loading, empty,
    and every error path. Force the errors for real now rather than with `failNext`. Stop
    the backend for a network failure, sign out for a 401, and sign in as `dev-user-1` and

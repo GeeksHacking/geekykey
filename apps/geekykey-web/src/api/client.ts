@@ -3,7 +3,7 @@ import type { MeResponse, Token, TokenLookup } from "@/api/types";
 /*
   The one interface every feature consumes. Two implementations:
   - src/api/mock: in-memory data shaped like the agreement (current phase)
-  - src/api/http: fetch against /api/v1 with credentials (checkpoint 6)
+  - src/api/http: fetch against /api/v1 with credentials
 
   Screens never know which one they are talking to. Every method here is on the
   GeekyKey Service; none of them is the Event Service's, even where the path

@@ -45,9 +45,9 @@ geekykey/
 | `apps/updates` | Astro, with one Markdown file per entry | `apps/updates/CONTENT-MODEL.md` |
 | `firmware/geekykey_station` | Arduino sketch for an ESP32-S3 with an RC522 reader | The comment at the top of `geekykey_station.ino` |
 
-`apps/geekykey-web` is a shell so far: logging in and out, and a placeholder My tokens page,
-all on mock data. The two sets of screens are separate because they belong to separate
-services. See `apps/API-AGREEMENT.md`.
+`apps/geekykey-web` is the token page and My tokens, on the GeekyKey Service. The two sets of
+screens are separate because they belong to separate services. See
+`apps/API-AGREEMENT.md`.
 
 `pnpm-workspace.yaml` also includes `packages/*`, for code shared between apps.
 `packages/handoff` holds the Zod schemas for what the GeekyKey Service sends an Event Service
@@ -473,13 +473,20 @@ folder it came from:
 - the Event screens on http://localhost:5173, calling the Event Service for what
   `apps/event-web/src/api/create-client.ts` lists (see [With the Event
   screens](#with-the-event-screens));
-- the GeekyKey screens on http://localhost:5174, still on mock data until checkpoint 6.
+- the GeekyKey screens on http://localhost:5174, calling the GeekyKey Service for what
+  `apps/geekykey-web/src/api/create-client.ts` lists, and mock data for the tokens until
+  checkpoint 6.
 
 No settings file is needed. Each service turns dev sign-in on by itself and reads a committed
 `dev.env`, which points the GeekyKey Service at the Event Service on 8001, with the keys the
 Event Service uses locally. Leave `mise run dev` running: each service reloads when you save a
 file under its `src`. To stop all four, press Ctrl-C. pnpm may print an error as it stops;
 that is normal.
+
+The Firebase sign-in is the one thing the stack cannot start on its own. Both sets of screens
+need the four `VITE_FIREBASE_*` variables, whose values are in agreement 7.2, and they are
+read from the environment: without them the sign-in buttons are disabled and the page says
+so, and the local development form signs in instead.
 
 To start only one, use its own task in a terminal of its own: `mise run dev:event-service`,
 `mise run dev:geekykey-service`, `mise run dev:event-web` or `mise run dev:geekykey-web`.
@@ -663,10 +670,24 @@ stops it.
 `mise exec -- pnpm dev:live` from `apps/event-web`, which starts the Event screens
 alone. That sends the methods listed in `apps/event-web/src/api/create-client.ts` to the
 Event Service on port 8001 and keeps everything else on mock data. So far the list has
-signing in and out (`devLogin` and `logout`) and `me`, which says who is signed in and
-carries a participant's points, stamps and recent taps. So with the backend running and
-seeded, you can sign in as Alex Tan or Priya Raman for real. The plan for switching the
-rest over is in `apps/event-web/CLAUDE.md`, under "Wiring an endpoint to the real backend".
+signing in (`devLogin` and `firebaseLogin`), signing out (`logout`) and `me`, which says
+who is signed in and carries a participant's points, stamps and recent taps. So with the
+backend running and seeded, you can sign in as Alex Tan or Priya Raman for real. The plan
+for switching the rest over is in `apps/event-web/CLAUDE.md`, under "Wiring an endpoint to
+the real backend".
+
+### With the GeekyKey screens
+
+The same is true of the GeekyKey screens: `mise run dev` starts them with
+`VITE_LIVE_API=1`, and `mise exec -- pnpm dev:live` from `apps/geekykey-web` starts them
+alone. The list in `apps/geekykey-web/src/api/create-client.ts` has the session in it, so
+signing in and `me` go to the GeekyKey Service on port 8000 and My tokens shows the
+service's tokens. The token lookup, claiming and releasing stay on the mock until
+checkpoint 6, so the token page answers from fixtures.
+
+The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, whose values are in
+agreement 7.2. Without them the sign-in buttons are disabled and the page says so, and
+`pnpm dev:live` still signs in with the local development form.
 
 ## Updates site
 
