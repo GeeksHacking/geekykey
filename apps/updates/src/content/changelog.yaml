@@ -1191,3 +1191,11 @@
     continue as a guest on the token page, with one tap and no account, and the token page's
     button opens their passport already logged in. Anyone can also choose the name the event shows.
     The API agreement's version 0.5 has the details, waiting for Ethan's review.
+
+- id: geekykey-service-firebase-login
+  date: 2026-10-21
+  area: backend
+  change: >-
+    The GeekyKey Service now logs a user in with a Firebase ID token, with the same check as the
+    Event Service's. Its /me tells the GeekyKey screens who is logged in, with their tokens and a
+    link to the showcase. Nothing calls either on production until the screens deploy.

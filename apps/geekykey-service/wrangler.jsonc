@@ -53,12 +53,15 @@
   "vars": {
     // The Event Services whose stations this Worker takes taps from, and
     // hands them to: an ID, a name, and an https:// address with no / at the
-    // end. Locally, dev.env points the showcase at http://localhost:8001.
+    // end. `public_url`, which may be left out, is where its screens are, for
+    // the buttons on the token page and My tokens. Locally, dev.env points the
+    // showcase at http://localhost:8001, and its screens at 5173.
     "EVENT_SERVICES": [
       {
         "id": "showcase",
         "name": "Capstone Showcase",
         "url": "https://event-api.geekshacking.com",
+        "public_url": "https://event.geekshacking.com",
       },
     ],
     // Who owns each token, until the switch to the Portal's tag APIs.
@@ -70,6 +73,10 @@
     // One deadline for a station request's calls out (the API agreement's
     // 11.5). The station waits 5 seconds.
     "TAP_DEADLINE_MS": 4000,
+    // The Firebase project whose ID tokens POST /auth/firebase accepts, the
+    // same as the Event Service's (ADR 0004). Not a secret: the screens name
+    // it too.
+    "FIREBASE_PROJECT_ID": "geekykey-b035a",
     // No DEV_AUTH_ENABLED, which adds POST /auth/dev-login: unset is off.
     // Locally `pnpm dev` turns it on with `wrangler dev --var`.
   },

@@ -9,6 +9,13 @@ export interface EventServiceEntry {
   /** Where its routes start, such as `https://event-api.geekshacking.com`, with no `/` at the end. */
   url: string;
   /**
+   * Where its screens are, such as `https://event.geekshacking.com`, for the
+   * buttons on the token page and My tokens, or null for none. GET
+   * /api/v1/me lists only the Event Services that have one (the API
+   * agreement's 8.4).
+   */
+  publicUrl: string | null;
+  /**
    * The Event Service key its requests carry, from the secret
    * EVENT_SERVICE_KEY_<ID>. 64 lower-case hex characters, as `openssl rand
    * -hex 32` writes them.
@@ -28,7 +35,8 @@ export interface Config {
   };
   /**
    * The GeekyKey admins, by user ID, who may release someone else's token.
-   * Nothing reads it until checkpoint 6's release.
+   * GET /api/v1/me says whether the user is one; checkpoint 6's release
+   * checks it.
    */
   geekykeyAdmins: string[];
   maxTapsPerRequest: number;
@@ -48,6 +56,12 @@ export interface Config {
   sessionSecret: string;
   /** `Secure` on the session cookie. A Secure cookie is never sent back over plain http. */
   sessionCookieSecure: boolean;
+  /**
+   * The Firebase project whose ID tokens POST /auth/firebase accepts, at the
+   * showcase (ADR 0004): `geekykey-b035a`, the same as the Event Service's,
+   * so a user has the same ID in both.
+   */
+  firebaseProjectId: string;
 }
 
 /**
@@ -124,6 +138,8 @@ const eventServicesSetting = z
       id: z.string().regex(/^[a-z0-9_]+$/, "must be lower-case letters, digits and _"),
       name: z.string().min(1),
       url: address,
+      // No key goes there, but it's where a browser is sent, so the same rule holds.
+      public_url: address.optional(),
     }),
   )
   .min(1)
@@ -174,6 +190,20 @@ function sessionSecretFromEnv(env: Env): string {
 }
 
 /**
+ * No default, not even locally: every login but dev-login checks the token
+ * against it, and a wrong one would turn every real token away. A Google
+ * Cloud project ID is 6 to 30 lower-case letters, digits and hyphens,
+ * starting with a letter and not ending with a hyphen.
+ */
+function firebaseProjectIdFromEnv(env: Env): string {
+  const id = required(env, "FIREBASE_PROJECT_ID");
+  if (typeof id !== "string" || !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(id)) {
+    throw new ConfigError("FIREBASE_PROJECT_ID must be a Firebase project ID");
+  }
+  return id;
+}
+
+/**
  * Every setting, read once as the Worker starts. A missing or malformed one
  * throws ConfigError, which stops it starting rather than failing every
  * request. `settings` is the Worker's `env`.
@@ -185,9 +215,12 @@ export function loadConfig(settings: object): Config {
     "EVENT_SERVICES",
     eventServicesSetting,
     jsonSetting(env, "EVENT_SERVICES"),
-  ).map((entry) => ({
-    ...entry,
-    key: keyFromEnv(env, `EVENT_SERVICE_KEY_${entry.id.toUpperCase()}`),
+  ).map(({ id, name, url, public_url }) => ({
+    id,
+    name,
+    url,
+    publicUrl: public_url ?? null,
+    key: keyFromEnv(env, `EVENT_SERVICE_KEY_${id.toUpperCase()}`),
   }));
   return {
     eventServices,
@@ -206,5 +239,6 @@ export function loadConfig(settings: object): Config {
     sessionSecret: sessionSecretFromEnv(env),
     // Dev auth means a developer on http://localhost, where a Secure cookie never comes back.
     sessionCookieSecure: !devAuthEnabled,
+    firebaseProjectId: firebaseProjectIdFromEnv(env),
   };
 }
