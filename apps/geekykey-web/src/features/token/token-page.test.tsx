@@ -209,9 +209,20 @@ describe("TokenPage", () => {
     slow.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderAs(slow, OWNED_BY_PARTICIPANT);
 
-    expect(await screen.findByRole("status")).toBeInTheDocument();
+    // The skeleton's own label, not its role: the demo-data notice is a status too.
+    expect(await screen.findByText("Loading")).toBeInTheDocument();
     expect(screen.queryByText("This is your token.")).not.toBeInTheDocument();
     expect(await screen.findByText("This is your token.")).toBeInTheDocument();
+  });
+
+  it("says where the data came from, so a claim here is not a claim on the service", async () => {
+    // The token lookup, the claim and the release still run on the mock until checkpoint
+    // 6, so the page has to say that rather than let a claim look like it stuck.
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, UNCLAIMED);
+
+    expect(await screen.findByText(/Demo data/)).toBeInTheDocument();
+    expect(await screen.findByText("Nobody has claimed this token yet.")).toBeInTheDocument();
   });
 
   it("makes no lookup at all while signed out", async () => {

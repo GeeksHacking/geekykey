@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { describeError, isApiErrorCode } from "@/api/errors";
+import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { ErrorState } from "@/components/layout/error-state";
 import { ReleaseTokenBlock } from "@/components/release-token-block";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,8 @@ export function TokenPage({ uid }: { uid: string }) {
       <p className="mt-2 text-sm text-muted-foreground">
         <code className="font-mono text-foreground">{displayed}</code>
       </p>
+
+      <DataSourceNotice />
 
       <div className="mt-8" aria-live="polite">
         {query.isPending ? (
