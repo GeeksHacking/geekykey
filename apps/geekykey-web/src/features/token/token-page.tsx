@@ -32,7 +32,7 @@ import { useToken } from "@/features/token/use-token";
  */
 export function TokenPage({ uid }: { uid: string }) {
   const query = useToken(uid);
-  const claim = useClaimToken(uid);
+  const claim = useClaimToken();
   const release = useReleaseToken(uid);
   const { me } = useSession();
   const displayed = formatUid(uid);
@@ -103,7 +103,7 @@ function OwnerView({
   }
 
   if (failure && !isApiErrorCode(failure, "token_taken")) {
-    return <ClaimError error={failure} onRetry={() => claim.mutate()} />;
+    return <ClaimError error={failure} onRetry={() => claim.mutate(lookup.uid)} />;
   }
 
   // Agreement 13: on token_taken the sentence sits above whatever a fresh lookup answers,
@@ -111,7 +111,7 @@ function OwnerView({
   // offered underneath, since the token may be free again by now.
   const view =
     owner === "nobody" ? (
-      <NobodyHasIt claim={claim} />
+      <NobodyHasIt claim={claim} uid={lookup.uid} />
     ) : owner === "you" ? (
       <YouOwnIt claimedAt={claimedAt} release={release} events={events} />
     ) : (
@@ -130,13 +130,13 @@ function OwnerView({
   return view;
 }
 
-function NobodyHasIt({ claim }: { claim: ReturnType<typeof useClaimToken> }) {
+function NobodyHasIt({ claim, uid }: { claim: ReturnType<typeof useClaimToken>; uid: string }) {
   return (
     <div className="flex flex-col items-start gap-4">
       <p className="text-base">Nobody has claimed this token yet.</p>
       {/* Disabled while the claim is in flight. Spec 4: the cap has no exemption, and two
           claims at the same instant could leave someone holding 4. */}
-      <Button size="lg" disabled={claim.isPending} onClick={() => claim.mutate()}>
+      <Button size="lg" disabled={claim.isPending} onClick={() => claim.mutate(uid)}>
         {claim.isPending ? "Claiming" : "Claim"}
       </Button>
     </div>
