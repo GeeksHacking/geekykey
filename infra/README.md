@@ -29,7 +29,8 @@ Two steps aren't on Google Cloud. [Step 12](#12-the-geekykey-services-build-on-c
 is how Cloudflare builds and deploys the GeekyKey Service (`apps/geekykey-service`), a Worker
 the Event Service's hand-offs come from. [Step 13](#13-the-screens-builds-on-cloudflare) does
 the same for the two Workers that serve the screens. They're here so the one runbook has
-every service.
+every service. [Step 14](#14-firebases-login-settings) is the login settings in the Firebase
+console, for the same Google Cloud project.
 
 ## What lives where
 
@@ -77,9 +78,10 @@ works in the web console, so his steps say where each one is there too.
 | [11. The secret values](#11-the-secret-values) | Adam | 9 Oct 2026. `app-secrets`: 14 Oct 2026 |
 | [12. The GeekyKey Service's build on Cloudflare](#12-the-geekykey-services-build-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-44) | 19 Oct 2026 |
 | [13. The screens' builds on Cloudflare](#13-the-screens-builds-on-cloudflare) | Julian, in the Cloudflare dashboard (BAC-56) | Not yet |
+| [14. Firebase's login settings](#14-firebases-login-settings) | Adam, in the Firebase console (BAC-58) | Each setting has its date in the step's own table |
 
-When you run a step, put the date in the table, and change any command you ran
-differently so it says what you actually ran.
+When you run a step, put the date in the table, or for step 14 in that step's own table.
+Change any command you ran differently so it says what you actually ran.
 
 ## Before you start
 
@@ -808,6 +810,76 @@ before Julian sets them, so he sets them once.
 
 Adam ran both build commands and a `wrangler deploy --dry-run` in a clean copy of the repo
 on 20 Oct 2026, with Wrangler 4.151.1. Both passed.
+
+## 14. Firebase's login settings
+
+Both services log users in with Firebase ID tokens from `geekykey-b035a`
+([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)), and the GeekyKey
+screens let someone log in as a guest
+([ADR 0005](../docs/adr/0005-guests-reach-the-passport-through-a-login-link.md)). Adam sets
+these in the [Firebase console](https://console.firebase.google.com/project/geekykey-b035a/authentication),
+under Security, then Authentication. His Editor role should be enough. If the console turns
+him away, the setting goes to Julian.
+
+| Setting | Where | Value | Run |
+|---|---|---|---|
+| Google sign-in | Sign-in method tab | On | 10 Oct 2026 |
+| Authorised domains | Settings tab, then Authorised domains | `key.geekshacking.com` and `event.geekshacking.com`, beside the three Firebase adds itself: `localhost`, `geekykey-b035a.firebaseapp.com` and `geekykey-b035a.web.app` | 10 Oct 2026 |
+| The Identity Platform upgrade | Settings tab, then Identity Platform | Upgraded. GeeksHacking's billing account, which it needs, was linked by 9 Oct 2026 | By 21 Oct 2026, since automatic clean-up needs it |
+| GeeksHacking's login | Sign-in method tab, then Add new provider, then OpenID Connect | Provider ID `oidc.geekshacking`, with the client Qing Guan issues for Firebase's redirect URL. Turned off again if Mr Pang says no | Not yet. Waits on Qing Guan's client |
+| Anonymous sign-in, for guests | Sign-in method tab | On | On by 21 Oct 2026, when BAC-58's check signed a guest in |
+| Automatic clean-up of guests | Settings tab, where Firebase calls it automatic clean-up of anonymous accounts | On, before the rehearsal. Firebase deletes each guest once they are 30 days old | 21 Oct 2026 |
+| Sign-up quota, for the A/B test at the grad tea | Sign-in method tab, below the list of providers | 800 an hour on Thu 12 Nov 2026 | Scheduled 21 Oct 2026 |
+| Sign-up quota, for the rehearsal on Sat 7 Nov 2026 | None | Not raised. The 12 Nov window holds Firebase's one scheduled quota, so the rehearsal has the usual 100 an hour from one address | Not needed |
+| Sign-up quota, for the showcase | Sign-in method tab, below the list of providers | From Tue 17 Nov 2026 00:00 to Thu 19 Nov 2026 00:00, Singapore time. 800 an hour, as on 12 Nov, unless the A/B test shows it needs more | Not yet. Set on 13 Nov or later |
+
+**Automatic clean-up needs the Identity Platform upgrade.** If the Settings tab doesn't
+offer it, upgrade first. Once clean-up is on, Firebase doesn't count guests towards the
+upgrade's monthly users. It does count the guests made before clean-up was on, which is why
+it goes on before the rehearsal.
+
+**Why the quota.** Firebase lets one IP address sign up 100 new users an hour. Everyone on
+the venue's Wi-Fi shares one address, so Firebase would turn away the 101st guest in an
+hour. A raised quota is a number of sign-ups an hour from one address, over a window you
+schedule ahead of time. Pick a number above the most guests you expect in one hour. If the
+console caps it lower, use its highest. Write the number you set into the table.
+
+Firebase holds one scheduled quota at a time. So the showcase's goes in once the 12 Nov
+window has ended, on 13 Nov or later. If it needs more than the console allows, Firebase asks
+for two weeks' notice, which by then is too late. So if 800 may not be enough for the
+showcase, ask Firebase support by 3 Nov, before the A/B test can tell you.
+
+**Checking what's set.** The console is the place to change these. This prints what the
+project has, for anyone signed in to `gcloud` who can read the project's settings:
+
+```bash
+curl -s "https://identitytoolkit.googleapis.com/admin/v2/projects/geekykey-b035a/config" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "x-goog-user-project: geekykey-b035a" \
+  | python3 -c '
+import json, sys
+config = json.load(sys.stdin)
+print(json.dumps({
+    "subtype": config.get("subtype"),
+    "anonymous": config.get("signIn", {}).get("anonymous"),
+    "autodeleteAnonymousUsers": config.get("autodeleteAnonymousUsers"),
+    "quota": config.get("quota"),
+    "authorizedDomains": config.get("authorizedDomains"),
+}, indent=2))'
+```
+
+`subtype` is `IDENTITY_PLATFORM` once the project is upgraded. `quota.signUpQuotaConfig`
+holds the scheduled quota's number, start and length, and is absent when none is scheduled.
+
+**After the showcase.** Guests and login links end with Firebase's login (ADR 0005). To undo
+the guest settings:
+
+1. Turn Anonymous sign-in off, on the Sign-in method tab. Nobody can log in as a new guest
+   from then on.
+2. Leave automatic clean-up on. It deletes the last guests once they are 30 days old, so
+   from about 18 Dec 2026 none are left. After that it does nothing, and it can be turned
+   off or left.
+3. The sign-up quota needs nothing. It goes back to 100 an hour when its window ends.
 
 ## Day to day
 
