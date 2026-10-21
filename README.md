@@ -196,11 +196,11 @@ the copy, goes through the Worker's `waitUntil`, so the answer doesn't wait for 
 
 The GeekyKey screens log in with `POST /auth/firebase`, which checks the Firebase ID token with
 `packages/firebase-login`, the same code as the Event Service's, and sets `gk_session`. The
-Worker keeps no users, so the session holds only the user ID. Google's keys are fetched once
-and kept for an hour in each isolate. `GET /api/v1/me` reads the session, asks the claims
+Worker keeps no users, so the session holds only the user ID. Each isolate fetches Google's
+keys once and keeps them for an hour. `GET /api/v1/me` reads the session, asks the claims
 stand-in for the user's tokens, and lists each Event Service in `EVENT_SERVICES` that has a
-`public_url`, for the screens' buttons. A user's request gives the stand-in 4 seconds, and
-answers `503 claims_unavailable` when it doesn't answer properly in that time.
+`public_url`, for the screens' buttons. The stand-in has 4 seconds to answer. When it doesn't
+answer properly in that time, the Worker answers `503 claims_unavailable`.
 
 ## Running the Event screens
 

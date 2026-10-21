@@ -19,10 +19,7 @@ export interface AppDeps {
   send: Send;
   /** Google's keys, which POST /auth/firebase checks ID tokens against. */
   googleKeys: GoogleSigningKeys;
-  /**
-   * Milliseconds a user's request gives the claims stand-in to answer: 4
-   * seconds, as the API agreement's section 8 says, unless a test shortens it.
-   */
+  /** Milliseconds a user's request gives the claims stand-in. Only a test changes it. */
   claimsDeadlineMs: number;
 }
 

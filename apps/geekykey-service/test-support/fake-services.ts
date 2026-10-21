@@ -30,7 +30,7 @@ type Answer = (request: SentRequest) => Promise<Response>;
  *
  * - `stations`, each Event Service's registered stations, by its ID;
  * - `owners`, who owns each token, by its normalised UID;
- * - `tokensOf`, each user's tokens, by user ID, in the order the stand-in
+ * - `tokens`, each user's tokens, by user ID, in the order the stand-in
  *   gives them: oldest claim first;
  * - `statusOf`, each handed-off tap's status, `accepted` unless a test says
  *   otherwise.
@@ -42,7 +42,7 @@ export function fakeServices(config: Config) {
   const fake = {
     stations: new Map<string, RegisteredStation[]>(),
     owners: new Map<string, string>(),
-    tokensOf: new Map<string, { uid: string; claimed_at: string }[]>(),
+    tokens: new Map<string, { uid: string; claimed_at: string }[]>(),
     statusOf: (_tap: HandedOffTap, _stationId: string): string => "accepted",
     answers: {} as Partial<
       Record<"stations" | "taps" | "heartbeats" | "owners" | "tokens", Answer>
@@ -73,7 +73,7 @@ export function fakeServices(config: Config) {
       if (request.method === "GET" && tokensPath) {
         if (fake.answers.tokens) return fake.answers.tokens(request);
         const userId = decodeURIComponent(tokensPath[1]!);
-        return Response.json({ tokens: fake.tokensOf.get(userId) ?? [] });
+        return Response.json({ tokens: fake.tokens.get(userId) ?? [] });
       }
       if (request.method !== "POST" || path !== "/owners") {
         return Response.json({ error: "not_found" }, { status: 404 });
