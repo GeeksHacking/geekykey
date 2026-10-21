@@ -1,5 +1,8 @@
 .env
 .env.*
+# Firebase's web config, which is not secret (agreement 7.2). A fresh clone needs it
+# to sign in with Google, so it is committed. Your own .env.local still wins.
+!.env.development
 *.local
 .claude
 .tanstack/

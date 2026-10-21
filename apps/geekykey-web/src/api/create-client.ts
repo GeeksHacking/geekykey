@@ -71,12 +71,11 @@ function liveMethods(
     // The service sets its own cookie, so the screens keep nothing. The mock's
     // session follows the live /me, which the screens read straight afterwards.
     firebaseLogin: async (idToken) => {
-      try {
-        await http.firebaseLogin(idToken);
-      } catch (error) {
-        mock.setSession(null);
-        throw error;
-      }
+      // The mock's session goes before the request, not after it, so a /me that
+      // cannot answer once the login is through cannot leave the mock signed in
+      // as the user who was there before.
+      mock.setSession(null);
+      await http.firebaseLogin(idToken);
     },
 
     logout: async () => {

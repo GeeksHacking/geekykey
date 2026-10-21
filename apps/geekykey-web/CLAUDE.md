@@ -20,8 +20,10 @@ Read those files before adding screens. They are references, not documents to co
 - Keep GeekyKey Service and Event Service concerns separate.
 - The Vite dev server proxies `/api` and `/auth` to `http://localhost:8000`.
 - The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, under the names the
-  runbook's step 13 gives. Without them the sign-in buttons are disabled and the page says
-  so, and a live build fails rather than ship that.
+  runbook's step 13 gives. The committed `.env.development` carries them for development, so
+  a fresh clone can sign in; a variable in your shell or in your own `.env.local` wins over
+  the file. Without them the sign-in buttons are disabled and the page says so, and a live
+  build fails rather than ship that.
 - In production the Worker in `worker/` (settings in `wrangler.jsonc`) serves `dist/` and
   passes `/api/*` and `/auth/*` to `geekykey-service` through a service binding. It works
   like the Event screens' Worker, and has the same `worker:*` commands. `pnpm worker:dev`
@@ -41,7 +43,9 @@ which would have been one, was canceled.
 slice is live: `me`, `devLogin`, `firebaseLogin` and `logout` go to the GeekyKey Service, while
 the token lookup, claiming and releasing (agreement 8.2, 8.3 and 8.5) stay on the mock until
 checkpoint 6. Until then the token page answers from the mock's fixtures while My tokens
-answers from the service, so the two do not agree about who owns a token.
+answers from the service, so the two do not agree about who owns a token. The token page says
+where its data came from in a "Demo data" notice, the way the Event screens' organiser
+console does, so a claim there cannot look like a claim on the service.
 
 `pnpm dev` runs the app on the mock. `pnpm dev:live` sends the live slice to the service, and
 `mise run dev` starts it that way with the rest of the stack.

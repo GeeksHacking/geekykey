@@ -483,10 +483,11 @@ Event Service uses locally. Leave `mise run dev` running: each service reloads w
 file under its `src`. To stop all four, press Ctrl-C. pnpm may print an error as it stops;
 that is normal.
 
-The Firebase sign-in is the one thing the stack cannot start on its own. Both sets of screens
-need the four `VITE_FIREBASE_*` variables, whose values are in agreement 7.2, and they are
-read from the environment: without them the sign-in buttons are disabled and the page says
-so, and the local development form signs in instead.
+The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, whose values are in
+agreement 7.2. Each set of screens has a committed `.env.development` with them, so a fresh
+clone can sign in with Google as soon as the stack is up. A variable in your shell wins over
+the file, and so does your own `.env.local`. Without the four values the sign-in buttons are
+disabled and the page says so, and the local development form signs in instead.
 
 To start only one, use its own task in a terminal of its own: `mise run dev:event-service`,
 `mise run dev:geekykey-service`, `mise run dev:event-web` or `mise run dev:geekykey-web`.
@@ -683,10 +684,11 @@ The same is true of the GeekyKey screens: `mise run dev` starts them with
 alone. The list in `apps/geekykey-web/src/api/create-client.ts` has the session in it, so
 signing in and `me` go to the GeekyKey Service on port 8000 and My tokens shows the
 service's tokens. The token lookup, claiming and releasing stay on the mock until
-checkpoint 6, so the token page answers from fixtures.
+checkpoint 6, so the token page answers from fixtures and says so in a "Demo data" notice.
 
 The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, whose values are in
-agreement 7.2. Without them the sign-in buttons are disabled and the page says so, and
+agreement 7.2 and in the committed `.env.development`, so the sign-in buttons work on a
+fresh clone. Without them the sign-in buttons are disabled and the page says so, and
 `pnpm dev:live` still signs in with the local development form.
 
 ## Updates site

@@ -136,6 +136,22 @@ describe("createAppClient", () => {
     );
   });
 
+  it("drops the mock's session when a Firebase login starts", async () => {
+    // A /me that cannot answer once the login is through must not leave the mock
+    // signed in as the user who was there before.
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const client = appClient(true);
+    await client.devLogin(SEEDED_PARTICIPANT_ID);
+
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    await client.firebaseLogin("id-token-from-firebase");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "claims_unavailable" }, 503));
+    await expect(client.me()).rejects.toThrow();
+
+    await expect(client.getToken("04A1B2C3D4E5F6")).rejects.toThrow("unauthenticated");
+  });
+
   it("signs the mock out when the service says the session is gone", async () => {
     fetchMock.mockResolvedValueOnce(noContentResponse());
     const client = appClient(true);

@@ -90,17 +90,35 @@ describe("createAppClient", () => {
 
   it("keeps the mock's session when the service cannot answer", async () => {
     // A 503 says the service is down, not that the session is gone, so the mock
-    // keeps the organiser it had and the mocked screens still work.
+    // keeps the organiser it had and the mocked screens still work. The body is
+    // the Worker's own 503 (agreement 2): the screens' code list has no entry for
+    // it, so the client falls back to the status.
     fetchMock.mockResolvedValueOnce(noContentResponse());
     const api = createAppClient({ live: true });
     await api.devLogin("dev-organizer-1");
 
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "claims_unavailable" }, 503));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
     await expect(api.me()).rejects.toThrow();
 
     await expect(api.listStationBoard()).resolves.toEqual(
       expect.objectContaining({ stations: expect.any(Array) }),
     );
+  });
+
+  it("drops the mock's session when a Firebase login starts", async () => {
+    // A /me that cannot answer once the login is through must not leave the mock
+    // signed in as the user who was there before.
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const api = createAppClient({ live: true });
+    await api.devLogin("dev-organizer-1");
+
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    await api.firebaseLogin("id-token-from-firebase");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
+    await expect(api.me()).rejects.toThrow();
+
+    await expect(api.listStationBoard()).rejects.toThrow("unauthenticated");
   });
 
   it("names the live methods, so the notice and the tests read one list", () => {

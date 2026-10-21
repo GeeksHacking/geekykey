@@ -275,8 +275,10 @@ Sign in on the login page with a seeded account. Alex Tan is a participant, Priy
 an organiser. The mock session survives a reload but not a new tab.
 
 The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, which the runbook's step 13
-sets. Without them the sign-in buttons are disabled and the page says so, and a live build
-fails rather than ship that.
+sets. The committed `.env.development` carries them, so a fresh clone can sign in, and a
+variable in your shell or in your own `.env.local` wins over the file. Without them the
+sign-in buttons are disabled and the page says so, and a live build fails rather than ship
+that.
 
 Backend, for the integration phase only:
 
