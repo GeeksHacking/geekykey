@@ -1,0 +1,23 @@
+label	round	request	sent_at	dns	tcp	tls	first_byte	total	http	tap_status	colo	cloud_run	before_cloud_run	cloud_run_requests
+station		key-api tap	2026-10-21T06:45:57.417Z					0.897	200			0.079	0.818	/claims-stand-in/v1/owners at +0.109 took 0.014, /geekykey/v1/taps at +0.302 took 0.065
+station		key-api tap	2026-10-21T06:46:04.799Z					0.530	200			0.090	0.440	/geekykey/v1/stations at +0.098 took 0.014, /claims-stand-in/v1/owners at +0.292 took 0.010, /geekykey/v1/taps at +0.380 took 0.066
+station		key-api tap	2026-10-21T06:46:11.902Z					0.578	200			0.081	0.497	/claims-stand-in/v1/owners at +0.067 took 0.013, /geekykey/v1/taps at +0.326 took 0.068
+station		key-api tap	2026-10-21T06:46:17.843Z					0.486	200			0.087	0.399	/claims-stand-in/v1/owners at +0.104 took 0.013, /geekykey/v1/taps at +0.315 took 0.074
+station		key-api tap	2026-10-21T06:46:24.307Z					0.541	200			0.081	0.460	/claims-stand-in/v1/owners at +0.128 took 0.013, /geekykey/v1/taps at +0.327 took 0.067
+station		key-api tap	2026-10-21T06:46:57.931Z					0.449	200			0.081	0.368	/claims-stand-in/v1/owners at +0.092 took 0.015, /geekykey/v1/taps at +0.297 took 0.066
+station		key-api tap	2026-10-21T06:47:05.201Z					0.977	200			0.090	0.887	/geekykey/v1/stations at +0.171 took 0.013, /claims-stand-in/v1/owners at +0.407 took 0.009, /geekykey/v1/taps at +0.488 took 0.067
+station		key-api tap	2026-10-21T06:47:11.452Z					0.785	200			0.081	0.704	/claims-stand-in/v1/owners at +0.139 took 0.014, /geekykey/v1/taps at +0.370 took 0.067
+station		key-api tap	2026-10-21T06:47:22.961Z					0.790	200			0.080	0.710	/claims-stand-in/v1/owners at +0.078 took 0.014, /geekykey/v1/taps at +0.287 took 0.066
+station		key-api tap	2026-10-21T06:47:42.335Z					0.515	200			0.080	0.435	/claims-stand-in/v1/owners at +0.108 took 0.014, /geekykey/v1/taps at +0.363 took 0.067
+station		key-api tap	2026-10-21T06:47:48.284Z					0.605	200			0.079	0.526	/claims-stand-in/v1/owners at +0.110 took 0.014, /geekykey/v1/taps at +0.348 took 0.065
+station		key-api tap	2026-10-21T06:47:55.895Z					0.523	200			0.079	0.444	/claims-stand-in/v1/owners at +0.077 took 0.013, /geekykey/v1/taps at +0.284 took 0.065
+station		key-api tap	2026-10-21T06:48:02.655Z					0.502	200			0.079	0.423	/claims-stand-in/v1/owners at +0.080 took 0.013, /geekykey/v1/taps at +0.289 took 0.066
+station		key-api tap	2026-10-21T06:48:11.917Z					0.573	200			0.094	0.479	/geekykey/v1/stations at +0.121 took 0.015, /claims-stand-in/v1/owners at +0.334 took 0.010, /geekykey/v1/taps at +0.415 took 0.068
+station		key-api tap	2026-10-21T06:48:20.739Z					0.591	200			0.079	0.512	/claims-stand-in/v1/owners at +0.087 took 0.013, /geekykey/v1/taps at +0.346 took 0.066
+station		key-api tap	2026-10-21T06:48:27.178Z					0.683	200			0.081	0.602	/claims-stand-in/v1/owners at +0.097 took 0.014, /geekykey/v1/taps at +0.299 took 0.067
+station		key-api tap	2026-10-21T06:48:38.490Z					0.619	200			0.079	0.540	/claims-stand-in/v1/owners at +0.078 took 0.014, /geekykey/v1/taps at +0.315 took 0.065
+station		key-api tap	2026-10-21T06:48:45.876Z					0.434	200			0.080	0.354	/claims-stand-in/v1/owners at +0.076 took 0.014, /geekykey/v1/taps at +0.287 took 0.066
+station		key-api tap	2026-10-21T06:48:55.703Z					5.006	-11					
+station		key-api tap	2026-10-21T06:49:02.800Z					8.999	-1					
+station		key-api tap	2026-10-21T06:49:22.050Z					9.004	-1					
+station		key-api tap	2026-10-21T06:50:02.813Z					4.001	200			0.203	3.798	/geekykey/v1/stations at +2.076 took 0.058, /claims-stand-in/v1/owners at +2.486 took 0.011, /geekykey/v1/taps at +3.571 took 0.134

@@ -1224,3 +1224,12 @@
     The showcase's buttons on the token page and My tokens can now open the passport logged in as
     the same user, guest or Google, through a login link that works once for a minute. Nothing uses
     it on production until the screens deploy.
+
+- id: tap-time-before-cloud-run
+  date: 2026-10-21
+  area: research
+  change: >-
+    Timings on production from two networks and a real station show that Cloud Run spends about
+    0.1 seconds on a tap, and the rest depends on which Cloudflare data centre answers it: under
+    0.7 seconds through Singapore, and up to 3.7 through Paris or Marseille. A Worker setting that
+    runs the GeekyKey Service near Cloud Run may fix the slow ones, and is open for a decision.
