@@ -1,0 +1,76 @@
+label	round	request	sent_at	dns	tcp	tls	first_byte	total	http	tap_status	colo	cloud_run	before_cloud_run	cloud_run_requests
+school	1	event-api health	2026-10-21T06:27:50.877Z	0.002135	0.043793	0.103247	0.337238	0.337278	200		HKG	0.003	0.335	/api/health at +0.254 took 0.003
+school	1	key-api health	2026-10-21T06:27:53.239Z	0.003715	0.043327	0.098129	0.181029	0.181054	200		HKG	0.000	0.181	
+school	1	key-api tap	2026-10-21T06:27:55.442Z	0.004612	0.010061	0.029159	0.210987	0.211031	200	cooldown	SIN	0.102	0.110	/claims-stand-in/v1/owners at +0.103 took 0.024, /geekykey/v1/taps at +0.144 took 0.078
+school	2	event-api health	2026-10-21T06:28:00.687Z	0.003773	0.010058	0.055650	0.141984	0.142037	200		SIN	0.002	0.140	/api/health at +0.140 took 0.002
+school	2	key-api health	2026-10-21T06:28:02.852Z	0.004735	0.043606	0.096300	0.161590	0.161654	200		HKG	0.000	0.162	
+school	2	key-api tap	2026-10-21T06:28:05.045Z	0.004662	0.076156	0.165092	1.064787	1.064847	200	cooldown	NRT	0.107	0.958	/geekykey/v1/stations at +0.554 took 0.016, /claims-stand-in/v1/owners at +0.791 took 0.013, /geekykey/v1/taps at +0.920 took 0.078
+school	3	event-api health	2026-10-21T06:28:11.139Z	0.005007	0.043564	0.106707	0.323853	0.323894	200		HKG	0.003	0.321	/api/health at +0.287 took 0.003
+school	3	key-api health	2026-10-21T06:28:13.495Z	0.004755	0.147846	0.244839	0.387742	0.387797	200		KIX	0.000	0.388	
+school	3	key-api tap	2026-10-21T06:28:15.912Z	0.004779	0.050701	0.119431	0.930631	0.930730	200	cooldown	HKG	0.101	0.830	/geekykey/v1/stations at +0.511 took 0.016, /claims-stand-in/v1/owners at +0.720 took 0.010, /geekykey/v1/taps at +0.817 took 0.075
+school	4	event-api health	2026-10-21T06:28:21.875Z	0.002987	0.007945	0.024996	0.077816	0.077831	200		SIN	0.002	0.076	/api/health at +0.080 took 0.002
+school	4	key-api health	2026-10-21T06:28:23.970Z	0.004670	0.046738	0.114865	0.210873	0.210925	200		HKG	0.000	0.211	
+school	4	key-api tap	2026-10-21T06:28:26.210Z	0.004456	0.010643	0.025833	0.309783	0.309833	200	cooldown	SIN	0.104	0.206	/geekykey/v1/stations at +0.186 took 0.016, /claims-stand-in/v1/owners at +0.219 took 0.010, /geekykey/v1/taps at +0.243 took 0.078
+school	5	event-api health	2026-10-21T06:28:31.552Z	0.004569	0.083400	0.183227	0.538258	0.538306	200		NRT	0.002	0.536	/api/health at +0.467 took 0.002
+school	5	key-api health	2026-10-21T06:28:34.118Z	0.004744	0.010547	0.029745	0.067986	0.068015	200		SIN	0.000	0.068	
+school	5	key-api tap	2026-10-21T06:28:36.214Z	0.006143	0.012524	0.028545	0.353119	0.353169	200	cooldown	SIN	0.105	0.248	/geekykey/v1/stations at +0.210 took 0.016, /claims-stand-in/v1/owners at +0.245 took 0.011, /geekykey/v1/taps at +0.279 took 0.079
+school	6	event-api health	2026-10-21T06:28:41.596Z	0.004309	0.074845	0.159800	0.353621	0.353661	200		NRT	0.002	0.352	/api/health at +0.294 took 0.002
+school	6	key-api health	2026-10-21T06:28:43.979Z	0.004965	0.010536	0.024597	0.059710	0.059736	200		SIN	0.000	0.060	
+school	6	key-api tap	2026-10-21T06:28:46.065Z	0.003471	0.012784	0.032328	0.549311	0.549379	200	cooldown	SIN	0.100	0.450	/geekykey/v1/stations at +0.401 took 0.017, /claims-stand-in/v1/owners at +0.442 took 0.010, /geekykey/v1/taps at +0.475 took 0.073
+school	7	event-api health	2026-10-21T06:28:51.643Z	0.004100	0.089177	0.190860	0.474218	0.474248	200		KIX	0.002	0.472	/api/health at +0.425 took 0.002
+school	7	key-api health	2026-10-21T06:28:54.157Z	0.006018	0.077866	0.197966	0.319736	0.319786	200		NRT	0.000	0.320	
+school	7	key-api tap	2026-10-21T06:28:56.504Z	0.005211	0.010772	0.033928	0.215281	0.215338	200	cooldown	SIN	0.088	0.127	/claims-stand-in/v1/owners at +0.112 took 0.012, /geekykey/v1/taps at +0.147 took 0.077
+school	8	event-api health	2026-10-21T06:29:01.751Z	0.005842	0.076405	0.172831	0.478603	0.478663	200		NRT	0.002	0.477	/api/health at +0.413 took 0.002
+school	8	key-api health	2026-10-21T06:29:04.263Z	0.005108	0.045029	0.097689	0.160727	0.160778	200		HKG	0.000	0.161	
+school	8	key-api tap	2026-10-21T06:29:06.463Z	0.009544	0.087342	0.181097	0.851124	0.851143	200	cooldown	NRT	0.101	0.750	/geekykey/v1/stations at +0.375 took 0.016, /claims-stand-in/v1/owners at +0.609 took 0.010, /geekykey/v1/taps at +0.718 took 0.075
+school	9	event-api health	2026-10-21T06:29:12.353Z	0.005117	0.016381	0.037246	0.085019	0.085057	200		SIN	0.002	0.083	/api/health at +0.092 took 0.002
+school	9	key-api health	2026-10-21T06:29:14.462Z	0.004131	0.049958	0.115833	0.201852	0.201884	200		HKG	0.000	0.202	
+school	9	key-api tap	2026-10-21T06:29:16.689Z	0.003057	0.008495	0.026381	0.306965	0.307016	200	cooldown	SIN	0.105	0.202	/geekykey/v1/stations at +0.169 took 0.017, /claims-stand-in/v1/owners at +0.203 took 0.010, /geekykey/v1/taps at +0.228 took 0.078
+school	10	event-api health	2026-10-21T06:29:22.016Z	0.005432	0.013369	0.036644	0.088151	0.088190	200		SIN	0.002	0.086	/api/health at +0.097 took 0.002
+school	10	key-api health	2026-10-21T06:29:24.132Z	0.004941	0.011656	0.029132	0.110352	0.110409	200		SIN	0.000	0.110	
+school	10	key-api tap	2026-10-21T06:29:26.271Z	0.004565	0.046261	0.107565	0.976184	0.976272	200	cooldown	HKG	0.101	0.875	/geekykey/v1/stations at +0.533 took 0.016, /claims-stand-in/v1/owners at +0.743 took 0.010, /geekykey/v1/taps at +0.854 took 0.074
+school	11	event-api health	2026-10-21T06:29:32.276Z	0.004166	0.010444	0.028731	0.125060	0.125106	200		SIN	0.002	0.123	/api/health at +0.125 took 0.002
+school	11	key-api health	2026-10-21T06:29:34.424Z	0.004654	0.046751	0.107788	0.267286	0.267342	200		HKG	0.000	0.267	
+school	11	key-api tap	2026-10-21T06:29:36.728Z	0.004975	0.075610	0.169384	0.894843	0.894927	200	cooldown	NRT	0.102	0.793	/geekykey/v1/stations at +0.440 took 0.016, /claims-stand-in/v1/owners at +0.649 took 0.010, /geekykey/v1/taps at +0.759 took 0.076
+school	12	event-api health	2026-10-21T06:29:42.655Z	0.004674	0.082432	0.182653	0.489396	0.489451	200		NRT	0.013	0.477	/api/health at +0.403 took 0.013
+school	12	key-api health	2026-10-21T06:29:45.172Z	0.004527	0.010607	0.024933	0.056376	0.056404	200		SIN	0.000	0.056	
+school	12	key-api tap	2026-10-21T06:29:47.252Z	0.005086	0.044518	0.098173	0.811183	0.811279	200	cooldown	HKG	0.115	0.697	/geekykey/v1/stations at +0.392 took 0.018, /claims-stand-in/v1/owners at +0.601 took 0.014, /geekykey/v1/taps at +0.692 took 0.082
+school	13	event-api health	2026-10-21T06:29:53.095Z	0.004324	0.075397	0.166736	0.460146	0.460172	200		NRT	0.002	0.458	/api/health at +0.390 took 0.002
+school	13	key-api health	2026-10-21T06:29:55.576Z	0.004677	0.046620	0.101936	0.188112	0.188175	200		HKG	0.000	0.188	
+school	13	key-api tap	2026-10-21T06:29:57.795Z	0.005005	0.077727	0.170206	0.896516	0.896540	200	cooldown	NRT	0.108	0.788	/geekykey/v1/stations at +0.403 took 0.018, /claims-stand-in/v1/owners at +0.603 took 0.014, /geekykey/v1/taps at +0.749 took 0.077
+school	14	event-api health	2026-10-21T06:30:03.719Z	0.004723	0.010833	0.028555	0.078506	0.078546	200		SIN	0.003	0.076	/api/health at +0.082 took 0.003
+school	14	key-api health	2026-10-21T06:30:05.825Z	0.004292	0.010123	0.031392	0.221865	0.221899	200		SIN	0.000	0.222	
+school	14	key-api tap	2026-10-21T06:30:08.066Z	0.004764	0.046324	0.108575	0.644525	0.644587	200	cooldown	HKG	0.092	0.552	/claims-stand-in/v1/owners at +0.288 took 0.017, /geekykey/v1/taps at +0.502 took 0.075
+school	15	event-api health	2026-10-21T06:30:13.733Z	0.004516	0.011746	0.027510	0.064764	0.064797	200		SIN	0.004	0.061	/api/health at +0.070 took 0.004
+school	15	key-api health	2026-10-21T06:30:15.823Z	0.004501	0.047528	0.111061	0.186313	0.186360	200		HKG	0.000	0.186	
+school	15	key-api tap	2026-10-21T06:30:18.038Z	0.002549	0.008344	0.026676	0.208418	0.208475	200	cooldown	SIN	0.099	0.110	/claims-stand-in/v1/owners at +0.083 took 0.019, /geekykey/v1/taps at +0.122 took 0.080
+school	16	event-api health	2026-10-21T06:30:23.261Z	0.005220	0.048716	0.116253	0.307089	0.307159	200		HKG	0.003	0.305	/api/health at +0.272 took 0.003
+school	16	key-api health	2026-10-21T06:30:25.598Z	0.003349	0.042692	0.090871	0.253297	0.253382	200		HKG	0.000	0.253	
+school	16	key-api tap	2026-10-21T06:30:27.866Z	0.004974	0.332136	0.394039	0.952905	0.952982	200	cooldown	HKG	0.094	0.859	/claims-stand-in/v1/owners at +0.602 took 0.017, /geekykey/v1/taps at +0.834 took 0.077
+school	17	event-api health	2026-10-21T06:30:33.849Z	0.005273	0.011333	0.036345	0.103312	0.103356	200		SIN	0.002	0.101	/api/health at +0.114 took 0.002
+school	17	key-api health	2026-10-21T06:30:35.983Z	0.004293	0.050901	0.114189	0.213424	0.213469	200		HKG	0.000	0.213	
+school	17	key-api tap	2026-10-21T06:30:38.218Z	0.004064	0.010633	0.033585	0.199144	0.199188	200	cooldown	SIN	0.092	0.107	/claims-stand-in/v1/owners at +0.101 took 0.016, /geekykey/v1/taps at +0.133 took 0.076
+school	18	event-api health	2026-10-21T06:30:43.446Z	0.004911	0.043976	0.103042	0.224961	0.225028	200		HKG	0.002	0.223	/api/health at +0.195 took 0.002
+school	18	key-api health	2026-10-21T06:30:45.703Z	0.004450	0.013222	0.035659	0.133934	0.134001	200		SIN	0.000	0.134	
+school	18	key-api tap	2026-10-21T06:30:47.864Z	0.004375	0.011452	0.034869	0.211188	0.211259	200	cooldown	SIN	0.099	0.112	/claims-stand-in/v1/owners at +0.100 took 0.017, /geekykey/v1/taps at +0.134 took 0.082
+school	19	event-api health	2026-10-21T06:30:53.103Z	0.005006	0.011512	0.035876	0.135811	0.137997	200		SIN	0.002	0.136	/api/health at +0.144 took 0.002
+school	19	key-api health	2026-10-21T06:30:55.271Z	0.004085	0.074767	0.160516	0.369295	0.369364	200		NRT	0.000	0.369	
+school	19	key-api tap	2026-10-21T06:30:57.671Z	0.004803	0.010930	0.040009	0.305617	0.305661	200	cooldown	SIN	0.096	0.210	/claims-stand-in/v1/owners at +0.155 took 0.016, /geekykey/v1/taps at +0.228 took 0.079
+school	20	event-api health	2026-10-21T06:31:03.005Z	0.004856	0.048931	0.117935	0.263873	0.263899	200		HKG	0.002	0.262	/api/health at +0.226 took 0.002
+school	20	key-api health	2026-10-21T06:31:05.290Z	0.005004	0.010739	0.027458	0.255654	0.255722	200		SIN	0.000	0.256	
+school	20	key-api tap	2026-10-21T06:31:07.577Z	0.004154	0.046945	0.113689	0.847981	0.848015	200	cooldown	HKG	0.109	0.739	/geekykey/v1/stations at +0.376 took 0.017, /claims-stand-in/v1/owners at +0.634 took 0.011, /geekykey/v1/taps at +0.718 took 0.080
+school	21	event-api health	2026-10-21T06:31:13.448Z	0.005084	0.076887	0.166402	0.360325	0.360393	200		NRT	0.002	0.358	/api/health at +0.299 took 0.002
+school	21	key-api health	2026-10-21T06:31:15.836Z	0.005261	0.010837	0.032396	0.070324	0.070366	200		SIN	0.000	0.070	
+school	21	key-api tap	2026-10-21T06:31:17.933Z	0.004655	0.013282	0.040257	0.355580	0.355644	200	cooldown	SIN	0.105	0.251	/geekykey/v1/stations at +0.196 took 0.017, /claims-stand-in/v1/owners at +0.230 took 0.011, /geekykey/v1/taps at +0.280 took 0.078
+school	22	event-api health	2026-10-21T06:31:23.318Z	0.005058	0.075157	0.168425	0.390933	0.390996	200		NRT	0.003	0.388	/api/health at +0.326 took 0.003
+school	22	key-api health	2026-10-21T06:31:25.739Z	0.004251	0.047140	0.106592	0.190796	0.190858	200		HKG	0.000	0.191	
+school	22	key-api tap	2026-10-21T06:31:27.960Z	0.004817	0.011172	0.034939	0.313151	0.313195	200	cooldown	SIN	0.108	0.205	/geekykey/v1/stations at +0.172 took 0.017, /claims-stand-in/v1/owners at +0.209 took 0.011, /geekykey/v1/taps at +0.238 took 0.081
+school	23	event-api health	2026-10-21T06:31:33.302Z	0.004075	0.043004	0.105452	0.285281	0.285347	200		HKG	0.010	0.276	/api/health at +0.242 took 0.010
+school	23	key-api health	2026-10-21T06:31:35.616Z	0.004845	0.091810	0.196067	0.316466	0.316518	200		KIX	0.000	0.317	
+school	23	key-api tap	2026-10-21T06:31:37.962Z	0.004590	0.046004	0.106273	0.648798	0.648867	200	cooldown	HKG	0.108	0.541	/geekykey/v1/stations at +0.238 took 0.018, /claims-stand-in/v1/owners at +0.449 took 0.012, /geekykey/v1/taps at +0.530 took 0.078
+school	24	event-api health	2026-10-21T06:31:43.636Z	0.003808	0.078664	0.165923	0.433591	0.433664	200		KIX	0.003	0.430	/api/health at +0.366 took 0.003
+school	24	key-api health	2026-10-21T06:31:46.096Z	0.004030	0.050150	0.117116	0.236470	0.236527	200		HKG	0.000	0.237	
+school	24	key-api tap	2026-10-21T06:31:48.353Z	0.004602	0.050784	0.122625	0.686596	0.686665	200	cooldown	HKG	0.096	0.590	/claims-stand-in/v1/owners at +0.260 took 0.016, /geekykey/v1/taps at +0.469 took 0.080
+school	25	event-api health	2026-10-21T06:31:54.068Z	0.004918	0.077894	0.170464	0.468603	0.468671	200		NRT	0.002	0.466	/api/health at +0.403 took 0.002
+school	25	key-api health	2026-10-21T06:31:56.565Z	0.005051	0.092269	0.190514	0.324223	0.324295	200		KIX	0.000	0.324	
+school	25	key-api tap	2026-10-21T06:31:58.916Z	0.005055	0.079073	0.172005	0.843963	0.844031	200	cooldown	KIX	0.102	0.742	/geekykey/v1/stations at +0.487 took 0.016, /claims-stand-in/v1/owners at +0.505 took 0.009, /geekykey/v1/taps at +0.700 took 0.077

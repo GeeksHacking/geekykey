@@ -1,0 +1,76 @@
+label	round	request	sent_at	dns	tcp	tls	first_byte	total	http	tap_status	colo	cloud_run	before_cloud_run	cloud_run_requests
+hotspot	1	event-api health	2026-10-21T06:38:00.846Z	0.031202	0.040938	0.098673	0.216392	0.216420	200		SIN	0.004	0.212	/api/health at +0.217 took 0.004
+hotspot	1	key-api health	2026-10-21T06:38:03.101Z	0.030291	0.202024	0.644314	0.841708	0.841785	200		CDG	0.000	0.842	
+hotspot	1	key-api tap	2026-10-21T06:38:05.973Z	0.003608	0.024677	0.055643	0.401328	0.401380	200	accepted	SIN	0.119	0.283	/geekykey/v1/stations at +0.210 took 0.019, /claims-stand-in/v1/owners at +0.267 took 0.016, /geekykey/v1/taps at +0.304 took 0.084
+hotspot	2	event-api health	2026-10-21T06:38:11.394Z	0.005303	0.181060	0.370989	0.929199	0.929250	200		CDG	0.002	0.927	/api/health at +0.694 took 0.002
+hotspot	2	key-api health	2026-10-21T06:38:14.354Z	0.004442	0.290919	0.470591	0.673624	0.673673	200		CDG	0.000	0.674	
+hotspot	2	key-api tap	2026-10-21T06:38:17.060Z	0.004872	0.060590	0.095401	0.452770	0.452814	200	cooldown	SIN	0.110	0.343	/geekykey/v1/stations at +0.274 took 0.018, /claims-stand-in/v1/owners at +0.318 took 0.012, /geekykey/v1/taps at +0.351 took 0.080
+hotspot	3	event-api health	2026-10-21T06:38:22.543Z	0.004230	0.186444	0.421012	1.109657	1.109711	200		CDG	0.002	1.108	/api/health at +0.704 took 0.002
+hotspot	3	key-api health	2026-10-21T06:38:25.679Z	0.003987	0.021570	0.057570	0.245072	0.245116	200		SIN	0.000	0.245	
+hotspot	3	key-api tap	2026-10-21T06:38:27.951Z	0.005154	0.182425	0.366563	2.897809	2.897879	200	cooldown	CDG	0.116	2.782	/geekykey/v1/stations at +0.718 took 0.018, /claims-stand-in/v1/owners at +2.250 took 0.018, /geekykey/v1/taps at +2.592 took 0.080
+hotspot	4	event-api health	2026-10-21T06:38:35.882Z	0.004516	0.087351	0.201499	0.550502	0.550561	200		NRT	0.002	0.549	/api/health at +0.470 took 0.002
+hotspot	4	key-api health	2026-10-21T06:38:38.456Z	0.004910	0.165713	0.339118	0.526953	0.527003	200		CDG	0.000	0.527	
+hotspot	4	key-api tap	2026-10-21T06:38:41.012Z	0.004666	0.026375	0.071622	0.472529	0.472595	200	cooldown	SIN	0.119	0.354	/geekykey/v1/stations at +0.299 took 0.019, /claims-stand-in/v1/owners at +0.348 took 0.011, /geekykey/v1/taps at +0.385 took 0.088
+hotspot	5	event-api health	2026-10-21T06:38:46.514Z	0.004737	0.099996	0.199615	0.515703	0.515786	200		NRT	0.002	0.514	/api/health at +0.438 took 0.002
+hotspot	5	key-api health	2026-10-21T06:38:49.063Z	0.005096	0.085090	0.184179	0.312910	0.312936	200		NRT	0.000	0.313	
+hotspot	5	key-api tap	2026-10-21T06:38:51.401Z	0.004571	0.023032	0.050102	0.356743	0.356778	200	cooldown	SIN	0.114	0.243	/geekykey/v1/stations at +0.199 took 0.019, /claims-stand-in/v1/owners at +0.239 took 0.012, /geekykey/v1/taps at +0.269 took 0.083
+hotspot	6	event-api health	2026-10-21T06:38:56.794Z	0.005464	0.213410	0.389214	0.945646	0.945699	200		MRS	0.003	0.943	/api/health at +0.729 took 0.003
+hotspot	6	key-api health	2026-10-21T06:38:59.769Z	0.004715	0.168000	0.360315	0.547449	0.547519	200		CDG	0.000	0.548	
+hotspot	6	key-api tap	2026-10-21T06:39:02.345Z	0.004308	0.106760	0.219873	0.972465	0.972532	200	cooldown	NRT	0.126	0.846	/geekykey/v1/stations at +0.448 took 0.019, /claims-stand-in/v1/owners at +0.656 took 0.013, /geekykey/v1/taps at +0.793 took 0.094
+hotspot	7	event-api health	2026-10-21T06:39:08.347Z	0.004755	0.181981	0.382165	1.706484	1.706558	200		CDG	0.002	1.704	/api/health at +1.463 took 0.002
+hotspot	7	key-api health	2026-10-21T06:39:12.080Z	0.004611	0.172121	0.347936	0.537139	0.537181	200		MRS	0.000	0.537	
+hotspot	7	key-api tap	2026-10-21T06:39:14.644Z	0.005219	0.171499	0.351795	2.894031	2.894136	200	cooldown	CDG	0.112	2.782	/geekykey/v1/stations at +0.716 took 0.020, /claims-stand-in/v1/owners at +1.104 took 0.011, /geekykey/v1/taps at +2.595 took 0.081
+hotspot	8	event-api health	2026-10-21T06:39:22.570Z	0.005002	0.176207	0.397924	0.947077	0.947141	200		CDG	0.002	0.945	/api/health at +0.709 took 0.002
+hotspot	8	key-api health	2026-10-21T06:39:25.546Z	0.004250	0.105380	0.199003	0.315601	0.315658	200		NRT	0.000	0.316	
+hotspot	8	key-api tap	2026-10-21T06:39:27.892Z	0.004797	0.238607	0.427422	3.115739	3.115825	200	cooldown	MRS	0.120	2.996	/geekykey/v1/stations at +0.811 took 0.018, /claims-stand-in/v1/owners at +1.279 took 0.011, /geekykey/v1/taps at +2.810 took 0.091
+hotspot	9	event-api health	2026-10-21T06:39:36.043Z	0.004668	0.164327	0.504158	1.072997	1.073067	200		MRS	0.002	1.071	/api/health at +0.835 took 0.002
+hotspot	9	key-api health	2026-10-21T06:39:39.144Z	0.006086	0.158313	0.328125	0.572433	0.572485	200		MRS	0.000	0.572	
+hotspot	9	key-api tap	2026-10-21T06:39:41.744Z	0.004650	0.093227	0.193312	1.016535	1.016571	200	cooldown	NRT	0.112	0.904	/geekykey/v1/stations at +0.454 took 0.020, /claims-stand-in/v1/owners at +0.664 took 0.012, /geekykey/v1/taps at +0.803 took 0.081
+hotspot	10	event-api health	2026-10-21T06:39:47.789Z	0.004842	0.089248	0.199275	0.519145	0.519293	200		NRT	0.002	0.517	/api/health at +0.448 took 0.002
+hotspot	10	key-api health	2026-10-21T06:39:50.341Z	0.004852	0.160677	0.328137	0.520081	0.520115	200		MRS	0.000	0.520	
+hotspot	10	key-api tap	2026-10-21T06:39:52.890Z	0.004689	0.022624	0.050662	0.678457	0.678497	200	cooldown	SIN	0.129	0.549	/claims-stand-in/v1/owners at +0.126 took 0.058, /geekykey/v1/taps at +0.211 took 0.071
+hotspot	11	event-api health	2026-10-21T06:39:58.590Z	0.003367	0.164195	0.344286	0.909680	0.909758	200		CDG	0.002	0.908	/api/health at +0.663 took 0.002
+hotspot	11	key-api health	2026-10-21T06:40:01.527Z	0.005510	0.158483	0.327784	0.555171	0.555216	200		MRS	0.000	0.555	
+hotspot	11	key-api tap	2026-10-21T06:40:04.116Z	0.004596	0.715983	0.899482	3.515113	3.515196	200	cooldown	CDG	0.102	3.413	/geekykey/v1/stations at +1.257 took 0.015, /claims-stand-in/v1/owners at +2.858 took 0.016, /geekykey/v1/taps at +3.218 took 0.072
+hotspot	12	event-api health	2026-10-21T06:40:12.660Z	0.004817	0.156217	0.340331	1.044529	1.044602	200		MRS	0.002	1.042	/api/health at +0.662 took 0.002
+hotspot	12	key-api health	2026-10-21T06:40:15.733Z	0.004193	0.162198	0.605676	0.793291	0.793331	200		MRS	0.000	0.793	
+hotspot	12	key-api tap	2026-10-21T06:40:18.551Z	0.004421	0.230072	0.404646	3.082112	3.082171	200	cooldown	CDG	0.099	2.983	/geekykey/v1/stations at +0.740 took 0.015, /claims-stand-in/v1/owners at +1.125 took 0.010, /geekykey/v1/taps at +2.654 took 0.075
+hotspot	13	event-api health	2026-10-21T06:40:26.663Z	0.005000	0.156188	0.325177	0.853074	0.853131	200		MRS	0.002	0.851	/api/health at +0.615 took 0.002
+hotspot	13	key-api health	2026-10-21T06:40:29.544Z	0.004802	0.211564	0.386993	0.572826	0.572900	200		CDG	0.000	0.573	
+hotspot	13	key-api tap	2026-10-21T06:40:32.147Z	0.003670	0.162037	0.338967	1.313289	1.313371	200	cooldown	MRS	0.095	1.218	/geekykey/v1/stations at +0.636 took 0.015, /claims-stand-in/v1/owners at +0.687 took 0.010, /geekykey/v1/taps at +1.023 took 0.070
+hotspot	14	event-api health	2026-10-21T06:40:38.492Z	0.004508	0.044878	0.092926	0.214548	0.214599	200		SIN	0.002	0.212	/api/health at +0.203 took 0.002
+hotspot	14	key-api health	2026-10-21T06:40:40.735Z	0.004807	0.084387	0.173383	0.281392	0.281436	200		NRT	0.000	0.281	
+hotspot	14	key-api tap	2026-10-21T06:40:43.047Z	0.004777	0.165417	0.334970	1.262039	1.262080	200	cooldown	MRS	0.081	1.181	/claims-stand-in/v1/owners at +0.627 took 0.014, /geekykey/v1/taps at +0.969 took 0.067
+hotspot	15	event-api health	2026-10-21T06:40:49.338Z	0.004463	0.020692	0.049406	0.102692	0.102721	200		SIN	0.002	0.101	/api/health at +0.103 took 0.002
+hotspot	15	key-api health	2026-10-21T06:40:51.460Z	0.004479	0.015055	0.053140	0.260066	0.260102	200		SIN	0.000	0.260	
+hotspot	15	key-api tap	2026-10-21T06:40:53.751Z	0.004572	0.179533	0.367755	2.963428	2.963512	200	cooldown	CDG	0.098	2.866	/geekykey/v1/stations at +0.699 took 0.014, /claims-stand-in/v1/owners at +2.195 took 0.016, /geekykey/v1/taps at +2.646 took 0.068
+hotspot	16	event-api health	2026-10-21T06:41:01.742Z	0.002683	0.180075	0.371933	0.894207	0.894251	200		CDG	0.003	0.891	/api/health at +0.660 took 0.003
+hotspot	16	key-api health	2026-10-21T06:41:04.652Z	0.004884	0.167046	0.343748	0.525138	0.525238	200		MRS	0.000	0.525	
+hotspot	16	key-api tap	2026-10-21T06:41:07.209Z	0.004990	0.019502	0.050962	0.303692	0.303749	200	cooldown	SIN	0.130	0.174	/claims-stand-in/v1/owners at +0.165 took 0.056, /geekykey/v1/taps at +0.236 took 0.074
+hotspot	17	event-api health	2026-10-21T06:41:12.545Z	0.005029	0.169186	0.368436	0.911053	0.911120	200		MRS	0.002	0.909	/api/health at +0.669 took 0.002
+hotspot	17	key-api health	2026-10-21T06:41:15.481Z	0.004753	0.172324	0.360472	0.553263	0.553340	200		CDG	0.000	0.553	
+hotspot	17	key-api tap	2026-10-21T06:41:18.066Z	0.003680	0.227698	0.433987	1.404269	1.404334	200	cooldown	MRS	0.087	1.317	/claims-stand-in/v1/owners at +0.748 took 0.015, /geekykey/v1/taps at +1.092 took 0.072
+hotspot	18	event-api health	2026-10-21T06:41:24.513Z	0.003998	0.172979	0.358468	0.877023	0.877072	200		MRS	0.003	0.874	/api/health at +0.635 took 0.003
+hotspot	18	key-api health	2026-10-21T06:41:27.415Z	0.004458	0.172497	0.365718	0.576769	0.576795	200		CDG	0.000	0.577	
+hotspot	18	key-api tap	2026-10-21T06:41:30.059Z	0.002842	0.097837	0.201764	0.972745	0.972796	200	cooldown	NRT	0.096	0.877	/geekykey/v1/stations at +0.510 took 0.015, /claims-stand-in/v1/owners at +0.718 took 0.010, /geekykey/v1/taps at +0.833 took 0.071
+hotspot	19	event-api health	2026-10-21T06:41:36.065Z	0.003776	0.190921	0.364061	0.864333	0.864391	200		CDG	0.002	0.862	/api/health at +0.641 took 0.002
+hotspot	19	key-api health	2026-10-21T06:41:38.956Z	0.004683	0.132780	0.268740	0.393377	0.393411	200		NRT	0.000	0.393	
+hotspot	19	key-api tap	2026-10-21T06:41:41.371Z	0.003724	0.447229	0.850010	3.729204	3.729249	200	cooldown	CDG	0.101	3.628	/geekykey/v1/stations at +1.200 took 0.015, /claims-stand-in/v1/owners at +1.562 took 0.010, /geekykey/v1/taps at +3.094 took 0.076
+hotspot	20	event-api health	2026-10-21T06:41:50.123Z	0.004332	0.193764	0.318664	1.252256	1.252309	200		NRT	0.002	1.250	/api/health at +0.559 took 0.002
+hotspot	20	key-api health	2026-10-21T06:41:53.404Z	0.003626	0.029162	0.055987	0.137943	0.137984	200		SIN	0.000	0.138	
+hotspot	20	key-api tap	2026-10-21T06:41:55.567Z	0.003263	0.223928	0.416561	3.308107	3.308135	200	cooldown	MRS	0.105	3.203	/geekykey/v1/stations at +0.805 took 0.015, /claims-stand-in/v1/owners at +1.153 took 0.010, /geekykey/v1/taps at +2.762 took 0.079
+hotspot	21	event-api health	2026-10-21T06:42:03.902Z	0.003976	0.163633	0.341361	0.880647	0.880682	200		MRS	0.003	0.878	/api/health at +0.657 took 0.003
+hotspot	21	key-api health	2026-10-21T06:42:06.804Z	0.003477	0.017424	0.057417	0.202372	0.202407	200		SIN	0.000	0.202	
+hotspot	21	key-api tap	2026-10-21T06:42:09.031Z	0.003347	0.337393	0.501613	2.705844	2.705961	200	cooldown	MRS	0.092	2.614	/claims-stand-in/v1/owners at +0.780 took 0.017, /geekykey/v1/taps at +2.381 took 0.075
+hotspot	22	event-api health	2026-10-21T06:42:16.764Z	0.003893	0.160140	0.340425	0.840905	0.840941	200		MRS	0.002	0.839	/api/health at +0.619 took 0.002
+hotspot	22	key-api health	2026-10-21T06:42:19.630Z	0.003970	0.114349	0.224764	0.329416	0.329458	200		KIX	0.000	0.329	
+hotspot	22	key-api tap	2026-10-21T06:42:21.983Z	0.004103	0.168059	0.347254	2.556266	2.556298	200	cooldown	MRS	0.091	2.466	/claims-stand-in/v1/owners at +0.640 took 0.015, /geekykey/v1/taps at +2.245 took 0.076
+hotspot	23	event-api health	2026-10-21T06:42:29.566Z	0.003943	0.301461	0.513406	0.875576	0.875624	200		KIX	0.002	0.873	/api/health at +0.750 took 0.002
+hotspot	23	key-api health	2026-10-21T06:42:32.464Z	0.004579	0.021741	0.059821	0.125032	0.125072	200		SIN	0.000	0.125	
+hotspot	23	key-api tap	2026-10-21T06:42:34.614Z	0.004164	0.784111	1.017519	3.550322	3.550511	200	cooldown	CDG	0.104	3.447	/geekykey/v1/stations at +1.349 took 0.015, /claims-stand-in/v1/owners at +2.858 took 0.015, /geekykey/v1/taps at +3.195 took 0.073
+hotspot	24	event-api health	2026-10-21T06:42:43.192Z	0.004680	0.098779	0.217859	0.534067	0.534153	200		NRT	0.002	0.532	/api/health at +0.457 took 0.002
+hotspot	24	key-api health	2026-10-21T06:42:45.757Z	0.003703	0.087902	0.181215	0.277224	0.277262	200		NRT	0.000	0.277	
+hotspot	24	key-api tap	2026-10-21T06:42:48.056Z	0.004900	0.018766	0.061295	0.343001	0.343055	200	cooldown	SIN	0.096	0.247	/geekykey/v1/stations at +0.181 took 0.015, /claims-stand-in/v1/owners at +0.245 took 0.010, /geekykey/v1/taps at +0.275 took 0.071
+hotspot	25	event-api health	2026-10-21T06:42:53.438Z	0.004858	0.094884	0.203660	0.497316	0.497385	200		KIX	0.002	0.495	/api/health at +0.430 took 0.002
+hotspot	25	key-api health	2026-10-21T06:42:55.970Z	0.002981	0.180418	0.342948	0.532677	0.532701	200		MRS	0.000	0.533	
+hotspot	25	key-api tap	2026-10-21T06:42:58.515Z	0.004131	0.193202	0.381557	2.650656	2.650732	200	cooldown	CDG	0.084	2.566	/claims-stand-in/v1/owners at +0.690 took 0.015, /geekykey/v1/taps at +2.220 took 0.069
