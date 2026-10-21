@@ -73,6 +73,22 @@ export function hasFirebaseConfig(): boolean {
 }
 
 /**
+ * The Firebase error codes for a popup the user closed, which is not a failure. Agreement
+ * 7.2 names the second one: a second popup cancels the first.
+ */
+const POPUP_CLOSED_CODES: ReadonlySet<string> = new Set([
+  "auth/popup-closed-by-user",
+  "auth/cancelled-popup-request",
+]);
+
+/** Whether the error is a popup the user closed, so there is nothing to report. */
+export function isPopupClosed(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && POPUP_CLOSED_CODES.has(code);
+}
+
+/**
  * Agreement 7.3: the screens also sign out of Firebase, so a shared device does not stay
  * signed in to Firebase. A build with no config has no Firebase session to end, so there is
  * nothing to do there.

@@ -35,6 +35,7 @@ function sessionWith(
     error,
     refresh: async () => {},
     signIn: async () => me,
+    signInWithFirebase: async () => me,
     signOut: async () => {},
   };
 }

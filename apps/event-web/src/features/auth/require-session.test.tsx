@@ -27,6 +27,7 @@ function sessionWith(status: SessionState["status"], payload: MeResponse | null)
     error: undefined,
     refresh: async () => {},
     signIn: async () => me,
+    signInWithFirebase: async () => me,
     signOut: async () => {},
   };
 }

@@ -1,7 +1,8 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
 import { createMockClient } from "@/api/mock/client";
@@ -10,14 +11,33 @@ import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { routeTree } from "@/routeTree.gen";
 
+vi.mock("firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
+vi.mock("firebase/auth", () => ({
+  getAuth: vi.fn(() => ({ name: "auth" })),
+  GoogleAuthProvider: vi.fn(),
+  OAuthProvider: vi.fn(),
+  signInWithPopup: vi.fn(),
+  signOut: vi.fn(),
+}));
+
+/*
+  The Firebase sign-in is the only way in now, so the module is mocked to hand back a token
+  and the real sign-in path runs: the screen, the session and the service's own answer.
+*/
+vi.mock("@/lib/firebase", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/firebase")>()),
+  signInWithGoogle: vi.fn(async () => "id-token"),
+  hasFirebaseConfig: () => true,
+}));
+
 /*
   The /login route's own rule, driven through the real route tree.
 
   `isSafeReturnTo` is unit-tested in features/auth/paths.test.ts, but that only proves the
   predicate. What matters here is whether the route *applies* it: the router merges the
   validated search over the parsed one, so a validator that omits the key leaves it in place,
-  and the sign-in link is then built from an address on another site. These tests
-  arrive at /login with a hostile return_to, which is the only way to see that.
+  and the sign-in then sends the person to an address on another site. These tests arrive
+  at /login with a hostile return_to, which is the only way to see that.
 */
 function renderLoginAt(query: string) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
@@ -40,30 +60,46 @@ function renderLoginAt(query: string) {
   return { router };
 }
 
-async function loginHref(query: string) {
+/**
+ * The route's own rule and where the person lands, from one render: the browser before
+ * anyone signs in, and the browser after.
+ */
+async function signInAt(query: string) {
   const { router } = renderLoginAt(query);
-  const link = await screen.findByRole("link", { name: "Sign in with GeeksHacking" });
+  const button = await screen.findByRole("button", { name: "Continue with Google" });
   await waitFor(() => expect(router.state.status).toBe("idle"));
-  return {
-    href: link.getAttribute("href"),
+  const before = {
     browserUrl: router.state.location.href,
     search: router.state.location.search,
+  };
+
+  await userEvent.setup().click(button);
+  await waitFor(() => expect(router.state.location.pathname).not.toBe("/login"));
+  return {
+    before,
+    browserUrl: router.state.location.href,
+    pathname: router.state.location.pathname,
   };
 }
 
 describe("the /login route's return_to rule", () => {
   it("keeps a relative path, so the token page's return survives", async () => {
-    const { href, browserUrl } = await loginHref("?return_to=%2Ft%2F04A1B2C3D4E5F6");
+    const { before } = await signInAt("?return_to=%2Ft%2F04A1B2C3D4E5F6");
 
-    expect(browserUrl).toBe("/login?return_to=%2Ft%2F04A1B2C3D4E5F6");
-    // Agreement 7.2: the token page logs in with return_to=/t/<UID>.
-    expect(href).toBe("/auth/login?return_to=%2Ft%2F04A1B2C3D4E5F6");
+    expect(before.browserUrl).toBe("/login?return_to=%2Ft%2F04A1B2C3D4E5F6");
   });
 
-  it("falls back to the home page when there is no return_to", async () => {
-    const { href } = await loginHref("");
+  it("sends the person back to the token page after signing in", async () => {
+    const { pathname } = await signInAt("?return_to=%2Ft%2F04A1B2C3D4E5F6");
 
-    expect(href).toBe("/auth/login?return_to=%2F");
+    // Agreement 7.2: the token page stays on /t/<UID>, since the login does not redirect.
+    expect(pathname).toBe("/t/04A1B2C3D4E5F6");
+  });
+
+  it("falls back to My tokens when there is no return_to", async () => {
+    const { pathname } = await signInAt("");
+
+    expect(pathname).toBe("/");
   });
 
   // Each of these is what the router leaves in place if the rule stops being applied. They
@@ -76,20 +112,19 @@ describe("the /login route's return_to rule", () => {
   ];
 
   for (const [label, query] of hostile) {
-    it(`drops the ${label} address, in the URL and on the sign-in link`, async () => {
-      const { href, browserUrl, search } = await loginHref(query);
+    it(`drops the ${label} address, in the URL and after signing in`, async () => {
+      const { before, browserUrl, pathname } = await signInAt(query);
 
-      expect(search).not.toHaveProperty("return_to");
-      expect(browserUrl).toBe("/login");
-      expect(href).not.toContain("evil.example");
-      expect(href).toBe("/auth/login?return_to=%2F");
+      expect(before.search).not.toHaveProperty("return_to");
+      expect(before.browserUrl).toBe("/login");
+      expect(browserUrl).not.toContain("evil.example");
+      expect(pathname).toBe("/");
     });
   }
 
   it("drops /login itself, so signing in cannot bounce", async () => {
-    const { browserUrl, href } = await loginHref("?return_to=%2Flogin");
+    const { pathname } = await signInAt("?return_to=%2Flogin");
 
-    expect(browserUrl).toBe("/login");
-    expect(href).toBe("/auth/login?return_to=%2F");
+    expect(pathname).toBe("/");
   });
 });

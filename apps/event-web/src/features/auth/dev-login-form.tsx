@@ -44,7 +44,7 @@ export function DevLoginForm() {
         Local development
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        The showcase&apos;s sign-in isn&apos;t built yet. Use a seeded account for now.
+        Use a seeded account. The buttons above are how the showcase signs you in.
       </p>
       <div className="mt-4 grid gap-2">
         <Label htmlFor="dev-user">Seeded account</Label>
