@@ -1242,3 +1242,12 @@
     screens at key.geekshacking.com, each built from main by Cloudflare. Both show the login
     screen. The Event screens ask the real Event Service who is logged in. The GeekyKey screens
     still run on mock data until their calls go live.
+
+- id: screens-log-in-with-google
+  date: 2026-10-21
+  area: frontend
+  change: >-
+    Both sets of screens log in with a Google account through the real services, checked on a
+    laptop against both services, and My tokens lists the tokens the GeekyKey Service says you
+    hold. Claiming and releasing a token still run on sample data until checkpoint 6, so the
+    token page says so and My tokens offers no Release yet.
