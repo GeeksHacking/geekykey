@@ -13,8 +13,8 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.4 (draft) |
-| Date | 10 October 2026 |
+| Version | 0.5 (draft) |
+| Date | 21 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -38,7 +38,7 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 | 2 | Today's backend moved to Google Cloud Run, at `https://event-api.geekshacking.com`. Done |
 | 3 | The GeekyKey Service and the Event Service drawn inside one server, talking only through their requests. Done |
 | 4 | The GeekyKey Service cut out as a Worker at `https://key-api.geekshacking.com`, and the stations moved to it. Done |
-| 5 | Login through Firebase, with Google or GeeksHacking's login, and both sets of screens deployed |
+| 5 | Login through Firebase, with Google, GeeksHacking's login or as a guest, login links, and both sets of screens deployed |
 | 6 | The GeekyKey Service's features: claiming and releasing, rate limits |
 | 7 | The Event Service's features: the organizers' station endpoints, the station board, passport settings, the tap log, stats, the export, the QR fallback |
 | 8 | Ready for the event |
@@ -113,7 +113,7 @@ of an Event Service lives under `/geekykey/v1`.
 | 201 | A new resource was created |
 | 204 | Successful delete or logout, no body |
 | 400 | Body or query failed validation. Body contains `issues` |
-| 401 | Not authenticated, or a station key or Event Service key is missing or invalid. A disabled station's key also gets 401 |
+| 401 | Not authenticated, or a station key, Event Service key or login link is missing or invalid. A disabled station's key also gets 401 |
 | 403 | Authenticated but not allowed: not an organizer, or not a GeekyKey admin |
 | 404 | Resource does not exist or is not visible to this user |
 | 409 | Conflict with existing state: a token someone else has claimed, or a user who already holds 3 tokens |
@@ -142,6 +142,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `validation_failed` | 400 | See `issues` |
 | `unauthenticated` | 401 | No valid session cookie |
 | `invalid_token` | 401 | The Firebase ID token sent to log in can't be trusted: not signed by Google, for another Firebase project, or expired |
+| `invalid_login_link` | 401 | The login link sent to log in (7.4) has expired, has been used already, or was changed. The screens say "That link has expired. Tap your token again to get back in." |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
 | `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1` |
@@ -214,17 +215,21 @@ the session cookie by default.
 
 ### Browser sessions
 
-Each service sets its own cookie, from exactly two routes, and the screens' code is identical
-whichever one set it:
+Each service sets its own cookie, and the screens' code is identical whichever route set it:
 
 - `POST /auth/firebase`, with the ID token the screens get from Firebase's web SDK after the
-  user signs in with Google or with GeeksHacking's login. `Checkpoint 5`.
+  user signs in with Google, with GeeksHacking's login, or as a guest. `Checkpoint 5`.
+- `POST /auth/login-link`, on the Event Service only, with a login link made by the GeekyKey
+  Service (7.4). `Checkpoint 5`.
 - `POST /auth/dev-login`, in local development only. This exists so the screens can be built
   before the login lands, without any code that has to be removed later.
 
 "Am I logged in?" is answered by calling that service's `GET /api/v1/me`. A 401 means no.
-Someone who uses both sets of screens logs in to each, because Firebase keeps its sign-in per
-hostname. Google remembers them, so the second login is one click.
+
+Firebase keeps its sign-in per hostname, so a sign-in on `key.` means nothing on `event.`. A user
+reaches the Event screens from the GeekyKey screens' event buttons, which open a login link and
+log them in there as the same user, without a second login. A guest can only get there that way:
+a guest sign-in on `event.` would be a different guest, so the Event screens don't offer one.
 
 ### Station keys
 
@@ -355,6 +360,7 @@ them.
 | GET | `/api/v1/tokens/{uid}` | User | `Checkpoint 6` | What the token page shows |
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Checkpoint 6` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Checkpoint 6` | Release a token |
+| POST | `/api/v1/login-links` | User | `Checkpoint 5` | A login link to one event's screens |
 
 **The Event Service**
 
@@ -365,9 +371,11 @@ them.
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
-| POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
+| POST | `/auth/firebase` | browser | `Implemented`, the `Guest` name at checkpoint 5 | Log in with a Firebase ID token, set `event_session` |
+| POST | `/auth/login-link` | browser | `Checkpoint 5` | Log in with a login link, set `event_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
-| GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
+| GET | `/api/v1/me` | Participant, Organizer | `Implemented`, `has_name` at checkpoint 5 | Profile, stamps, points, history |
+| PATCH | `/api/v1/me` | Participant, Organizer | `Checkpoint 5` | Set the name the event shows |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
 | GET | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | The station board |
 | POST | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | Create a station, key shown once |
@@ -542,7 +550,8 @@ sends.
 
 Each service has its own set, on its screens' hostname. The GeekyKey Service's set `gk_session`,
 the Event Service's set `event_session`. Both accept logins from the same Firebase project,
-`geekykey-b035a`, so a user has the same ID in both.
+`geekykey-b035a`, so a user has the same ID in both. The Event Service also accepts login links
+from the GeekyKey Service (7.4), which carry that same ID.
 
 ### 7.1 `POST /auth/dev-login` (`Implemented`)
 
@@ -564,7 +573,7 @@ each service's `pnpm dev` reads. Never enabled in production.
 - **The GeekyKey Service** signs in any `user_id`, because it keeps no users. `dev-organizer-1`
   is also on its local GeekyKey admin list, so releasing someone else's token can be developed.
 
-### 7.2 `POST /auth/firebase` (`Implemented` on the Event Service, `Checkpoint 5` on the GeekyKey Service)
+### 7.2 `POST /auth/firebase` (`Implemented, changes at checkpoint 5` on the Event Service, `Checkpoint 5` on the GeekyKey Service)
 
 Logs the user in with the ID token Firebase gave the screens. The service checks it against
 Google's public keys, then sets its cookie. There's no redirect: the screens stay where they
@@ -585,10 +594,18 @@ initializeApp({
 
 1. Sign in with `signInWithPopup`, using `GoogleAuthProvider` for Google, or
    `new OAuthProvider("oidc.geekshacking")` for GeeksHacking's login. Disable the button while
-   the popup is open: a second popup cancels the first (`auth/cancelled-popup-request`).
+   the popup is open: a second popup cancels the first (`auth/cancelled-popup-request`). On the
+   GeekyKey screens only, "Continue as guest" signs in with `signInAnonymously`, which opens no
+   popup and asks nothing.
 2. Get the ID token with `user.getIdToken()`, and send it here.
 3. On `204`, call `GET /api/v1/me` as usual. The service's cookie is the session from now on,
    so the screens don't need Firebase again until the next login.
+
+**Logging a returning user in again,** on the GeekyKey screens. A session lasts 12 hours, and
+Firebase's saved sign-in in the browser lasts longer. When `GET /api/v1/me` answers 401 and
+Firebase's `onAuthStateChanged` reports a signed-in user, the screens get a fresh ID token and
+send it here, without showing the login. For a guest this matters: the login would offer
+"Continue as guest" again, which makes a new guest who doesn't own their token.
 
 GeeksHacking's login appears only once it's set up in Firebase, which waits on Qing Guan's
 client and, in the end, Mr Pang. If he says no, it's turned off and its button removed.
@@ -604,10 +621,14 @@ another site can't log someone in.
 
 - The token must be signed by Google for the project `geekykey-b035a`, unexpired, and for a
   sign-in that has already happened. Its `sub`, the Firebase UID, becomes the user ID.
-- **The Event Service** creates or updates the user's row with the token's `name`. If the token
-  has none, it keeps the name it already has, or uses `GeeksHacking member` for a new user
-  (provisional: whether the Portal's login carries a name is still open, section 14).
-- **The GeekyKey Service** keeps no users: its session holds only the user ID.
+- A guest's ID token is like any other, with no `name`. Its `firebase.sign_in_provider` is
+  `anonymous`, and neither service treats it differently.
+- **The Event Service** creates or updates the user's row with the token's `name`, unless the user
+  has set their own name (8.7), which a login never replaces. If the token has none, it keeps the
+  name it already has, or uses `Guest` for a new user. Until checkpoint 5 it uses
+  `GeeksHacking member`, and every login replaces the name, since nobody can set one yet.
+- **The GeekyKey Service** keeps no users: its session holds only the user ID and the token's
+  `name`, if it has one, so a login link (8.6) can carry the name.
 
 **Errors:** `validation_failed`; `invalid_token` (401); `login_unavailable` (503) when Google's
 keys couldn't be fetched, so the token may be fine and the screens offer to try again.
@@ -617,17 +638,50 @@ keys couldn't be fetched, so the token may be fine and the screens offer to try 
 **Response `204`**, clears that service's cookie. The screens also call Firebase's `signOut()`,
 so a shared device doesn't stay signed in to Firebase.
 
+### 7.4 `POST /auth/login-link` on the Event Service (`Checkpoint 5`)
+
+Logs the user in with a login link from the GeekyKey Service (8.6), so someone who logged in on
+the GeekyKey screens is logged in here as the same user, without logging in again. It is the only
+way a guest reaches the Event screens. The link's format is in 11.9.
+
+**The screens' side.** The GeekyKey screens open the link's `url`, which ends in
+`#login=<link>`. The fragment never reaches a server or a log. On arrival, the Event screens:
+
+1. read the link from the fragment, and remove the fragment with `history.replaceState`, so a
+   reload or a shared screenshot doesn't carry it;
+2. send it here;
+3. on `204`, call `GET /api/v1/me` as usual.
+
+**Request**, as `application/json`, for the same reason as 7.2:
+
+```json
+{ "login_link": "eyJ2IjoxLCJzdWIiOi…" }
+```
+
+**Response `204`** with `Set-Cookie` for `event_session`.
+
+- The link must be signed with this Event Service's login link key (11.9), unexpired, and not
+  used before. The Event Service keeps each link's `jti` until the link expires, and refuses it a
+  second time.
+- Its `sub` becomes the user ID. The user's row takes its `name` as 7.2 takes a token's `name`:
+  never over a name the user set, and `Guest` for a new user without one.
+- It replaces any `event_session` the browser already has, so the link's user wins. On a phone a
+  family shares, the token tapped last is the one being looked at.
+- A link that fails leaves the existing session as it was.
+
+**Errors:** `validation_failed`; `invalid_login_link` (401).
+
 ---
 
 ## 8. User endpoints
 
-8.1 is on the Event Service, for participants and organizers. 8.2 to 8.5 are on the GeekyKey
-Service, for any logged-in user, and are what the token page and My tokens call. Each of 8.2 to
+8.1 and 8.7 are on the Event Service, for participants and organizers. 8.2 to 8.6 are on the
+GeekyKey Service, for any logged-in user, and are what the token page and My tokens call. Each of 8.2 to
 8.5 answers `503 claims_unavailable` when the claims stand-in, or after the switch the Portal,
 doesn't answer properly within 4 seconds. Nothing is saved, and the screens say "Couldn't reach
 GeeksHacking. Try again."
 
-### 8.1 `GET /api/v1/me` on the Event Service (`Implemented`)
+### 8.1 `GET /api/v1/me` on the Event Service (`Implemented, changes at checkpoint 5`)
 
 Everything the participant dashboard and passport view need in one call.
 
@@ -637,7 +691,7 @@ Everything the participant dashboard and passport view need in one call.
 
 ```json
 {
-  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant" },
+  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true },
   "points": 3,
   "stamps": [
     { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "earned_at": "2026-10-10T09:00:01.250Z" },
@@ -651,6 +705,9 @@ Everything the participant dashboard and passport view need in one call.
 
 - `user.id` is the user's ID from the login (section 2). `user.role` is worked out from the
   organizer list.
+- `user.has_name` is `false` while `display_name` is the default, `Guest`, because neither a
+  login nor the user has given a name. Then the passport asks "What should we call you?" (8.7).
+  It arrives at checkpoint 5, and is absent until then.
 - `stamps` lists **every** station with passport settings, so the passport can render empty
   slots. They come in the order their settings were added, oldest first. A station without
   passport settings never appears here, even if the user has tapped it.
@@ -727,8 +784,9 @@ Everything My tokens needs, and the "Am I logged in?" call for the GeekyKey scre
 
 - `user` has no display name, because the GeekyKey Service keeps no users.
 - `tokens` lists the user's tokens, oldest claim first.
-- `events` lists each Event Service with a public address, for links such as "Open Capstone
-  Showcase" on My tokens and on the token page. At the showcase there is exactly one.
+- `events` lists each Event Service with a public address, for buttons such as "Open Capstone
+  Showcase" on My tokens and on the token page. Each button asks for a login link (8.6) and opens
+  it. At the showcase there is exactly one.
 
 **Errors:** `unauthenticated`.
 
@@ -754,8 +812,71 @@ shows a login prompt and looks nothing up.
 | `owner` | The token page shows |
 |---|---|
 | `nobody` | **Claim** |
-| `you` | Your token, with **Release**, and a button for each event from `/me`, such as "Open Capstone Showcase" |
+| `you` | Your token, with **Release**, and a button for each event from `/me`, such as "Open Capstone Showcase", which opens a login link (8.6) |
 | `someone_else` | "This token belongs to someone else", with no name. A GeekyKey admin also sees **Release** |
+
+**Errors:** `unauthenticated`, `validation_failed`, `rate_limited`.
+
+### 8.6 `POST /api/v1/login-links` on the GeekyKey Service (`Checkpoint 5`)
+
+A login link to one event's screens, for the current user. The event buttons on the token page
+and My tokens call it, then open the `url` it answers. Every user gets one, guests and Google
+users alike.
+
+**Auth:** `gk_session`, any user.
+
+**Request**
+
+```json
+{ "event_id": "showcase" }
+```
+
+`event_id` is an `id` from `events` in `/me` (8.4).
+
+**Response `201`**
+
+```json
+{ "url": "https://event.geekshacking.com/#login=eyJ2IjoxLCJzdWIiOi…", "expires_at": "2026-11-18T13:01:00.000Z" }
+```
+
+- The link names only the session's own user ID, and the name the session holds, if any. A
+  request can't choose either.
+- It expires 60 seconds after it's made, and works once (7.4). The screens open it straight away
+  and don't keep it.
+- The screens open `url` as it is. They never build it, so the event's address and the
+  fragment's name belong to the GeekyKey Service.
+- It counts toward the user's 60 requests a minute ([Rate limits](#rate-limits)).
+
+**Errors:** `unauthenticated`, `validation_failed`, `not_found` for an `event_id` that isn't in
+`events`, `rate_limited`.
+
+### 8.7 `PATCH /api/v1/me` on the Event Service (`Checkpoint 5`)
+
+Sets the name the event shows for the current user: on the passport, the scan log and the
+export. The passport asks for it when `has_name` is `false` (8.1), and lets the user change it
+later. Anyone can set it, not only a guest. A Google user may not want their full Google name
+shown.
+
+**Auth:** `event_session`, any role.
+
+**Request**
+
+```json
+{ "display_name": "Alex" }
+```
+
+`display_name` is trimmed, then must be 1 to 30 characters, counted as Unicode code points. Any
+script is allowed.
+
+**Response `200`**, with the `user` object from 8.1:
+
+```json
+{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true } }
+```
+
+- From now on, logging in (7.2) and login links (7.4) no longer change the name.
+- Nothing checks what a name says. Until something shows names on a public screen, only the user
+  and the organizers see it.
 
 **Errors:** `unauthenticated`, `validation_failed`, `rate_limited`.
 
@@ -1022,7 +1143,8 @@ Portal.
 
 Every Event Service serves three requests, all called by the GeekyKey Service with the Event
 Service key: its registered stations (11.1), the hand-off (11.2) and the heartbeat hand-off
-(11.3). It also creates its own stations and issues their keys, in whatever way suits it; ours
+(11.3). An Event Service with a public address also accepts login links (11.9), since the event
+buttons on My tokens and the token page open one. It also creates its own stations and issues their keys, in whatever way suits it; ours
 does it on the station board (9.7 to 9.9).
 
 Adding an Event Service is a reviewed pull request to the GeekyKey Service's settings: its ID,
@@ -1193,7 +1315,37 @@ hand-off's two are there, and so is the heartbeat hand-off's request. Its answer
 - The source. Every tap in a hand-off comes from a station; our QR fallback lives inside the
   Event Service.
 - When the GeekyKey Service received the tap. The Event Service uses its own clock.
-- The user's name. An Event Service that needs one takes it from the login.
+- The user's name. An Event Service that needs one takes it from the login, or from a login
+  link (11.9).
+
+### 11.9 The login link
+
+What the GeekyKey Service sends an Event Service's screens so they can log a user in (7.4) as the
+same user. An Event Service that builds its own screens checks it like this.
+
+**The key.** Each Event Service's login link key is derived from its Event Service key, so neither
+side holds a second secret: HKDF with SHA-256, the Event Service key's 32 bytes (decoded from its
+hex) as the input key, an empty salt, the info `geekykey login link` in UTF-8, and 32 bytes out.
+A link made for one Event Service can't log anyone in to another. Replacing the Event Service key
+cancels every link not yet used.
+
+**The link** is two base64url parts, without padding, joined by a `.`: the payload's JSON in
+UTF-8, then the HMAC-SHA256 of that first part's characters with the login link key.
+
+```json
+{ "v": 1, "sub": "Xb3…", "name": "Alex", "exp": 1795006860, "jti": "9f2c4e…" }
+```
+
+| Field | Meaning |
+|---|---|
+| `v` | Always `1`. Any other value is refused |
+| `sub` | The user ID, 1 to 128 characters, as in the hand-off (11.2) |
+| `name` | The name from the user's login, at most 100 characters, cut there if longer. `null` when the login had none, as a guest's has none |
+| `exp` | When it expires, in seconds since 1970 (UTC), 60 seconds after it was made |
+| `jti` | 16 random bytes as 32 lower-case hex characters, so each link can be used once |
+
+The Event Service compares the HMAC in constant time, then checks `v`, `exp` and `jti`, and
+answers `invalid_login_link` (401) if any check fails. It never logs a link.
 
 ---
 
@@ -1210,7 +1362,8 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 - Reading a station key back. Replacing one is in scope, for organizers.
 - Removing a station from the passport.
 - Editing or deleting taps.
-- User profile editing. Display names come from the login.
+- User profile editing, apart from the name the event shows (8.7). A guest can't be turned into
+  a Google account.
 - Logging in through the Portal (`GET /auth/login` and `GET /auth/callback`). It replaces
   `POST /auth/firebase` after the showcase
   ([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)).
@@ -1223,9 +1376,9 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 
 | Screen | Calls |
 |---|---|
-| Login | Firebase's web SDK, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
-| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token |
-| My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form |
+| Login | Firebase's web SDK, with Google, GeeksHacking's login or as a guest, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
+| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token; `POST /api/v1/login-links` for the event buttons |
+| My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form; `POST /api/v1/login-links` for the event buttons |
 
 There are no GeekyKey admin screens.
 
@@ -1233,9 +1386,10 @@ There are no GeekyKey admin screens.
 
 | Screen | Calls |
 |---|---|
-| Login | Firebase's web SDK, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
+| Login | Firebase's web SDK, with Google or GeeksHacking's login, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development. No guest sign-in |
+| Arriving from a login link, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` |
 | Participant dashboard | `GET /api/v1/me` |
-| Passport / stamp book | `GET /api/v1/me` (the `stamps` array) |
+| Passport / stamp book | `GET /api/v1/me` (the `stamps` array); `PATCH /api/v1/me` for the name |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
 | Organizer station board | `GET /api/v1/admin/stations`, polled; `PUT /api/v1/admin/stations/{id}/passport`; `POST /api/v1/admin/stations`; `POST /api/v1/admin/stations/{id}/key`; `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
@@ -1252,6 +1406,13 @@ There are no GeekyKey admin screens.
 - On `claims_unavailable`, the token page, the claim form and My tokens say "Couldn't reach
   GeeksHacking. Try again."
 - On `login_unavailable`, both logins say "Couldn't log you in. Try again."
+- The GeekyKey screens' login offers **"Continue as guest"**, with the line "No account needed.
+  Keep using this phone and browser." under it. The Event screens' login doesn't offer it.
+- On `invalid_login_link`, the Event screens say "That link has expired. Tap your token again to
+  get back in."
+- When `has_name` is `false`, the passport asks "What should we call you?", with **Save** and
+  **Skip**. Skipping keeps `Guest`, and the passport keeps a way to set the name later. On
+  `validation_failed` it says "Use 1 to 30 characters."
 
 Local setup, from checkpoint 1:
 
@@ -1274,7 +1435,11 @@ on one set of screens leaves the other's alone.
 | Question | Owner | Needed by |
 |---|---|---|
 | What does the QR fallback scan, now that showcase users aren't Portal users? Likely a QR code of the user ID on the passport | Adam with Ethan | Checkpoint 7 |
-| Does GeeksHacking's login, through Firebase, carry the user's name? Decides whether 7.2's `GeeksHacking member` is ever used | Adam with Qing Guan | Checkpoint 5 |
+
+Closed in 0.5:
+
+- "Does GeeksHacking's login, through Firebase, carry the user's name?": it no longer matters. A
+  user whose login has no name is called `Guest`, and the passport asks them for one (8.1, 8.7).
 
 Closed in 0.2:
 
@@ -1323,3 +1488,4 @@ Closed on 2026-10-10:
 | 2026-10-20 | Our Event Service sends `Cache-Control: no-store` on every response, no longer only under `/api` and `/auth` ([CORS and cookies](#cors-and-cookies)). The registered stations (11.1) carry key hashes and the claims stand-in says who owns which token, so neither should sit in a cache. No shape changes (BAC-51). |
 | 2026-10-20 | The Event Service's `POST /auth/firebase` (7.2) is `Implemented`. It checks the ID token against Google's keys for the project `geekykey-b035a`, then sets `event_session` the same way as `POST /auth/dev-login`. The user's row takes the token's `name`; a token with none, or a blank one, keeps a returning user's name and gives a new user `GeeksHacking member`. A body that isn't `application/json` fails validation. The GeekyKey Service's half follows (BAC-55). No shape changes (BAC-52). |
 | 2026-10-20 | New error code `service_unavailable` (503), and only the screens' Workers send it. Each set of screens is served by a Worker that passes `/api/*` and `/auth/*` to its service. When that service gives no answer at all, the Worker answers `503 {"error": "service_unavailable"}` with `Cache-Control: no-store`, rather than Cloudflare's own HTML error page, which broke the error body's shape and the `no-store` rule. Until the screens know the code, they treat it by its status, as a bare 503. No other shape changes (BAC-53). |
+| 2026-10-21 | Version 0.5 (draft): guests, login links, and a name the user sets (ADR 0005, BAC-54). **New:** a guest sign-in on the GeekyKey screens only, through Firebase's `signInAnonymously`, accepted by `POST /auth/firebase` like any other login (7.2); the GeekyKey screens log a returning user in again while Firebase still has them (7.2); `POST /api/v1/login-links` on the GeekyKey Service (8.6) and `POST /auth/login-link` on the Event Service (7.4), with the error `invalid_login_link` (401), so the event buttons log the user in on the Event screens as the same user; the login link's format and key, derived from the Event Service key (11.9); `PATCH /api/v1/me` on the Event Service (8.7) and `user.has_name` on its `GET /api/v1/me` (8.1). **Changed:** a new user with no name is `Guest`, not `GeeksHacking member`; a name the user set is never replaced by a login; `gk_session` holds the login's name as well as the user ID. Section 12 lets users set their name, and says a guest can't become a Google account; leaderboards stay out of scope. Section 13 sets the wording for "Continue as guest", the name prompt and an expired link. One open question closed. |
