@@ -22,7 +22,13 @@ import { isoNow, isoTimestamp, stationId, userId } from "../db/columns.ts";
  */
 export const users = mysqlTable("users", {
   id: userId("id").primaryKey(),
+  /** The name the event shows: the login's, `Guest` when a login had none, or one the user set. */
   displayName: text("display_name").notNull(),
+  /**
+   * When the user last set their name (PATCH /api/v1/me), or null while it
+   * comes from their login. Once set, a login no longer changes it.
+   */
+  nameSetAt: isoTimestamp("name_set_at"),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
 });
 

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import type { Db } from "../db/pool.ts";
+import { hasName } from "./display-names.ts";
 import { users } from "./schema.ts";
 
 export const SESSION_COOKIE = "event_session";
@@ -17,6 +18,8 @@ export type Role = "participant" | "organizer";
 export interface SessionUser {
   id: string;
   displayName: string;
+  /** False while the user has the default name (display-names.ts). */
+  hasName: boolean;
   role: Role;
 }
 
@@ -95,12 +98,17 @@ export async function readSession(
   if (expiresAt <= Date.now()) return null;
 
   const [user] = await c.var.db
-    .select({ id: users.id, displayName: users.displayName })
+    .select({ id: users.id, displayName: users.displayName, nameSetAt: users.nameSetAt })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
   if (!user) return null;
-  return { ...user, role: options.organizers.has(user.id) ? "organizer" : "participant" };
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    hasName: hasName(user),
+    role: options.organizers.has(user.id) ? "organizer" : "participant",
+  };
 }
 
 /**

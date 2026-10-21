@@ -46,8 +46,7 @@ test("dev-login signs in a seeded user and sets event_session", async () => {
 test("the cookie dev-login sets is what /me reads, and gk_session is not", async () => {
   const { post, userId } = await harness();
   const res = await post("/auth/dev-login", { user_id: userId });
-  // Only the name=value pair travels back, the way a browser sends it.
-  const cookie = (res.headers.get("Set-Cookie") ?? "").split(";")[0]!;
+  const cookie = sessionCookie(res);
   const value = cookie.slice(cookie.indexOf("=") + 1);
 
   const me = await devApp.request("/api/v1/me", { headers: { Cookie: cookie } });
@@ -113,13 +112,28 @@ function logIn(idToken: string, app = productionApp) {
   });
 }
 
+/** The cookie a login set, as a browser sends it back: only the name=value pair. */
+function sessionCookie(login: Response) {
+  return (login.headers.get("Set-Cookie") ?? "").split(";")[0]!;
+}
+
+/** PATCH /api/v1/me, with the cookie a login set. */
+function setName(login: Response, displayName: string) {
+  return productionApp.request("/api/v1/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: sessionCookie(login) },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+}
+
 /** Who GET /api/v1/me says is behind the cookie a login set. */
 async function me(login: Response) {
-  // Only the name=value pair travels back, the way a browser sends it.
-  const cookie = (login.headers.get("Set-Cookie") ?? "").split(";")[0]!;
-  const res = await productionApp.request("/api/v1/me", { headers: { Cookie: cookie } });
+  const res = await productionApp.request("/api/v1/me", {
+    headers: { Cookie: sessionCookie(login) },
+  });
   assert.equal(res.status, 200);
-  return ((await res.json()) as { user: { id: string; display_name: string } }).user;
+  return ((await res.json()) as { user: { id: string; display_name: string; has_name: boolean } })
+    .user;
 }
 
 test("a new user's good token logs them in as its sub, with the token's name", async () => {
@@ -135,6 +149,7 @@ test("a new user's good token logs them in as its sub, with the token's name", a
     id: "firebase-uid-1",
     display_name: "Ada Lim",
     role: "participant",
+    has_name: true,
   });
 });
 
@@ -145,6 +160,17 @@ test("a returning user's login updates their name to the token's", async () => {
   assert.equal((await me(res)).display_name, "Ada Lim");
 });
 
+test("a login never replaces a name the user set", async () => {
+  const first = await logIn(await google.signIdToken({ sub: "firebase-uid-1", name: "Ada Lim" }));
+  assert.equal((await setName(first, "Ada")).status, 200);
+
+  const again = await logIn(await google.signIdToken({ sub: "firebase-uid-1", name: "Ada Tan" }));
+  assert.equal(again.status, 204);
+  assert.equal((await me(again)).display_name, "Ada");
+  const nameless = await logIn(await google.signIdToken({ sub: "firebase-uid-1" }));
+  assert.equal((await me(nameless)).display_name, "Ada");
+});
+
 test("a token with no name keeps a returning user's name", async () => {
   await logIn(await google.signIdToken({ sub: "firebase-uid-1", name: "Ada Lim" }));
   const res = await logIn(await google.signIdToken({ sub: "firebase-uid-1" }));
@@ -152,14 +178,44 @@ test("a token with no name keeps a returning user's name", async () => {
   assert.equal((await me(res)).display_name, "Ada Lim");
 });
 
-test("a token with no name gives a new user the name GeeksHacking member", async () => {
+test("a token with no name gives a new user the name Guest, and no name of their own", async () => {
   const res = await logIn(await google.signIdToken({ sub: "firebase-uid-1" }));
   assert.equal(res.status, 204);
   assert.deepEqual(await me(res), {
     id: "firebase-uid-1",
-    display_name: "GeeksHacking member",
+    display_name: "Guest",
     role: "participant",
+    has_name: false,
   });
+});
+
+test("a later login with a name replaces the default name", async () => {
+  await logIn(await google.signIdToken({ sub: "firebase-uid-1" }));
+  const res = await logIn(await google.signIdToken({ sub: "firebase-uid-1", name: "Ada Lim" }));
+  assert.deepEqual(await me(res), {
+    id: "firebase-uid-1",
+    display_name: "Ada Lim",
+    role: "participant",
+    has_name: true,
+  });
+});
+
+test("a guest who sets their name has one", async () => {
+  const login = await logIn(await google.signGuestIdToken("firebase-guest-1"));
+  const patch = await setName(login, "Ally");
+  assert.equal(patch.status, 200);
+  assert.deepEqual(await me(login), {
+    id: "firebase-guest-1",
+    display_name: "Ally",
+    role: "participant",
+    has_name: true,
+  });
+});
+
+test("a user who sets the name Guest has a name, so the passport stops asking", async () => {
+  const login = await logIn(await google.signGuestIdToken("firebase-guest-1"));
+  await setName(login, "Guest");
+  assert.equal((await me(login)).has_name, true);
 });
 
 test("a guest's token logs them in as its sub, like any other with no name", async () => {
@@ -168,8 +224,9 @@ test("a guest's token logs them in as its sub, like any other with no name", asy
   assert.match(res.headers.get("Set-Cookie") ?? "", /^event_session=/);
   assert.deepEqual(await me(res), {
     id: "firebase-guest-1",
-    display_name: "GeeksHacking member",
+    display_name: "Guest",
     role: "participant",
+    has_name: false,
   });
 });
 
