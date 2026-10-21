@@ -177,6 +177,9 @@ importers:
       '@geekykey/handoff':
         specifier: workspace:*
         version: link:../../packages/handoff
+      '@geekykey/login-link':
+        specifier: workspace:*
+        version: link:../../packages/login-link
       '@hono/node-server':
         specifier: ^2.1.5
         version: 2.1.5(hono@4.13.13)
@@ -377,6 +380,9 @@ importers:
       '@geekykey/handoff':
         specifier: workspace:*
         version: link:../../packages/handoff
+      '@geekykey/login-link':
+        specifier: workspace:*
+        version: link:../../packages/login-link
       '@hono/zod-validator':
         specifier: ^0.9.1
         version: 0.9.1(hono@4.13.13)(zod@4.6.7)
@@ -602,6 +608,28 @@ importers:
         version: 5.0.5(@types/node@24.19.2)(jsdom@30.1.3)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   packages/handoff:
+    dependencies:
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      oxfmt:
+        specifier: 0.73.0
+        version: 0.73.0(@astrojs/compiler-rs@0.5.2)
+      oxlint:
+        specifier: 1.87.0
+        version: 1.87.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/node@24.19.2)(jsdom@30.1.3)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
+  packages/login-link:
     dependencies:
       zod:
         specifier: ^4.6.7

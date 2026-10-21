@@ -71,6 +71,13 @@
       "when": 1792555027872,
       "tag": "0009_users_can_set_their_names",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1792560549117,
+      "tag": "0010_the_used_login_links",
+      "breakpoints": true
     }
   ]
 }

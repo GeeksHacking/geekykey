@@ -7,6 +7,7 @@ import type { Config } from "./config.ts";
 import { EventService } from "./event-service.ts";
 import { log, errorFields } from "./lib/log.ts";
 import { noStore } from "./lib/no-store.ts";
+import { loginLinkRoutes } from "./login-link-routes.ts";
 import { meRoutes } from "./me-routes.ts";
 import type { Send } from "./service-request.ts";
 import type { SessionOptions } from "./session.ts";
@@ -117,6 +118,10 @@ export function createApp(
       eventServices: config.eventServices,
       deadlineMs: claimsDeadlineMs,
     }),
+  );
+  app.route(
+    "/api/v1/login-links",
+    loginLinkRoutes({ session, eventServices: config.eventServices }),
   );
 
   return app;

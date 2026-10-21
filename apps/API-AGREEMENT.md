@@ -221,7 +221,7 @@ Each service sets its own cookie, and the screens' code is identical whichever r
   user signs in with Google, with GeeksHacking's login, or as a guest. `Implemented` on both
   services, with guests at checkpoint 5.
 - `POST /auth/login-link`, on the Event Service only, with a login link made by the GeekyKey
-  Service (7.4). `Checkpoint 5`.
+  Service (7.4). `Implemented`.
 - `POST /auth/dev-login`, in local development only. This exists so the screens can be built
   before the login lands, without any code that has to be removed later.
 
@@ -355,13 +355,13 @@ them.
 | POST | `/api/v1/taps` | Station | `Implemented` | Taps, one or a batch |
 | POST | `/api/v1/stations/heartbeat` | Station | `Implemented` | Online light, clock, `reader_ok` |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `gk_session` for any user ID |
-| POST | `/auth/firebase` | browser | `Implemented`, the name in `gk_session` at checkpoint 5 | Log in with a Firebase ID token, set `gk_session` |
+| POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `gk_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
 | GET | `/api/v1/me` | User | `Implemented` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
 | GET | `/api/v1/tokens/{uid}` | User | `Checkpoint 6` | What the token page shows |
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Checkpoint 6` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Checkpoint 6` | Release a token |
-| POST | `/api/v1/login-links` | User | `Checkpoint 5` | A login link to one event's screens |
+| POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
 
 **The Event Service**
 
@@ -373,7 +373,7 @@ them.
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
-| POST | `/auth/login-link` | browser | `Checkpoint 5` | Log in with a login link, set `event_session` |
+| POST | `/auth/login-link` | browser | `Implemented` | Log in with a login link, set `event_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows |
@@ -574,7 +574,7 @@ each service's `pnpm dev` reads. Never enabled in production.
 - **The GeekyKey Service** signs in any `user_id`, because it keeps no users. `dev-organizer-1`
   is also on its local GeekyKey admin list, so releasing someone else's token can be developed.
 
-### 7.2 `POST /auth/firebase` (`Implemented, changes at checkpoint 5`)
+### 7.2 `POST /auth/firebase` (`Implemented`)
 
 Logs the user in with the ID token Firebase gave the screens. The service checks it against
 Google's public keys, then sets its cookie. There's no redirect: the screens stay where they
@@ -628,8 +628,7 @@ another site can't log someone in.
   has set their own name (8.7), which a login never replaces. If the token has none, it keeps the
   name it already has, or uses `Guest` for a new user.
 - **The GeekyKey Service** keeps no users: its session holds only the user ID and the token's
-  `name`, if it has one, so a login link (8.6) can carry the name. Until the login links arrive
-  at checkpoint 5, it holds only the user ID.
+  `name`, if it has one, so a login link (8.6) can carry the name.
 
 **Errors:** `validation_failed`; `invalid_token` (401); `login_unavailable` (503) when Google's
 keys couldn't be fetched, so the token may be fine and the screens offer to try again.
@@ -639,7 +638,7 @@ keys couldn't be fetched, so the token may be fine and the screens offer to try 
 **Response `204`**, clears that service's cookie. The screens also call Firebase's `signOut()`,
 so a shared device doesn't stay signed in to Firebase.
 
-### 7.4 `POST /auth/login-link` on the Event Service (`Checkpoint 5`)
+### 7.4 `POST /auth/login-link` on the Event Service (`Implemented`)
 
 Logs the user in with a login link from the GeekyKey Service (8.6), so someone who logged in on
 the GeekyKey screens is logged in here as the same user, without logging in again. It is the only
@@ -818,7 +817,7 @@ shows a login prompt and looks nothing up.
 
 **Errors:** `unauthenticated`, `validation_failed`, `rate_limited`.
 
-### 8.6 `POST /api/v1/login-links` on the GeekyKey Service (`Checkpoint 5`)
+### 8.6 `POST /api/v1/login-links` on the GeekyKey Service (`Implemented`)
 
 A login link to one event's screens, for the current user. The event buttons on the token page
 and My tokens call it, then open the `url` it answers. Every user gets one, guests and Google
@@ -846,10 +845,11 @@ users alike.
   and don't keep it.
 - The screens open `url` as it is. They never build it, so the event's address and the
   fragment's name belong to the GeekyKey Service.
-- It counts toward the user's 60 requests a minute ([Rate limits](#rate-limits)).
+- It counts toward the user's 60 requests a minute, once the GeekyKey Service's rate limits
+  arrive at checkpoint 6 ([Rate limits](#rate-limits)).
 
 **Errors:** `unauthenticated`, `validation_failed`, `not_found` for an `event_id` that isn't in
-`events`, `rate_limited`.
+`events`, and `rate_limited` from checkpoint 6.
 
 ### 8.7 `PATCH /api/v1/me` on the Event Service (`Implemented`)
 
@@ -1494,3 +1494,4 @@ Closed on 2026-10-10:
 | 2026-10-21 | Version 0.5 (draft): guests, login links, and a name the user sets (ADR 0005, BAC-54). **New:** a guest sign-in on the GeekyKey screens only, through Firebase's `signInAnonymously`, accepted by `POST /auth/firebase` like any other login (7.2); the GeekyKey screens log a returning user in again while Firebase still has them (7.2); `POST /api/v1/login-links` on the GeekyKey Service (8.6) and `POST /auth/login-link` on the Event Service (7.4), with the error `invalid_login_link` (401), so the event buttons log the user in on the Event screens as the same user; the login link's format and key, derived from the Event Service key (11.9); `PATCH /api/v1/me` on the Event Service (8.7) and `user.has_name` on its `GET /api/v1/me` (8.1). **Changed:** a new user with no name is `Guest`, not `GeeksHacking member`; a name the user set is never replaced by a login; `gk_session` holds the login's name as well as the user ID. Section 12 lets users set their name, and says a guest can't become a Google account; leaderboards stay out of scope. Section 13 sets the wording for "Continue as guest", the name prompt and an expired link. One open question closed. |
 | 2026-10-21 | The GeekyKey Service's `POST /auth/firebase` (7.2) is `Implemented`. It checks the ID token with the same code as the Event Service's (`packages/firebase-login`), then sets `gk_session` the same way as `POST /auth/dev-login`. Until the login links, the session holds only the user ID. Its `GET /api/v1/me` (8.4) moves from checkpoint 6 to checkpoint 5 and is `Implemented`, since the GeekyKey screens can't tell whether someone is logged in without it. Its shape doesn't change, so screens built against the mock keep working. `events` lists each Event Service with a public address, which is now an optional `public_url` in the GeekyKey Service's `EVENT_SERVICES` setting. Section 13, and the error table, give `invalid_token` the same sentence as `login_unavailable`, "Couldn't log you in. Try again.", which Ethan approved on 20 Oct. Section 3 tags `POST /auth/firebase` `Implemented` on both services. No shape changes (BAC-55). |
 | 2026-10-21 | The Event Service's `PATCH /api/v1/me` (8.7) is `Implemented`, and its `GET /api/v1/me` (8.1) and `POST /auth/firebase` (7.2) no longer change at checkpoint 5. A user can set the name the event shows, trimmed and 1 to 30 code points; `GET /api/v1/me` gives `user.has_name`, `false` while the name is the default, and `true` for a name the user set, even `Guest`; a new user whose login has no name is `Guest`, not `GeeksHacking member`; and a login never replaces a name the user set. Users who already had `GeeksHacking member` become `Guest`, so the passport asks them for a name. 8.7 now says where a refused name's issue goes, and that `rate_limited` waits for checkpoint 7. 7.2 keeps its checkpoint 5 tag, since the GeekyKey Service's half, the name in `gk_session`, waits for BAC-59 (BAC-60). |
+| 2026-10-21 | Login links are `Implemented` on both services: the GeekyKey Service's `POST /api/v1/login-links` (8.6) and the Event Service's `POST /auth/login-link` (7.4), with the format and key in 11.9. Both make and read the link with the same code, `packages/login-link`, which reads a link built by hand from 11.9's recipe, so another team's Event Service checking by it agrees. `gk_session` now holds the login's name next to the user ID, so 7.2 is `Implemented` on both services, with no change still to come. A `gk_session` from before, which held only the user ID, no longer reads, and the screens log the user in again as 7.2 says; nobody uses the GeekyKey screens on production yet. The Event Service keeps each used link's `jti` in a new table, `used_login_links`, until a minute after the link expires. 8.6 now says its `rate_limited` waits for the GeekyKey Service's rate limits at checkpoint 6. No shape changes (BAC-59). |

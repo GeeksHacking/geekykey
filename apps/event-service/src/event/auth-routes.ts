@@ -3,6 +3,7 @@ import {
   type GoogleSigningKeys,
   verifyFirebaseIdToken,
 } from "@geekykey/firebase-login";
+import type { LoginLinks } from "@geekykey/login-link";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import { jsonBody } from "../lib/validate.ts";
 import { saveLogin } from "./display-names.ts";
 import { users } from "./schema.ts";
 import { clearSession, issueSession, type SessionOptions } from "./session-auth.ts";
+import { useLoginLink } from "./used-login-links.ts";
 
 const devLoginSchema = z.object({
   user_id: z.string().min(1).max(128),
@@ -25,10 +27,17 @@ const firebaseLoginSchema = z.object({
   id_token: z.string().min(1),
 });
 
+/** Only `application/json`, for the same reason as firebaseLoginSchema. */
+const loginLinkSchema = z.object({
+  login_link: z.string().min(1),
+});
+
 export interface AuthRouteDeps {
   session: SessionOptions;
   /** The Firebase project, and Google's keys, that POST /firebase checks ID tokens with. */
   firebase: { projectId: string; keys: GoogleSigningKeys };
+  /** The login links POST /login-link accepts: the GeekyKey Service's, for this Event Service. */
+  loginLinks: LoginLinks;
   /**
    * When false, POST /dev-login is never registered. A production deployment
    * has no code path to it at all, rather than one that refuses at runtime.
@@ -44,7 +53,7 @@ export interface AuthRouteDeps {
  * login and dev-login set the same cookie, and the Portal's login joins them
  * after the showcase without a second definition of what a session looks like.
  */
-export function authRoutes({ session, devAuthEnabled, firebase }: AuthRouteDeps) {
+export function authRoutes({ session, devAuthEnabled, firebase, loginLinks }: AuthRouteDeps) {
   const app = new Hono<AppEnv>();
 
   app.post("/firebase", jsonBody(firebaseLoginSchema), async (c) => {
@@ -61,6 +70,22 @@ export function authRoutes({ session, devAuthEnabled, firebase }: AuthRouteDeps)
 
     await saveLogin(c.var.db, identity.userId, identity.displayName);
     await issueSession(c, identity.userId, session);
+    return c.body(null, 204);
+  });
+
+  // The way in from the GeekyKey screens' event buttons, and a guest's only
+  // one (the API agreement's 7.4). The link is never logged: it logs
+  // someone in until it's used or expires.
+  app.post("/login-link", jsonBody(loginLinkSchema), async (c) => {
+    const link = await loginLinks.read(c.req.valid("json").login_link);
+    // Refused before it's marked used, so a link that fails uses nothing up.
+    if (!link || !(await useLoginLink(c.var.db, link))) {
+      return c.json({ error: "invalid_login_link" }, 401);
+    }
+
+    await saveLogin(c.var.db, link.userId, link.name);
+    // Over any session already there: the link's user wins.
+    await issueSession(c, link.userId, session);
     return c.body(null, 204);
   });
 

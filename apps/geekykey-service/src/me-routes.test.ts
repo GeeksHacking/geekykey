@@ -114,17 +114,20 @@ test("without a usable session, /me answers unauthenticated and asks the stand-i
   const { fake, logIn, me } = harness();
   const good = await logIn("firebase-uid-1");
   const value = decodeURIComponent(good.slice(good.indexOf("=") + 1));
+  const session = (exp: number) => JSON.stringify({ exp, sub: "firebase-uid-1", name: null });
   const later = Date.now() + 60_000;
   const unusable = {
     "no cookie": undefined,
-    "a cookie with no signature": `gk_session=${later}:firebase-uid-1`,
+    "a cookie with no signature": `gk_session=${encodeURIComponent(session(later))}`,
     "a cookie signed with another secret": await signedCookie(
-      `${later}:firebase-uid-1`,
+      session(later),
       "someone-elses-session-secret",
     ),
     "a cookie whose user was changed": `gk_session=${encodeURIComponent(value.replace("uid-1", "uid-2"))}`,
-    "an expired session": await signedCookie(
-      `${Date.now() - 1000}:firebase-uid-1`,
+    "an expired session": await signedCookie(session(Date.now() - 1000), env.SESSION_SECRET),
+    // gk_session before it held the name. The screens log the user in again (7.2).
+    "a session from before the name, expiry:userId": await signedCookie(
+      `${later}:firebase-uid-1`,
       env.SESSION_SECRET,
     ),
     // The Event Service's cookie, which shares localhost with this one.
@@ -136,6 +139,8 @@ test("without a usable session, /me answers unauthenticated and asks the stand-i
     assert.deepEqual(await res.json(), { error: "unauthenticated" }, what);
   }
   assert.deepEqual(fake.sent, []);
+  // The same session, rightly signed and unexpired, works, so each case above failed for its own reason.
+  assert.equal((await me(await signedCookie(session(later), env.SESSION_SECRET))).status, 200);
 });
 
 test("an Event Service without a public address isn't in events", async () => {

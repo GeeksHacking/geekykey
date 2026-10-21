@@ -1,4 +1,5 @@
 import { type GoogleSigningKeys, googleSigningKeys } from "@geekykey/firebase-login";
+import { loginLinks } from "@geekykey/login-link";
 import { createBaseApp } from "./base-app.ts";
 import { claimsStandInRoutes } from "./claims-stand-in/routes.ts";
 import type { Config } from "./config.ts";
@@ -62,6 +63,8 @@ export function createApp(
       session,
       devAuthEnabled: config.devAuthEnabled,
       firebase: { projectId: config.firebaseProjectId, keys: googleKeys },
+      // Signed with a key derived from the Event Service key (the API agreement's 11.9).
+      loginLinks: loginLinks(config.eventServiceKey),
     }),
   );
   app.route("/api/v1/me", meRoutes({ session }));

@@ -18,17 +18,19 @@ WORKDIR /repo
 # The manifests and the lockfile first, so Docker reuses the installed
 # dependencies until one of them changes. --frozen-lockfile installs exactly
 # what pnpm-lock.yaml says, under the rules in pnpm-workspace.yaml.
-# The trailing ... in the filter installs packages/handoff's and
-# packages/firebase-login's dependencies too, since the Event Service imports
-# them and the bundle takes them in.
+# The trailing ... in the filter installs packages/handoff's,
+# packages/firebase-login's and packages/login-link's dependencies too, since
+# the Event Service imports them and the bundle takes them in.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/event-service/package.json apps/event-service/
 COPY packages/handoff/package.json packages/handoff/
 COPY packages/firebase-login/package.json packages/firebase-login/
+COPY packages/login-link/package.json packages/login-link/
 RUN pnpm install --frozen-lockfile --filter "@geekykey/event-service..."
 
 COPY packages/handoff/ packages/handoff/
 COPY packages/firebase-login/ packages/firebase-login/
+COPY packages/login-link/ packages/login-link/
 COPY apps/event-service/ apps/event-service/
 RUN pnpm --filter @geekykey/event-service build
 

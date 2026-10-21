@@ -57,6 +57,15 @@ jobs:
           pnpm --filter @geekykey/firebase-login typecheck
           pnpm --filter @geekykey/firebase-login test
 
+      # packages/login-link, which both services bundle: the login link the
+      # GeekyKey Service makes and POST /auth/login-link reads.
+      - name: Login link package
+        run: |
+          pnpm --filter @geekykey/login-link lint
+          pnpm --filter @geekykey/login-link format:check
+          pnpm --filter @geekykey/login-link typecheck
+          pnpm --filter @geekykey/login-link test
+
       # TiDB in Docker from the root compose.yaml, with geekykey_dev and
       # geekykey_test created and migrated, the same way as on a laptop.
       - name: Start TiDB

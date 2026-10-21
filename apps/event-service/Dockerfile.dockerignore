@@ -17,3 +17,6 @@ packages/handoff/src/**/*.test.ts
 !packages/firebase-login/src/
 packages/firebase-login/src/**/*.test.ts
 packages/firebase-login/src/testing.ts
+!packages/login-link/package.json
+!packages/login-link/src/
+packages/login-link/src/**/*.test.ts

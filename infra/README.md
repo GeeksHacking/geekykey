@@ -669,9 +669,9 @@ paths aren't on the Connect form. They appear under Settings, then Builds, once 
 | Branch | `main` | Only reviewed code deploys |
 | Enable Preview builds | Unticked | The Worker has no preview URLs (`preview_urls` is `false`) |
 | Root directory | `apps/geekykey-service` | Where its `wrangler.jsonc` is, and where both commands run |
-| Build command | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/geekykey-service...` | Installs from the repo's root, where the lockfile is, only what this Worker needs (the trailing `...` takes in `packages/handoff`), and fails rather than change the lockfile, as CI does |
+| Build command | `cd ../.. && pnpm install --frozen-lockfile --filter @geekykey/geekykey-service...` | Installs from the repo's root, where the lockfile is, only what this Worker needs (the trailing `...` takes in the packages it bundles), and fails rather than change the lockfile, as CI does |
 | Deploy command | `pnpm exec wrangler deploy` | The Wrangler version in its `package.json` |
-| Build watch paths, include | `apps/geekykey-service/*`, `packages/handoff/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` | Its own code, the package it bundles, and its dependencies. A merge touching none of them doesn't rebuild it |
+| Build watch paths, include | `apps/geekykey-service/*`, `packages/handoff/*`, `packages/firebase-login/*`, `packages/login-link/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` | Its own code, the three packages it bundles, and its dependencies. A merge touching none of them doesn't rebuild it |
 | Build watch paths, exclude | None | |
 | Build variable `NODE_VERSION` | `24.21.0` | The Node the rest of the repo pins, in `.mise.toml` |
 | Build variable `PNPM_VERSION` | `12.5.1` | The pnpm in the root `package.json`, so the build installs as CI and our laptops do. The build image's own is 10.11.1 |

@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
+import { z } from "zod";
 
 export const SESSION_COOKIE = "gk_session";
 
@@ -16,32 +17,48 @@ export interface SessionOptions {
   secure: boolean;
 }
 
-/** Sets `userId`, the user behind the cookie, for the handlers after requireSession. */
-export type SessionEnv = { Variables: { userId: string } };
+/** Who a session is for. */
+export interface SessionUser {
+  userId: string;
+  /** The name from their login, which a login link carries (the API agreement's 7.2), or null when it had none. */
+  name: string | null;
+}
+
+/** Sets `userId` and `loginName`, the user behind the cookie, for the handlers after requireSession. */
+export type SessionEnv = { Variables: { userId: string; loginName: string | null } };
 
 /*
   Browser sessions for the token page and My tokens. Stations do not use this;
   they carry a bearer key, see src/station-auth.ts.
 
-  The session is the cookie, as on the Event Service: it holds an expiry and a
-  user ID, signed with SESSION_SECRET, so a forged or edited cookie fails to
-  verify. The GeekyKey Service keeps no users, so the user ID is all there is.
+  The session is the cookie, as on the Event Service: it holds an expiry, a
+  user ID and the name from their login, signed with SESSION_SECRET, so a
+  forged or edited cookie fails to verify. The GeekyKey Service keeps no
+  users, so the cookie is all there is, and it holds the name for the
+  login links (the API agreement's 7.2 and 8.6).
   The cookie's name is its own, gk_session, because locally both sets of
   screens are on localhost, where cookies ignore the port, and the Event
   Service's is event_session.
 */
 
+/** What gk_session holds, as JSON: an expiry in milliseconds, the user ID and the login's name. */
+const sessionValue = z.object({
+  exp: z.number(),
+  sub: z.string().min(1),
+  name: z.string().nullable(),
+});
+
 /**
- * Signs in `userId` by setting gk_session. The one place cookie attributes are
+ * Signs in `user` by setting gk_session. The one place cookie attributes are
  * chosen, so POST /auth/dev-login and POST /auth/firebase cannot drift apart.
  */
 export async function issueSession(
   c: Context,
-  userId: string,
+  { userId, name }: SessionUser,
   options: SessionOptions,
 ): Promise<void> {
-  const expiresAt = Date.now() + SESSION_MAX_AGE_SECONDS * 1000;
-  await setSignedCookie(c, SESSION_COOKIE, `${expiresAt}:${userId}`, options.secret, {
+  const value = { exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000, sub: userId, name };
+  await setSignedCookie(c, SESSION_COOKIE, JSON.stringify(value), options.secret, {
     httpOnly: true,
     sameSite: "Lax",
     path: "/",
@@ -56,27 +73,32 @@ export function clearSession(c: Context, options: Pick<SessionOptions, "secure">
 }
 
 /**
- * The user ID behind the cookie, or null when there's no usable session: no
+ * The user behind the cookie, or null when there's no usable session: no
  * cookie, one whose signature fails, or one that has expired. There are no
- * users to look up, so a session that checks out is the whole answer.
+ * users to look up, so a session that checks out is the whole answer. A
+ * cookie from before the name was added, `expiry:userId`, isn't JSON, so it
+ * reads as none, and the screens log the user in again (7.2).
  */
 export async function readSession(
   c: Context,
   options: Pick<SessionOptions, "secret">,
-): Promise<string | null> {
+): Promise<SessionUser | null> {
   // false means the signature didn't verify, undefined means there was no cookie.
   const value = await getSignedCookie(c, options.secret, SESSION_COOKIE);
   if (!value) return null;
 
-  // `expiry:userId`. Split on the first colon only: a user ID may hold one.
-  const separator = value.indexOf(":");
-  if (separator < 0) return null;
-  const expiresAt = Number(value.slice(0, separator));
-  const userId = value.slice(separator + 1);
-  if (!userId || !Number.isFinite(expiresAt)) return null;
+  let json: unknown;
+  try {
+    json = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  const session = sessionValue.safeParse(json);
+  if (!session.success) return null;
+  const { exp, sub, name } = session.data;
   // The browser already drops the cookie at max-age. This is what expires a copy of it.
-  if (expiresAt <= Date.now()) return null;
-  return userId;
+  if (exp <= Date.now()) return null;
+  return { userId: sub, name };
 }
 
 /**
@@ -88,9 +110,10 @@ export function requireSession(
   options: Pick<SessionOptions, "secret">,
 ): MiddlewareHandler<SessionEnv> {
   return async (c, next) => {
-    const userId = await readSession(c, options);
-    if (userId === null) return c.json({ error: "unauthenticated" }, 401);
-    c.set("userId", userId);
+    const user = await readSession(c, options);
+    if (user === null) return c.json({ error: "unauthenticated" }, 401);
+    c.set("userId", user.userId);
+    c.set("loginName", user.name);
     return await next();
   };
 }
