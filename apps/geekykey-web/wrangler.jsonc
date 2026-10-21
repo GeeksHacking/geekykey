@@ -19,8 +19,10 @@
   "workers_dev": false,
   "preview_urls": false,
 
-  // No routes yet. key.geekshacking.com goes here once Julian has attached it (BAC-56), so
-  // that a deploy keeps it. Every token has key.geekshacking.com/t/<UID> written on it.
+  // Julian attached this address in the dashboard (BAC-56). It's written here too, because a
+  // deploy removes any address that isn't. Every token has key.geekshacking.com/t/<UID>
+  // written on it, so this address has to keep working.
+  "routes": [{ "pattern": "key.geekshacking.com", "custom_domain": true }],
 
   "assets": {
     "directory": "./dist",
