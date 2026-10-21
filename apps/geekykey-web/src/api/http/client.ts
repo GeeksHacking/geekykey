@@ -59,7 +59,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     const parsed = parseErrorBody(body);
     const error = new ApiError(
       response.status,
-      parsed.code ?? errorCodeForStatus(response.status),
+      errorCodeFor(path, response.status, parsed.code),
       parsed.issues,
     );
     if (path !== "/api/v1/me") publishAuthError(error);
@@ -102,6 +102,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       await send("/auth/dev-login", postJson({ user_id: userId }));
     },
 
+    // Agreement 7.2. The ID token comes from Firebase's web SDK, and the service sets its
+    // own cookie, so there is nothing for the screens to keep.
+    firebaseLogin: async (idToken) => {
+      await send("/auth/firebase", postJson({ id_token: idToken }));
+    },
+
     logout: () => sendNoContent("/auth/logout", { method: "POST" }),
 
     // A URL for the browser to visit, not a request, so this one needs no send().
@@ -133,6 +139,24 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "login_unavailable",
   "internal_error",
 ]);
+
+/**
+ * The codes an endpoint's status means, where the status alone would say the wrong thing.
+ *
+ * Agreement 7.2's login answers 401 invalid_token and 503 login_unavailable, and neither is
+ * the code the status gives everywhere else: a 401 is unauthenticated, which reads as a lost
+ * session, and a 503 here would be the claims stand-in, which has nothing to do with a login.
+ * The table says so for what a body the client cannot read cannot say. A body it can read
+ * wins: it is the service's own answer, and the Worker in front of the screens answers 503
+ * service_unavailable under /api and /auth (agreement 2).
+ */
+const ENDPOINT_CODES: Record<string, Record<number, ErrorCode>> = {
+  "/auth/firebase": { 401: "invalid_token", 503: "login_unavailable" },
+};
+
+function errorCodeFor(path: string, status: number, fromBody?: ErrorCode): ErrorCode {
+  return fromBody ?? ENDPOINT_CODES[path]?.[status] ?? errorCodeForStatus(status);
+}
 
 function errorCodeForStatus(status: number): ErrorCode {
   if (status === 400 || status === 422) return "validation_failed";

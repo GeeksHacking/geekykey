@@ -2,6 +2,7 @@ import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import {
   createFixtures,
+  SEEDED_PARTICIPANT_ID,
   type MockData,
   type MockStation,
   type MockTap,
@@ -245,6 +246,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call(() => {
         if (!userById(userId)) fail("not_found");
         setSession(userId);
+      }),
+
+    // The mock has no Firebase to ask, so the sign-in picks the seeded participant. The
+    // screens read GET /api/v1/me afterwards, as they do live.
+    firebaseLogin: () =>
+      call(() => {
+        setSession(SEEDED_PARTICIPANT_ID);
       }),
 
     logout: () =>

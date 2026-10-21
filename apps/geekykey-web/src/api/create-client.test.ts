@@ -36,7 +36,16 @@ describe("createAppClient", () => {
       .sort();
     // Mirrored from ApiClient by hand on purpose: a forgotten method should fail here.
     expect(fromMock).toEqual(
-      ["claimToken", "devLogin", "getToken", "loginUrl", "logout", "me", "releaseToken"].sort(),
+      [
+        "claimToken",
+        "devLogin",
+        "firebaseLogin",
+        "getToken",
+        "loginUrl",
+        "logout",
+        "me",
+        "releaseToken",
+      ].sort(),
     );
   });
 });

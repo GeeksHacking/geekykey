@@ -1,6 +1,11 @@
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
-import { createFixtures, type MockData, type MockToken } from "@/api/mock/fixtures";
+import {
+  createFixtures,
+  SEEDED_PARTICIPANT_ID,
+  type MockData,
+  type MockToken,
+} from "@/api/mock/fixtures";
 import { MOCK_LATENCY_MS } from "@/lib/constants";
 import type {
   ApiIssue,
@@ -165,6 +170,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         // The GeekyKey Service keeps no users, so it signs in any ID (agreement 7.1).
         if (userId.trim().length < 1) fail("validation_failed");
         setSession(userId.trim());
+      }),
+
+    // The mock has no Firebase to ask, so the sign-in picks the seeded participant. The
+    // screens read GET /api/v1/me afterwards, as they do live.
+    firebaseLogin: () =>
+      call(() => {
+        setSession(SEEDED_PARTICIPANT_ID);
       }),
 
     logout: () =>

@@ -24,11 +24,14 @@ describe("the mock's error statuses", () => {
     const expected: Record<string, number> = {
       validation_failed: 400,
       unauthenticated: 401,
+      // The two login errors, which the login screen shows (agreement 7.2).
+      invalid_token: 401,
       forbidden: 403,
       not_found: 404,
       rate_limited: 429,
       event_service_unavailable: 503,
       claims_unavailable: 503,
+      login_unavailable: 503,
       internal_error: 500,
     };
 
@@ -49,6 +52,16 @@ describe("the mock's error statuses", () => {
 describe("sessions and roles", () => {
   it("answers /me with 401 when nobody is signed in", async () => {
     await expectApiError(client().me(), "unauthenticated", 401);
+  });
+
+  it("signs in as the seeded participant when the login comes from Firebase", async () => {
+    // The mock has no Firebase to ask, so it picks the account the fixtures were built
+    // around, and the screens read /me as they do live.
+    const api = client();
+
+    await api.firebaseLogin("id-token");
+
+    await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
   });
 
   it("gives participants 403 on organiser endpoints", async () => {

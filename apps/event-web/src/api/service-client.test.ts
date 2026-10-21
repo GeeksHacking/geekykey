@@ -10,7 +10,7 @@ describe("service client boundary", () => {
 
     expect(Object.keys(services)).toEqual(["session", "event"]);
     expect(Object.keys(services.session).sort()).toEqual(
-      ["devLogin", "loginUrl", "logout", "me"].sort(),
+      ["devLogin", "firebaseLogin", "loginUrl", "logout", "me"].sort(),
     );
     expect(Object.keys(services.event).sort()).toEqual(
       [
