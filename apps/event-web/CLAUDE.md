@@ -31,10 +31,12 @@ Do not copy content from the agreement or the skill into this file. Link to it.
 ## Current phase: staged live session, mock resources
 
 The screens are built against the mock and the first live session slice is now enabled:
-`me`, `devLogin`, and `logout` use the backend in live mode. Admin, fallback, stats,
-and export remain mock-backed until their service routes are implemented. Token claiming lives in
-the separate GeekyKey app, not in these Event screens. The mock/live split
-is intentional; screens never need to know which client supplied a value.
+`me`, `devLogin`, and `logout` use the backend in live mode. The Firebase sign-in is a
+client method as well (`firebaseLogin`), and FRO-56 makes it live with the rest of the
+session. Admin, fallback, stats, and export remain mock-backed until their service routes
+are implemented. Token claiming lives in the separate GeekyKey app, not in these Event
+screens. The mock/live split is intentional; screens never need to know which client
+supplied a value.
 
 `src/api/create-client.ts` is still the only file that changes when an endpoint goes live.
 `src/api/service-client.ts` prepares the future GeekyKey/Event Service split without changing
@@ -89,7 +91,7 @@ keeps only a copy in memory of what they registered. There is one call to the st
 
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
-| 1 | Session | `devLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
+| 1 | Session | `devLogin`, `firebaseLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
 | 2 | Stations | `listStationBoard`, `createStation`, `setStationPassport` | `/admin/stations`, the picker on `/admin/fallback` |
 | 3 | Scan log | `listTaps` | `/admin/taps` |
 | 4 | Event tail | `createFallbackTap`, `stats`, `exportCsv` | `/admin/summary`, `/admin/fallback` |
@@ -137,6 +139,7 @@ Two things that look like bugs and are not:
 | Components | shadcn/ui, CSS-variable theme | Generated into `src/components/ui`. We own and customise the code. Never left in default state |
 | Routing | TanStack Router, file-based | Typed links, params, and search. `routeTree.gen.ts` is generated and committed; never hand-edit it |
 | Server state | TanStack Query 5 | Queries and mutations live in feature hooks; keys in `src/api/keys.ts`; the session is the `["me"]` query. See "Server state" |
+| Login | Firebase's web SDK | `firebase` 13.0.0, behind `src/lib/firebase.ts`: the config from the build, the switch for GeeksHacking's OpenID Connect provider, and the sign-in and sign-out calls. The screens send the ID token to their own service (agreement 7.2) |
 | Tables | TanStack Table 9 | Organiser scan log only. Features are opt-in through `tableFeatures()`; row, cell, and header methods live on prototypes, so call them on the instance and never spread one |
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
 | Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
@@ -272,6 +275,10 @@ Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test
 Sign in on the login page with a seeded account. Alex Tan is a participant, Priya Raman is
 an organiser. The mock session survives a reload but not a new tab.
 
+The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, which the runbook's step 13
+sets. Without them the sign-in buttons are disabled and the page says so, and a live build
+fails rather than ship that.
+
 Backend, for the integration phase only:
 
 ```
@@ -322,7 +329,7 @@ apps/event-web/
         fallback.tsx
         summary.tsx
     features/               # one folder per domain; the real UI lives here
-      auth/                 # login screen, dev-login form, RequireSession, RequireRole, 403 view, shell wiring
+      auth/                 # login screen, Firebase sign-in buttons, dev-login form, RequireSession, RequireRole, 403 view, shell wiring
       passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
@@ -351,6 +358,7 @@ apps/event-web/
     lib/                    # shared infrastructure, safe to import from any feature
       session.ts            # "am I logged in": useSession(), useMe()
       session-provider.tsx
+      firebase.ts           # Firebase's web SDK: the config from the build, the sign-in calls, the sign-out
       theme.ts              # system preference, dark fallback, manual override
       theme-provider.tsx
       query-client.ts       # TanStack Query cache and retry policy
@@ -379,9 +387,11 @@ Rules:
 
 - The session is an HttpOnly cookie. The app cannot read it. "Am I logged in" is
   `GET /api/v1/me`; a 401 means no.
-- In dev, login is `POST /auth/dev-login` with a seeded user ID. In production it is a
-  redirect to `/auth/login`. The screen after login is identical either way. The dev-login
-  form only renders when `import.meta.env.DEV` is true.
+- In dev, login is `POST /auth/dev-login` with a seeded user ID. In production it is
+  Firebase's: the screens sign in with Google, or with GeeksHacking's own login once its
+  OpenID Connect provider is set up in Firebase, and send the ID token to
+  `POST /auth/firebase` (agreement 7.2). The screen after login is identical either way. The
+  dev-login form only renders when `import.meta.env.DEV` is true.
 - The Vite dev server proxies `/api` and `/auth` to the Event Service on
   `http://localhost:8001`, so requests are same-origin and the cookie just works. The HTTP
   client still sends `credentials: "include"` so it also works without the proxy.
@@ -401,6 +411,9 @@ Rules:
 - Every non-2xx body is `{ error, issues? }`. Switch on `error`:
    - `validation_failed`: show each `issues[].message` inline under the field at `issues[].path`.
    - `unauthenticated`: go to login and remember `return_to`.
+   - `invalid_token` / `login_unavailable`: the sign-in did not work. Both say "Couldn't
+     log you in. Try again." (agreement 7.2, section 13). `invalid_token` is the service
+     refusing the ID token, and it is not a lost session.
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.
@@ -419,7 +432,7 @@ Rules:
 
 | Route | Role | Reads | Writes | Must handle |
 |---|---|---|---|---|
-| `/login` | anyone | | `POST /auth/dev-login` (dev), `GET /auth/login` (prod) | `not_found` on a bad dev user |
+| `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed |
 | `/` dashboard | participant, organiser | `GET /me` | | Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
 | `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |

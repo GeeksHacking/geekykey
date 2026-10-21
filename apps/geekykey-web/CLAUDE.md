@@ -19,6 +19,9 @@ Read those files before adding screens. They are references, not documents to co
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see "Tailwind 4 notes" in `apps/event-web/CLAUDE.md`).
 - Keep GeekyKey Service and Event Service concerns separate.
 - The Vite dev server proxies `/api` and `/auth` to `http://localhost:8000`.
+- The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, under the names the
+  runbook's step 13 gives. Without them the sign-in buttons are disabled and the page says
+  so, and a live build fails rather than ship that.
 - In production the Worker in `worker/` (settings in `wrangler.jsonc`) serves `dist/` and
   passes `/api/*` and `/auth/*` to `geekykey-service` through a service binding. It works
   like the Event screens' Worker, and has the same `worker:*` commands. `pnpm worker:dev`
@@ -29,7 +32,9 @@ Read those files before adding screens. They are references, not documents to co
 The app is a routed shell with `/login`, a pathless signed-in layout, My tokens as the home
 page (still a placeholder until FRO-27), the data layer in `src/api/`, and sign-in and sign-out
 (FRO-19), and claiming a token from the token page (FRO-22). Claiming by code on My tokens is
-FRO-30. There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21, which
-would have been one, was canceled.
+FRO-30. The login screen signs in with Firebase's web SDK, through `src/lib/firebase.ts` and
+`src/features/auth/firebase-sign-in.tsx`, and sends the ID token to the GeekyKey Service
+(agreement 7.2). There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,
+which would have been one, was canceled.
 
 `src/api/create-client.ts` is the only file that changes when an endpoint goes live, and `liveMethods()` is empty until checkpoint 6: the GeekyKey Service's routes do not exist yet, so every method runs on the mock even with `VITE_LIVE_API=1`.

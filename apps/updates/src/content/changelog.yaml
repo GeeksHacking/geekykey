@@ -1200,6 +1200,15 @@
     Event Service's. Its /me tells the GeekyKey screens who is logged in, with their tokens and the
     showcase's address for its button. Nothing calls either on production until the screens deploy.
 
+- id: screens-firebase-login
+  date: 2026-10-21
+  area: frontend
+  change: >-
+    Both sets of screens sign in with Firebase's web SDK: "Continue with Google", and
+    "Continue with GeeksHacking" once that provider is set up in Firebase. That provider
+    is not set up yet, so the second button is hidden, and nothing calls the login on
+    production until the screens deploy.
+
 - id: event-service-display-names
   date: 2026-10-21
   area: backend
