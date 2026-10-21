@@ -584,5 +584,6 @@ trigger and then click the option; and headless Arc crashes after a few navigati
   component library.
 - Do not hand-edit `routeTree.gen.ts`. Do not add app logic under `components/ui`.
 - Do not commit `.env` files or any station key. Station keys are shown once in the UI
-  and never stored.
+  and never stored. The one exception is each app's `.env.development`, which holds only
+  Firebase's web config from agreement 7.2. None of it is secret.
 - Do not upgrade to TypeScript 7 until typescript-eslint supports it.

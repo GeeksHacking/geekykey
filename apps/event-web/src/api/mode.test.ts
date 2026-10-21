@@ -6,7 +6,7 @@ import { dataSourceMessage, isMockData } from "@/api/mode";
 describe("frontend data source mode", () => {
   it("marks organiser data as demo in full mock mode", () => {
     expect(isMockData(false)).toBe(true);
-    expect(dataSourceMessage(false)).toContain("fixture data");
+    expect(dataSourceMessage(false)).toBe("Demo data. This screen shows sample data.");
   });
 
   it("uses no em-dash or en-dash in either notice", () => {
@@ -18,9 +18,10 @@ describe("frontend data source mode", () => {
   });
 
   it("keeps the notice while any organiser method is still mocked", () => {
-    // Matched case-insensitively: the sentence after the full stop is capitalised, and the
-    // assertion is about which notice this is, not how it is punctuated.
-    expect(dataSourceMessage(true)).toMatch(/organiser resource data/i);
+    // Section 13's wording, exactly.
+    expect(dataSourceMessage(true)).toBe(
+      "Demo data. These screens show sample stations and taps, so nothing here changes the event.",
+    );
     const liveMethods = new Set<keyof ApiClient>(["me", "devLogin", "logout"]);
 
     expect(isMockData(true, liveMethods)).toBe(true);

@@ -1,24 +1,34 @@
 import type { ApiClient } from "@/api/client";
-import { LIVE_METHODS } from "@/api/create-client";
-
-export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
+import { LIVE_API, LIVE_METHODS } from "@/api/create-client";
 
 /**
- * Every method create-client.ts still leaves on the mock client. Keep this list
- * and liveMethods() in step: a method missing here loses the demo-data notice
- * while it is still serving fixtures.
+ * The methods the token page calls besides the session's. While a live build still
+ * sends any of them to the mock, the page answers from sample tokens and says so.
  */
-const MOCKED_METHODS: readonly (keyof ApiClient)[] = ["getToken", "claimToken", "releaseToken"];
+const TOKEN_PAGE_METHODS: readonly (keyof ApiClient)[] = ["getToken", "claimToken", "releaseToken"];
+
+/**
+ * Whether a live build still sends this method to the mock. A mock build has no service
+ * answers to mix it up with, so there the answer is false.
+ */
+export function isLeftOnMock(
+  method: keyof ApiClient,
+  live: boolean = LIVE_API,
+  liveMethods: ReadonlySet<keyof ApiClient> = LIVE_METHODS,
+): boolean {
+  return live && !liveMethods.has(method);
+}
 
 export function isMockData(
-  live: boolean = isLiveApiEnabled,
+  live: boolean = LIVE_API,
   liveMethods: ReadonlySet<keyof ApiClient> = LIVE_METHODS,
 ): boolean {
   if (!live) return true;
-  return MOCKED_METHODS.some((method) => !liveMethods.has(method));
+  return TOKEN_PAGE_METHODS.some((method) => isLeftOnMock(method, live, liveMethods));
 }
 
-export function dataSourceMessage(live: boolean = isLiveApiEnabled): string {
-  if (!live) return "Demo data. This screen uses fixture data.";
-  return "Demo data. Token data is still mocked until the token routes go live.";
+/** The notice's wording is section 13's. */
+export function dataSourceMessage(live: boolean = LIVE_API): string {
+  if (!live) return "Demo data. This screen shows sample data.";
+  return "Demo data. This page shows sample tokens, so claiming or releasing one changes nothing.";
 }

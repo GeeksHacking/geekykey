@@ -269,8 +269,10 @@ reload in place.
 
 ### 4. Sign in
 
-The real login, through Firebase, isn't wired yet (checkpoint 5 of the migration spec). Use a
-seeded account from the form on the login page:
+On its own, `mise run dev:event-web` runs the Event screens on mock data. Sign in with a
+seeded account from the form on the login page. "Continue with Google" opens Google's real
+sign-in, and the mock then signs you in as Alex Tan whoever you are. To sign in as yourself,
+start the whole stack with `mise run dev` (see [With the Event screens](#with-the-event-screens)).
 
 | Account | Role | What you get |
 |---|---|---|
@@ -684,12 +686,9 @@ The same is true of the GeekyKey screens: `mise run dev` starts them with
 alone. The list in `apps/geekykey-web/src/api/create-client.ts` has the session in it, so
 signing in and `me` go to the GeekyKey Service on port 8000 and My tokens shows the
 service's tokens. The token lookup, claiming and releasing stay on the mock until
-checkpoint 6, so the token page answers from fixtures and says so in a "Demo data" notice.
-
-The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, whose values are in
-agreement 7.2 and in the committed `.env.development`, so the sign-in buttons work on a
-fresh clone. Without them the sign-in buttons are disabled and the page says so, and
-`pnpm dev:live` still signs in with the local development form.
+checkpoint 6, so the token page answers from fixtures and says so in a "Demo data" notice,
+and My tokens has no Release button. For the Firebase sign-in, see the end of
+[3. Start the backend](#3-start-the-backend).
 
 ## Updates site
 

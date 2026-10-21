@@ -4,9 +4,9 @@ import { LIVE_METHODS } from "@/api/create-client";
 export const isLiveApiEnabled = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
 
 /**
- * Every method create-client.ts still leaves on the mock client. Keep this list
- * and liveMethods() in step: a method missing here loses the demo-data notice
- * while it is still serving fixtures.
+ * The methods the organiser screens call besides the session's. While a live build
+ * still sends any of them to the mock, the console answers from sample data and
+ * says so.
  */
 const MOCKED_METHODS: readonly (keyof ApiClient)[] = [
   "listStationBoard",
@@ -29,7 +29,8 @@ export function isMockData(
   return MOCKED_METHODS.some((method) => !liveMethods.has(method));
 }
 
+/** The notice's wording is section 13's. */
 export function dataSourceMessage(live: boolean = isLiveApiEnabled): string {
-  if (!live) return "Demo data. This screen uses fixture data.";
-  return "Demo data. Organiser resource data is still mocked until those API slices are live.";
+  if (!live) return "Demo data. This screen shows sample data.";
+  return "Demo data. These screens show sample stations and taps, so nothing here changes the event.";
 }
