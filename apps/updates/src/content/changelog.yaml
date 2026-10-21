@@ -1182,3 +1182,12 @@
     the browser's calls under /api and /auth to its own service, so the login cookie belongs to
     the screens' address. If the service doesn't answer, the Worker sends the new error
     service_unavailable instead of Cloudflare's own error page, so the screens can show a message.
+
+- id: showcase-guests-decided
+  date: 2026-10-21
+  area: backend
+  change: >-
+    Decided how parents and mentors start collecting stamps in the showcase's afternoon: they can
+    continue as a guest on the token page, with one tap and no account, and the token page's
+    button opens their passport already logged in. Anyone can also choose the name the event shows.
+    The API agreement's version 0.5 has the details, waiting for Ethan's review.
