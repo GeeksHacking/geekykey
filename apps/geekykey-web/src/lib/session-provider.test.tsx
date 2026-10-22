@@ -1,19 +1,26 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { useSession } from "@/lib/session";
 import { createTestProviders } from "@/test/providers";
 
-const { signOutOfFirebase } = vi.hoisted(() => ({ signOutOfFirebase: vi.fn() }));
+const { signOutOfFirebase, savedUserIdToken } = vi.hoisted(() => ({
+  signOutOfFirebase: vi.fn(),
+  savedUserIdToken: vi.fn(),
+}));
 
-vi.mock("@/lib/firebase", () => ({ signOutOfFirebase }));
+vi.mock("@/lib/firebase", () => ({ signOutOfFirebase, savedUserIdToken }));
 
 beforeEach(() => {
   signOutOfFirebase.mockReset();
   signOutOfFirebase.mockResolvedValue(undefined);
+  // Firebase remembers nobody unless a test says otherwise.
+  savedUserIdToken.mockReset();
+  savedUserIdToken.mockResolvedValue(null);
 });
 
 /** A token the seeded participant owns, used as an identity-scoped cache key. */
@@ -26,7 +33,17 @@ function setup(prepare?: (api: MockApiClient) => void) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   prepare?.(api);
   const { Providers, queryClient } = createTestProviders(api, { session: true });
-  return { api, queryClient, ...renderHook(() => useSession(), { wrapper: Providers }) };
+  // Every status the screens saw, so a test can tell that the login never showed.
+  const statuses: string[] = [];
+  const rendered = renderHook(
+    () => {
+      const session = useSession();
+      statuses.push(session.status);
+      return session;
+    },
+    { wrapper: Providers },
+  );
+  return { api, queryClient, statuses, ...rendered };
 }
 
 describe("SessionProvider", () => {
@@ -35,6 +52,82 @@ describe("SessionProvider", () => {
     expect(result.current.status).toBe("loading");
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(result.current.me).toBeNull();
+  });
+
+  describe("logging a returning user in again (agreement 7.2)", () => {
+    it("logs in with Firebase's saved user when /me answers 401, without showing the login", async () => {
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+      const { api, result, statuses } = setup((api) => vi.spyOn(api, "firebaseLogin"));
+
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+      expect(api.firebaseLogin).toHaveBeenCalledWith("saved-id-token");
+      expect(result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID);
+      // "anonymous" is what sends a screen to the login.
+      expect(statuses).not.toContain("anonymous");
+    });
+
+    it("shows the login when that login fails", async () => {
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+      const { result } = setup((api) =>
+        vi.spyOn(api, "firebaseLogin").mockRejectedValue(new ApiError(401, "invalid_token")),
+      );
+
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+      expect(result.current.me).toBeNull();
+    });
+
+    it("shows the login when Firebase cannot say who it remembers", async () => {
+      savedUserIdToken.mockRejectedValue(new Error("firebase is down"));
+      const { result } = setup();
+
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    });
+
+    it("logs in again when a session runs out partway through", async () => {
+      const { api, result, statuses } = setup();
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+      await act(async () => {
+        await result.current.signIn(SEEDED_PARTICIPANT_ID);
+      });
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+      statuses.length = 0;
+
+      // The service's 12-hour session ends, and Firebase still has the user.
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+      api.mock.setSession(null);
+      api.mock.failNext("unauthenticated");
+      await expect(api.getToken(SOME_UID)).rejects.toBeDefined();
+
+      await waitFor(() => expect(savedUserIdToken).toHaveBeenCalled());
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+      expect(statuses).not.toContain("anonymous");
+    });
+
+    it("does not log the user straight back in after they sign out", async () => {
+      const { api, result } = setup();
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+      await act(async () => {
+        await result.current.signIn(SEEDED_PARTICIPANT_ID);
+      });
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+      // Firebase's sign-out failed, so it still remembers the user.
+      signOutOfFirebase.mockRejectedValue(new Error("firebase is down"));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+      const firebaseLogin = vi.spyOn(api, "firebaseLogin");
+
+      await act(async () => {
+        await result.current.signOut();
+      });
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      expect(result.current.status).toBe("anonymous");
+      expect(firebaseLogin).not.toHaveBeenCalled();
+    });
   });
 
   it("signs in, exposes /me, and signs out back to anonymous", async () => {
@@ -267,6 +360,8 @@ describe("SessionProvider", () => {
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
     queryClient.setQueryData(queryKeys.token(SOME_UID), { token: cachedToken });
 
+    // The cookie has gone, so /me answers 401 too.
+    api.mock.setSession(null);
     api.mock.failNext("unauthenticated");
     await expect(api.getToken("04A1B2C3D4E5F6")).rejects.toBeDefined();
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
