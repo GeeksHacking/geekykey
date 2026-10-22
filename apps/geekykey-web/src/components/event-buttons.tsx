@@ -21,7 +21,7 @@ export function EventButtons({
   /** The space the screen wants around the buttons. Nothing renders without events. */
   className?: string;
 }) {
-  const link = useLoginLink();
+  const openEvent = useLoginLink();
 
   if (events.length === 0) return null;
 
@@ -30,15 +30,15 @@ export function EventButtons({
       {events.map((event) => (
         <Button
           key={event.id}
-          // Disabled while the request is out, so a second press cannot ask for a
-          // second link. The first one works once, and a second would not.
-          disabled={link.isPending}
-          onClick={() => link.mutate(event.id)}
+          // Disabled while the request is out, and after it, while the page leaves for
+          // the link, so a second press cannot ask for a second link.
+          disabled={openEvent.isPending || openEvent.isSuccess}
+          onClick={() => openEvent.mutate(event.id)}
         >
           Open {event.name}
         </Button>
       ))}
-      {link.error ? <EventButtonError error={link.error} /> : null}
+      {openEvent.error ? <EventButtonError error={openEvent.error} /> : null}
     </div>
   );
 }
@@ -46,7 +46,7 @@ export function EventButtons({
 /**
  * What went wrong with one button's request. Section 13 fixes the sentence for
  * rate_limited, and describeError already gives it, so the rest of the failures are
- * worded the same way.
+ * worded the same way, apart from the two that need no sentence.
  */
 function EventButtonError({ error }: { error: unknown }) {
   // A signed-out user is on their way to the login, as on any screen, so there is
@@ -54,14 +54,9 @@ function EventButtonError({ error }: { error: unknown }) {
   if (isApiErrorCode(error, "unauthenticated")) return null;
 
   // 8.6 answers not_found for an event_id that isn't in /me's events. The hook asks
-  // /me again, so the button itself may be gone by the time this is read.
-  if (isApiErrorCode(error, "not_found")) {
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        That event is no longer available.
-      </p>
-    );
-  }
+  // /me again, and the fresh events decide which buttons there are. Section 13 sets
+  // no sentence for it, so there is nothing to say.
+  if (isApiErrorCode(error, "not_found")) return null;
 
   return (
     <p role="alert" className="text-sm text-destructive">
