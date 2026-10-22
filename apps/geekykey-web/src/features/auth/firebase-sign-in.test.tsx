@@ -7,13 +7,19 @@ import { FirebaseSignIn } from "@/features/auth/firebase-sign-in";
 import { useSession } from "@/lib/session";
 import { createTestProviders } from "@/test/providers";
 
-const { signInWithGoogle, signInWithGeeksHacking, hasFirebaseConfig, geekshackingEnabled } =
-  vi.hoisted(() => ({
-    signInWithGoogle: vi.fn(),
-    signInWithGeeksHacking: vi.fn(),
-    hasFirebaseConfig: vi.fn(),
-    geekshackingEnabled: { value: false },
-  }));
+const {
+  signInWithGoogle,
+  signInWithGeeksHacking,
+  signInAsGuest,
+  hasFirebaseConfig,
+  geekshackingEnabled,
+} = vi.hoisted(() => ({
+  signInWithGoogle: vi.fn(),
+  signInWithGeeksHacking: vi.fn(),
+  signInAsGuest: vi.fn(),
+  hasFirebaseConfig: vi.fn(),
+  geekshackingEnabled: { value: false },
+}));
 
 vi.mock("firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
 vi.mock("firebase/auth", () => ({
@@ -21,6 +27,7 @@ vi.mock("firebase/auth", () => ({
   GoogleAuthProvider: vi.fn(),
   OAuthProvider: vi.fn(),
   signInWithPopup: vi.fn(),
+  signInAnonymously: vi.fn(),
   signOut: vi.fn(),
 }));
 
@@ -35,6 +42,7 @@ vi.mock("@/lib/firebase", async (importOriginal) => {
     ...actual,
     signInWithGoogle,
     signInWithGeeksHacking,
+    signInAsGuest,
     hasFirebaseConfig,
     get GEEKSHACKING_PROVIDER_ENABLED() {
       return geekshackingEnabled.value;
@@ -63,11 +71,13 @@ function renderSignIn() {
 beforeEach(() => {
   signInWithGoogle.mockReset();
   signInWithGeeksHacking.mockReset();
+  signInAsGuest.mockReset();
   hasFirebaseConfig.mockReset();
   hasFirebaseConfig.mockReturnValue(true);
   geekshackingEnabled.value = false;
   signInWithGoogle.mockResolvedValue("id-token");
   signInWithGeeksHacking.mockResolvedValue("id-token");
+  signInAsGuest.mockResolvedValue("guest-id-token");
 });
 
 describe("the Firebase sign-in buttons", () => {
@@ -81,6 +91,55 @@ describe("the Firebase sign-in buttons", () => {
     expect(signInWithGoogle).toHaveBeenCalled();
     // The mock signs in as the seeded participant, and the screens read /me as usual.
     await expect(api.me()).resolves.toMatchObject({ user: { id: "dev-user-1" } });
+  });
+
+  it("offers to continue as a guest, with section 13's line under it", () => {
+    renderSignIn();
+
+    expect(screen.getByRole("button", { name: "Continue as guest" })).toBeEnabled();
+    expect(
+      screen.getByText("No account needed. Keep using this phone and browser."),
+    ).toBeInTheDocument();
+  });
+
+  it("signs in as a guest and sends the ID token to the service", async () => {
+    const user = userEvent.setup();
+    const { api } = renderSignIn();
+
+    await user.click(screen.getByRole("button", { name: "Continue as guest" }));
+
+    await waitFor(() => expect(screen.getByText("session: authenticated")).toBeInTheDocument());
+    expect(signInAsGuest).toHaveBeenCalled();
+    // On the mock, a guest is the seeded participant.
+    await expect(api.me()).resolves.toMatchObject({ user: { id: "dev-user-1" } });
+  });
+
+  it("disables the guest button while a guest sign-in runs", async () => {
+    const user = userEvent.setup();
+    let release: (token: string) => void = () => {};
+    signInAsGuest.mockReturnValue(
+      new Promise<string>((resolve) => {
+        release = resolve;
+      }),
+    );
+    renderSignIn();
+
+    await user.click(screen.getByRole("button", { name: "Continue as guest" }));
+
+    expect(screen.getByRole("button", { name: "Continue as guest" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+    release("guest-id-token");
+  });
+
+  it("shows the agreement's sentence when the service refuses a guest's token", async () => {
+    const user = userEvent.setup();
+    const { api } = renderSignIn();
+    await screen.findByText("session: anonymous");
+    api.mock.failNext("invalid_token");
+
+    await user.click(screen.getByRole("button", { name: "Continue as guest" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't log you in. Try again.");
   });
 
   it("does not offer GeeksHacking's login while its provider is not set up", () => {
@@ -165,5 +224,6 @@ describe("the Firebase sign-in buttons", () => {
 
     expect(screen.getByText("Sign-in is not set up in this build.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue as guest" })).toBeDisabled();
   });
 });

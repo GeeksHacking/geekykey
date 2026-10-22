@@ -5,6 +5,7 @@ import {
   GEEKSHACKING_PROVIDER_ENABLED,
   hasFirebaseConfig,
   isPopupClosed,
+  signInAsGuest,
   signInWithGeeksHacking,
   signInWithGoogle,
 } from "@/lib/firebase";
@@ -20,10 +21,12 @@ const SIGN_IN_FAILED = "Couldn't log you in. Try again.";
 /**
  * The Firebase sign-in buttons (agreement 7.2). Google is always here. GeeksHacking's own
  * login appears only once its OpenID Connect provider is set up in Firebase, and is left
- * out until then (ADR 0004).
+ * out until then (ADR 0004). "Continue as guest" is the GeekyKey screens' own (ADR 0005):
+ * the Event screens don't offer it, because a guest there would be a different guest.
  *
- * Every button is disabled while a sign-in runs, because a second popup cancels the first
- * (`auth/cancelled-popup-request`).
+ * Every button is disabled while a sign-in runs. For the popups, a second popup cancels the
+ * first (`auth/cancelled-popup-request`); for the guest, a second click would make a
+ * second guest.
  */
 export function FirebaseSignIn() {
   const session = useSession();
@@ -66,6 +69,18 @@ export function FirebaseSignIn() {
           Continue with GeeksHacking
         </Button>
       ) : null}
+      <Button
+        variant="outline"
+        size="lg"
+        className="w-full"
+        disabled={pending || !configured}
+        onClick={() => void signIn(signInAsGuest)}
+      >
+        Continue as guest
+      </Button>
+      <p className="text-sm text-muted-foreground">
+        No account needed. Keep using this phone and browser.
+      </p>
       {!configured ? (
         <p className="text-sm text-muted-foreground">Sign-in is not set up in this build.</p>
       ) : null}

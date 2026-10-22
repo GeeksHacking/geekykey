@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useApi } from "@/api/context";
 import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type { MeResponse } from "@/api/types";
-import { signOutOfFirebase } from "@/lib/firebase";
 import { SessionContext, type SessionStatus } from "@/lib/session";
 
 /*
@@ -16,6 +15,13 @@ import { SessionContext, type SessionStatus } from "@/lib/session";
   - MeResponse: signed in
   A 401 is a normal answer, not an error, which is why the query function turns it into
   null instead of throwing. Real failures still throw.
+
+  Before it settles on null, a 401 logs a returning user in again if Firebase still
+  remembers them (agreement 7.2), so the query stays pending and no screen shows the login
+  meanwhile. That matters most for a guest: the login would offer "Continue as guest"
+  again, which makes a new guest who doesn't own their token.
+
+  Firebase is imported where it's used, so a signed-in user's pages don't load it.
 */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const api = useApi();
@@ -25,18 +31,37 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     at: number;
   }>();
 
+  // False from a sign-out until the next sign-in: if Firebase's sign-out failed, it still
+  // remembers the user, and logging them straight back in would undo the sign-out.
+  const mayLogInAgain = useRef(true);
+
   const me = useQuery({
     queryKey: queryKeys.me,
     queryFn: async (): Promise<MeResponse | null> => {
       try {
         return await api.me();
       } catch (error) {
-        if (isApiErrorCode(error, "unauthenticated")) return null;
+        if (isApiErrorCode(error, "unauthenticated")) return logInAgain();
         throw error;
       }
     },
     retry: (failureCount, error) => error instanceof NetworkError && failureCount < 2,
   });
+
+  // Any failure here only means the login shows, as it would have without this.
+  async function logInAgain(): Promise<MeResponse | null> {
+    if (!mayLogInAgain.current) return null;
+    try {
+      const { savedUserIdToken } = await import("@/lib/firebase");
+      const idToken = await savedUserIdToken();
+      if (!idToken) return null;
+      await api.firebaseLogin(idToken);
+      return await api.me();
+    } catch (error) {
+      console.error("Logging a returning user in again failed", error);
+      return null;
+    }
+  }
 
   const clearIdentityQueries = useCallback(() => {
     // A shared browser must not show the previous user's tokens.
@@ -49,8 +74,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const onAuthError = (event: Event) => {
       const error = (event as CustomEvent<unknown>).detail;
       if (isApiErrorCode(error, "unauthenticated")) {
-        queryClient.setQueryData(queryKeys.me, null);
         clearIdentityQueries();
+        // Back to loading rather than to null, so /me asks again and a returning user is
+        // logged in again before any screen shows the login. A 401 from /me itself, or
+        // from another request while /me is asking, is already being answered there.
+        if (queryClient.isFetching({ queryKey: queryKeys.me }) === 0) {
+          void queryClient.resetQueries({ queryKey: queryKeys.me });
+        }
       } else if (isApiErrorCode(error, "forbidden")) {
         setAuthorizationFailure({ error, at: Date.now() });
       }
@@ -68,26 +98,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     clearIdentityQueries();
   }, [clearIdentityQueries, queryClient]);
 
+  const completeSignIn = useCallback(
+    (data: MeResponse) => {
+      mayLogInAgain.current = true;
+      queryClient.setQueryData(queryKeys.me, data);
+    },
+    [queryClient],
+  );
+
   const signIn = useMutation({
     mutationFn: async (userId: string) => {
       await api.devLogin(userId);
       return api.me();
     },
     onMutate: clearForSignIn,
-    onSuccess: (data) => queryClient.setQueryData(queryKeys.me, data),
+    onSuccess: completeSignIn,
   });
 
   // Agreement 7.2: the screens sign in with the ID token Firebase's web SDK gave them, and
   // the service sets its own cookie. The screens read GET /api/v1/me as usual afterwards.
-  // FRO-59's returning-user sign-in comes through here too, so there is one path to the
-  // service.
+  // A returning user's login goes through the /me query instead (logInAgain), so it
+  // never shows as a sign-in on the login screen.
   const signInWithFirebase = useMutation({
     mutationFn: async (idToken: string) => {
       await api.firebaseLogin(idToken);
       return api.me();
     },
     onMutate: clearForSignIn,
-    onSuccess: (data) => queryClient.setQueryData(queryKeys.me, data),
+    onSuccess: completeSignIn,
   });
 
   const signOut = useMutation({
@@ -99,6 +137,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // failure is logged and not fatal: the service's cookie is the session, and the user
       // has to see that failing.
       try {
+        const { signOutOfFirebase } = await import("@/lib/firebase");
         await signOutOfFirebase();
       } catch (error) {
         console.error("Signing out of Firebase failed", error);
@@ -106,6 +145,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return api.logout();
     },
     onMutate: () => {
+      mayLogInAgain.current = false;
       // Cancel a poll that could otherwise restore the old identity after logout starts.
       void queryClient.cancelQueries({ queryKey: queryKeys.me });
       // Hide cached identity data even if the network request later fails.

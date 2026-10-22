@@ -3,6 +3,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   OAuthProvider,
+  onAuthStateChanged,
+  signInAnonymously,
   signInWithPopup,
   signOut as signOutOfFirebaseAuth,
   type Auth,
@@ -57,6 +59,38 @@ export function signInWithGoogle(): Promise<string> {
 export function signInWithGeeksHacking(): Promise<string> {
   const provider = new OAuthProvider(GEEKSHACKING_PROVIDER_ID);
   return signInWithPopup(firebaseAuth(), provider).then(idTokenFrom);
+}
+
+/**
+ * Sign in as a guest, with Firebase's anonymous sign-in: no popup and no account (agreement
+ * 7.2). The guest lives in this browser, so the GeekyKey screens sign them back in by
+ * themselves rather than make a second guest (see savedUserIdToken).
+ */
+export function signInAsGuest(): Promise<string> {
+  return signInAnonymously(firebaseAuth()).then(idTokenFrom);
+}
+
+/**
+ * The ID token of the user Firebase remembers in this browser, or null if it remembers
+ * nobody. Firebase keeps its sign-in longer than the service's 12-hour session, so the
+ * GeekyKey screens use this to log a returning user in again without the login (agreement
+ * 7.2). A build with no config has no Firebase to remember anyone.
+ */
+export function savedUserIdToken(): Promise<string | null> {
+  if (!hasFirebaseConfig()) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
+    // Firebase reports the saved user once it has read it from the browser, which is why
+    // this listens rather than reading `currentUser`, which is null until then.
+    const unsubscribe = onAuthStateChanged(
+      firebaseAuth(),
+      (user) => {
+        unsubscribe();
+        // A fresh token, as 7.2 asks, rather than one Firebase cached an hour ago.
+        resolve(user ? user.getIdToken(true) : null);
+      },
+      reject,
+    );
+  });
 }
 
 /**

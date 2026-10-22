@@ -83,6 +83,15 @@ describe("the Firebase sign-in buttons", () => {
     await expect(api.me()).resolves.toMatchObject({ user: { id: "dev-user-1" } });
   });
 
+  it("does not offer to continue as a guest", () => {
+    // Agreement section 3: a guest here would be a different guest from the one on the
+    // GeekyKey screens, so a guest reaches these screens only through a login link.
+    renderSignIn();
+
+    expect(screen.queryByRole("button", { name: /guest/i })).toBeNull();
+    expect(screen.queryByText(/No account needed/)).toBeNull();
+  });
+
   it("does not offer GeeksHacking's login while its provider is not set up", () => {
     renderSignIn();
 
