@@ -15,6 +15,7 @@ const CODES: ErrorCode[] = [
   "rate_limited",
   "claims_unavailable",
   "login_unavailable",
+  "service_unavailable",
   "internal_error",
 ];
 
@@ -55,6 +56,14 @@ describe("describeError", () => {
   it("uses the agreement's wording for token_limit_reached", () => {
     expect(describeError(new ApiError(409, "token_limit_reached"))).toBe(
       "You already have 3 tokens. Release one on My tokens first.",
+    );
+  });
+
+  it("says a required service is unavailable for the Worker's service_unavailable", () => {
+    // Ethan settled the wording on 21 Oct: the Event screens' sentence, which fits these
+    // screens too. Section 13 sets no wording for it.
+    expect(describeError(new ApiError(503, "service_unavailable"))).toBe(
+      "A required service is unavailable. Try again shortly.",
     );
   });
 

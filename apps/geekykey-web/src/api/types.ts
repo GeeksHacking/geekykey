@@ -68,6 +68,10 @@ export interface LoginLink {
  * they are not here. `claims_unavailable` is: every one of 8.2 to 8.5 answers 503 when
  * the claims stand-in, or the Portal after the switch, cannot say who owns a token in
  * time. See the status table and the note above section 8.2 in the agreement.
+ *
+ * `service_unavailable` is another 503 a screen can see: the Worker in front of these
+ * screens answers it when the GeekyKey Service gave no answer at all (agreement section
+ * 2). It is this app's own service being down, not GeeksHacking's claims.
  */
 export type ErrorCode =
   | "validation_failed"
@@ -81,6 +85,7 @@ export type ErrorCode =
   | "rate_limited"
   | "claims_unavailable"
   | "login_unavailable"
+  | "service_unavailable"
   | "internal_error";
 
 export interface ApiIssue {

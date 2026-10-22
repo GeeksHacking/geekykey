@@ -124,6 +124,21 @@ describe("geekykey-web http client", () => {
     });
   });
 
+  it("turns a service_unavailable body into that code, not claims_unavailable", async () => {
+    // The Worker in front of the screens answers 503 service_unavailable when the GeekyKey
+    // Service gave no answer at all (agreement section 2). The body the client can read
+    // wins, so the screens are told this app's own service is down rather than that
+    // GeeksHacking's claims are.
+    stubFetch(() => json({ error: "service_unavailable" }, 503));
+    const api = createHttpClient();
+
+    await expect(api.getToken("04A1B2C3D4E5F6")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 503,
+      code: "service_unavailable",
+    });
+  });
+
   it("falls back to claims_unavailable for a bare 503", async () => {
     // A 503 with no readable body still means the claims stand-in or the Portal.
     stubFetch(() => new Response("upstream down", { status: 503 }));
@@ -283,5 +298,6 @@ const statusFor: Record<ErrorCode, number> = {
   rate_limited: 429,
   claims_unavailable: 503,
   login_unavailable: 503,
+  service_unavailable: 503,
   internal_error: 500,
 };
