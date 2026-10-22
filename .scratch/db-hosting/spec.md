@@ -592,11 +592,11 @@ The deploy: Julian or Qing Guan attaches `event.geekshacking.com` to `event-web`
 Done when:
 
 - logging in and out works on both hostnames, and the passport shows on a phone;
-- on a phone, a guest logs in on `key.`, claims a token, taps it, and opens the passport from "Open Capstone Showcase" as the same user, with their stamp; a Google user gets there without a second login;
+- on a phone, a guest logs in on `key.`, takes a token through a direct write to the claims stand-in, taps it, and opens the passport from "Open Capstone Showcase" as the same user, with their stamp; a Google user gets there without a second login. *Changed 22 Oct (Adam):* claiming from the token page is checkpoint 6's, so the token comes from a direct write here, as the Google user's did on 22 Oct, and a guest claiming from the screen moved to checkpoint 6's done-when;
 - **the log check** for `Cookie`, with Julian on the three Workers and in Cloud Logging for the Event Service: if a cookie shows, turn invocation logs off on that Worker and replace the service's `SESSION_SECRET`, which logs everyone out;
 - **the passport poll is measured** for section 11.1: Workers requests per poll, and the Event Service's time per poll.
 
-**Checked on production on 22 Oct** (BAC-57), from 07:15 to 07:33 Singapore time. The first, third and fourth items passed. The second hasn't been tried, either for a guest or for a Google user going through "Open Capstone Showcase", so the checkpoint stays open. It waits on claiming from the token page (checkpoint 6) and on the guest and login-link screens (FRO-59, FRO-31 and FRO-60).
+**Checked on production on 22 Oct** (BAC-57), from 07:15 to 07:33 Singapore time. The first, third and fourth items passed. The second hasn't been tried, either for a guest or for a Google user going through "Open Capstone Showcase", so the checkpoint stays open. The guest and login-link screens it waited on (FRO-59, FRO-31 and FRO-60) were merged by 22 Oct, so only the phone run is left.
 
 - **Logging in and out.** Adam logged in with Google on `event.` on his laptop and on an Android phone, and the passport showed on both. After he logged out, `/api/v1/me` answered `401`. On `key.` he logged in, saw My tokens and logged out.
 - **A stamp.** Checkpoint 6 builds claiming, so Adam's Google user took the default test token through a direct write to the claims stand-in from his laptop. He tapped the token at the main station, the stamp showed on the phone's passport, and the token went back to the test participant afterwards.
@@ -611,7 +611,7 @@ The endpoints behind the token page and My tokens, plus the station path's prote
 - **For GeekyKey admins,** checked against `GEEKYKEY_ADMINS` on every request: only releasing someone else's token, from the token page. They have no station jobs.
 - **The three limits** on this Worker (section 5.1). Each answers `429` with `{"error": "rate_limited"}` and `Retry-After: 60`, and writes one `rate_limited` log line naming the caller: a station ID once known, or a user ID, never a key.
 
-Done when, on production: a phone claims a token from its token page and another by typing its UID; the owner's view opens the showcase; an owner and a GeekyKey admin each release one; and the tests show each limit tripping.
+Done when, on production: a phone claims a token from its token page and another by typing its UID, and a guest on a phone claims one from its token page (moved here from checkpoint 5 on 22 Oct); the owner's view opens the showcase; an owner and a GeekyKey admin each release one; and the tests show each limit tripping.
 
 ### Checkpoint 7. The Event Service's features
 
