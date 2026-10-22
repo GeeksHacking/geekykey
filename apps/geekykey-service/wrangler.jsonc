@@ -58,6 +58,21 @@
       "namespace_id": "7101",
       "simple": { "limit": 60, "period": 60 },
     },
+    // Each user's requests to the API, by user ID: every /api/v1 request
+    // with a session, but not /auth/*, which has no user ID yet.
+    {
+      "name": "USER_LIMIT",
+      "namespace_id": "7102",
+      "simple": { "limit": 60, "period": 60 },
+    },
+    // Each user's token lookups and claims, by user ID, so nobody can work
+    // through UIDs to see which are claimed. They count toward USER_LIMIT
+    // as well.
+    {
+      "name": "TOKEN_LIMIT",
+      "namespace_id": "7103",
+      "simple": { "limit": 20, "period": 60 },
+    },
   ],
 
   // Where stations already point. Every network interface, not only

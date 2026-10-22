@@ -1,6 +1,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import { z } from "zod";
+import { rateLimited } from "./rate-limit.ts";
 
 export const SESSION_COOKIE = "gk_session";
 
@@ -15,6 +16,17 @@ export interface SessionOptions {
   secret: string;
   /** From config.sessionCookieSecure. */
   secure: boolean;
+}
+
+/**
+ * What requireSession needs: the secret gk_session is signed with, and
+ * USER_LIMIT, which counts every request that has a session.
+ */
+export interface SessionCheck {
+  /** From config.sessionSecret. */
+  secret: string;
+  /** Counts each user's requests to the API: the USER_LIMIT binding in wrangler.jsonc. */
+  userLimit: RateLimit;
 }
 
 /** Who a session is for. */
@@ -105,13 +117,28 @@ export async function readSession(
  * Requires a logged-in user and sets `c.var.userId`. Answers 401 with
  * `unauthenticated` otherwise, which the screens read as "logged out" rather
  * than as a failure.
+ *
+ * Then it counts the request against `check.userLimit`, and against each of
+ * `limits` after it, by user ID, and answers `429 rate_limited` from the
+ * first one the user is over (the API agreement's section 2, "Rate
+ * limits"). So every request with a session counts toward USER_LIMIT, and a
+ * route that adds TOKEN_LIMIT counts toward both. A request turned away by
+ * USER_LIMIT isn't counted by the others. A request with no session isn't
+ * counted, since there's no user ID to count it by. Counting comes before
+ * the request's path and body are checked, so a request that fails them
+ * counts too.
  */
 export function requireSession(
-  options: Pick<SessionOptions, "secret">,
+  check: SessionCheck,
+  ...limits: RateLimit[]
 ): MiddlewareHandler<SessionEnv> {
   return async (c, next) => {
-    const user = await readSession(c, options);
+    const user = await readSession(c, check);
     if (user === null) return c.json({ error: "unauthenticated" }, 401);
+    for (const limit of [check.userLimit, ...limits]) {
+      const { success } = await limit.limit({ key: user.userId });
+      if (!success) return rateLimited(c, { user_id: user.userId });
+    }
     c.set("userId", user.userId);
     c.set("loginName", user.name);
     return await next();

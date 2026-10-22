@@ -10,7 +10,7 @@ import { noStore } from "./lib/no-store.ts";
 import { loginLinkRoutes } from "./login-link-routes.ts";
 import { meRoutes } from "./me-routes.ts";
 import type { Send } from "./service-request.ts";
-import type { SessionOptions } from "./session.ts";
+import type { SessionCheck, SessionOptions } from "./session.ts";
 import { heartbeatRoutes, tapsRoutes } from "./station-routes.ts";
 import { StationsCopy } from "./stations-copy.ts";
 import { tokenRoutes } from "./token-routes.ts";
@@ -28,6 +28,16 @@ export interface AppDeps {
    * STATION_LIMIT binding in wrangler.jsonc.
    */
   stationLimit: RateLimit;
+  /**
+   * Counts each user's requests to the API, every one with a session: the
+   * USER_LIMIT binding in wrangler.jsonc.
+   */
+  userLimit: RateLimit;
+  /**
+   * Counts each user's token lookups and claims, which count toward
+   * `userLimit` as well: the TOKEN_LIMIT binding in wrangler.jsonc.
+   */
+  tokenLimit: RateLimit;
 }
 
 /** Section 8's opening: a user's request gives the claims 4 seconds. */
@@ -53,7 +63,9 @@ export function createApp(
     googleKeys = googleSigningKeys(),
     claimsDeadlineMs = CLAIMS_DEADLINE_MS,
     stationLimit,
-  }: Pick<AppDeps, "send" | "stationLimit"> & Partial<AppDeps>,
+    userLimit,
+    tokenLimit,
+  }: Pick<AppDeps, "send" | "stationLimit" | "userLimit" | "tokenLimit"> & Partial<AppDeps>,
 ) {
   const app = new Hono();
 
@@ -84,6 +96,8 @@ export function createApp(
     secret: config.sessionSecret,
     secure: config.sessionCookieSecure,
   };
+  // What every user route under /api/v1 checks a session with, and counts it by.
+  const sessionCheck: SessionCheck = { secret: config.sessionSecret, userLimit };
 
   app.get("/", (c) => c.text("App is running"));
 
@@ -130,7 +144,7 @@ export function createApp(
   app.route(
     "/api/v1/me",
     meRoutes({
-      session,
+      session: sessionCheck,
       claims,
       geekykeyAdmins,
       eventServices: config.eventServices,
@@ -140,16 +154,17 @@ export function createApp(
   app.route(
     "/api/v1/tokens",
     tokenRoutes({
-      session,
+      session: sessionCheck,
       claims,
       geekykeyAdmins,
       deadlineMs: claimsDeadlineMs,
       maxTokensPerUser: config.maxTokensPerUser,
+      tokenLimit,
     }),
   );
   app.route(
     "/api/v1/login-links",
-    loginLinkRoutes({ session, eventServices: config.eventServices }),
+    loginLinkRoutes({ session: sessionCheck, eventServices: config.eventServices }),
   );
 
   return app;

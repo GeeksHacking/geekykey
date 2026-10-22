@@ -1395,3 +1395,11 @@
     continue to" that address, not geekykey-b035a.firebaseapp.com. Each site passes Firebase's
     sign-in pages through its own address. Local development still signs in through
     firebaseapp.com.
+
+- id: user-rate-limits
+  date: 2026-10-22
+  area: backend
+  change: >-
+    A logged-in user who sends the GeekyKey Service more than 60 requests a minute now gets "too
+    many requests", and so does one who looks up or claims more than 20 tokens a minute, so nobody
+    can work through token codes to see which are claimed. Logging in isn't counted.

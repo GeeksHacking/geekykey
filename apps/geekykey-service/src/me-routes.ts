@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import type { Claims } from "./claims.ts";
 import { withClaimsDeadline } from "./claims-deadline.ts";
 import type { EventServiceEntry } from "./config.ts";
-import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
+import { requireSession, type SessionCheck, type SessionEnv } from "./session.ts";
 
 export interface MeRouteDeps {
-  session: Pick<SessionOptions, "secret">;
+  session: SessionCheck;
   claims: Claims;
   /** From config.geekykeyAdmins, checked on every request. */
   geekykeyAdmins: ReadonlySet<string>;

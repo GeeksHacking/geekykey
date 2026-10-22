@@ -4,6 +4,7 @@ import { fakeGoogle, unreachableGoogleKeys } from "@geekykey/firebase-login/test
 import { Hono } from "hono";
 import { getSignedCookie } from "hono/cookie";
 import { onTestFinished, test, vi } from "vitest";
+import { fakeLimiter } from "../test-support/fake-limiter.ts";
 import { fakeServices } from "../test-support/fake-services.ts";
 import { type AppDeps, createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -32,6 +33,8 @@ function harness({ devAuth, googleKeys = google.keys }: { devAuth: boolean } & P
     send: fakeServices(config).send,
     googleKeys,
     stationLimit: env.STATION_LIMIT,
+    userLimit: fakeLimiter(60),
+    tokenLimit: fakeLimiter(20),
   });
   const post = (path: string, body?: unknown) =>
     app.request(path, {

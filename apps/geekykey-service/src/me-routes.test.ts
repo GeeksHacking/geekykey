@@ -4,6 +4,7 @@ import { fakeGoogle } from "@geekykey/firebase-login/testing";
 import { Hono } from "hono";
 import { setSignedCookie } from "hono/cookie";
 import { onTestFinished, test, vi } from "vitest";
+import { fakeLimiter } from "../test-support/fake-limiter.ts";
 import { fakeServices } from "../test-support/fake-services.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -27,6 +28,8 @@ function harness(changes: Record<string, unknown> = {}, { claimsDeadlineMs = 400
     googleKeys: google.keys,
     claimsDeadlineMs,
     stationLimit: env.STATION_LIMIT,
+    userLimit: fakeLimiter(60),
+    tokenLimit: fakeLimiter(20),
   });
 
   /**
