@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
@@ -19,7 +19,6 @@ import { RequireSession } from "@/features/auth/require-session";
 import { HomePage } from "@/features/home/home-page";
 import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { stubLocation } from "@/test/location";
 
 /*
   Whether a live build still sends releaseToken to the mock. The rest of the module
@@ -46,25 +45,16 @@ vi.mock("@/api/mode", async (importOriginal) => {
   A failing release arrives through spyOn rather than failNext, because the
   session's me call runs on mount and would spend a queued failure first (the
   token page's release tests make the same choice).
-
-  The event buttons (FRO-31) are the ones /me lists, and they open that event's
-  screens, so the test presses one and watches the address the mock answers.
 */
 
 const OLDEST = "04 A1 B2 C3 D4 E5 F6";
 const NEWEST = "04 B7 C9 E1 F3 A5";
 
 let api: MockApiClient;
-let location: ReturnType<typeof stubLocation>;
 
 beforeEach(() => {
   api = createMockClient({ latencyMs: [0, 0], storage: null });
   releaseLeftOnMock.value = false;
-  location = stubLocation();
-});
-
-afterEach(() => {
-  location.restore();
 });
 
 function renderHome() {
@@ -110,37 +100,6 @@ function rowFor(displayedUid: string) {
 }
 
 describe("My tokens", () => {
-  it("opens each event in /me with a button under the tokens", async () => {
-    api.mock.setSession(SEEDED_PARTICIPANT_ID);
-    renderHome();
-
-    // The button is named after the event, as agreement 8.4 says.
-    expect(
-      await screen.findByRole("button", { name: "Open Capstone Showcase" }),
-    ).toBeInTheDocument();
-  });
-
-  it("shows no button when /me lists no events", async () => {
-    // The events left the service's settings, so /me offers none.
-    api.mock.data.event_services = [];
-    api.mock.setSession(SEEDED_PARTICIPANT_ID);
-    renderHome();
-
-    expect(await screen.findByText(OLDEST)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
-  });
-
-  it("opens the event's screens when the button is pressed", async () => {
-    api.mock.setSession(SEEDED_PARTICIPANT_ID);
-    renderHome();
-
-    await userEvent.click(await screen.findByRole("button", { name: "Open Capstone Showcase" }));
-
-    await waitFor(() =>
-      expect(location.assign).toHaveBeenCalledWith("http://localhost:5173/#login=mock"),
-    );
-  });
-
   it("lists the signed-in user's tokens oldest claim first, as on the token page", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderHome();

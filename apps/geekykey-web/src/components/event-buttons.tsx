@@ -2,7 +2,6 @@ import { describeError, isApiErrorCode } from "@/api/errors";
 import type { EventServiceLink } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { useLoginLink } from "@/lib/use-login-link";
-import { cn } from "@/lib/utils";
 
 /*
   The event buttons (agreement 8.4): one for each event in /me, named after the event
@@ -13,20 +12,13 @@ import { cn } from "@/lib/utils";
 
   With no events there is nothing to show, so the screens carry on as they were.
 */
-export function EventButtons({
-  events,
-  className,
-}: {
-  events: EventServiceLink[];
-  /** The space the screen wants around the buttons. Nothing renders without events. */
-  className?: string;
-}) {
+export function EventButtons({ events }: { events: EventServiceLink[] }) {
   const link = useLoginLink();
 
   if (events.length === 0) return null;
 
   return (
-    <div className={cn("flex flex-col items-start gap-3", className)}>
+    <div className="flex flex-col items-start gap-3">
       {events.map((event) => (
         <Button
           key={event.id}
