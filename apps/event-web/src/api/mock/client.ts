@@ -2,6 +2,7 @@ import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import {
   createFixtures,
+  SEEDED_GUEST_ID,
   SEEDED_PARTICIPANT_ID,
   type MockData,
   type MockStation,
@@ -23,12 +24,15 @@ import {
   type ListTapsQuery,
   type ListTapsResponse,
   type MeResponse,
+  type SetDisplayNameRequest,
+  type SetDisplayNameResponse,
   type SetStationPassportResponse,
   type StationResponse,
   type StatsResponse,
   type TapStatus,
 } from "@/api/types";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
+import { isDisplayName } from "@/lib/display-name";
 
 /*
   In-memory stand-in for apps/event-service. Same interface as the future HTTP
@@ -40,8 +44,14 @@ import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 
 const COOLDOWN_MS = 300_000;
 const SESSION_KEY = "gk-mock-session";
-/** The one login link the mock accepts: open `/#login=mock` to arrive as from a token. */
-const MOCK_LOGIN_LINK = "mock";
+/**
+ * The login links the mock accepts, and who each logs in: open `/#login=mock` to arrive as
+ * from a token, or `/#login=guest` to arrive as a guest who has no name yet.
+ */
+const MOCK_LOGIN_LINKS: Record<string, string> = {
+  mock: SEEDED_PARTICIPANT_ID,
+  guest: SEEDED_GUEST_ID,
+};
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   validation_failed: 400,
@@ -135,6 +145,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     if (userId) storage?.setItem(SESSION_KEY, userId);
     else storage?.removeItem(SESSION_KEY);
   }
+
+  const toUser = (user: MockUser) => ({
+    id: user.id,
+    display_name: user.display_name,
+    role: user.role,
+    has_name: user.has_name,
+  });
 
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
   const userById = (id: string) => data.users.find((u) => u.id === id);
@@ -239,11 +256,26 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             received_at: t.received_at,
           }));
         return {
-          user: { id: user.id, display_name: user.display_name, role: user.role },
+          user: toUser(user),
           points,
           stamps,
           recent_taps,
         };
+      }),
+
+    // Agreement 8.7. A name the user sets counts as their own, even `Guest`, and one that
+    // breaks the rule leaves the name as it was.
+    setDisplayName: (input: SetDisplayNameRequest) =>
+      call((): SetDisplayNameResponse => {
+        const user = currentUser();
+        if (!isDisplayName(input.display_name)) {
+          fail("validation_failed", [
+            { path: ["display_name"], message: "display_name must be 1 to 30 characters" },
+          ]);
+        }
+        user.display_name = input.display_name.trim();
+        user.has_name = true;
+        return { user: toUser(user) };
       }),
 
     devLogin: (userId) =>
@@ -259,13 +291,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         setSession(SEEDED_PARTICIPANT_ID);
       }),
 
-    // The mock has no GeekyKey Service to make a real link, so `#login=mock` stands in for
-    // one and signs in as the seeded participant. Any other link has expired, and the
-    // session stays as it was, as it does live.
+    // The mock has no GeekyKey Service to make a real link, so MOCK_LOGIN_LINKS stand in
+    // for them. Any other link has expired, and the session stays as it was, as it does live.
     loginLink: (link) =>
       call(() => {
-        if (link !== MOCK_LOGIN_LINK) fail("invalid_login_link");
-        setSession(SEEDED_PARTICIPANT_ID);
+        const userId = Object.hasOwn(MOCK_LOGIN_LINKS, link) ? MOCK_LOGIN_LINKS[link] : undefined;
+        setSession(userId ?? fail("invalid_login_link"));
       }),
 
     logout: () =>

@@ -9,6 +9,7 @@ export interface MockUser {
   id: string;
   display_name: string | null;
   role: Role;
+  has_name: boolean;
 }
 
 /**
@@ -72,6 +73,8 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 export const SEEDED_PARTICIPANT_ID = "dev-user-1";
 export const SEEDED_ORGANIZER_ID = "dev-organizer-1";
+/** A guest who has not set a name yet, so the passport asks for one (agreement 8.1). */
+export const SEEDED_GUEST_ID = "u_a6f0";
 
 export function createFixtures(now: number = Date.now()): MockData {
   const random = createRandom(20261010);
@@ -82,26 +85,29 @@ export function createFixtures(now: number = Date.now()): MockData {
       id: SEEDED_PARTICIPANT_ID,
       display_name: "Alex Tan",
       role: "participant",
+      has_name: true,
     },
     {
       id: SEEDED_ORGANIZER_ID,
       display_name: "Priya Raman",
       role: "organizer",
+      has_name: true,
     },
-    { id: "u_7f3a", display_name: "Wei Lin Chong", role: "participant" },
+    { id: "u_7f3a", display_name: "Wei Lin Chong", role: "participant", has_name: true },
     {
       id: "u_9c21",
       display_name: "Farhan Iskandar",
       role: "participant",
+      has_name: true,
     },
-    { id: "u_2e8b", display_name: "Kenji Ong", role: "participant" },
-    { id: "u_b514", display_name: "Hui Min Loh", role: "participant" },
-    { id: "u_d0a9", display_name: "Darren Koh", role: "participant" },
-    { id: "u_44c7", display_name: "Aisyah Rahman", role: "participant" },
-    { id: "u_e1f2", display_name: "Marcus Lim", role: "participant" },
-    { id: "u_3b7d", display_name: "Nurul Huda", role: "participant" },
-    { id: "u_8a05", display_name: "Jia Hao Ng", role: "participant" },
-    { id: "u_c6e3", display_name: "Siti Aminah", role: "participant" },
+    { id: "u_2e8b", display_name: "Kenji Ong", role: "participant", has_name: true },
+    { id: "u_b514", display_name: "Hui Min Loh", role: "participant", has_name: true },
+    { id: "u_d0a9", display_name: "Darren Koh", role: "participant", has_name: true },
+    { id: "u_44c7", display_name: "Aisyah Rahman", role: "participant", has_name: true },
+    { id: "u_e1f2", display_name: "Marcus Lim", role: "participant", has_name: true },
+    { id: "u_3b7d", display_name: "Nurul Huda", role: "participant", has_name: true },
+    { id: "u_8a05", display_name: "Jia Hao Ng", role: "participant", has_name: true },
+    { id: "u_c6e3", display_name: "Siti Aminah", role: "participant", has_name: true },
   ];
 
   const eventStart = now - minutes(137);
@@ -308,6 +314,13 @@ export function createFixtures(now: number = Date.now()): MockData {
   taps.forEach((tap, index) => {
     tap.id = index + 1;
   });
+
+  /*
+    A guest who has just arrived from the GeekyKey screens: the default name, no name of
+    their own and no taps yet. Added after the taps, so the random taps above stay as
+    they were.
+  */
+  users.push({ id: SEEDED_GUEST_ID, display_name: "Guest", role: "participant", has_name: false });
 
   return { users, stations, taps };
 }

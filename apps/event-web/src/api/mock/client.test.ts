@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
-import { SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import { SEEDED_GUEST_ID, SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { EXPORT_CSV_COLUMNS } from "@/api/types";
 
 function client() {
@@ -76,6 +76,19 @@ describe("sessions and roles", () => {
     await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
   });
 
+  it("signs in as a guest with no name of their own with `#login=guest`", async () => {
+    // A guest reaches the Event screens from the GeekyKey screens' event buttons, so the
+    // prompt for a name (agreement 8.1) is developed through a login link too.
+    const api = client();
+
+    await api.loginLink("guest");
+
+    await expect(api.me()).resolves.toMatchObject({
+      user: { display_name: "Guest", role: "participant", has_name: false },
+      recent_taps: [],
+    });
+  });
+
   it("refuses any other login link and keeps the session it had", async () => {
     // Agreement 7.4: a link that fails leaves the existing session as it was.
     const api = client();
@@ -115,6 +128,59 @@ describe("sessions and roles", () => {
     await api.devLogin(SEEDED_PARTICIPANT_ID);
     const me = await api.me();
     expect(me.recent_taps[0]).toMatchObject({ station_name: null, status: "no_game" });
+  });
+});
+
+describe("the name the event shows (agreement 8.7)", () => {
+  it("saves the trimmed name, answers the user, and counts it as their own", async () => {
+    const api = client();
+    await api.loginLink("guest");
+
+    const answer = await api.setDisplayName({ display_name: "  Mei Ling  " });
+
+    expect(answer).toEqual({
+      user: { id: SEEDED_GUEST_ID, display_name: "Mei Ling", role: "participant", has_name: true },
+    });
+    await expect(api.me()).resolves.toMatchObject({ user: answer.user });
+  });
+
+  it("counts a name the user sets as their own, even Guest", async () => {
+    const api = client();
+    await api.loginLink("guest");
+
+    await api.setDisplayName({ display_name: "Guest" });
+
+    await expect(api.me()).resolves.toMatchObject({ user: { has_name: true } });
+  });
+
+  it("counts code points, so 30 emoji fit and 31 letters do not", async () => {
+    // Each of these emoji is two UTF-16 units, so a .length check would refuse them.
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+
+    await expect(api.setDisplayName({ display_name: "🦊".repeat(30) })).resolves.toBeDefined();
+
+    const refused = await api
+      .setDisplayName({ display_name: "a".repeat(31) })
+      .catch((e: unknown) => e);
+    expect(refused).toBeInstanceOf(ApiError);
+    expect((refused as ApiError).code).toBe("validation_failed");
+    expect((refused as ApiError).issues?.[0]?.path).toEqual(["display_name"]);
+  });
+
+  it("refuses a name that is blank once trimmed and leaves the name as it was", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+
+    await expectApiError(api.setDisplayName({ display_name: "   " }), "validation_failed", 400);
+
+    await expect(api.me()).resolves.toMatchObject({
+      user: { display_name: "Alex Tan", has_name: true },
+    });
+  });
+
+  it("answers 401 when nobody is signed in", async () => {
+    await expectApiError(client().setDisplayName({ display_name: "Alex" }), "unauthenticated", 401);
   });
 });
 

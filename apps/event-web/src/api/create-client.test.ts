@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIVE_METHODS, createAppClient } from "@/api/create-client";
 
 const me = {
-  user: { id: "dev-user-1", display_name: "Alex", role: "participant" as const },
+  user: { id: "dev-user-1", display_name: "Alex", role: "participant" as const, has_name: true },
   points: 0,
   stamps: [],
   recent_taps: [],
@@ -189,6 +189,7 @@ describe("createAppClient", () => {
       "loginLink",
       "logout",
       "me",
+      "setDisplayName",
     ]);
   });
 });
