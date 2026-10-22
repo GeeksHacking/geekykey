@@ -157,7 +157,7 @@ describe("createAppClient", () => {
     }
   });
 
-  it("says the claims stand-in couldn't answer when the service answers 503", async () => {
+  it("passes the service's 503 claims_unavailable through as the error", async () => {
     // Section 13: the token page, the claim form and My tokens then say "Couldn't
     // reach GeeksHacking. Try again."
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "claims_unavailable" }, 503));
