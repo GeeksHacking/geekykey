@@ -1256,8 +1256,8 @@
   date: 2026-10-22
   area: backend
   change: >-
-    On production, logging in with Google and logging out work on both sets of screens, the
-    passport opens on a phone, and a tap at the main station shows up as a stamp on the passport.
+    On production, logging in with Google and logging out work on both sets of screens, and a tap
+    at the main station shows up as a stamp on a phone's passport.
     In a test on Adam's own Cloudflare account, Cloudflare's logs hid our login cookies, so the logs
     can stay on. An open passport uses at least 360 Workers requests an hour, out of the free plan's
     100,000 a day. Checkpoint 5 stays open for a guest's run from the token page to the passport,
