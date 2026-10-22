@@ -32,7 +32,8 @@ const schema = z.object({
     .trim()
     .min(1, "Enter the token UID.")
     .refine((value) => isValidUid(normalizeUid(value)), {
-      message: "A token's UID is 4 to 10 bytes of hex, for example 04:A1:B2:C3:D4:E5:F6.",
+      message:
+        "A token's UID is 4 to 10 bytes of hex, so an even number of characters, for example 04:A1:B2:C3:D4:E5:F6.",
     }),
 });
 
@@ -48,8 +49,9 @@ type ClaimValues = z.infer<typeof schema>;
  *
  * The service's checks are 8.2's order, and the screen only says what it is told:
  * token_taken, token_limit_reached, rate_limited and claims_unavailable each show their
- * section 13 sentence. A validation_failed issue goes on the field its path names, and
- * one with no issues falls back to the field too, since the UID is the only field here.
+ * section 13 sentence. A validation_failed issue goes on the field its path names, an
+ * issue about something else goes on a form-level line, and a failure with no issues at
+ * all falls back to the field, since the UID is the only field here.
  */
 export function ClaimByCodeForm() {
   const claim = useClaimToken();
@@ -112,7 +114,7 @@ export function ClaimByCodeForm() {
           </p>
         ) : null}
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Claiming" : "Claim token"}
+          {form.formState.isSubmitting ? "Claiming" : "Claim"}
         </Button>
       </form>
     </Form>

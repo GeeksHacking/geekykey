@@ -40,7 +40,7 @@ function renderForm() {
 /** Fills the UID field and submits the form. */
 async function claim(uid: string) {
   await userEvent.type(screen.getByLabelText("Token UID"), uid);
-  await userEvent.click(screen.getByRole("button", { name: "Claim token" }));
+  await userEvent.click(screen.getByRole("button", { name: "Claim" }));
 }
 
 describe("claiming a token by its code", () => {
@@ -78,7 +78,7 @@ describe("claiming a token by its code", () => {
 
     expect(
       await screen.findByText(
-        "A token's UID is 4 to 10 bytes of hex, for example 04:A1:B2:C3:D4:E5:F6.",
+        "A token's UID is 4 to 10 bytes of hex, so an even number of characters, for example 04:A1:B2:C3:D4:E5:F6.",
       ),
     ).toBeInTheDocument();
     expect(claimToken).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe("claiming a token by its code", () => {
     const claimToken = vi.spyOn(api, "claimToken");
     renderForm();
 
-    await userEvent.click(screen.getByRole("button", { name: "Claim token" }));
+    await userEvent.click(screen.getByRole("button", { name: "Claim" }));
 
     expect(await screen.findByText("Enter the token UID.")).toBeInTheDocument();
     expect(claimToken).not.toHaveBeenCalled();
