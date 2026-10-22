@@ -25,7 +25,7 @@ export interface AppDeps {
   claimsDeadlineMs: number;
   /**
    * Counts each station's requests, taps and heartbeats together: the
-   * STATION_LIMIT binding in wrangler.jsonc, 60 a minute.
+   * STATION_LIMIT binding in wrangler.jsonc.
    */
   stationLimit: RateLimit;
 }

@@ -1374,7 +1374,6 @@
   area: backend
   change: >-
     A reader station that sends the GeekyKey Service more than 60 requests a minute, taps and
-    heartbeats together, now gets "too many requests", and keeps its taps to send later. A wrong
-    key is counted too, so a flood of them is turned away before the service asks the Event Service
-    for its stations. The trade-offs we accept: Cloudflare counts in each of its data centres, so a
-    station can sometimes get past 60.
+    heartbeats together, now gets "too many requests" and keeps its taps to send later. Wrong keys
+    count too, and Cloudflare counts in each of its data centres, so a station can sometimes get
+    past 60.

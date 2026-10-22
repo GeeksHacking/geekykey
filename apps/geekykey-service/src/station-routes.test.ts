@@ -644,6 +644,16 @@ test("a heartbeat's body is checked once its key is", async () => {
 
 // The station limit (the API agreement's section 2, "Rate limits").
 
+/** One tap's body, for when what it holds doesn't matter. */
+const ONE_TAP = { taps: [{ client_tap_id: "t", uid: UID }] };
+
+/** Checks `res` is the answer to a caller over a limit. */
+async function assertRateLimited(res: Response) {
+  assert.equal(res.status, 429);
+  assert.equal(res.headers.get("Retry-After"), "60");
+  assert.deepEqual(await res.json(), { error: "rate_limited" });
+}
+
 /** Sends `count` taps from the station with `key`, one request each, and gives their statuses. */
 async function tapMany(
   post: (body: unknown, key?: string | null) => Promise<Response>,
@@ -664,10 +674,7 @@ test("a station's 61st request in a minute is 429 rate_limited, with Retry-After
   assert.deepEqual(await tapMany(post, STATION_LIMIT), Array(STATION_LIMIT).fill(200));
   const handedOff = sentTo("/geekykey/v1/taps").length;
 
-  const res = await post({ taps: [{ client_tap_id: "one-too-many", uid: UID }] });
-  assert.equal(res.status, 429);
-  assert.equal(res.headers.get("Retry-After"), "60");
-  assert.deepEqual(await res.json(), { error: "rate_limited" });
+  await assertRateLimited(await post(ONE_TAP));
   // Turned away before anything is asked of the stand-in or handed off.
   assert.equal(sentTo("/geekykey/v1/taps").length, handedOff);
 });
@@ -679,11 +686,8 @@ test("a station's taps and heartbeats count together", async () => {
   assert.deepEqual(await tapMany(post, half), Array(half).fill(200));
   for (let i = 0; i < half; i++) assert.equal((await postHeartbeat({})).status, 200);
 
-  const heartbeat = await postHeartbeat({});
-  assert.equal(heartbeat.status, 429);
-  assert.equal(heartbeat.headers.get("Retry-After"), "60");
-  assert.deepEqual(await heartbeat.json(), { error: "rate_limited" });
-  assert.equal((await post({ taps: [{ client_tap_id: "t", uid: UID }] })).status, 429);
+  await assertRateLimited(await postHeartbeat({}));
+  await assertRateLimited(await post(ONE_TAP));
 });
 
 test("two stations are counted apart", async () => {
@@ -694,9 +698,9 @@ test("two stations are counted apart", async () => {
     key_hash: await hashStationKey("gk_sta_station-2-key"),
   });
   await tapMany(post, STATION_LIMIT);
-  assert.equal((await post({ taps: [{ client_tap_id: "t", uid: UID }] })).status, 429);
+  await assertRateLimited(await post(ONE_TAP));
 
-  const other = await post({ taps: [{ client_tap_id: "t", uid: UID }] }, "gk_sta_station-2-key");
+  const other = await post(ONE_TAP, "gk_sta_station-2-key");
   assert.equal(other.status, 200);
   assert.equal(((await other.json()) as TapsAnswer).station_id, "station-2");
 });
@@ -708,9 +712,7 @@ test("wrong keys are counted too, by the key's SHA-256", async () => {
   const wrongKey = "gk_sta_not-a-real-key";
   assert.deepEqual(await tapMany(post, STATION_LIMIT, wrongKey), Array(STATION_LIMIT).fill(401));
 
-  const res = await post({ taps: [{ client_tap_id: "t", uid: UID }] }, wrongKey);
-  assert.equal(res.status, 429);
-  assert.deepEqual(await res.json(), { error: "rate_limited" });
+  await assertRateLimited(await post(ONE_TAP, wrongKey));
   assert.deepEqual(new Set(stationLimit.keys), new Set([await hashStationKey(wrongKey)]));
 });
 
@@ -718,11 +720,8 @@ test("a request over the limit is turned away before the registered stations are
   // Over the limit from the first request.
   const { post, postHeartbeat, sentTo } = await harness({}, { stationLimit: fakeLimiter(0) });
   loggedLines();
-  assert.equal(
-    (await post({ taps: [{ client_tap_id: "t", uid: UID }] }, "gk_sta_wrong")).status,
-    429,
-  );
-  assert.equal((await postHeartbeat({}, "gk_sta_wrong")).status, 429);
+  await assertRateLimited(await post(ONE_TAP, "gk_sta_wrong"));
+  await assertRateLimited(await postHeartbeat({}, "gk_sta_wrong"));
   assert.deepEqual(sentTo("/geekykey/v1/stations"), []);
 });
 
@@ -730,9 +729,10 @@ test("a request without a key isn't counted, and stays 401 missing_station_key",
   const stationLimit = fakeLimiter(STATION_LIMIT);
   const { post } = await harness({}, { stationLimit });
   loggedLines();
-  assert.deepEqual(await tapMany(post, STATION_LIMIT + 1, null), [
-    ...Array(STATION_LIMIT + 1).fill(401),
-  ]);
+  assert.deepEqual(
+    await tapMany(post, STATION_LIMIT + 1, null),
+    Array(STATION_LIMIT + 1).fill(401),
+  );
   assert.deepEqual(stationLimit.keys, []);
 });
 
@@ -740,7 +740,7 @@ test("a station turned away is logged once, by its station ID, and never its key
   const { post } = await harness();
   const lines = loggedLines();
   await tapMany(post, STATION_LIMIT);
-  await post({ taps: [{ client_tap_id: "t", uid: UID }] });
+  await post(ONE_TAP);
 
   const limited = lines().filter((line) => line.message === "rate_limited");
   assert.deepEqual(limited, [

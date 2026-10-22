@@ -44,8 +44,8 @@
 
   // The rate limits (the API agreement's section 2, "Rate limits"; the
   // migration spec's 5.1). Bindings that share a namespace_id on one account
-  // share their counts, so each has one no other Worker on GeeksHacking's
-  // account uses: 7101 to 7103 are this Worker's, and Julian knows. Each
+  // share their counts, so 7101 to 7103 are this Worker's alone, and no
+  // other Worker on GeeksHacking's account may use them (BAC-67). Each
   // namespace_id is a positive integer written as a string, and the period
   // is 10 or 60 seconds. Cloudflare counts in each data centre, and only
   // approximately (src/rate-limit.ts). Locally, Wrangler simulates them.
