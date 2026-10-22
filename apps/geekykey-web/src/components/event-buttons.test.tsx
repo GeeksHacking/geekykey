@@ -74,6 +74,32 @@ describe("EventButtons", () => {
     );
   });
 
+  it("stays disabled once the link is open, while the page leaves for it", async () => {
+    renderButtons(EVENTS);
+
+    const button = screen.getByRole("button", { name: "Open Capstone Showcase" });
+    await userEvent.click(button);
+    await waitFor(() => expect(location.assign).toHaveBeenCalledWith(MOCK_LINK_URL));
+
+    // The link works once, so a second press while the browser leaves would ask for a
+    // second one.
+    expect(button).toBeDisabled();
+  });
+
+  it("works again when Back shows the page from the back/forward cache", async () => {
+    renderButtons(EVENTS);
+
+    const button = screen.getByRole("button", { name: "Open Capstone Showcase" });
+    await userEvent.click(button);
+    await waitFor(() => expect(button).toBeDisabled());
+
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    });
+
+    await waitFor(() => expect(button).toBeEnabled());
+  });
+
   it("says section 13's sentence when the service will not repeat the request", async () => {
     vi.spyOn(api, "createLoginLink").mockRejectedValueOnce(new ApiError(429, "rate_limited"));
     renderButtons(EVENTS);
@@ -85,13 +111,17 @@ describe("EventButtons", () => {
     ).toBeInTheDocument();
   });
 
-  it("says the event is gone when the service does not have it", async () => {
+  it("says nothing when the service does not have the event, since /me settles it", async () => {
+    // Section 13 sets no sentence for 8.6's not_found. The hook asks /me again, and the
+    // fresh events decide which buttons there are.
     vi.spyOn(api, "createLoginLink").mockRejectedValueOnce(new ApiError(404, "not_found"));
     renderButtons(EVENTS);
 
-    await userEvent.click(screen.getByRole("button", { name: "Open Capstone Showcase" }));
+    const button = screen.getByRole("button", { name: "Open Capstone Showcase" });
+    await userEvent.click(button);
+    await waitFor(() => expect(button).toBeEnabled());
 
-    expect(await screen.findByText("That event is no longer available.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("says nothing when the session is gone, because the login is on its way", async () => {
