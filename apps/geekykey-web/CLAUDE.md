@@ -41,18 +41,24 @@ When `/me` answers 401 and Firebase still remembers the user, `src/lib/session-p
 logs them in again without showing the login. A returning guest who saw the login instead
 would press "Continue as guest" and become a new guest, who doesn't own their tokens. For the
 same reason a guest is asked before signing out, in section 13's words (FRO-62).
+My tokens and the token page carry a button for each event in `/me`, which asks the
+GeekyKey Service for a login link (agreement 8.6) and opens it, so the user reaches an
+event's screens as the same user (FRO-31). The buttons are in
+`src/components/event-buttons.tsx`, and the hook that opens the link is in
+`src/lib/use-login-link.ts`.
 There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,
 which would have been one, was canceled.
 
 `src/api/create-client.ts` is the only file that changes when an endpoint goes live. The session
-slice is live: `me`, `devLogin`, `firebaseLogin` and `logout` go to the GeekyKey Service, while
-the token lookup, claiming and releasing (agreement 8.2, 8.3 and 8.5) stay on the mock until
-checkpoint 6. Until then the token page answers from the mock's fixtures while My tokens
-answers from the service, so the two do not agree about who owns a token. The token page says
-where its data came from in a "Demo data" notice, the way the Event screens' organiser
-console does, so a claim there cannot look like a claim on the service. The notice's wording
-is section 13's. My tokens lists the service's tokens, so a live build hides its Release
-while `releaseToken` is still on the mock (`isLeftOnMock` in `src/api/mode.ts`).
+slice is live: `me`, `devLogin`, `firebaseLogin` and `logout` go to the GeekyKey Service, and
+so does `createLoginLink` (agreement 8.6), while the token lookup, claiming and releasing
+(agreement 8.2, 8.3 and 8.5) stay on the mock until checkpoint 6. Until then the token page
+answers from the mock's fixtures while My tokens answers from the service, so the two do not
+agree about who owns a token. The token page says where its data came from in a "Demo data"
+notice, the way the Event screens' organiser console does, so a claim there cannot look like
+a claim on the service. The notice's wording is section 13's. My tokens lists the service's
+tokens, so a live build hides its Release while `releaseToken` is still on the mock
+(`isLeftOnMock` in `src/api/mode.ts`).
 
 `pnpm dev` runs the app on the mock. `pnpm dev:live` sends the live slice to the service, and
 `mise run dev` starts it that way with the rest of the stack.
