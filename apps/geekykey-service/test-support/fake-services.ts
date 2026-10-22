@@ -24,14 +24,17 @@ type Answer = (request: SentRequest) => Promise<Response>;
 /**
  * The services the Worker calls, faked behind `fetch` (its `send`): each of
  * `config`'s Event Services, with the three requests in the API agreement's
- * section 11, and the claims stand-in's `POST /owners` and
- * `GET /users/{id}/tokens`. Each checks the key the Worker sends, as the real
- * ones do, and answers what a test sets:
+ * section 11, and the claims stand-in's `POST /owners`,
+ * `POST /tokens/{uid}/claim` and `GET /users/{id}/tokens`. Each checks the
+ * key the Worker sends, as the real ones do, and answers what a test sets:
  *
  * - `stations`, each Event Service's registered stations, by its ID;
  * - `owners`, who owns each token, by its normalised UID;
  * - `tokens`, each user's tokens, by user ID, in the order the stand-in
  *   gives them: oldest claim first;
+ * - `now`, when a claim the fake takes is made. A claim of a token nobody
+ *   owns adds it to `owners` and the end of the user's `tokens`, as the
+ *   stand-in's table would;
  * - `statusOf`, each handed-off tap's status, `accepted` unless a test says
  *   otherwise.
  *
@@ -43,9 +46,10 @@ export function fakeServices(config: Config) {
     stations: new Map<string, RegisteredStation[]>(),
     owners: new Map<string, string>(),
     tokens: new Map<string, { uid: string; claimed_at: string }[]>(),
+    now: "2026-11-18T06:00:00.000Z",
     statusOf: (_tap: HandedOffTap, _stationId: string): string => "accepted",
     answers: {} as Partial<
-      Record<"stations" | "taps" | "heartbeats" | "owners" | "tokens", Answer>
+      Record<"stations" | "taps" | "heartbeats" | "owners" | "claim" | "tokens", Answer>
     >,
     sent: [] as SentRequest[],
     send: (async () => new Response()) as Send,
@@ -74,6 +78,24 @@ export function fakeServices(config: Config) {
         if (fake.answers.tokens) return fake.answers.tokens(request);
         const userId = decodeURIComponent(tokensPath[1]!);
         return Response.json({ tokens: fake.tokens.get(userId) ?? [] });
+      }
+      const claimPath = /^\/tokens\/([^/]+)\/claim$/.exec(path);
+      if (request.method === "POST" && claimPath) {
+        if (fake.answers.claim) return fake.answers.claim(request);
+        const uid = claimPath[1]!;
+        const { user_id: userId } = body as { user_id: string };
+        const owner = fake.owners.get(uid);
+        if (owner === undefined) {
+          fake.owners.set(uid, userId);
+          fake.tokens.set(userId, [
+            ...(fake.tokens.get(userId) ?? []),
+            { uid, claimed_at: fake.now },
+          ]);
+          return Response.json({ result: "claimed", claimed_at: fake.now });
+        }
+        if (owner !== userId) return Response.json({ result: "taken", claimed_at: null });
+        const mine = fake.tokens.get(userId)?.find((token) => token.uid === uid);
+        return Response.json({ result: "already_yours", claimed_at: mine?.claimed_at ?? fake.now });
       }
       if (request.method !== "POST" || path !== "/owners") {
         return Response.json({ error: "not_found" }, { status: 404 });

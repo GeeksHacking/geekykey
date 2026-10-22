@@ -39,6 +39,12 @@ export interface Config {
    * checks it.
    */
   geekykeyAdmins: string[];
+  /**
+   * The most tokens one user may hold, 3 for the showcase. A claim past it
+   * answers `409 token_limit_reached` (the API agreement's 8.2), and nobody
+   * is exempt, GeekyKey admins included.
+   */
+  maxTokensPerUser: number;
   maxTapsPerRequest: number;
   /**
    * Milliseconds a station's request has for its calls out: filling an empty
@@ -233,6 +239,7 @@ export function loadConfig(settings: object): Config {
       userIdsSetting,
       jsonSetting(env, "GEEKYKEY_ADMINS"),
     ),
+    maxTokensPerUser: positiveIntFromEnv(env, "MAX_TOKENS_PER_USER"),
     maxTapsPerRequest: positiveIntFromEnv(env, "MAX_TAPS_PER_REQUEST"),
     tapDeadlineMs: positiveIntFromEnv(env, "TAP_DEADLINE_MS"),
     devAuthEnabled,

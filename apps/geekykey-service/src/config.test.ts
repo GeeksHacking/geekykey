@@ -19,6 +19,7 @@ function settings(changes: Record<string, unknown> = {}): Record<string, unknown
     ],
     CLAIMS_STAND_IN_URL: "https://event-api.geekshacking.com/claims-stand-in/v1",
     GEEKYKEY_ADMINS: [],
+    MAX_TOKENS_PER_USER: 3,
     MAX_TAPS_PER_REQUEST: 500,
     TAP_DEADLINE_MS: 4000,
     FIREBASE_PROJECT_ID: "geekykey-b035a",
@@ -77,6 +78,7 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
       key: CLAIMS_STAND_IN_KEY,
     },
     geekykeyAdmins: [],
+    maxTokensPerUser: 3,
     maxTapsPerRequest: 500,
     tapDeadlineMs: 4000,
     devAuthEnabled: false,
@@ -93,6 +95,7 @@ test("settings from dev.env, which are all strings, are read the same", () => {
         '[{"id":"showcase","name":"Capstone Showcase","url":"http://localhost:8001"}]',
       CLAIMS_STAND_IN_URL: "http://localhost:8001/claims-stand-in/v1",
       GEEKYKEY_ADMINS: '["dev-organizer-1"]',
+      MAX_TOKENS_PER_USER: "3",
       MAX_TAPS_PER_REQUEST: "500",
       TAP_DEADLINE_MS: "4000",
       DEV_AUTH_ENABLED: "true",
@@ -101,6 +104,7 @@ test("settings from dev.env, which are all strings, are read the same", () => {
   assert.equal(config.eventServices[0]!.url, "http://localhost:8001");
   assert.equal(config.claimsStandIn.url, "http://localhost:8001/claims-stand-in/v1");
   assert.deepEqual(config.geekykeyAdmins, ["dev-organizer-1"]);
+  assert.equal(config.maxTokensPerUser, 3);
   assert.equal(config.maxTapsPerRequest, 500);
   assert.equal(config.tapDeadlineMs, 4000);
   assert.equal(config.devAuthEnabled, true);
@@ -230,6 +234,9 @@ test("a missing or malformed setting stops the Worker, and says which", () => {
     ["GEEKYKEY_ADMINS", undefined],
     ["GEEKYKEY_ADMINS", "dev-organizer-1"],
     ["GEEKYKEY_ADMINS", [""]],
+    ["MAX_TOKENS_PER_USER", undefined],
+    ["MAX_TOKENS_PER_USER", "three"],
+    ["MAX_TOKENS_PER_USER", 0],
     ["MAX_TAPS_PER_REQUEST", undefined],
     ["MAX_TAPS_PER_REQUEST", "lots"],
     ["MAX_TAPS_PER_REQUEST", 0],

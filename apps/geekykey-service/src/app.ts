@@ -129,6 +129,7 @@ export function createApp(
       claims,
       geekykeyAdmins,
       deadlineMs: claimsDeadlineMs,
+      maxTokensPerUser: config.maxTokensPerUser,
     }),
   );
   app.route(
