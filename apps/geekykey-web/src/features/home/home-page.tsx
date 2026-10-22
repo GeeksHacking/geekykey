@@ -1,6 +1,5 @@
 import type { Token } from "@/api/types";
 
-import { isLeftOnMock } from "@/api/mode";
 import { EventButtons } from "@/components/event-buttons";
 import { ClaimByCodeForm } from "@/features/home/claim-by-code-form";
 import { TokenRow } from "@/features/home/token-row";
@@ -23,16 +22,12 @@ import { useMe } from "@/lib/session";
  */
 export function HomePage() {
   const { me } = useMe();
-  // The list is the service's tokens, so a claim the mock would answer would claim a
-  // sample token and leave the service still not listing it. The form is hidden while a
-  // live build still sends the claim to the mock, the way each row hides its Release.
-  const byCode = !isLeftOnMock("claimToken");
 
   return (
     <main className="flex flex-col">
       <h1 className="text-3xl font-semibold tracking-heading">My tokens</h1>
-      {me.tokens.length === 0 ? <NoTokensYet byCode={byCode} /> : null}
-      {byCode ? <ClaimByCodeForm /> : null}
+      {me.tokens.length === 0 ? <NoTokensYet /> : null}
+      <ClaimByCodeForm />
       {me.tokens.length > 0 ? <TokenList tokens={me.tokens} /> : null}
       <EventButtons events={me.events} className="mt-8" />
     </main>
@@ -40,17 +35,13 @@ export function HomePage() {
 }
 
 /**
- * The empty state names the ways to claim a token that this build has, and it follows
- * the screens' guide that an empty state says what to do next. A live build still
- * sends the claim to the mock, so the form is not there and the phone is the only way
- * to claim one.
+ * The empty state names both ways to claim a token, and it follows the screens' guide
+ * that an empty state says what to do next.
  */
-function NoTokensYet({ byCode }: { byCode: boolean }) {
+function NoTokensYet() {
   return (
     <p className="mt-6 max-w-md text-base text-muted-foreground">
-      {byCode
-        ? "You haven't claimed a token yet. Tap one with your phone, or type its code below."
-        : "You haven't claimed a token yet. Tap one with your phone to claim it."}
+      You haven't claimed a token yet. Tap one with your phone, or type its code below.
     </p>
   );
 }

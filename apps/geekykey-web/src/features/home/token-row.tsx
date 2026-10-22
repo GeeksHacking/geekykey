@@ -1,6 +1,5 @@
 import type { Token } from "@/api/types";
 
-import { isLeftOnMock } from "@/api/mode";
 import { ReleaseTokenBlock } from "@/components/release-token-block";
 import { formatWhen } from "@/lib/format";
 import { formatUid } from "@/lib/token-uid";
@@ -15,6 +14,8 @@ import { useReleaseToken } from "@/lib/use-release-token";
  * lookup's owner).
  */
 export function TokenRow({ token }: { token: Token }) {
+  const release = useReleaseToken(token.uid);
+
   return (
     <div className="rounded-lg border p-4">
       <code className="font-mono text-foreground">{formatUid(token.uid)}</code>
@@ -23,20 +24,9 @@ export function TokenRow({ token }: { token: Token }) {
           Claimed {formatWhen(token.claimed_at)}.
         </p>
       ) : null}
-      {/* The row lists the service's token, so a Release sent to the mock would act on a
-          sample token instead. A live build hides it until 8.3 is live too. */}
-      {isLeftOnMock("releaseToken") ? null : <RowRelease uid={token.uid} />}
-    </div>
-  );
-}
-
-/** The row's Release, in a component of its own so a row without one mounts no mutation. */
-function RowRelease({ uid }: { uid: string }) {
-  const release = useReleaseToken(uid);
-
-  return (
-    <div className="mt-3">
-      <ReleaseTokenBlock release={release} mine />
+      <div className="mt-3">
+        <ReleaseTokenBlock release={release} mine />
+      </div>
     </div>
   );
 }

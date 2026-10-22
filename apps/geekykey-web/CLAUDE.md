@@ -62,17 +62,13 @@ event's screens as the same user (FRO-31). The buttons are in
 There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,
 which would have been one, was canceled.
 
-`src/api/create-client.ts` is the only file that changes when an endpoint goes live. The session
-slice is live: `me`, `devLogin`, `firebaseLogin` and `logout` go to the GeekyKey Service, and
-so does `createLoginLink` (agreement 8.6), while the token lookup, claiming and releasing
-(agreement 8.2, 8.3 and 8.5) stay on the mock until checkpoint 6. Until then the token page
-answers from the mock's fixtures while My tokens answers from the service, so the two do not
-agree about who owns a token. The token page says where its data came from in a "Demo data"
-notice, the way the Event screens' organiser console does, so a claim there cannot look like
-a claim on the service. The notice's wording is section 13's. My tokens lists the service's
-tokens, so a live build hides its Release while `releaseToken` is still on the mock, and
-hides the claim-by-code form while `claimToken` is still on the mock
-(`isLeftOnMock` in `src/api/mode.ts`).
+`src/api/create-client.ts` decides which client the app runs on. A live build sends every
+method to the GeekyKey Service: the session, the token lookup, claiming and releasing
+(agreement 8.2, 8.3 and 8.5), and the login link (8.6). A mock build answers every method
+from `src/api/mock`, and the token page says so in section 13's "Demo data" notice
+(`src/components/layout/data-source-notice.tsx`). A live build shows no notice.
 
-`pnpm dev` runs the app on the mock. `pnpm dev:live` sends the live slice to the service, and
-`mise run dev` starts it that way with the rest of the stack.
+`pnpm dev` runs the app on the mock. `pnpm dev:live` sends every call to the service, and
+`mise run dev` starts it that way with the rest of the stack. To release someone else's
+token locally, sign in as `dev-organizer-1`, whom the service's `dev.env` lists in
+`GEEKYKEY_ADMINS`.

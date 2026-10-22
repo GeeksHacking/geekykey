@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LIVE_METHODS, createAppClient } from "@/api/create-client";
+import { createAppClient } from "@/api/create-client";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
-
-/** The app client keeps the mock's test controls, live or not. */
-function appClient(live: boolean): MockApiClient {
-  return createAppClient({ live }) as MockApiClient;
-}
 
 /** Agreement 8.4: the user, their tokens and the events to link to. */
 const me = {
@@ -40,7 +35,8 @@ afterEach(() => {
 
 describe("createAppClient", () => {
   it("runs every method on the mock, because the live flag is off", async () => {
-    const client = appClient(false);
+    // A mock build is the mock itself, so its test controls are there to sign it in.
+    const client = createAppClient({ live: false }) as MockApiClient;
     client.mock.setSession(SEEDED_PARTICIPANT_ID);
 
     expect((await client.me()).user.id).toBe(SEEDED_PARTICIPANT_ID);
@@ -62,7 +58,7 @@ describe("createAppClient", () => {
         expires_at: "2026-10-22T13:01:00.000Z",
       }),
     );
-    const client = appClient(true);
+    const client = createAppClient({ live: true });
 
     const link = await client.createLoginLink("showcase");
 
@@ -78,13 +74,13 @@ describe("createAppClient", () => {
     expect(link.url).toBe("https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln");
   });
 
-  it("sends the session slice to the service in live mode", async () => {
+  it("sends the session to the service in live mode", async () => {
     fetchMock
       .mockResolvedValueOnce(noContentResponse())
       .mockResolvedValueOnce(jsonResponse(me))
       .mockResolvedValueOnce(noContentResponse())
       .mockResolvedValueOnce(noContentResponse());
-    const client = appClient(true);
+    const client = createAppClient({ live: true });
 
     await client.devLogin(SEEDED_PARTICIPANT_ID);
     await expect(client.me()).resolves.toEqual(me);
@@ -123,98 +119,51 @@ describe("createAppClient", () => {
     );
   });
 
-  it("keeps the token methods on the mock while the session slice is live", async () => {
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const client = appClient(true);
-    await client.devLogin(SEEDED_PARTICIPANT_ID);
+  it("sends the token lookup, claim and release to the service in live mode", async () => {
+    // Agreement 8.5, 8.2 and 8.3. A claim answers 201 when it is new and 200 when the
+    // token is already yours, with the same body, and a release answers 204.
+    const claimed = { uid: "04E5F7091B3D", claimed_at: "2026-10-22T09:00:00.000Z" };
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          token: { uid: "04E5F7091B3D", owner: "nobody", claimed_at: null, owner_id: null },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ token: claimed }, 201))
+      .mockResolvedValueOnce(jsonResponse({ token: claimed }, 200))
+      .mockResolvedValueOnce(noContentResponse())
+      .mockResolvedValueOnce(noContentResponse());
+    const client = createAppClient({ live: true });
 
-    await expect(client.getToken("04A1B2C3D4E5F6")).resolves.toEqual(
-      expect.objectContaining({ owner: "you" }),
+    await expect(client.getToken("04E5F7091B3D")).resolves.toEqual(
+      expect.objectContaining({ owner: "nobody" }),
     );
-    expect(await client.claimToken("04E5F7091B3D")).toBeDefined();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
+    await expect(client.claimToken("04E5F7091B3D")).resolves.toEqual(claimed);
+    await expect(client.claimToken("04E5F7091B3D")).resolves.toEqual(claimed);
+    await client.releaseToken("04E5F7091B3D");
+    // A GeekyKey admin names the owner the lookup showed.
+    await client.releaseToken("04A1B2C3D4E5F6", "dev-user-2");
 
-  it("gives the mock the live session, so the mocked methods know the user", async () => {
-    // The service's user is not the seeded participant, so the mock answers for
-    // that user and not for the fixtures' owner.
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ ...me, user: { id: "firebase-uid", is_geekykey_admin: false } }),
-    );
-    const client = appClient(true);
-
-    await client.me();
-
-    await expect(client.getToken("04A1B2C3D4E5F6")).resolves.toEqual(
-      expect.objectContaining({ owner: "someone_else" }),
-    );
-  });
-
-  it("keeps the mock's session when the service cannot answer", async () => {
-    // A 503 says the claims stand-in is slow, not that the session is gone, so
-    // the mock keeps the user it had.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const client = appClient(true);
-    await client.devLogin(SEEDED_PARTICIPANT_ID);
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "claims_unavailable" }, 503));
-    await expect(client.me()).rejects.toThrow();
-
-    await expect(client.getToken("04A1B2C3D4E5F6")).resolves.toEqual(
-      expect.objectContaining({ owner: "you" }),
-    );
-  });
-
-  it("keeps the mock's session when a dev login fails", async () => {
-    // The failed login leaves the service's cookie as it was, so the mock keeps
-    // the user it had.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const client = appClient(true);
-    await client.devLogin(SEEDED_PARTICIPANT_ID);
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
-    await expect(client.devLogin("someone-else")).rejects.toThrow();
-
-    await expect(client.getToken("04A1B2C3D4E5F6")).resolves.toEqual(
-      expect.objectContaining({ owner: "you" }),
-    );
-  });
-
-  it("drops the mock's session when a Firebase login starts", async () => {
-    // A /me that cannot answer once the login is through must not leave the mock
-    // signed in as the user who was there before.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const client = appClient(true);
-    await client.devLogin(SEEDED_PARTICIPANT_ID);
-
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    await client.firebaseLogin("id-token-from-firebase");
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "claims_unavailable" }, 503));
-    await expect(client.me()).rejects.toThrow();
-
-    await expect(client.getToken("04A1B2C3D4E5F6")).rejects.toThrow("unauthenticated");
-  });
-
-  it("signs the mock out when the service says the session is gone", async () => {
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const client = appClient(true);
-    await client.devLogin(SEEDED_PARTICIPANT_ID);
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "unauthenticated" }, 401));
-    await expect(client.me()).rejects.toThrow();
-
-    await expect(client.getToken("04A1B2C3D4E5F6")).rejects.toThrow("unauthenticated");
-  });
-
-  it("names the live methods, so a method that goes live changes them all at once", () => {
-    expect([...LIVE_METHODS].sort()).toEqual([
-      "createLoginLink",
-      "devLogin",
-      "firebaseLogin",
-      "logout",
-      "me",
+    const calls = fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method]);
+    expect(calls).toEqual([
+      ["/api/v1/tokens/04E5F7091B3D", undefined],
+      ["/api/v1/tokens/04E5F7091B3D/claim", "POST"],
+      ["/api/v1/tokens/04E5F7091B3D/claim", "POST"],
+      ["/api/v1/tokens/04E5F7091B3D", "DELETE"],
+      ["/api/v1/tokens/04A1B2C3D4E5F6?owner_id=dev-user-2", "DELETE"],
     ]);
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init).toEqual(expect.objectContaining({ credentials: "include" }));
+    }
+  });
+
+  it("says the claims stand-in couldn't answer when the service answers 503", async () => {
+    // Section 13: the token page, the claim form and My tokens then say "Couldn't
+    // reach GeeksHacking. Try again."
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "claims_unavailable" }, 503));
+    const client = createAppClient({ live: true });
+
+    await expect(client.claimToken("04E5F7091B3D")).rejects.toThrow("claims_unavailable");
   });
 
   it("exposes every interface method, so the two clients cannot drift apart", () => {

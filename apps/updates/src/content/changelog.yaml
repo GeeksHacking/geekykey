@@ -1403,3 +1403,11 @@
     A logged-in user who sends the GeekyKey Service more than 60 requests a minute now gets "too
     many requests", and so does one who looks up or claims more than 20 tokens a minute, so nobody
     can work through UIDs to see which tokens are claimed. Logging in isn't counted.
+
+- id: token-page-and-my-tokens-claim-and-release
+  date: 2026-10-22
+  area: frontend
+  change: >-
+    The token page and My tokens now look up, claim and release tokens through the GeekyKey
+    Service, so a token claimed on a phone is really claimed. The token page's "Demo data"
+    notice is gone, and every token on My tokens has a Release button.
