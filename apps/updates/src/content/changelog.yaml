@@ -1292,3 +1292,13 @@
     so they can be claimed again. A Google or GeeksHacking user signs out without being asked. The
     trade-offs we accept: the stamps of a guest who signs out are lost, and a guest who signs out anyway still
     needs a helper to get their tokens back.
+
+- id: event-screens-name-prompt
+  date: 2026-10-22
+  area: frontend
+  change: >-
+    The passport asks a participant with no name of their own "What should we call you?", with Save
+    and Skip, above the stamps rather than in front of them. Skipping keeps "Guest" and the passport
+    doesn't ask again until a new tab. Anyone can change their name later from the passport,
+    including a Google user who would rather not show their full Google name. A name must be 1 to
+    30 characters once trimmed, and the screens check that before sending it.
