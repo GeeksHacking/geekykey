@@ -1302,11 +1302,3 @@
     doesn't ask again until a new tab. Anyone can change their name later from the passport,
     including a Google user who would rather not show their full Google name. A name must be 1 to
     30 characters once trimmed, and the screens check that before sending it.
-
-- id: geekykey-screens-open-each-event
-  date: 2026-10-22
-  area: frontend
-  change: >-
-    My tokens and the token page carry a button for each event, and the button opens that event's
-    screens as the same user. A guest who claimed a token reaches the passport without logging in
-    a second time, and a Google user lands there without signing in again.
