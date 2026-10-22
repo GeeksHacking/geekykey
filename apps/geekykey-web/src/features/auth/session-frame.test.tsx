@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
 import { createMockClient } from "@/api/mock/client";
@@ -11,6 +11,24 @@ import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { routeTree } from "@/routeTree.gen";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+
+const { isSignedInAsGuest } = vi.hoisted(() => ({ isSignedInAsGuest: vi.fn() }));
+
+/*
+  Whether the user is a guest is Firebase's to say, and the test build has no Firebase, so
+  that one answer is stubbed. Everything else in the module is the real one: with no config,
+  signing out of Firebase does nothing.
+*/
+vi.mock("@/lib/firebase", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/firebase")>()),
+  isSignedInAsGuest,
+}));
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  isSignedInAsGuest.mockReset();
+  isSignedInAsGuest.mockResolvedValue(false);
+});
 
 /*
   The signed-in shell, which `routes/_app.tsx` mounts and nothing else renders.
@@ -101,6 +119,67 @@ describe("the signed-in shell", () => {
     // The mock's own session is gone, so the app cannot recover it on the next read.
     await expect(api.me()).rejects.toMatchObject({ code: "unauthenticated" });
     expect(screen.queryByRole("button", { name: "Account menu" })).not.toBeInTheDocument();
+    // A Google user can sign in again as themselves, so nobody asks them first.
+    expect(isSignedInAsGuest).toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("asks a guest before signing them out, in section 13's words", async () => {
+    isSignedInAsGuest.mockResolvedValue(true);
+    const user = userEvent.setup();
+    const { router, api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: /Sign out/ }));
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Sign out of this guest login?",
+    });
+    expect(dialog).toHaveTextContent(
+      "You can't log back in as this guest, so your tokens and stamps stay with it. If you sign out by mistake, ask at the desk to release your tokens so you can claim them again.",
+    );
+    // Nothing has happened yet: the guest is still signed in.
+    expect(router.state.location.pathname).toBe("/");
+    await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
+
+    // The sign-out stays available, because it's how a shared phone goes to the next person.
+    await user.click(within(dialog).getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    await expect(api.me()).rejects.toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("keeps a guest signed in when they choose to stay", async () => {
+    isSignedInAsGuest.mockResolvedValue(true);
+    const user = userEvent.setup();
+    const { router, api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: /Sign out/ }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Stay signed in" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe("/");
+    await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
+  });
+
+  it("asks anyway when Firebase can't say whether the user is a guest", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    isSignedInAsGuest.mockRejectedValue(new Error("Firebase didn't load"));
+    const user = userEvent.setup();
+    const { router } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: /Sign out/ }));
+
+    expect(
+      await screen.findByRole("alertdialog", { name: "Sign out of this guest login?" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/");
   });
 
   it("has a theme toggle on a signed-in screen as well as on the login page", async () => {

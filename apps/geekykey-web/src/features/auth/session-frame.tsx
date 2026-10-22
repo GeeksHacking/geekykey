@@ -1,9 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { describeError } from "@/api/errors";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useMe, useSession } from "@/lib/session";
 
@@ -15,6 +16,24 @@ export function SessionFrame({ children }: { children: ReactNode }) {
   const { me } = useMe();
   const session = useSession();
   const navigate = useNavigate();
+  const [askingGuest, setAskingGuest] = useState(false);
+
+  // A guest is asked first (agreement 13), and anyone else signs out straight away.
+  // Firebase is loaded only now, so a signed-in user's pages still don't load it.
+  async function chooseSignOut() {
+    let guest: boolean;
+    try {
+      const { isSignedInAsGuest } = await import("@/lib/firebase");
+      guest = await isSignedInAsGuest();
+    } catch (error) {
+      // Ask when Firebase can't say: an extra question costs a Google user one tap, and a
+      // missing one costs a guest their tokens.
+      console.error("Checking for a guest sign-in failed", error);
+      guest = true;
+    }
+    if (guest) setAskingGuest(true);
+    else await signOut();
+  }
 
   async function signOut() {
     try {
@@ -34,6 +53,11 @@ export function SessionFrame({ children }: { children: ReactNode }) {
         <AccountMenu
           userId={me.user.id}
           isGeekyKeyAdmin={me.user.is_geekykey_admin}
+          onSignOut={() => void chooseSignOut()}
+        />
+        <GuestSignOutDialog
+          open={askingGuest}
+          onOpenChange={setAskingGuest}
           onSignOut={() => void signOut()}
         />
       </header>

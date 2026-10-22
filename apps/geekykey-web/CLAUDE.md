@@ -39,7 +39,8 @@ FRO-30. The login screen signs in with Firebase's web SDK, through `src/lib/fire
 (agreement 7.2). It also offers "Continue as guest", which the Event screens don't (FRO-59).
 When `/me` answers 401 and Firebase still remembers the user, `src/lib/session-provider.tsx`
 logs them in again without showing the login. A returning guest who saw the login instead
-would press "Continue as guest" and become a new guest, who doesn't own their tokens.
+would press "Continue as guest" and become a new guest, who doesn't own their tokens. For the
+same reason a guest is asked before signing out, in section 13's words (FRO-62).
 There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,
 which would have been one, was canceled.
 
