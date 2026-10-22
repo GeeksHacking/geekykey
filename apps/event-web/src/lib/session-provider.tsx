@@ -26,7 +26,7 @@ export function SessionProvider({
   loginLink,
 }: {
   children: ReactNode;
-  loginLink?: string | null;
+  loginLink?: string;
 }) {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -35,15 +35,15 @@ export function SessionProvider({
     at: number;
   }>();
   // A link works once, so it is sent once, however often /me is read afterwards.
-  const unsentLoginLink = useRef(loginLink ?? null);
+  const unsentLoginLink = useRef(loginLink);
   const [loginLinkError, setLoginLinkError] = useState<unknown>();
 
   const me = useQuery({
     queryKey: queryKeys.me,
     queryFn: async (): Promise<MeResponse | null> => {
       const link = unsentLoginLink.current;
-      if (link !== null) {
-        unsentLoginLink.current = null;
+      if (link !== undefined) {
+        unsentLoginLink.current = undefined;
         try {
           await api.loginLink(link);
         } catch (error) {

@@ -189,8 +189,8 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
  * the code the status gives everywhere else: a 401 is unauthenticated, which reads as a lost
  * session, and a 503 is a service that did not answer. The table says so for what a body the
  * client cannot read cannot say. Agreement 7.4's login link answers 401 invalid_login_link
- * for the same reason: a link that fails leaves the session as it was. A body it can read wins: it is the service's own answer,
- * and the Worker in front of the screens answers 503 service_unavailable under /api and
+ * for the same reason: a link that fails leaves the session as it was. A body it can read
+ * wins: it is the service's own answer, and the Worker in front of the screens answers 503 service_unavailable under /api and
  * /auth (agreement 2).
  */
 const ENDPOINT_CODES: Record<string, Record<number, ErrorCode>> = {
