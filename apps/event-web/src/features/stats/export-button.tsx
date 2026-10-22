@@ -8,13 +8,20 @@ import { Button } from "@/components/ui/button";
 import { escapeSpreadsheetFormulas } from "@/lib/csv";
 import { formatFileStamp } from "@/lib/format";
 
+/** Section 13 sets both sentences, and the screens use them as they are written there. */
+const ESCAPING_RULE =
+  "A name that starts with =, +, - or @ gets an apostrophe, so a spreadsheet cannot run it as a formula.";
+const REWRITTEN_NOTICE = "Some names were escaped, so this file is not the service's own.";
+
 /** GET /admin/export.csv. The raw tap feed for the Sprint 2 analysis, so it must never be cut. */
 export function ExportButton() {
   const api = useApi();
   const [pending, setPending] = useState(false);
+  const [rewritten, setRewritten] = useState(false);
 
   async function download() {
     setPending(true);
+    setRewritten(false);
     let anchor: HTMLAnchorElement | null = null;
     let objectUrl: string | null = null;
     try {
@@ -24,6 +31,7 @@ export function ExportButton() {
       const blob = escaped.rewritten
         ? new Blob([escaped.csv], { type: source.type || "text/csv;charset=utf-8" })
         : source;
+      setRewritten(escaped.rewritten);
       objectUrl = URL.createObjectURL(blob);
       anchor = document.createElement("a");
       anchor.href = objectUrl;
@@ -43,9 +51,15 @@ export function ExportButton() {
   }
 
   return (
-    <Button variant="outline" onClick={() => void download()} disabled={pending}>
-      <DownloadSimple aria-hidden />
-      {pending ? "Preparing" : "Download CSV"}
-    </Button>
+    <div className="flex flex-col items-end gap-1.5 text-right">
+      <Button variant="outline" onClick={() => void download()} disabled={pending}>
+        <DownloadSimple aria-hidden />
+        {pending ? "Preparing" : "Download CSV"}
+      </Button>
+      <p className="max-w-[36ch] text-xs text-muted-foreground">{ESCAPING_RULE}</p>
+      <p role="status" className="max-w-[36ch] text-xs text-foreground">
+        {rewritten ? REWRITTEN_NOTICE : null}
+      </p>
+    </div>
   );
 }

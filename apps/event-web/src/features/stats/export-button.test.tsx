@@ -40,7 +40,48 @@ afterEach(() => {
 });
 
 describe("ExportButton", () => {
-  it("sanitizes the downloaded CSV and revokes its URL after the click", async () => {
+  // The export is the feed for the A/B analysis, so the file the organiser gets is the
+  // file the service sent. Section 13 says the rule under the button, and says when a
+  // file was changed that it is not the service's own.
+  it("hands the browser the file the service sent, and revokes its URL after the click", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    render(
+      <ApiProvider client={api}>
+        <ExportButton />
+      </ApiProvider>,
+    );
+
+    expect(
+      screen.getByText(
+        "A name that starts with =, +, - or @ gets an apostrophe, so a spreadsheet cannot run it as a formula.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Some names were escaped, so this file is not the service's own."),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    });
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(createdBlob).toBeInstanceOf(Blob);
+    expect(await createdBlob?.text()).toBe(await (await api.exportCsv()).text());
+    expect(
+      screen.queryByText("Some names were escaped, so this file is not the service's own."),
+    ).not.toBeInTheDocument();
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.runAllTimers();
+    });
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:export");
+  });
+
+  it("says the file is not the service's own when a name was escaped", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);
     const station = api.mock.data.stations.at(0);
@@ -60,13 +101,9 @@ describe("ExportButton", () => {
     });
 
     expect(click).toHaveBeenCalledTimes(1);
-    expect(createdBlob).toBeInstanceOf(Blob);
     expect(await createdBlob?.text()).toContain("'=2+2");
-    expect(revokeObjectUrl).not.toHaveBeenCalled();
-
-    await act(async () => {
-      vi.runAllTimers();
-    });
-    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:export");
+    expect(
+      screen.getByText("Some names were escaped, so this file is not the service's own."),
+    ).toBeInTheDocument();
   });
 });
