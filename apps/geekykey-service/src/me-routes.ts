@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { type ClaimedToken, type Claims, ClaimsUnavailable } from "./claims.ts";
+import type { Claims } from "./claims.ts";
+import { withClaimsDeadline } from "./claims-deadline.ts";
 import type { EventServiceEntry } from "./config.ts";
-import { log } from "./lib/log.ts";
 import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
 
 export interface MeRouteDeps {
@@ -34,20 +34,18 @@ export function meRoutes({
     publicUrl === null ? [] : [{ id, name, url: publicUrl }],
   );
 
-  return new Hono<SessionEnv>().get("/", requireSession(session), async (c) => {
-    const { userId } = c.var;
-    let tokens: ClaimedToken[];
-    try {
-      tokens = await claims.tokensOf(userId, AbortSignal.timeout(deadlineMs));
-    } catch (err) {
-      if (!(err instanceof ClaimsUnavailable)) throw err;
-      log("claims_unavailable", { user_id: userId, reason: err.reason, status: err.status });
-      return c.json({ error: "claims_unavailable" }, 503);
-    }
-    return c.json({
-      user: { id: userId, is_geekykey_admin: geekykeyAdmins.has(userId) },
-      tokens: tokens.map(({ uid, claimedAt }) => ({ uid, claimed_at: claimedAt })),
-      events,
-    });
-  });
+  return new Hono<SessionEnv>().get(
+    "/",
+    requireSession(session),
+    async (c) =>
+      await withClaimsDeadline(c, deadlineMs, async (signal) => {
+        const { userId } = c.var;
+        const tokens = await claims.tokensOf(userId, signal);
+        return c.json({
+          user: { id: userId, is_geekykey_admin: geekykeyAdmins.has(userId) },
+          tokens: tokens.map(({ uid, claimedAt }) => ({ uid, claimed_at: claimedAt })),
+          events,
+        });
+      }),
+  );
 }
