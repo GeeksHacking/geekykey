@@ -61,6 +61,9 @@ vi.mock("@/api/mode", async (importOriginal) => {
 
 const OLDEST = "04 A1 B2 C3 D4 E5 F6";
 const NEWEST = "04 B7 C9 E1 F3 A5";
+/** A token nobody owns, so the form can claim it (agreement 8.2). */
+const UNCLAIMED = "04E5F7091B3D";
+const UNCLAIMED_DISPLAYED = "04 E5 F7 09 1B 3D";
 
 let api: MockApiClient;
 let location: ReturnType<typeof stubLocation>;
@@ -199,6 +202,17 @@ describe("My tokens", () => {
     // The form comes first, so a second token can be claimed without leaving the page.
     expect(input.compareDocumentPosition(oldest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("button", { name: "Claim" })).toBeInTheDocument();
+  });
+
+  it("adds a token claimed by code to the list, because a claim changes what /me holds", async () => {
+    api.mock.setSession(SEEDED_ADMIN_ID);
+    renderHome();
+    await screen.findByText(/You haven't claimed a token yet\./);
+
+    await userEvent.type(screen.getByLabelText("Token UID"), UNCLAIMED);
+    await userEvent.click(screen.getByRole("button", { name: "Claim" }));
+
+    expect(await screen.findByText(UNCLAIMED_DISPLAYED)).toBeInTheDocument();
   });
 
   it("hides the claim form while a live build still sends it to the mock", async () => {
