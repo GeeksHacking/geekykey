@@ -16,6 +16,8 @@ Read those files before adding screens. They are references, not documents to co
 - API types follow the agreement; the mock is the default test and demo data source.
 - Do not introduce a shared component package between the two web apps.
 - Copy a shadcn component from `apps/event-web/src/components/ui/` only when a GeekyKey screen needs it.
+- Forms use react-hook-form and zod through the shadcn `Form`, in `src/components/ui/form.tsx` and
+  `src/components/ui/input.tsx`.
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see "Tailwind 4 notes" in `apps/event-web/CLAUDE.md`).
 - Keep GeekyKey Service and Event Service concerns separate.
 - The Vite dev server proxies `/api` and `/auth` to `http://localhost:8000`.
@@ -33,8 +35,11 @@ Read those files before adding screens. They are references, not documents to co
 
 The app is a routed shell with `/login`, a pathless signed-in layout, My tokens as the home
 page (still a placeholder until FRO-27), the data layer in `src/api/`, and sign-in and sign-out
-(FRO-19), and claiming a token from the token page (FRO-22). Claiming by code on My tokens is
-FRO-30. The login screen signs in with Firebase's web SDK, through `src/lib/firebase.ts` and
+(FRO-19), and claiming a token from the token page (FRO-22). My tokens also claims a token by
+typing its UID, for the tokens a phone cannot read (FRO-30). The form is in
+`src/features/home/claim-by-code-form.tsx`, and the claim it makes goes through the hook in
+`src/lib/use-claim-token.ts`, which the token page uses too.
+The login screen signs in with Firebase's web SDK, through `src/lib/firebase.ts` and
 `src/features/auth/firebase-sign-in.tsx`, and sends the ID token to the GeekyKey Service
 (agreement 7.2). It also offers "Continue as guest", which the Event screens don't (FRO-59).
 When `/me` answers 401 and Firebase still remembers the user, `src/lib/session-provider.tsx`
@@ -57,7 +62,8 @@ answers from the mock's fixtures while My tokens answers from the service, so th
 agree about who owns a token. The token page says where its data came from in a "Demo data"
 notice, the way the Event screens' organiser console does, so a claim there cannot look like
 a claim on the service. The notice's wording is section 13's. My tokens lists the service's
-tokens, so a live build hides its Release while `releaseToken` is still on the mock
+tokens, so a live build hides its Release while `releaseToken` is still on the mock, and
+hides the claim-by-code form while `claimToken` is still on the mock
 (`isLeftOnMock` in `src/api/mode.ts`).
 
 `pnpm dev` runs the app on the mock. `pnpm dev:live` sends the live slice to the service, and
