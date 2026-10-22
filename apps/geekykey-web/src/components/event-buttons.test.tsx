@@ -49,9 +49,9 @@ describe("EventButtons", () => {
 
   it("shows nothing when there are no events", () => {
     // The ticket says no events, no buttons, and nothing else changes.
-    renderButtons([]);
+    const { container } = renderButtons([]);
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("opens the url the answer carries", async () => {

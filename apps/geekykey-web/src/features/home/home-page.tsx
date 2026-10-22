@@ -1,5 +1,6 @@
 import type { Token } from "@/api/types";
 
+import { EventButtons } from "@/components/event-buttons";
 import { TokenRow } from "@/features/home/token-row";
 import { useMe } from "@/lib/session";
 
@@ -11,7 +12,11 @@ import { useMe } from "@/lib/session";
  * the error state and the redirect to /login), so this page only renders with a
  * signed-in user.
  *
- * Not in this ticket: claiming by code is FRO-30 and the event links are FRO-31.
+ * The buttons under the list open each event in /me, as the same user (FRO-31). They
+ * do not depend on the user holding a token: the events are the ones the service
+ * lists, whoever is asking.
+ *
+ * Not in this ticket: claiming by code is FRO-30.
  */
 export function HomePage() {
   const { me } = useMe();
@@ -20,6 +25,7 @@ export function HomePage() {
     <main className="flex flex-col">
       <h1 className="text-3xl font-semibold tracking-heading">My tokens</h1>
       {me.tokens.length === 0 ? <NoTokensYet /> : <TokenList tokens={me.tokens} />}
+      <EventButtons events={me.events} className="mt-8" />
     </main>
   );
 }
