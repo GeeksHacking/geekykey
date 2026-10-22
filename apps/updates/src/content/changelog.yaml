@@ -1344,3 +1344,11 @@
     trade-offs we accept: Cloudflare counts each limit separately in each of its data centres, so
     a sender can sometimes get past it, and the first limit waits for Julian to confirm its three
     IDs are free on GeeksHacking's account.
+
+- id: token-lookup-says-who-owns-a-token
+  date: 2026-10-22
+  area: backend
+  change: >-
+    The GeekyKey Service can now tell the token page whether a token is unclaimed, the user's own,
+    or someone else's, without naming the owner. A GeekyKey admin also gets the owner's user ID, to
+    release the token with. Nothing calls it on production until the token page switches to it.
