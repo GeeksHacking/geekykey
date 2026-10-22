@@ -1413,6 +1413,14 @@
     notice is gone. My tokens has a Release button on each token, and a form to claim a token
     by typing its code.
 
+- id: the-export-says-when-it-was-rewritten
+  date: 2026-10-22
+  area: frontend
+  change: >-
+    The organiser's CSV download is the file the service sent, unless a name needed escaping, and
+    only that name changes. The summary says the rule under the Download CSV button, and says when
+    a file was changed that it is not the service's own.
+
 - id: checkpoint-6-done
   date: 2026-10-23
   area: backend
@@ -1423,3 +1431,4 @@
     else held, and a guest claimed one from its token page. The tests show each of the three rate
     limits turning requests away. Checkpoint 7, the Event Service's features for organizers, comes
     next.
+
