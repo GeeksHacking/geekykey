@@ -21,6 +21,8 @@
     "worker:dry-run": "wrangler deploy --dry-run"
   },
   "dependencies": {
+    "@firebase/app": "0.16.3",
+    "@firebase/auth": "1.13.7",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/open-sans": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
@@ -33,7 +35,6 @@
     "@tanstack/react-router": "^1.170.45",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "firebase": "^13.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sonner": "^2.0.8",
