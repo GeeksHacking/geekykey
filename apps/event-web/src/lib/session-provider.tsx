@@ -68,24 +68,10 @@ export function SessionProvider({
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "me" });
   }, [queryClient]);
 
-  useEffect(() => {
-    const onAuthError = (event: Event) => {
-      const error = (event as CustomEvent<unknown>).detail;
-      if (isApiErrorCode(error, "unauthenticated")) {
-        queryClient.setQueryData(queryKeys.me, null);
-        clearIdentityQueries();
-      } else if (isApiErrorCode(error, "forbidden")) {
-        setAuthorizationFailure({ error, at: Date.now() });
-      }
-    };
-    window.addEventListener(AUTH_ERROR_EVENT, onAuthError);
-    return () => window.removeEventListener(AUTH_ERROR_EVENT, onAuthError);
-  }, [clearIdentityQueries, queryClient]);
-
   /**
-   * Writes the session and drops the /me query with it. A poll that was asked for before
-   * the change answers with the session as it was then, so its late answer would undo the
-   * new one, and the change has to drop it wherever it is written.
+   * Every write of the session goes through here. A poll asked for before the write answers
+   * with the session as it was then, so the write drops it, or its late answer would undo
+   * the new session.
    */
   const settleSession = useCallback(
     (data: MeResponse | null) => {
@@ -94,6 +80,20 @@ export function SessionProvider({
     },
     [queryClient],
   );
+
+  useEffect(() => {
+    const onAuthError = (event: Event) => {
+      const error = (event as CustomEvent<unknown>).detail;
+      if (isApiErrorCode(error, "unauthenticated")) {
+        settleSession(null);
+        clearIdentityQueries();
+      } else if (isApiErrorCode(error, "forbidden")) {
+        setAuthorizationFailure({ error, at: Date.now() });
+      }
+    };
+    window.addEventListener(AUTH_ERROR_EVENT, onAuthError);
+    return () => window.removeEventListener(AUTH_ERROR_EVENT, onAuthError);
+  }, [clearIdentityQueries, settleSession]);
 
   const clearForSignIn = useCallback(() => {
     // Drop a pre-login poll so its late response cannot overwrite the new identity, and
@@ -148,10 +148,9 @@ export function SessionProvider({
       return api.logout();
     },
     onMutate: () => {
-      // Cancel a poll that could otherwise restore the old identity after logout starts.
-      void queryClient.cancelQueries({ queryKey: queryKeys.me });
-      // Hide cached identity data even if the network request later fails.
-      queryClient.setQueryData(queryKeys.me, null);
+      // Drop a poll that could otherwise restore the old identity after logout starts, and
+      // hide cached identity data even if the network request later fails.
+      settleSession(null);
       setAuthorizationFailure(undefined);
       setLoginLinkError(undefined);
       clearIdentityQueries();
