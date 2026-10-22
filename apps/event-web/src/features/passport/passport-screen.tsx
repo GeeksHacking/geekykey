@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { DisplayNameRow } from "@/features/passport/display-name-row";
-import { useNamePromptSkip } from "@/features/passport/name-prompt-skip";
+import { useNamePromptSkip } from "@/features/passport/use-name-prompt-skip";
 import { NamePrompt } from "@/features/passport/name-prompt";
 import { StampGrid } from "@/features/passport/stamp-grid";
 import { useMe } from "@/lib/session";

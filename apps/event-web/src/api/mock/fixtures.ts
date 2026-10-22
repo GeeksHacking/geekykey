@@ -317,8 +317,8 @@ export function createFixtures(now: number = Date.now()): MockData {
 
   /*
     A guest who has just arrived from the GeekyKey screens: the default name, no name of
-    their own and no taps yet. Added after the taps, so the random taps above stay as
-    they were.
+    their own and no taps in the fixtures. Added after the taps, so the random taps above
+    stay as they were. The simulator can give them taps later, as it does any participant.
   */
   users.push({ id: SEEDED_GUEST_ID, display_name: "Guest", role: "participant", has_name: false });
 

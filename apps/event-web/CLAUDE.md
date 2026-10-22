@@ -168,7 +168,9 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
 - Writes are `useMutation` hooks whose `onSuccess` invalidates the keys they change, so
   screens never pass "refetch me" callbacks around. Example:
   `features/fallback/use-log-fallback-tap.ts` invalidates `["me"]` after a successful QR
-  fallback.
+  fallback. A write that answers with what it changed puts that into the cache instead:
+  `features/passport/use-set-display-name.ts` writes the `user` that `PATCH /me` answers
+  into `["me"]`.
 - Screens read `isPending`, `isError`, `isFetching`, `dataUpdatedAt`, and `data`. They do
   not hold copies of server data in `useState`.
 - The session is the `["me"]` query in `lib/session-provider.tsx`. A 401 is a normal
@@ -281,8 +283,7 @@ an organiser. The mock session survives a reload but not a new tab. The GeekyKey
 event buttons open these screens with a login link. To try that on the mock, open
 `http://localhost:5173/#login=mock`, which logs in as Alex Tan, or `#login=guest`, which logs in
 as a guest who has no name yet, so the passport asks for one. Any other value after `login=` is
-an expired link. On the live backend, `mise run seed -- --name Guest` gives `dev-user-1` the
-default name, which does the same.
+an expired link.
 
 The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, which the runbook's step 13
 sets. The committed `.env.development` carries them, so a fresh clone can sign in, and a
@@ -422,7 +423,8 @@ Rules:
 - Timestamps arrive as UTC ISO strings. Format for display in the user's local zone, in
   the mono font. Never parse IDs. Only `taps.id` is numeric, and only for the cursor.
 - Every non-2xx body is `{ error, issues? }`. Switch on `error`:
-   - `validation_failed`: show each `issues[].message` inline under the field at `issues[].path`.
+   - `validation_failed`: show each `issues[].message` inline under the field at `issues[].path`,
+     unless section 13 sets the sentence, as it does for the name ("Use 1 to 30 characters.").
    - `unauthenticated`: go to login and remember `return_to`.
    - `invalid_token` / `login_unavailable`: the sign-in did not work. Both say "Couldn't
      log you in. Try again." (agreement 7.2, section 13). `invalid_token` is the service
@@ -442,9 +444,9 @@ Rules:
    - `invalid_event_service_key` / station-key errors: setup/configuration message.
    - `internal_error` or a network failure: generic error state with a retry button.
 - Out of scope, do not build UI for it: leaderboards, dual-tap, archetype quests, event
-  CRUD, editing or deleting taps, profile editing beyond the name (8.7), reading a station key back, Web Serial or
-  USB device configuration. Replacing a station's key is **not** out of scope: agreement 9.8
-  does it on the station board and FRO-28 builds it.
+  CRUD, editing or deleting taps, profile editing beyond the name (8.7), reading a station
+  key back, Web Serial or USB device configuration. Replacing a station's key is **not** out
+  of scope: agreement 9.8 does it on the station board and FRO-28 builds it.
 
 ## Screens (MVP)
 
