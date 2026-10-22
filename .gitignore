@@ -35,7 +35,3 @@ docs/report
 # Ethan's personal agent skills. The shared ones in .agents/skills/ are tracked;
 # these are local only and never go to GitHub.
 .agents/personal/
-
-# The MiniMax skills, cloned locally for an agent to read. It is a repository of
-# its own, so it never goes to GitHub.
-minimax-skills/
