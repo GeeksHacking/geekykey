@@ -174,6 +174,10 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
   answer, so the query function returns `null` for it instead of throwing; `undefined`
   means not fetched yet, an object means signed in. Sign-out sets it to `null` and drops
   every other cached query so nothing leaks to the next person at a shared laptop.
+- The first `["me"]` read also sends the login link a page arrived with
+  (`POST /auth/login-link`, agreement 7.4). It is a write, but it is not a mutation: the
+  agreement has it sent before anything reads `/me`, and sending it inside that read is
+  what guarantees the order.
 - The scan log is two queries: a polled head with no cursor, merged by `id` with an
   infinite query for older pages that only fetches on "Load older taps". This is the
   agreement's live-feed recipe, not a plain `useInfiniteQuery` with polling, which would
@@ -272,9 +276,10 @@ Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test
 `pnpm format:event-web`.
 
 Sign in on the login page with a seeded account. Alex Tan is a participant, Priya Raman is
-an organiser. The mock session survives a reload but not a new tab. To arrive as the GeekyKey
-screens' event buttons send people, open `http://localhost:5173/#login=mock`, which logs in as
-Alex Tan; any other value after `login=` is an expired link.
+an organiser. The mock session survives a reload but not a new tab. The GeekyKey screens'
+event buttons open these screens with a login link. To try that on the mock, open
+`http://localhost:5173/#login=mock`, which logs in as Alex Tan. Any other value after
+`login=` is an expired link.
 
 The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, which the runbook's step 13
 sets. The committed `.env.development` carries them, so a fresh clone can sign in, and a
@@ -419,8 +424,9 @@ Rules:
      log you in. Try again." (agreement 7.2, section 13). `invalid_token` is the service
      refusing the ID token, and it is not a lost session.
    - `invalid_login_link`, or `validation_failed` from `POST /auth/login-link`: the link the
-     page arrived with did not log anyone in. Say section 13's sentence above whatever the
-     session the browser already had shows (`features/auth/login-link-notice.tsx`).
+     page arrived with did not log anyone in. Show section 13's sentence
+     (`features/auth/login-link-notice.tsx`). The session the browser already had carries
+     on, so the sentence sits above the screen it shows.
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.

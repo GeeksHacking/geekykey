@@ -27,14 +27,14 @@ describe("takeLoginLink", () => {
   it("does nothing on a page with no login in its fragment", () => {
     window.history.replaceState(null, "", "/activity#recent");
 
-    expect(takeLoginLink()).toBeNull();
+    expect(takeLoginLink()).toBeUndefined();
     expect(window.location.hash).toBe("#recent");
   });
 
   it("does nothing on a page with no fragment", () => {
     window.history.replaceState(null, "", "/");
 
-    expect(takeLoginLink()).toBeNull();
+    expect(takeLoginLink()).toBeUndefined();
     expect(window.location.href).toBe(`${window.location.origin}/`);
   });
 });
