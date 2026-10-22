@@ -43,7 +43,8 @@
   },
 
   // The rate limits (the API agreement's section 2, "Rate limits"; the
-  // migration spec's 5.1). We chose 7101 to 7103 ourselves (BAC-67).
+  // migration spec's 5.1). We chose 7101 to 7103 ourselves (BAC-67), and
+  // Julian knows they're taken (22 Oct 2026).
   // Bindings that share a namespace_id on one account share a count only
   // for the same key, and our keys are hashes and IDs no other Worker
   // sends, so another Worker's use of these IDs wouldn't touch ours. Each
