@@ -597,11 +597,21 @@ the API key only names the project, and Firebase allows sign-in only from `local
 ```js
 initializeApp({
   apiKey: "AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc",
-  authDomain: "geekykey-b035a.firebaseapp.com",
+  authDomain:
+    location.hostname === "localhost" ? "geekykey-b035a.firebaseapp.com" : location.host,
   projectId: "geekykey-b035a",
   appId: "1:468223998400:web:19878ad2672a1c7116b025",
 });
 ```
+
+`authDomain` is where the sign-in popup opens Firebase's pages, and the address Google's
+sign-in names ("to continue to event.geekshacking.com"). In production it's the page's own
+address. Each set of screens' Worker forwards `/__/auth/*` and `/__/firebase/init.json` to
+`https://geekykey-b035a.firebaseapp.com` without the browser's cookie, and sends Firebase's
+answer back unchanged. On `localhost` no Worker forwards them, so `authDomain` stays
+`geekykey-b035a.firebaseapp.com`. Google returns from the popup only to an address the
+project's OAuth client lists: `https://event.geekshacking.com/__/auth/handler` and
+`https://key.geekshacking.com/__/auth/handler`. GeeksHacking's client needs the same two.
 
 1. Sign in with `signInWithPopup`, using `GoogleAuthProvider` for Google, or
    `new OAuthProvider("oidc.geekshacking")` for GeeksHacking's login. Disable the button while
@@ -1551,3 +1561,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | The GeekyKey Service's claim, `POST /api/v1/tokens/{uid}/claim` (8.2), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It reads the user's own tokens from the claims stand-in, then asks the stand-in to claim the token, with one 4-second deadline for both calls, and runs 8.2's checks in their stated order. The limit is a new setting, `MAX_TOKENS_PER_USER`, set to 3. Nobody is exempt, GeekyKey admins included. When the stand-in doesn't answer properly in time, the claim answers `503 claims_unavailable`. The stand-in may have saved the claim before its answer went wrong. Then the claim stands, and trying again answers `200`, as 8.2 and section 8's opening now say. 8.2's errors now list `unauthenticated`, which section 2 already implied. They also list `claims_unavailable`, which section 8's opening already gave it. Its `rate_limited` waits for the rate limits later in checkpoint 6. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-68). |
 | 2026-10-22 | The GeekyKey Service's station limit is `Implemented`: each station gets 60 requests a minute, taps and heartbeats together, then `429 rate_limited` with `Retry-After: 60`. [Rate limits](#rate-limits) now says it counts a request by the key it sends, before the key is checked, so a wrong key is counted too and gets `429` once over, and that a request with no key isn't counted. It also says the GeekyKey Service's limits are approximate, since Cloudflare counts them in each data centre. 6.1 and 6.2 point their `rate_limited` at it, and 6.2 says a wrong key gets `401` until it's over the limit. The user limits are still `Checkpoint 6`. No shape changes (BAC-67). |
 | 2026-10-22 | The GeekyKey Service's release, `DELETE /api/v1/tokens/{uid}` (8.3), is `Implemented`. It takes `{uid}` in any separator style. An owner releases their own token. A GeekyKey admin releases someone else's by naming the owner in `owner_id`, and the service checks `GEEKYKEY_ADMINS` on every request. The claims stand-in deletes the claim only while that owner still holds it, so a release for an owner who no longer holds the token answers `404 not_found` and leaves any newer claim alone. Every release writes a `token_released` log line with the UID, the owner and who released it, as user IDs. When the stand-in doesn't answer properly within 4 seconds, the release answers `503 claims_unavailable`. The stand-in may have deleted the claim before its answer went wrong, as 8.3 and section 8's opening now say, so that answer's `claims_unavailable` log line names the UID and the owner as well. 8.3's errors now list `unauthenticated`, `validation_failed` and `rate_limited`, which section 2 already implied, and `claims_unavailable`, which section 8's opening already gave it. An `owner_id` must be 1 to 128 characters, as a user ID is in 11.2. Its `rate_limited` waits for the rate limits later in checkpoint 6. `GEEKYKEY_ADMINS` on production lists Adam, for checkpoint 6's proof. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-69). |
+| 2026-10-22 | 7.2's `authDomain` is the page's own address, no longer `geekykey-b035a.firebaseapp.com`, except on `localhost`. Each set of screens' Worker forwards Firebase's sign-in pages, `/__/auth/*` and `/__/firebase/init.json`, to `https://geekykey-b035a.firebaseapp.com`, so Google's sign-in names `event.geekshacking.com` or `key.geekshacking.com`. The services don't change: the ID token's audience is still the project ID. A change within 0.5, which Ethan approves in its pull request. No endpoint or shape changes (FRO-72). |

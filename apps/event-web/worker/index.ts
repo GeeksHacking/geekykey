@@ -1,19 +1,23 @@
 /**
- * The Event screens' Worker. Static assets serve the screens; only /api/* and /auth/*
- * reach this code (`run_worker_first` in wrangler.jsonc), and it passes each one to the
- * Event Service, unchanged both ways.
+ * The Event screens' Worker. Static assets serve the screens; only /api/*, /auth/* and
+ * Firebase's sign-in pages reach this code (`run_worker_first` in wrangler.jsonc). It passes
+ * Firebase's pages to Firebase (firebase.ts), and the rest to the Event Service, unchanged
+ * both ways.
  *
- * It reads EVENT_API_URL once, here, as the Worker starts. A wrong one throws ConfigError,
- * which stops it starting.
+ * It reads EVENT_API_URL and FIREBASE_AUTH_URL once, here, as the Worker starts. A wrong one
+ * throws ConfigError, which stops it starting.
  */
 import { env } from "cloudflare:workers";
-import { eventApiUrl } from "./config.ts";
+import { eventApiUrl, firebaseAuthUrl } from "./config.ts";
+import { isFirebasePath, toFirebase } from "./firebase.ts";
 
 const eventService = eventApiUrl(env.EVENT_API_URL);
+const firebase = firebaseAuthUrl(env.FIREBASE_AUTH_URL);
 
 export default {
   async fetch(request) {
     const { pathname, search } = new URL(request.url);
+    if (isFirebasePath(pathname)) return toFirebase(firebase, request);
     // The same method, headers, cookie and body, at the Event Service's address.
     // A redirect isn't followed. It goes back to the browser with its Set-Cookie, as
     // the Event Service sent it, for the Portal's login after the showcase. Every answer keeps

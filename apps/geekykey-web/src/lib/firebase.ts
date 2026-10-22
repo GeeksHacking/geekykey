@@ -14,17 +14,28 @@ import {
 
 /**
  * Firebase's web config for the showcase (agreement 7.2). It comes from the build, under the
- * four names in the runbook's step 13: VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN,
- * VITE_FIREBASE_PROJECT_ID and VITE_FIREBASE_APP_ID. None of it is secret: the API key only
- * names the project, and Firebase allows sign-in only from localhost,
- * key.geekshacking.com and event.geekshacking.com.
+ * three names in the runbook's step 13: VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID and
+ * VITE_FIREBASE_APP_ID. None of it is secret: the API key only names the project, and
+ * Firebase allows sign-in only from localhost, key.geekshacking.com and
+ * event.geekshacking.com.
  */
 const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain: authDomain(import.meta.env.VITE_FIREBASE_PROJECT_ID),
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
+
+/**
+ * Where the sign-in popup opens Firebase's pages, which is the address Google's sign-in names
+ * (agreement 7.2). That's this page's own address, whose Worker forwards the pages to
+ * Firebase (worker/firebase.ts). On localhost no Worker forwards them, so `pnpm dev` and
+ * `pnpm worker:dev` use the project's own firebaseapp.com.
+ */
+function authDomain(projectId: string | undefined): string {
+  if (location.hostname === "localhost") return `${projectId}.firebaseapp.com`;
+  return location.host;
+}
 
 /**
  * The GeeksHacking login, an OpenID Connect provider inside Firebase. It is turned on once
@@ -115,12 +126,7 @@ function savedUser(): Promise<User | null> {
  * to sign in to, so there is no Firebase session to end and no sign-in to offer.
  */
 export function hasFirebaseConfig(): boolean {
-  return Boolean(
-    FIREBASE_CONFIG.apiKey &&
-    FIREBASE_CONFIG.authDomain &&
-    FIREBASE_CONFIG.projectId &&
-    FIREBASE_CONFIG.appId,
-  );
+  return Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.appId);
 }
 
 /**

@@ -1386,3 +1386,12 @@
     The GeekyKey Service can now release a token for its owner, or for a GeekyKey admin who names
     the owner the token page showed, and logs who released it. Nothing calls it on production
     until the token page and My tokens switch to it.
+
+- id: google-sign-in-names-our-addresses
+  date: 2026-10-22
+  area: frontend
+  change: >-
+    Signing in with Google on event.geekshacking.com or key.geekshacking.com now says "to
+    continue to" that address, not geekykey-b035a.firebaseapp.com. Each site passes Firebase's
+    sign-in pages through its own address. Local development still signs in through
+    firebaseapp.com.

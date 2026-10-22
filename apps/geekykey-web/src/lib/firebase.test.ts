@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  initializeApp,
   getAuth,
   signInWithPopup,
   signInAnonymously,
@@ -9,6 +10,7 @@ const {
   GoogleAuthProvider,
   OAuthProvider,
 } = vi.hoisted(() => ({
+  initializeApp: vi.fn<(config: object) => { name: string }>(() => ({ name: "app" })),
   getAuth: vi.fn(() => ({ name: "auth" })),
   signInWithPopup: vi.fn(),
   signInAnonymously: vi.fn(),
@@ -18,7 +20,7 @@ const {
   OAuthProvider: vi.fn(),
 }));
 
-vi.mock("@firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
+vi.mock("@firebase/app", () => ({ initializeApp }));
 vi.mock("@firebase/auth", () => ({
   getAuth,
   signInWithPopup,
@@ -41,17 +43,15 @@ function firebaseRemembers(
   return unsubscribe;
 }
 
-/** The four names the runbook's step 13 gives Julian, with the values of agreement 7.2. */
+/** The three names the runbook's step 13 gives Julian, with the values of agreement 7.2. */
 const CONFIG = {
   VITE_FIREBASE_API_KEY: "api-key",
-  VITE_FIREBASE_AUTH_DOMAIN: "geekykey-b035a.firebaseapp.com",
   VITE_FIREBASE_PROJECT_ID: "geekykey-b035a",
   VITE_FIREBASE_APP_ID: "app-id",
 };
 
 const NO_CONFIG = {
   VITE_FIREBASE_API_KEY: undefined,
-  VITE_FIREBASE_AUTH_DOMAIN: undefined,
   VITE_FIREBASE_PROJECT_ID: undefined,
   VITE_FIREBASE_APP_ID: undefined,
 };
@@ -65,8 +65,15 @@ async function loadModule(config: Record<string, string | undefined> = CONFIG) {
   return await import("@/lib/firebase");
 }
 
+/** The page's address, which jsdom otherwise sets to http://localhost:3000. */
+function openAt(url: string) {
+  vi.stubGlobal("location", new URL(url));
+}
+
 beforeEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  initializeApp.mockClear();
   getAuth.mockClear();
   signInWithPopup.mockReset();
   signInAnonymously.mockReset();
@@ -80,7 +87,7 @@ describe("the Firebase module", () => {
     expect(firebase.hasFirebaseConfig()).toBe(false);
   });
 
-  it("says the build has Firebase when the four variables are there", async () => {
+  it("says the build has Firebase when the three variables are there", async () => {
     const firebase = await loadModule();
     expect(firebase.hasFirebaseConfig()).toBe(true);
   });
@@ -183,6 +190,34 @@ describe("the Firebase module", () => {
 
     await expect(firebase.isSignedInAsGuest()).resolves.toBe(false);
     expect(getAuth).not.toHaveBeenCalled();
+  });
+
+  it("signs in through the page's own address, so Google's sign-in names it", async () => {
+    openAt("https://key.geekshacking.com/t/04A1B2C3D4E5F6");
+    const firebase = await loadModule();
+    signInWithPopup.mockResolvedValue({
+      user: { getIdToken: () => Promise.resolve("id-token") },
+    });
+
+    await firebase.signInWithGoogle();
+
+    expect(initializeApp).toHaveBeenCalledWith(
+      expect.objectContaining({ authDomain: "key.geekshacking.com" }),
+    );
+  });
+
+  it("signs in through firebaseapp.com on localhost, which has no Worker to forward it", async () => {
+    openAt("http://localhost:8174/t/04A1B2C3D4E5F6");
+    const firebase = await loadModule();
+    signInWithPopup.mockResolvedValue({
+      user: { getIdToken: () => Promise.resolve("id-token") },
+    });
+
+    await firebase.signInWithGoogle();
+
+    expect(initializeApp).toHaveBeenCalledWith(
+      expect.objectContaining({ authDomain: "geekykey-b035a.firebaseapp.com" }),
+    );
   });
 
   it("tells a popup the user closed from a failure", async () => {

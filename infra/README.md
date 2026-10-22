@@ -711,8 +711,8 @@ here is copied from Google Cloud.
 
 | Worker | Its address | What it does |
 |---|---|---|
-| `event-web` | `event.geekshacking.com` | Serves the Event screens, and passes the browser's `/api/*` and `/auth/*` requests on to the Event Service at `event-api.geekshacking.com` |
-| `geekykey-web` | `key.geekshacking.com` | Serves the GeekyKey screens, including the token page at `key.geekshacking.com/t/<UID>`, which is written on every token. It passes `/api/*` and `/auth/*` on to `geekykey-service` (step 12) inside Cloudflare |
+| `event-web` | `event.geekshacking.com` | Serves the Event screens, and passes the browser's `/api/*` and `/auth/*` requests on to the Event Service at `event-api.geekshacking.com`, and Firebase's sign-in pages on to Firebase |
+| `geekykey-web` | `key.geekshacking.com` | Serves the GeekyKey screens, including the token page at `key.geekshacking.com/t/<UID>`, which is written on every token. It passes `/api/*` and `/auth/*` on to `geekykey-service` (step 12) inside Cloudflare, and Firebase's sign-in pages on to Firebase |
 
 Do steps 13.1 to 13.3 for `event-web`, then again for `geekykey-web`, then step 13.4 once.
 
@@ -745,10 +745,12 @@ Both Workers take the same build variables:
 | `SKIP_DEPENDENCY_INSTALL` | `1` | The build command does the one install |
 | `WRANGLER_SEND_METRICS` | `false` | Wrangler sends anonymous usage data unless told not to |
 | `VITE_LIVE_API` | `1` | The screens call their service. Without it, every page shows made-up data |
-| `VITE_FIREBASE_API_KEY` | `AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc` | Firebase's web config, from section 7.2 of the API agreement. None of the four is secret, since each one ends up in the page anyway |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `geekykey-b035a.firebaseapp.com` | The same |
+| `VITE_FIREBASE_API_KEY` | `AIzaSyDw6Xhurpkj5pFu-qmxjkySBPZm2K8Xhpc` | Firebase's web config, from section 7.2 of the API agreement. None of the three is secret, since each one ends up in the page anyway |
 | `VITE_FIREBASE_PROJECT_ID` | `geekykey-b035a` | The same |
 | `VITE_FIREBASE_APP_ID` | `1:468223998400:web:19878ad2672a1c7116b025` | The same |
+
+Both Workers used to take `VITE_FIREBASE_AUTH_DOMAIN` too. Since FRO-72 the screens use their
+own address, and the build ignores that variable, so delete it whenever it suits you.
 
 ### 13.2 Finish the build settings, and build again
 
@@ -826,7 +828,8 @@ him away, the setting goes to Julian.
 | Google sign-in | Sign-in method tab | On | 10 Oct 2026 |
 | Authorised domains | Settings tab, then Authorised domains | `key.geekshacking.com` and `event.geekshacking.com`, beside the three Firebase adds itself: `localhost`, `geekykey-b035a.firebaseapp.com` and `geekykey-b035a.web.app` | 10 Oct 2026 |
 | The Identity Platform upgrade | Settings tab, then Identity Platform | Upgraded. GeeksHacking's billing account, which it needs, was linked by 9 Oct 2026 | By 21 Oct 2026, since automatic clean-up needs it |
-| GeeksHacking's login | Sign-in method tab, then Add new provider, then OpenID Connect | Provider ID `oidc.geekshacking`, with the client Qing Guan issues for Firebase's redirect URL. Turned off again if Mr Pang says no | Not yet. Waits on Qing Guan's client |
+| Google's return addresses | In the [Google Cloud console](https://console.cloud.google.com/apis/credentials?project=geekykey-b035a), APIs & Services, then Credentials, then the OAuth client "Web client (auto created by Google Service)" | Authorised redirect URIs `https://event.geekshacking.com/__/auth/handler` and `https://key.geekshacking.com/__/auth/handler`, beside the `firebaseapp.com` one Firebase added. Each screens' Worker forwards `/__/auth/*` to Firebase (agreement 7.2). Without them, Google refuses the sign-in with `redirect_uri_mismatch` | Not yet. Before FRO-72 merges |
+| GeeksHacking's login | Sign-in method tab, then Add new provider, then OpenID Connect | Provider ID `oidc.geekshacking`, with the client Qing Guan issues for the two `/__/auth/handler` addresses above. Turned off again if Mr Pang says no | Not yet. Waits on Qing Guan's client |
 | Anonymous sign-in, for guests | Sign-in method tab | On | On by 21 Oct 2026, when BAC-58's check signed a guest in |
 | Automatic clean-up of guests | Settings tab, where Firebase calls it automatic clean-up of anonymous accounts | On, before the rehearsal. Firebase deletes each guest once they are 30 days old | 21 Oct 2026 |
 | Sign-up quota, for the A/B test at the grad tea | Sign-in method tab, below the list of providers | 800 an hour on Thu 12 Nov 2026 | Scheduled 21 Oct 2026 |

@@ -5,8 +5,8 @@ import { request, type IncomingMessage } from "node:http";
  * /api/v1/admin/export.csv, or a call from the screens' code (`same-origin`). They differ,
  * because for a path with no file, single-page-app mode answers a page load with index.html,
  * and without `run_worker_first` passes any other request to the Worker. So the tests send
- * both, to show that only /api and /auth reach the Worker, and every other path gets the
- * screens.
+ * both, to show that only /api, /auth and Firebase's sign-in pages reach the Worker, and
+ * every other path gets the screens.
  */
 export type FetchMode = "navigate" | "same-origin";
 
