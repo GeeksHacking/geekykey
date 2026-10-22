@@ -1439,7 +1439,8 @@ There are no GeekyKey admin screens.
   shows sample data." With the services behind them, the token page says "Demo data. This page
   shows sample tokens, so claiming or releasing one changes nothing.", and the organiser screens
   say "Demo data. These screens show sample stations and taps, so nothing here changes the
-  event." My tokens lists the service's own tokens, so it offers no Release until 8.3 is live.
+  event." My tokens lists the service's own tokens, so it offers no Release until 8.3 is live, and
+  no claim-by-code form until 8.2 is live.
 
 Local setup, from checkpoint 1:
 
@@ -1523,3 +1524,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | Ethan, the screens owner, approved version 0.5, so it is no longer a draft. No endpoint or shape changes (FRO-60). |
 | 2026-10-22 | Section 13 sets the warning a guest sees before signing out on the GeekyKey screens. Signing out ends a guest's Firebase sign-in for good, so their tokens stay claimed and their stamps stay with a user ID nobody can log in as again; a GeekyKey admin at the desk releases the tokens (8.3). A Google or GeeksHacking user isn't asked. No endpoint or shape changes (FRO-62). |
 | 2026-10-22 | The GeekyKey Service's token lookup, `GET /api/v1/tokens/{uid}` (8.5), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It asks the claims stand-in who owns the token. When the owner is the user, it also reads the user's own tokens for `claimed_at`. Both calls share one 4-second deadline, as on `/me`. When the stand-in doesn't answer properly within it, the lookup answers `503 claims_unavailable`. A token released between the two calls reads as `nobody`, which 8.5 now says. Only a GeekyKey admin gets `owner_id`, and the service checks `GEEKYKEY_ADMINS` on every request. Its `rate_limited` waits for the rate limits later in checkpoint 6. Section 2's `400` row now names the path as well as the body and query, and [Token UID](#token-uid) says a UID in a path is percent-encoded, so one typed with `/` between its bytes still arrives whole. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-66). |
+| 2026-10-22 | Section 13 says My tokens offers no claim-by-code form until 8.2 is live, since its list comes from the service and a claim would still go to the sample data. No endpoint or shape changes (FRO-30). |
