@@ -19,9 +19,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 /*
   The real client, copied from apps/event-web so both apps throw the same ApiError
-  and NetworkError types and a screen cannot tell them apart. Which methods the app
-  actually calls through here is decided in src/api/create-client.ts: the session
-  slice is live, and the token methods wait for checkpoint 6.
+  and NetworkError types and a screen cannot tell them apart. A live build calls every
+  method through here (src/api/create-client.ts).
 */
 export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
   const baseUrl = (options.baseUrl ?? "").replace(/\/+$/, "");

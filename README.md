@@ -475,9 +475,8 @@ folder it came from:
 - the Event screens on http://localhost:5173, calling the Event Service for what
   `apps/event-web/src/api/create-client.ts` lists (see [With the Event
   screens](#with-the-event-screens));
-- the GeekyKey screens on http://localhost:5174, calling the GeekyKey Service for what
-  `apps/geekykey-web/src/api/create-client.ts` lists, and mock data for the tokens until
-  checkpoint 6.
+- the GeekyKey screens on http://localhost:5174, calling the GeekyKey Service for
+  everything.
 
 No settings file is needed. Each service turns dev sign-in on by itself and reads a committed
 `dev.env`, which points the GeekyKey Service at the Event Service on 8001, with the keys the
@@ -681,14 +680,12 @@ the real backend".
 
 ### With the GeekyKey screens
 
-The same is true of the GeekyKey screens: `mise run dev` starts them with
-`VITE_LIVE_API=1`, and `mise exec -- pnpm dev:live` from `apps/geekykey-web` starts them
-alone. The list in `apps/geekykey-web/src/api/create-client.ts` has the session in it, so
-signing in and `me` go to the GeekyKey Service on port 8000 and My tokens shows the
-service's tokens. The token lookup, claiming and releasing stay on the mock until
-checkpoint 6, so the token page answers from fixtures and says so in a "Demo data" notice,
-and My tokens has no Release button. For the Firebase sign-in, see the end of
-[3. Start the backend](#3-start-the-backend).
+`mise run dev` starts the GeekyKey screens with `VITE_LIVE_API=1` too, and
+`mise exec -- pnpm dev:live` from `apps/geekykey-web` starts them alone. They send every
+call to the GeekyKey Service on port 8000: signing in, `me`, the token lookup, claiming,
+releasing and the login links. Sign in as `dev-organizer-1` to release someone else's
+token, since the service's `dev.env` makes that user a GeekyKey admin. For the Firebase
+sign-in, see the end of [3. Start the backend](#3-start-the-backend).
 
 ## Updates site
 

@@ -2,7 +2,7 @@ import type { LoginLink, MeResponse, Token, TokenLookup } from "@/api/types";
 
 /*
   The one interface every feature consumes. Two implementations:
-  - src/api/mock: in-memory data shaped like the agreement (current phase)
+  - src/api/mock: in-memory data shaped like the agreement, for tests and `pnpm dev`
   - src/api/http: fetch against /api/v1 with credentials
 
   Screens never know which one they are talking to. Every method here is on the

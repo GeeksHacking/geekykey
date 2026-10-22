@@ -22,25 +22,6 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { stubLocation } from "@/test/location";
 
 /*
-  Whether a live build still sends releaseToken or claimToken to the mock. The rest
-  of the module is the real one, so only this test's switch differs from the app.
-*/
-const releaseLeftOnMock = vi.hoisted(() => ({ value: false }));
-const claimLeftOnMock = vi.hoisted(() => ({ value: false }));
-
-vi.mock("@/api/mode", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/api/mode")>();
-  return {
-    ...actual,
-    isLeftOnMock: (method: Parameters<typeof actual.isLeftOnMock>[0]) => {
-      if (method === "releaseToken") return releaseLeftOnMock.value;
-      if (method === "claimToken") return claimLeftOnMock.value;
-      return actual.isLeftOnMock(method);
-    },
-  };
-});
-
-/*
   My tokens (FRO-27): the list, the empty state and a release, one test per
   acceptance case. The screen is rendered behind the real gate and the real
   session, as it is in the app: HomePage's useMe() only exists once the session
@@ -70,8 +51,6 @@ let location: ReturnType<typeof stubLocation>;
 
 beforeEach(() => {
   api = createMockClient({ latencyMs: [0, 0], storage: null });
-  releaseLeftOnMock.value = false;
-  claimLeftOnMock.value = false;
   location = stubLocation();
 });
 
@@ -166,18 +145,6 @@ describe("My tokens", () => {
     expect(screen.getAllByText(/^Claimed /)).toHaveLength(2);
   });
 
-  it("hides Release while a live build still sends it to the mock", async () => {
-    // The rows are the service's tokens, so a Release on the mock would act on a
-    // sample token instead of the one on screen.
-    releaseLeftOnMock.value = true;
-    api.mock.setSession(SEEDED_PARTICIPANT_ID);
-    renderHome();
-
-    expect(await screen.findByText(OLDEST)).toBeInTheDocument();
-    expect(screen.getByText(NEWEST)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
-  });
-
   it("says what to do next when the user holds no tokens", async () => {
     api.mock.setSession(SEEDED_ADMIN_ID);
     renderHome();
@@ -213,33 +180,6 @@ describe("My tokens", () => {
     await userEvent.click(screen.getByRole("button", { name: "Claim" }));
 
     expect(await screen.findByText(UNCLAIMED_DISPLAYED)).toBeInTheDocument();
-  });
-
-  it("hides the claim form while a live build still sends it to the mock", async () => {
-    // The list is the service's tokens, so a claim on the mock would claim a sample
-    // token and leave the service still not listing it.
-    claimLeftOnMock.value = true;
-    api.mock.setSession(SEEDED_PARTICIPANT_ID);
-    renderHome();
-
-    expect(await screen.findByText(OLDEST)).toBeInTheDocument();
-    expect(screen.queryByLabelText("Token UID")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Claim" })).not.toBeInTheDocument();
-  });
-
-  it("names only the phone in the empty state while the claim is on the mock", async () => {
-    // The sentence points at the ways to claim a token, so it must not point at a form
-    // that is not there.
-    claimLeftOnMock.value = true;
-    api.mock.setSession(SEEDED_ADMIN_ID);
-    renderHome();
-
-    expect(
-      await screen.findByText(
-        "You haven't claimed a token yet. Tap one with your phone to claim it.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByLabelText("Token UID")).not.toBeInTheDocument();
   });
 
   it("releases a token from its row, and the list drops it", async () => {

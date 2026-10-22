@@ -268,9 +268,9 @@ describe("TokenPage", () => {
     expect(await screen.findByText("This is your token.")).toBeInTheDocument();
   });
 
-  it("says where the data came from, so a claim here is not a claim on the service", async () => {
-    // The token lookup, the claim and the release still run on the mock until checkpoint
-    // 6, so the page has to say that rather than let a claim look like it stuck.
+  it("says a mock build shows sample data, so a claim here is not a claim on the service", async () => {
+    // The tests run on the mock, as `pnpm dev` does, so the page says so rather than let
+    // a claim look like it reached the service. A live build has no notice.
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderAs(api, UNCLAIMED);
 
