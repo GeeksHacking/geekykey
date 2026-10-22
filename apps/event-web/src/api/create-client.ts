@@ -26,7 +26,7 @@ export interface AppClientOptions {
  * yet will fail every screen that calls it. The session slice is live; the
  * organiser's resource methods join as their routes land.
  */
-const LIVE_METHOD_NAMES = ["me", "devLogin", "firebaseLogin", "logout"] as const;
+const LIVE_METHOD_NAMES = ["me", "devLogin", "firebaseLogin", "loginLink", "logout"] as const;
 
 /**
  * The live methods, as a set. The "Demo data" notice and the tests read this, so
@@ -72,6 +72,14 @@ function liveMethods(
       // as the user who was there before.
       mock.setSession(null);
       await http.firebaseLogin(idToken);
+    },
+
+    // A link that fails leaves the service's cookie as it was (agreement 7.4), so the
+    // mock keeps its session too. One that works logs in the link's user, so the mock's
+    // session goes, as for firebaseLogin, and follows the live /me read straight afterwards.
+    loginLink: async (link) => {
+      await http.loginLink(link);
+      mock.setSession(null);
     },
 
     logout: async () => {

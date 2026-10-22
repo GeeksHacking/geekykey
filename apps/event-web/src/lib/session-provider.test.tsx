@@ -16,10 +16,10 @@ beforeEach(() => {
   signOutOfFirebase.mockResolvedValue(undefined);
 });
 
-function setup(prepare?: (api: MockApiClient) => void) {
+function setup(prepare?: (api: MockApiClient) => void, loginLink?: string) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   prepare?.(api);
-  const { Providers, queryClient } = createTestProviders(api, { session: true });
+  const { Providers, queryClient } = createTestProviders(api, { session: true, loginLink });
   return { api, queryClient, ...renderHook(() => useSession(), { wrapper: Providers }) };
 }
 
@@ -220,5 +220,83 @@ describe("SessionProvider", () => {
       await result.current.refresh();
     });
     expect(result.current.me?.user.display_name).toBe("Alex Updated");
+  });
+});
+
+describe("SessionProvider with a login link", () => {
+  it("logs in from the link before it reads /me", async () => {
+    // Agreement 7.4: send the link, then GET /api/v1/me as usual. A /me read first would
+    // answer for whoever the browser was before.
+    const calls: string[] = [];
+    const { result } = setup((api) => {
+      const { loginLink, me } = api;
+      vi.spyOn(api, "loginLink").mockImplementation((link) => {
+        calls.push("loginLink");
+        return loginLink(link);
+      });
+      vi.spyOn(api, "me").mockImplementation(() => {
+        calls.push("me");
+        return me();
+      });
+    }, "mock");
+
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    expect(result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID);
+    expect(result.current.loginLinkError).toBeUndefined();
+    expect(calls).toEqual(["loginLink", "me"]);
+  });
+
+  it("replaces the session the browser already had", async () => {
+    const { result } = setup((api) => api.mock.setSession(SEEDED_ORGANIZER_ID), "mock");
+
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    expect(result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID);
+  });
+
+  it("keeps the existing session when the link has expired, and keeps the error", async () => {
+    // Agreement 7.4: a link that fails leaves the existing session as it was.
+    const { result } = setup((api) => api.mock.setSession(SEEDED_ORGANIZER_ID), "expired-link");
+
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    expect(result.current.me?.user.id).toBe(SEEDED_ORGANIZER_ID);
+    expect(result.current.loginLinkError).toMatchObject({ code: "invalid_login_link" });
+  });
+
+  it("is signed out, with the error, when an expired link meets no session", async () => {
+    const { result } = setup(undefined, "expired-link");
+
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    expect(result.current.loginLinkError).toMatchObject({ code: "invalid_login_link" });
+  });
+
+  it("sends the link once, however often /me is read", async () => {
+    const { api, result } = setup((api) => vi.spyOn(api, "loginLink"), "mock");
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(api.loginLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets the link's error once someone signs in", async () => {
+    const { result } = setup(undefined, "expired-link");
+    await waitFor(() => expect(result.current.loginLinkError).toBeDefined());
+
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+
+    expect(result.current.loginLinkError).toBeUndefined();
+  });
+
+  it("sends nothing when the address had no link", async () => {
+    const { api, result } = setup((api) => vi.spyOn(api, "loginLink"));
+
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    expect(api.loginLink).not.toHaveBeenCalled();
+    expect(result.current.loginLinkError).toBeUndefined();
   });
 });

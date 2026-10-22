@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Wordmark } from "@/components/layout/wordmark";
 import { DevLoginForm } from "@/features/auth/dev-login-form";
 import { FirebaseSignIn } from "@/features/auth/firebase-sign-in";
+import { LoginLinkNotice } from "@/features/auth/login-link-notice";
 import { useGoAfterLogin } from "@/features/auth/use-go-after-login";
 import { useSession } from "@/lib/session";
 
@@ -35,6 +36,7 @@ export function LoginScreen({ returnTo }: { returnTo?: string }) {
         Tap in, collect stamps, earn points.
       </h1>
       <p className="mt-3 text-muted-foreground">Sign in to open your passport for this event.</p>
+      <LoginLinkNotice className="mt-6" />
       <FirebaseSignIn />
       {import.meta.env.DEV ? <DevLoginForm /> : null}
     </main>

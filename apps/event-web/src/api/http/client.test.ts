@@ -171,6 +171,41 @@ describe("HTTP client transport", () => {
     expect(seen).toEqual([]);
   });
 
+  it("sends the login link as agreement 7.4's JSON body", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await createHttpClient().loginLink("eyJ2IjoxfQ.c2ln");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/auth/login-link",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login_link: "eyJ2IjoxfQ.c2ln" }),
+        credentials: "include",
+      }),
+    );
+  });
+
+  it("gives a 401 on the login link invalid_login_link, not a lost session", async () => {
+    // Agreement 7.4: a link that fails leaves the existing session as it was. Read as
+    // unauthenticated, the session provider would sign the person out.
+    const seen: unknown[] = [];
+    const listener = (event: Event) => seen.push((event as CustomEvent).detail);
+    window.addEventListener(AUTH_ERROR_EVENT, listener);
+    try {
+      fetchMock.mockResolvedValue(new Response("not json", { status: 401 }));
+      const error = await apiError(createHttpClient().loginLink("eyJ2IjoxfQ.c2ln"));
+
+      expect(error.code).toBe("invalid_login_link");
+      expect(error.status).toBe(401);
+    } finally {
+      window.removeEventListener(AUTH_ERROR_EVENT, listener);
+    }
+
+    expect(seen).toEqual([]);
+  });
+
   it("reads every code from the error body, so a missing set entry cannot hide", async () => {
     // One case per code, all sharing a status the fallback cannot answer. If a code is
     // missing from the body's allowlist the body is ignored and the status map supplies the
@@ -247,6 +282,7 @@ const statusFor = {
   validation_failed: 400,
   unauthenticated: 401,
   invalid_token: 401,
+  invalid_login_link: 401,
   missing_station_key: 401,
   invalid_station_key: 401,
   forbidden: 403,

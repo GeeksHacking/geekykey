@@ -9,14 +9,14 @@ import { SessionProvider } from "@/lib/session-provider";
 /** The app's provider stack for tests, with retries off so a deliberate failure surfaces at once. */
 export function createTestProviders(
   api: ApiClient,
-  { session = false }: { session?: boolean } = {},
+  { session = false, loginLink }: { session?: boolean; loginLink?: string } = {},
 ) {
   const queryClient = createQueryClient({ retry: false });
   function Providers({ children }: { children: ReactNode }) {
     return (
       <ApiProvider client={api}>
         <QueryClientProvider client={queryClient}>
-          {session ? <SessionProvider>{children}</SessionProvider> : children}
+          {session ? <SessionProvider loginLink={loginLink}>{children}</SessionProvider> : children}
         </QueryClientProvider>
       </ApiProvider>
     );

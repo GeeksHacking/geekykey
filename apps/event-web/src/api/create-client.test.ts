@@ -136,7 +136,59 @@ describe("createAppClient", () => {
     await expect(api.listStationBoard()).rejects.toThrow("unauthenticated");
   });
 
+  it("sends the login link to the service", async () => {
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const api = createAppClient({ live: true });
+
+    await api.loginLink("eyJ2IjoxfQ.c2ln");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/auth/login-link",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ login_link: "eyJ2IjoxfQ.c2ln" }),
+        credentials: "include",
+      }),
+    );
+  });
+
+  it("drops the mock's session once a login link logs someone in", async () => {
+    // The link's user replaces the one who was there (agreement 7.4), so a /me that
+    // cannot answer straight afterwards must not leave the mock signed in as them.
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const api = createAppClient({ live: true });
+    await api.devLogin("dev-organizer-1");
+
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    await api.loginLink("eyJ2IjoxfQ.c2ln");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
+    await expect(api.me()).rejects.toThrow();
+
+    await expect(api.listStationBoard()).rejects.toThrow("unauthenticated");
+  });
+
+  it("keeps the mock's session when a login link fails", async () => {
+    // Agreement 7.4: a link that fails leaves the existing session as it was.
+    fetchMock.mockResolvedValueOnce(noContentResponse());
+    const api = createAppClient({ live: true });
+    await api.devLogin("dev-organizer-1");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "invalid_login_link" }, 401));
+    await expect(api.loginLink("eyJ2IjoxfQ.c2ln")).rejects.toThrow("invalid_login_link");
+
+    await expect(api.listStationBoard()).resolves.toEqual(
+      expect.objectContaining({ stations: expect.any(Array) }),
+    );
+  });
+
   it("names the live methods, so the notice and the tests read one list", () => {
-    expect([...LIVE_METHODS].sort()).toEqual(["devLogin", "firebaseLogin", "logout", "me"]);
+    expect([...LIVE_METHODS].sort()).toEqual([
+      "devLogin",
+      "firebaseLogin",
+      "loginLink",
+      "logout",
+      "me",
+    ]);
   });
 });
