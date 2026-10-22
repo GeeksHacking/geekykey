@@ -90,9 +90,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [clearIdentityQueries, queryClient]);
 
   /**
-   * Writes the session and drops the /me query with it. A poll that was asked for before
-   * the change answers with the session as it was then, so its late answer would undo the
-   * new one, and the change has to drop it wherever it is written.
+   * Every write of the session goes through here. A poll asked for before the write answers
+   * with the session as it was then, so the write drops it, or its late answer would undo
+   * the new session.
    */
   const settleSession = useCallback(
     (data: MeResponse | null) => {
@@ -164,10 +164,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     },
     onMutate: () => {
       mayLogInAgain.current = false;
-      // Cancel a poll that could otherwise restore the old identity after logout starts.
-      void queryClient.cancelQueries({ queryKey: queryKeys.me });
-      // Hide cached identity data even if the network request later fails.
-      queryClient.setQueryData(queryKeys.me, null);
+      // Drop a poll that could otherwise restore the old identity after logout starts, and
+      // hide cached identity data even if the network request later fails.
+      settleSession(null);
       setAuthorizationFailure(undefined);
       clearIdentityQueries();
     },

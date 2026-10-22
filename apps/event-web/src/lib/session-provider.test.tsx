@@ -25,6 +25,27 @@ function setup(prepare?: (api: MockApiClient) => void, loginLink?: string) {
   return { api, queryClient, ...renderHook(() => useSession(), { wrapper: Providers }) };
 }
 
+/**
+ * Holds the /me the provider sends after `holdTheNextOne()`, so a test can land its answer
+ * after a sign-in or a sign-out has finished. Every other /me reaches the mock as usual.
+ */
+function holdNextMe(api: MockApiClient) {
+  let answer!: (me: MeResponse) => void;
+  let refuse!: (reason: unknown) => void;
+  const held = new Promise<MeResponse>((resolve, reject) => {
+    answer = resolve;
+    refuse = reject;
+  });
+  const realMe = api.me.bind(api);
+  let holding = false;
+  vi.spyOn(api, "me").mockImplementation(async () => {
+    if (!holding) return realMe();
+    holding = false;
+    return held;
+  });
+  return { holdTheNextOne: () => (holding = true), answer, refuse, realMe };
+}
+
 describe("SessionProvider", () => {
   it("starts loading and becomes anonymous when /me answers 401", async () => {
     const { result } = setup();
@@ -241,26 +262,14 @@ describe("SessionProvider", () => {
 
     // A /me that goes out now answers 401, because the cookie is not set yet. It lands
     // when the test says so.
-    let refuseThePoll!: (reason: unknown) => void;
-    const lateAnswer = new Promise<MeResponse>((_, reject) => {
-      refuseThePoll = reject;
-    });
-    const realMe = api.me.bind(api);
-    let theNextCallIsTheLateOne = false;
-    vi.spyOn(api, "me").mockImplementation(async () => {
-      if (theNextCallIsTheLateOne) {
-        theNextCallIsTheLateOne = false;
-        return lateAnswer;
-      }
-      return realMe();
-    });
+    const poll = holdNextMe(api);
 
     let signIn: Promise<MeResponse> | undefined;
     act(() => {
       signIn = result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
     // A poll goes out now, while the sign-in is still in flight.
-    theNextCallIsTheLateOne = true;
+    poll.holdTheNextOne();
     act(() => {
       void result.current.refresh();
     });
@@ -272,7 +281,7 @@ describe("SessionProvider", () => {
 
     // The poll's 401 lands now, after the sign-in has finished.
     await act(async () => {
-      refuseThePoll(new ApiError(401, "unauthenticated"));
+      poll.refuse(new ApiError(401, "unauthenticated"));
     });
     // The answer has been dealt with, one way or the other.
     await waitFor(() => expect(queryClient.getQueryState(queryKeys.me)?.fetchStatus).toBe("idle"));
@@ -304,27 +313,15 @@ describe("SessionProvider", () => {
 
     // A /me that goes out now still carries the cookie, so it answers with the person
     // who was signed in. It lands when the test says so.
-    let answerThePoll!: (answer: MeResponse) => void;
-    const lateAnswer = new Promise<MeResponse>((resolve) => {
-      answerThePoll = resolve;
-    });
-    const realMe = api.me.bind(api);
-    const meBeforeTheSignOut = await realMe();
-    let theNextCallIsTheLateOne = false;
-    vi.spyOn(api, "me").mockImplementation(async () => {
-      if (theNextCallIsTheLateOne) {
-        theNextCallIsTheLateOne = false;
-        return lateAnswer;
-      }
-      return realMe();
-    });
+    const poll = holdNextMe(api);
+    const meBeforeTheSignOut = await poll.realMe();
 
     let signOut: Promise<void> | undefined;
     act(() => {
       signOut = result.current.signOut();
     });
     // A poll goes out now, while the sign-out is still in flight.
-    theNextCallIsTheLateOne = true;
+    poll.holdTheNextOne();
     act(() => {
       void result.current.refresh();
     });
@@ -336,13 +333,94 @@ describe("SessionProvider", () => {
 
     // The poll's answer lands now, after the sign-out has finished.
     await act(async () => {
-      answerThePoll(meBeforeTheSignOut);
+      poll.answer(meBeforeTheSignOut);
     });
     // The answer has been dealt with, one way or the other.
     await waitFor(() => expect(queryClient.getQueryState(queryKeys.me)?.fetchStatus).toBe("idle"));
 
     // The person stays signed out: the answer was asked for before the sign-out, so it
     // says nothing about the session that is now in place.
+    expect(result.current.status).toBe("anonymous");
+    expect(result.current.me).toBeNull();
+  });
+
+  it("keeps the person signed out when the sign-in fails and a late /me lands after it", async () => {
+    const { api, queryClient, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+    // A shared browser: the organiser is signed in already.
+    await act(async () => {
+      await result.current.signIn(SEEDED_ORGANIZER_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    // The next sign-in fails, like a Firebase ID token the service refuses.
+    const realDevLogin = api.devLogin.bind(api);
+    vi.spyOn(api, "devLogin").mockImplementation(async (userId: string) => {
+      await realDevLogin(userId);
+      throw new ApiError(401, "invalid_token");
+    });
+
+    // A /me goes out while the sign-in is in flight, and answers with the old account.
+    const poll = holdNextMe(api);
+    const meBeforeTheSignIn = await poll.realMe();
+
+    let signIn: Promise<MeResponse> | undefined;
+    act(() => {
+      signIn = result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    // A poll goes out now, while the sign-in is still in flight.
+    poll.holdTheNextOne();
+    act(() => {
+      void result.current.refresh();
+    });
+    await act(async () => {
+      await signIn?.catch(() => undefined);
+    });
+
+    // The poll's answer lands now, after the sign-in has failed.
+    await act(async () => {
+      poll.answer(meBeforeTheSignIn);
+    });
+    // The answer has been dealt with, one way or the other.
+    await waitFor(() => expect(queryClient.getQueryState(queryKeys.me)?.fetchStatus).toBe("idle"));
+
+    // The person stays signed out: a failed sign-in leaves the screens signed out, and
+    // the answer was asked for before it failed.
+    expect(result.current.status).toBe("anonymous");
+    expect(result.current.me).toBeNull();
+  });
+
+  it("keeps the person signed out when a 401 ends the session and a late /me lands after it", async () => {
+    const { api, queryClient, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    // A /me goes out while the cookie still works, and answers with the person who was
+    // signed in. It lands when the test says so.
+    const poll = holdNextMe(api);
+    const meBeforeThe401 = await poll.realMe();
+    poll.holdTheNextOne();
+    act(() => {
+      void result.current.refresh();
+    });
+
+    // Another request finds the session gone.
+    api.mock.failNext("unauthenticated");
+    await expect(api.listStationBoard()).rejects.toBeDefined();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+    // The poll's answer lands now, after the 401 has ended the session.
+    await act(async () => {
+      poll.answer(meBeforeThe401);
+    });
+    // The answer has been dealt with, one way or the other.
+    await waitFor(() => expect(queryClient.getQueryState(queryKeys.me)?.fetchStatus).toBe("idle"));
+
+    // The person stays signed out: the answer was asked for before the session ended.
     expect(result.current.status).toBe("anonymous");
     expect(result.current.me).toBeNull();
   });
@@ -423,64 +501,5 @@ describe("SessionProvider with a login link", () => {
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(api.loginLink).not.toHaveBeenCalled();
     expect(result.current.loginLinkError).toBeUndefined();
-  });
-
-  it("keeps the person signed out when the sign-in fails and a late /me lands after it", async () => {
-    const { api, queryClient, result } = setup();
-    await waitFor(() => expect(result.current.status).toBe("anonymous"));
-
-    // A shared browser: the organiser is signed in already.
-    await act(async () => {
-      await result.current.signIn(SEEDED_ORGANIZER_ID);
-    });
-    await waitFor(() => expect(result.current.status).toBe("authenticated"));
-
-    // The next sign-in fails, like a Firebase ID token the service refuses.
-    const realDevLogin = api.devLogin.bind(api);
-    vi.spyOn(api, "devLogin").mockImplementation(async (userId: string) => {
-      await realDevLogin(userId);
-      throw new ApiError(401, "invalid_token");
-    });
-
-    // A /me goes out while the sign-in is in flight, and answers with the old account.
-    let answerThePoll!: (answer: MeResponse) => void;
-    const lateAnswer = new Promise<MeResponse>((resolve) => {
-      answerThePoll = resolve;
-    });
-    const realMe = api.me.bind(api);
-    const meBeforeTheSignIn = await realMe();
-    let theNextCallIsTheLateOne = false;
-    vi.spyOn(api, "me").mockImplementation(async () => {
-      if (theNextCallIsTheLateOne) {
-        theNextCallIsTheLateOne = false;
-        return lateAnswer;
-      }
-      return realMe();
-    });
-
-    let signIn: Promise<MeResponse> | undefined;
-    act(() => {
-      signIn = result.current.signIn(SEEDED_PARTICIPANT_ID);
-    });
-    // A poll goes out now, while the sign-in is still in flight.
-    theNextCallIsTheLateOne = true;
-    act(() => {
-      void result.current.refresh();
-    });
-    await act(async () => {
-      await signIn?.catch(() => undefined);
-    });
-
-    // The poll's answer lands now, after the sign-in has failed.
-    await act(async () => {
-      answerThePoll(meBeforeTheSignIn);
-    });
-    // The answer has been dealt with, one way or the other.
-    await waitFor(() => expect(queryClient.getQueryState(queryKeys.me)?.fetchStatus).toBe("idle"));
-
-    // The person stays signed out: a failed sign-in leaves the screens signed out, and
-    // the answer was asked for before it failed.
-    expect(result.current.status).toBe("anonymous");
-    expect(result.current.me).toBeNull();
   });
 });
