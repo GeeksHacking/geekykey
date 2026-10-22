@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
 import { NetworkError } from "@/api/errors";
@@ -21,6 +21,7 @@ import { TokenPage } from "@/features/token/token-page";
 import { createQueryClient } from "@/lib/query-client";
 import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { stubLocation } from "@/test/location";
 import { createTestProviders } from "@/test/providers";
 
 /** UIDs the fixtures carry, by owner. */
@@ -36,9 +37,15 @@ function makeApi(latencyMs: readonly [number, number] = [0, 0]) {
 }
 
 let api: MockApiClient;
+let location: ReturnType<typeof stubLocation>;
 
 beforeEach(() => {
   api = makeApi();
+  location = stubLocation();
+});
+
+afterEach(() => {
+  location.restore();
 });
 
 /** The gate wrapping the page, as routes/_app/t.$uid.tsx gets it from the _app layout. */
@@ -62,6 +69,52 @@ function renderAs(client: MockApiClient, uid: string) {
 }
 
 describe("TokenPage", () => {
+  it("opens each event in /me with a button on your own token", async () => {
+    // Agreement 8.5's table: your own token carries Release and a button for each event.
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, OWNED_BY_PARTICIPANT);
+
+    expect(
+      await screen.findByRole("button", { name: "Open Capstone Showcase" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the event's screens when the button is pressed", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, OWNED_BY_PARTICIPANT);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Open Capstone Showcase" }));
+
+    await waitFor(() =>
+      expect(location.assign).toHaveBeenCalledWith("http://localhost:5173/#login=mock"),
+    );
+  });
+
+  it("shows no event button on a token nobody has claimed", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, UNCLAIMED);
+
+    expect(await screen.findByText("Nobody has claimed this token yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
+  });
+
+  it("shows no event button on a token someone else holds", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+    expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
+  });
+
+  it("shows no event button when /me lists no events", async () => {
+    api.mock.data.event_services = [];
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, OWNED_BY_PARTICIPANT);
+
+    expect(await screen.findByText("This is your token.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
+  });
+
   it("shows an unclaimed token as nobody's, with nothing to act on", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderAs(api, UNCLAIMED);
