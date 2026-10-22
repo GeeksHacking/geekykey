@@ -198,7 +198,7 @@ describe("My tokens", () => {
     const oldest = screen.getByText(OLDEST);
     // The form comes first, so a second token can be claimed without leaving the page.
     expect(input.compareDocumentPosition(oldest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Claim token" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Claim" })).toBeInTheDocument();
   });
 
   it("hides the claim form while a live build still sends it to the mock", async () => {
@@ -210,7 +210,7 @@ describe("My tokens", () => {
 
     expect(await screen.findByText(OLDEST)).toBeInTheDocument();
     expect(screen.queryByLabelText("Token UID")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Claim token" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Claim" })).not.toBeInTheDocument();
   });
 
   it("names only the phone in the empty state while the claim is on the mock", async () => {
