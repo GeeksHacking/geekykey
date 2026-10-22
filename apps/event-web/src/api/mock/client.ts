@@ -296,7 +296,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     loginLink: (link) =>
       call(() => {
         const userId = Object.hasOwn(MOCK_LOGIN_LINKS, link) ? MOCK_LOGIN_LINKS[link] : undefined;
-        setSession(userId ?? fail("invalid_login_link"));
+        if (userId === undefined) fail("invalid_login_link");
+        setSession(userId);
       }),
 
     logout: () =>

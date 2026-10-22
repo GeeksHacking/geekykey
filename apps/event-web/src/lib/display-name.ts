@@ -3,7 +3,7 @@
  * counted as Unicode code points, in any script. The screens check it before sending so the
  * answer is quick, and the service has the last word.
  */
-export const DISPLAY_NAME_MAX = 30;
+const DISPLAY_NAME_MAX = 30;
 
 export function isDisplayName(name: string): boolean {
   // Spread, not .length, which counts UTF-16 units and so would count an emoji twice.
