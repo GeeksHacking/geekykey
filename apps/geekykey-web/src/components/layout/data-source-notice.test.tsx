@@ -17,7 +17,7 @@ describe("data source notice", () => {
     // button, so it is the most-read string on the page.
     render(<DataSourceNotice live={false} />);
 
-    expect(screen.getByRole("status").textContent).not.toMatch(/[—–]/);
+    expect(screen.getByRole("status").textContent).not.toMatch(/[\u2014\u2013]/);
   });
 
   it("is not there in a live build, where every answer is the service's", () => {

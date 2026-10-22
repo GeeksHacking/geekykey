@@ -1409,5 +1409,6 @@
   area: frontend
   change: >-
     The token page and My tokens now look up, claim and release tokens through the GeekyKey
-    Service, so a token claimed on a phone is really claimed. The token page's "Demo data"
-    notice is gone, and every token on My tokens has a Release button.
+    Service, so a claim made on a phone is saved by the service. The token page's "Demo data"
+    notice is gone. My tokens has a Release button on each token, and a form to claim a token
+    by typing its code.
