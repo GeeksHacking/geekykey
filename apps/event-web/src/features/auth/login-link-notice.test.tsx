@@ -48,12 +48,12 @@ describe("LoginLinkNotice", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(EXPIRED);
   });
 
-  it("says what went wrong when the service could not be reached", () => {
+  it("says the same when the link could not be sent", () => {
+    // The link is out of the address and works once, so trying again here cannot help.
+    // Tapping the token again makes a new link, whatever stopped this one.
     renderNotice(new NetworkError());
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Could not reach the server. Check the Wi-Fi and try again.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent(EXPIRED);
   });
 
   it("shows nothing when there was no link, or it worked", () => {

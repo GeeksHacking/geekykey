@@ -423,9 +423,10 @@ Rules:
    - `invalid_token` / `login_unavailable`: the sign-in did not work. Both say "Couldn't
      log you in. Try again." (agreement 7.2, section 13). `invalid_token` is the service
      refusing the ID token, and it is not a lost session.
-   - `invalid_login_link`, or `validation_failed` from `POST /auth/login-link`: the link the
-     page arrived with did not log anyone in. Show section 13's sentence
-     (`features/auth/login-link-notice.tsx`). The session the browser already had carries
+   - `invalid_login_link`, or any other failure of `POST /auth/login-link`: the link the page
+     arrived with did not log anyone in. Show section 13's sentence for `invalid_login_link`
+     whatever the failure, because the link works once and tapping the token again is the
+     only fix (`features/auth/login-link-notice.tsx`). The session the browser already had carries
      on, so the sentence sits above the screen it shows.
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
