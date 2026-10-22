@@ -22,17 +22,21 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { stubLocation } from "@/test/location";
 
 /*
-  Whether a live build still sends releaseToken to the mock. The rest of the module
-  is the real one, so only this test's switch differs from the app.
+  Whether a live build still sends releaseToken or claimToken to the mock. The rest
+  of the module is the real one, so only this test's switch differs from the app.
 */
 const releaseLeftOnMock = vi.hoisted(() => ({ value: false }));
+const claimLeftOnMock = vi.hoisted(() => ({ value: false }));
 
 vi.mock("@/api/mode", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/mode")>();
   return {
     ...actual,
-    isLeftOnMock: (method: Parameters<typeof actual.isLeftOnMock>[0]) =>
-      method === "releaseToken" ? releaseLeftOnMock.value : actual.isLeftOnMock(method),
+    isLeftOnMock: (method: Parameters<typeof actual.isLeftOnMock>[0]) => {
+      if (method === "releaseToken") return releaseLeftOnMock.value;
+      if (method === "claimToken") return claimLeftOnMock.value;
+      return actual.isLeftOnMock(method);
+    },
   };
 });
 
@@ -49,6 +53,10 @@ vi.mock("@/api/mode", async (importOriginal) => {
 
   The event buttons (FRO-31) are the ones /me lists, and they open that event's
   screens, so the test presses one and watches the address the mock answers.
+
+  The claim-by-code form (FRO-30) sits above the list, and the form's own tests
+  are in claim-by-code-form.test.tsx. What the page decides is where the form
+  goes and what the empty state says about it.
 */
 
 const OLDEST = "04 A1 B2 C3 D4 E5 F6";
@@ -60,6 +68,7 @@ let location: ReturnType<typeof stubLocation>;
 beforeEach(() => {
   api = createMockClient({ latencyMs: [0, 0], storage: null });
   releaseLeftOnMock.value = false;
+  claimLeftOnMock.value = false;
   location = stubLocation();
 });
 
@@ -170,13 +179,53 @@ describe("My tokens", () => {
     api.mock.setSession(SEEDED_ADMIN_ID);
     renderHome();
 
+    const sentence = await screen.findByText(
+      "You haven't claimed a token yet. Tap one with your phone, or type its code below.",
+    );
+    expect(sentence).toBeInTheDocument();
+    // The sentence says "below", so the form follows it.
+    const input = screen.getByLabelText("Token UID");
+    expect(sentence.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
+  });
+
+  it("puts the claim form above the list, and keeps it when there are tokens", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+
+    const input = await screen.findByLabelText("Token UID");
+    const oldest = screen.getByText(OLDEST);
+    // The form comes first, so a second token can be claimed without leaving the page.
+    expect(input.compareDocumentPosition(oldest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Claim token" })).toBeInTheDocument();
+  });
+
+  it("hides the claim form while a live build still sends it to the mock", async () => {
+    // The list is the service's tokens, so a claim on the mock would claim a sample
+    // token and leave the service still not listing it.
+    claimLeftOnMock.value = true;
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+
+    expect(await screen.findByText(OLDEST)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Token UID")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Claim token" })).not.toBeInTheDocument();
+  });
+
+  it("names only the phone in the empty state while the claim is on the mock", async () => {
+    // The sentence points at the ways to claim a token, so it must not point at a form
+    // that is not there.
+    claimLeftOnMock.value = true;
+    api.mock.setSession(SEEDED_ADMIN_ID);
+    renderHome();
+
     expect(
       await screen.findByText(
         "You haven't claimed a token yet. Tap one with your phone to claim it.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Token UID")).not.toBeInTheDocument();
   });
 
   it("releases a token from its row, and the list drops it", async () => {
