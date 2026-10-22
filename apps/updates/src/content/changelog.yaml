@@ -1369,6 +1369,7 @@
     at most 3 tokens, GeekyKey admins included. Claiming a token you already hold answers that it's
     yours. A user holding 3 gets the limit error even for a token someone else holds.
     Nothing calls it on production until the token page and My tokens switch to it.
+
 - id: station-rate-limit
   date: 2026-10-22
   area: backend
@@ -1377,3 +1378,12 @@
     heartbeats together, now gets "too many requests" and keeps its taps to send later. Wrong keys
     count too, and Cloudflare counts in each of its data centres, so a station can sometimes get
     past 60.
+
+- id: an-owner-or-a-geekykey-admin-releases-a-token
+  date: 2026-10-22
+  area: backend
+  change: >-
+    The GeekyKey Service can now release a token, so anyone can claim it again. An owner releases
+    their own. A GeekyKey admin releases someone else's by naming the owner the token page showed,
+    so a late click can't release a newer claim. Each release is logged with who released it.
+    Nothing calls it on production until the token page and My tokens switch to it.

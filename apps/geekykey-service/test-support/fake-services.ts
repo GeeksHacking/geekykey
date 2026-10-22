@@ -25,7 +25,8 @@ type Answer = (request: SentRequest) => Promise<Response>;
  * The services the Worker calls, faked behind `fetch` (its `send`): each of
  * `config`'s Event Services, with the three requests in the API agreement's
  * section 11, and the claims stand-in's `POST /owners`,
- * `POST /tokens/{uid}/claim` and `GET /users/{id}/tokens`. Each checks the
+ * `POST /tokens/{uid}/claim`, `POST /tokens/{uid}/release` and
+ * `GET /users/{id}/tokens`. Each checks the
  * key the Worker sends, as the real ones do, and answers what a test sets:
  *
  * - `stations`, each Event Service's registered stations, by its ID;
@@ -34,7 +35,8 @@ type Answer = (request: SentRequest) => Promise<Response>;
  *   gives them: oldest claim first;
  * - `now`, when a claim the fake takes is made. A claim of a token nobody
  *   owns adds it to `owners` and the end of the user's `tokens`, as the
- *   stand-in's table would;
+ *   stand-in's table would. A release by the token's owner takes it out of
+ *   both;
  * - `statusOf`, each handed-off tap's status, `accepted` unless a test says
  *   otherwise.
  *
@@ -49,7 +51,7 @@ export function fakeServices(config: Config) {
     now: "2026-11-18T06:00:00.000Z",
     statusOf: (_tap: HandedOffTap, _stationId: string): string => "accepted",
     answers: {} as Partial<
-      Record<"stations" | "taps" | "heartbeats" | "owners" | "claim" | "tokens", Answer>
+      Record<"stations" | "taps" | "heartbeats" | "owners" | "claim" | "release" | "tokens", Answer>
     >,
     sent: [] as SentRequest[],
     send: (async () => new Response()) as Send,
@@ -96,6 +98,19 @@ export function fakeServices(config: Config) {
         if (owner !== userId) return Response.json({ result: "taken", claimed_at: null });
         const mine = fake.tokens.get(userId)?.find((token) => token.uid === uid);
         return Response.json({ result: "already_yours", claimed_at: mine?.claimed_at ?? fake.now });
+      }
+      const releasePath = /^\/tokens\/([^/]+)\/release$/.exec(path);
+      if (request.method === "POST" && releasePath) {
+        if (fake.answers.release) return fake.answers.release(request);
+        const uid = releasePath[1]!;
+        const { owner_id: ownerId } = body as { owner_id: string };
+        if (fake.owners.get(uid) !== ownerId) return Response.json({ result: "not_owner" });
+        fake.owners.delete(uid);
+        fake.tokens.set(
+          ownerId,
+          (fake.tokens.get(ownerId) ?? []).filter((token) => token.uid !== uid),
+        );
+        return Response.json({ result: "released" });
       }
       if (request.method !== "POST" || path !== "/owners") {
         return Response.json({ error: "not_found" }, { status: 404 });
