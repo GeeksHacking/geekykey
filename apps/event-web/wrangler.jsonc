@@ -1,8 +1,9 @@
 // The Event screens as a Cloudflare Worker, `event-web` (the migration spec's 3.2 and 5.1).
 // It serves the Vite build in dist/, and passes the browser's /api/* and /auth/* requests to
 // the Event Service, so the browser sees one address and needs no CORS. Firebase's sign-in
-// pages go to Firebase, so Google's sign-in names this address. Its code is in worker/. Locally, Vite's proxy does the same job for `pnpm dev`, and `pnpm worker:dev`
-// runs this Worker in `wrangler dev`.
+// pages go to Firebase, so Google's sign-in names this address. Its code is in worker/.
+// Locally, Vite's proxy does the same job for `pnpm dev`, and `pnpm worker:dev` runs this
+// Worker in `wrangler dev`.
 //
 // Settings live here and change through a reviewed pull request: a deploy overwrites
 // settings and routes changed in the Cloudflare dashboard. Ethan's team owns this Worker, and

@@ -289,7 +289,9 @@ The Firebase sign-in needs the three `VITE_FIREBASE_*` variables, which the runb
 sets. The committed `.env.development` carries them, so a fresh clone can sign in, and a
 variable in your shell or in your own `.env.local` wins over the file. Without them the
 sign-in buttons are disabled and the page says so, and a live build fails rather than ship
-that.
+that. Only `localhost` signs in through `geekykey-b035a.firebaseapp.com` (agreement 7.2). On
+`127.0.0.1` or a LAN address the popup opens on that address, where nothing forwards
+Firebase's pages, so sign in on `localhost`.
 
 Backend, for the integration phase only:
 
