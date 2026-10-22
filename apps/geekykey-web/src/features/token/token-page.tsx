@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
 import { describeError, isApiErrorCode } from "@/api/errors";
-import { EventButtons } from "@/components/event-buttons";
 import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { ErrorState } from "@/components/layout/error-state";
 import { ReleaseTokenBlock } from "@/components/release-token-block";
@@ -12,7 +11,7 @@ import { formatUid } from "@/lib/token-uid";
 import { HOME_PATH } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 import { useReleaseToken } from "@/lib/use-release-token";
-import type { EventServiceLink, TokenLookup } from "@/api/types";
+import type { TokenLookup } from "@/api/types";
 import { useClaimToken } from "@/features/token/use-claim-token";
 import { useToken } from "@/features/token/use-token";
 
@@ -27,8 +26,7 @@ import { useToken } from "@/features/token/use-token";
  * Release. The owner is never named: 8.5 gives `owner_id` only to a GeekyKey admin, and the
  * mock enforces that, so there is no name or ID on this screen to leak.
  *
- * Your own token carries a button for each event in /me as well, which opens that
- * event's screens as the same user through a login link (8.6).
+ * The buttons for each event in the owner's view are FRO-31.
  */
 export function TokenPage({ uid }: { uid: string }) {
   const query = useToken(uid);
@@ -61,7 +59,6 @@ export function TokenPage({ uid }: { uid: string }) {
             claim={claim}
             release={release}
             isAdmin={me?.user.is_geekykey_admin ?? false}
-            events={me?.events ?? []}
           />
         )}
       </div>
@@ -79,13 +76,11 @@ function OwnerView({
   claim,
   release,
   isAdmin,
-  events,
 }: {
   lookup: TokenLookup;
   claim: ReturnType<typeof useClaimToken>;
   release: ReturnType<typeof useReleaseToken>;
   isAdmin: boolean;
-  events: EventServiceLink[];
 }) {
   const failure = claim.error;
   const { owner, claimed_at: claimedAt, owner_id: ownerId } = lookup;
@@ -113,7 +108,7 @@ function OwnerView({
     owner === "nobody" ? (
       <NobodyHasIt claim={claim} />
     ) : owner === "you" ? (
-      <YouOwnIt claimedAt={claimedAt} release={release} events={events} />
+      <YouOwnIt claimedAt={claimedAt} release={release} />
     ) : (
       <SomeoneElseHasIt release={release} ownerId={ownerId} isAdmin={isAdmin} />
     );
@@ -143,19 +138,12 @@ function NobodyHasIt({ claim }: { claim: ReturnType<typeof useClaimToken> }) {
   );
 }
 
-/**
- * Your own token: when you claimed it, the Release, and a button for each event in /me.
- * Agreement 8.5's table puts those side by side, and the button opens that event's
- * screens as the same user through a login link (8.6).
- */
 function YouOwnIt({
   claimedAt,
   release,
-  events,
 }: {
   claimedAt: string | null;
   release: ReturnType<typeof useReleaseToken>;
-  events: EventServiceLink[];
 }) {
   return (
     <div className="flex flex-col items-start gap-4">
@@ -166,7 +154,6 @@ function YouOwnIt({
         ) : null}
       </div>
       <ReleaseTokenBlock release={release} mine />
-      <EventButtons events={events} />
     </div>
   );
 }
