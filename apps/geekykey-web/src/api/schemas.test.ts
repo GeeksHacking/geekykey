@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { NetworkError } from "@/api/errors";
-import { parseClaimResponse, parseMeResponse, parseTokenLookupResponse } from "@/api/schemas";
+import {
+  parseClaimResponse,
+  parseLoginLinkResponse,
+  parseMeResponse,
+  parseTokenLookupResponse,
+} from "@/api/schemas";
 
 const iso = "2026-10-10T08:30:00.000Z";
 
@@ -92,6 +97,29 @@ describe("geekykey-web schemas", () => {
     expect(() => parseClaimResponse({ uid: "04A1B2C3D4E5F6", claimed_at: iso })).toThrow(
       NetworkError,
     );
+  });
+
+  it("accepts a login link, which the agreement answers with no wrapper", () => {
+    const link = parseLoginLinkResponse({
+      url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln",
+      expires_at: iso,
+    });
+
+    expect(link.url).toBe("https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln");
+    expect(link.expires_at).toBe(iso);
+  });
+
+  it("rejects a login link with no url, or with an expiry that is not a time", () => {
+    expect(() => parseLoginLinkResponse({ expires_at: iso })).toThrow(NetworkError);
+    expect(() =>
+      parseLoginLinkResponse({ url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln" }),
+    ).toThrow(NetworkError);
+    expect(() =>
+      parseLoginLinkResponse({
+        url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln",
+        expires_at: "in a minute",
+      }),
+    ).toThrow(NetworkError);
   });
 
   it("turns any unexpected shape into a NetworkError, not a raw Zod error", () => {

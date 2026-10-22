@@ -284,6 +284,54 @@ describe("geekykey-web mock client", () => {
     });
   });
 
+  describe("login links", () => {
+    it("answers the Event screens' local address with the link their mock accepts", async () => {
+      // The mock has no GeekyKey Service to sign a link, so it stands in for one the
+      // way the Event screens' mock stands in for the service that checks it.
+      const api = setup();
+
+      const link = await api.createLoginLink("showcase");
+
+      expect(link.url).toBe("http://localhost:5173/#login=mock");
+    });
+
+    it("expires 60 seconds after it is made, as the agreement says", async () => {
+      const clock = { at: Date.UTC(2026, 9, 7, 8, 0, 0) };
+      const api = createMockClient({ latencyMs: [0, 0], storage: null, now: () => clock.at });
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+
+      const link = await api.createLoginLink("showcase");
+
+      expect(new Date(link.expires_at).getTime() - clock.at).toBe(60_000);
+    });
+
+    it("answers not_found for an event the settings do not carry", async () => {
+      // 8.6 answers not_found for an event_id that isn't in /me's events, and the
+      // fixtures carry one that left the settings.
+      const api = setup();
+
+      expect(await codeOf(() => api.createLoginLink("e_4b19"))).toBe("not_found");
+    });
+
+    it("answers not_found for an event no fixture carries", async () => {
+      const api = setup();
+
+      expect(await codeOf(() => api.createLoginLink("showcase-2"))).toBe("not_found");
+    });
+
+    it("answers validation_failed for an empty event id, as the service reads the body first", async () => {
+      const api = setup();
+
+      expect(await codeOf(() => api.createLoginLink(""))).toBe("validation_failed");
+    });
+
+    it("needs a session", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+
+      expect(await codeOf(() => api.createLoginLink("showcase"))).toBe("unauthenticated");
+    });
+  });
+
   describe("auth and failure simulation", () => {
     it("signs in any user id, because the service keeps no users", async () => {
       const api = createMockClient({ latencyMs: [0, 0], storage: null });

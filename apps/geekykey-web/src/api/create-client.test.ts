@@ -46,7 +46,36 @@ describe("createAppClient", () => {
     expect((await client.me()).user.id).toBe(SEEDED_PARTICIPANT_ID);
     expect((await client.getToken("04E5F7091B3D")).owner).toBe("nobody");
     expect(await client.claimToken("04E5F7091B3D")).toBeDefined();
+    // The mock's link, which opens the Event screens' local address.
+    expect((await client.createLoginLink("showcase")).url).toBe(
+      "http://localhost:5173/#login=mock",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the login link to the service in live mode", async () => {
+    // Agreement 8.6: the service makes the link, so the event's address and the
+    // fragment's name are its to give.
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln",
+        expires_at: "2026-10-22T13:01:00.000Z",
+      }),
+    );
+    const client = appClient(true);
+
+    const link = await client.createLoginLink("showcase");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/login-links",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: "showcase" }),
+        credentials: "include",
+      }),
+    );
+    expect(link.url).toBe("https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln");
   });
 
   it("sends the session slice to the service in live mode", async () => {
@@ -179,7 +208,13 @@ describe("createAppClient", () => {
   });
 
   it("names the live methods, so a method that goes live changes them all at once", () => {
-    expect([...LIVE_METHODS].sort()).toEqual(["devLogin", "firebaseLogin", "logout", "me"]);
+    expect([...LIVE_METHODS].sort()).toEqual([
+      "createLoginLink",
+      "devLogin",
+      "firebaseLogin",
+      "logout",
+      "me",
+    ]);
   });
 
   it("exposes every interface method, so the two clients cannot drift apart", () => {
@@ -191,6 +226,7 @@ describe("createAppClient", () => {
     expect(fromMock).toEqual(
       [
         "claimToken",
+        "createLoginLink",
         "devLogin",
         "firebaseLogin",
         "getToken",

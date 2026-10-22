@@ -1,4 +1,4 @@
-import type { MeResponse, Token, TokenLookup } from "@/api/types";
+import type { LoginLink, MeResponse, Token, TokenLookup } from "@/api/types";
 
 /*
   The one interface every feature consumes. Two implementations:
@@ -46,4 +46,12 @@ export interface ApiClient {
    * showed.
    */
   releaseToken(uid: string, ownerId?: string): Promise<void>;
+
+  /**
+   * POST /api/v1/login-links. Agreement 8.6. A link to one event's screens for the
+   * current user, which works once and expires 60 seconds after it is made. The
+   * event buttons on My tokens and the token page open the url it answers and
+   * keep nothing.
+   */
+  createLoginLink(eventId: string): Promise<LoginLink>;
 }
