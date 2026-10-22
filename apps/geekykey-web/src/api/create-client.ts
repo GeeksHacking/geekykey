@@ -8,10 +8,10 @@ import { createMockClient, type MockControls } from "@/api/mock/client";
   goes live.
 
   With VITE_LIVE_API the session slice goes to the real backend: me, devLogin,
-  firebaseLogin and logout. Every other method stays on the mock, because the
-  GeekyKey Service's token routes (agreement 8.2, 8.3 and 8.5) arrive at
-  checkpoint 6. See "Wiring an endpoint to the real backend" in
-  apps/event-web/CLAUDE.md.
+  firebaseLogin and logout, and the login link (agreement 8.6). Every other method
+  stays on the mock, because the GeekyKey Service's token routes (agreement 8.2,
+  8.3 and 8.5) arrive at checkpoint 6. See "Wiring an endpoint to the real
+  backend" in apps/event-web/CLAUDE.md.
 */
 export const LIVE_API = ["1", "true"].includes(import.meta.env.VITE_LIVE_API ?? "");
 
@@ -24,10 +24,10 @@ export interface AppClientOptions {
  * The names of the methods that talk to the real backend. Add one name here when
  * a slice is done, and only then: an endpoint that is not live in
  * apps/geekykey-service yet will break every screen that calls it. The session
- * slice is live; the token methods (agreement 8.2, 8.3 and 8.5) join at
- * checkpoint 6.
+ * slice is live, and so is the login link (agreement 8.6); the token methods
+ * (agreement 8.2, 8.3 and 8.5) join at checkpoint 6.
  */
-const LIVE_METHOD_NAMES = ["me", "devLogin", "firebaseLogin", "logout"] as const;
+const LIVE_METHOD_NAMES = ["me", "devLogin", "firebaseLogin", "logout", "createLoginLink"] as const;
 
 /**
  * The live methods, as a set. The "Demo data" notice, My tokens' Release and the
@@ -82,6 +82,10 @@ function liveMethods(
         mock.setSession(null);
       }
     },
+
+    // Agreement 8.6. The service makes the link, so it owns the event's address and
+    // the fragment's name, and the answer is opened as it is.
+    createLoginLink: (eventId) => http.createLoginLink(eventId),
   };
 }
 
