@@ -128,6 +128,18 @@ describe("HTTP client transport", () => {
     expect(error.status).toBe(503);
   });
 
+  it("keeps the Worker's service_unavailable, not the code its status means", async () => {
+    // The Worker in front of the screens answers 503 service_unavailable when the service
+    // behind it gave no answer at all (agreement section 2). The body the client can read
+    // wins, so the screens are told the service is down rather than that a station's
+    // Event Service is.
+    fetchMock.mockResolvedValue(response({ error: "service_unavailable" }, 503));
+
+    const error = await apiError(createHttpClient().me());
+    expect(error.code).toBe("service_unavailable");
+    expect(error.status).toBe(503);
+  });
+
   it("gives a 401 on the login invalid_token, not a lost session", async () => {
     // Agreement 7.2: the login answers 401 invalid_token. Every other 401 is
     // unauthenticated, which the session provider reads as a signed-out user.
@@ -371,5 +383,6 @@ const statusFor = {
   event_service_unavailable: 503,
   claims_unavailable: 503,
   login_unavailable: 503,
+  service_unavailable: 503,
   internal_error: 500,
 } as const satisfies Record<ErrorCode, number>;

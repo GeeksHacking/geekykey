@@ -34,6 +34,7 @@ describe("the mock's error statuses", () => {
       event_service_unavailable: 503,
       claims_unavailable: 503,
       login_unavailable: 503,
+      service_unavailable: 503,
       internal_error: 500,
     };
 

@@ -437,10 +437,13 @@ Rules:
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.
-   - `event_service_unavailable` / `claims_unavailable`: show a service-availability message.
+   - `event_service_unavailable` / `claims_unavailable` / `service_unavailable`: show a
+     service-availability message.
      `claims_unavailable` replaced `portal_unavailable` in agreement 0.3; it is what 8.2 to 8.5
      and the station endpoints answer when the claims stand-in, or the Portal, cannot say who
      owns a token.
+     `service_unavailable` is what the Worker in front of these screens answers when the Event
+     Service gave no answer at all (agreement section 2).
    - `invalid_event_service_key` / station-key errors: setup/configuration message.
    - `internal_error` or a network failure: generic error state with a retry button.
 - Out of scope, do not build UI for it: leaderboards, dual-tap, archetype quests, event

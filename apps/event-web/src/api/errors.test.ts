@@ -17,6 +17,7 @@ const CODES: ErrorCode[] = [
   "event_service_unavailable",
   "claims_unavailable",
   "login_unavailable",
+  "service_unavailable",
   "internal_error",
 ];
 
@@ -25,6 +26,14 @@ describe("API error messages", () => {
     expect(describeError(new ApiError(429, "rate_limited"))).toContain("Too many requests");
     expect(describeError(new ApiError(503, "event_service_unavailable"))).toContain("service");
     expect(describeError(new ApiError(503, "claims_unavailable"))).toContain("service");
+  });
+
+  it("says the same thing for the Worker's service_unavailable", () => {
+    // Ethan settled the wording on 21 Oct: this sentence, which the GeekyKey screens
+    // use too. Section 13 sets no wording for it.
+    expect(describeError(new ApiError(503, "service_unavailable"))).toBe(
+      "A required service is unavailable. Try again shortly.",
+    );
   });
 
   it("gives every error code its own plain-language text", () => {

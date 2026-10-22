@@ -91,8 +91,8 @@ describe("createAppClient", () => {
   it("keeps the mock's session when the service cannot answer", async () => {
     // A 503 says the service is down, not that the session is gone, so the mock
     // keeps the organiser it had and the mocked screens still work. The body is
-    // the Worker's own 503 (agreement 2): the screens' code list has no entry for
-    // it, so the client falls back to the status.
+    // the Worker's own 503 (agreement 2), and the screens' code list holds it, so
+    // the client reads the code from the body rather than from the status.
     fetchMock.mockResolvedValueOnce(noContentResponse());
     const api = createAppClient({ live: true });
     await api.devLogin("dev-organizer-1");

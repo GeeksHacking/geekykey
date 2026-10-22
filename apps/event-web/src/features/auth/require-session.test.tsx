@@ -9,6 +9,7 @@ import {
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "@/api/errors";
 import type { MeResponse } from "@/api/types";
 import { RequireSession } from "@/features/auth/require-session";
 import { SessionContext, type SessionState } from "@/lib/session";
@@ -20,11 +21,15 @@ const me: MeResponse = {
   recent_taps: [],
 };
 
-function sessionWith(status: SessionState["status"], payload: MeResponse | null): SessionState {
+function sessionWith(
+  status: SessionState["status"],
+  payload: MeResponse | null,
+  error: unknown = undefined,
+): SessionState {
   return {
     status,
     me: payload,
-    error: undefined,
+    error,
     refresh: async () => {},
     signIn: async () => me,
     signInWithFirebase: async () => me,
@@ -88,5 +93,24 @@ describe("RequireSession", () => {
       </SessionContext.Provider>,
     );
     await waitFor(() => expect(screen.getByText("Secret passport")).toBeInTheDocument());
+  });
+
+  it("says a service is unavailable when the Worker answers 503", async () => {
+    // The Worker in front of the screens answers 503 service_unavailable when the Event
+    // Service gave no answer at all (agreement section 2), so the screen says the service
+    // is down rather than that something went wrong.
+    render(
+      <SessionContext.Provider
+        value={sessionWith("error", null, new ApiError(503, "service_unavailable"))}
+      >
+        <RouterProvider router={makeRouter("/passport")} />
+      </SessionContext.Provider>,
+    );
+
+    expect(
+      await screen.findByText("A required service is unavailable. Try again shortly."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByText("Secret passport")).not.toBeInTheDocument();
   });
 });
