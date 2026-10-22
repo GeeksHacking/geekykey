@@ -8,6 +8,7 @@ import {
   signInWithPopup,
   signOut as signOutOfFirebaseAuth,
   type Auth,
+  type User,
   type UserCredential,
 } from "@firebase/auth";
 
@@ -76,7 +77,24 @@ export function signInAsGuest(): Promise<string> {
  * GeekyKey screens use this to log a returning user in again without the login (agreement
  * 7.2). A build with no config has no Firebase to remember anyone.
  */
-export function savedUserIdToken(): Promise<string | null> {
+export async function savedUserIdToken(): Promise<string | null> {
+  const user = await savedUser();
+  // A fresh token, as 7.2 asks, rather than one Firebase cached an hour ago.
+  return user ? user.getIdToken(true) : null;
+}
+
+/**
+ * Whether the user Firebase remembers in this browser signed in as a guest. A guest who signs
+ * out can't sign in as the same guest again, so the GeekyKey screens ask them first (agreement
+ * 13). A build with no config has no Firebase, so it has no guests either.
+ */
+export async function isSignedInAsGuest(): Promise<boolean> {
+  const user = await savedUser();
+  return user?.isAnonymous ?? false;
+}
+
+/** The user Firebase remembers in this browser, or null. */
+function savedUser(): Promise<User | null> {
   if (!hasFirebaseConfig()) return Promise.resolve(null);
   return new Promise((resolve, reject) => {
     // Firebase reports the saved user once it has read it from the browser, which is why
@@ -85,8 +103,7 @@ export function savedUserIdToken(): Promise<string | null> {
       firebaseAuth(),
       (user) => {
         unsubscribe();
-        // A fresh token, as 7.2 asks, rather than one Firebase cached an hour ago.
-        resolve(user ? user.getIdToken(true) : null);
+        resolve(user);
       },
       reject,
     );
