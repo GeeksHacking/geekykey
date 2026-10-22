@@ -1320,3 +1320,12 @@
     that phone run. A guest claiming a token from the token page moved to checkpoint 6's checks.
     The trade-offs we accept: checkpoint 5 passes before a guest has claimed a token through the
     screens.
+
+- id: checkpoint-5-done
+  date: 2026-10-22
+  area: backend
+  change: >-
+    Checkpoint 5 is done. On a phone, a guest on the GeekyKey screens tapped a token at the main
+    station, opened the passport from "Open Capstone Showcase" without logging in again, and saw
+    the stamp. A Google user reached the passport the same way. Both sets of screens now log people
+    in on production, and checkpoint 6, claiming and releasing tokens, comes next.
