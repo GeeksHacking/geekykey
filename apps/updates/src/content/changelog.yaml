@@ -1412,3 +1412,14 @@
     Service, so a claim made on a phone is saved by the service. The token page's "Demo data"
     notice is gone. My tokens has a Release button on each token, and a form to claim a token
     by typing its code.
+
+- id: checkpoint-6-done
+  date: 2026-10-23
+  area: backend
+  change: >-
+    Checkpoint 6 is done. On a phone on production, a Google user claimed a token from its token
+    page and again by typing its code on My tokens, opened the passport from "Open Capstone
+    Showcase" without logging in again, and released it. A GeekyKey admin released a token someone
+    else held, and a guest claimed one from its token page. The tests show each of the three rate
+    limits turning requests away. Checkpoint 7, the Event Service's features for organizers, comes
+    next.
