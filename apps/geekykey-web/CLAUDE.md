@@ -21,13 +21,18 @@ Read those files before adding screens. They are references, not documents to co
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see "Tailwind 4 notes" in `apps/event-web/CLAUDE.md`).
+- `worker/firebase.ts` and `authDomain()` in `src/lib/firebase.ts` are copies of the Event
+  screens', and `worker/config.ts` checks its address the way theirs does. Change them
+  together.
 - Keep GeekyKey Service and Event Service concerns separate.
 - The Vite dev server proxies `/api` and `/auth` to `http://localhost:8000`.
 - The Firebase sign-in needs the three `VITE_FIREBASE_*` variables, under the names the
   runbook's step 13 gives. The committed `.env.development` carries them for development, so
   a fresh clone can sign in; a variable in your shell or in your own `.env.local` wins over
   the file. Without them the sign-in buttons are disabled and the page says so, and a live
-  build fails rather than ship that.
+  build fails rather than ship that. Only `localhost` signs in through
+  `geekykey-b035a.firebaseapp.com` (agreement 7.2). On `127.0.0.1` or a LAN address the popup
+  opens on that address, where nothing forwards Firebase's pages, so sign in on `localhost`.
 - In production the Worker in `worker/` (settings in `wrangler.jsonc`) serves `dist/` and
   passes `/api/*` and `/auth/*` to `geekykey-service` through a service binding, and
   Firebase's sign-in pages to Firebase (agreement 7.2). It works

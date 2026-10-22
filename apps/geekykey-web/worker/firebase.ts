@@ -13,7 +13,9 @@ export function isFirebasePath(pathname: string): boolean {
 /**
  * Passes the request to Firebase at `firebase` and its answer back, unchanged both ways but
  * for the cookie. The cookie is our session, so it stays here. A redirect isn't followed. It
- * goes back to the browser, as Firebase sent it.
+ * goes back to the browser, as Firebase sent it. When Firebase doesn't answer at all, the
+ * popup gets Cloudflare's own error page: these are pages, so the agreement's JSON 503 would
+ * read no better there.
  */
 export function toFirebase(firebase: string, request: Request): Promise<Response> {
   const { pathname, search } = new URL(request.url);

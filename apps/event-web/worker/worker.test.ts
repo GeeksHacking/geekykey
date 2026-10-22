@@ -22,7 +22,10 @@ import { startFakeService, type FakeService } from "./test-support/fake-service.
 const config = fileURLToPath(new URL("../wrangler.jsonc", import.meta.url));
 const indexHtml = fileURLToPath(new URL("../dist/index.html", import.meta.url));
 
-/** The Worker, started with EVENT_API_URL set to `eventApiUrl`, and FIREBASE_AUTH_URL to `firebaseAuthUrl`. */
+/**
+ * The Worker, started with EVENT_API_URL set to `eventApiUrl`, and FIREBASE_AUTH_URL to
+ * `firebaseAuthUrl`.
+ */
 function startWorker(eventApiUrl: string, firebaseAuthUrl: string) {
   return unstable_startWorker({
     config,

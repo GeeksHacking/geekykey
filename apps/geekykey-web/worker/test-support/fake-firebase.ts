@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 /** A request as the fake Firebase received it. */
 export interface Received {
   method: string;
-  /** The path and query, such as `/api/v1/me?x=1`. */
+  /** The path and query, such as `/__/auth/handler?apiKey=k`. */
   path: string;
   headers: IncomingHttpHeaders;
   body: string;
