@@ -134,12 +134,13 @@ test("a user's 21st lookup or claim in a minute is turned away, while /me still 
   assert.equal((await loginLink(cookie)).status, 201);
 });
 
-test("lookups and claims count toward the 60 as well", async () => {
-  const { logIn, routes } = harness({ tokenLimit: fakeLimiter(USER_LIMIT) });
+test("lookups and claims count toward the 60 as well, even once the 20 turns them away", async () => {
+  const { logIn, routes } = harness();
   loggedLines();
   const cookie = await logIn("firebase-uid-1");
 
-  assert.ok(!(await callMany([routes.lookUp], USER_LIMIT, cookie)).includes(429));
+  const statuses = await callMany([routes.lookUp, routes.claim], USER_LIMIT, cookie);
+  assert.deepEqual(statuses.slice(TOKEN_LIMIT), Array(USER_LIMIT - TOKEN_LIMIT).fill(429));
   await assertRateLimited(await routes.me(cookie));
 });
 
@@ -197,23 +198,29 @@ test("a user turned away is logged once, by their user ID", async () => {
   );
 });
 
-test("wrangler.jsonc's limits let a user's first 20 lookups through, and turn one of the next 21 away, and the same for 60 requests", async () => {
-  // Wrangler's simulation of the bindings counts in windows that follow the
-  // wall clock, so the requests can straddle two. Whichever minute they
-  // start in, no window holds more than the first ones, and one holds at
-  // least the limit and one more of the rest. A user of their own each
-  // time, as the simulation's counts outlast a test.
+// Wrangler's simulation of the bindings counts in windows that follow the
+// wall clock, so a test's requests can straddle two. Whichever minute they
+// start in, no window holds more than the first `limit`, and one holds at
+// least `limit + 1` of the next `limit + 1`. Each test logs in a user of its
+// own, as the simulation's counts outlast a test.
+
+test("wrangler.jsonc's TOKEN_LIMIT lets a user's first 20 lookups through, and turns one of the next 21 away", async () => {
   const { logIn, routes } = harness({ userLimit: env.USER_LIMIT, tokenLimit: env.TOKEN_LIMIT });
   loggedLines();
+  const cookie = await logIn(`firebase-${crypto.randomUUID()}`);
 
-  const looker = await logIn(`firebase-${crypto.randomUUID()}`);
   assert.deepEqual(
-    await callMany([routes.lookUp], TOKEN_LIMIT, looker),
+    await callMany([routes.lookUp], TOKEN_LIMIT, cookie),
     Array(TOKEN_LIMIT).fill(200),
   );
-  assert.ok((await callMany([routes.lookUp], TOKEN_LIMIT + 1, looker)).includes(429));
+  assert.ok((await callMany([routes.lookUp], TOKEN_LIMIT + 1, cookie)).includes(429));
+});
 
-  const user = await logIn(`firebase-${crypto.randomUUID()}`);
-  assert.deepEqual(await callMany([routes.me], USER_LIMIT, user), Array(USER_LIMIT).fill(200));
-  assert.ok((await callMany([routes.me], USER_LIMIT + 1, user)).includes(429));
+test("wrangler.jsonc's USER_LIMIT lets a user's first 60 requests through, and turns one of the next 61 away", async () => {
+  const { logIn, routes } = harness({ userLimit: env.USER_LIMIT, tokenLimit: env.TOKEN_LIMIT });
+  loggedLines();
+  const cookie = await logIn(`firebase-${crypto.randomUUID()}`);
+
+  assert.deepEqual(await callMany([routes.me], USER_LIMIT, cookie), Array(USER_LIMIT).fill(200));
+  assert.ok((await callMany([routes.me], USER_LIMIT + 1, cookie)).includes(429));
 });
