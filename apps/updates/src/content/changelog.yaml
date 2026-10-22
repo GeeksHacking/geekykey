@@ -1367,5 +1367,5 @@
   change: >-
     The GeekyKey Service can now claim a token for the user. The first claim wins, and a user holds
     at most 3 tokens, GeekyKey admins included. Claiming a token you already hold answers that it's
-    yours. A user holding 3 hears about the limit before they hear the token is someone else's.
+    yours. A user holding 3 gets the limit error even for a token someone else holds.
     Nothing calls it on production until the token page and My tokens switch to it.

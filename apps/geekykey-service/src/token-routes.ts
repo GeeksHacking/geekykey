@@ -31,7 +31,7 @@ type TokenView = {
  * user's own (`you`, with when they claimed it) or `someone_else`'s, and only
  * a GeekyKey admin is told whose, to release it with (8.3).
  *
- * The claim (8.2) is the token page's Claim and My tokens' claim-by-UID form.
+ * The claim (8.2) is the token page's Claim and My tokens' claim-by-code form.
  * The first claim wins, and a user holds at most `maxTokensPerUser`. Its
  * checks run in 8.2's order: a token already the user's answers `200`
  * whatever their count, then a user at the limit gets `token_limit_reached`,
@@ -81,13 +81,13 @@ export function tokenRoutes({
         const token = (claimedAt: string, status: 200 | 201) =>
           c.json({ token: { uid, claimed_at: claimedAt } }, status);
         return await withClaimsDeadline(c, deadlineMs, async (signal) => {
-          const theirs = await claims.tokensOf(userId, signal);
-          const mine = theirs.find((t) => t.uid === uid);
+          const held = await claims.tokensOf(userId, signal);
+          const mine = held.find((token) => token.uid === uid);
           if (mine) return token(mine.claimedAt, 200);
           // Even when the token is someone else's. Two claims by one user at
           // the same instant can both pass, leaving them one over: accepted
           // in the migration spec's section 4.
-          if (theirs.length >= maxTokensPerUser) {
+          if (held.length >= maxTokensPerUser) {
             return c.json({ error: "token_limit_reached" }, 409);
           }
           const claimed = await claims.claim(uid, userId, signal);
