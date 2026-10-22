@@ -32,11 +32,11 @@ export type StationEnv = {
  * Event Services for their stations. A request with no key isn't counted,
  * since there's nothing to count it by.
  *
- * The request's deadline (11.5), `deadlineMs` long,
- * starts here, since filling an empty copy counts against it (11.1).
- * `401 invalid_station_key` only when every Event Service's list is in hand
- * and the key is on none of them, and `503 event_service_unavailable` when a
- * list is missing and the key isn't on the others.
+ * The request's deadline (11.5), `deadlineMs` long, starts after that,
+ * since filling an empty copy counts against it (11.1). `401
+ * invalid_station_key` only when every Event Service's list is in hand and
+ * the key is on none of them, and `503 event_service_unavailable` when a list
+ * is missing and the key isn't on the others.
  *
  * Work the request starts for after its answer, such as the heartbeat
  * hand-off or a refresh of the copy, goes to `ctx.waitUntil()`, so the
