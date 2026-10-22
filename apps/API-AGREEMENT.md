@@ -1474,6 +1474,10 @@ There are no GeekyKey admin screens.
   shows sample data." With the services behind them, the organiser screens say "Demo data. These
   screens show sample stations and taps, so nothing here changes the event." The GeekyKey screens
   send every call to the GeekyKey Service, so with the service behind them they show no notice.
+- The organiser's CSV download is the file the service sent, unchanged, unless a name needs
+  escaping. The summary says the rule under the Download CSV button: **"A name that a spreadsheet
+  could run as a formula gets an apostrophe, so it stays text."** When the file was changed, it
+  says **"Some names were escaped, so this file is not the service's own."**
 
 Local setup, from checkpoint 1:
 
@@ -1564,3 +1568,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | 7.2's `authDomain` is the page's own address, no longer `geekykey-b035a.firebaseapp.com`, except on `localhost`. Each set of screens' Worker forwards Firebase's sign-in pages, `/__/auth/*` and `/__/firebase/init.json`, to `https://geekykey-b035a.firebaseapp.com`, so Google's sign-in names `event.geekshacking.com` or `key.geekshacking.com`. The services don't change: the ID token's audience is still the project ID. A change within 0.5, which Ethan approves in its pull request. No endpoint or shape changes (FRO-72). |
 | 2026-10-22 | The GeekyKey Service's user limits are `Implemented`. Each user gets 60 requests a minute to its API, and 20 token lookups and claims, which count toward the 60 as well. Either one, once passed, answers `429 rate_limited` with `Retry-After: 60`, as the station limit does. [Rate limits](#rate-limits) now says what counts: every `/api/v1` request with a session, by user ID, even one that fails its checks, but not `/auth/*` and not a request with no session, which still gets `401 unauthenticated`. A user over the 20 can still use `/me`, the release and login links. 8.2, 8.3, 8.5 and 8.6 point their `rate_limited` at it instead of at checkpoint 6, and 8.4's errors list `rate_limited`. No shape changes (BAC-70). |
 | 2026-10-22 | The GeekyKey screens now send the token lookup, the claim and the release to the GeekyKey Service. Section 13 drops the token page's "Demo data" sentence for a build with the service behind it, and the rule that kept Release and the claim-by-code form off My tokens until 8.2 and 8.3 were live. Only a GeekyKey screens build with no service behind it still shows a notice. No endpoint or shape changes (FRO-70). |
+| 2026-10-22 | Section 13 sets what the organiser's CSV download says and which file it hands over. The download is the file the service sent, unchanged, unless a name needed escaping, and only that name changes. The summary says the rule under the Download CSV button, and says when a file was changed that it is not the service's own. No endpoint or shape changes (FRO-48). |
