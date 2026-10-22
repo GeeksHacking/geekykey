@@ -1402,4 +1402,4 @@
   change: >-
     A logged-in user who sends the GeekyKey Service more than 60 requests a minute now gets "too
     many requests", and so does one who looks up or claims more than 20 tokens a minute, so nobody
-    can work through token codes to see which are claimed. Logging in isn't counted.
+    can work through UIDs to see which tokens are claimed. Logging in isn't counted.
