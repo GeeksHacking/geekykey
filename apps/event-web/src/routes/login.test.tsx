@@ -11,8 +11,8 @@ import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { routeTree } from "@/routeTree.gen";
 
-vi.mock("firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
-vi.mock("firebase/auth", () => ({
+vi.mock("@firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
+vi.mock("@firebase/auth", () => ({
   getAuth: vi.fn(() => ({ name: "auth" })),
   GoogleAuthProvider: vi.fn(),
   OAuthProvider: vi.fn(),

@@ -1,4 +1,4 @@
-import { initializeApp, type FirebaseApp } from "firebase/app";
+import { initializeApp, type FirebaseApp } from "@firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -7,7 +7,7 @@ import {
   signOut as signOutOfFirebaseAuth,
   type Auth,
   type UserCredential,
-} from "firebase/auth";
+} from "@firebase/auth";
 
 /**
  * Firebase's web config for the showcase (agreement 7.2). It comes from the build, under the

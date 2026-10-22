@@ -21,8 +21,8 @@ const {
   geekshackingEnabled: { value: false },
 }));
 
-vi.mock("firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
-vi.mock("firebase/auth", () => ({
+vi.mock("@firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
+vi.mock("@firebase/auth", () => ({
   getAuth: vi.fn(() => ({ name: "auth" })),
   GoogleAuthProvider: vi.fn(),
   OAuthProvider: vi.fn(),

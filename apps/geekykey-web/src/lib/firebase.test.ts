@@ -18,8 +18,8 @@ const {
   OAuthProvider: vi.fn(),
 }));
 
-vi.mock("firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
-vi.mock("firebase/auth", () => ({
+vi.mock("@firebase/app", () => ({ initializeApp: vi.fn(() => ({ name: "app" })) }));
+vi.mock("@firebase/auth", () => ({
   getAuth,
   signInWithPopup,
   signInAnonymously,
