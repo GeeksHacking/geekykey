@@ -673,7 +673,7 @@ paths aren't on the Connect form. They appear under Settings, then Builds, once 
 | Deploy command | `pnpm exec wrangler deploy` | The Wrangler version in its `package.json` |
 | Build watch paths, include | `apps/geekykey-service/*`, `packages/handoff/*`, `packages/firebase-login/*`, `packages/login-link/*`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` | Its own code, the three packages it bundles, and its dependencies. A merge touching none of them doesn't rebuild it |
 | Build watch paths, exclude | None | |
-| Build variable `NODE_VERSION` | `24.21.0` | The Node the rest of the repo pins, in `.mise.toml` |
+| Build variable `NODE_VERSION` | `24.22.1` | The Node the rest of the repo pins, in `.mise.toml` |
 | Build variable `PNPM_VERSION` | `12.5.1` | The pnpm in the root `package.json`, so the build installs as CI and our laptops do. The build image's own is 10.11.1 |
 | Build variable `SKIP_DEPENDENCY_INSTALL` | `1` | So the one install is the build command's, from the repo's root. Otherwise Workers Builds installs on its own first, in the root directory |
 | Build variable `WRANGLER_SEND_METRICS` | `false` | Wrangler sends anonymous usage data unless told not to |
@@ -740,7 +740,7 @@ Both Workers take the same build variables:
 
 | Build variable | Value | Why |
 |---|---|---|
-| `NODE_VERSION` | `24.21.0` | The Node the rest of the repo uses, as in step 12 |
+| `NODE_VERSION` | `24.22.1` | The Node the rest of the repo uses, as in step 12 |
 | `PNPM_VERSION` | `12.5.1` | The pnpm the repo uses. The build image's own is 10.11.1 |
 | `SKIP_DEPENDENCY_INSTALL` | `1` | The build command does the one install |
 | `WRANGLER_SEND_METRICS` | `false` | Wrangler sends anonymous usage data unless told not to |

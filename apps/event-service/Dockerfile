@@ -8,7 +8,7 @@
 # node_modules and no pnpm. Dockerfile.dockerignore lists what the build sees.
 
 # The Node that .mise.toml pins. Change both together.
-FROM node:24.21.0-slim AS build
+FROM node:24.22.1-slim AS build
 
 # The pnpm that .mise.toml pins. Corepack can't start pnpm 12 (see ci.yml).
 RUN npm install --global pnpm@12.5.1
@@ -34,7 +34,7 @@ COPY packages/login-link/ packages/login-link/
 COPY apps/event-service/ apps/event-service/
 RUN pnpm --filter @geekykey/event-service build
 
-FROM node:24.21.0-slim
+FROM node:24.22.1-slim
 
 WORKDIR /app
 COPY --from=build /repo/apps/event-service/dist/ ./
