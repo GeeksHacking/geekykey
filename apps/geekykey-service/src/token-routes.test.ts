@@ -10,7 +10,7 @@ import { loadConfig } from "./config.ts";
 // 8.5): what the token page shows once someone is logged in. Whether the
 // token is unclaimed, theirs or someone else's, and, for a GeekyKey admin,
 // whose. And POST /api/v1/tokens/{uid}/claim (8.2), which the token page's
-// Claim and My tokens' claim-by-UID form call: the first claim wins, and a
+// Claim and My tokens' claim-by-code form call: the first claim wins, and a
 // user holds at most 3 tokens.
 
 const google = await fakeGoogle(env.FIREBASE_PROJECT_ID);
@@ -18,8 +18,8 @@ const google = await fakeGoogle(env.FIREBASE_PROJECT_ID);
 /**
  * The Worker as production starts it, with wrangler.jsonc's settings,
  * `admin-1` as its one GeekyKey admin, and its services faked, and a way to
- * log in as a user and then look a token up with the cookie, as the token
- * page would.
+ * log in as a user and then look a token up or claim it with the cookie, as
+ * the token page would.
  */
 function harness({ claimsDeadlineMs = 4000 } = {}) {
   const config = loadConfig({ ...env, GEEKYKEY_ADMINS: ["admin-1"] });
@@ -341,7 +341,7 @@ test("a token already among the user's answers 200 with when they claimed it, an
   );
 });
 
-test("a claim that a claim of the user's own beat to it answers 200, already yours", async () => {
+test("a claim beaten by another claim of the user's own answers 200, already yours", async () => {
   const { fake, logIn, claim } = harness();
   // Their own tokens didn't list it yet, then the stand-in says it's theirs:
   // a second claim of the user's, from another tab, raced this one.
