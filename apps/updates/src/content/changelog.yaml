@@ -1360,3 +1360,12 @@
     My tokens has a form to claim a token by typing its UID, for anyone whose phone cannot
     read a token. The UID takes any separator style, and the claim route is still on the
     mock, so the form is hidden in a live build until the GeekyKey Service has it.
+
+- id: a-user-claims-a-token
+  date: 2026-10-22
+  area: backend
+  change: >-
+    The GeekyKey Service can now claim a token for the user. The first claim wins, and a user holds
+    at most 3 tokens, GeekyKey admins included. Claiming a token you already hold answers that it's
+    yours. A user holding 3 hears about the limit before they hear the token is someone else's.
+    Nothing calls it on production until the token page and My tokens switch to it.

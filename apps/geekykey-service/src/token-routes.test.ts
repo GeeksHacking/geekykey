@@ -9,7 +9,9 @@ import { loadConfig } from "./config.ts";
 // GET /api/v1/tokens/{uid} on the GeekyKey Service (the API agreement's
 // 8.5): what the token page shows once someone is logged in. Whether the
 // token is unclaimed, theirs or someone else's, and, for a GeekyKey admin,
-// whose.
+// whose. And POST /api/v1/tokens/{uid}/claim (8.2), which the token page's
+// Claim and My tokens' claim-by-UID form call: the first claim wins, and a
+// user holds at most 3 tokens.
 
 const google = await fakeGoogle(env.FIREBASE_PROJECT_ID);
 
@@ -42,7 +44,14 @@ function harness({ claimsDeadlineMs = 4000 } = {}) {
       headers: cookie === undefined ? {} : { Cookie: cookie },
     });
 
-  return { fake, logIn, lookUp };
+  /** POST /api/v1/tokens/{uid}/claim, with no body, as the screens send it. */
+  const claim = (uid: string, cookie?: string) =>
+    app.request(`/api/v1/tokens/${uid}/claim`, {
+      method: "POST",
+      headers: cookie === undefined ? {} : { Cookie: cookie },
+    });
+
+  return { fake, logIn, lookUp, claim };
 }
 
 test("without a session, the lookup answers unauthenticated and asks the stand-in nothing", async () => {
@@ -274,4 +283,205 @@ test("an owner whose token was released between the two calls sees it as nobody'
   assert.deepEqual(await res.json(), {
     token: { uid: "04A1B2C3D4E5F6", owner: "nobody", claimed_at: null, owner_id: null },
   });
+});
+
+test("without a session, a claim answers unauthenticated and asks the stand-in nothing", async () => {
+  const { fake, claim } = harness();
+  const res = await claim("04A1B2C3D4E5F6");
+  assert.equal(res.status, 401);
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await res.json(), { error: "unauthenticated" });
+  assert.deepEqual(fake.sent, []);
+});
+
+test("a token nobody has claimed is claimed, 201, with when", async () => {
+  const { fake, logIn, claim } = harness();
+  fake.now = "2026-11-18T06:00:00.000Z";
+  const res = await claim("04A1B2C3D4E5F6", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 201);
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await res.json(), {
+    token: { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T06:00:00.000Z" },
+  });
+  assert.equal(fake.owners.get("04A1B2C3D4E5F6"), "firebase-uid-1");
+  // The user's own tokens for the checks, then the claim, with the key.
+  assert.deepEqual(
+    fake.sent.map(({ method, url, authorization, body }) => [method, url, authorization, body]),
+    [
+      [
+        "GET",
+        `${env.CLAIMS_STAND_IN_URL}/users/firebase-uid-1/tokens`,
+        `Bearer ${env.CLAIMS_STAND_IN_KEY}`,
+        undefined,
+      ],
+      [
+        "POST",
+        `${env.CLAIMS_STAND_IN_URL}/tokens/04A1B2C3D4E5F6/claim`,
+        `Bearer ${env.CLAIMS_STAND_IN_KEY}`,
+        { user_id: "firebase-uid-1" },
+      ],
+    ],
+  );
+});
+
+test("a token already among the user's answers 200 with when they claimed it, and isn't claimed again", async () => {
+  const { fake, logIn, claim } = harness();
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-1");
+  fake.tokens.set("firebase-uid-1", [
+    { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:30:00.000Z" },
+  ]);
+  const res = await claim("04:a1:b2:c3:d4:e5:f6", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    token: { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:30:00.000Z" },
+  });
+  assert.deepEqual(
+    fake.sent.map(({ method, url }) => [method, url]),
+    [["GET", `${env.CLAIMS_STAND_IN_URL}/users/firebase-uid-1/tokens`]],
+  );
+});
+
+test("a claim that a claim of the user's own beat to it answers 200, already yours", async () => {
+  const { fake, logIn, claim } = harness();
+  // Their own tokens didn't list it yet, then the stand-in says it's theirs:
+  // a second claim of the user's, from another tab, raced this one.
+  fake.answers.claim = async () =>
+    Response.json({ result: "already_yours", claimed_at: "2026-11-18T05:59:59.000Z" });
+  const res = await claim("04A1B2C3D4E5F6", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    token: { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:59:59.000Z" },
+  });
+});
+
+/** `userId` holding three tokens, the most wrangler.jsonc's MAX_TOKENS_PER_USER allows. */
+function holdingThree(fake: ReturnType<typeof harness>["fake"], userId: string) {
+  const three = ["11111111", "22222222", "33333333"].map((uid, i) => ({
+    uid,
+    claimed_at: `2026-11-18T05:0${i}:00.000Z`,
+  }));
+  for (const { uid } of three) fake.owners.set(uid, userId);
+  fake.tokens.set(userId, three);
+}
+
+test("a user holding 3 can't claim a 4th, and the stand-in isn't asked to", async () => {
+  const { fake, logIn, claim } = harness();
+  holdingThree(fake, "firebase-uid-1");
+  const res = await claim("04A1B2C3D4E5F6", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "token_limit_reached" });
+  assert.equal(fake.owners.get("04A1B2C3D4E5F6"), undefined);
+  assert.deepEqual(
+    fake.sent.map(({ method, url }) => [method, url]),
+    [["GET", `${env.CLAIMS_STAND_IN_URL}/users/firebase-uid-1/tokens`]],
+  );
+});
+
+test("a user holding 3 hears about the limit even for someone else's token", async () => {
+  const { fake, logIn, claim } = harness();
+  holdingThree(fake, "firebase-uid-1");
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-2");
+  const res = await claim("04A1B2C3D4E5F6", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "token_limit_reached" });
+});
+
+test("a GeekyKey admin holding 3 can't claim a 4th either", async () => {
+  const { fake, logIn, claim } = harness();
+  holdingThree(fake, "admin-1");
+  const res = await claim("04A1B2C3D4E5F6", await logIn("admin-1"));
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "token_limit_reached" });
+});
+
+test("a user holding 3 who claims one of their own gets 200, whatever the count", async () => {
+  const { fake, logIn, claim } = harness();
+  holdingThree(fake, "firebase-uid-1");
+  const res = await claim("22222222", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    token: { uid: "22222222", claimed_at: "2026-11-18T05:01:00.000Z" },
+  });
+});
+
+test("someone else's token is token_taken, and stays theirs", async () => {
+  const { fake, logIn, claim } = harness();
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-2");
+  const res = await claim("04A1B2C3D4E5F6", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 409);
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await res.json(), { error: "token_taken" });
+  assert.equal(fake.owners.get("04A1B2C3D4E5F6"), "firebase-uid-2");
+});
+
+test("a claim of a UID that isn't 4 to 10 hex bytes fails validation, and the stand-in isn't asked", async () => {
+  const { fake, logIn, claim } = harness();
+  const res = await claim("04A1B2", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as {
+    error: string;
+    issues: { path: unknown[]; message: string }[];
+  };
+  assert.equal(body.error, "validation_failed");
+  assert.deepEqual(
+    body.issues.map(({ path, message }) => [path, message]),
+    [[["uid"], "uid must be 4 to 10 hex bytes"]],
+  );
+  assert.deepEqual(fake.sent, []);
+});
+
+test("a stand-in that doesn't answer either of a claim's calls in time gets claims_unavailable", async () => {
+  const slow: Record<string, Partial<ReturnType<typeof harness>["fake"]["answers"]>> = {
+    "the user's own tokens": { tokens: late(1000, () => Response.json({ tokens: [] })) },
+    "the claim": {
+      claim: late(1000, () =>
+        Response.json({ result: "claimed", claimed_at: "2026-11-18T06:00:00.000Z" }),
+      ),
+    },
+  };
+  const logged = loggedErrors();
+  for (const [what, answers] of Object.entries(slow)) {
+    const { fake, logIn, claim } = harness({ claimsDeadlineMs: 200 });
+    const cookie = await logIn("firebase-uid-1");
+    const before = logged().length;
+    fake.answers = answers;
+    const res = await claim("04A1B2C3D4E5F6", cookie);
+    assert.equal(res.status, 503, what);
+    assert.equal(res.headers.get("Cache-Control"), "no-store", what);
+    assert.deepEqual(await res.json(), { error: "claims_unavailable" }, what);
+    assert.deepEqual(
+      logged()
+        .slice(before)
+        .map(({ message, user_id, reason }) => [message, user_id, reason]),
+      [["claims_unavailable", "firebase-uid-1", "timeout"]],
+      what,
+    );
+  }
+});
+
+test("a claim's two calls share one deadline", async () => {
+  const { fake, logIn, claim } = harness({ claimsDeadlineMs: 300 });
+  const cookie = await logIn("firebase-uid-1");
+  loggedErrors();
+  // Each is within 300 ms on its own, but not both together.
+  fake.answers.tokens = late(200, () => Response.json({ tokens: [] }));
+  fake.answers.claim = late(200, () =>
+    Response.json({ result: "claimed", claimed_at: "2026-11-18T06:00:00.000Z" }),
+  );
+  const res = await claim("04A1B2C3D4E5F6", cookie);
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), { error: "claims_unavailable" });
+});
+
+test("a stand-in whose claim answer doesn't fit gets claims_unavailable", async () => {
+  const { fake, logIn, claim } = harness();
+  const logged = loggedErrors();
+  fake.answers.claim = async () => Response.json({ result: "claimed", claimed_at: null });
+  const res = await claim("04A1B2C3D4E5F6", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), { error: "claims_unavailable" });
+  assert.deepEqual(
+    logged().map(({ reason }) => reason),
+    ["unparseable"],
+  );
 });

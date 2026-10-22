@@ -363,7 +363,7 @@ them.
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
 | GET | `/api/v1/me` | User | `Implemented` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
 | GET | `/api/v1/tokens/{uid}` | User | `Implemented` | What the token page shows |
-| POST | `/api/v1/tokens/{uid}/claim` | User | `Checkpoint 6` | Claim a token |
+| POST | `/api/v1/tokens/{uid}/claim` | User | `Implemented` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Checkpoint 6` | Release a token |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
 
@@ -682,8 +682,9 @@ way a guest reaches the Event screens. The link's format is in 11.9.
 8.1 and 8.7 are on the Event Service, for participants and organizers. 8.2 to 8.6 are on the
 GeekyKey Service, for any logged-in user, and are what the token page and My tokens call. Each of 8.2 to
 8.5 answers `503 claims_unavailable` when the claims stand-in, or after the switch the Portal,
-doesn't answer properly within 4 seconds. Nothing is saved, and the screens say "Couldn't reach
-GeeksHacking. Try again."
+doesn't answer properly within 4 seconds. Nothing is saved, except a claim that reached the
+stand-in after the 4 seconds were up (8.2), and the screens say "Couldn't reach GeeksHacking. Try
+again."
 
 ### 8.1 `GET /api/v1/me` on the Event Service (`Implemented`)
 
@@ -727,7 +728,7 @@ Everything the participant dashboard and passport view need in one call.
 
 **Errors:** `unauthenticated`.
 
-### 8.2 `POST /api/v1/tokens/{uid}/claim` on the GeekyKey Service (`Checkpoint 6`)
+### 8.2 `POST /api/v1/tokens/{uid}/claim` on the GeekyKey Service (`Implemented`)
 
 Claim a token for the current user, from the token page or My tokens' claim-by-code form. The
 first claim wins, and a user holds at most 3 tokens.
@@ -742,12 +743,18 @@ first claim wins, and a user holds at most 3 tokens.
 { "token": { "uid": "04A1B2C3D4E5F6", "claimed_at": "2026-10-10T08:30:00.000Z" } }
 ```
 
-**Errors:** `validation_failed`, `token_taken` (409) when someone else has claimed it,
-`token_limit_reached` (409) when the user already holds 3, and `rate_limited`.
+**Errors:** `unauthenticated`, `validation_failed` for a `{uid}` that isn't 4 to 10 hex bytes,
+`token_taken` (409) when someone else has claimed it, `token_limit_reached` (409) when the user
+already holds 3, `claims_unavailable`, and `rate_limited` from checkpoint 6, when the GeekyKey
+Service's rate limits arrive ([Rate limits](#rate-limits)).
 
 The checks run in this order: a token that is already yours answers `200` whatever your count;
 then a user holding 3 gets `token_limit_reached`, even for someone else's token; then
 `token_taken`.
+
+- `uid` in the answer is the normalised form.
+- A claim that answers `claims_unavailable` may still have reached the claims stand-in after the
+  service gave up waiting, and then the token is yours. Trying again answers `200`.
 
 Taps turned away as `unknown_token` before the claim are not credited afterwards: they were
 never stored.
@@ -1525,3 +1532,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | Section 13 sets the warning a guest sees before signing out on the GeekyKey screens. Signing out ends a guest's Firebase sign-in for good, so their tokens stay claimed and their stamps stay with a user ID nobody can log in as again; a GeekyKey admin at the desk releases the tokens (8.3). A Google or GeeksHacking user isn't asked. No endpoint or shape changes (FRO-62). |
 | 2026-10-22 | The GeekyKey Service's token lookup, `GET /api/v1/tokens/{uid}` (8.5), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It asks the claims stand-in who owns the token. When the owner is the user, it also reads the user's own tokens for `claimed_at`. Both calls share one 4-second deadline, as on `/me`. When the stand-in doesn't answer properly within it, the lookup answers `503 claims_unavailable`. A token released between the two calls reads as `nobody`, which 8.5 now says. Only a GeekyKey admin gets `owner_id`, and the service checks `GEEKYKEY_ADMINS` on every request. Its `rate_limited` waits for the rate limits later in checkpoint 6. Section 2's `400` row now names the path as well as the body and query, and [Token UID](#token-uid) says a UID in a path is percent-encoded, so one typed with `/` between its bytes still arrives whole. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-66). |
 | 2026-10-22 | Section 13 says My tokens offers no claim-by-code form until 8.2 is live, since its list comes from the service and a claim would still go to the sample data. No endpoint or shape changes (FRO-30). |
+| 2026-10-22 | The GeekyKey Service's claim, `POST /api/v1/tokens/{uid}/claim` (8.2), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It reads the user's own tokens from the claims stand-in, then asks the stand-in to claim the token, with one 4-second deadline for both calls, and runs 8.2's checks in their stated order. The limit is a new setting, `MAX_TOKENS_PER_USER`, set to 3, and nobody is exempt, GeekyKey admins included. When the stand-in doesn't answer properly in time, the claim answers `503 claims_unavailable`. A claim that reached the stand-in after the service gave up still stands, so trying again answers `200`, as 8.2 and section 8's opening now say. 8.2's errors now list `unauthenticated`, which section 2 already implied, and `claims_unavailable`, which section 8's opening already gave it. Its `rate_limited` waits for the rate limits later in checkpoint 6. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-68). |

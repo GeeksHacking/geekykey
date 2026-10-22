@@ -69,6 +69,9 @@
     // User IDs who may release someone else's token. Nobody until login
     // arrives at checkpoint 5, when the showcase's user IDs are known.
     "GEEKYKEY_ADMINS": [],
+    // The most tokens one user may hold. Nobody is exempt, GeekyKey admins
+    // included.
+    "MAX_TOKENS_PER_USER": 3,
     "MAX_TAPS_PER_REQUEST": 500,
     // One deadline for a station request's calls out (the API agreement's
     // 11.5). The station waits 5 seconds.

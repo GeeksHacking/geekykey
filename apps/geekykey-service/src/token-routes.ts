@@ -13,6 +13,8 @@ export interface TokenRouteDeps {
   geekykeyAdmins: ReadonlySet<string>;
   /** Milliseconds the claims stand-in has to answer, for all of a request's calls together. */
   deadlineMs: number;
+  /** From config.maxTokensPerUser: a user holding this many claims no more. */
+  maxTokensPerUser: number;
 }
 
 /** What the lookup answers: who owns the token, as the token page sees it. */
@@ -24,21 +26,31 @@ type TokenView = {
 };
 
 /**
- * Mounted at /api/v1/tokens (the API agreement's 8.5): what the token page
- * shows once someone is logged in. A token is `nobody`'s, the user's own
- * (`you`, with when they claimed it) or `someone_else`'s, and only a
- * GeekyKey admin is told whose, to release it with (8.3).
+ * Mounted at /api/v1/tokens. The lookup (the API agreement's 8.5) is what
+ * the token page shows once someone is logged in. A token is `nobody`'s, the
+ * user's own (`you`, with when they claimed it) or `someone_else`'s, and only
+ * a GeekyKey admin is told whose, to release it with (8.3).
  *
- * Owners come through Claims only. `ownersOf` says who owns the token, and
- * when the user does, their own `tokensOf` says when they claimed it, so a
- * lookup makes one call or two, within one deadline.
+ * The claim (8.2) is the token page's Claim and My tokens' claim-by-UID form.
+ * The first claim wins, and a user holds at most `maxTokensPerUser`. Its
+ * checks run in 8.2's order: a token already the user's answers `200`
+ * whatever their count, then a user at the limit gets `token_limit_reached`,
+ * then the claim itself, which can be `taken`.
+ *
+ * Owners come through Claims only, and each request's calls share one
+ * deadline. A lookup asks `ownersOf` who owns the token, and when the user
+ * does, their own `tokensOf` says when they claimed it. A claim asks
+ * `tokensOf` for the first two checks, then `claim`.
  */
-export function tokenRoutes({ session, claims, geekykeyAdmins, deadlineMs }: TokenRouteDeps) {
-  return new Hono<SessionEnv>().get(
-    "/:uid",
-    requireSession(session),
-    pathParams(z.object({ uid: tokenUid })),
-    async (c) => {
+export function tokenRoutes({
+  session,
+  claims,
+  geekykeyAdmins,
+  deadlineMs,
+  maxTokensPerUser,
+}: TokenRouteDeps) {
+  return new Hono<SessionEnv>()
+    .get("/:uid", requireSession(session), pathParams(z.object({ uid: tokenUid })), async (c) => {
       const { uid } = c.req.valid("param");
       const { userId } = c.var;
       const view = (
@@ -58,6 +70,30 @@ export function tokenRoutes({ session, claims, geekykeyAdmins, deadlineMs }: Tok
         if (!mine) return view("nobody");
         return view("you", { claimed_at: mine.claimedAt });
       });
-    },
-  );
+    })
+    .post(
+      "/:uid/claim",
+      requireSession(session),
+      pathParams(z.object({ uid: tokenUid })),
+      async (c) => {
+        const { uid } = c.req.valid("param");
+        const { userId } = c.var;
+        const token = (claimedAt: string, status: 200 | 201) =>
+          c.json({ token: { uid, claimed_at: claimedAt } }, status);
+        return await withClaimsDeadline(c, deadlineMs, async (signal) => {
+          const theirs = await claims.tokensOf(userId, signal);
+          const mine = theirs.find((t) => t.uid === uid);
+          if (mine) return token(mine.claimedAt, 200);
+          // Even when the token is someone else's. Two claims by one user at
+          // the same instant can both pass, leaving them one over: accepted
+          // in the migration spec's section 4.
+          if (theirs.length >= maxTokensPerUser) {
+            return c.json({ error: "token_limit_reached" }, 409);
+          }
+          const claimed = await claims.claim(uid, userId, signal);
+          if (claimed.result === "taken") return c.json({ error: "token_taken" }, 409);
+          return token(claimed.claimedAt, claimed.result === "claimed" ? 201 : 200);
+        });
+      },
+    );
 }
