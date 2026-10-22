@@ -69,6 +69,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   event_service_unavailable: 503,
   claims_unavailable: 503,
   login_unavailable: 503,
+  service_unavailable: 503,
   internal_error: 500,
 };
 

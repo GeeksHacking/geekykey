@@ -191,6 +191,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "event_service_unavailable",
   "claims_unavailable",
   "login_unavailable",
+  "service_unavailable",
   "internal_error",
 ]);
 

@@ -204,6 +204,9 @@ export type ErrorCode =
   | "event_service_unavailable"
   | "claims_unavailable"
   | "login_unavailable"
+  // Agreement section 2: the Worker in front of a set of screens answers this when the
+  // service behind it gave no answer at all.
+  | "service_unavailable"
   | "internal_error";
 
 export interface ApiIssue {
