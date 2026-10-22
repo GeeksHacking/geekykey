@@ -28,7 +28,11 @@ function harness({ devAuth, googleKeys = google.keys }: { devAuth: boolean } & P
     ...(devAuth ? { DEV_AUTH_ENABLED: "true" } : {}),
     SESSION_SECRET,
   });
-  const app = createApp(config, { send: fakeServices(config).send, googleKeys });
+  const app = createApp(config, {
+    send: fakeServices(config).send,
+    googleKeys,
+    stationLimit: env.STATION_LIMIT,
+  });
   const post = (path: string, body?: unknown) =>
     app.request(path, {
       method: "POST",

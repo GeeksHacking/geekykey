@@ -1369,3 +1369,12 @@
     at most 3 tokens, GeekyKey admins included. Claiming a token you already hold answers that it's
     yours. A user holding 3 gets the limit error even for a token someone else holds.
     Nothing calls it on production until the token page and My tokens switch to it.
+- id: station-rate-limit
+  date: 2026-10-22
+  area: backend
+  change: >-
+    A reader station that sends the GeekyKey Service more than 60 requests a minute, taps and
+    heartbeats together, now gets "too many requests", and keeps its taps to send later. A wrong
+    key is counted too, so a flood of them is turned away before the service asks the Event Service
+    for its stations. The trade-offs we accept: Cloudflare counts in each of its data centres, so a
+    station can sometimes get past 60.

@@ -14,4 +14,5 @@ import { loadConfig } from "./config.ts";
 export default createApp(loadConfig(env), {
   // Wrapped, so `fetch` is called as itself rather than as a method of something else.
   send: (url, init) => fetch(url, init),
+  stationLimit: env.STATION_LIMIT,
 });

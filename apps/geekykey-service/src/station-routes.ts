@@ -87,8 +87,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * and offline flushes share one code path. Returns a status per tap in request
  * order; firmware may drop a tap from its buffer once any status comes back.
  *
- * The key is checked against `stationsCopy`, the stations each Event Service has
- * registered, within one deadline of `deadlineMs` that starts with the check
+ * The request is counted against `stationLimit`, with the station's
+ * heartbeats, and over it gets `429 rate_limited`. Then the key is checked
+ * against `stationsCopy`, the stations each Event Service has registered,
+ * within one deadline of `deadlineMs` that starts with the check
  * (station-auth.ts). A batch holds at most `maxTaps`.
  * Each token's owner comes from `claims`, in what's left of it. A tap by a
  * token nobody owns is answered `unknown_token` here and stored nowhere. The
@@ -104,13 +106,15 @@ export function tapsRoutes({
   stationsCopy,
   deadlineMs,
   maxTaps,
+  stationLimit,
 }: {
   claims: Claims;
   stationsCopy: StationsCopy<EventService>;
   deadlineMs: number;
   maxTaps: number;
+  stationLimit: RateLimit;
 }) {
-  const auth = stationAuth(stationsCopy, deadlineMs);
+  const auth = stationAuth(stationsCopy, deadlineMs, stationLimit);
   const body = jsonBody(tapBodySchema(maxTaps), quickTapBody(maxTaps));
   return new Hono<StationEnv>().post("/", auth, body, async (c) => {
     const { station, deadline } = c.var;
@@ -189,8 +193,9 @@ const heartbeatBody = heartbeatsRequest.omit({ station_id: true });
 /**
  * POST /  (mounted at /api/v1/stations/heartbeat)
  *
- * The station's clock, and its health for the station board. The key is
- * checked as a tap's is, so a key that can't be checked gets `503
+ * The station's clock, and its health for the station board. It's counted
+ * against `stationLimit` with the station's taps, and the key is checked as
+ * a tap's is, so a key that can't be checked gets `503
  * event_service_unavailable`, and no time. Once it is, the answer is made,
  * and what the station said of its health is passed on to the Event Service
  * that registered it in `waitUntil`, after the answer has gone (the
@@ -200,13 +205,15 @@ const heartbeatBody = heartbeatsRequest.omit({ station_id: true });
 export function heartbeatRoutes({
   stationsCopy,
   deadlineMs,
+  stationLimit,
 }: {
   stationsCopy: StationsCopy<EventService>;
   deadlineMs: number;
+  stationLimit: RateLimit;
 }) {
   return new Hono<StationEnv>().post(
     "/",
-    stationAuth(stationsCopy, deadlineMs),
+    stationAuth(stationsCopy, deadlineMs, stationLimit),
     jsonBody(heartbeatBody),
     (c) => {
       const { station, deadline, waitUntil } = c.var;

@@ -22,7 +22,12 @@ const google = await fakeGoogle(env.FIREBASE_PROJECT_ID);
 function harness(changes: Record<string, unknown> = {}, { claimsDeadlineMs = 4000 } = {}) {
   const config = loadConfig({ ...env, GEEKYKEY_ADMINS: ["admin-1"], ...changes });
   const fake = fakeServices(config);
-  const app = createApp(config, { send: fake.send, googleKeys: google.keys, claimsDeadlineMs });
+  const app = createApp(config, {
+    send: fake.send,
+    googleKeys: google.keys,
+    claimsDeadlineMs,
+    stationLimit: env.STATION_LIMIT,
+  });
 
   /**
    * The gk_session cookie a Firebase login as `userId` sets, as the browser

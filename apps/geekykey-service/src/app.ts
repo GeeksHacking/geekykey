@@ -23,6 +23,11 @@ export interface AppDeps {
   googleKeys: GoogleSigningKeys;
   /** Milliseconds a user's request gives the claims stand-in. Only a test changes it. */
   claimsDeadlineMs: number;
+  /**
+   * Counts each station's requests, taps and heartbeats together: the
+   * STATION_LIMIT binding in wrangler.jsonc, 60 a minute.
+   */
+  stationLimit: RateLimit;
 }
 
 /** Section 8's opening: a user's request gives the claims 4 seconds. */
@@ -47,7 +52,8 @@ export function createApp(
     send,
     googleKeys = googleSigningKeys(),
     claimsDeadlineMs = CLAIMS_DEADLINE_MS,
-  }: Pick<AppDeps, "send"> & Partial<AppDeps>,
+    stationLimit,
+  }: Pick<AppDeps, "send" | "stationLimit"> & Partial<AppDeps>,
 ) {
   const app = new Hono();
 
@@ -109,9 +115,18 @@ export function createApp(
   const geekykeyAdmins = new Set(config.geekykeyAdmins);
   app.route(
     "/api/v1/taps",
-    tapsRoutes({ claims, stationsCopy, deadlineMs, maxTaps: config.maxTapsPerRequest }),
+    tapsRoutes({
+      claims,
+      stationsCopy,
+      deadlineMs,
+      maxTaps: config.maxTapsPerRequest,
+      stationLimit,
+    }),
   );
-  app.route("/api/v1/stations/heartbeat", heartbeatRoutes({ stationsCopy, deadlineMs }));
+  app.route(
+    "/api/v1/stations/heartbeat",
+    heartbeatRoutes({ stationsCopy, deadlineMs, stationLimit }),
+  );
   app.route(
     "/api/v1/me",
     meRoutes({
