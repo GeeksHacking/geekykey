@@ -510,4 +510,63 @@ describe("SessionProvider", () => {
     expect(result.current.status).toBe("anonymous");
     expect(result.current.me).toBeNull();
   });
+
+  it("keeps the person signed out when the sign-in fails and a late /me lands after it", async () => {
+    const { api, queryClient, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+    // A shared browser: the admin is signed in already.
+    await act(async () => {
+      await result.current.signIn(SEEDED_ADMIN_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    // The next sign-in fails, like a Firebase ID token the service refuses.
+    const realDevLogin = api.devLogin.bind(api);
+    vi.spyOn(api, "devLogin").mockImplementation(async (userId: string) => {
+      await realDevLogin(userId);
+      throw new ApiError(401, "invalid_token");
+    });
+
+    // A /me goes out while the sign-in is in flight, and answers with the old account.
+    let answerThePoll!: (answer: MeResponse) => void;
+    const lateAnswer = new Promise<MeResponse>((resolve) => {
+      answerThePoll = resolve;
+    });
+    const realMe = api.me.bind(api);
+    const meBeforeTheSignIn = await realMe();
+    let theNextCallIsTheLateOne = false;
+    vi.spyOn(api, "me").mockImplementation(async () => {
+      if (theNextCallIsTheLateOne) {
+        theNextCallIsTheLateOne = false;
+        return lateAnswer;
+      }
+      return realMe();
+    });
+
+    let signIn: Promise<MeResponse> | undefined;
+    act(() => {
+      signIn = result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    // A poll goes out now, while the sign-in is still in flight.
+    theNextCallIsTheLateOne = true;
+    act(() => {
+      void result.current.refresh();
+    });
+    await act(async () => {
+      await signIn?.catch(() => undefined);
+    });
+
+    // The poll's answer lands now, after the sign-in has failed.
+    await act(async () => {
+      answerThePoll(meBeforeTheSignIn);
+    });
+    // The answer has been dealt with, one way or the other.
+    await waitFor(() => expect(queryClient.getQueryState(queryKeys.me)?.fetchStatus).toBe("idle"));
+
+    // The person stays signed out: a failed sign-in leaves the screens signed out, and
+    // the answer was asked for before it failed.
+    expect(result.current.status).toBe("anonymous");
+    expect(result.current.me).toBeNull();
+  });
 });

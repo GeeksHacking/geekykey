@@ -112,6 +112,10 @@ export function SessionProvider({
     },
     onMutate: clearForSignIn,
     onSuccess: (data) => settleSession(data),
+    // A failed sign-in leaves the screens signed out, so the session is settled again
+    // here, and a poll that was asked for before the failure cannot bring the old
+    // account back.
+    onError: () => settleSession(null),
   });
 
   // Agreement 7.2: the screens sign in with the ID token Firebase's web SDK gave them, and
@@ -125,6 +129,7 @@ export function SessionProvider({
     },
     onMutate: clearForSignIn,
     onSuccess: (data) => settleSession(data),
+    onError: () => settleSession(null),
   });
 
   const signOut = useMutation({
