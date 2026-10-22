@@ -42,7 +42,12 @@ async function harness(
     { station_id: STATION_ID, key_hash: await hashStationKey(STATION_KEY) },
   ]);
   fake.owners.set(UID, USER_ID);
-  const app = createApp(config, { send: fake.send, stationLimit });
+  const app = createApp(config, {
+    send: fake.send,
+    stationLimit,
+    userLimit: fakeLimiter(60),
+    tokenLimit: fakeLimiter(20),
+  });
 
   // Each request's ExecutionContext, to wait on what it left running.
   const contexts: ExecutionContext[] = [];

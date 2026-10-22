@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { EventServiceEntry } from "./config.ts";
 import { jsonBody } from "./lib/validate.ts";
-import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
+import { requireSession, type SessionCheck, type SessionEnv } from "./session.ts";
 
 /** What the event buttons send: which event's screens the link is for. */
 const linkRequestSchema = z.object({
@@ -11,7 +11,7 @@ const linkRequestSchema = z.object({
 });
 
 export interface LoginLinkRouteDeps {
-  session: Pick<SessionOptions, "secret">;
+  session: SessionCheck;
   /** From config.eventServices. Only those with a public address get links, as only they are in /me's `events`. */
   eventServices: readonly Pick<EventServiceEntry, "id" | "publicUrl" | "key">[];
 }

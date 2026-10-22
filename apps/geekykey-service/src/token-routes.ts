@@ -6,10 +6,10 @@ import { log } from "./lib/log.ts";
 import { tokenUid } from "./lib/token-uid.ts";
 import { userIdSchema } from "./lib/user-id.ts";
 import { pathParams, queryParams } from "./lib/validate.ts";
-import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
+import { requireSession, type SessionCheck, type SessionEnv } from "./session.ts";
 
 export interface TokenRouteDeps {
-  session: Pick<SessionOptions, "secret">;
+  session: SessionCheck;
   claims: Claims;
   /** From config.geekykeyAdmins, checked on every request. */
   geekykeyAdmins: ReadonlySet<string>;
@@ -17,6 +17,8 @@ export interface TokenRouteDeps {
   deadlineMs: number;
   /** From config.maxTokensPerUser: a user holding this many claims no more. */
   maxTokensPerUser: number;
+  /** Counts each user's lookups and claims: the TOKEN_LIMIT binding in wrangler.jsonc. */
+  tokenLimit: RateLimit;
 }
 
 /** What the lookup answers: who owns the token, as the token page sees it. */
@@ -54,6 +56,12 @@ type TokenView = {
  * does, their own `tokensOf` says when they claimed it. A claim asks
  * `tokensOf` for the first two checks, then `claim`. A release asks
  * `release` alone.
+ *
+ * Every request counts toward the user's USER_LIMIT (src/session.ts). The
+ * lookup and the claim count toward TOKEN_LIMIT as well, so nobody can work
+ * through UIDs to see which are claimed (the API agreement's section 2,
+ * "Rate limits"). The release doesn't: a user can only release a token
+ * they hold, unless they're a GeekyKey admin.
  */
 export function tokenRoutes({
   session,
@@ -61,32 +69,38 @@ export function tokenRoutes({
   geekykeyAdmins,
   deadlineMs,
   maxTokensPerUser,
+  tokenLimit,
 }: TokenRouteDeps) {
   return new Hono<SessionEnv>()
-    .get("/:uid", requireSession(session), pathParams(z.object({ uid: tokenUid })), async (c) => {
-      const { uid } = c.req.valid("param");
-      const { userId } = c.var;
-      const view = (
-        owner: TokenView["owner"],
-        extra: Partial<Pick<TokenView, "claimed_at" | "owner_id">> = {},
-      ) => c.json({ token: { uid, owner, claimed_at: null, owner_id: null, ...extra } });
+    .get(
+      "/:uid",
+      requireSession(session, tokenLimit),
+      pathParams(z.object({ uid: tokenUid })),
+      async (c) => {
+        const { uid } = c.req.valid("param");
+        const { userId } = c.var;
+        const view = (
+          owner: TokenView["owner"],
+          extra: Partial<Pick<TokenView, "claimed_at" | "owner_id">> = {},
+        ) => c.json({ token: { uid, owner, claimed_at: null, owner_id: null, ...extra } });
 
-      return await withClaimsDeadline(c, deadlineMs, async (signal) => {
-        const ownerId = (await claims.ownersOf([uid], signal)).get(uid);
-        if (ownerId === undefined) return view("nobody");
-        if (ownerId !== userId) {
-          return view("someone_else", geekykeyAdmins.has(userId) ? { owner_id: ownerId } : {});
-        }
-        const mine = (await claims.tokensOf(userId, signal)).find((token) => token.uid === uid);
-        // Released between the two calls, which only its owner or a GeekyKey
-        // admin can do. A claim since then answers token_taken (8.2).
-        if (!mine) return view("nobody");
-        return view("you", { claimed_at: mine.claimedAt });
-      });
-    })
+        return await withClaimsDeadline(c, deadlineMs, async (signal) => {
+          const ownerId = (await claims.ownersOf([uid], signal)).get(uid);
+          if (ownerId === undefined) return view("nobody");
+          if (ownerId !== userId) {
+            return view("someone_else", geekykeyAdmins.has(userId) ? { owner_id: ownerId } : {});
+          }
+          const mine = (await claims.tokensOf(userId, signal)).find((token) => token.uid === uid);
+          // Released between the two calls, which only its owner or a GeekyKey
+          // admin can do. A claim since then answers token_taken (8.2).
+          if (!mine) return view("nobody");
+          return view("you", { claimed_at: mine.claimedAt });
+        });
+      },
+    )
     .post(
       "/:uid/claim",
-      requireSession(session),
+      requireSession(session, tokenLimit),
       pathParams(z.object({ uid: tokenUid })),
       async (c) => {
         const { uid } = c.req.valid("param");

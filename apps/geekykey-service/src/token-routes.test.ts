@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { env } from "cloudflare:test";
 import { fakeGoogle } from "@geekykey/firebase-login/testing";
 import { onTestFinished, test, vi } from "vitest";
+import { fakeLimiter } from "../test-support/fake-limiter.ts";
 import { fakeServices } from "../test-support/fake-services.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -29,6 +30,8 @@ function harness({ claimsDeadlineMs = 4000 } = {}) {
     googleKeys: google.keys,
     claimsDeadlineMs,
     stationLimit: env.STATION_LIMIT,
+    userLimit: fakeLimiter(60),
+    tokenLimit: fakeLimiter(20),
   });
 
   /** The gk_session cookie a Firebase login as `userId` sets, as the browser sends it back. */

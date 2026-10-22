@@ -3,6 +3,7 @@ import { env } from "cloudflare:test";
 import { fakeGoogle } from "@geekykey/firebase-login/testing";
 import { loginLinks } from "@geekykey/login-link";
 import { onTestFinished, test, vi } from "vitest";
+import { fakeLimiter } from "../test-support/fake-limiter.ts";
 import { fakeServices } from "../test-support/fake-services.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
@@ -27,6 +28,8 @@ function harness(changes: Record<string, unknown> = {}) {
     send: fakeServices(config).send,
     googleKeys: google.keys,
     stationLimit: env.STATION_LIMIT,
+    userLimit: fakeLimiter(60),
+    tokenLimit: fakeLimiter(20),
   });
 
   /** The gk_session cookie a Firebase login with `idToken` sets, as the browser sends it back. */

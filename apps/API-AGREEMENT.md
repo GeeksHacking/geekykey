@@ -159,9 +159,9 @@ only for `validation_failed` and follows Zod's issue format.
 
 ### Rate limits
 
-The station limit is `Implemented`. The GeekyKey Service's user limits are `Checkpoint 6`, and the
-Event Service's limit is `Checkpoint 7`. Each limit counts a caller's requests over one minute, and
-once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-After: 60`.
+The GeekyKey Service's limits are `Implemented`, and the Event Service's limit is `Checkpoint 7`.
+Each limit counts a caller's requests over one minute, and once it is passed answers `429` with
+`{"error": "rate_limited"}` and `Retry-After: 60`.
 
 | Service | Counts | Limit a minute |
 |---|---|---|
@@ -173,6 +173,12 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 - The station limit counts a request by the key it sends, before the key is checked. So a wrong
   key is counted too, and over the limit it gets `429` rather than `401`. A request with no key
   isn't counted, and gets `401 missing_station_key`.
+- The GeekyKey Service's user limits count by user ID every `/api/v1` request that has a session:
+  `/me`, the token lookup, the claim, the release and login links. A request whose path or body
+  fails its check counts too. `/auth/*` isn't counted, since there's no user ID before login. A
+  request with no session isn't counted, and gets `401 unauthenticated`.
+- A user over the 20 gets `429` from the lookup and the claim only, and their other calls still
+  answer until they pass the 60.
 - The GeekyKey Service's limits are approximate. Cloudflare counts each one separately in each of
   its data centres, so a caller whose requests reach several can sometimes get past it.
 
@@ -761,8 +767,7 @@ first claim wins, and a user holds at most 3 tokens.
 
 **Errors:** `unauthenticated`, `validation_failed` for a `{uid}` that isn't 4 to 10 hex bytes,
 `token_taken` (409) when someone else has claimed it, `token_limit_reached` (409) when the user
-already holds 3, `claims_unavailable`, and `rate_limited` from checkpoint 6, when the GeekyKey
-Service's rate limits arrive ([Rate limits](#rate-limits)).
+already holds 3, `claims_unavailable`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 The checks run in this order: a token that is already yours answers `200` whatever your count;
 then a user holding 3 gets `token_limit_reached`, even for someone else's token; then
@@ -792,8 +797,7 @@ page loaded, so a late or double click can't release a newer claim.
 **Errors:** `unauthenticated`, `validation_failed` for a `{uid}` that isn't 4 to 10 hex bytes or
 an `owner_id` that isn't 1 to 128 characters, `forbidden` if someone who isn't a GeekyKey admin
 sends `owner_id`, even their own, `not_found` if the token isn't claimed by the current user, or
-by `owner_id` when given, `claims_unavailable`, and `rate_limited` from checkpoint 6, when the
-GeekyKey Service's rate limits arrive ([Rate limits](#rate-limits)).
+by `owner_id` when given, `claims_unavailable`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 - A release that answers `claims_unavailable` may still have been made. The claims stand-in can
   delete the claim and then answer too late, or with an error. Then trying again answers
@@ -825,7 +829,7 @@ Everything My tokens needs, and the "Am I logged in?" call for the GeekyKey scre
   Showcase" on My tokens and on the token page. Each button asks for a login link (8.6) and opens
   it. At the showcase there is exactly one.
 
-**Errors:** `unauthenticated`.
+**Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 8.5 `GET /api/v1/tokens/{uid}` on the GeekyKey Service (`Implemented`)
 
@@ -859,8 +863,7 @@ shows a login prompt and looks nothing up.
   answer is `nobody`.
 
 **Errors:** `unauthenticated`, `validation_failed` for a `{uid}` that isn't 4 to 10 hex bytes,
-`claims_unavailable`, and `rate_limited` from checkpoint 6, when the GeekyKey Service's rate
-limits arrive ([Rate limits](#rate-limits)).
+`claims_unavailable`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 8.6 `POST /api/v1/login-links` on the GeekyKey Service (`Implemented`)
 
@@ -890,11 +893,10 @@ users alike.
   and don't keep it.
 - The screens open `url` as it is. They never build it, so the event's address and the
   fragment's name belong to the GeekyKey Service.
-- It counts toward the user's 60 requests a minute, once the GeekyKey Service's rate limits
-  arrive at checkpoint 6 ([Rate limits](#rate-limits)).
+- It counts toward the user's 60 requests a minute ([Rate limits](#rate-limits)).
 
 **Errors:** `unauthenticated`, `validation_failed`, `not_found` for an `event_id` that isn't in
-`events`, and `rate_limited` from checkpoint 6.
+`events`, and `rate_limited`.
 
 ### 8.7 `PATCH /api/v1/me` on the Event Service (`Implemented`)
 
@@ -1562,3 +1564,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | The GeekyKey Service's station limit is `Implemented`: each station gets 60 requests a minute, taps and heartbeats together, then `429 rate_limited` with `Retry-After: 60`. [Rate limits](#rate-limits) now says it counts a request by the key it sends, before the key is checked, so a wrong key is counted too and gets `429` once over, and that a request with no key isn't counted. It also says the GeekyKey Service's limits are approximate, since Cloudflare counts them in each data centre. 6.1 and 6.2 point their `rate_limited` at it, and 6.2 says a wrong key gets `401` until it's over the limit. The user limits are still `Checkpoint 6`. No shape changes (BAC-67). |
 | 2026-10-22 | The GeekyKey Service's release, `DELETE /api/v1/tokens/{uid}` (8.3), is `Implemented`. It takes `{uid}` in any separator style. An owner releases their own token. A GeekyKey admin releases someone else's by naming the owner in `owner_id`, and the service checks `GEEKYKEY_ADMINS` on every request. The claims stand-in deletes the claim only while that owner still holds it, so a release for an owner who no longer holds the token answers `404 not_found` and leaves any newer claim alone. Every release writes a `token_released` log line with the UID, the owner and who released it, as user IDs. When the stand-in doesn't answer properly within 4 seconds, the release answers `503 claims_unavailable`. The stand-in may have deleted the claim before its answer went wrong, as 8.3 and section 8's opening now say, so that answer's `claims_unavailable` log line names the UID and the owner as well. 8.3's errors now list `unauthenticated`, `validation_failed` and `rate_limited`, which section 2 already implied, and `claims_unavailable`, which section 8's opening already gave it. An `owner_id` must be 1 to 128 characters, as a user ID is in 11.2. Its `rate_limited` waits for the rate limits later in checkpoint 6. `GEEKYKEY_ADMINS` on production lists Adam, for checkpoint 6's proof. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-69). |
 | 2026-10-22 | 7.2's `authDomain` is the page's own address, no longer `geekykey-b035a.firebaseapp.com`, except on `localhost`. Each set of screens' Worker forwards Firebase's sign-in pages, `/__/auth/*` and `/__/firebase/init.json`, to `https://geekykey-b035a.firebaseapp.com`, so Google's sign-in names `event.geekshacking.com` or `key.geekshacking.com`. The services don't change: the ID token's audience is still the project ID. A change within 0.5, which Ethan approves in its pull request. No endpoint or shape changes (FRO-72). |
+| 2026-10-22 | The GeekyKey Service's user limits are `Implemented`. Each user gets 60 requests a minute to its API, and 20 token lookups and claims, which count toward the 60 as well. Either one, once passed, answers `429 rate_limited` with `Retry-After: 60`, as the station limit does. [Rate limits](#rate-limits) now says what counts: every `/api/v1` request with a session, by user ID, even one that fails its checks, but not `/auth/*` and not a request with no session, which still gets `401 unauthenticated`. A user over the 20 can still use `/me`, the release and login links. 8.2, 8.3, 8.5 and 8.6 point their `rate_limited` at it instead of at checkpoint 6, and 8.4's errors list `rate_limited`. No shape changes (BAC-70). |
