@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useApi } from "@/api/context";
 import { describeError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
-import { sanitizeSpreadsheetCsv } from "@/lib/csv";
+import { escapeSpreadsheetFormulas } from "@/lib/csv";
 import { formatFileStamp } from "@/lib/format";
 
 /** GET /admin/export.csv. The raw tap feed for the Sprint 2 analysis, so it must never be cut. */
@@ -19,10 +19,11 @@ export function ExportButton() {
     let objectUrl: string | null = null;
     try {
       const source = await api.exportCsv();
-      const csv = await source.text();
-      const blob = new Blob([sanitizeSpreadsheetCsv(csv)], {
-        type: source.type || "text/csv;charset=utf-8",
-      });
+      const escaped = escapeSpreadsheetFormulas(await source.text());
+      // The service's own file, unless a name had to be escaped.
+      const blob = escaped.rewritten
+        ? new Blob([escaped.csv], { type: source.type || "text/csv;charset=utf-8" })
+        : source;
       objectUrl = URL.createObjectURL(blob);
       anchor = document.createElement("a");
       anchor.href = objectUrl;
