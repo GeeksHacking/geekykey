@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { ClaimsUnavailable } from "./claims.ts";
-import { log } from "./lib/log.ts";
+import { log, type LogFields } from "./lib/log.ts";
 import type { SessionEnv } from "./session.ts";
 
 /**
@@ -12,18 +12,25 @@ import type { SessionEnv } from "./session.ts";
  * line, and the screens say "Couldn't reach GeeksHacking. Try again."
  *
  * Called in a handler after requireSession, which sets the user ID the log
- * line names.
+ * line names. `fields` go on the line too, such as a release's token and
+ * owner, since the stand-in may have released it before its answer failed.
  */
 export async function withClaimsDeadline(
   c: Context<SessionEnv>,
   deadlineMs: number,
   answer: (signal: AbortSignal) => Promise<Response>,
+  fields: LogFields = {},
 ): Promise<Response> {
   try {
     return await answer(AbortSignal.timeout(deadlineMs));
   } catch (err) {
     if (!(err instanceof ClaimsUnavailable)) throw err;
-    log("claims_unavailable", { user_id: c.var.userId, reason: err.reason, status: err.status });
+    log("claims_unavailable", {
+      ...fields,
+      user_id: c.var.userId,
+      reason: err.reason,
+      status: err.status,
+    });
     return c.json({ error: "claims_unavailable" }, 503);
   }
 }

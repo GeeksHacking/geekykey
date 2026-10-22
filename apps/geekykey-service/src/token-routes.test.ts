@@ -664,7 +664,7 @@ test("a release of a UID that isn't 4 to 10 hex bytes fails validation, and the 
   assert.deepEqual(fake.sent, []);
 });
 
-test("a stand-in that doesn't answer a release in time gets claims_unavailable, and no release is logged", async () => {
+test("a stand-in that doesn't answer a release in time gets claims_unavailable, logged with the token and its owner", async () => {
   const { fake, logIn, release } = harness({ claimsDeadlineMs: 200 });
   fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-1");
   const cookie = await logIn("firebase-uid-1");
@@ -678,9 +678,16 @@ test("a stand-in that doesn't answer a release in time gets claims_unavailable, 
   assert.equal(res.headers.get("Cache-Control"), "no-store");
   assert.deepEqual(await res.json(), { error: "claims_unavailable" });
   assert.ok(took < 600, `took ${took} ms, not cut short at the deadline`);
+  // The stand-in may have released it all the same, and then this line is the only trace.
   assert.deepEqual(
-    errors().map(({ message, user_id, reason }) => [message, user_id, reason]),
-    [["claims_unavailable", "firebase-uid-1", "timeout"]],
+    errors().map(({ message, user_id, reason, uid, owner_id }) => [
+      message,
+      user_id,
+      reason,
+      uid,
+      owner_id,
+    ]),
+    [["claims_unavailable", "firebase-uid-1", "timeout", "04A1B2C3D4E5F6", "firebase-uid-1"]],
   );
   assert.deepEqual(info(), []);
 });

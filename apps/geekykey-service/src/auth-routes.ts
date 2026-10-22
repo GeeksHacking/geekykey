@@ -6,13 +6,11 @@ import {
 import { Hono } from "hono";
 import { z } from "zod";
 import { errorFields, log } from "./lib/log.ts";
+import { userIdSchema } from "./lib/user-id.ts";
 import { jsonBody } from "./lib/validate.ts";
 import { clearSession, issueSession, type SessionOptions } from "./session.ts";
 
-/** A user ID is 1 to 128 characters, as a Firebase user ID is. */
-const devLoginSchema = z.object({
-  user_id: z.string().min(1).max(128),
-});
+const devLoginSchema = z.object({ user_id: userIdSchema });
 
 /**
  * Only `application/json` is read: any other content type leaves the body

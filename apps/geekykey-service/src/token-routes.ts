@@ -4,6 +4,7 @@ import type { Claims } from "./claims.ts";
 import { withClaimsDeadline } from "./claims-deadline.ts";
 import { log } from "./lib/log.ts";
 import { tokenUid } from "./lib/token-uid.ts";
+import { userIdSchema } from "./lib/user-id.ts";
 import { pathParams, queryParams } from "./lib/validate.ts";
 import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
 
@@ -44,7 +45,9 @@ type TokenView = {
  * late or double click can't release a newer claim. Either way the token
  * must still be that owner's, or the answer is `not_found`. Every release
  * writes a `token_released` log line, the only trace of it, since no
- * history is kept, and only the route knows who released it.
+ * history is kept, and only the route knows who released it. A release
+ * that answers `claims_unavailable` may still have been made, so its
+ * `claims_unavailable` line names the token and the owner too.
  *
  * Owners come through Claims only, and each request's calls share one
  * deadline. A lookup asks `ownersOf` who owns the token, and when the user
@@ -110,8 +113,7 @@ export function tokenRoutes({
       "/:uid",
       requireSession(session),
       pathParams(z.object({ uid: tokenUid })),
-      // A user ID, as the stand-in and 11.2 have it.
-      queryParams(z.object({ owner_id: z.string().min(1).max(128).optional() })),
+      queryParams(z.object({ owner_id: userIdSchema.optional() })),
       async (c) => {
         const { uid } = c.req.valid("param");
         const { owner_id: givenOwnerId } = c.req.valid("query");
@@ -121,13 +123,18 @@ export function tokenRoutes({
           return c.json({ error: "forbidden" }, 403);
         }
         const ownerId = givenOwnerId ?? userId;
-        return await withClaimsDeadline(c, deadlineMs, async (signal) => {
-          if ((await claims.release(uid, ownerId, signal)) === "not_owner") {
-            return c.json({ error: "not_found" }, 404);
-          }
-          log("token_released", { uid, owner_id: ownerId, released_by: userId });
-          return c.body(null, 204);
-        });
+        return await withClaimsDeadline(
+          c,
+          deadlineMs,
+          async (signal) => {
+            if ((await claims.release(uid, ownerId, signal)) === "not_owner") {
+              return c.json({ error: "not_found" }, 404);
+            }
+            log("token_released", { uid, owner_id: ownerId, released_by: userId });
+            return c.body(null, 204);
+          },
+          { uid, owner_id: ownerId },
+        );
       },
     );
 }
