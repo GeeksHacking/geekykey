@@ -23,7 +23,11 @@ const showcaseLinks = loginLinks(env.EVENT_SERVICE_KEY_SHOWCASE);
  */
 function harness(changes: Record<string, unknown> = {}) {
   const config = loadConfig({ ...env, ...changes });
-  const app = createApp(config, { send: fakeServices(config).send, googleKeys: google.keys });
+  const app = createApp(config, {
+    send: fakeServices(config).send,
+    googleKeys: google.keys,
+    stationLimit: env.STATION_LIMIT,
+  });
 
   /** The gk_session cookie a Firebase login with `idToken` sets, as the browser sends it back. */
   async function logIn(idToken: string | Promise<string>): Promise<string> {

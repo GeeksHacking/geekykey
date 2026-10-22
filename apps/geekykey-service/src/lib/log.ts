@@ -21,6 +21,8 @@ const LOG_LINES = {
   station_refused: "ERROR",
   // A Firebase login answered 503, because Google's keys couldn't be fetched to check the token.
   login_unavailable: "ERROR",
+  // A station's or a user's request answered 429, because it was over a limit (src/rate-limit.ts).
+  rate_limited: "INFO",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

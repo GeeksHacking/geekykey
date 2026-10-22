@@ -6,6 +6,7 @@ import {
   type HandedOffTap,
   type SentRequest,
 } from "../test-support/fake-services.ts";
+import { fakeLimiter } from "../test-support/fake-limiter.ts";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { hashStationKey } from "./station-keys.ts";
@@ -20,20 +21,28 @@ const USER_ID = "user-1";
 /** Normalised, and owned by USER_ID. */
 const UID = "04A1B2C3D4E5F6";
 
+/** A station's requests a minute, as STATION_LIMIT in wrangler.jsonc counts them. */
+const STATION_LIMIT = 60;
+
 /**
  * The Worker with wrangler.jsonc's settings, `settings` on top, and its calls
  * out answered by the fakes: one registered station, STATION_ID, and one
  * claimed token, UID. Each test has its own, since a Worker keeps its copy of
- * the registered stations while it runs.
+ * the registered stations while it runs. Stations are counted by
+ * `stationLimit`, an exact count of STATION_LIMIT unless a test passes
+ * another.
  */
-async function harness(settings: Record<string, unknown> = {}) {
+async function harness(
+  settings: Record<string, unknown> = {},
+  { stationLimit = fakeLimiter(STATION_LIMIT) }: { stationLimit?: RateLimit } = {},
+) {
   const config = loadConfig({ ...env, ...settings });
   const fake = fakeServices(config);
   fake.stations.set("showcase", [
     { station_id: STATION_ID, key_hash: await hashStationKey(STATION_KEY) },
   ]);
   fake.owners.set(UID, USER_ID);
-  const app = createApp(config, { send: fake.send });
+  const app = createApp(config, { send: fake.send, stationLimit });
 
   // Each request's ExecutionContext, to wait on what it left running.
   const contexts: ExecutionContext[] = [];
@@ -631,4 +640,141 @@ test("a heartbeat's body is checked once its key is", async () => {
     assert.equal(res.status, 400, JSON.stringify(body));
     assert.equal(((await res.json()) as { error: string }).error, "validation_failed");
   }
+});
+
+// The station limit (the API agreement's section 2, "Rate limits").
+
+/** Sends `count` taps from the station with `key`, one request each, and gives their statuses. */
+async function tapMany(
+  post: (body: unknown, key?: string | null) => Promise<Response>,
+  count: number,
+  key: string | null = STATION_KEY,
+): Promise<number[]> {
+  const statuses: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const res = await post({ taps: [{ client_tap_id: `t${i}`, uid: UID }] }, key);
+    statuses.push(res.status);
+  }
+  return statuses;
+}
+
+test("a station's 61st request in a minute is 429 rate_limited, with Retry-After: 60", async () => {
+  const { post, sentTo } = await harness();
+  loggedLines();
+  assert.deepEqual(await tapMany(post, STATION_LIMIT), Array(STATION_LIMIT).fill(200));
+  const handedOff = sentTo("/geekykey/v1/taps").length;
+
+  const res = await post({ taps: [{ client_tap_id: "one-too-many", uid: UID }] });
+  assert.equal(res.status, 429);
+  assert.equal(res.headers.get("Retry-After"), "60");
+  assert.deepEqual(await res.json(), { error: "rate_limited" });
+  // Turned away before anything is asked of the stand-in or handed off.
+  assert.equal(sentTo("/geekykey/v1/taps").length, handedOff);
+});
+
+test("a station's taps and heartbeats count together", async () => {
+  const { post, postHeartbeat } = await harness();
+  loggedLines();
+  const half = STATION_LIMIT / 2;
+  assert.deepEqual(await tapMany(post, half), Array(half).fill(200));
+  for (let i = 0; i < half; i++) assert.equal((await postHeartbeat({})).status, 200);
+
+  const heartbeat = await postHeartbeat({});
+  assert.equal(heartbeat.status, 429);
+  assert.equal(heartbeat.headers.get("Retry-After"), "60");
+  assert.deepEqual(await heartbeat.json(), { error: "rate_limited" });
+  assert.equal((await post({ taps: [{ client_tap_id: "t", uid: UID }] })).status, 429);
+});
+
+test("two stations are counted apart", async () => {
+  const { fake, post } = await harness();
+  loggedLines();
+  fake.stations.get("showcase")!.push({
+    station_id: "station-2",
+    key_hash: await hashStationKey("gk_sta_station-2-key"),
+  });
+  await tapMany(post, STATION_LIMIT);
+  assert.equal((await post({ taps: [{ client_tap_id: "t", uid: UID }] })).status, 429);
+
+  const other = await post({ taps: [{ client_tap_id: "t", uid: UID }] }, "gk_sta_station-2-key");
+  assert.equal(other.status, 200);
+  assert.equal(((await other.json()) as TapsAnswer).station_id, "station-2");
+});
+
+test("wrong keys are counted too, by the key's SHA-256", async () => {
+  const stationLimit = fakeLimiter(STATION_LIMIT);
+  const { post } = await harness({}, { stationLimit });
+  loggedLines();
+  const wrongKey = "gk_sta_not-a-real-key";
+  assert.deepEqual(await tapMany(post, STATION_LIMIT, wrongKey), Array(STATION_LIMIT).fill(401));
+
+  const res = await post({ taps: [{ client_tap_id: "t", uid: UID }] }, wrongKey);
+  assert.equal(res.status, 429);
+  assert.deepEqual(await res.json(), { error: "rate_limited" });
+  assert.deepEqual(new Set(stationLimit.keys), new Set([await hashStationKey(wrongKey)]));
+});
+
+test("a request over the limit is turned away before the registered stations are asked for", async () => {
+  // Over the limit from the first request.
+  const { post, postHeartbeat, sentTo } = await harness({}, { stationLimit: fakeLimiter(0) });
+  loggedLines();
+  assert.equal(
+    (await post({ taps: [{ client_tap_id: "t", uid: UID }] }, "gk_sta_wrong")).status,
+    429,
+  );
+  assert.equal((await postHeartbeat({}, "gk_sta_wrong")).status, 429);
+  assert.deepEqual(sentTo("/geekykey/v1/stations"), []);
+});
+
+test("a request without a key isn't counted, and stays 401 missing_station_key", async () => {
+  const stationLimit = fakeLimiter(STATION_LIMIT);
+  const { post } = await harness({}, { stationLimit });
+  loggedLines();
+  assert.deepEqual(await tapMany(post, STATION_LIMIT + 1, null), [
+    ...Array(STATION_LIMIT + 1).fill(401),
+  ]);
+  assert.deepEqual(stationLimit.keys, []);
+});
+
+test("a station turned away is logged once, by its station ID, and never its key or hash", async () => {
+  const { post } = await harness();
+  const lines = loggedLines();
+  await tapMany(post, STATION_LIMIT);
+  await post({ taps: [{ client_tap_id: "t", uid: UID }] });
+
+  const limited = lines().filter((line) => line.message === "rate_limited");
+  assert.deepEqual(limited, [
+    { severity: "INFO", message: "rate_limited", station_id: STATION_ID },
+  ]);
+  const logged = JSON.stringify(lines());
+  assert.ok(!logged.includes(STATION_KEY));
+  assert.ok(!logged.includes(await hashStationKey(STATION_KEY)));
+});
+
+test("a key the copy doesn't know is turned away with no station in its log line", async () => {
+  const { post } = await harness();
+  const lines = loggedLines();
+  const wrongKey = "gk_sta_not-a-real-key";
+  await tapMany(post, STATION_LIMIT + 1, wrongKey);
+
+  const limited = lines().filter((line) => line.message === "rate_limited");
+  assert.deepEqual(limited, [{ severity: "INFO", message: "rate_limited", station_id: null }]);
+  const logged = JSON.stringify(lines());
+  assert.ok(!logged.includes(wrongKey));
+  assert.ok(!logged.includes(await hashStationKey(wrongKey)));
+});
+
+test("wrangler.jsonc's STATION_LIMIT lets a station's first 60 requests through, and turns one of the next 61 away", async () => {
+  // Wrangler's simulation of the binding counts in windows that follow the
+  // wall clock, so the requests can straddle two. Whichever minute they
+  // start in, no window holds more than the first 60, and one holds at
+  // least 61 of the 121. A key of its own, as the simulation's counts
+  // outlast a test.
+  const { fake, post } = await harness({}, { stationLimit: env.STATION_LIMIT });
+  loggedLines();
+  const key = `gk_sta_${crypto.randomUUID()}`;
+  fake.stations.set("showcase", [{ station_id: STATION_ID, key_hash: await hashStationKey(key) }]);
+
+  assert.deepEqual(await tapMany(post, STATION_LIMIT, key), Array(STATION_LIMIT).fill(200));
+  assert.ok((await tapMany(post, STATION_LIMIT + 1, key)).includes(429));
 });

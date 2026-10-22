@@ -83,6 +83,15 @@ export class StationsCopy<S extends StationsSource> {
     return this.#missing().length === 0 ? { result: "unknown" } : { result: "unavailable" };
   }
 
+  /**
+   * The station with `keyHash` on the lists already in hand, without asking
+   * any Event Service for one: who a request is from before its key is
+   * checked, for a log line.
+   */
+  peek(keyHash: string): FoundStation<S> | undefined {
+    return this.#byKeyHash.get(keyHash);
+  }
+
   /** The Event Services whose list the copy has never had. */
   #missing(): S[] {
     return this.#eventServices.filter(({ id }) => !this.#lists.has(id));

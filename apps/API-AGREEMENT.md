@@ -159,9 +159,9 @@ only for `validation_failed` and follows Zod's issue format.
 
 ### Rate limits
 
-`Checkpoint 6` on the GeekyKey Service, `Checkpoint 7` on the Event Service. Each limit counts a
-caller's requests over one minute, and once it is passed answers `429` with
-`{"error": "rate_limited"}` and `Retry-After: 60`.
+The station limit is `Implemented`. The GeekyKey Service's user limits are `Checkpoint 6`, and the
+Event Service's limit is `Checkpoint 7`. Each limit counts a caller's requests over one minute, and
+once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-After: 60`.
 
 | Service | Counts | Limit a minute |
 |---|---|---|
@@ -169,6 +169,12 @@ caller's requests over one minute, and once it is passed answers `429` with
 | GeekyKey Service | Each user's requests to its API | 60 |
 | GeekyKey Service | Each user's token lookups and claims, which also count toward the 60 | 20 |
 | Event Service | Each user's requests to its API | 60, counted by each server instance |
+
+- The station limit counts a request by the key it sends, before the key is checked. So a wrong
+  key is counted too, and over the limit it gets `429` rather than `401`. A request with no key
+  isn't counted, and gets `401 missing_station_key`.
+- The GeekyKey Service's limits are approximate. Cloudflare counts each one separately in each of
+  its data centres, so a caller whose requests reach several can sometimes get past it.
 
 ### CORS and cookies
 
@@ -1533,3 +1539,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | The GeekyKey Service's token lookup, `GET /api/v1/tokens/{uid}` (8.5), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It asks the claims stand-in who owns the token. When the owner is the user, it also reads the user's own tokens for `claimed_at`. Both calls share one 4-second deadline, as on `/me`. When the stand-in doesn't answer properly within it, the lookup answers `503 claims_unavailable`. A token released between the two calls reads as `nobody`, which 8.5 now says. Only a GeekyKey admin gets `owner_id`, and the service checks `GEEKYKEY_ADMINS` on every request. Its `rate_limited` waits for the rate limits later in checkpoint 6. Section 2's `400` row now names the path as well as the body and query, and [Token UID](#token-uid) says a UID in a path is percent-encoded, so one typed with `/` between its bytes still arrives whole. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-66). |
 | 2026-10-22 | Section 13 says My tokens offers no claim-by-code form until 8.2 is live, since its list comes from the service and a claim would still go to the sample data. No endpoint or shape changes (FRO-30). |
 | 2026-10-22 | The GeekyKey Service's claim, `POST /api/v1/tokens/{uid}/claim` (8.2), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It reads the user's own tokens from the claims stand-in, then asks the stand-in to claim the token, with one 4-second deadline for both calls, and runs 8.2's checks in their stated order. The limit is a new setting, `MAX_TOKENS_PER_USER`, set to 3. Nobody is exempt, GeekyKey admins included. When the stand-in doesn't answer properly in time, the claim answers `503 claims_unavailable`. The stand-in may have saved the claim before its answer went wrong. Then the claim stands, and trying again answers `200`, as 8.2 and section 8's opening now say. 8.2's errors now list `unauthenticated`, which section 2 already implied. They also list `claims_unavailable`, which section 8's opening already gave it. Its `rate_limited` waits for the rate limits later in checkpoint 6. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-68). |
+| 2026-10-22 | The GeekyKey Service's station limit is `Implemented`: each station gets 60 requests a minute, taps and heartbeats together, then `429 rate_limited` with `Retry-After: 60`. [Rate limits](#rate-limits) now says it counts a request by the key it sends, before the key is checked, so a wrong key is counted too and gets `429` once over, and that a request with no key isn't counted. It also says the GeekyKey Service's limits are approximate, since Cloudflare counts them in each data centre. The user limits are still `Checkpoint 6`. No shape changes (BAC-67). |
