@@ -44,6 +44,9 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   // the switch, cannot say who owns a token within 4 seconds.
   claims_unavailable: 503,
   login_unavailable: 503,
+  // The Worker in front of the screens answers this when the GeekyKey Service gave no
+  // answer at all (agreement section 2).
+  service_unavailable: 503,
 };
 
 export type MockFailure = ErrorCode | "network";

@@ -146,6 +146,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "rate_limited",
   "claims_unavailable",
   "login_unavailable",
+  "service_unavailable",
   "internal_error",
 ]);
 
@@ -174,8 +175,9 @@ function errorCodeForStatus(status: number): ErrorCode {
   if (status === 404) return "not_found";
   if (status === 409) return "internal_error";
   if (status === 429) return "rate_limited";
-  // A bare 503 on these endpoints is claims_unavailable: event_service_unavailable is the
-  // other 503 in the agreement's table, and it only ever answers a station.
+  // A bare 503 on these endpoints is claims_unavailable: event_service_unavailable only
+  // ever answers a station, and the Worker in front of the screens answers
+  // service_unavailable with a body the client can read, so neither is the answer here.
   if (status === 503) return "claims_unavailable";
   return "internal_error";
 }

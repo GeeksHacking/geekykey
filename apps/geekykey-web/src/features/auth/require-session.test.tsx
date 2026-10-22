@@ -251,4 +251,24 @@ describe("RequireSession", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
+
+  it("says a service is unavailable when the Worker answers 503", async () => {
+    // The Worker in front of the screens answers 503 service_unavailable when the GeekyKey
+    // Service gave no answer at all (agreement section 2), so the screen says this app's
+    // own service is down rather than that GeeksHacking's claims are.
+    render(
+      <SessionContext.Provider
+        value={sessionWith("error", null, new ApiError(503, "service_unavailable"))}
+      >
+        <RouterProvider router={makeRouter("/t/04A1B2C3D4E5F6")} />
+      </SessionContext.Provider>,
+    );
+
+    expect(
+      await screen.findByText("A required service is unavailable. Try again shortly."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    // The sentence the claims failure uses is not this one, and only one of them shows.
+    expect(screen.queryByText("Couldn't reach GeeksHacking. Try again.")).not.toBeInTheDocument();
+  });
 });

@@ -67,6 +67,12 @@ export function describeError(error: unknown): string {
       case "login_unavailable":
         // Agreement section 13: on login_unavailable, both logins say exactly this.
         return "Couldn't log you in. Try again.";
+      case "service_unavailable":
+        // The Worker in front of the screens answers 503 service_unavailable when the
+        // GeekyKey Service gave no answer at all (agreement section 2). Ethan settled the
+        // wording on 21 Oct: the Event screens' sentence, which fits these screens too.
+        // Section 13 sets no wording for it.
+        return "A required service is unavailable. Try again shortly.";
       case "internal_error":
         return "Something went wrong on the server. Try again in a moment.";
     }
