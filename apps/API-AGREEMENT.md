@@ -13,8 +13,8 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.5 (draft) |
-| Date | 21 October 2026 |
+| Version | 0.5 |
+| Date | 22 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -1502,3 +1502,4 @@ Closed on 2026-10-10:
 | 2026-10-21 | The Event Service's `PATCH /api/v1/me` (8.7) is `Implemented`, and its `GET /api/v1/me` (8.1) and `POST /auth/firebase` (7.2) no longer change at checkpoint 5. A user can set the name the event shows, trimmed and 1 to 30 code points; `GET /api/v1/me` gives `user.has_name`, `false` while the name is the default, and `true` for a name the user set, even `Guest`; a new user whose login has no name is `Guest`, not `GeeksHacking member`; and a login never replaces a name the user set. Users who already had `GeeksHacking member` become `Guest`, so the passport asks them for a name. 8.7 now says where a refused name's issue goes, and that `rate_limited` waits for checkpoint 7. 7.2 keeps its checkpoint 5 tag, since the GeekyKey Service's half, the name in `gk_session`, waits for BAC-59 (BAC-60). |
 | 2026-10-21 | Login links are `Implemented` on both services: the GeekyKey Service's `POST /api/v1/login-links` (8.6) and the Event Service's `POST /auth/login-link` (7.4), with the format and key in 11.9. Both make and read the link with the same code, `packages/login-link`, which reads a link built by hand from 11.9's recipe, so another team's Event Service checking by it agrees. `gk_session` now holds the login's name next to the user ID, so 7.2 is `Implemented` on both services, with no change still to come. A `gk_session` from before, which held only the user ID, no longer reads, and the screens log the user in again as 7.2 says; nobody uses the GeekyKey screens on production yet. The Event Service keeps each used link's `jti` in a new table, `used_login_links`, for a minute past the link's expiry, so a link checked just before it expires can't be used a second time a moment after. 8.6 now says its `rate_limited` waits for the GeekyKey Service's rate limits at checkpoint 6. No shape changes (BAC-59). |
 | 2026-10-21 | Section 13 sets the "Demo data" notice's wording, which the screens had written for themselves, and says My tokens offers no Release until 8.3 is live, since its list comes from the service and a Release would still go to the sample data. No endpoint or shape changes (FRO-56). |
+| 2026-10-22 | Ethan, the screens owner, approved version 0.5, so it is no longer a draft. No endpoint or shape changes (FRO-60). |
