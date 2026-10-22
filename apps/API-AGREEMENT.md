@@ -370,7 +370,7 @@ them.
 | GET | `/api/v1/me` | User | `Implemented` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
 | GET | `/api/v1/tokens/{uid}` | User | `Implemented` | What the token page shows |
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Implemented` | Claim a token |
-| DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Checkpoint 6` | Release a token |
+| DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Implemented` | Release a token |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
 
 **The Event Service**
@@ -689,7 +689,8 @@ way a guest reaches the Event screens. The link's format is in 11.9.
 GeekyKey Service, for any logged-in user, and are what the token page and My tokens call. Each of 8.2 to
 8.5 answers `503 claims_unavailable` when the claims stand-in, or after the switch the Portal,
 doesn't answer properly within 4 seconds. The screens say "Couldn't reach GeeksHacking. Try
-again." Nothing is saved, with one exception in 8.2: a claim may already have been made.
+again." Nothing changes, with one exception each in 8.2 and 8.3: the claim or the release may
+already have been made.
 
 ### 8.1 `GET /api/v1/me` on the Event Service (`Implemented`)
 
@@ -765,7 +766,7 @@ then a user holding 3 gets `token_limit_reached`, even for someone else's token;
 Taps turned away as `unknown_token` before the claim are not credited afterwards: they were
 never stored.
 
-### 8.3 `DELETE /api/v1/tokens/{uid}` on the GeekyKey Service (`Checkpoint 6`)
+### 8.3 `DELETE /api/v1/tokens/{uid}` on the GeekyKey Service (`Implemented`)
 
 Release a token, for example a lost one, so anyone can claim it again. Releasing deletes the
 claim. Taps made with the token before still count.
@@ -774,10 +775,19 @@ claim. Taps made with the token before still count.
 else's by adding `?owner_id=<user ID>`: the owner the token lookup (8.5) showed when the
 page loaded, so a late or double click can't release a newer claim.
 
+**Request:** no body. `{uid}` is a [Token UID](#token-uid) in any separator style.
+
 **Response `204`**.
 
-**Errors:** `not_found` if the token isn't claimed by the current user, or by `owner_id` when
-given; `forbidden` if someone who isn't a GeekyKey admin sends `owner_id`.
+**Errors:** `unauthenticated`, `validation_failed` for a `{uid}` that isn't 4 to 10 hex bytes or
+an `owner_id` that isn't 1 to 128 characters, `forbidden` if someone who isn't a GeekyKey admin
+sends `owner_id`, even their own, `not_found` if the token isn't claimed by the current user, or
+by `owner_id` when given, `claims_unavailable`, and `rate_limited` from checkpoint 6, when the
+GeekyKey Service's rate limits arrive ([Rate limits](#rate-limits)).
+
+- A release that answers `claims_unavailable` may still have been made. The claims stand-in can
+  delete the claim and then answer too late, or with an error. Then trying again answers
+  `not_found`, and a fresh lookup (8.5) says `nobody`.
 
 ### 8.4 `GET /api/v1/me` on the GeekyKey Service (`Implemented`)
 
@@ -1540,3 +1550,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | Section 13 says My tokens offers no claim-by-code form until 8.2 is live, since its list comes from the service and a claim would still go to the sample data. No endpoint or shape changes (FRO-30). |
 | 2026-10-22 | The GeekyKey Service's claim, `POST /api/v1/tokens/{uid}/claim` (8.2), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It reads the user's own tokens from the claims stand-in, then asks the stand-in to claim the token, with one 4-second deadline for both calls, and runs 8.2's checks in their stated order. The limit is a new setting, `MAX_TOKENS_PER_USER`, set to 3. Nobody is exempt, GeekyKey admins included. When the stand-in doesn't answer properly in time, the claim answers `503 claims_unavailable`. The stand-in may have saved the claim before its answer went wrong. Then the claim stands, and trying again answers `200`, as 8.2 and section 8's opening now say. 8.2's errors now list `unauthenticated`, which section 2 already implied. They also list `claims_unavailable`, which section 8's opening already gave it. Its `rate_limited` waits for the rate limits later in checkpoint 6. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-68). |
 | 2026-10-22 | The GeekyKey Service's station limit is `Implemented`: each station gets 60 requests a minute, taps and heartbeats together, then `429 rate_limited` with `Retry-After: 60`. [Rate limits](#rate-limits) now says it counts a request by the key it sends, before the key is checked, so a wrong key is counted too and gets `429` once over, and that a request with no key isn't counted. It also says the GeekyKey Service's limits are approximate, since Cloudflare counts them in each data centre. 6.1 and 6.2 point their `rate_limited` at it, and 6.2 says a wrong key gets `401` until it's over the limit. The user limits are still `Checkpoint 6`. No shape changes (BAC-67). |
+| 2026-10-22 | The GeekyKey Service's release, `DELETE /api/v1/tokens/{uid}` (8.3), is `Implemented`. It takes `{uid}` in any separator style. An owner releases their own token. A GeekyKey admin releases someone else's by naming the owner in `owner_id`, and the service checks `GEEKYKEY_ADMINS` on every request. The claims stand-in deletes the claim only while that owner still holds it, so a release for an owner who no longer holds the token answers `404 not_found` and leaves any newer claim alone. Every release writes a `token_released` log line with the UID, the owner and who released it, as user IDs. When the stand-in doesn't answer properly within 4 seconds, the release answers `503 claims_unavailable`. The stand-in may have deleted the claim before its answer went wrong, as 8.3 and section 8's opening now say. 8.3's errors now list `unauthenticated`, `validation_failed` and `rate_limited`, which section 2 already implied, and `claims_unavailable`, which section 8's opening already gave it. An `owner_id` must be 1 to 128 characters, as a user ID is in 11.2. Its `rate_limited` waits for the rate limits later in checkpoint 6. `GEEKYKEY_ADMINS` on production lists Adam, for checkpoint 6's proof. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-69). |

@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Claims } from "./claims.ts";
 import { withClaimsDeadline } from "./claims-deadline.ts";
+import { log } from "./lib/log.ts";
 import { tokenUid } from "./lib/token-uid.ts";
-import { pathParams } from "./lib/validate.ts";
+import { pathParams, queryParams } from "./lib/validate.ts";
 import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
 
 export interface TokenRouteDeps {
@@ -37,10 +38,19 @@ type TokenView = {
  * whatever their count, then a user at the limit gets `token_limit_reached`,
  * then the claim itself, which can be `taken`.
  *
+ * The release (8.3) is the Release button on the token page and My tokens.
+ * An owner releases their own token. A GeekyKey admin releases someone
+ * else's by naming its owner in `owner_id`, the one the lookup showed, so a
+ * late or double click can't release a newer claim. Either way the token
+ * must still be that owner's, or the answer is `not_found`. Every release
+ * writes a `token_released` log line, the only trace of it, since no
+ * history is kept, and only the route knows who released it.
+ *
  * Owners come through Claims only, and each request's calls share one
  * deadline. A lookup asks `ownersOf` who owns the token, and when the user
  * does, their own `tokensOf` says when they claimed it. A claim asks
- * `tokensOf` for the first two checks, then `claim`.
+ * `tokensOf` for the first two checks, then `claim`. A release asks
+ * `release` alone.
  */
 export function tokenRoutes({
   session,
@@ -93,6 +103,30 @@ export function tokenRoutes({
           const claimed = await claims.claim(uid, userId, signal);
           if (claimed.result === "taken") return c.json({ error: "token_taken" }, 409);
           return token(claimed.claimedAt, claimed.result === "claimed" ? 201 : 200);
+        });
+      },
+    )
+    .delete(
+      "/:uid",
+      requireSession(session),
+      pathParams(z.object({ uid: tokenUid })),
+      // A user ID, as the stand-in and 11.2 have it.
+      queryParams(z.object({ owner_id: z.string().min(1).max(128).optional() })),
+      async (c) => {
+        const { uid } = c.req.valid("param");
+        const { owner_id: givenOwnerId } = c.req.valid("query");
+        const { userId } = c.var;
+        // Only a GeekyKey admin names the owner, even when it's themselves.
+        if (givenOwnerId !== undefined && !geekykeyAdmins.has(userId)) {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        const ownerId = givenOwnerId ?? userId;
+        return await withClaimsDeadline(c, deadlineMs, async (signal) => {
+          if ((await claims.release(uid, ownerId, signal)) === "not_owner") {
+            return c.json({ error: "not_found" }, 404);
+          }
+          log("token_released", { uid, owner_id: ownerId, released_by: userId });
+          return c.body(null, 204);
         });
       },
     );

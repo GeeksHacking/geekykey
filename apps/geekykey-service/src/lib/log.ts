@@ -7,6 +7,8 @@ const LOG_LINES = {
   internal_error: "ERROR",
   // A station's tap by a token nobody owns, answered and stored nowhere.
   unknown_token: "INFO",
+  // A token released by its owner or a GeekyKey admin. No history is kept, so this is the only trace.
+  token_released: "INFO",
   // A station's or a user's request failed because the claims stand-in didn't answer properly in time.
   claims_unavailable: "ERROR",
   // A station request failed because its Event Service didn't answer the hand-off properly in time.

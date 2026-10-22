@@ -77,7 +77,8 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
       url: "https://event-api.geekshacking.com/claims-stand-in/v1",
       key: CLAIMS_STAND_IN_KEY,
     },
-    geekykeyAdmins: [],
+    // Adam's Firebase UID.
+    geekykeyAdmins: ["qxcUTVjDfgaK7FL1R3UAJmPW9Up2"],
     maxTokensPerUser: 3,
     maxTapsPerRequest: 500,
     tapDeadlineMs: 4000,

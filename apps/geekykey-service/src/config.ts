@@ -35,8 +35,8 @@ export interface Config {
   };
   /**
    * The GeekyKey admins, by user ID, who may release someone else's token.
-   * GET /api/v1/me says whether the user is one; checkpoint 6's release
-   * checks it.
+   * GET /api/v1/me says whether the user is one, the lookup gives them the
+   * owner's ID, and the release lets them name it.
    */
   geekykeyAdmins: string[];
   /**

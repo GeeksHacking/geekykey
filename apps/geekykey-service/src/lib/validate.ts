@@ -46,6 +46,15 @@ export function pathParams<T extends ZodType>(schema: T) {
   return zValidator("param", schema, failValidation);
 }
 
+/**
+ * Query string validation, such as a GeekyKey admin's `owner_id`, failing as
+ * jsonBody does. A name given once arrives as a string, and given twice as
+ * an array of them.
+ */
+export function queryParams<T extends ZodType>(schema: T) {
+  return zValidator("query", schema, failValidation);
+}
+
 function failValidation(
   result: { success: true } | { success: false; error: { issues: unknown } },
   c: Context,

@@ -84,9 +84,10 @@
     ],
     // Who owns each token, until the switch to the Portal's tag APIs.
     "CLAIMS_STAND_IN_URL": "https://event-api.geekshacking.com/claims-stand-in/v1",
-    // User IDs who may release someone else's token. Nobody until login
-    // arrives at checkpoint 5, when the showcase's user IDs are known.
-    "GEEKYKEY_ADMINS": [],
+    // User IDs who may release someone else's token: Firebase UIDs. Adam's
+    // Google account for now; Ethan's and Zi Tao's join with the lists for
+    // the day at checkpoint 8.
+    "GEEKYKEY_ADMINS": ["qxcUTVjDfgaK7FL1R3UAJmPW9Up2"],
     // The most tokens one user may hold. Nobody is exempt, GeekyKey admins
     // included.
     "MAX_TOKENS_PER_USER": 3,

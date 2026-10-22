@@ -56,7 +56,17 @@ function harness({ claimsDeadlineMs = 4000 } = {}) {
       headers: cookie === undefined ? {} : { Cookie: cookie },
     });
 
-  return { fake, logIn, lookUp, claim };
+  /**
+   * DELETE /api/v1/tokens/{uid}, with no body, as the screens send it. A
+   * GeekyKey admin's adds `?owner_id=`, already encoded as `ownerId` here.
+   */
+  const release = (uid: string, cookie?: string, ownerId?: string) =>
+    app.request(`/api/v1/tokens/${uid}${ownerId === undefined ? "" : `?owner_id=${ownerId}`}`, {
+      method: "DELETE",
+      headers: cookie === undefined ? {} : { Cookie: cookie },
+    });
+
+  return { fake, logIn, lookUp, claim, release };
 }
 
 test("without a session, the lookup answers unauthenticated and asks the stand-in nothing", async () => {
@@ -489,4 +499,188 @@ test("a stand-in whose claim answer doesn't fit gets claims_unavailable", async 
     logged().map(({ reason }) => reason),
     ["unparseable"],
   );
+});
+
+test("without a session, a release answers unauthenticated and asks the stand-in nothing", async () => {
+  const { fake, release } = harness();
+  const res = await release("04A1B2C3D4E5F6");
+  assert.equal(res.status, 401);
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await res.json(), { error: "unauthenticated" });
+  assert.deepEqual(fake.sent, []);
+});
+
+/** Every line logged as information during this test, each read as one JSON object. */
+function loggedInfo() {
+  const info = vi.spyOn(console, "log").mockImplementation(() => {});
+  onTestFinished(() => info.mockRestore());
+  return () =>
+    info.mock.calls.map(([line]) => JSON.parse(line as string) as Record<string, unknown>);
+}
+
+test("an owner releases their own token, 204, and the release is logged", async () => {
+  const { fake, logIn, release } = harness();
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-1");
+  fake.tokens.set("firebase-uid-1", [
+    { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:30:00.000Z" },
+  ]);
+  const cookie = await logIn("firebase-uid-1");
+  const logged = loggedInfo();
+  const res = await release("04:a1:b2:c3:d4:e5:f6", cookie);
+  assert.equal(res.status, 204);
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.equal(await res.text(), "");
+  assert.equal(fake.owners.get("04A1B2C3D4E5F6"), undefined);
+  // One call, with the UID normalised and the owner the user themselves.
+  assert.deepEqual(
+    fake.sent.map(({ method, url, authorization, body }) => [method, url, authorization, body]),
+    [
+      [
+        "POST",
+        `${env.CLAIMS_STAND_IN_URL}/tokens/04A1B2C3D4E5F6/release`,
+        `Bearer ${env.CLAIMS_STAND_IN_KEY}`,
+        { owner_id: "firebase-uid-1" },
+      ],
+    ],
+  );
+  assert.deepEqual(logged(), [
+    {
+      severity: "INFO",
+      message: "token_released",
+      uid: "04A1B2C3D4E5F6",
+      owner_id: "firebase-uid-1",
+      released_by: "firebase-uid-1",
+    },
+  ]);
+});
+
+test("an owner can't release a token nobody has claimed, or someone else's: not_found, and nothing is logged", async () => {
+  const { fake, logIn, release } = harness();
+  fake.owners.set("DEADBEEF", "firebase-uid-2");
+  const cookie = await logIn("firebase-uid-1");
+  const logged = loggedInfo();
+  for (const uid of ["04A1B2C3D4E5F6", "DEADBEEF"]) {
+    const res = await release(uid, cookie);
+    assert.equal(res.status, 404, uid);
+    assert.equal(res.headers.get("Cache-Control"), "no-store", uid);
+    assert.deepEqual(await res.json(), { error: "not_found" }, uid);
+  }
+  assert.equal(fake.owners.get("DEADBEEF"), "firebase-uid-2");
+  assert.deepEqual(logged(), []);
+});
+
+test("someone who isn't a GeekyKey admin sending owner_id is forbidden, even with their own ID", async () => {
+  const { fake, logIn, release } = harness();
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-1");
+  fake.owners.set("DEADBEEF", "firebase-uid-2");
+  const cookie = await logIn("firebase-uid-1");
+  for (const [uid, ownerId] of [
+    ["DEADBEEF", "firebase-uid-2"],
+    ["04A1B2C3D4E5F6", "firebase-uid-1"],
+  ] as const) {
+    const res = await release(uid, cookie, ownerId);
+    assert.equal(res.status, 403, ownerId);
+    assert.equal(res.headers.get("Cache-Control"), "no-store", ownerId);
+    assert.deepEqual(await res.json(), { error: "forbidden" }, ownerId);
+  }
+  assert.equal(fake.owners.get("04A1B2C3D4E5F6"), "firebase-uid-1");
+  assert.equal(fake.owners.get("DEADBEEF"), "firebase-uid-2");
+  assert.deepEqual(fake.sent, []);
+});
+
+test("a GeekyKey admin releases someone else's token with the owner the lookup showed, and the log names both", async () => {
+  const { fake, logIn, release } = harness();
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-2");
+  const cookie = await logIn("admin-1");
+  const logged = loggedInfo();
+  const res = await release("04A1B2C3D4E5F6", cookie, "firebase-uid-2");
+  assert.equal(res.status, 204);
+  assert.equal(fake.owners.get("04A1B2C3D4E5F6"), undefined);
+  assert.deepEqual(
+    fake.sent.map(({ url, body }) => [url, body]),
+    [[`${env.CLAIMS_STAND_IN_URL}/tokens/04A1B2C3D4E5F6/release`, { owner_id: "firebase-uid-2" }]],
+  );
+  assert.deepEqual(logged(), [
+    {
+      severity: "INFO",
+      message: "token_released",
+      uid: "04A1B2C3D4E5F6",
+      owner_id: "firebase-uid-2",
+      released_by: "admin-1",
+    },
+  ]);
+});
+
+test("a GeekyKey admin's late release leaves a newer claim alone: not_found", async () => {
+  const { fake, logIn, release } = harness();
+  // The page loaded with firebase-uid-2 as owner; since then it was released
+  // and firebase-uid-3 claimed it.
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-3");
+  const cookie = await logIn("admin-1");
+  const logged = loggedInfo();
+  const res = await release("04A1B2C3D4E5F6", cookie, "firebase-uid-2");
+  assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: "not_found" });
+  assert.equal(fake.owners.get("04A1B2C3D4E5F6"), "firebase-uid-3");
+  assert.deepEqual(logged(), []);
+});
+
+test("an owner_id that isn't a user ID fails validation, and the stand-in isn't asked", async () => {
+  const { fake, logIn, release } = harness();
+  const cookie = await logIn("admin-1");
+  const bad = {
+    empty: "",
+    "over 128 characters": "u".repeat(129),
+    "given twice": "firebase-uid-2&owner_id=firebase-uid-3",
+  };
+  for (const [what, ownerId] of Object.entries(bad)) {
+    const res = await release("04A1B2C3D4E5F6", cookie, ownerId);
+    assert.equal(res.status, 400, what);
+    assert.equal(res.headers.get("Cache-Control"), "no-store", what);
+    const body = (await res.json()) as { error: string; issues: { path: unknown[] }[] };
+    assert.equal(body.error, "validation_failed", what);
+    assert.deepEqual(
+      body.issues.map(({ path }) => path),
+      [["owner_id"]],
+      what,
+    );
+  }
+  assert.deepEqual(fake.sent, []);
+});
+
+test("a release of a UID that isn't 4 to 10 hex bytes fails validation, and the stand-in isn't asked", async () => {
+  const { fake, logIn, release } = harness();
+  const res = await release("04A1B2", await logIn("firebase-uid-1"));
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as {
+    error: string;
+    issues: { path: unknown[]; message: string }[];
+  };
+  assert.equal(body.error, "validation_failed");
+  assert.deepEqual(
+    body.issues.map(({ path, message }) => [path, message]),
+    [[["uid"], "uid must be 4 to 10 hex bytes"]],
+  );
+  assert.deepEqual(fake.sent, []);
+});
+
+test("a stand-in that doesn't answer a release in time gets claims_unavailable, and no release is logged", async () => {
+  const { fake, logIn, release } = harness({ claimsDeadlineMs: 200 });
+  fake.owners.set("04A1B2C3D4E5F6", "firebase-uid-1");
+  const cookie = await logIn("firebase-uid-1");
+  const errors = loggedErrors();
+  const info = loggedInfo();
+  fake.answers.release = late(1000, () => Response.json({ result: "released" }));
+  const startedAt = Date.now();
+  const res = await release("04A1B2C3D4E5F6", cookie);
+  const took = Date.now() - startedAt;
+  assert.equal(res.status, 503);
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(await res.json(), { error: "claims_unavailable" });
+  assert.ok(took < 600, `took ${took} ms, not cut short at the deadline`);
+  assert.deepEqual(
+    errors().map(({ message, user_id, reason }) => [message, user_id, reason]),
+    [["claims_unavailable", "firebase-uid-1", "timeout"]],
+  );
+  assert.deepEqual(info(), []);
 });
