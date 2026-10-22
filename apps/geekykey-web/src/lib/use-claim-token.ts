@@ -7,9 +7,13 @@ import type { Token } from "@/api/types";
 import { normalizeUid } from "@/lib/token-uid";
 
 /**
- * POST /api/v1/tokens/{uid}/claim, agreement 8.2. The UID is the mutation's variable, so
- * the token page and My tokens' claim-by-code form share one claim mutation: each passes
- * the token it is claiming.
+ * POST /api/v1/tokens/{uid}/claim, agreement 8.2. Lives in lib/ so two features can share
+ * it, the token page's owner view and My tokens' claim-by-code form (apps/event-web/CLAUDE.md:
+ * cross-feature imports go through components/ or lib/, never feature to feature).
+ *
+ * The UID is the mutation's variable, so each caller passes the token it is claiming. The
+ * token page knows its token from the address; the form learns it from what the user typed,
+ * which is why the UID cannot be an argument of the hook.
  *
  * A claim changes what /me holds, so success refetches the token lookup and /me. The UID is
  * normalised first, or the two spellings of one token would be two cache entries.

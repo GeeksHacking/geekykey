@@ -11,9 +11,9 @@ import { formatWhen } from "@/lib/format";
 import { formatUid } from "@/lib/token-uid";
 import { HOME_PATH } from "@/lib/constants";
 import { useSession } from "@/lib/session";
+import { useClaimToken } from "@/lib/use-claim-token";
 import { useReleaseToken } from "@/lib/use-release-token";
 import type { EventServiceLink, TokenLookup } from "@/api/types";
-import { useClaimToken } from "@/features/token/use-claim-token";
 import { useToken } from "@/features/token/use-token";
 
 /**
