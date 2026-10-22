@@ -112,7 +112,7 @@ of an Event Service lives under `/geekykey/v1`.
 | 200 | Successful read, or a write that is idempotent (taps, claiming a token you already own) |
 | 201 | A new resource was created |
 | 204 | Successful delete or logout, no body |
-| 400 | Body or query failed validation. Body contains `issues` |
+| 400 | Body, query or path failed validation. Body contains `issues` |
 | 401 | Not authenticated, or a station key, Event Service key or login link is missing or invalid. A disabled station's key also gets 401 |
 | 403 | Authenticated but not allowed: not an organizer, or not a GeekyKey admin |
 | 404 | Resource does not exist or is not visible to this user |
@@ -289,6 +289,10 @@ same token. After normalisation a UID must be 4 to 10 bytes, that is 8 to 20 hex
 since stations can read other cards. Our NTAG213 tokens have 7-byte UIDs, 14 characters. The
 services always return the normalised form.
 
+A UID in a path, such as `{uid}` in `/api/v1/tokens/{uid}`, is percent-encoded, as
+`encodeURIComponent` does. Then a UID typed with spaces or `/` between its bytes still reaches
+the service as one value. Unencoded, a `/` splits the path and the answer is `404 not_found`.
+
 **The token address** is `https://key.geekshacking.com/t/<UID>`, written on every token,
 where `<UID>` is the chip's own UID in 14 upper-case hex characters, for example
 `/t/04A1B2C3D4E5F6`. A phone that taps a token opens it, and lands on the token page. The
@@ -358,7 +362,7 @@ them.
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `gk_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
 | GET | `/api/v1/me` | User | `Implemented` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
-| GET | `/api/v1/tokens/{uid}` | User | `Checkpoint 6` | What the token page shows |
+| GET | `/api/v1/tokens/{uid}` | User | `Implemented` | What the token page shows |
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Checkpoint 6` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Checkpoint 6` | Release a token |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
@@ -790,7 +794,7 @@ Everything My tokens needs, and the "Am I logged in?" call for the GeekyKey scre
 
 **Errors:** `unauthenticated`.
 
-### 8.5 `GET /api/v1/tokens/{uid}` on the GeekyKey Service (`Checkpoint 6`)
+### 8.5 `GET /api/v1/tokens/{uid}` on the GeekyKey Service (`Implemented`)
 
 What the token page shows. The page calls it only once someone is logged in. Before that it
 shows a login prompt and looks nothing up.
@@ -815,7 +819,15 @@ shows a login prompt and looks nothing up.
 | `you` | Your token, with **Release**, and a button for each event from `/me`, such as "Open Capstone Showcase", which opens a login link (8.6) |
 | `someone_else` | "This token belongs to someone else", with no name. A GeekyKey admin also sees **Release** |
 
-**Errors:** `unauthenticated`, `validation_failed`, `rate_limited`.
+- `{uid}` is a [Token UID](#token-uid) in any separator style, and `uid` in the answer is the
+  normalised form.
+- The service first asks who owns the token. When it's you, it then reads your own tokens for
+  `claimed_at`. Both reads share the 4 seconds. If the token was released between them, the
+  answer is `nobody`.
+
+**Errors:** `unauthenticated`, `validation_failed` for a `{uid}` that isn't 4 to 10 hex bytes,
+`claims_unavailable`, and `rate_limited` from checkpoint 6, when the GeekyKey Service's rate
+limits arrive ([Rate limits](#rate-limits)).
 
 ### 8.6 `POST /api/v1/login-links` on the GeekyKey Service (`Implemented`)
 
@@ -1510,3 +1522,4 @@ Closed on 2026-10-10:
 | 2026-10-21 | Section 13 sets the "Demo data" notice's wording, which the screens had written for themselves, and says My tokens offers no Release until 8.3 is live, since its list comes from the service and a Release would still go to the sample data. No endpoint or shape changes (FRO-56). |
 | 2026-10-22 | Ethan, the screens owner, approved version 0.5, so it is no longer a draft. No endpoint or shape changes (FRO-60). |
 | 2026-10-22 | Section 13 sets the warning a guest sees before signing out on the GeekyKey screens. Signing out ends a guest's Firebase sign-in for good, so their tokens stay claimed and their stamps stay with a user ID nobody can log in as again; a GeekyKey admin at the desk releases the tokens (8.3). A Google or GeeksHacking user isn't asked. No endpoint or shape changes (FRO-62). |
+| 2026-10-22 | The GeekyKey Service's token lookup, `GET /api/v1/tokens/{uid}` (8.5), is `Implemented`. It takes `{uid}` in any separator style and answers with the normalised UID. It asks the claims stand-in who owns the token. When the owner is the user, it also reads the user's own tokens for `claimed_at`. Both calls share one 4-second deadline, as on `/me`. When the stand-in doesn't answer properly within it, the lookup answers `503 claims_unavailable`. A token released between the two calls reads as `nobody`, which 8.5 now says. Only a GeekyKey admin gets `owner_id`, and the service checks `GEEKYKEY_ADMINS` on every request. Its `rate_limited` waits for the rate limits later in checkpoint 6. Section 2's `400` row now names the path as well as the body and query, and [Token UID](#token-uid) says a UID in a path is percent-encoded, so one typed with `/` between its bytes still arrives whole. Nothing calls it yet: the GeekyKey screens switch their token calls to the service in FRO-70. No shape changes (BAC-66). |

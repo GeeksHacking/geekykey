@@ -2,12 +2,14 @@ import { zValidator } from "@hono/zod-validator";
 import type { Context } from "hono";
 import type { output, ZodSafeParseResult, ZodType } from "zod";
 
+/*
+  Every 400 in the API comes from this file, so they all look alike, which is
+  what the screens rely on to put each message under the right field.
+*/
+
 /**
  * JSON body validation that fails with the agreement's error shape:
  * `{ error: "validation_failed", issues }`, where `issues` is Zod's own format.
- *
- * Every 400 in the API comes from here so they all look alike, which is what
- * the screens rely on to put each message under the right field.
  *
  * `quick`, when given, is a plain check tried before `schema`, for a body big
  * enough that Zod's own check costs too much CPU (see quickTapBody in
@@ -34,6 +36,14 @@ export function jsonBody<T extends ZodType>(
       },
     },
   );
+}
+
+/**
+ * Path parameter validation, such as a token's UID, failing as jsonBody
+ * does. Each issue's `path` names the parameter.
+ */
+export function pathParams<T extends ZodType>(schema: T) {
+  return zValidator("param", schema, failValidation);
 }
 
 function failValidation(

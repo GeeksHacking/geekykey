@@ -4,7 +4,7 @@ import { z } from "zod";
 import { regexes } from "zod/v4/core";
 import { errorFields, log } from "./lib/log.ts";
 import { trustedTappedAt } from "./lib/tapped-at.ts";
-import { normaliseUid, UID_PATTERN } from "./lib/token-uid.ts";
+import { normaliseUid, tokenUid, UID_PATTERN } from "./lib/token-uid.ts";
 import { jsonBody } from "./lib/validate.ts";
 import { type Claims, ClaimsUnavailable } from "./claims.ts";
 import { type EventService, EventServiceUnavailable } from "./event-service.ts";
@@ -18,12 +18,7 @@ export function tapBodySchema(maxTaps: number) {
       .array(
         z.object({
           client_tap_id: z.string().min(1).max(128),
-          uid: z
-            .string()
-            .min(1)
-            .max(64)
-            .transform(normaliseUid)
-            .pipe(z.string().regex(UID_PATTERN, "uid must be 4 to 10 hex bytes")),
+          uid: tokenUid,
           tapped_at: z.iso.datetime({ offset: true }).optional(),
         }),
       )

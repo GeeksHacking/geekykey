@@ -13,6 +13,7 @@ import type { Send } from "./service-request.ts";
 import type { SessionOptions } from "./session.ts";
 import { heartbeatRoutes, tapsRoutes } from "./station-routes.ts";
 import { StationsCopy } from "./stations-copy.ts";
+import { tokenRoutes } from "./token-routes.ts";
 
 /** What the GeekyKey Service reaches outside itself. Tests fake each. */
 export interface AppDeps {
@@ -104,6 +105,8 @@ export function createApp(
     fetchTimeoutMs: config.tapDeadlineMs,
   });
   const deadlineMs = config.tapDeadlineMs;
+  // Checked on every request by the user routes that need it.
+  const geekykeyAdmins = new Set(config.geekykeyAdmins);
   app.route(
     "/api/v1/taps",
     tapsRoutes({ claims, stationsCopy, deadlineMs, maxTaps: config.maxTapsPerRequest }),
@@ -114,8 +117,17 @@ export function createApp(
     meRoutes({
       session,
       claims,
-      geekykeyAdmins: new Set(config.geekykeyAdmins),
+      geekykeyAdmins,
       eventServices: config.eventServices,
+      deadlineMs: claimsDeadlineMs,
+    }),
+  );
+  app.route(
+    "/api/v1/tokens",
+    tokenRoutes({
+      session,
+      claims,
+      geekykeyAdmins,
       deadlineMs: claimsDeadlineMs,
     }),
   );

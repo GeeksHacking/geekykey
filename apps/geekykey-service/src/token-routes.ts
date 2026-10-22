@@ -1,0 +1,63 @@
+import { Hono } from "hono";
+import { z } from "zod";
+import type { Claims } from "./claims.ts";
+import { withClaimsDeadline } from "./claims-deadline.ts";
+import { tokenUid } from "./lib/token-uid.ts";
+import { pathParams } from "./lib/validate.ts";
+import { requireSession, type SessionEnv, type SessionOptions } from "./session.ts";
+
+export interface TokenRouteDeps {
+  session: Pick<SessionOptions, "secret">;
+  claims: Claims;
+  /** From config.geekykeyAdmins, checked on every request. */
+  geekykeyAdmins: ReadonlySet<string>;
+  /** Milliseconds the claims stand-in has to answer, for all of a request's calls together. */
+  deadlineMs: number;
+}
+
+/** What the lookup answers: who owns the token, as the token page sees it. */
+type TokenView = {
+  uid: string;
+  owner: "nobody" | "you" | "someone_else";
+  claimed_at: string | null;
+  owner_id: string | null;
+};
+
+/**
+ * Mounted at /api/v1/tokens (the API agreement's 8.5): what the token page
+ * shows once someone is logged in. A token is `nobody`'s, the user's own
+ * (`you`, with when they claimed it) or `someone_else`'s, and only a
+ * GeekyKey admin is told whose, to release it with (8.3).
+ *
+ * Owners come through Claims only. `ownersOf` says who owns the token, and
+ * when the user does, their own `tokensOf` says when they claimed it, so a
+ * lookup makes one call or two, within one deadline.
+ */
+export function tokenRoutes({ session, claims, geekykeyAdmins, deadlineMs }: TokenRouteDeps) {
+  return new Hono<SessionEnv>().get(
+    "/:uid",
+    requireSession(session),
+    pathParams(z.object({ uid: tokenUid })),
+    async (c) => {
+      const { uid } = c.req.valid("param");
+      const { userId } = c.var;
+      const view = (
+        owner: TokenView["owner"],
+        extra: Partial<Pick<TokenView, "claimed_at" | "owner_id">> = {},
+      ) => c.json({ token: { uid, owner, claimed_at: null, owner_id: null, ...extra } });
+
+      return await withClaimsDeadline(c, deadlineMs, async (signal) => {
+        const ownerId = (await claims.ownersOf([uid], signal)).get(uid);
+        if (ownerId === undefined) return view("nobody");
+        if (ownerId !== userId) {
+          return view("someone_else", geekykeyAdmins.has(userId) ? { owner_id: ownerId } : {});
+        }
+        const mine = (await claims.tokensOf(userId, signal)).find((token) => token.uid === uid);
+        // Released between the two calls, which only its owner or a GeekyKey
+        // admin can do. A claim since then answers token_taken (8.2).
+        if (!mine) return view("nobody");
+        return view("you", { claimed_at: mine.claimedAt });
+      });
+    },
+  );
+}
