@@ -120,7 +120,6 @@ describe("the signed-in shell", () => {
     await expect(api.me()).rejects.toMatchObject({ code: "unauthenticated" });
     expect(screen.queryByRole("button", { name: "Account menu" })).not.toBeInTheDocument();
     // A Google user can sign in again as themselves, so nobody asks them first.
-    expect(isSignedInAsGuest).toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 

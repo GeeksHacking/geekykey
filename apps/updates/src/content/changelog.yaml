@@ -1289,6 +1289,6 @@
     A guest who taps "Sign out" on the GeekyKey screens is asked first, because signing in as a
     guest again makes a new guest, and the old guest's tokens and stamps stay with a login nobody
     can get back. The warning says to ask at the desk, where a GeekyKey admin releases the tokens
-    so they can be claimed again. A Google user signs out without being asked. The trade-offs we
-    accept: the stamps of a guest who signs out are lost, and a guest who signs out anyway still
+    so they can be claimed again. A Google or GeeksHacking user signs out without being asked. The
+    trade-offs we accept: the stamps of a guest who signs out are lost, and a guest who signs out anyway still
     needs a helper to get their tokens back.
