@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { NetworkError } from "@/api/errors";
-import type { EventStationBoardResponse, MeResponse } from "@/api/types";
+import type { EventStationBoardResponse, MeResponse, SetDisplayNameResponse } from "@/api/types";
 
 const isoTimestamp = z.iso.datetime({ offset: true });
 const role = z.enum(["participant", "organizer"]);
@@ -12,6 +12,7 @@ const userSchema = z.object({
   id: z.string(),
   display_name: z.string().nullable(),
   role,
+  has_name: z.boolean(),
 });
 
 const stampSchema = z.object({
@@ -72,6 +73,11 @@ export const meResponseSchema: z.ZodType<MeResponse> = z.object({
   recent_taps: z.array(meTapSchema),
 });
 
+/** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
+export const setDisplayNameResponseSchema: z.ZodType<SetDisplayNameResponse> = z.object({
+  user: userSchema,
+});
+
 export function parseEventStationBoardResponse(input: unknown): EventStationBoardResponse {
   const result = eventStationBoardResponseSchema.safeParse(input);
   if (!result.success) {
@@ -82,6 +88,14 @@ export function parseEventStationBoardResponse(input: unknown): EventStationBoar
 
 export function parseMeResponse(input: unknown): MeResponse {
   const result = meResponseSchema.safeParse(input);
+  if (!result.success) {
+    throw new NetworkError("The server returned an unexpected response");
+  }
+  return result.data;
+}
+
+export function parseSetDisplayNameResponse(input: unknown): SetDisplayNameResponse {
+  const result = setDisplayNameResponseSchema.safeParse(input);
   if (!result.success) {
     throw new NetworkError("The server returned an unexpected response");
   }

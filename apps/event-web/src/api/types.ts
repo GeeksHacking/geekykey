@@ -15,6 +15,11 @@ export interface User {
   id: string;
   display_name: string | null;
   role: Role;
+  /**
+   * False while `display_name` is the default, `Guest`, which neither a login nor the user
+   * gave. Then the passport asks for a name (agreement 8.1, 8.7).
+   */
+  has_name: boolean;
 }
 
 /** One entry per station with passport settings. `earned_at` is null until the user has an accepted tap there. */
@@ -35,6 +40,16 @@ export interface MeTap {
   source: TapSource;
   tapped_at: string | null;
   received_at: string;
+}
+
+/** PATCH /api/v1/me (agreement 8.7). Trimmed, then 1 to 30 code points. */
+export interface SetDisplayNameRequest {
+  display_name: string;
+}
+
+/** Agreement 8.7 answers with the `user` object from 8.1. */
+export interface SetDisplayNameResponse {
+  user: User;
 }
 
 /** GET /api/v1/me */

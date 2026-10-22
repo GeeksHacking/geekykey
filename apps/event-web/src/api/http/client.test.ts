@@ -5,7 +5,12 @@ import { createHttpClient } from "@/api/http/client";
 import type { ErrorCode } from "@/api/types";
 
 const me = {
-  user: { id: "dev-user-1", display_name: "Alex Tan", role: "participant" as const },
+  user: {
+    id: "dev-user-1",
+    display_name: "Alex Tan",
+    role: "participant" as const,
+    has_name: true,
+  },
   points: 0,
   stamps: [],
   recent_taps: [],
@@ -204,6 +209,80 @@ describe("HTTP client transport", () => {
     }
 
     expect(seen).toEqual([]);
+  });
+
+  it("sends the name as agreement 8.7's PATCH and answers the user it gets back", async () => {
+    const user = {
+      id: "dev-user-1",
+      display_name: "Mei Ling",
+      role: "participant",
+      has_name: true,
+    };
+    fetchMock.mockResolvedValue(response({ user }));
+
+    await expect(createHttpClient().setDisplayName({ display_name: "Mei Ling" })).resolves.toEqual({
+      user,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/me",
+      expect.objectContaining({
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: "Mei Ling" }),
+        credentials: "include",
+      }),
+    );
+  });
+
+  it("turns a name answer without has_name into a NetworkError", async () => {
+    // The answer goes straight into the ["me"] cache, so a user the passport cannot read
+    // must not get there.
+    fetchMock.mockResolvedValue(
+      response({ user: { id: "dev-user-1", display_name: "Mei Ling", role: "participant" } }),
+    );
+
+    const error = await createHttpClient()
+      .setDisplayName({ display_name: "Mei Ling" })
+      .catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(NetworkError);
+  });
+
+  it("keeps the issue a refused name gets under display_name", async () => {
+    fetchMock.mockResolvedValue(
+      response(
+        {
+          error: "validation_failed",
+          issues: [{ path: ["display_name"], message: "display_name must be 1 to 30 characters" }],
+        },
+        400,
+      ),
+    );
+
+    const error = await apiError(createHttpClient().setDisplayName({ display_name: "" }));
+
+    expect(error.code).toBe("validation_failed");
+    expect(error.issues).toEqual([
+      { path: ["display_name"], message: "display_name must be 1 to 30 characters" },
+    ]);
+  });
+
+  it("publishes a 401 on the name's PATCH, though not on /me's read", async () => {
+    // The session query reads /me's 401 as "nobody is signed in" by itself. A PATCH to the
+    // same path is not that read, so its 401 has to sign the screens out like any other.
+    const seen: unknown[] = [];
+    const listener = (event: Event) => seen.push((event as CustomEvent).detail);
+    window.addEventListener(AUTH_ERROR_EVENT, listener);
+    try {
+      fetchMock.mockImplementation(async () => response({ error: "unauthenticated" }, 401));
+      await apiError(createHttpClient().me());
+      expect(seen).toEqual([]);
+
+      await apiError(createHttpClient().setDisplayName({ display_name: "Mei Ling" }));
+    } finally {
+      window.removeEventListener(AUTH_ERROR_EVENT, listener);
+    }
+
+    expect(seen).toEqual([expect.objectContaining({ code: "unauthenticated" })]);
   });
 
   it("reads every code from the error body, so a missing set entry cannot hide", async () => {

@@ -8,6 +8,8 @@ import type {
   ListTapsQuery,
   ListTapsResponse,
   MeResponse,
+  SetDisplayNameRequest,
+  SetDisplayNameResponse,
   SetStationPassportRequest,
   SetStationPassportResponse,
   StatsResponse,
@@ -22,6 +24,12 @@ import type {
 export interface ApiClient {
   /** GET /api/v1/me. Rejects with `unauthenticated` when there is no session. */
   me(): Promise<MeResponse>;
+
+  /**
+   * PATCH /api/v1/me (agreement 8.7). Sets the name the event shows for the current user, and
+   * answers with the same `user` object as GET /api/v1/me.
+   */
+  setDisplayName(input: SetDisplayNameRequest): Promise<SetDisplayNameResponse>;
 
   /** POST /auth/dev-login. Local development only. */
   devLogin(userId: string): Promise<void>;

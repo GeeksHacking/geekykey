@@ -26,7 +26,14 @@ export interface AppClientOptions {
  * yet will fail every screen that calls it. The session slice is live; the
  * organiser's resource methods join as their routes land.
  */
-const LIVE_METHOD_NAMES = ["me", "devLogin", "firebaseLogin", "loginLink", "logout"] as const;
+const LIVE_METHOD_NAMES = [
+  "me",
+  "setDisplayName",
+  "devLogin",
+  "firebaseLogin",
+  "loginLink",
+  "logout",
+] as const;
 
 /**
  * The live methods, as a set. The "Demo data" notice and the tests read this, so
@@ -56,6 +63,9 @@ function liveMethods(
         throw error;
       }
     },
+
+    // Agreement 8.7. The name changes nothing the mock's methods need to know.
+    setDisplayName: (input) => http.setDisplayName(input),
 
     // A dev login that fails leaves the service's cookie as it was, so the mock
     // keeps its session too, as me does on anything but a 401.

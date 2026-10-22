@@ -16,7 +16,7 @@ vi.mock("@/components/layout/section-heading", () => ({
 }));
 
 const baseMe: MeResponse = {
-  user: { id: "user-1", display_name: "Alex Tan", role: "participant" },
+  user: { id: "user-1", display_name: "Alex Tan", role: "participant", has_name: true },
   points: 0,
   stamps: [],
   recent_taps: [],

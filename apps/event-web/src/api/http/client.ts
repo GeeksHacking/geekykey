@@ -11,7 +11,11 @@ import type {
   SetStationPassportResponse,
   StatsResponse,
 } from "@/api/types";
-import { parseEventStationBoardResponse, parseMeResponse } from "@/api/schemas";
+import {
+  parseEventStationBoardResponse,
+  parseMeResponse,
+  parseSetDisplayNameResponse,
+} from "@/api/schemas";
 
 export interface HttpClientOptions {
   /** Prefix for every path. Empty in dev: Vite proxies /api and /auth to the Event Service on :8001. */
@@ -74,7 +78,10 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       errorCodeFor(path, response.status, parsed.code),
       parsed.issues,
     );
-    if (path !== "/api/v1/me") publishAuthError(error);
+    // The session query answers /me's own 401 itself. The name's PATCH to the same path is
+    // not that read, so it publishes like any other request.
+    const readingSession = path === "/api/v1/me" && (init?.method ?? "GET") === "GET";
+    if (!readingSession) publishAuthError(error);
     throw error;
   }
 
@@ -87,7 +94,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     }
   }
 
-  function jsonBody(body: unknown, method: "POST" | "PUT"): RequestInit {
+  function jsonBody(body: unknown, method: "POST" | "PUT" | "PATCH"): RequestInit {
     return {
       method,
       headers: { "Content-Type": "application/json" },
@@ -101,6 +108,11 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
   return {
     me: () => sendJson<unknown>("/api/v1/me").then(parseMeResponse),
+
+    // Agreement 8.7. The answer replaces the user in the ["me"] cache, so it is checked
+    // like /me's.
+    setDisplayName: (input) =>
+      sendJson<unknown>("/api/v1/me", jsonBody(input, "PATCH")).then(parseSetDisplayNameResponse),
 
     devLogin: async (userId) => {
       await send("/auth/dev-login", postJson({ user_id: userId }));

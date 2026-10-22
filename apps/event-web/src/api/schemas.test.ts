@@ -22,7 +22,7 @@ describe("me response contract", () => {
 
   it("ignores unknown legacy fields until the backend checkpoint removes them", () => {
     const parsed = parseMeResponse({
-      user: { id: "u", display_name: "U", role: "participant" },
+      user: { id: "u", display_name: "U", role: "participant", has_name: true },
       legacy_field: "ignored",
       points: 0,
       stamps: [],
@@ -34,7 +34,7 @@ describe("me response contract", () => {
 
   it("accepts no_game and rejects station-only statuses", () => {
     const base = {
-      user: { id: "u", display_name: "U", role: "participant" },
+      user: { id: "u", display_name: "U", role: "participant", has_name: true },
       points: 0,
       stamps: [],
     };

@@ -31,7 +31,8 @@ Do not copy content from the agreement or the skill into this file. Link to it.
 ## Current phase: staged live session, mock resources
 
 The screens are built against the mock and the first live session slice is now enabled:
-`me`, `devLogin`, `firebaseLogin`, `loginLink`, and `logout` use the backend in live mode.
+`me`, `setDisplayName`, `devLogin`, `firebaseLogin`, `loginLink`, and `logout` use the backend in
+live mode.
 Admin, fallback, stats, and export remain mock-backed until their service routes are
 implemented. Token claiming lives in the separate GeekyKey app, not in these Event screens.
 The mock/live split is intentional; screens never need to know which client supplied a value.
@@ -88,7 +89,7 @@ keeps only a copy in memory of what they registered. There is one call to the st
 
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
-| 1 | Session | `devLogin`, `firebaseLogin`, `loginLink`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
+| 1 | Session | `devLogin`, `firebaseLogin`, `loginLink`, `logout`, `me`, `setDisplayName` | `/login`, `/`, `/passport`, `/activity` |
 | 2 | Stations | `listStationBoard`, `createStation`, `setStationPassport` | `/admin/stations`, the picker on `/admin/fallback` |
 | 3 | Scan log | `listTaps` | `/admin/taps` |
 | 4 | Event tail | `createFallbackTap`, `stats`, `exportCsv` | `/admin/summary`, `/admin/fallback` |
@@ -143,7 +144,7 @@ Two things that look like bugs and are not:
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
 | Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
 | Motion | CSS/shadcn transitions | No motion library is currently required; do not add one without agreeing it in the stack |
-| Forms | react-hook-form + zod through shadcn `Form` | Two forms in the Event screens: add station, QR fallback |
+| Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | ESLint flat config + typescript-eslint | |
 | Format | oxfmt | Prettier-compatible and fast. Settings in `.oxfmtrc.jsonc`; Markdown and `routeTree.gen.ts` are skipped. Pinned to an exact version, because a new release can change the output and everyone must format the same way |
@@ -278,8 +279,10 @@ Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test
 Sign in on the login page with a seeded account. Alex Tan is a participant, Priya Raman is
 an organiser. The mock session survives a reload but not a new tab. The GeekyKey screens'
 event buttons open these screens with a login link. To try that on the mock, open
-`http://localhost:5173/#login=mock`, which logs in as Alex Tan. Any other value after
-`login=` is an expired link.
+`http://localhost:5173/#login=mock`, which logs in as Alex Tan, or `#login=guest`, which logs in
+as a guest who has no name yet, so the passport asks for one. Any other value after `login=` is
+an expired link. On the live backend, `mise run seed -- --name Guest` gives `dev-user-1` the
+default name, which does the same.
 
 The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, which the runbook's step 13
 sets. The committed `.env.development` carries them, so a fresh clone can sign in, and a
@@ -338,7 +341,7 @@ apps/event-web/
         summary.tsx
     features/               # one folder per domain; the real UI lives here
       auth/                 # login screen, Firebase sign-in buttons, dev-login form, expired-link notice, RequireSession, RequireRole, 403 view, shell wiring
-      passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph
+      passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph, the name prompt and Change name
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
                            # passport settings form (add or edit a slot)
@@ -372,6 +375,7 @@ apps/event-web/
       theme-provider.tsx
       query-client.ts       # TanStack Query cache and retry policy
       form-errors.ts        # maps validation_failed issues onto react-hook-form fields
+      display-name.ts       # agreement 8.7's rule for a name, shared by the form and the mock
       format.ts             # dates, points, counts
       constants.ts          # poll intervals, seeded user IDs, GEEKYKEY_SCREENS_URL
       csv.ts                # the export's column order and cell escaping
@@ -438,7 +442,7 @@ Rules:
    - `invalid_event_service_key` / station-key errors: setup/configuration message.
    - `internal_error` or a network failure: generic error state with a retry button.
 - Out of scope, do not build UI for it: leaderboards, dual-tap, archetype quests, event
-  CRUD, editing or deleting taps, profile editing, reading a station key back, Web Serial or
+  CRUD, editing or deleting taps, profile editing beyond the name (8.7), reading a station key back, Web Serial or
   USB device configuration. Replacing a station's key is **not** out of scope: agreement 9.8
   does it on the station board and FRO-28 builds it.
 
@@ -449,7 +453,7 @@ Rules:
 | `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed |
 | `/#login=<link>` | anyone | `GET /me` | `POST /auth/login-link`, before the first `/me` | the fragment gone at once; an expired link leaves the old session and says so |
 | `/` dashboard | participant, organiser | `GET /me` | | Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
-| `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
+| `/passport` | participant | `GET /me` `stamps` | `PATCH /me` for the name | every station shown; empty slot where `earned_at` is null; the name prompt while `has_name` is false, and Change name for everyone |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
 | `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `PUT /admin/stations/{id}/passport` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; Add to passport on a row with no settings, Edit on one with |

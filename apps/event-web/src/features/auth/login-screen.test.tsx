@@ -32,7 +32,7 @@ vi.mock("@/lib/firebase", async (importOriginal) => ({
 }));
 
 const me: MeResponse = {
-  user: { id: "dev-user-1", display_name: "Alex Tan", role: "participant" },
+  user: { id: "dev-user-1", display_name: "Alex Tan", role: "participant", has_name: true },
   points: 0,
   stamps: [],
   recent_taps: [],
