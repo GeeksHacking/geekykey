@@ -1271,3 +1271,13 @@
     passport from the token page or My tokens arrives logged in as the same user. A link that has
     expired says so and leaves any earlier login as it was. Nothing opens a link on production
     until the token page and My tokens get their event buttons.
+
+- id: geekykey-screens-continue-as-guest
+  date: 2026-10-22
+  area: frontend
+  change: >-
+    The GeekyKey screens' login offers "Continue as guest", so a parent or mentor whose phone isn't
+    signed in to Google logs in with one tap and no account. When someone's 12-hour login runs out,
+    the screens log them in again without showing the login page, so a guest stays the same guest
+    rather than starting over as a new one who owns no tokens. The Event screens don't offer a
+    guest login.
