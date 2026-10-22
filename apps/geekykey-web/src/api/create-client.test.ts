@@ -191,7 +191,6 @@ describe("createAppClient", () => {
     expect(fromMock).toEqual(
       [
         "claimToken",
-        "createLoginLink",
         "devLogin",
         "firebaseLogin",
         "getToken",

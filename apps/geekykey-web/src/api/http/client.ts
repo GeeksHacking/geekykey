@@ -1,11 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
-import {
-  parseClaimResponse,
-  parseLoginLinkResponse,
-  parseMeResponse,
-  parseTokenLookupResponse,
-} from "@/api/schemas";
+import { parseClaimResponse, parseMeResponse, parseTokenLookupResponse } from "@/api/schemas";
 import type { ApiIssue, ErrorCode } from "@/api/types";
 
 export interface HttpClientOptions {
@@ -125,13 +120,6 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       const query = ownerId === undefined ? "" : `?owner_id=${encodeURIComponent(ownerId)}`;
       await sendNoContent(`${tokenPath(uid)}${query}`, { method: "DELETE" });
     },
-
-    // Agreement 8.6. The request carries only the event's id, and the answer carries
-    // the link. The screens open the url as it is.
-    createLoginLink: (eventId) =>
-      sendJson<unknown>("/api/v1/login-links", postJson({ event_id: eventId })).then(
-        parseLoginLinkResponse,
-      ),
   };
 }
 

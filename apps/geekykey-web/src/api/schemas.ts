@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { NetworkError } from "@/api/errors";
-import type { LoginLink, MeResponse, Token, TokenLookup } from "@/api/types";
+import type { MeResponse, Token, TokenLookup } from "@/api/types";
 
 const isoTimestamp = z.iso.datetime({ offset: true });
 const tokenOwner = z.enum(["nobody", "you", "someone_else"]);
@@ -35,12 +35,6 @@ export const tokenLookupResponseSchema = z.object({ token: tokenLookupSchema });
 
 export const claimResponseSchema = z.object({ token: tokenSchema });
 
-/** Agreement 8.6: the answer is the link itself, with no wrapper. */
-export const loginLinkResponseSchema: z.ZodType<LoginLink> = z.object({
-  url: z.string(),
-  expires_at: isoTimestamp,
-});
-
 /** One helper for every parse, so an unexpected shape is always a NetworkError. */
 function parse<T>(schema: z.ZodType<T>, input: unknown, what: string): T {
   const result = schema.safeParse(input);
@@ -60,8 +54,4 @@ export function parseTokenLookupResponse(input: unknown): TokenLookup {
 
 export function parseClaimResponse(input: unknown): Token {
   return parse(claimResponseSchema, input, "token").token;
-}
-
-export function parseLoginLinkResponse(input: unknown): LoginLink {
-  return parse(loginLinkResponseSchema, input, "login link");
 }

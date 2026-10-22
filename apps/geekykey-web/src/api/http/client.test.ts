@@ -191,32 +191,6 @@ describe("geekykey-web http client", () => {
     expect(seen).toEqual([]);
   });
 
-  it("posts the event id for a login link, and returns the answer", async () => {
-    // Agreement 8.6: the request carries the event's id and nothing else, and the
-    // answer carries the link.
-    const { calls } = stubFetch(() =>
-      json({
-        url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln",
-        expires_at: "2026-10-10T08:31:00.000Z",
-      }),
-    );
-    const api = createHttpClient();
-
-    const link = await api.createLoginLink("showcase");
-
-    expect(calls[0]?.url).toBe("/api/v1/login-links");
-    expect(calls[0]?.init?.method).toBe("POST");
-    expect(calls[0]?.init?.body).toBe(JSON.stringify({ event_id: "showcase" }));
-    expect(link.url).toBe("https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln");
-  });
-
-  it("turns an answer that is not a login link into a NetworkError", async () => {
-    stubFetch(() => json({ url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln" }));
-    const api = createHttpClient();
-
-    await expect(api.createLoginLink("showcase")).rejects.toMatchObject({ name: "NetworkError" });
-  });
-
   it("turns a transport failure into a NetworkError", async () => {
     vi.stubGlobal(
       "fetch",
