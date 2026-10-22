@@ -436,7 +436,7 @@ Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then
 | 3 | The line drawn inside | **Done** (BAC-29 to BAC-37, 15 Oct). One server, with the GeekyKey side, the Event side and the claims stand-in talking only through their requests, on the new tables | Nothing outside the team |
 | 4 | The GeekyKey Service cut out | **Done** (BAC-40 to BAC-46 and FRO-37, 20 Oct). `geekykey-service` runs at `key-api.`, the stations have moved to it, and the smoke test runs on every pull request | Julian: the Worker's secrets and Workers Builds (BAC-44). Done: the setup mode (HAR-14) and moving the stations (HAR-13), both taken over by Adam on 19 and 20 Oct |
 | 5 | Login, and the screens deployed | **Done** (BAC-52 to BAC-60, FRO-56, FRO-59 to FRO-61 and FRO-31, 22 Oct). Both logins work through Firebase, the passport shows on a phone, the cookies are checked, the passport poll is measured | Qing Guan: an OIDC client for GeeksHacking's login, asked before Mr Pang (10 Oct). Julian or Qing Guan: two domains. Done: Google sign-in and the check that a Worker can verify its login (Adam, 10 Oct), and billing on the Firebase project (Julian, by 9 Oct) |
-| 6 | The GeekyKey Service's features | Tokens are claimed and released, and the limits hold | Ethan's team: the `geekykey-web` screens |
+| 6 | The GeekyKey Service's features | **Done** (BAC-66 to BAC-71, FRO-30 and FRO-70, 23 Oct). On phones, tokens are claimed and released on production, by Google users and guests, and CI shows each limit holding | Done: the `geekykey-web` screens (FRO-30 and FRO-70) |
 | 7 | The Event Service's features | Organizers create and disable stations, set up the passport and watch taps, and the export is right | Ethan's team: the `event-web` changes |
 | 8 | Ready for the event | The copy, restore and clear tasks work, the restore is tried, the stress test has run, the rehearsal is done by 7 Nov | The whole team |
 | | After the showcase | The GeekyKey Service uses the Portal's tag APIs | Qing Guan's tag APIs, and events logging in through the Portal |
@@ -613,6 +613,15 @@ The endpoints behind the token page and My tokens, plus the station path's prote
 - **The three limits** on this Worker (section 5.1). Each answers `429` with `{"error": "rate_limited"}` and `Retry-After: 60`, and writes one `rate_limited` log line naming the caller: a station ID once known, or a user ID, never a key.
 
 Done when, on production: a phone claims a token from its token page and another by typing its UID, and a guest on a phone claims one from its token page (moved here from checkpoint 5 on 22 Oct); the owner's view opens the showcase; an owner and a GeekyKey admin each release one; and the tests show each limit tripping.
+
+**Checked on production on 23 Oct** (BAC-71), from about 07:24 to 07:29 Singapore time, once FRO-70's screens had deployed at 07:24. Each item passed, in the ticket's order, with the default test token. **Checkpoint 6 is done.**
+
+- **The admin's release.** Adam's Google user is the one in `GEEKYKEY_ADMINS`. On a phone, the test token's page said "This token belongs to someone else" and offered **Release**, and Adam released it from the test participant.
+- **Both ways of claiming, and the showcase.** Adam claimed the token from the same page and pressed "Open Capstone Showcase". The passport opened on `event.` with no second login. On My tokens, Adam released it as its owner, then claimed it again by typing its UID.
+- **A guest's claim.** Adam released it once more, pressed "Continue as guest" in a private tab, and claimed it from its token page. The claims stand-in recorded the guest's claim at 07:28:37. The token went back to the test participant at 07:32, through a direct write.
+- **The limits.** CI on `main` at 5fb03b4 (22 Oct, run 39792765559) passed `station-routes.test.ts`, with `STATION_LIMIT`'s tests, and `user-limits.test.ts`, with `USER_LIMIT`'s and `TOKEN_LIMIT`'s. Each limit is tested as `wrangler.jsonc` sets it.
+- **Not read.** The `token_released` log lines are in `geekykey-service`'s logs, which only Julian can open.
+- **Found along the way.** Two screen changes, outside the done-when, are FRO tickets. After the guest's claim, the dashboard on `event.` still said "Tap your token with your phone to claim it", since it shows to anyone with no taps yet (FRO-73). And the UID box on My tokens could put a colon after each pair of characters as you type (FRO-74).
 
 ### Checkpoint 7. The Event Service's features
 
