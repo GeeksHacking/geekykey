@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useApi } from "@/api/context";
 import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
@@ -16,18 +16,41 @@ import { SessionContext, type SessionStatus } from "@/lib/session";
   - MeResponse: signed in
   A 401 is a normal answer, not an error, which is why the query function
   turns it into null instead of throwing. Real failures still throw.
+
+  `loginLink` is the link the page arrived with, from takeLoginLink() in
+  lib/login-link.ts. The first /me sends it before it reads, so nothing reads the
+  session the browser had before the link replaces it (agreement 7.4).
 */
-export function SessionProvider({ children }: { children: ReactNode }) {
+export function SessionProvider({
+  children,
+  loginLink,
+}: {
+  children: ReactNode;
+  loginLink?: string | null;
+}) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [authorizationFailure, setAuthorizationFailure] = useState<{
     error: unknown;
     at: number;
   }>();
+  // A link works once, so it is sent once, however often /me is read afterwards.
+  const unsentLoginLink = useRef(loginLink ?? null);
+  const [loginLinkError, setLoginLinkError] = useState<unknown>();
 
   const me = useQuery({
     queryKey: queryKeys.me,
     queryFn: async (): Promise<MeResponse | null> => {
+      const link = unsentLoginLink.current;
+      if (link !== null) {
+        unsentLoginLink.current = null;
+        try {
+          await api.loginLink(link);
+        } catch (error) {
+          // The session the browser had carries on underneath, so /me is read as usual.
+          setLoginLinkError(error);
+        }
+      }
       try {
         return await api.me();
       } catch (error) {
@@ -65,6 +88,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // Clear before the request so a failed sign-in cannot leave the old account visible.
     queryClient.setQueryData(queryKeys.me, null);
     setAuthorizationFailure(undefined);
+    setLoginLinkError(undefined);
     clearIdentityQueries();
   }, [clearIdentityQueries, queryClient]);
 
@@ -111,6 +135,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Hide cached identity data even if the network request later fails.
       queryClient.setQueryData(queryKeys.me, null);
       setAuthorizationFailure(undefined);
+      setLoginLinkError(undefined);
       clearIdentityQueries();
     },
     onSuccess: () => {
@@ -151,6 +176,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       me: me.data ?? null,
       error: me.error ?? signIn.error ?? signInWithFirebase.error ?? signOut.error,
       authorizationError,
+      loginLinkError,
       refresh,
       signIn: signIn.mutateAsync,
       signInWithFirebase: signInWithFirebase.mutateAsync,
@@ -161,6 +187,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       me.data,
       me.error,
       authorizationError,
+      loginLinkError,
       signIn.error,
       signIn.mutateAsync,
       signInWithFirebase.error,

@@ -26,6 +26,8 @@ describe("the mock's error statuses", () => {
       unauthenticated: 401,
       // The two login errors, which the login screen shows (agreement 7.2).
       invalid_token: 401,
+      // The login link that failed (agreement 7.4).
+      invalid_login_link: 401,
       forbidden: 403,
       not_found: 404,
       rate_limited: 429,
@@ -62,6 +64,26 @@ describe("sessions and roles", () => {
     await api.firebaseLogin("id-token");
 
     await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
+  });
+
+  it("signs in as the seeded participant with the mock's login link", async () => {
+    // The mock has no GeekyKey Service to make a real link, so `#login=mock` stands in for
+    // one, and the screens read /me afterwards as they do live.
+    const api = client();
+
+    await api.loginLink("mock");
+
+    await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
+  });
+
+  it("refuses any other login link and keeps the session it had", async () => {
+    // Agreement 7.4: a link that fails leaves the existing session as it was.
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    await expectApiError(api.loginLink("eyJ2IjoxfQ.c2ln"), "invalid_login_link", 401);
+
+    await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_ORGANIZER_ID } });
   });
 
   it("gives participants 403 on organiser endpoints", async () => {

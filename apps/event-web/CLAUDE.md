@@ -31,10 +31,10 @@ Do not copy content from the agreement or the skill into this file. Link to it.
 ## Current phase: staged live session, mock resources
 
 The screens are built against the mock and the first live session slice is now enabled:
-`me`, `devLogin`, `firebaseLogin`, and `logout` use the backend in live mode. Admin, fallback,
-stats, and export remain mock-backed until their service routes are implemented. Token claiming
-lives in the separate GeekyKey app, not in these Event screens. The mock/live split is
-intentional; screens never need to know which client supplied a value.
+`me`, `devLogin`, `firebaseLogin`, `loginLink`, and `logout` use the backend in live mode.
+Admin, fallback, stats, and export remain mock-backed until their service routes are
+implemented. Token claiming lives in the separate GeekyKey app, not in these Event screens.
+The mock/live split is intentional; screens never need to know which client supplied a value.
 
 `src/api/create-client.ts` is still the only file that changes when an endpoint goes live.
 `src/api/service-client.ts` prepares the future GeekyKey/Event Service split without changing
@@ -88,7 +88,7 @@ keeps only a copy in memory of what they registered. There is one call to the st
 
 | # | Slice | Methods | Screens it makes real |
 |---|---|---|---|
-| 1 | Session | `devLogin`, `firebaseLogin`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
+| 1 | Session | `devLogin`, `firebaseLogin`, `loginLink`, `logout`, `me` | `/login`, `/`, `/passport`, `/activity` |
 | 2 | Stations | `listStationBoard`, `createStation`, `setStationPassport` | `/admin/stations`, the picker on `/admin/fallback` |
 | 3 | Scan log | `listTaps` | `/admin/taps` |
 | 4 | Event tail | `createFallbackTap`, `stats`, `exportCsv` | `/admin/summary`, `/admin/fallback` |
@@ -272,7 +272,9 @@ Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test
 `pnpm format:event-web`.
 
 Sign in on the login page with a seeded account. Alex Tan is a participant, Priya Raman is
-an organiser. The mock session survives a reload but not a new tab.
+an organiser. The mock session survives a reload but not a new tab. To arrive as the GeekyKey
+screens' event buttons send people, open `http://localhost:5173/#login=mock`, which logs in as
+Alex Tan; any other value after `login=` is an expired link.
 
 The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, which the runbook's step 13
 sets. The committed `.env.development` carries them, so a fresh clone can sign in, and a
@@ -330,7 +332,7 @@ apps/event-web/
         fallback.tsx
         summary.tsx
     features/               # one folder per domain; the real UI lives here
-      auth/                 # login screen, Firebase sign-in buttons, dev-login form, RequireSession, RequireRole, 403 view, shell wiring
+      auth/                 # login screen, Firebase sign-in buttons, dev-login form, expired-link notice, RequireSession, RequireRole, 403 view, shell wiring
       passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
@@ -359,6 +361,7 @@ apps/event-web/
     lib/                    # shared infrastructure, safe to import from any feature
       session.ts            # "am I logged in": useSession(), useMe()
       session-provider.tsx
+      login-link.ts         # takes agreement 7.4's #login=<link> out of the address at start-up
       firebase.ts           # Firebase's web SDK: the config from the build, the sign-in calls, the sign-out
       theme.ts              # system preference, dark fallback, manual override
       theme-provider.tsx
@@ -415,6 +418,9 @@ Rules:
    - `invalid_token` / `login_unavailable`: the sign-in did not work. Both say "Couldn't
      log you in. Try again." (agreement 7.2, section 13). `invalid_token` is the service
      refusing the ID token, and it is not a lost session.
+   - `invalid_login_link`, or `validation_failed` from `POST /auth/login-link`: the link the
+     page arrived with did not log anyone in. Say section 13's sentence above whatever the
+     session the browser already had shows (`features/auth/login-link-notice.tsx`).
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.
@@ -434,6 +440,7 @@ Rules:
 | Route | Role | Reads | Writes | Must handle |
 |---|---|---|---|---|
 | `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed |
+| `/#login=<link>` | anyone | `GET /me` | `POST /auth/login-link`, before the first `/me` | the fragment gone at once; an expired link leaves the old session and says so |
 | `/` dashboard | participant, organiser | `GET /me` | | Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
 | `/passport` | participant | `GET /me` `stamps` | | every station shown; empty slot where `earned_at` is null |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |

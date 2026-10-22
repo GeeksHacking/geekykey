@@ -112,6 +112,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       await send("/auth/firebase", postJson({ id_token: idToken }));
     },
 
+    // Agreement 7.4. The link comes from the address the GeekyKey screens opened, and the
+    // service sets its own cookie, as for 7.2.
+    loginLink: async (link) => {
+      await send("/auth/login-link", postJson({ login_link: link }));
+    },
+
     logout: async () => {
       await send("/auth/logout", { method: "POST" });
     },
@@ -163,6 +169,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "validation_failed",
   "unauthenticated",
   "invalid_token",
+  "invalid_login_link",
   "missing_station_key",
   "invalid_station_key",
   "forbidden",
@@ -181,12 +188,14 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
  * Agreement 7.2's login answers 401 invalid_token and 503 login_unavailable, and neither is
  * the code the status gives everywhere else: a 401 is unauthenticated, which reads as a lost
  * session, and a 503 is a service that did not answer. The table says so for what a body the
- * client cannot read cannot say. A body it can read wins: it is the service's own answer,
+ * client cannot read cannot say. Agreement 7.4's login link answers 401 invalid_login_link
+ * for the same reason: a link that fails leaves the session as it was. A body it can read wins: it is the service's own answer,
  * and the Worker in front of the screens answers 503 service_unavailable under /api and
  * /auth (agreement 2).
  */
 const ENDPOINT_CODES: Record<string, Record<number, ErrorCode>> = {
   "/auth/firebase": { 401: "invalid_token", 503: "login_unavailable" },
+  "/auth/login-link": { 401: "invalid_login_link" },
 };
 
 function errorCodeFor(path: string, status: number, fromBody?: ErrorCode): ErrorCode {

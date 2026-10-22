@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import type { MeResponse } from "@/api/types";
 import { ApiProvider } from "@/api/provider";
@@ -37,11 +38,12 @@ const me: MeResponse = {
   recent_taps: [],
 };
 
-function session(status: SessionState["status"]): SessionState {
+function session(status: SessionState["status"], loginLinkError?: unknown): SessionState {
   return {
     status,
     me: status === "authenticated" ? me : null,
     error: undefined,
+    loginLinkError,
     refresh: async () => {},
     signIn: async () => me,
     signInWithFirebase: async () => me,
@@ -49,12 +51,12 @@ function session(status: SessionState["status"]): SessionState {
   };
 }
 
-function renderLogin(returnTo?: string) {
+function renderLogin(returnTo?: string, loginLinkError?: unknown) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   const view = (status: SessionState["status"]) => (
     <ThemeProvider>
       <ApiProvider client={api}>
-        <SessionContext.Provider value={session(status)}>
+        <SessionContext.Provider value={session(status, loginLinkError)}>
           <LoginScreen returnTo={returnTo} />
         </SessionContext.Provider>
       </ApiProvider>
@@ -103,5 +105,14 @@ describe("LoginScreen", () => {
         "Use a seeded account. The buttons above are how the showcase signs you in.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("says the login link has expired when a visitor with no session arrives with one", () => {
+    // Agreement 7.4: with no session to carry on, the person lands here.
+    renderLogin(undefined, new ApiError(401, "invalid_login_link"));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "That link has expired. Tap your token again to get back in.",
+    );
   });
 });

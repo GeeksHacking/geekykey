@@ -38,6 +38,9 @@ export function isApiErrorCode(error: unknown, code: ErrorCode): boolean {
   return isApiError(error) && error.code === code;
 }
 
+/** Agreement section 13: what the Event screens say on invalid_login_link. */
+export const LOGIN_LINK_EXPIRED = "That link has expired. Tap your token again to get back in.";
+
 /** Plain-language fallback text for a generic error state. Screens override for specific codes. */
 export function describeError(error: unknown): string {
   if (isApiError(error)) {
@@ -51,6 +54,8 @@ export function describeError(error: unknown): string {
         // same sentence, and BAC-55's pull request adds invalid_token to section 13's login
         // line to match.
         return "Couldn't log you in. Try again.";
+      case "invalid_login_link":
+        return LOGIN_LINK_EXPIRED;
       case "forbidden":
         return "Your account is not allowed to do that.";
       case "not_found":

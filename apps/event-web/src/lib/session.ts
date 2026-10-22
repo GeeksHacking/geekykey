@@ -14,6 +14,11 @@ export interface SessionState {
   /** Kept during background refreshes and errors so screens do not blank out. */
   me: MeResponse | null;
   error: unknown;
+  /**
+   * Why the login link this page arrived with did not log anyone in (agreement 7.4), until
+   * someone signs in or out. The session it had carries on underneath.
+   */
+  loginLinkError?: unknown;
   /** A recent 403 from an identity-scoped request, consumed by the role gate. */
   authorizationError?: unknown;
   /** Re-fetch /me. Call after anything that changes stamps, points, or recent taps. */

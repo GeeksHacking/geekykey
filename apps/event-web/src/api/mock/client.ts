@@ -40,12 +40,16 @@ import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 
 const COOLDOWN_MS = 300_000;
 const SESSION_KEY = "gk-mock-session";
+/** The one login link the mock accepts: open `/#login=mock` to arrive as from a token. */
+const MOCK_LOGIN_LINK = "mock";
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   validation_failed: 400,
   unauthenticated: 401,
   // Agreement 0.4 section 7.2, POST /auth/firebase, on both services.
   invalid_token: 401,
+  // Agreement 0.5 section 7.4, POST /auth/login-link, on the Event Service.
+  invalid_login_link: 401,
   missing_station_key: 401,
   invalid_station_key: 401,
   forbidden: 403,
@@ -252,6 +256,15 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     // screens read GET /api/v1/me afterwards, as they do live.
     firebaseLogin: () =>
       call(() => {
+        setSession(SEEDED_PARTICIPANT_ID);
+      }),
+
+    // The mock has no GeekyKey Service to make a real link, so `#login=mock` stands in for
+    // one and signs in as the seeded participant. Any other link has expired, and the
+    // session stays as it was, as it does live.
+    loginLink: (link) =>
+      call(() => {
+        if (link !== MOCK_LOGIN_LINK) fail("invalid_login_link");
         setSession(SEEDED_PARTICIPANT_ID);
       }),
 

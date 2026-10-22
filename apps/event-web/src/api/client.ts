@@ -33,6 +33,13 @@ export interface ApiClient {
    */
   firebaseLogin(idToken: string): Promise<void>;
 
+  /**
+   * POST /auth/login-link (agreement 7.4). Logs in with the login link the GeekyKey screens'
+   * event buttons put in the address, as the user who was logged in there. It replaces any
+   * session the browser had, and one that fails leaves that session as it was.
+   */
+  loginLink(link: string): Promise<void>;
+
   /** POST /auth/logout */
   logout(): Promise<void>;
 

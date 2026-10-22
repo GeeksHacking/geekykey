@@ -5,9 +5,14 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { createAppClient } from "@/api/create-client";
 import { ApiProvider } from "@/api/provider";
 import { routeTree } from "@/routeTree.gen";
+import { takeLoginLink } from "@/lib/login-link";
 import { createQueryClient } from "@/lib/query-client";
 import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
+
+// Taken once, before the router reads the address and before the session reads /me, so the
+// link is out of the address at once and sent before anything else asks who is signed in.
+const loginLink = takeLoginLink();
 
 const router = createRouter({
   routeTree,
@@ -34,7 +39,7 @@ export function App() {
       <ThemeProvider>
         <ApiProvider client={api}>
           <QueryClientProvider client={queryClient}>
-            <SessionProvider>
+            <SessionProvider loginLink={loginLink}>
               <RouterProvider router={router} />
             </SessionProvider>
           </QueryClientProvider>

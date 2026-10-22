@@ -178,6 +178,8 @@ export type ErrorCode =
   | "unauthenticated"
   // Agreement 0.4 section 7.2: POST /auth/firebase, on both services.
   | "invalid_token"
+  // Agreement 0.5 section 7.4: POST /auth/login-link, on the Event Service.
+  | "invalid_login_link"
   | "missing_station_key"
   | "invalid_station_key"
   | "forbidden"
