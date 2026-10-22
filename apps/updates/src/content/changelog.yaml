@@ -1329,3 +1329,18 @@
     station, opened the passport from "Open Capstone Showcase" without logging in again, and saw
     the stamp. A Google user reached the passport the same way. Both sets of screens now log people
     in on production, and checkpoint 6, claiming and releasing tokens, comes next.
+
+- id: checkpoint-6-tickets
+  date: 2026-10-22
+  area: admin
+  change: >-
+    Checkpoint 6 is planned as six backend tickets and one for the screens. The GeekyKey Service
+    gets three new calls: who owns a token, claiming a token (3 at most for each user), and
+    releasing one, by its owner or a GeekyKey admin. It also answers "too many requests" to a
+    station or a user that sends too many in a minute. The screens then send their token calls to
+    the service instead of using sample data, and the checkpoint ends with claims and releases on
+    phones on production, a guest's included. Each request gets one 4-second deadline for all its
+    calls to the claims stand-in, and the user limit counts only calls made after login. The
+    trade-offs we accept: Cloudflare counts each limit separately in each of its data centres, so
+    a sender can sometimes get past it, and the first limit waits for Julian to confirm its three
+    IDs are free on GeeksHacking's account.
