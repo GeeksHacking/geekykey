@@ -1262,3 +1262,12 @@
     can stay on. An open passport uses at least 360 Workers requests an hour, out of the free plan's
     100,000 a day. Checkpoint 5 stays open for a guest's run from the token page to the passport,
     which waits on screens Ethan's team is still building.
+
+- id: event-screens-login-link
+  date: 2026-10-22
+  area: frontend
+  change: >-
+    The Event screens log someone in from a login link, so a guest or a Google user who opens the
+    passport from the token page or My tokens arrives logged in as the same user. A link that has
+    expired says so and leaves any earlier login as it was. Nothing opens a link on production
+    until the token page and My tokens get their event buttons.
