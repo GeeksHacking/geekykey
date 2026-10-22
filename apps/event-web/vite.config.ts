@@ -6,13 +6,8 @@ import { defineConfig, loadEnv } from "vite";
 
 const backend = "http://localhost:8001";
 
-/** Firebase's web config, under the four names the runbook's step 13 gives Julian. */
-const FIREBASE_VARS = [
-  "VITE_FIREBASE_API_KEY",
-  "VITE_FIREBASE_AUTH_DOMAIN",
-  "VITE_FIREBASE_PROJECT_ID",
-  "VITE_FIREBASE_APP_ID",
-];
+/** Firebase's web config, under the three names the runbook's step 13 gives Julian. */
+const FIREBASE_VARS = ["VITE_FIREBASE_API_KEY", "VITE_FIREBASE_PROJECT_ID", "VITE_FIREBASE_APP_ID"];
 
 export default defineConfig(({ command, mode }) => {
   // A build that ships the live client needs Firebase's config, or the sign-in buttons are

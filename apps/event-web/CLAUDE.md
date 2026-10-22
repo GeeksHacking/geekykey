@@ -285,7 +285,7 @@ event buttons open these screens with a login link. To try that on the mock, ope
 as a guest who has no name yet, so the passport asks for one. Any other value after `login=` is
 an expired link.
 
-The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, which the runbook's step 13
+The Firebase sign-in needs the three `VITE_FIREBASE_*` variables, which the runbook's step 13
 sets. The committed `.env.development` carries them, so a fresh clone can sign in, and a
 variable in your shell or in your own `.env.local` wins over the file. Without them the
 sign-in buttons are disabled and the page says so, and a live build fails rather than ship
@@ -311,11 +311,12 @@ apps/event-web/
   index.html                # theme bootstrap script runs before first paint
   public/brand/             # the branding kit's logos; the secondary one is also the favicon
   vite.config.ts            # react, router and tailwind plugins, proxy /api and /auth to :8001
-  wrangler.jsonc            # the event-web Worker: serves dist/, forwards /api and /auth
+  wrangler.jsonc            # the event-web Worker: serves dist/, forwards /api, /auth and Firebase's sign-in pages
   worker/                   # the Worker's code, its tests and their tsconfigs
     index.ts                # forwards to EVENT_API_URL, unchanged both ways
-    config.ts               # checks EVENT_API_URL at start-up
-    worker.test.ts          # runs the Worker in wrangler dev against a fake Event Service
+    firebase.ts             # forwards Firebase's sign-in pages to FIREBASE_AUTH_URL, without the cookie
+    config.ts               # checks EVENT_API_URL and FIREBASE_AUTH_URL at start-up
+    worker.test.ts          # runs the Worker in wrangler dev against a fake Event Service and a fake Firebase
   vitest.config.ts
   components.json           # shadcn config
   tsconfig.json             # solution file; also carries the @/ alias for the shadcn CLI
@@ -410,9 +411,10 @@ Rules:
   `http://localhost:8001`, so requests are same-origin and the cookie just works. The HTTP
   client still sends `credentials: "include"` so it also works without the proxy.
 - In production the Worker in `worker/` does the proxy's job: `/api/*` and `/auth/*` go to
-  the Event Service, and every other path gets the screens. The paths under
-  `run_worker_first` in `wrangler.jsonc` are the agreement's prefixes. A change to them needs
-  Adam's review.
+  the Event Service, Firebase's sign-in pages (`/__/auth/*` and `/__/firebase/init.json`) go
+  to Firebase, and every other path gets the screens. The paths under `run_worker_first` in
+  `wrangler.jsonc` are the agreement's prefixes and Firebase's pages from 7.2. A change to
+  them needs Adam's review.
 - The user ID always comes from the session. Never put a user ID in a request body except
   where the agreement says so (QR fallback).
 - The Event screens never compute stamps, points, or cooldown. Display what the backend returns.

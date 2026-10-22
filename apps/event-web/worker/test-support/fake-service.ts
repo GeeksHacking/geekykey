@@ -1,7 +1,7 @@
 import { createServer, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 
-/** A request as the fake Event Service received it. */
+/** A request as the fake received it. */
 export interface Received {
   method: string;
   /** The path and query, such as `/api/v1/me?x=1`. */
@@ -38,7 +38,7 @@ const DEFAULT_ANSWER: Answer = {
   body: "{}",
 };
 
-/** A stand-in for the Event Service on this machine, on a free port. */
+/** A stand-in on this machine, on a free port, for the Event Service or for Firebase. */
 export async function startFakeService(): Promise<FakeService> {
   const received: Received[] = [];
   let answer = DEFAULT_ANSWER;

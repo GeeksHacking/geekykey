@@ -11,7 +11,8 @@ import {
 import { startFakeService, type FakeService } from "./test-support/fake-service.ts";
 
 // The Worker as `wrangler dev` runs it, from wrangler.jsonc and the screens' build in dist/,
-// with EVENT_API_URL pointed at a fake Event Service on this machine.
+// with EVENT_API_URL pointed at a fake Event Service on this machine, and FIREBASE_AUTH_URL at
+// a fake Firebase.
 //
 // unstable_startWorker() rather than Wrangler's newer createTestHarness(), which sends a
 // Worker's fetch() out through Node's, and that follows redirects whatever the Worker asked
@@ -21,31 +22,40 @@ import { startFakeService, type FakeService } from "./test-support/fake-service.
 const config = fileURLToPath(new URL("../wrangler.jsonc", import.meta.url));
 const indexHtml = fileURLToPath(new URL("../dist/index.html", import.meta.url));
 
-/** The Worker, started with EVENT_API_URL set to `eventApiUrl`. */
-function startWorker(eventApiUrl: string) {
+/** The Worker, started with EVENT_API_URL set to `eventApiUrl`, and FIREBASE_AUTH_URL to `firebaseAuthUrl`. */
+function startWorker(eventApiUrl: string, firebaseAuthUrl: string) {
   return unstable_startWorker({
     config,
-    bindings: { EVENT_API_URL: { type: "plain_text", value: eventApiUrl } },
+    bindings: {
+      EVENT_API_URL: { type: "plain_text", value: eventApiUrl },
+      FIREBASE_AUTH_URL: { type: "plain_text", value: firebaseAuthUrl },
+    },
     dev: { server: { port: 0 }, inspector: false, logLevel: "none" },
   });
 }
 
 let service: FakeService;
+let firebase: FakeService;
 let worker: Awaited<ReturnType<typeof startWorker>>;
 let workerUrl: URL;
 
 beforeAll(async () => {
   if (!existsSync(indexHtml)) throw new Error("No dist/index.html. Build the screens first.");
   service = await startFakeService();
-  worker = await startWorker(service.url);
+  firebase = await startFakeService();
+  worker = await startWorker(service.url, firebase.url);
   workerUrl = await worker.url;
 });
 
-afterEach(() => service.reset());
+afterEach(() => {
+  service.reset();
+  firebase.reset();
+});
 
 afterAll(async () => {
   await worker?.dispose();
   await service?.close();
+  await firebase?.close();
 });
 
 /** Sends a request to the Worker as a browser at event.geekshacking.com would. */
@@ -136,7 +146,7 @@ test("an Event Service that doesn't answer gets 503 service_unavailable", async 
   // A port nothing listens on: taken, then let go.
   const gone = await startFakeService();
   await gone.close();
-  const stranded = await startWorker(gone.url);
+  const stranded = await startWorker(gone.url, firebase.url);
   try {
     const res = await sendAsBrowser(await stranded.url, "same-origin", "/api/v1/me");
 
@@ -149,9 +159,78 @@ test("an Event Service that doesn't answer gets 503 service_unavailable", async 
   }
 });
 
+test("Firebase's sign-in pages reach Firebase without the cookie, and come back unchanged", async () => {
+  firebase.answerWith({
+    status: 200,
+    headers: [
+      ["Content-Type", "text/html; charset=utf-8"],
+      ["Cache-Control", "max-age=1800"],
+    ],
+    body: "<!DOCTYPE html><script src=handler.js></script>",
+  });
+
+  // What the popup loads (agreement 7.2): the handler and its scripts, the iframe, and the
+  // init.json the handler asks for. A provider may answer the handler with a form's POST.
+  for (const [mode, method, path, body] of [
+    ["navigate", "GET", "/__/auth/handler?apiKey=k&authType=signInViaPopup&v=12", undefined],
+    ["same-origin", "GET", "/__/auth/handler.js", undefined],
+    ["navigate", "GET", "/__/auth/iframe?apiKey=k", undefined],
+    ["navigate", "POST", "/__/auth/handler", "state=abc&code=def"],
+    ["same-origin", "GET", "/__/firebase/init.json", undefined],
+  ] as const) {
+    const res = await browser(mode, path, {
+      method,
+      body,
+      headers: { Cookie: "event_session=abc.def" },
+    });
+
+    assert.equal(res.status, 200, `${mode} ${method} ${path}`);
+    assert.equal(res.headers.get("Cache-Control"), "max-age=1800", `${mode} ${method} ${path}`);
+    assert.equal(await res.text(), "<!DOCTYPE html><script src=handler.js></script>");
+    const received = firebase.received.at(-1);
+    assert.deepEqual(
+      received && {
+        method: received.method,
+        path: received.path,
+        body: received.body,
+        cookie: received.headers.cookie,
+        host: received.headers.host,
+      },
+      // The session cookie is ours, so Firebase never gets it.
+      { method, path, body: body ?? "", cookie: undefined, host: new URL(firebase.url).host },
+      `${mode} ${method} ${path}`,
+    );
+  }
+  assert.equal(service.received.length, 0);
+});
+
+test("a redirect from Firebase goes back to the browser, not followed", async () => {
+  firebase.answerWith({
+    status: 302,
+    headers: [["Location", "https://accounts.google.com/o/oauth2/auth?client_id=x"]],
+    body: "",
+  });
+
+  const res = await browser("navigate", "/__/auth/handler?apiKey=k");
+
+  assert.equal(res.status, 302);
+  assert.equal(
+    res.headers.get("Location"),
+    "https://accounts.google.com/o/oauth2/auth?client_id=x",
+  );
+  assert.equal(firebase.received.length, 1);
+});
+
 test("every other path gets the screens, and never reaches the Event Service", async () => {
   const screens = readFileSync(indexHtml, "utf8");
-  for (const path of ["/", "/t/04A1B2C3D4E5F6", "/admin/stations", "/apis", "/authors"]) {
+  for (const path of [
+    "/",
+    "/t/04A1B2C3D4E5F6",
+    "/admin/stations",
+    "/apis",
+    "/authors",
+    "/__/firebase/init.js",
+  ]) {
     for (const mode of ["navigate", "same-origin"] as const) {
       const res = await browser(mode, path);
       assert.equal(res.status, 200, `${mode} ${path}`);
@@ -159,9 +238,10 @@ test("every other path gets the screens, and never reaches the Event Service", a
     }
   }
   assert.equal(service.received.length, 0);
+  assert.equal(firebase.received.length, 0);
 });
 
-test("the Worker starts with wrangler.jsonc's own EVENT_API_URL", async () => {
+test("the Worker starts with wrangler.jsonc's own EVENT_API_URL and FIREBASE_AUTH_URL", async () => {
   const harness = createTestHarness({ workers: [{ configPath: config }] });
   try {
     await harness.listen();
@@ -185,6 +265,23 @@ test("the Worker refuses to start with an EVENT_API_URL that isn't https:// or t
     });
     try {
       await assert.rejects(harness.listen(), /ConfigError: EVENT_API_URL must/, url);
+    } finally {
+      await harness.close();
+    }
+  }
+});
+
+test("the Worker refuses to start with a FIREBASE_AUTH_URL that isn't https:// or this machine", async () => {
+  for (const url of [
+    "http://geekykey-b035a.firebaseapp.com",
+    "geekykey-b035a.firebaseapp.com",
+    "https://geekykey-b035a.firebaseapp.com/__/auth",
+  ]) {
+    const harness = createTestHarness({
+      workers: [{ configPath: config, vars: { FIREBASE_AUTH_URL: url } }],
+    });
+    try {
+      await assert.rejects(harness.listen(), /ConfigError: FIREBASE_AUTH_URL must/, url);
     } finally {
       await harness.close();
     }

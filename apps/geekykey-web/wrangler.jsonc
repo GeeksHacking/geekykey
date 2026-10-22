@@ -1,7 +1,8 @@
 // The GeekyKey screens as a Cloudflare Worker, `geekykey-web` (the migration spec's 3.2 and
 // 5.1). It serves the Vite build in dist/, and passes the browser's /api/* and /auth/*
 // requests to geekykey-service through a service binding, so the browser sees one address and
-// needs no CORS. Its code is in worker/. Locally, Vite's proxy does the same job for
+// needs no CORS. Firebase's sign-in pages go to Firebase, so Google's sign-in names this
+// address. Its code is in worker/. Locally, Vite's proxy does the same job for
 // `pnpm dev`, and `pnpm worker:dev` runs this Worker in `wrangler dev`.
 //
 // Settings live here and change through a reviewed pull request: a deploy overwrites
@@ -31,8 +32,9 @@
     "not_found_handling": "single-page-application",
     // These paths go to the Worker even where a file would match, or where none does.
     // Without this, a page load under them would get index.html, such as opening the
-    // organisers' CSV export, or the Portal's login redirect after the showcase.
-    "run_worker_first": ["/api/*", "/auth/*"],
+    // organisers' CSV export, or the Portal's login redirect after the showcase. Under
+    // /__/auth/* and at /__/firebase/init.json are Firebase's sign-in pages (agreement 7.2).
+    "run_worker_first": ["/api/*", "/auth/*", "/__/auth/*", "/__/firebase/init.json"],
   },
 
   // geekykey-service, the Worker at key-api.geekshacking.com, called directly inside
@@ -49,5 +51,11 @@
   // `pnpm worker:dev`, beside the Vite dev server on 5174.
   "dev": {
     "port": 8174,
+  },
+
+  "vars": {
+    // Where Firebase's sign-in pages go, with no / at the end. It must start with https://,
+    // unless it's this machine.
+    "FIREBASE_AUTH_URL": "https://geekykey-b035a.firebaseapp.com",
   },
 }

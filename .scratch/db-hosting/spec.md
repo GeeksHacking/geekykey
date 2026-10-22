@@ -139,7 +139,7 @@ Sources: [Which parts of today's backend belong to the GeekyKey Service, and whi
 **The Workers.**
 
 - Every Worker sets `workers_dev = false` and `preview_urls = false`, so its hostname is the only way in.
-- Each screens Worker serves its files in single-page-app mode and forwards `/api/*` and `/auth/*` to its service, with `run_worker_first` for those paths. Browsers see one address per set of screens, so there is no CORS anywhere. `event-web` forwards over HTTPS with `redirect: "manual"`, so the login's redirects and the session cookie pass back to the browser unchanged.
+- Each screens Worker serves its files in single-page-app mode and forwards `/api/*` and `/auth/*` to its service, with `run_worker_first` for those paths. Browsers see one address per set of screens, so there is no CORS anywhere. `event-web` forwards over HTTPS with `redirect: "manual"`, so the login's redirects and the session cookie pass back to the browser unchanged. Each also forwards Firebase's sign-in pages, `/__/auth/*` and `/__/firebase/init.json`, to `https://geekykey-b035a.firebaseapp.com` without the cookie, so Google's sign-in names the screens' own address (agreement 7.2, FRO-72).
 - Every `/api/*` and `/auth/*` response carries `Cache-Control: no-store`.
 - They live in GeeksHacking's Cloudflare account. Julian creates each Worker, connects it to the repo with Workers Builds, and sets its secrets. Nobody on the team can deploy there, set its secrets or read its logs (Julian, 1 Oct 2026).
 
@@ -358,7 +358,7 @@ Why one secret for four values (13 Oct): Secret Manager bills each stored versio
 | Kind | Value |
 |---|---|
 | Static assets | The Vite build, in single-page-app mode, with Firebase's web config as build variables (not secret) |
-| `run_worker_first` | `["/api/*", "/auth/*"]`. Without it, a browser going to `/auth/login` gets `index.html` and login silently breaks |
+| `run_worker_first` | `["/api/*", "/auth/*", "/__/auth/*", "/__/firebase/init.json"]`. Without it, a browser going to `/auth/login` gets `index.html` and login silently breaks, and so does Firebase's sign-in popup |
 | Reaching its service | `geekykey-web`: a service binding to `geekykey-service`. `event-web`: `fetch()` to the setting `EVENT_API_URL`, `https://event-api.geekshacking.com`, with `redirect: "manual"` |
 | Custom domain | `key.geekshacking.com` and `event.geekshacking.com` |
 | Side doors off | `workers_dev` and `preview_urls` both `false` |

@@ -18,13 +18,12 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string;
 
   /**
-   * Firebase's web config, for the showcase's login (agreement 7.2). The four names the
+   * Firebase's web config, for the showcase's login (agreement 7.2). The three names the
    * runbook's step 13 gives Julian, and none of it is secret: the API key only names the
    * project, and Firebase allows sign-in only from localhost, key.geekshacking.com and
    * event.geekshacking.com.
    */
   readonly VITE_FIREBASE_API_KEY?: string;
-  readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
   readonly VITE_FIREBASE_PROJECT_ID?: string;
   readonly VITE_FIREBASE_APP_ID?: string;
 }
