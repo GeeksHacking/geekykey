@@ -11,6 +11,7 @@ import type {
   ApiIssue,
   ErrorCode,
   EventServiceLink,
+  LoginLink,
   MeResponse,
   Token,
   TokenLookup,
@@ -19,6 +20,14 @@ import type {
 const SESSION_KEY = "gk-mock-session";
 /** Agreement 8.2: a user holds at most 3 tokens. */
 const MAX_TOKENS = 3;
+/** Agreement 8.6: the link expires 60 seconds after it is made. */
+const LOGIN_LINK_TTL_MS = 60_000;
+/**
+ * The Event screens' local address, with the one link their mock accepts. The mock
+ * has no GeekyKey Service to sign a link, so it stands in for one, the way the Event
+ * screens' mock stands in for the service that checks it.
+ */
+const MOCK_LOGIN_LINK_URL = "http://localhost:5173/#login=mock";
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   validation_failed: 400,
@@ -148,6 +157,17 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return service ? { id: service.id, name: service.name, url: service.url } : undefined;
   }
 
+  /** Agreement 8.4: the events with a public address, the ones /me offers. */
+  function events(): EventServiceLink[] {
+    // Only the Event Services still in the settings are worth linking to.
+    return data.event_services
+      .filter((service) => service.in_settings)
+      .flatMap((service) => {
+        const link = eventLink(service.id);
+        return link ? [link] : [];
+      });
+  }
+
   const client: ApiClient = {
     me: () =>
       call((): MeResponse => {
@@ -155,13 +175,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return {
           user: { id: userId, is_geekykey_admin: isAdmin(userId) },
           tokens: ownedTokens(userId).map(toToken),
-          // Only the Event Services still in the settings are worth linking to.
-          events: data.event_services
-            .filter((service) => service.in_settings)
-            .flatMap((service) => {
-              const link = eventLink(service.id);
-              return link ? [link] : [];
-            }),
+          events: events(),
         };
       }),
 
@@ -246,6 +260,21 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
         token.owner_id = null;
         token.claimed_at = null;
+      }),
+
+    // Agreement 8.6: a link to one event's screens, for the session's own user. The
+    // event has to be one /me offers, or the service answers not_found.
+    createLoginLink: (eventId) =>
+      call((): LoginLink => {
+        currentUserId();
+        // The service reads the body before it looks the event up, so an empty id is
+        // refused as a bad request rather than as an event that is not there.
+        if (eventId.length < 1) fail("validation_failed");
+        if (!events().some((event) => event.id === eventId)) fail("not_found");
+        return {
+          url: MOCK_LOGIN_LINK_URL,
+          expires_at: iso(now() + LOGIN_LINK_TTL_MS),
+        };
       }),
   };
 
