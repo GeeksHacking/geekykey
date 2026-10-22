@@ -1311,6 +1311,15 @@
     screens as the same user. A guest who claimed a token reaches the passport without logging in
     a second time, and a Google user lands there without signing in again.
 
+- id: my-tokens-claims-by-code
+  date: 2026-10-22
+  area: frontend
+  change: >-
+    My tokens has a form to claim a token by typing its UID, for anyone whose phone cannot
+    read a token. The UID takes any separator style, and the claimed token joins the list
+    below. The claim route is still on the mock, so the form is hidden in a live build until
+    the GeekyKey Service has it.
+
 - id: checkpoint-5-guest-claim-moves-to-checkpoint-6
   date: 2026-10-22
   area: backend
