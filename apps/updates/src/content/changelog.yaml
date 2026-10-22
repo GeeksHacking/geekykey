@@ -1352,6 +1352,7 @@
     The GeekyKey Service can now tell the token page whether a token is unclaimed, the user's own,
     or someone else's, without naming the owner. A GeekyKey admin also gets the owner's user ID, to
     release the token with. Nothing calls it on production until the token page switches to it.
+
 - id: my-tokens-claims-by-code
   date: 2026-10-22
   area: frontend
