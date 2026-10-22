@@ -1411,6 +1411,12 @@ There are no GeekyKey admin screens.
 - On `invalid_token` or `login_unavailable`, both logins say "Couldn't log you in. Try again."
 - The GeekyKey screens' login offers **"Continue as guest"**, with the line "No account needed.
   Keep using this phone and browser." under it. The Event screens' login doesn't offer it.
+- When a guest signs out on the GeekyKey screens, they're asked first, because a new guest is a
+  new user ID (7.2): **"Sign out of this guest login?"**, with "You can't log back in as this
+  guest, so your tokens and stamps stay with it. If you sign out by mistake, ask at the desk to
+  release your tokens so you can claim them again." under it, and **Stay signed in** and **Sign
+  out**. The screens know a guest from Firebase's `currentUser.isAnonymous`, and ask whenever
+  Firebase can't say. A Google or GeeksHacking user signs out without being asked.
 - On `invalid_login_link`, the Event screens say "That link has expired. Tap your token again to
   get back in."
 - When `has_name` is `false`, the passport asks "What should we call you?", with **Save** and
@@ -1503,3 +1509,4 @@ Closed on 2026-10-10:
 | 2026-10-21 | Login links are `Implemented` on both services: the GeekyKey Service's `POST /api/v1/login-links` (8.6) and the Event Service's `POST /auth/login-link` (7.4), with the format and key in 11.9. Both make and read the link with the same code, `packages/login-link`, which reads a link built by hand from 11.9's recipe, so another team's Event Service checking by it agrees. `gk_session` now holds the login's name next to the user ID, so 7.2 is `Implemented` on both services, with no change still to come. A `gk_session` from before, which held only the user ID, no longer reads, and the screens log the user in again as 7.2 says; nobody uses the GeekyKey screens on production yet. The Event Service keeps each used link's `jti` in a new table, `used_login_links`, for a minute past the link's expiry, so a link checked just before it expires can't be used a second time a moment after. 8.6 now says its `rate_limited` waits for the GeekyKey Service's rate limits at checkpoint 6. No shape changes (BAC-59). |
 | 2026-10-21 | Section 13 sets the "Demo data" notice's wording, which the screens had written for themselves, and says My tokens offers no Release until 8.3 is live, since its list comes from the service and a Release would still go to the sample data. No endpoint or shape changes (FRO-56). |
 | 2026-10-22 | Ethan, the screens owner, approved version 0.5, so it is no longer a draft. No endpoint or shape changes (FRO-60). |
+| 2026-10-22 | Section 13 sets the warning a guest sees before signing out on the GeekyKey screens. Signing out ends a guest's Firebase sign-in for good, so their tokens stay claimed and their stamps stay with a user ID nobody can log in as again; a GeekyKey admin at the desk releases the tokens (8.3). A Google or GeeksHacking user isn't asked. No endpoint or shape changes (FRO-62). |
