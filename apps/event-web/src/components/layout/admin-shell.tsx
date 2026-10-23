@@ -37,7 +37,9 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
       </a>
       <aside className="hidden border-r lg:sticky lg:top-0 lg:flex lg:h-[100dvh] lg:flex-col">
         <div className="flex h-14 items-center gap-2 border-b px-4">
-          <Link to="/admin/stations" aria-label="Organiser console home">
+          {/* FRO-64. The wordmark keeps its width in the sidebar and in the phone header, and a
+              long display name in the account menu gives way instead. */}
+          <Link to="/admin/stations" aria-label="Organiser console home" className="shrink-0">
             <Wordmark />
           </Link>
           <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-secondary-foreground">
@@ -49,7 +51,7 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
             <NavLink key={item.to} variant="side" {...item} />
           ))}
         </nav>
-        <div className="flex items-center justify-between border-t p-3">
+        <div className="flex min-w-0 items-center justify-between gap-2 border-t p-3">
           <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
           <ThemeToggle />
         </div>
@@ -57,10 +59,10 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
       <div className="flex min-h-[100dvh] min-w-0 flex-col">
         <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-sm lg:hidden">
           <div className="flex h-14 items-center justify-between px-4">
-            <Link to="/admin/stations" aria-label="Organiser console home">
+            <Link to="/admin/stations" aria-label="Organiser console home" className="shrink-0">
               <Wordmark />
             </Link>
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 items-center gap-1">
               <ThemeToggle />
               <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
             </div>
