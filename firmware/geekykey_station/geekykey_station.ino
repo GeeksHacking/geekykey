@@ -70,6 +70,13 @@
 #define NO_LED -1
 #define BUZZER_PIN 21
 
+// The sounds a result can play on the buzzer. Each one is shorter than
+// RESULT_SHOW_MS, so it ends while the result still shows.
+#define SOUND_NONE 0
+#define SOUND_ACCEPTED 1  // one 1-second beep
+#define SOUND_COOLDOWN 2  // two slow beeps: not yet, try again later
+#define SOUND_ERROR 3     // three fast beeps: something is wrong
+
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
 #define FIRMWARE_VERSION "2026-10-23"
@@ -278,7 +285,7 @@ void setup() {
 
   // The first heartbeat replaces a health check, since it also proves the
   // station key, and sets the clock before anyone taps.
-  if (heartbeatTick() == 401) showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED);
+  if (heartbeatTick() == 401) showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
 
   Serial.println("Ready. Tap an NTAG213 tag...");
   showReady();
@@ -318,9 +325,9 @@ void handleTap(const String &uid) {
   QueuedTap tap = {clientTapId, uid, clockSet ? isoNow() : ""};
   if (!enqueueTap(tap)) {
     if (queueCount >= QUEUE_CAPACITY) {
-      showResult("QUEUE FULL", "Storage full", LED_PIN_RED);
+      showResult("QUEUE FULL", "Storage full", LED_PIN_RED, SOUND_ERROR);
     } else {
-      showResult("STORAGE ERROR", "Check station", LED_PIN_RED);
+      showResult("STORAGE ERROR", "Check station", LED_PIN_RED, SOUND_ERROR);
     }
     return;
   }
@@ -329,12 +336,12 @@ void handleTap(const String &uid) {
   if (attempt.newTapStatus.length() > 0) {
     showTapStatus(attempt.newTapStatus);
   } else if (attempt.newTapDropped) {
-    showResult("DROPPED", "Bad tap request", LED_PIN_RED);
+    showResult("DROPPED", "Bad tap request", LED_PIN_RED, SOUND_ERROR);
   } else if (attempt.httpCode == 401) {
-    showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED);
+    showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
   } else {
     // The tap is saved and will be sent again, so this is not an error.
-    showResult("QUEUED", "Will send later", NO_LED);
+    showResult("QUEUED", "Will send later", NO_LED, SOUND_NONE);
   }
 }
 
@@ -569,33 +576,57 @@ QueueAttempt flushQueue(const String &newTapId) {
 
 void showTapStatus(const String &status) {
   if (status == "accepted") {
-    // The buzzer sounds for as long as the result shows, so the beep comes
-    // with the screen and the LED rather than after them.
-    digitalWrite(BUZZER_PIN, HIGH);
-    showResult("ACCEPTED", "Points added", LED_PIN_BLUE);
-    digitalWrite(BUZZER_PIN, LOW);
+    showResult("ACCEPTED", "Points added", LED_PIN_BLUE, SOUND_ACCEPTED);
   } else if (status == "cooldown") {
-    showResult("COOLDOWN", "Try again later", LED_PIN_YELLOW);
+    showResult("COOLDOWN", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
   } else if (status == "unknown_token") {
-    showResult("UNKNOWN TAG", "Pair this token", LED_PIN_RED);
+    showResult("UNKNOWN TAG", "Pair this token", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "no_event") {
-    showResult("NO EVENT", "Tell organizer", LED_PIN_RED);
+    showResult("NO EVENT", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "no_game") {
-    showResult("NO GAME", "Tell organizer", LED_PIN_RED);
+    showResult("NO GAME", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "duplicate") {
-    showResult("DUPLICATE", "Already recorded", NO_LED);
+    showResult("DUPLICATE", "Already recorded", NO_LED, SOUND_NONE);
   } else {
-    showResult("TAP RECEIVED", "Check your phone", LED_PIN_BLUE);
+    showResult("TAP RECEIVED", "Check your phone", LED_PIN_BLUE, SOUND_NONE);
   }
 }
 
-// Shows a result for about 2 seconds with its LED on, then goes back to Ready.
-void showResult(const char *line1, const char *line2, int ledPin) {
+// Shows a result for about 2 seconds with its LED on and its sound playing
+// from the start, then goes back to Ready.
+void showResult(const char *line1, const char *line2, int ledPin, int sound) {
   showScreen(line1, line2);
   if (ledPin != NO_LED) digitalWrite(ledPin, HIGH);
-  delay(RESULT_SHOW_MS);
+  const unsigned long shownAt = millis();
+  playSound(sound);
+  const unsigned long played = millis() - shownAt;
+  if (played < RESULT_SHOW_MS) delay(RESULT_SHOW_MS - played);
   if (ledPin != NO_LED) digitalWrite(ledPin, LOW);
   showReady();
+}
+
+// Plays one of the SOUND_ values and returns when it ends. The buzzer is an
+// active one, which sounds while its pin is HIGH, so a sound is a pattern of
+// beeps and gaps with no pitch.
+void playSound(int sound) {
+  if (sound == SOUND_ACCEPTED) {
+    beep(1000);
+  } else if (sound == SOUND_COOLDOWN) {
+    beep(200);
+    delay(200);
+    beep(200);
+  } else if (sound == SOUND_ERROR) {
+    for (int i = 0; i < 3; i++) {
+      if (i > 0) delay(80);
+      beep(80);
+    }
+  }
+}
+
+void beep(unsigned long ms) {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(ms);
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
 // Ready, unless the reader isn't answering: then the red LED stays on and the

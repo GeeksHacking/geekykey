@@ -1465,3 +1465,12 @@
     showcase, so checkpoint 7 keeps the base that every event gets apart from the showcase's own
     games. Timed games move to "if time allows", and so does the station's own text, which now
     waits on a bigger station screen.
+
+- id: station-buzzer
+  date: 2026-10-23
+  area: firmware
+  change: >-
+    A station with a buzzer now beeps as it shows a tap's result, so people nearby can hear what
+    happened without reading the screen. An accepted tap gives one 1-second beep, a tap during the
+    cooldown gives two slow beeps, and an error gives three fast ones. Each sound ends within the 2
+    seconds the result shows, so the station is ready for the next tap as soon as it was before.
