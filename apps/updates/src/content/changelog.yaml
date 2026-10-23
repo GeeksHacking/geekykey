@@ -1496,6 +1496,14 @@
     Paris took about 2.2 seconds without it. The trade-off we accept: a tap that Cloudflare
     answers far away still crosses to Singapore once, inside Cloudflare, before the Worker runs.
 
+- id: header-holds-a-long-name
+  date: 2026-10-23
+  area: frontend
+  change: >-
+    The header's "GeekyKey" wordmark and tabs stay in place when a display name is long, because
+    the account menu cuts the name short instead. The whole name stays in the menu that opens
+    from it, and the organiser console's sidebar and header do the same.
+
 - id: station-board-endpoint
   date: 2026-10-25
   area: backend
