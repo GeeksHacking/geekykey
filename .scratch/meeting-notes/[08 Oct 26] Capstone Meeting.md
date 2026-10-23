@@ -158,7 +158,3 @@ Thu, 08 Oct 26 · Chua Li Ming Ethan Student, Joshua Ho Wai Yarn Student, Yap 
 - **Provision key.geekshacking.com and lock the subdomain**
 - **Implement queue system and stress-test before showcase**
 - **Settle GeekyKey Service event-day visibility before rehearsal (7 Nov)**
-
----
-
-Chat with meeting transcript: https://notes.granola.ai/t/a7741baa-fda8-48d0-874d-df0e8fc9c17d-00demib2

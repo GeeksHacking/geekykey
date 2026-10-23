@@ -196,7 +196,3 @@ Suggested workstreams:
 ## Recommended Approach
 
 Use Option B for the next meeting agenda, then Option A for the ongoing project document. Keeps urgent work visible without losing longer-term ideas.
-
----
-
-Chat with meeting transcript: https://notes.granola.ai/t/f56034f8-a6e6-471f-9d0d-34f630bea54c-00demib2

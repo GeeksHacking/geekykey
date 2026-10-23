@@ -234,7 +234,3 @@ Answer: yes, guests are OK
 - **Confirm Cloudflare log-view permissions for the team**
 - **Email Mr. John Tan (Dean of IT) about SST x GeeksHacking branding on tokens**
 - **Pin specific dependency versions and set a 2-week lock-file window**
-
----
-
-Chat with meeting transcript: https://notes.granola.ai/t/d3a3dd5a-8c19-4f29-9663-ecae027b15df-00demib2

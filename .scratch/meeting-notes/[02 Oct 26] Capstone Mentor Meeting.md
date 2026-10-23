@@ -67,7 +67,3 @@ Fri, 02 Oct 26
 - **Migrate backend from Cloudflare Workers to Google Cloud Run (or equivalent GCP service)**
 - **Move GeekyKey DB tables into EventService; strip GeekyKey of any database**
 - **Iterate on handheld scanner ergonomics and explore key-form NFC tag design**
-
----
-
-Chat with meeting transcript: https://notes.granola.ai/t/e3f14293-85c7-4dcb-a191-1dd0d74eb769-00demib2
