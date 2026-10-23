@@ -1474,3 +1474,14 @@
     happened without reading the screen. An accepted tap gives one 1-second beep, a tap during the
     cooldown gives two slow beeps, and an error gives three fast ones. Each sound ends within the 2
     seconds the result shows, so the station is ready for the next tap as soon as it was before.
+
+- id: checkpoint-7-map-and-connections
+  date: 2026-10-23
+  area: research
+  change: >-
+    The map at our booth has a design. It reads one endpoint every 2 seconds, which only
+    organizers and the booth's screen can open, and which gives each station's booth and counts
+    but no names. Organizers set each station's booth themselves, so a station can move on the
+    day without a new release. Two participants will connect by tapping their tokens at the same
+    station within a few seconds, with no phone needed. Whether that takes one station or two
+    side by side is still to be decided with the group and Julian.
