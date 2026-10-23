@@ -1453,3 +1453,15 @@
     accept: changes to the API agreement for the station's text and the leaderboard, more requests
     against the free Workers plan, and a bigger station screen, a 3D model of the hall and games
     other teams can plug in only if time allows.
+
+- id: checkpoint-7-after-julian
+  date: 2026-10-23
+  area: research
+  change: >-
+    After meeting Julian, checkpoint 7 changed. The showcase game is a collectible rather than a
+    competition, so the big screen shows a live map of the hall and no leaderboard. The map comes
+    first, then connections between visitors, shown as counts and a web of tokens with no names.
+    Julian plans to turn the Event Service and its screens into a GitHub template after the
+    showcase, so checkpoint 7 keeps the base that every event gets apart from the showcase's own
+    games. Timed games move to "if time allows", and so does the station's own text, which now
+    waits on a bigger station screen.
