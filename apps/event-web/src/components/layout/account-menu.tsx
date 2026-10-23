@@ -48,7 +48,9 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
-          <p className="text-sm font-medium">{user.display_name ?? "Participant"}</p>
+          {/* FRO-64. Agreement 8.7 allows 30 characters in any script, and some scripts do not
+              put spaces in a name, so the label wraps rather than running past the menu. */}
+          <p className="text-sm font-medium break-words">{user.display_name ?? "Participant"}</p>
           <p className="text-xs text-muted-foreground">
             {user.role === "organizer" ? "Organiser" : "Participant"}
           </p>

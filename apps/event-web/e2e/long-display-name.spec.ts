@@ -11,6 +11,8 @@ import { expect, test, type Page } from "@playwright/test";
 */
 
 const LONG_NAME = "Lee Jun Lei Adam Student";
+/** 29 characters with nowhere to wrap, which the agreement's 30-character limit allows. */
+const UNBROKEN_NAME = "MaximilianaWolfeschlegelstein";
 /** The ticket's three widths, plus the phone width CLAUDE.md's definition of done asks for. */
 const PARTICIPANT_WIDTHS = [360, 768, 820, 1280];
 const CONSOLE_WIDTHS = [360, 768, 1023, 1280];
@@ -231,4 +233,22 @@ test("the organiser console gives a long name the same room", async ({ page }) =
       }
     }
   }
+});
+
+test("the account menu shows a name with nowhere to wrap", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signInAsParticipant(page);
+  await page.locator("header").getByRole("link", { name: "Passport" }).click();
+  await changeName(page, UNBROKEN_NAME);
+  await page.locator("header").getByRole("link", { name: "Home", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.getByRole("button", { name: "Account menu" }).click();
+  const name = page.getByRole("menu").getByText(UNBROKEN_NAME);
+  await expect(name).toBeVisible();
+  // The header may cut the name short, so the menu is where it has to read in full.
+  expect(
+    await name.evaluate((el) => el.scrollWidth - el.clientWidth),
+    "the name is cut off in the account menu",
+  ).toBeLessThanOrEqual(1);
 });
