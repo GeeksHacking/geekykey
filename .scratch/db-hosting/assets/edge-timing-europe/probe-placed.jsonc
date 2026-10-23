@@ -1,0 +1,3 @@
+// probe.js with the hint the GeekyKey Service's Worker takes.
+{ "name": "bac63-probe-placed", "main": "probe.js", "compatibility_date": "2026-10-12", "send_metrics": false, "workers_dev": true, "preview_urls": false,
+  "placement": { "region": "gcp:asia-southeast1" } }

@@ -1,0 +1,2 @@
+// probe.js without a placement hint: it runs where Cloudflare answered.
+{ "name": "bac63-probe-local", "main": "probe.js", "compatibility_date": "2026-10-12", "send_metrics": false, "workers_dev": true, "preview_urls": false }
