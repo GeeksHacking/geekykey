@@ -8,10 +8,8 @@ export interface EscapedCsv {
 interface CsvCell {
   /** The cell's value, with the quotes and the doubled quotes taken off. */
   value: string;
-  /** Where the cell starts in the source. */
-  start: number;
-  /** True when the source quoted the cell. */
-  quoted: boolean;
+  /** Where the value starts in the source, inside the quotes when the source quoted the cell. */
+  valueStart: number;
 }
 
 /**
@@ -25,9 +23,7 @@ export function escapeSpreadsheetFormulas(csv: string): EscapedCsv {
   const insertions: number[] = [];
   for (const row of parseCsv(csv)) {
     for (const cell of row) {
-      if (!needsEscaping(cell.value)) continue;
-      // A quoted cell keeps its quotes, so the apostrophe goes inside them.
-      insertions.push(cell.quoted ? cell.start + 1 : cell.start);
+      if (needsEscaping(cell.value)) insertions.push(cell.valueStart);
     }
   }
 
@@ -51,9 +47,11 @@ function parseCsv(csv: string): CsvCell[][] {
   while (index < csv.length) {
     const start = index;
     const quoted = csv[index] === '"';
+    let valueStart = start;
     let value = "";
 
     if (quoted) {
+      valueStart = start + 1;
       index += 1;
       while (index < csv.length) {
         const character = csv[index];
@@ -78,7 +76,7 @@ function parseCsv(csv: string): CsvCell[][] {
       }
     }
 
-    row.push({ value, start, quoted });
+    row.push({ value, valueStart });
 
     if (index >= csv.length) {
       rows.push(row);
@@ -100,6 +98,11 @@ function parseCsv(csv: string): CsvCell[][] {
   return rows;
 }
 
+/**
+ * Section 13 names a name a spreadsheet could run as a formula. This check is deliberately wider,
+ * as the export's check was before it: it allows whitespace before the character, and catches a
+ * leading tab or carriage return.
+ */
 function needsEscaping(value: string): boolean {
   return /^[\t\r]/.test(value) || /^\s*[=+\-@]/u.test(value);
 }

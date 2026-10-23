@@ -39,24 +39,31 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function renderExportButton(configure?: (api: ReturnType<typeof createMockClient>) => void) {
+  const api = createMockClient({ latencyMs: [0, 0], storage: null });
+  api.mock.setSession(SEEDED_ORGANIZER_ID);
+  configure?.(api);
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+  render(
+    <ApiProvider client={api}>
+      <ExportButton />
+    </ApiProvider>,
+  );
+
+  return { api, click };
+}
+
 describe("ExportButton", () => {
   // The export is the feed for the A/B analysis, so the file the organiser gets is the
   // file the service sent. Section 13 says the rule under the button, and says when a
   // file was changed that it is not the service's own.
   it("hands the browser the file the service sent, and revokes its URL after the click", async () => {
-    const api = createMockClient({ latencyMs: [0, 0], storage: null });
-    api.mock.setSession(SEEDED_ORGANIZER_ID);
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-
-    render(
-      <ApiProvider client={api}>
-        <ExportButton />
-      </ApiProvider>,
-    );
+    const { api, click } = renderExportButton();
 
     expect(
       screen.getByText(
-        "A name that starts with =, +, - or @ gets an apostrophe, so a spreadsheet cannot run it as a formula.",
+        "A name that a spreadsheet could run as a formula gets an apostrophe, so it stays text.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -82,19 +89,12 @@ describe("ExportButton", () => {
   });
 
   it("says the file is not the service's own when a name was escaped", async () => {
-    const api = createMockClient({ latencyMs: [0, 0], storage: null });
-    api.mock.setSession(SEEDED_ORGANIZER_ID);
-    const station = api.mock.data.stations.at(0);
-    if (!station?.passport) throw new Error("Expected a seeded passport station");
-    // The export writes the passport name, not the physical station name (agreement 9.6).
-    station.passport.name = "=2+2";
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-
-    render(
-      <ApiProvider client={api}>
-        <ExportButton />
-      </ApiProvider>,
-    );
+    const { click } = renderExportButton((api) => {
+      const station = api.mock.data.stations.at(0);
+      if (!station?.passport) throw new Error("Expected a seeded passport station");
+      // The export writes the passport name, not the physical station name (agreement 9.6).
+      station.passport.name = "=2+2";
+    });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
