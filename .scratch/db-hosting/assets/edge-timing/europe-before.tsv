@@ -1,0 +1,75 @@
+europe-before	1	event-api health	2026-10-23T02:01:33.489Z					0.385	200		CDG	
+europe-before	1	key-api health	2026-10-23T02:01:36.194Z					0.082	200		CDG	
+europe-before	1	key-api tap	2026-10-23T02:01:38.564Z					2.386	200	cooldown	CDG	
+europe-before	2	event-api health	2026-10-23T02:01:46.271Z					0.320	200		CDG	
+europe-before	2	key-api health	2026-10-23T02:01:48.882Z					0.016	200		CDG	
+europe-before	2	key-api tap	2026-10-23T02:01:51.174Z					2.348	200	cooldown	CDG	
+europe-before	3	event-api health	2026-10-23T02:01:58.843Z					0.314	200		CDG	
+europe-before	3	key-api health	2026-10-23T02:02:01.415Z					0.082	200		CDG	
+europe-before	3	key-api tap	2026-10-23T02:02:03.847Z					2.198	200	cooldown	CDG	
+europe-before	4	event-api health	2026-10-23T02:02:11.348Z					0.365	200		CDG	
+europe-before	4	key-api health	2026-10-23T02:02:14.055Z					0.095	200		CDG	
+europe-before	4	key-api tap	2026-10-23T02:02:16.415Z					2.332	200	cooldown	CDG	
+europe-before	5	event-api health	2026-10-23T02:02:24.117Z					0.321	200		CDG	
+europe-before	5	key-api health	2026-10-23T02:02:26.741Z					0.006	200		CDG	
+europe-before	5	key-api tap	2026-10-23T02:02:29.046Z					1.927	200	cooldown	CDG	
+europe-before	6	event-api health	2026-10-23T02:02:36.246Z					0.320	200		CDG	
+europe-before	6	key-api health	2026-10-23T02:02:38.865Z					0.004	200		CDG	
+europe-before	6	key-api tap	2026-10-23T02:02:41.134Z					2.331	200	cooldown	CDG	
+europe-before	7	event-api health	2026-10-23T02:02:48.777Z					0.351	200		CDG	
+europe-before	7	key-api health	2026-10-23T02:02:51.425Z					0.111	200		CDG	
+europe-before	7	key-api tap	2026-10-23T02:02:53.837Z					2.297	200	cooldown	CDG	
+europe-before	8	event-api health	2026-10-23T02:03:01.512Z					0.385	200		CDG	
+europe-before	8	key-api health	2026-10-23T02:03:04.147Z					0.016	200		CDG	
+europe-before	8	key-api tap	2026-10-23T02:03:06.464Z					2.286	200	cooldown	CDG	
+europe-before	9	event-api health	2026-10-23T02:03:14.027Z					0.319	200		CDG	
+europe-before	9	key-api health	2026-10-23T02:03:16.649Z					0.005	200		CDG	
+europe-before	9	key-api tap	2026-10-23T02:03:18.985Z					1.889	200	cooldown	CDG	
+europe-before	10	event-api health	2026-10-23T02:03:26.161Z					0.314	200		CDG	
+europe-before	10	key-api health	2026-10-23T02:03:28.850Z					0.004	200		CDG	
+europe-before	10	key-api tap	2026-10-23T02:03:31.211Z					2.196	200	cooldown	CDG	
+europe-before	11	event-api health	2026-10-23T02:03:38.674Z					0.314	200		CDG	
+europe-before	11	key-api health	2026-10-23T02:03:41.344Z					0.007	200		CDG	
+europe-before	11	key-api tap	2026-10-23T02:03:43.601Z					2.188	200	cooldown	CDG	
+europe-before	12	event-api health	2026-10-23T02:03:51.142Z					0.332	200		CDG	
+europe-before	12	key-api health	2026-10-23T02:03:53.758Z					0.006	200		CDG	
+europe-before	12	key-api tap	2026-10-23T02:03:56.019Z					2.128	200	cooldown	CDG	
+europe-before	13	event-api health	2026-10-23T02:04:03.413Z					0.340	200		CDG	
+europe-before	13	key-api health	2026-10-23T02:04:06.044Z					0.004	200		CDG	
+europe-before	13	key-api tap	2026-10-23T02:04:08.317Z					2.319	200	cooldown	CDG	
+europe-before	14	event-api health	2026-10-23T02:04:16.003Z					0.335	200		CDG	
+europe-before	14	key-api health	2026-10-23T02:04:18.591Z					0.004	200		CDG	
+europe-before	14	key-api tap	2026-10-23T02:04:20.911Z					1.949	200	cooldown	CDG	
+europe-before	15	event-api health	2026-10-23T02:04:28.139Z					0.362	200		CDG	
+europe-before	15	key-api health	2026-10-23T02:04:30.772Z					0.003	200		CDG	
+europe-before	15	key-api tap	2026-10-23T02:04:33.188Z					2.210	200	cooldown	CDG	
+europe-before	16	event-api health	2026-10-23T02:04:40.720Z					0.336	200		CDG	
+europe-before	16	key-api health	2026-10-23T02:04:43.383Z					0.007	200		CDG	
+europe-before	16	key-api tap	2026-10-23T02:04:45.756Z					2.209	200	cooldown	CDG	
+europe-before	17	event-api health	2026-10-23T02:04:53.258Z					0.358	200		CDG	
+europe-before	17	key-api health	2026-10-23T02:04:55.890Z					0.008	200		CDG	
+europe-before	17	key-api tap	2026-10-23T02:04:58.258Z					1.950	200	cooldown	CDG	
+europe-before	18	event-api health	2026-10-23T02:05:05.499Z					0.362	200		CDG	
+europe-before	18	key-api health	2026-10-23T02:05:08.166Z					0.006	200		CDG	
+europe-before	18	key-api tap	2026-10-23T02:05:10.599Z					2.032	200	cooldown	CDG	
+europe-before	19	event-api health	2026-10-23T02:05:17.901Z					0.334	200		CDG	
+europe-before	19	key-api health	2026-10-23T02:05:20.525Z					0.005	200		CDG	
+europe-before	19	key-api tap	2026-10-23T02:05:22.780Z					1.972	200	cooldown	CDG	
+europe-before	20	event-api health	2026-10-23T02:05:30.027Z					0.351	200		CDG	
+europe-before	20	key-api health	2026-10-23T02:05:32.645Z					0.008	200		CDG	
+europe-before	20	key-api tap	2026-10-23T02:05:34.918Z					0.734	200	accepted	CDG	
+europe-before	21	event-api health	2026-10-23T02:05:40.918Z					0.334	200		CDG	
+europe-before	21	key-api health	2026-10-23T02:05:43.532Z					0.008	200		CDG	
+europe-before	21	key-api tap	2026-10-23T02:05:45.859Z					1.969	200	cooldown	CDG	
+europe-before	22	event-api health	2026-10-23T02:05:53.097Z					0.336	200		CDG	
+europe-before	22	key-api health	2026-10-23T02:05:55.708Z					0.009	200		CDG	
+europe-before	22	key-api tap	2026-10-23T02:05:57.961Z					1.981	200	cooldown	CDG	
+europe-before	23	event-api health	2026-10-23T02:06:05.198Z					0.311	200		CDG	
+europe-before	23	key-api health	2026-10-23T02:06:07.766Z					0.003	200		CDG	
+europe-before	23	key-api tap	2026-10-23T02:06:10.054Z					0.766	200	cooldown	CDG	
+europe-before	24	event-api health	2026-10-23T02:06:16.199Z					0.314	200		CDG	
+europe-before	24	key-api health	2026-10-23T02:06:18.864Z					0.013	200		CDG	
+europe-before	24	key-api tap	2026-10-23T02:06:21.156Z					2.185	200	cooldown	CDG	
+europe-before	25	event-api health	2026-10-23T02:06:28.610Z					0.338	200		CDG	
+europe-before	25	key-api health	2026-10-23T02:06:31.222Z					0.007	200		CDG	
+europe-before	25	key-api tap	2026-10-23T02:06:33.495Z					1.841	200	cooldown	CDG	

@@ -1,0 +1,17 @@
+// The Paris relay, which plays a station in Europe (worker.js), on Adam's own Cloudflare
+// account. Deploy it from this folder with the geekykey-service's Wrangler:
+//   ../../../../apps/geekykey-service/node_modules/.bin/wrangler deploy
+{
+  "name": "bac63-driver-eu",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-12",
+  // Its fetch goes out over the Internet, even to a Worker on this account.
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "send_metrics": false,
+  "workers_dev": true,
+  "preview_urls": false,
+  // Paris, where Cloudflare answered most of the hotspot's requests.
+  "placement": { "region": "gcp:europe-west9" },
+  // No logs: a tap it passes on carries the test station's key.
+  "observability": { "enabled": false },
+}
