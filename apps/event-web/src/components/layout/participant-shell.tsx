@@ -35,7 +35,9 @@ export function ParticipantShell({ user, onSignOut, children }: ParticipantShell
       </a>
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-sm">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-4 px-4">
-          <Link to="/" aria-label="GeekyKey home">
+          {/* FRO-64. The wordmark never shrinks, so its text cannot run under the tabs; a long
+              display name in the account menu gives way instead. */}
+          <Link to="/" aria-label="GeekyKey home" className="shrink-0">
             <Wordmark />
           </Link>
           <nav aria-label="Sections" className="hidden items-center gap-1 md:flex">
@@ -43,7 +45,7 @@ export function ParticipantShell({ user, onSignOut, children }: ParticipantShell
               <NavLink key={item.to} variant="top" {...item} />
             ))}
           </nav>
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1">
             <ThemeToggle />
             <AccountMenu
               user={user}
