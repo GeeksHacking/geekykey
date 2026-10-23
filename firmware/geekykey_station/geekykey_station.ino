@@ -10,6 +10,8 @@
     RC522 MOSI  -> GPIO11
     RC522 SDA   -> GPIO10   (this is the chip-select / SS pin)
     RC522 IRQ   -> not connected
+    Buzzer +    -> GPIO21   (an active buzzer: it sounds while the pin is HIGH)
+    Buzzer -    -> GND
 
   Libraries needed (Library Manager):
     "MFRC522"
@@ -66,10 +68,11 @@
 #define I2C_SDA 7
 #define I2C_SCL 6
 #define NO_LED -1
+#define BUZZER_PIN 21
 
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-10-19"
+#define FIRMWARE_VERSION "2026-10-23"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
@@ -196,6 +199,7 @@ void setup() {
   pinMode(LED_PIN_BLUE, OUTPUT);
   pinMode(LED_PIN_RED, OUTPUT);
   pinMode(LED_PIN_YELLOW, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
   Wire.begin(I2C_SDA, I2C_SCL);
   lcd.init();
   lcd.backlight();
@@ -565,7 +569,11 @@ QueueAttempt flushQueue(const String &newTapId) {
 
 void showTapStatus(const String &status) {
   if (status == "accepted") {
+    // The buzzer sounds for as long as the result shows, so the beep comes
+    // with the screen and the LED rather than after them.
+    digitalWrite(BUZZER_PIN, HIGH);
     showResult("ACCEPTED", "Points added", LED_PIN_BLUE);
+    digitalWrite(BUZZER_PIN, LOW);
   } else if (status == "cooldown") {
     showResult("COOLDOWN", "Try again later", LED_PIN_YELLOW);
   } else if (status == "unknown_token") {
