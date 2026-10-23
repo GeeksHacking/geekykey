@@ -25,6 +25,13 @@
   // It's listed here too, so a deploy keeps it.
   "routes": [{ "pattern": "key-api.geekshacking.com", "custom_domain": true }],
 
+  // Runs the Worker in the Cloudflare data centre closest to Cloud Run's
+  // region, whichever data centre answered the request (BAC-63). Without it,
+  // a tap that Cloudflare answered in Paris made the Worker's calls to Cloud
+  // Run from Paris, and took up to 3.7 seconds (BAC-38). The cf-placement
+  // header on each answer says where the Worker ran, such as remote-SIN.
+  "placement": { "region": "gcp:asia-southeast1" },
+
   // Secrets the Worker can't start without: a deploy fails if one isn't set
   // on the Worker, and src/config.ts stops it starting without one. Each
   // Event Service in EVENT_SERVICES has its own key, named after its ID, so
@@ -49,8 +56,10 @@
   // for the same key, and our keys are hashes and IDs no other Worker
   // sends, so another Worker's use of these IDs wouldn't touch ours. Each
   // namespace_id is a positive integer written as a string, and the period
-  // is 10 or 60 seconds. Cloudflare counts in each data centre, and only
-  // approximately (src/rate-limit.ts). Locally, Wrangler simulates them.
+  // is 10 or 60 seconds. Cloudflare counts in each data centre the Worker
+  // runs in, and only approximately (src/rate-limit.ts). With the placement
+  // above that's nearly always the one near Singapore, wherever the request
+  // was answered. Locally, Wrangler simulates them.
   "ratelimits": [
     // Each station's requests, taps and heartbeats together, by the SHA-256
     // of the key it sent, counted before the key is checked.
