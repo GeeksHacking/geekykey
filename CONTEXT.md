@@ -157,6 +157,27 @@ was last tapped. Organizers also create stations there, replace their keys, and 
 them.
 _Avoid_: station list
 
+**Map**:
+The screen at the event's own booth that draws the floor plan, each passport station at its booth,
+and a pulse as each tap arrives there. It shows counts, never names.
+_Avoid_: big screen, which is only the display it runs on; dashboard
+
+**Booth**:
+A named place on the event's floor plan where a station stands. The floor plan says where each
+booth is; the passport says which booth each station is at, so a station can move booth without
+becoming a different station.
+_Avoid_: location, which is the text a participant reads in the passport
+
+**Connection**:
+A link between two participants, made when both tap at the same connection point within a few
+seconds of each other. It joins two users, never two tokens, so nobody connects to themselves, and
+a pair connects once however often they tap together.
+_Avoid_: dual tap, link between tags
+
+**Connection point**:
+Where participants tap together to connect: one station, or a few stations linked to act as one.
+Its stations count only for connections, not for the passport.
+
 **Accepted tap**:
 A tap that counts in at least one of the event's games, such as toward passport stamps and points.
 

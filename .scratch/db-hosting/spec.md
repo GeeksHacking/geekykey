@@ -10,7 +10,7 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 13 Oct 2026** (BAC-30): each Event Service keeps its session secret, app login and two keys in one Secret Manager secret, `APP_SECRETS`, as JSON, at Julian's suggestion. The project then stores 4 secret versions instead of 10, inside Secret Manager's free 6. The migration login stays a secret of its own. Adam's account can no longer grant access or read a secret, so Julian gives each service access to its `APP_SECRETS` (section 12).
 
-> **Updated 23 Oct 2026,** after Adam met Julian ([the agenda, with the answers](../meetings/2026-10-23-julian.md), and [the notes](<../meeting-notes/[23 Oct 26] Capstone Meeting.md>)). The showcase game is a collectible rather than a competition, so there's no leaderboard. Julian intends the Event Service and the Event screens to become a GitHub template after the repo split, so checkpoint 7 now draws a line in the code between the base every event gets and the showcase's own games and settings. The map on the big screen comes first, then connections between visitors. Adam moved timed games down to Could, and the station's own text waits on a bigger station screen. Guests are agreed. "The 23 Oct answers" in section 2 lists everything, checkpoint 7 the new scope, and section 12 what's still open.
+> **Updated 23 Oct 2026,** after Adam met Julian ([the agenda, with the answers](../meetings/2026-10-23-julian.md), and [the notes](<../meeting-notes/[23 Oct 26] Capstone Meeting.md>)). The showcase game is a collectible rather than a competition, so there's no leaderboard. Julian intends the Event Service and the Event screens to become a GitHub template after the repo split, so checkpoint 7 now draws a line in the code between the base every event gets and the showcase's own games and settings. The map on the big screen comes first, then connections between visitors. Adam moved timed games down to Could, and the station's own text waits on a bigger station screen. Guests are agreed. "The 23 Oct answers" in section 2 lists everything, checkpoint 7 the new scope, and section 12 what's still open. Later the same day, Adam settled how the map reads its data and how two participants connect; checkpoint 7's "The map and connections, in detail" has the design.
 
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
@@ -79,6 +79,7 @@ From the meeting with Julian on Fri 23 Oct, and Adam's calls on them the same da
 5. **The order:** the map on the big screen first, the showcase from end to end; then connections between visitors, shown as counts and a web of tag-to-tag links rather than who met whom, for PDPA; then other game ideas to show at our booth. A 3D model of the floor plan is preferred for the map.
 6. **Adam's calls, after the meeting:** timed games and timed rules move down to Could. The station shows the visitor's own text only if it gets an OLED or a TFT, which can show at least the tap's answer and instructions.
 7. **Guests are agreed** (ADR 0005).
+8. **Adam's calls on the map and connections,** after the meeting: the map reads one new endpoint, open to organizers and the map screens only, every 2 seconds, and each station's booth is a passport setting. Two participants connect by tapping at the same connection point, with no phone. Whether a connection point is one station or two goes to the group and Julian. GeeksHacking is open to paying for Workers Paid if the day won't fit. Checkpoint 7, "The map and connections, in detail", has the design.
 
 The meeting also set next steps outside checkpoint 7: the collectible token's physical design, scheduling the raise of Firebase's limit on new accounts for the showcase (checkpoint 5's runbook step 14), the team's access to Cloudflare's logs, and pinned dependency versions with a two-week lock-file window.
 
@@ -642,13 +643,13 @@ Done when, on production: a phone claims a token from its token page and another
 
 ### Checkpoint 7. The Event Service's features
 
-The organizers' screens, the rest of the passport, and the line between the base and the showcase's own code. Changed on 23 Oct, after the meeting with Julian (section 2, "The 23 Oct answers"). The showcase game is a collectible: a visitor collects a stamp at each partner station, which the passport already does, so most of the game is built.
+The organizers' screens, the rest of the passport, and the line between the base and the showcase's own code. Changed on 23 Oct, after the meeting with Julian (section 2, "The 23 Oct answers"). The showcase game is a collectible: a participant collects a stamp at each partner station, which the passport already does, so most of the game is built.
 
 **Must:**
 
 - **The organizers' station endpoints:** create a station, showing its key once; replace its key, keeping its ID, showing the new key once; disable and enable it. Each change writes a log line with who made it. A disabled station drops off the registered stations, so within a minute its key gets `401`.
 - **The station board's endpoint:** every station of this event, from its own `stations`, with its passport settings, whether it's online (last seen within 120 seconds), its firmware version, saved taps, `reader_ok`, and its last tap. A station without passport settings is "Not in the passport".
-- **Passport settings:** adding or changing a station's name, location and points. Stamp slots follow the order stations were added.
+- **Passport settings:** adding or changing a station's name, location, booth and points. Stamp slots follow the order stations were added. The booth is optional, and says where the map draws the station (below).
 - **The tap log** without `token_uid`, **the stats**, **the export** with its ten columns and the statuses `accepted`, `cooldown` and `no_game`, and **the QR fallback**, which takes a `user_id` only and stores the tap through the same pipeline with `source = qr_fallback`.
 - **The limit** of 60 requests a minute per user, counted in each instance's memory.
 - **The base, apart from the showcase's own** (23 Oct). The base is what the GitHub template will copy (section 3.7). In `apps/event-service`:
@@ -656,18 +657,18 @@ The organizers' screens, the rest of the passport, and the line between the base
   - `src/games/` has one folder per game, each behind one interface: given a tap and its context, a game returns its status and keeps its own record of what it counted, and the pipeline combines the games' statuses as section 3.7 says. The passport moves here first, out of `src/event/tap-pipeline.ts`, with no change in behaviour.
   - `src/showcase/` holds this event's settings: which games run on which stations, and the booth texts.
   - A rule in `.oxlintrc.json` stops `src/event/` importing from `src/games/` or `src/showcase/`, tested in `areas.test.ts` like the existing areas.
-- **The map's data:** what the big screen needs to draw each passport station and its taps, with no names. How it's read is open (section 12).
+- **The map's data** (settled 23 Oct): one read-only endpoint, read by organizers and the map screens only, with each passport station's booth and counts and no names. "The map and connections, in detail" below has the whole design.
 
 **Should:**
 
-- **The map on the big screen,** in the Event screens, which are Ethan's: one screen at our booth showing the hall, each partner station, and a pulse as its taps arrive. A 2D map first, then a 3D model of the floor plan drawn from the same data, once the teachers give us this year's floor plan, loaded on the big screen only. The model is a plain file, which costs no Workers requests; the screen's polls do (section 11.1).
+- **The map on the big screen,** in the Event screens, which are Ethan's: one screen at our booth showing the hall, each passport station at its booth, and a pulse as its taps arrive, polling every 2 seconds. A 2D map first, then a 3D model of the floor plan drawn from the same data, once the teachers give us this year's floor plan, loaded on the big screen only. Both use the same booth names, so moving from 2D to 3D changes only the screen's files. The model is a plain file, which costs no Workers requests; the screen's polls do (section 11.1).
 - **Progress toward the collectible** in the passport, such as "3 of 6", from its stamps.
 
 **Could:**
 
 - **Timed games and timed rules** (moved down by Adam, 23 Oct). An organizer sets a schedule before the day; each line names a game, its stations, a start and an end, and the game's rules for that period. A tap is judged by the games on its station at `tapped_at`, or at its arrival when the station sent none.
 - **The station's own text after a tap,** such as the visitor's name, progress and instructions, only if the station gets an OLED or a TFT (Adam, 23 Oct). Which screen is Zi Tao's call. It's an optional field in the tap's answer (agreement 6.1) that the Event Service fills in its hand-off answer (11.2), so it needs Ethan's approval. Old stations ignore it, as the station contract already says.
-- **Connections between visitors,** second after the map (Julian, 23 Oct): counts, and an anonymous web of tag-to-tag links on the big screen, with no names, for PDPA. Agreement section 12 puts dual-tap connections out of scope, so this needs a change there, and how two tokens connect is open (section 12). It would be a second game under `src/games/`.
+- **Connections between participants,** second after the map (Julian, 23 Oct): counts, and an anonymous web of links on the map, with no names, for PDPA. Two participants connect by tapping at the same connection point within a few seconds of each other (settled 23 Oct, "The map and connections, in detail" below). It's a second game under `src/games/`. Agreement section 12 puts dual-tap connections out of scope, so this needs a change there, made once the map is done. Whether a connection point is one station or two, and the details that follow from it, are open (section 12).
 - **Token types,** such as role or prize tokens, kept as this event's own data, since one token visits many events.
 - **A theme for the showcase's screens,** from the showcase's theme, which we ask the teachers, with partner groups' logos fitting into it. Ethan's, and the screens' share of the line between the base and the showcase's own.
 - **Other game ideas at our booth,** third after connections: custom tokens, a competitive variant, a role-playing variant, and the prototypes that led to the final design. Shown as mock-ups, unless there's time to build one.
@@ -677,7 +678,104 @@ The organizers' screens, the rest of the passport, and the line between the base
 
 **Dropped on 23 Oct:** the leaderboard, the bonus that moved to the quietest area every 20 minutes, and points shown on the station. **Not before the showcase:** more than one event in one Event Service (agreement section 12).
 
-Done when, on production, an organizer creates a station, sets it up in the passport and watches its taps arrive, then disables it and sees its key refused within a minute, and the export's columns match the API agreement. The passport runs from `src/games/` with the existing tests passing unchanged, `areas.test.ts` fails an import of a game from `src/event/`, and the map's data, read as the big screen will read it, shows a new tap within one poll.
+Done when, on production, an organizer creates a station, sets it up in the passport and watches its taps arrive, then disables it and sees its key refused within a minute, and the export's columns match the API agreement. The passport runs from `src/games/` with the existing tests passing unchanged, `areas.test.ts` fails an import of a game from `src/event/`, and the map's data, read with a map screen's login, shows the station at the booth its organizer set and a new tap within one poll.
+
+#### The map and connections, in detail
+
+Settled by Adam on 23 Oct, after the meeting. Connections are a Could, built after the map, but their rule is settled now because it shapes the game interface that is a Must.
+
+##### Problem
+
+Julian wants the showcase shown from end to end: a participant taps at a partner's booth, and the screen at our booth shows it happen. Today the only reads that cover stations and their taps are the organizers' station board (agreement 9.2) and stats (9.5). A public screen would then hold an organizer's login, which can disable stations and log taps for other people, and it would read two endpoints on every poll. Nothing says where a station stands in the hall, and the floor plan isn't known yet. For connections, the agreement leaves dual taps out of scope, and nothing says how two participants connect without a phone, or how the screen shows a web of links without showing who met whom (PDPA).
+
+##### Solution
+
+The Event Service gets one read-only endpoint for the map. It lists every passport station with its booth and counts, and never a name. Only organizers and the users on a short list of map screens may read it. The screen at our booth logs in as one of those users, so a leaked login there can read the map and nothing else. The screen's own floor plan, in 2D and later in 3D, names each booth and says where it is. Each station's passport settings say which booth it stands at, so an organizer can move a station on the day without a deploy. The screen polls every 2 seconds and pulses a station when its count of stored taps goes up.
+
+Two participants connect by tapping their tokens at the same connection point within a few seconds of each other. A connection point is one station, or a few stations linked to act as one, used only for connections. Once connections are built, the same endpoint adds a connection count and an anonymous web, and the screen redraws the web without marking which link is new.
+
+##### User stories
+
+1. As a participant, I want my tap at a partner's booth to show on the map at our booth within a few seconds, so that I can see the system respond to me.
+2. As a participant, I want the map to show no names, so that standing near the screen tells nobody where I have been.
+3. As a participant who taps again during the cooldown, I want the map to pulse anyway, so that the screen doesn't look broken when I try it.
+4. As a participant, I want the map to show how many people have visited each booth, so that I can see which booths are busy.
+5. As a partner group, I want our booth's pulse and count on the map, so that visitors at the GeekyKey booth see our booth is active.
+6. As an organizer, I want to set which booth a station stands at in its passport settings, so that the map draws it in the right place.
+7. As an organizer, I want to move a station to another booth on the day without a deploy, so that a late change of layout doesn't need a pull request during the freeze.
+8. As an organizer, I want a passport station with no booth, or a booth name the floor plan doesn't know, to show beside the map rather than vanish, so that I notice and fix it.
+9. As an organizer, I want a disabled station to stay on the map, marked and with no pulse, so that its counts are still shown and its state is clear.
+10. As an organizer, I want to read the map's data with my own login, so that I can check it from the desk.
+11. As Adam, I want to add the booth screen's user to a list of map screens, so that it can read the map without being an organizer.
+12. As Adam, I want any other user who asks for the map to get `forbidden`, so that participants' phones don't poll it all day.
+13. As the person running our booth, I want the map screen's login to be unable to disable a station or log a tap, so that a screen left in public is no risk to the event.
+14. As Ethan's team, I want one endpoint with everything the map draws, so that each poll is one request.
+15. As Ethan's team, I want the booth names in the endpoint to match the booth names in our floor plan files, so that 2D and 3D draw from the same data.
+16. As Ethan's team, I want to swap the 2D plan for the 3D model without any change to the Event Service, so that the model can arrive late.
+17. As Ethan's team, I want a stored-tap count per station, so that the screen can tell a new tap by comparing two polls.
+18. As Ethan's team, I want the map's poll to stay well inside the 60 requests a minute per user, so that the screen never gets `rate_limited`.
+19. As GeeksHacking, I want the map's requests counted at the rehearsal, so that we know before the day whether to pay for Workers Paid.
+20. As a participant, I want to connect with someone by tapping our tokens at a connection point together, so that meeting someone at the showcase leaves a mark.
+21. As a participant, I want a connection to need no phone, so that the token does something a phone can't.
+22. As a participant with several tokens, I want my own tokens never to connect to each other, so that the count means people met.
+23. As a participant, I want tapping with the same person again to add nothing, so that the web shows who has met, not how often.
+24. As a participant, I want two strangers who happen to tap near me not to be connected to me, so that the web is honest.
+25. As a participant, I want the web on the map to give no hint of which link is mine, so that someone who watched us tap can't follow my other links.
+26. As a guest, I want to connect like anyone else, so that logging in with one tap costs me nothing.
+27. As Julian, I want connections shown as counts and an anonymous web, never who met whom, so that the showcase stays inside PDPA.
+28. As an organizer, I want a tap at a connection point to count only for connections, so that the passport's stamps and points stay as they are.
+29. As a builder of the next event, I want connections to be a game in the games folder, with its connection points in the event's own settings, so that the template keeps it or drops it without touching the base.
+30. As a builder of the next event, I want the game interface to let a game read other users' recent taps at its own stations, so that games that pair people need no change to the base.
+
+##### Implementation decisions
+
+The map's data:
+
+- **One new endpoint on the Event Service,** with its path and shape fixed in a change to agreement section 9, which Ethan approves before the screen is built. A suggested path is `GET /api/v1/map`.
+- **Its shape:** for each passport station, in stamp-slot order, its station ID, its name in the passport, its booth or `null`, whether it is disabled, its count of stored taps (`accepted` and `cooldown`), its unique participants, and its last tap's time. It gives no user IDs, user names or token IDs.
+- **Who may read it:** organizers, and the users on a new setting that lists the map screens' user IDs, read once at start-up like the organizers' list. Anyone else signed in gets `forbidden`, and no session gets `unauthenticated`. It counts toward the user's 60 requests a minute; at one poll every 2 seconds the screen makes 30.
+- **The booth** is a new optional field in passport settings (agreement 9.1), shown in the station board's passport object (9.2) and in the map's data. It is free text. The screen matches it to a booth name in its floor plan, and treats a name it doesn't know like a missing booth. The existing `location` stays the text participants read in the passport.
+- **The floor plan is the screen's own,** as static files in the Event screens: a 2D plan first, then a 3D model, both naming the same booths. The Event Service stores no coordinates.
+- **A pulse** is the screen seeing a station's stored-tap count go up between two polls.
+- **Polling every 2 seconds** while the screen is shown. WebSockets and server-sent events stay out (agreement 12). An open socket bills Cloud Run for as long as it is open, and Cloud Run's instances share nothing, so a tap stored on one instance would have to be found by another. Workers Paid is the fallback if the day's requests don't fit (section 11.1).
+
+Connections, built after the map:
+
+- **A connection is between two users, never two tokens.** A user can't connect to themselves, and a pair connects once.
+- **The rule, per connection point:** taps by exactly two different users within the window make a connection. A third user inside the same window makes none. Taps are compared by `tapped_at`, from the station's own clock, never by `taps.id` or arrival order, since saved taps arrive late (section 3.7).
+- **A connection point** is one station or a few linked ones, listed in this event's settings under `src/showcase/`. Its stations aren't in the passport, so the passport ignores their taps.
+- **Every tap at a connection point gets `accepted`** from the connection game, whether or not it pairs, since a tap's status is fixed when it arrives and taps can't be edited (agreement 12). The connection is the game's own record, written when the later of the two taps is stored. The first tap's status never changes.
+- **Two taps arriving at once,** on two Cloud Run instances or from two linked stations, must not both miss each other. The check reads the connection point's recent taps under a lock (`FOR UPDATE`, as TiDB needs for lock-then-read).
+- **The game interface** in `src/games/` gives a game the tap, its station and a way to read other users' recent taps at the game's own stations, and the game writes its own record in the same transaction. The passport, which needs none of this, keeps its behaviour.
+- **On the map,** the endpoint adds the connection count and the web's links between anonymous nodes. The screen redraws the web without marking new links, and the pulse stays on the station.
+- **Agreement section 12** drops "dual-tap connections" from its list in the same change that adds them. That change waits until the map is done.
+
+##### Testing decisions
+
+- **One seam, the Event Service's HTTP app,** as `testApp()` gives it, against the Docker TiDB. A test calls the endpoints the screens and the GeekyKey Service call, and checks only what they answer. It never checks a query, a table's columns or a module's insides.
+- **The map's data:** like `me-routes.test.ts`, write stations, passport settings and taps straight into the tables, then read the endpoint. That covers each status's count, unique participants, stamp-slot order, a disabled station, a missing booth, and the absence of any user or token ID in the body.
+- **Who may read it:** an organizer and a listed map screen get `200`; another user gets `forbidden`; no session gets `unauthenticated`.
+- **The booth:** set through the passport settings endpoint, then read on the map and on the station board.
+- **A tap end to end:** sent through the hand-off route, as `handoff-routes.test.ts` does, and seen in the next read of the map. This is the Done-when line.
+- **Connections, when built,** go through the hand-off route too: two users within the window connect; one user's two tokens don't; three users in the window make none; a pair tapping again adds none; two taps sent in the opposite order to their `tapped_at` still connect; and every tap at a connection point answers `accepted`.
+- **The passport's move to `src/games/`** is checked by the existing `tap-pipeline.test.ts` passing unchanged. The import rule is checked in `areas.test.ts`, as today.
+- **The screens** are tested by Ethan's team against the agreement's shapes, as for the other screens.
+
+##### Out of scope
+
+- Push to the screen: WebSockets, server-sent events and webhooks.
+- The map on participants' phones at the showcase.
+- Names, user IDs or token IDs anywhere on the map.
+- Connecting by phone, in any form. It goes against the teacher's point that GeekyKey shouldn't be something a phone could do alone, and iPhone Safari can't read NFC from the web.
+- Marking which link in the web is new.
+- Coordinates in the Event Service, or a way to edit the floor plan from a screen.
+- The leaderboard (dropped on 23 Oct).
+
+##### Further notes
+
+- The layout of a connection point is open, for the group and Julian (section 12): one station both people tap, or two linked stations side by side, one each. The rule above covers both, so the choice is about hardware and the ritual at the booth.
+- With it, and also open: the window's length, which two stations need longer, since their clocks are each set from `server_time` with no NTP; whether a tap with no `tapped_at` can pair (suggested: no); what the second tap's answer and beep say, given that the first tap is answered before anyone knows a pair is coming, and that station text waits on an OLED or a TFT; how the web's anonymous nodes are named so the screen keeps a steady layout between polls without user IDs; and whether a participant sees their own connection count in the passport.
+- This year's floor plan is still to come from the teachers (section 12). Until then the 2D plan can use the layout we know.
 
 ### Checkpoint 8. Ready for the event
 
@@ -816,6 +914,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 - **Access:** none on Cloudflare (Julian, 1 Oct 2026); his screens deploy when his pull requests merge, and roll back by reverting. Logs Viewer on Google Cloud, for the Event Service's logs, and no deploy role there.
 - **Install Docker** to run the backend locally.
 - **The Firebase login on both sets of screens,** now that the check has passed (checkpoint 5, FRO-33).
+- **The map** (checkpoint 7): approve the agreement change that adds the map's endpoint and the passport's `booth`, then build the map with a floor plan whose booth names match.
 - **On the day:** watch the screens and roll them back by reverting; a second pair of eyes on the Event Service's logs; read any query Adam runs to change data; at the desk whenever Adam isn't; an organizer who disables and enables stations, and a GeekyKey admin who releases found tokens.
 
 ### Zi Tao
@@ -903,10 +1002,10 @@ Sources for section 10: [How do we notice trouble on event day, and who watches?
 
 ### 11.1 Staying on the free plans
 
-**Cloudflare.** GeeksHacking's account stays on the free plan, and Adam accepts it for the showcase (7 Oct), because fewer people are expected than the worst case.
+**Cloudflare.** GeeksHacking's account stays on the free plan, and Adam accepts it for the showcase (7 Oct), because fewer people are expected than the worst case. Since 23 Oct, GeeksHacking is open to paying for Workers Paid if the day won't fit (Adam), so the request count no longer limits the design. The rehearsal still measures it.
 
 - **What counts** against the 100,000 Workers requests a day, shared by every Worker on the account and reset at 08:00 Singapore time: taps and heartbeats at `key-api.`, the GeekyKey screens' calls, and every passport and organizer poll that `event-web` forwards to Cloud Run. Only plain files are free. A showcase day should use about 60,000 to 90,000, mostly the organizers' screens, which poll all day ([the estimate](assets/message-to-julian-workers-requests.md), part 3). Going over stops every Worker on the account until 08:00 the next day: stations keep their taps, but nobody gets a stamp.
-- **The big screen** (checkpoint 7, 23 Oct) adds its own polls: about 10,800 in 6 hours at one every 2 seconds, or 4,320 at one every 5 seconds, and twice that if each poll reads two endpoints. A 3D model of the floor plan is a plain file, which Cloudflare serves free and doesn't count. The stress test and the rehearsal include the big screen.
+- **The big screen** (checkpoint 7, 23 Oct) adds its own polls: one endpoint every 2 seconds, about 10,800 in 6 hours. With the day's upper estimate of 90,000, that's just over the 100,000, which is why Workers Paid is the fallback. Participants' phones can't read the map, so it adds nothing else. A 3D model of the floor plan is a plain file, which Cloudflare serves free and doesn't count. The stress test and the rehearsal include the big screen.
 - **What we measure:** the passport poll at checkpoint 5 (done 22 Oct, below), and a whole day at the rehearsal. Also our log events against Workers Logs' 200,000 a day, now that `tap_stored` is written on Cloud Run. The GeekyKey Service's CPU time was measured at checkpoint 4 (below).
 - **The GeekyKey Service's CPU time** (BAC-45, 19 Oct). The free plan allows a request 10 ms of CPU. Cloudflare lets a Worker go over now and then, but stops requests with error 1102 once it goes over most of the time. On production, the 500-tap batch used 18 ms, the single taps 5 to 22 ms and the heartbeat 7 ms, and every request finished. More requests to a throwaway copy of the Worker on Adam's own account found two causes:
   - Zod's checks of a batch's 500 taps, and of the Event Service's 500 results, were most of a batch's own work. A plain check is to run first, with Zod checking only what it isn't sure of (PR #82, in review). The median batch fell from 12 to 15 ms to 6 or 7 ms.
@@ -916,7 +1015,7 @@ Sources for section 10: [How do we notice trouble on event day, and who watches?
   - The Event screens also poll `/me` every 10 seconds while nobody is logged in, for example on the login page. Each of those polls answers `401` in 2 to 3 ms on Cloud Run, but it is still a Workers request. The first of the hour took 980 ms, while Cloud Run started an instance.
 - **Outside requests:** a station request makes up to three calls to Cloud Run (the registered stations on a fill, the owners and the hand-off), far under the free plan's 50. Before the switch the GeekyKey Service uses no cache store, so no other free limit applies.
 - **Ways to fit, if the rehearsal says so:** poll the organizers' screens less often, or poll only while a screen is on show, which TanStack Query already does for hidden tabs. A push design was ruled out by the mentors on 24 Sep unless a game needs it.
-- **Or pay.** Workers Paid starts at $5 a month. A flood from many addresses could still use up the free day, which the rate limits can't stop. With the free plan accepted, the 29 Sep decision on Paid by 11 Nov is moot unless the rehearsal passes about 70,000 requests.
+- **Or pay.** Workers Paid starts at $5 a month, and GeeksHacking is open to it (23 Oct). A flood from many addresses could still use up the free day, which the rate limits can't stop. With the free plan accepted, the 29 Sep decision on Paid by 11 Nov is moot unless the rehearsal passes about 70,000 requests.
 
 **Cloud Run.** The free tier is 2 million requests and 180,000 vCPU-seconds a month, shared across GeeksHacking's billing account, and a showcase day fits. One warm instance on event days costs cents. A budget alert goes to Julian and Adam (still to confirm, 8 Oct).
 
@@ -990,8 +1089,9 @@ The extra time goes on Cloudflare's choice of data centre. A Worker runs in the 
 
 **Open, for Adam:**
 
-- **How the big screen reads the map's data** (checkpoint 7). The station board (agreement 9.2) has each station's location and last tap, and the stats (9.5) count each passport station's taps and participants, so a first map needs no change to the agreement. But the screen at a public booth would then hold an organizer's login, which can disable stations, and each poll reads two endpoints. The other way is one read-only endpoint with counts and no names, read once per poll, which is a change to the agreement and needs Ethan's approval. The spec suggests the endpoint. Settle it before Ethan's team builds the map.
-- **How two tokens connect,** if connections between visitors go ahead (checkpoint 7, Could). Without a phone: two tokens tapped on one station within a few seconds become a link, though at a busy station two strangers can pair, which the station's own text could prevent ("Now tap your partner's key"). With a phone: one visitor's phone reads the other's token, which a phone can do on its own, the teacher's objection. Either way, nothing may rely on `taps.id` order to pair two taps (section 3.7). Settle it once the map is done.
+- ~~**How the big screen reads the map's data** (checkpoint 7). The station board (agreement 9.2) has each station's location and last tap, and the stats (9.5) count each passport station's taps and participants, so a first map needs no change to the agreement. But the screen at a public booth would then hold an organizer's login, which can disable stations, and each poll reads two endpoints. The other way is one read-only endpoint with counts and no names, read once per poll, which is a change to the agreement and needs Ethan's approval. The spec suggests the endpoint. Settle it before Ethan's team builds the map.~~ *Settled 23 Oct* (Adam): one read-only endpoint, read by organizers and a list of map screens only, polled every 2 seconds. Each station's booth is a new optional passport setting, and the floor plan is the screen's own. Checkpoint 7, "The map and connections, in detail", has the rest. It needs Ethan's approval of the agreement change.
+- ~~**How two tokens connect,** if connections between visitors go ahead (checkpoint 7, Could). Without a phone: two tokens tapped on one station within a few seconds become a link, though at a busy station two strangers can pair, which the station's own text could prevent ("Now tap your partner's key"). With a phone: one visitor's phone reads the other's token, which a phone can do on its own, the teacher's objection. Either way, nothing may rely on `taps.id` order to pair two taps (section 3.7). Settle it once the map is done.~~ *Settled 23 Oct* (Adam): no phone. Two users connect by tapping at the same connection point within a few seconds, a pair connects once, and every tap there is `accepted`. Checkpoint 7, "The map and connections, in detail", has the rule.
+- **How a connection point is laid out,** for the group and Julian (Adam, 23 Oct): one station both people tap, or two linked stations side by side, one each. Two stations stop two people on the same side pairing, and their layout tells people what to do without station text, but they cost a second box (or a second reader, Zi Tao's call) and need a longer window, since their two clocks differ. With it: the window's length, whether a tap with no `tapped_at` can pair, what the second tap's answer and beep say, how the web's anonymous nodes are named, and whether the passport shows a participant's own connection count. Settle it before connections are built, after the map.
 
 - **Running the GeekyKey Service's Worker near Cloud Run** (BAC-38, 21 Oct; tried in BAC-63). A tap that Cloudflare answers in Europe took up to 3.73 s, against 0.68 s through Singapore, because the Worker's two calls to Cloud Run start from Europe (section 11.3). A placement hint runs the Worker in the data centre closest to a cloud region, whichever data centre answered the station. For us that is `"placement": { "region": "gcp:asia-southeast1" }` in the Worker's `wrangler.jsonc`, and Cloudflare offers it on every Workers plan. It's untested here. The choices: try it, on Adam's own account first as BAC-44 did, then time taps again through a European data centre; or leave it and accept that a tap through Europe plus a cold start shows `Tap saved` / `Will send later`. Settle it before the rehearsal.
 - **The cooldown.** The meeting suggested 15 minutes instead of 5. Every accepted tap after the cooldown earns the station's points again, so the cooldown sets how often one person can earn at one station: 12 times an hour at 5 minutes, 4 at 15. It's one setting, `TAP_COOLDOWN_SECONDS`, so it can change up to the freeze.
