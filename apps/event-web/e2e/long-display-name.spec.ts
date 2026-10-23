@@ -6,11 +6,14 @@ import { expect, test, type Page } from "@playwright/test";
   name from sm up, and agreement 8.7 allows 30 characters in any script, so a Google name is
   often wider than the room the row has left for it. The row has to give way at the name, not at
   the wordmark: a wordmark squeezed below its own text runs under the Home tab.
+
+  The organiser console has the same name in a sidebar row, which is narrower still.
 */
 
 const LONG_NAME = "Lee Jun Lei Adam Student";
 /** The ticket's three widths, plus the phone width CLAUDE.md's definition of done asks for. */
-const WIDTHS = [360, 768, 820, 1280];
+const PARTICIPANT_WIDTHS = [360, 768, 820, 1280];
+const CONSOLE_WIDTHS = [360, 768, 1023, 1280];
 const THEMES = ["light", "dark"] as const;
 
 interface HeaderGeometry {
@@ -28,23 +31,49 @@ interface HeaderGeometry {
   accountText: string;
 }
 
+interface ConsoleGeometry {
+  theme: string;
+  viewportWidth: number;
+  inSidebar: boolean;
+  containerClientWidth: number;
+  containerScrollWidth: number;
+  wordmarkRight: number;
+  wordmarkTextOverflow: number;
+  accountLeft: number;
+  accountRight: number;
+  containerRight: number;
+  accountText: string;
+}
+
 async function signInAsParticipant(page: Page) {
   await page.goto("/login");
   await page.getByRole("button", { name: "Use this account" }).click();
   await expect(page.getByRole("heading", { name: "Alex Tan" })).toBeVisible();
 }
 
-/** Sets the name through the passport, the way a Google user's own name arrives (agreement 8.7). */
-async function setDisplayName(page: Page) {
-  await page.locator("header").getByRole("link", { name: "Passport" }).click();
+/**
+ * The mock's session key, which CLAUDE.md documents. The dev-login form would need a Radix
+ * Select, and CLAUDE.md notes that it ignores a synthetic click.
+ */
+async function signInAsOrganiser(page: Page) {
+  await page.addInitScript(() => sessionStorage.setItem("gk-mock-session", "dev-organizer-1"));
+}
+
+/** Sets the name through the passport's Change name, the way a Google name arrives (agreement 8.7). */
+async function changeName(page: Page, name: string) {
   await page.getByRole("button", { name: "Change name" }).click();
   const dialog = page.getByRole("dialog", { name: "Change name" });
-  await dialog.getByRole("textbox").fill(LONG_NAME);
+  await dialog.getByRole("textbox").fill(name);
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
-  // A link, not a reload: the mock keeps the new name in memory for this page only.
-  await page.locator("header").getByRole("link", { name: "Home", exact: true }).click();
-  await expect(page).toHaveURL(/\/$/);
+}
+
+/** Waits for React to put the page in the theme, which comes from the system preference (lib/theme.ts). */
+async function applyTheme(page: Page, theme: (typeof THEMES)[number]) {
+  await page.emulateMedia({ colorScheme: theme });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
+    .toBe(theme === "dark");
 }
 
 function readHeader(page: Page) {
@@ -76,19 +105,47 @@ function readHeader(page: Page) {
   });
 }
 
+/** Reads whichever console container is showing: the sidebar from lg up, the phone header below it. */
+function readConsole(page: Page) {
+  return page.evaluate((): ConsoleGeometry => {
+    const shown = (el: Element | null) => !!el && el.getClientRects().length > 0;
+    const aside = document.querySelector<HTMLElement>("aside");
+    const inSidebar = shown(aside);
+    const container = (inSidebar ? aside : document.querySelector<HTMLElement>("header"))!;
+    const wordmark = container.querySelector<HTMLElement>(
+      'a[aria-label="Organiser console home"]',
+    )!;
+    const wordmarkText = wordmark.querySelector<HTMLElement>("span")!;
+    const account = container.querySelector<HTMLElement>('button[aria-label="Account menu"]')!;
+
+    return {
+      theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+      viewportWidth: window.innerWidth,
+      inSidebar,
+      containerClientWidth: container.clientWidth,
+      containerScrollWidth: container.scrollWidth,
+      wordmarkRight: wordmark.getBoundingClientRect().right,
+      wordmarkTextOverflow: wordmarkText.scrollWidth - wordmarkText.clientWidth,
+      accountLeft: account.getBoundingClientRect().left,
+      accountRight: account.getBoundingClientRect().right,
+      containerRight: container.getBoundingClientRect().right,
+      accountText: account.textContent ?? "",
+    };
+  });
+}
+
 test("a long display name leaves the header's tabs clear", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await signInAsParticipant(page);
-  await setDisplayName(page);
+  await page.locator("header").getByRole("link", { name: "Passport" }).click();
+  await changeName(page, LONG_NAME);
+  // A link, not a reload: the mock keeps the new name in memory for this page only.
+  await page.locator("header").getByRole("link", { name: "Home", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
 
   for (const theme of THEMES) {
-    await page.emulateMedia({ colorScheme: theme });
-    // The theme comes from the system preference (lib/theme.ts), so wait for the class React
-    // sets before measuring anything.
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
-      .toBe(theme === "dark");
-    for (const width of WIDTHS) {
+    await applyTheme(page, theme);
+    for (const width of PARTICIPANT_WIDTHS) {
       await page.setViewportSize({ width, height: 900 });
       const where = `${width}px in the ${theme} theme`;
       const header = await readHeader(page);
@@ -127,4 +184,51 @@ test("a long display name leaves the header's tabs clear", async ({ page }) => {
   // The full name is the reason the header may cut it short, so it has to be readable.
   await page.getByRole("button", { name: "Account menu" }).click();
   await expect(page.getByRole("menu")).toContainText(LONG_NAME);
+});
+
+test("the organiser console gives a long name the same room", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signInAsOrganiser(page);
+  // The organiser has no Passport tab, so the name is set before opening the console, and the
+  // console opens through the account menu rather than a reload that would drop the mock's data.
+  await page.goto("/passport");
+  await expect(page.getByRole("button", { name: "Change name" })).toBeVisible();
+  await changeName(page, LONG_NAME);
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("menuitem", { name: "Organiser console" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+  for (const theme of THEMES) {
+    await applyTheme(page, theme);
+    for (const width of CONSOLE_WIDTHS) {
+      await page.setViewportSize({ width, height: 900 });
+      const where = `${width}px in the ${theme} theme`;
+      const shell = await readConsole(page);
+
+      expect(shell.theme, `the page is in the ${theme} theme at ${where}`).toBe(theme);
+      expect(shell.accountText, `the account menu keeps the whole name at ${where}`).toContain(
+        LONG_NAME,
+      );
+      expect(
+        shell.wordmarkTextOverflow,
+        `the wordmark's text spills out of its box at ${where}`,
+      ).toBeLessThanOrEqual(1);
+      // The sidebar is 15rem wide, so a name that widens the account menu overflows it.
+      expect(
+        shell.containerScrollWidth,
+        `the console's ${shell.inSidebar ? "sidebar" : "header"} overflows at ${where}`,
+      ).toBeLessThanOrEqual(shell.containerClientWidth + 1);
+      expect(
+        shell.accountRight,
+        `the account menu runs past its row at ${where}`,
+      ).toBeLessThanOrEqual(shell.containerRight + 1);
+      if (!shell.inSidebar) {
+        // Just below lg the name shares a row with the wordmark.
+        expect(
+          shell.wordmarkRight,
+          `the wordmark runs into the account menu at ${where}`,
+        ).toBeLessThanOrEqual(shell.accountLeft + 0.5);
+      }
+    }
+  }
 });
