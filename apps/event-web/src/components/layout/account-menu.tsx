@@ -31,11 +31,18 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="gap-2 px-2" aria-label="Account menu">
+        {/*
+          A display name can be 30 characters (agreement 8.7), and both callers put this button in
+          a row with less room than a long name asks for. The button gives way first: min-w-0 here
+          and on each flex parent, then the name truncates. The dropdown below has the whole name.
+        */}
+        <Button variant="ghost" className="min-w-0 gap-2 px-2" aria-label="Account menu">
           <span className="grid h-7 w-7 place-items-center rounded-md bg-secondary font-mono text-xs font-semibold text-secondary-foreground">
             {initialsOf(user.display_name)}
           </span>
-          <span className="hidden text-sm sm:inline">{user.display_name ?? "Participant"}</span>
+          <span className="hidden min-w-0 truncate text-sm sm:block">
+            {user.display_name ?? "Participant"}
+          </span>
           <CaretDown className="hidden sm:inline" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
