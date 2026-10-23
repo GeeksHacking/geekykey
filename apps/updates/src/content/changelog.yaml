@@ -1432,3 +1432,24 @@
     limits turning requests away. Checkpoint 7, the Event Service's features for organizers, comes
     next.
 
+- id: showcase-plan-off-the-phone
+  date: 2026-10-23
+  area: research
+  change: >-
+    Our capstone teacher found GeekyKey too generic, and pointed out that a phone could do
+    everything it does so far, so we planned the showcase with that in mind. The plan now needs a
+    phone only to claim a token. During the event, the stations' light, sound and screen, and a big
+    screen at our booth, show what happens to everyone nearby at once.
+
+- id: checkpoint-7-planned
+  date: 2026-10-23
+  area: research
+  change: >-
+    Checkpoint 7, the Event Service's features, now has a plan, and it's one of the biggest
+    checkpoints in the series. Besides the organizer screens in the spec, each station can run a
+    different game at set times, a station can show the visitor's name and progress after a tap,
+    and a big screen shows a live map of the hall with a leaderboard. In the code, the base that
+    every event gets stays apart from one event's own games and settings. The trade-offs we
+    accept: changes to the API agreement for the station's text and the leaderboard, more requests
+    against the free Workers plan, and a bigger station screen, a 3D model of the hall and games
+    other teams can plug in only if time allows.
