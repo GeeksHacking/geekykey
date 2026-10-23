@@ -120,27 +120,32 @@ From Paris, a call to Cloud Run in Singapore cost at least 0.3 s, and the Worker
 
 ### Production, without the hint
 
-The production rounds ran on production as it is today, first 25 through the relay (`send europe-before 25 europe`), then 25 straight from the server (`send singapore-before 25`). A single round through the relay came before them, in [europe-try.tsv](edge-timing/europe-try.tsv). Every request is in [europe-before.tsv](edge-timing/europe-before.tsv) and [singapore-before.tsv](edge-timing/singapore-before.tsv). Seconds, as the median and the range:
+The production rounds ran on production as it is today, first 25 through the relay (`send europe-before 25 europe`), then 25 straight from the server (`send singapore-before 25`). A single round through the relay came before them, in [europe-try.tsv](edge-timing/europe-try.tsv). `match` then added Cloud Run's latency to every row, once Adam had signed the server's `gcloud` in again. Every request is in [europe-before.tsv](edge-timing/europe-before.tsv) and [singapore-before.tsv](edge-timing/singapore-before.tsv). Seconds, as the median and the range:
 
-| Answered in | Request | Total |
-|---|---|---|
-| CDG, through the relay | event-api health | 0.34 (0.31 to 0.39) |
-| CDG, through the relay | key-api health | 0.01 (0.00 to 0.11) |
-| CDG, through the relay | key-api tap | 2.19 (0.73 to 2.39) |
-| SIN, from the server | event-api health | 0.12 (0.09 to 0.21) |
-| SIN, from the server | key-api health | 0.11 (0.06 to 0.33) |
-| SIN, from the server | key-api tap | 0.32 (0.20 to 0.55) |
+| Answered in | Request | Total | Cloud Run | Before Cloud Run |
+|---|---|---|---|---|
+| CDG, through the relay | event-api health | 0.34 (0.31 to 0.39) | 0.00 (0.00 to 0.01) | 0.33 (0.31 to 0.38) |
+| CDG, through the relay | key-api health | 0.01 (0.00 to 0.11) | none | 0.01 (0.00 to 0.11) |
+| CDG, through the relay | key-api tap | 2.19 (0.73 to 2.39) | 0.11 (0.09 to 0.24) | 2.08 (0.64 to 2.27) |
+| SIN, from the server | event-api health | 0.12 (0.09 to 0.21) | 0.00 (0.00 to 0.01) | 0.12 (0.09 to 0.21) |
+| SIN, from the server | key-api health | 0.11 (0.06 to 0.33) | none | 0.11 (0.06 to 0.33) |
+| SIN, from the server | key-api tap | 0.32 (0.20 to 0.55) | 0.10 (0.09 to 0.12) | 0.21 (0.10 to 0.44) |
 
-The single round's tap through CDG took 4.08 s and got `503`, so it ran out the Worker's 4 seconds. The script read the tap's status from `error.code`, which the Worker doesn't send, so the file doesn't say which `503` it was. The script now reads `error`, as the API agreement has it. Every other tap got `200`. In each set one was `accepted`, round 20 through CDG and round 25 from the server, and the rest were `cooldown`. Two taps through CDG took under 0.8 s, round 20 (the accepted one) at 0.73 s and round 23 at 0.77 s, against 1.84 to 2.39 s for the other 23. Nothing here explains the two fast ones.
+Every tap but one got `200`. In each set one was `accepted`, round 20 through CDG and round 25 from the server, and the rest were `cooldown`. Cloud Run spent about the same on a tap through either data centre.
 
 On 21 Oct, taps through CDG took 2.65 to 3.73 s, each with a new connection from the Mac. Today's 0.73 to 2.39 s leave out the new connection and the trip to Paris, so the two sets don't compare directly.
 
-Through CDG the Worker's own health check took 0.01 s at the median, since the relay and the Worker run in the same data centre. So most of a tap's 2.19 s through CDG goes after the Worker starts, on its calls to Cloud Run from Paris. That's more than three times the probe's 0.65 s for two calls. Cloud Run's request log would show where the rest goes. These rows aren't matched to it yet, because the server's `gcloud` login had expired. Cloud Run keeps the log for 30 days, so `match` can still add it:
+**One of the Worker's calls is late.** Through CDG the Worker's own health check took 0.01 s at the median, since the relay and the Worker run in the same data centre. So nearly all of a tap's 2.08 s before Cloud Run is spent after the Worker starts. Cloud Run's log shows when each of the Worker's calls arrived, and so the gap between one call ending at Cloud Run and the next one arriving:
 
-```
-node .scratch/db-hosting/assets/edge-timing.mjs match .scratch/db-hosting/assets/edge-timing/europe-before.tsv > matched.tsv
-```
+- Through SIN, every gap was 0.01 to 0.04 s.
+- Through CDG, a gap was usually 0.30 to 0.43 s, about one round trip between Paris and Singapore.
+- On 23 of the 25 taps through CDG, one gap was 1.09 to 1.55 s instead. On the 8 taps where the Worker's copy of the stations was full, it came before the hand-off. On the 15 where the Worker filled the copy first, it came before the owner lookup on 13 and before the hand-off on 2.
+- The two taps without a long gap, rounds 20 and 23, are the two that took under 0.8 s.
+
+So BAC-38's finding holds: from Paris, one of the Worker's calls reaches Cloud Run more than a second late, on most taps. The log doesn't say why. With the hint, the calls start near Cloud Run, where the gaps were 0.01 to 0.04 s.
+
+**The tap that ran out the Worker's 4 seconds.** The single round's tap through CDG got `503` after 4.08 s. The script then read a tap's status from `error.code`, which the Worker doesn't send, so the file doesn't say which `503`. It now reads `error`, as the API agreement has it. Cloud Run's log shows why it was slow. The Worker's copy of the stations was empty, and filling it took 1.99 s on Cloud Run, on an instance that had answered a health check 5 seconds earlier, so it wasn't a cold start. A health check doesn't touch the database, so a new TiDB connection may explain it, but the log doesn't say. The owner lookup then arrived at +2.60 s and the hand-off at +4.13 s, after a long gap again, and by then the Worker had answered `503`. Cloud Run stored the tap anyway, at 02:00:34.13 UTC. A station would have kept the tap and sent it again, and the same `client_tap_id` would have come back as a duplicate.
 
 ### Production, with the hint
 
-Not timed yet. After the merge deploys the hint, Adam runs `send europe-after 25 europe` and `send singapore-after 25`, matches both to Cloud Run's log, and checks a tap and a heartbeat from the real station.
+Not timed yet. After the merge deploys the hint, Adam runs `send europe-after 25 europe` and `send singapore-after 25`, matches both to Cloud Run's log, and checks a tap and a heartbeat from the real station. The default test token lost its owner on production between 02:10 and 02:18 UTC on 23 Oct, so it needs claiming again first. An unclaimed token's tap skips the hand-off, and wouldn't compare.

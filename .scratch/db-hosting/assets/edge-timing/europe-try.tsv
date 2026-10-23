@@ -1,3 +1,4 @@
-try	1	event-api health	2026-10-23T02:00:24.675Z					0.431	200		CDG	
-try	1	key-api health	2026-10-23T02:00:27.426Z					0.136	200		CDG	
-try	1	key-api tap	2026-10-23T02:00:29.876Z					4.076	503		CDG	
+label	round	request	sent_at	dns	tcp	tls	first_byte	total	http	tap_status	colo	placement	cloud_run	before_cloud_run	cloud_run_requests
+try	1	event-api health	2026-10-23T02:00:24.675Z					0.431	200		CDG		0.052	0.379	/api/health at +0.215 took 0.052
+try	1	key-api health	2026-10-23T02:00:27.426Z					0.136	200		CDG		0.000	0.136	
+try	1	key-api tap	2026-10-23T02:00:29.876Z					4.076	503		CDG		2.142	1.934	/geekykey/v1/stations at +0.280 took 1.987, /claims-stand-in/v1/owners at +2.596 took 0.018, /geekykey/v1/taps at +4.134 took 0.138
