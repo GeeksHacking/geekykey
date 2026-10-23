@@ -10,7 +10,7 @@ import { formatFileStamp } from "@/lib/format";
 
 /** Section 13 sets both sentences, and the screens use them as they are written there. */
 const ESCAPING_RULE =
-  "A name that starts with =, +, - or @ gets an apostrophe, so a spreadsheet cannot run it as a formula.";
+  "A name that a spreadsheet could run as a formula gets an apostrophe, so it stays text.";
 const REWRITTEN_NOTICE = "Some names were escaped, so this file is not the service's own.";
 
 /** GET /admin/export.csv. The raw tap feed for the Sprint 2 analysis, so it must never be cut. */
@@ -26,12 +26,12 @@ export function ExportButton() {
     let objectUrl: string | null = null;
     try {
       const source = await api.exportCsv();
-      const escaped = escapeSpreadsheetFormulas(await source.text());
+      const { csv, rewritten: fileWasChanged } = escapeSpreadsheetFormulas(await source.text());
       // The service's own file, unless a name had to be escaped.
-      const blob = escaped.rewritten
-        ? new Blob([escaped.csv], { type: source.type || "text/csv;charset=utf-8" })
+      const blob = fileWasChanged
+        ? new Blob([csv], { type: source.type || "text/csv;charset=utf-8" })
         : source;
-      setRewritten(escaped.rewritten);
+      setRewritten(fileWasChanged);
       objectUrl = URL.createObjectURL(blob);
       anchor = document.createElement("a");
       anchor.href = objectUrl;
