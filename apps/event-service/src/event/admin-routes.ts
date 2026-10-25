@@ -1,5 +1,5 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
 import type { Db } from "../db/pool.ts";
@@ -103,26 +103,24 @@ export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps)
     return c.json(await withKey(c.var.db, id, key));
   });
 
-  /**
-   * Disabling or enabling a station (9.9). Only a station in the other state
-   * changes, so doing either twice keeps the first `disabled_at` and writes
-   * no second log line. The GeekyKey Service refuses a disabled station's key,
-   * or accepts an enabled one's again, at its next refresh of the registered
-   * stations.
-   */
-  const setDisabled = (disabled: boolean) => async (c: Context<AppEnv & SessionEnv>) => {
-    const id = c.req.param("id")!;
+  // Disabling or enabling a station (9.9). Only a station in the other state
+  // changes, so doing either twice keeps the first disabled_at and writes no
+  // second log line. The GeekyKey Service refuses a disabled station's key, or
+  // accepts an enabled one's again, at its next refresh of the registered stations.
+  app.post("/stations/:id/:change{disable|enable}", async (c) => {
+    const { id, change } = c.req.param();
+    const disabling = change === "disable";
     const [result] = await c.var.db
       .update(stations)
-      .set({ disabledAt: disabled ? now().toISOString() : null })
+      .set({ disabledAt: disabling ? now().toISOString() : null })
       .where(
         and(
           eq(stations.id, id),
-          disabled ? isNull(stations.disabledAt) : isNotNull(stations.disabledAt),
+          disabling ? isNull(stations.disabledAt) : isNotNull(stations.disabledAt),
         ),
       );
     if (result.affectedRows > 0) {
-      log(disabled ? "station_disabled" : "station_enabled", {
+      log(disabling ? "station_disabled" : "station_enabled", {
         user_id: c.var.user.id,
         station_id: id,
       });
@@ -130,9 +128,7 @@ export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps)
     const station = await loadBoardStation(c.var.db, now(), id);
     if (!station) return c.json({ error: "not_found" }, 404);
     return c.json({ station: stationBody(station) });
-  };
-  app.post("/stations/:id/disable", setDisabled(true));
-  app.post("/stations/:id/enable", setDisabled(false));
+  });
 
   return app;
 }
