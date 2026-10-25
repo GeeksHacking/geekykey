@@ -63,8 +63,9 @@ interface PendingTap extends GameTap {
  * multi-row insert. Every non-duplicate tap is stored, including cooldown
  * ones, so organizers can see repeat taps in the log. The games running at
  * the station judge each tap, and it's stored with their combined status:
- * `no_game` when none runs there, or none counts it. Each stored tap gets a `tap_stored` log line once the transaction commits,
- * so taps lost to a restore can be rebuilt from the logs.
+ * `no_game` when none runs there, or none counts it. Each stored tap gets a
+ * `tap_stored` log line once the transaction commits, so taps lost to a
+ * restore can be rebuilt from the logs.
  *
  * It sees only users, never a token.
  */
@@ -128,9 +129,8 @@ export class TapPipeline {
       // 2. The games at this station judge the rest, one after another on the one connection.
       const context: GameContext = {
         stationId,
-        source,
         tx,
-        cooldown: (judged) => this.#cooldown(tx, stationId, judged),
+        cooldown: (toJudge) => this.#cooldown(tx, stationId, toJudge),
       };
       const gameTaps: GameTap[] = pending.map(({ clientTapId, userId, tappedAt, effectiveAt }) => ({
         clientTapId,
@@ -223,15 +223,15 @@ export class TapPipeline {
   /**
    * The cooldown, which GameContext.cooldown hands the games: a tap is held
    * back when one of the same user's accepted taps at this station, stored or
-   * earlier in `judged`, is inside the window on either side of it. Walking
-   * `judged` in time order means an offline flush is judged by when taps
+   * earlier in `toJudge`, is inside the window on either side of it. Walking
+   * `toJudge` in time order means an offline flush is judged by when taps
    * happened.
    */
-  async #cooldown(tx: Tx, stationId: string, judged: readonly GameTap[]): Promise<boolean[]> {
-    const heldBack = judged.map(() => false);
-    if (judged.length === 0) return heldBack;
-    const accepted = await this.#acceptedTimes(tx, stationId, judged);
-    const inTimeOrder = judged
+  async #cooldown(tx: Tx, stationId: string, toJudge: readonly GameTap[]): Promise<boolean[]> {
+    const heldBack = toJudge.map(() => false);
+    if (toJudge.length === 0) return heldBack;
+    const accepted = await this.#acceptedTimes(tx, stationId, toJudge);
+    const inTimeOrder = toJudge
       .map((tap, index) => ({ tap, index }))
       .sort((a, b) => a.tap.effectiveAt.localeCompare(b.tap.effectiveAt));
     for (const { tap, index } of inTimeOrder) {
@@ -269,16 +269,16 @@ export class TapPipeline {
 
   /**
    * Times of the stored accepted taps at this station, per user, that are
-   * close enough to some tap in `judged` to put it in cooldown. Fetching
+   * close enough to some tap in `toJudge` to put it in cooldown. Fetching
    * every nearby tap, not just the latest, matters for a late offline flush:
    * its taps sit between ones already stored.
    */
   async #acceptedTimes(
     tx: Tx,
     stationId: string,
-    judged: readonly GameTap[],
+    toJudge: readonly GameTap[],
   ): Promise<Map<string, string[]>> {
-    const known = judged.map((p) => ({ userId: p.userId, at: Date.parse(p.effectiveAt) }));
+    const known = toJudge.map((p) => ({ userId: p.userId, at: Date.parse(p.effectiveAt) }));
     if (this.#cooldownMs <= 0) return new Map();
 
     const times = known.map((k) => k.at);

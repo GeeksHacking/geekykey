@@ -1,5 +1,4 @@
 import type { Db } from "../db/pool.ts";
-import type { TapSource } from "./tap-pipeline.ts";
 
 /**
  * The interface every game is behind. The base stores the taps, and knows no
@@ -31,14 +30,13 @@ export interface GameTap {
 
 export interface GameContext {
   stationId: string;
-  source: TapSource;
   /**
    * The ingest's transaction. The station's row is locked, so the station's
    * ingests take turns, and the taps are written in it after every game has
    * judged them. A game reads with `FOR UPDATE`, as the pipeline does, to see
-   * the latest rows (TapPipeline's #lockStation says why), and writes its own
-   * record of what it counted here, so the record is stored with the taps or
-   * not at all.
+   * the latest rows (tap-pipeline.ts says why, at #lockStation), and writes
+   * its own record of what it counted here, so the record is stored with the
+   * taps or not at all.
    */
   tx: Tx;
   /**
