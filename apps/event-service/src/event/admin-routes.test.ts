@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { test } from "vitest";
-import { testApp, testDb } from "../test-helpers.ts";
+import { createHash } from "node:crypto";
+import { onTestFinished, test, vi } from "vitest";
+import { TEST_EVENT_SERVICE_KEY, testApp, testDb } from "../test-helpers.ts";
 import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
@@ -103,7 +104,56 @@ async function harness() {
       ...tap,
     });
 
-  return { db, signIn, getBoard, board, addStation, addTap };
+  /** POST to an organizer endpoint, with a JSON body when there is one. */
+  const post = (path: string, cookie: string, body?: unknown) =>
+    app.request(path, {
+      method: "POST",
+      headers: {
+        Cookie: cookie,
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+
+  /** The registered stations, as the GeekyKey Service fetches them (11.1). */
+  const registered = async (): Promise<RegisteredStation[]> => {
+    const res = await app.request("/geekykey/v1/stations", {
+      headers: { Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}` },
+    });
+    assert.equal(res.status, 200);
+    return ((await res.json()) as { stations: RegisteredStation[] }).stations;
+  };
+
+  return { db, signIn, getBoard, board, addStation, addTap, post, registered };
+}
+
+/** Catches every log line the test's requests write, as parsed JSON. */
+function captureLogs(): () => Record<string, unknown>[] {
+  const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  onTestFinished(() => {
+    logged.mockRestore();
+    errors.mockRestore();
+  });
+  return () =>
+    [...logged.mock.calls, ...errors.mock.calls].map(
+      ([line]) => JSON.parse(line as string) as Record<string, unknown>,
+    );
+}
+
+/** One of the registered stations, as GET /geekykey/v1/stations lists it (11.1). */
+interface RegisteredStation {
+  station_id: string;
+  key_hash: string;
+}
+
+/** A station key's hash, as the GeekyKey Service computes it (the API agreement's 11.1). */
+const sha256 = (key: string) => createHash("sha256").update(key).digest("hex");
+
+/** POST /api/v1/admin/stations and /{id}/key answer the station as the board lists it, and its key. */
+interface StationKeyBody {
+  station: BoardBody["stations"][number];
+  api_key: string;
 }
 
 test("answers unauthenticated when nobody is signed in", async () => {
@@ -231,4 +281,144 @@ test("stations are listed in the order they were created", async () => {
   await addStation("station-b", { createdAt: "2026-10-01T00:00:00.000Z" });
   const ids = (await board()).stations.map((s) => s.id);
   assert.deepEqual(ids, ["station-b", "station-a"]);
+});
+
+test("an organizer creates a station, sees its key once, and its key's hash is registered", async () => {
+  const { signIn, post, registered } = await harness();
+  const res = await post("/api/v1/admin/stations", await signIn(ORGANIZER), { label: "Reader 3" });
+  assert.equal(res.status, 201);
+  const body = (await res.json()) as StationKeyBody;
+  eventStationBoardResponseSchema.parse({ stations: [body.station] });
+
+  assert.match(body.api_key, /^gk_sta_[A-Za-z0-9_-]{43}$/);
+  assert.deepEqual(body.station, {
+    id: body.station.id,
+    label: "Reader 3",
+    created_at: body.station.created_at,
+    disabled_at: null,
+    passport: null,
+    last_seen_at: null,
+    online: false,
+    firmware_version: null,
+    buffered_taps: null,
+    reader_ok: null,
+    last_tap_at: null,
+  });
+  assert.deepEqual(await registered(), [
+    { station_id: body.station.id, key_hash: sha256(body.api_key) },
+  ]);
+});
+
+test("creating a station logs who made it, and the key is never stored, logged or shown again", async () => {
+  const { db, signIn, post, getBoard } = await harness();
+  const cookie = await signIn(ORGANIZER);
+  const logs = captureLogs();
+  const res = await post("/api/v1/admin/stations", cookie, { label: "Reader 3" });
+  const { station, api_key } = (await res.json()) as StationKeyBody;
+
+  assert.deepEqual(logs(), [
+    { severity: "INFO", message: "station_created", user_id: ORGANIZER, station_id: station.id },
+  ]);
+  const [row] = await db.select().from(stations);
+  assert.ok(!JSON.stringify(row).includes(api_key), "the stored row holds the key");
+  const board = await (await getBoard(cookie)).text();
+  assert.ok(board.includes(station.id));
+  assert.ok(!board.includes(api_key), "the board shows the key");
+});
+
+test("replacing a station's key keeps its ID and settings, and registers only the new key's hash", async () => {
+  const { db, signIn, post, registered, board } = await harness();
+  const cookie = await signIn(ORGANIZER);
+  const created = (await (
+    await post("/api/v1/admin/stations", cookie, { label: "Reader 3" })
+  ).json()) as StationKeyBody;
+  await db.insert(passportStations).values({
+    stationId: created.station.id,
+    name: "3D Printing Booth",
+    addedAt: "2026-10-02T03:00:00.000Z",
+  });
+  const before = (await board()).stations[0];
+
+  const logs = captureLogs();
+  const res = await post(`/api/v1/admin/stations/${created.station.id}/key`, cookie);
+  assert.equal(res.status, 200);
+  const replaced = (await res.json()) as StationKeyBody;
+  eventStationBoardResponseSchema.parse({ stations: [replaced.station] });
+
+  assert.match(replaced.api_key, /^gk_sta_[A-Za-z0-9_-]{43}$/);
+  assert.notEqual(replaced.api_key, created.api_key);
+  assert.deepEqual(replaced.station, before);
+  assert.deepEqual(await registered(), [
+    { station_id: created.station.id, key_hash: sha256(replaced.api_key) },
+  ]);
+  assert.deepEqual(logs(), [
+    {
+      severity: "INFO",
+      message: "station_key_replaced",
+      user_id: ORGANIZER,
+      station_id: created.station.id,
+    },
+  ]);
+});
+
+test("a participant can neither create a station nor replace its key", async () => {
+  const { signIn, post, addStation, registered } = await harness();
+  await addStation("station-3");
+  const cookie = await signIn(PARTICIPANT);
+  for (const res of [
+    await post("/api/v1/admin/stations", cookie, { label: "Reader 3" }),
+    await post("/api/v1/admin/stations/station-3/key", cookie),
+  ]) {
+    assert.equal(res.status, 403);
+    assert.deepEqual(await res.json(), { error: "forbidden" });
+  }
+  assert.deepEqual(await registered(), [{ station_id: "station-3", key_hash: "unused-station-3" }]);
+});
+
+test("replacing the key of a station this Event Service didn't register answers not_found", async () => {
+  const { signIn, post } = await harness();
+  const logs = captureLogs();
+  const res = await post("/api/v1/admin/stations/no-such-station/key", await signIn(ORGANIZER));
+  assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: "not_found" });
+  assert.deepEqual(logs(), []);
+});
+
+test("a label is trimmed, and must then be 1 to 80 characters", async () => {
+  const { signIn, post, registered } = await harness();
+  const cookie = await signIn(ORGANIZER);
+  for (const body of [
+    {},
+    { label: "" },
+    { label: "   " },
+    { label: "x".repeat(81) },
+    { label: 3 },
+  ]) {
+    const res = await post("/api/v1/admin/stations", cookie, body);
+    assert.equal(res.status, 400, JSON.stringify(body));
+    const answer = (await res.json()) as { error: string; issues: { path: string[] }[] };
+    assert.equal(answer.error, "validation_failed");
+    assert.deepEqual(
+      answer.issues.map((i) => i.path),
+      [["label"]],
+    );
+  }
+  assert.deepEqual(await registered(), []);
+
+  // 80 emoji are 160 UTF-16 units, but 80 characters.
+  for (const label of ["  Reader 3  ", "🔑".repeat(80)]) {
+    const res = await post("/api/v1/admin/stations", cookie, { label });
+    assert.equal(res.status, 201);
+    assert.equal(((await res.json()) as StationKeyBody).station.label, label.trim());
+  }
+});
+
+test("replacing a disabled station's key leaves it disabled and off the registered stations", async () => {
+  const { signIn, post, addStation, registered } = await harness();
+  await addStation("station-lost", { disabledAt: "2026-10-10T08:30:00.000Z" });
+  const res = await post("/api/v1/admin/stations/station-lost/key", await signIn(ORGANIZER));
+  assert.equal(res.status, 200);
+  const { station } = (await res.json()) as StationKeyBody;
+  assert.equal(station.disabled_at, "2026-10-10T08:30:00.000Z");
+  assert.deepEqual(await registered(), []);
 });

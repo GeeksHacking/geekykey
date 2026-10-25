@@ -10,6 +10,9 @@ const LOG_LINES = {
   fatal_error: "ERROR",
   // A tap the Event side stored, with enough to store it again after a restore.
   tap_stored: "INFO",
+  // An organizer created a station, or replaced its key: who, and which station. Never the key.
+  station_created: "INFO",
+  station_key_replaced: "INFO",
   // A Firebase login answered 503, because Google's keys couldn't be fetched to check the token.
   login_unavailable: "ERROR",
 } as const;

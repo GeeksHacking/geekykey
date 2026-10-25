@@ -395,8 +395,8 @@ them.
 | PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
 | GET | `/api/v1/admin/stations` | Organizer | `Implemented` | The station board |
-| POST | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | Create a station, key shown once |
-| POST | `/api/v1/admin/stations/{id}/key` | Organizer | `Checkpoint 7` | Replace a station's key, new key shown once |
+| POST | `/api/v1/admin/stations` | Organizer | `Implemented` | Create a station, key shown once |
+| POST | `/api/v1/admin/stations/{id}/key` | Organizer | `Implemented` | Replace a station's key, new key shown once |
 | POST | `/api/v1/admin/stations/{id}/disable` | Organizer | `Checkpoint 7` | Disable a station |
 | POST | `/api/v1/admin/stations/{id}/enable` | Organizer | `Checkpoint 7` | Enable it again |
 | GET | `/api/v1/admin/taps` | Organizer | `Checkpoint 7` | Recent taps, newest first |
@@ -1110,7 +1110,7 @@ who has never logged in to this event.
 This is the data feed for the Sprint 2 A/B analysis, so it must not be cut from scope. The
 analysis needs neither token UIDs nor taps by unclaimed tokens (Joshua, 28 Sep).
 
-### 9.7 `POST /api/v1/admin/stations` (`Checkpoint 7`)
+### 9.7 `POST /api/v1/admin/stations` (`Implemented`)
 
 Create a station for this event.
 
@@ -1119,6 +1119,9 @@ Create a station for this event.
 ```json
 { "label": "Reader 3" }
 ```
+
+`label` is trimmed, then must be 1 to 80 characters, counted as Unicode code points, as 8.7
+counts a name.
 
 **Response `201`**
 
@@ -1134,10 +1137,13 @@ Create a station for this event.
 - The station joins this Event Service's registered stations at once, and the GeekyKey Service
   accepts its key within a minute.
 - It isn't in the passport until 9.1 adds its settings, so until then its taps get `no_game`.
+- The Event Service writes one `station_created` log line, with the organizer's user ID and the
+  station's ID, never the key.
 
-**Errors:** `validation_failed`.
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed`, and `rate_limited` once the
+Event Service's rate limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
 
-### 9.8 `POST /api/v1/admin/stations/{id}/key` (`Checkpoint 7`)
+### 9.8 `POST /api/v1/admin/stations/{id}/key` (`Implemented`)
 
 Replace a station's key, keeping its ID, its passport settings and its stamps. The old key stops
 working within a minute, and Zi Tao enters the new one through the station's setup mode.
@@ -1155,7 +1161,13 @@ working within a minute, and Zi Tao enters the new one through the station's set
 
 As when a station is created, `api_key` is returned only here.
 
-**Errors:** `not_found`.
+- A disabled station stays disabled, and its new key works once an organizer enables it (9.9).
+- The Event Service writes one `station_key_replaced` log line, with the organizer's user ID and
+  the station's ID, never the key.
+
+**Errors:** `unauthenticated`, `forbidden`, `not_found` for a station this Event Service didn't
+register, and `rate_limited` once the Event Service's rate limits arrive at checkpoint 7
+([Rate limits](#rate-limits)).
 
 ### 9.9 `POST /api/v1/admin/stations/{id}/disable` and `/enable` (`Checkpoint 7`)
 
@@ -1573,3 +1585,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | The GeekyKey screens now send the token lookup, the claim and the release to the GeekyKey Service. Section 13 drops the token page's "Demo data" sentence for a build with the service behind it, and the rule that kept Release and the claim-by-code form off My tokens until 8.2 and 8.3 were live. Only a GeekyKey screens build with no service behind it still shows a notice. No endpoint or shape changes (FRO-70). |
 | 2026-10-22 | Section 13 sets what the organiser's CSV download says and which file it hands over. The download is the file the service sent, unchanged, unless a name needed escaping, and only that name changes. The summary says the rule under the Download CSV button, and says when a file was changed that it is not the service's own. No endpoint or shape changes (FRO-48). |
 | 2026-10-25 | The Event Service's station board, `GET /api/v1/admin/stations` (9.2), is `Implemented`. It lists every station the Event Service has registered, disabled ones too. A station is `online` while it was last heard from less than 120 seconds ago, as the Event screens' mock already counts it. Its `last_tap_at` is the newest stored tap it sent, of any status. A QR fallback (9.4) doesn't count, since an organizer logs it, so a station whose reader died still shows a stale last tap. 9.2 now lists its errors. Section 9's opening already gave every organizer endpoint `unauthenticated` and `forbidden`, and `rate_limited` waits for the Event Service's rate limits. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-73). |
+| 2026-10-25 | Creating a station, `POST /api/v1/admin/stations` (9.7), and replacing its key, `POST /api/v1/admin/stations/{id}/key` (9.8), are `Implemented`. Each answers the station as the board lists it, with its key, which is in that answer only. The registered stations (11.1) carry the new key's hash at once. 9.7's `label` is trimmed, then must be 1 to 80 code points, as 8.7 counts a name. The Event screens' form and mock allow 80 UTF-16 units, so every label they send passes. A replaced key leaves a disabled station disabled, as the mock already does. Each change writes one log line, `station_created` or `station_key_replaced`, with the organizer's user ID and the station's ID. 9.7 and 9.8 now list their errors. Nothing calls them yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-74). |
