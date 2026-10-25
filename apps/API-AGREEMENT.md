@@ -393,7 +393,7 @@ them.
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows |
-| PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
+| PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Implemented` | Add or change a station's passport settings |
 | GET | `/api/v1/admin/stations` | Organizer | `Implemented` | The station board |
 | POST | `/api/v1/admin/stations` | Organizer | `Implemented` | Create a station, key shown once |
 | POST | `/api/v1/admin/stations/{id}/key` | Organizer | `Implemented` | Replace a station's key, new key shown once |
@@ -938,7 +938,7 @@ On the Event Service. All require `event_session` for a user on the Event Servic
 list. Anyone else gets `forbidden`. Organizers also look after their event's stations: 9.7 to 9.9
 create them, replace their keys, and disable and enable them.
 
-### 9.1 `PUT /api/v1/admin/stations/{id}/passport` (`Checkpoint 7`)
+### 9.1 `PUT /api/v1/admin/stations/{id}/passport` (`Implemented`)
 
 Add a station to the passport, or change its settings. `{id}` is the station's ID from the
 station board.
@@ -951,6 +951,14 @@ station board.
 
 `location` optional, `points` optional (default 1, integer 0 or more).
 
+The Event Service trims `name` and `location` and counts them in Unicode code points, as 9.7
+counts a label. `name` must then be 1 to 80 code points, and `location` at most 80. A blank or
+`null` `location` means none, and the answer gives it as `null`. `points` must also fit a 32-bit
+integer, so at most 2147483647.
+
+Each request sets all three fields. A change that leaves out `location` clears the location, and
+one that leaves out `points` sets the points back to 1.
+
 **Response `201`** when added, **`200`** when changed:
 
 ```json
@@ -961,9 +969,12 @@ station board.
   it.
 - From then on, its taps get `accepted` or `cooldown` instead of `no_game`. Taps already stored
   as `no_game` stay as they are.
+- A disabled station can be added or changed too, and its settings count once it is enabled
+  (9.9).
 
-**Errors:** `validation_failed`, and `not_found` for a station this Event Service didn't
-register.
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found` for a station this
+Event Service didn't register, and `rate_limited` once the Event Service's rate limits arrive at
+checkpoint 7 ([Rate limits](#rate-limits)).
 
 ### 9.2 `GET /api/v1/admin/stations` (`Implemented`)
 
@@ -1595,3 +1606,4 @@ Closed on 2026-10-10:
 | 2026-10-25 | The Event Service's station board, `GET /api/v1/admin/stations` (9.2), is `Implemented`. It lists every station the Event Service has registered, disabled ones too. A station is `online` while it was last heard from less than 120 seconds ago, as the Event screens' mock already counts it. Its `last_tap_at` is the newest stored tap it sent, of any status. A QR fallback (9.4) doesn't count, since an organizer logs it, so a station whose reader died still shows a stale last tap. 9.2 now lists its errors. Section 9's opening already gave every organizer endpoint `unauthenticated` and `forbidden`, and `rate_limited` waits for the Event Service's rate limits. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-73). |
 | 2026-10-25 | Creating a station, `POST /api/v1/admin/stations` (9.7), and replacing its key, `POST /api/v1/admin/stations/{id}/key` (9.8), are `Implemented`. Each answers the station as the board lists it, with its key, which is in that answer only. The registered stations (11.1) carry the new key's hash at once. 9.7's `label` is trimmed, then must be 1 to 80 code points, as 8.7 counts a name. The Event screens' form and mock allow 80 UTF-16 units, so every label they send passes. A replaced key leaves a disabled station disabled, as the mock already does. Each change writes one log line, `station_created` or `station_key_replaced`, with the organizer's user ID and the station's ID. 9.7 and 9.8 now list their errors. Nothing calls them yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-74). |
 | 2026-10-25 | Disabling and enabling a station, `POST /api/v1/admin/stations/{id}/disable` and `/enable` (9.9), are `Implemented`. Each answers the station as the board lists it. A disabled station drops off the registered stations (11.1), and enabling puts it back with the same key. Its passport settings and stamps stay either way. Doing either twice answers `200` with the station as it was, so a second disable keeps the first `disabled_at`, as the Event screens' mock already does. Each change writes one log line, `station_disabled` or `station_enabled`, with the organizer's user ID and the station's ID, and a repeat writes none. 9.9 now lists its errors. Nothing calls them yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-75). |
+| 2026-10-25 | Adding a station to the passport or changing its settings, `PUT /api/v1/admin/stations/{id}/passport` (9.1), is `Implemented`, without the booth, which comes with the map's data. A station added takes the last stamp slot, and a change keeps its `added_at`, so its slot never moves. 9.1 now says how the Event Service checks the body. It trims `name` and `location` and counts them in code points, as 9.7 counts a label: `name` must be 1 to 80, and `location` at most 80. A blank or `null` `location` means none. Every request sets all three fields, so leaving out `location` clears the location, and leaving out `points` sets the points back to 1. The Event screens' mock checks names and locations in UTF-16 units, so every name and location it sends passes. **New limit:** `points` must fit a 32-bit integer, at most 2147483647. The mock and the form have no upper limit, so a larger number passes the mock and gets `validation_failed` from the service. 9.1 now lists every error an organizer endpoint can get, and says a disabled station can be added. No shape changes. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79 (BAC-76). |
