@@ -238,6 +238,8 @@ test("a query outside the agreement's ranges answers validation_failed", async (
     "?limit=1.5",
     "?limit=many",
     "?before_id=x",
+    "?before_id=",
+    "?before_id=0",
     "?status=duplicate",
     "?status=unknown_token",
   ]) {
