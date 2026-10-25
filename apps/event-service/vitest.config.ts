@@ -1,8 +1,16 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 // Every test runs on Node, as the server does, against the tests' own database
 // in the TiDB from `mise run db:up`.
 export default defineConfig({
+  resolve: {
+    // The Event screens' own imports, which start `@/` for their src/. The station board's
+    // test reads its answer with the screens' schema (src/event/admin-routes.test.ts).
+    alias: [
+      { find: /^@\//, replacement: fileURLToPath(new URL("../event-web/src/", import.meta.url)) },
+    ],
+  },
   test: {
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     environment: "node",

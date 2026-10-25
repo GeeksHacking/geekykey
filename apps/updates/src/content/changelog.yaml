@@ -1495,3 +1495,12 @@
     Worker's two calls to Cloud Run took 0.07 seconds instead of 0.65. Production taps through
     Paris took about 2.2 seconds without it. The trade-off we accept: a tap that Cloudflare
     answers far away still crosses to Singapore once, inside Cloudflare, before the Worker runs.
+
+- id: station-board-endpoint
+  date: 2026-10-25
+  area: backend
+  change: >-
+    The Event Service can now give organizers the station board: every station, disabled ones
+    too, with its passport settings, whether it was heard from in the last 2 minutes, its
+    firmware version, how many taps it has saved, whether its reader works, and when its last
+    tap arrived. The organizer screens still show demo data until they switch to it.
