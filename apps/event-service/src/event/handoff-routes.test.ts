@@ -185,6 +185,7 @@ test("each stored tap gets a tap_stored line, and a duplicate none", async () =>
       user_id: userId,
       tapped_at: tappedAt,
       status: "accepted",
+      source: "nfc",
     },
     {
       severity: "INFO",
@@ -194,6 +195,7 @@ test("each stored tap gets a tap_stored line, and a duplicate none", async () =>
       user_id: userId,
       tapped_at: null,
       status: "cooldown",
+      source: "nfc",
     },
   ]);
 });

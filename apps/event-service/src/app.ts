@@ -75,7 +75,7 @@ export function createApp(
     }),
   );
   app.route("/api/v1/me", meRoutes({ session }));
-  app.route("/api/v1/admin", adminRoutes({ session, now }));
+  app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route("/geekykey/v1", handoffRoutes({ key: config.eventServiceKey, games: showcaseGames }));
 
