@@ -183,5 +183,6 @@ after the cooldown earns again.
 _Avoid_: score
 
 **Cooldown**:
-The passport's window after an accepted tap during which the same participant's taps at the same
-station are recorded but do not count.
+The window after an accepted tap during which the same participant's taps at the same station are
+recorded but do not count. The Event Service's base keeps it, and each game chooses whether to use
+it. The passport does.
