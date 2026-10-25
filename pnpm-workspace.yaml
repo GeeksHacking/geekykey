@@ -57,6 +57,20 @@ allowBuilds:
   "esbuild@0.28.2 || 0.25.12 || 0.18.20": true
   "workerd@1.20261012.1": true
 
+# Two high advisories reach us through the Cloudflare tooling, which pins the
+# vulnerable versions exactly, even in its latest releases (checked 2026-10-25).
+# Both run only on our own machines and in CI (`wrangler dev`, the builds and
+# the GeekyKey Service's tests), never in a deploy.
+#
+# undici 7.29.1 (GHSA-xjj6-f33q-929c) arrives through miniflare, under
+# Wrangler and @cloudflare/vitest-plugin. 7.30.1 fixes it. zod 4.6.5
+# (GHSA-mrhx-c7xc-m3w5) arrives through @cloudflare/vitest-plugin. 4.6.6 fixes
+# it, and 4.6.7 is the one the rest of the repo already uses. Drop each line
+# once miniflare and the plugin ask for a fixed version themselves.
+overrides:
+  "undici@7.29.1": "7.30.1"
+  "@cloudflare/vitest-plugin>zod": "4.6.7"
+
 # Advisories `pnpm audit` skips. CI fails on high or critical ones only, but an
 # entry here keeps the local report clean, so a new advisory stands out. Each
 # entry says why it can't reach us; drop it once the package leaves the tree.
