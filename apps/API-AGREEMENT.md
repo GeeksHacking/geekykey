@@ -397,8 +397,8 @@ them.
 | GET | `/api/v1/admin/stations` | Organizer | `Implemented` | The station board |
 | POST | `/api/v1/admin/stations` | Organizer | `Implemented` | Create a station, key shown once |
 | POST | `/api/v1/admin/stations/{id}/key` | Organizer | `Implemented` | Replace a station's key, new key shown once |
-| POST | `/api/v1/admin/stations/{id}/disable` | Organizer | `Checkpoint 7` | Disable a station |
-| POST | `/api/v1/admin/stations/{id}/enable` | Organizer | `Checkpoint 7` | Enable it again |
+| POST | `/api/v1/admin/stations/{id}/disable` | Organizer | `Implemented` | Disable a station |
+| POST | `/api/v1/admin/stations/{id}/enable` | Organizer | `Implemented` | Enable it again |
 | GET | `/api/v1/admin/taps` | Organizer | `Checkpoint 7` | Recent taps, newest first |
 | POST | `/api/v1/admin/taps` | Organizer | `Checkpoint 7` | QR fallback tap |
 | GET | `/api/v1/admin/stats` | Organizer | `Checkpoint 7` | Totals for the dashboard |
@@ -1169,7 +1169,7 @@ As when a station is created, `api_key` is returned only here.
 register, and `rate_limited` once the Event Service's rate limits arrive at checkpoint 7
 ([Rate limits](#rate-limits)).
 
-### 9.9 `POST /api/v1/admin/stations/{id}/disable` and `/enable` (`Checkpoint 7`)
+### 9.9 `POST /api/v1/admin/stations/{id}/disable` and `/enable` (`Implemented`)
 
 **Request:** no body.
 
@@ -1184,7 +1184,16 @@ stations, so within a minute its key gets `401`, and the station keeps its taps.
 empties `disabled_at`, and the saved taps count once they arrive. Doing either twice changes
 nothing. Each change is logged with who made it.
 
-**Errors:** `not_found`.
+- Either way the station keeps its ID, its key, its passport settings and its stamps.
+- Doing either twice answers `200` with the station as it was, so a second disable keeps the
+  first `disabled_at`.
+- The Event Service writes one `station_disabled` or `station_enabled` log line for each change,
+  with the organizer's user ID and the station's ID. Doing either twice changes nothing, so it
+  writes no line.
+
+**Errors:** `unauthenticated`, `forbidden`, `not_found` for a station this Event Service didn't
+register, and `rate_limited` once the Event Service's rate limits arrive at checkpoint 7
+([Rate limits](#rate-limits)).
 
 ---
 
@@ -1586,3 +1595,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | Section 13 sets what the organiser's CSV download says and which file it hands over. The download is the file the service sent, unchanged, unless a name needed escaping, and only that name changes. The summary says the rule under the Download CSV button, and says when a file was changed that it is not the service's own. No endpoint or shape changes (FRO-48). |
 | 2026-10-25 | The Event Service's station board, `GET /api/v1/admin/stations` (9.2), is `Implemented`. It lists every station the Event Service has registered, disabled ones too. A station is `online` while it was last heard from less than 120 seconds ago, as the Event screens' mock already counts it. Its `last_tap_at` is the newest stored tap it sent, of any status. A QR fallback (9.4) doesn't count, since an organizer logs it, so a station whose reader died still shows a stale last tap. 9.2 now lists its errors. Section 9's opening already gave every organizer endpoint `unauthenticated` and `forbidden`, and `rate_limited` waits for the Event Service's rate limits. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-73). |
 | 2026-10-25 | Creating a station, `POST /api/v1/admin/stations` (9.7), and replacing its key, `POST /api/v1/admin/stations/{id}/key` (9.8), are `Implemented`. Each answers the station as the board lists it, with its key, which is in that answer only. The registered stations (11.1) carry the new key's hash at once. 9.7's `label` is trimmed, then must be 1 to 80 code points, as 8.7 counts a name. The Event screens' form and mock allow 80 UTF-16 units, so every label they send passes. A replaced key leaves a disabled station disabled, as the mock already does. Each change writes one log line, `station_created` or `station_key_replaced`, with the organizer's user ID and the station's ID. 9.7 and 9.8 now list their errors. Nothing calls them yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-74). |
+| 2026-10-25 | Disabling and enabling a station, `POST /api/v1/admin/stations/{id}/disable` and `/enable` (9.9), are `Implemented`. Each answers the station as the board lists it. A disabled station drops off the registered stations (11.1), and enabling puts it back with the same key. Its passport settings and stamps stay either way. Doing either twice answers `200` with the station as it was, so a second disable keeps the first `disabled_at`, as the Event screens' mock already does. Each change writes one log line, `station_disabled` or `station_enabled`, with the organizer's user ID and the station's ID, and a repeat writes none. 9.9 now lists its errors. Nothing calls them yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-75). |

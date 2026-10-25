@@ -1514,3 +1514,13 @@
     takes a new key within a minute and refuses the old one. A replaced key keeps the station's
     ID, passport settings and stamps. The Event Service logs each change with the organizer who
     made it, never with the key. The organizer screens still show demo data until they switch to it.
+
+- id: station-disable-and-enable-endpoints
+  date: 2026-10-25
+  area: backend
+  change: >-
+    Organizers can now disable and enable a station through the Event Service. The GeekyKey
+    Service refuses a disabled station's key within a minute, and the station saves its taps
+    until an organizer enables it again. The station keeps its key, its passport settings and
+    its stamps either way. The Event Service logs each change with the organizer who made it.
+    The organizer screens still show demo data until they switch to it.

@@ -422,3 +422,123 @@ test("replacing a disabled station's key leaves it disabled and off the register
   assert.equal(station.disabled_at, "2026-10-10T08:30:00.000Z");
   assert.deepEqual(await registered(), []);
 });
+
+/** POST /api/v1/admin/stations/{id}/disable and /enable answer the station as the board lists it (9.9). */
+interface StationBody {
+  station: BoardBody["stations"][number];
+}
+
+test("disabling a station takes it off the registered stations, and logs who did it", async () => {
+  const { db, signIn, post, addStation, addTap, registered, board } = await harness();
+  await addStation("station-lost");
+  await addStation("station-kept");
+  // It keeps its slot in the passport, and its taps.
+  await db.insert(passportStations).values({
+    stationId: "station-lost",
+    name: "3D Printing Booth",
+    addedAt: "2026-10-02T03:00:00.000Z",
+  });
+  await addTap("station-lost", { receivedAt: "2026-10-10T08:58:12.004Z" });
+  const boardStation = async (id: string) => (await board()).stations.find((s) => s.id === id);
+  const before = await boardStation("station-lost");
+
+  const logs = captureLogs();
+  const res = await post("/api/v1/admin/stations/station-lost/disable", await signIn(ORGANIZER));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as StationBody;
+  eventStationBoardResponseSchema.parse({ stations: [body.station] });
+
+  assert.deepEqual(body, { station: { ...before, disabled_at: NOW } });
+  assert.deepEqual(await boardStation("station-lost"), body.station);
+  assert.deepEqual(await registered(), [
+    { station_id: "station-kept", key_hash: "unused-station-kept" },
+  ]);
+  assert.deepEqual(logs(), [
+    {
+      severity: "INFO",
+      message: "station_disabled",
+      user_id: ORGANIZER,
+      station_id: "station-lost",
+    },
+  ]);
+});
+
+test("enabling a disabled station puts it back on the registered stations, and logs who did it", async () => {
+  const { signIn, post, addStation, registered, board } = await harness();
+  await addStation("station-found", { disabledAt: "2026-10-10T08:30:00.000Z" });
+  const before = (await board()).stations[0];
+
+  const logs = captureLogs();
+  const res = await post("/api/v1/admin/stations/station-found/enable", await signIn(ORGANIZER));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as StationBody;
+  eventStationBoardResponseSchema.parse({ stations: [body.station] });
+
+  assert.deepEqual(body, { station: { ...before, disabled_at: null } });
+  assert.deepEqual((await board()).stations[0], body.station);
+  assert.deepEqual(await registered(), [
+    { station_id: "station-found", key_hash: "unused-station-found" },
+  ]);
+  assert.deepEqual(logs(), [
+    {
+      severity: "INFO",
+      message: "station_enabled",
+      user_id: ORGANIZER,
+      station_id: "station-found",
+    },
+  ]);
+});
+
+test("disabling a disabled station, or enabling an enabled one, changes nothing and logs nothing", async () => {
+  const { signIn, post, addStation, registered, board } = await harness();
+  await addStation("station-lost", { disabledAt: "2026-10-10T08:30:00.000Z" });
+  await addStation("station-kept");
+  const before = await board();
+  const cookie = await signIn(ORGANIZER);
+
+  const logs = captureLogs();
+  for (const [path, id] of [
+    ["disable", "station-lost"],
+    ["enable", "station-kept"],
+  ] as const) {
+    const res = await post(`/api/v1/admin/stations/${id}/${path}`, cookie);
+    assert.equal(res.status, 200, path);
+    // A second disable keeps when the station was first disabled.
+    const station = before.stations.find((s) => s.id === id);
+    assert.deepEqual(await res.json(), { station }, path);
+  }
+  assert.deepEqual(await board(), before);
+  assert.deepEqual(await registered(), [
+    { station_id: "station-kept", key_hash: "unused-station-kept" },
+  ]);
+  assert.deepEqual(logs(), []);
+});
+
+test("disabling or enabling a station this Event Service didn't register answers not_found", async () => {
+  const { signIn, post } = await harness();
+  const cookie = await signIn(ORGANIZER);
+  const logs = captureLogs();
+  for (const path of ["disable", "enable"]) {
+    const res = await post(`/api/v1/admin/stations/no-such-station/${path}`, cookie);
+    assert.equal(res.status, 404, path);
+    assert.deepEqual(await res.json(), { error: "not_found" }, path);
+  }
+  assert.deepEqual(logs(), []);
+});
+
+test("a participant can neither disable nor enable a station", async () => {
+  const { signIn, post, addStation, registered } = await harness();
+  await addStation("station-kept");
+  await addStation("station-lost", { disabledAt: "2026-10-10T08:30:00.000Z" });
+  const cookie = await signIn(PARTICIPANT);
+  for (const res of [
+    await post("/api/v1/admin/stations/station-kept/disable", cookie),
+    await post("/api/v1/admin/stations/station-lost/enable", cookie),
+  ]) {
+    assert.equal(res.status, 403);
+    assert.deepEqual(await res.json(), { error: "forbidden" });
+  }
+  assert.deepEqual(await registered(), [
+    { station_id: "station-kept", key_hash: "unused-station-kept" },
+  ]);
+});
