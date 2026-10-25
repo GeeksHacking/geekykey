@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import { requireBearerKey } from "../lib/bearer-key.ts";
 import { jsonBody, validationFailed } from "../lib/validate.ts";
+import type { GameOnStations } from "./games.ts";
 import { stations } from "./schema.ts";
 import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
 
@@ -11,9 +12,9 @@ import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
  * What the GeekyKey Service asks of this Event Service (mounted at
  * /geekykey/v1): the API agreement's section 11. Every request carries the
  * Event Service key, checked in constant time and never logged, and each
- * body is checked against packages/handoff.
+ * body is checked against packages/handoff. `games` judge the taps.
  */
-export function handoffRoutes({ key }: { key: string }) {
+export function handoffRoutes({ key, games }: { key: string; games: readonly GameOnStations[] }) {
   return new Hono<AppEnv>()
     .use(requireBearerKey(key, "invalid_event_service_key"))
     .get("/stations", async (c) => {
@@ -29,7 +30,7 @@ export function handoffRoutes({ key }: { key: string }) {
       const { station_id, taps } = c.req.valid("json");
       const { db, config } = c.var;
 
-      const pipeline = new TapPipeline(db, { cooldownSeconds: config.tapCooldownSeconds });
+      const pipeline = new TapPipeline(db, { cooldownSeconds: config.tapCooldownSeconds, games });
       let results;
       try {
         results = await pipeline.ingest(

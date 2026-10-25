@@ -3,7 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { eq, sql } from "drizzle-orm";
 import { test } from "vitest";
 import type { Db } from "../db/pool.ts";
-import { fakeClock, setupFixture, testDb } from "../test-helpers.ts";
+import { fakeClock, setupFixture, showcaseGames, testDb } from "../test-helpers.ts";
 import { passportStations, stations, taps } from "./schema.ts";
 import { type IncomingTap, TapPipeline } from "./tap-pipeline.ts";
 
@@ -12,6 +12,7 @@ async function pipeline(cooldownSeconds = 300) {
   const clock = fakeClock("2026-10-10T09:00:00.000Z");
   const p = new TapPipeline(fx.db, {
     cooldownSeconds,
+    games: showcaseGames,
     now: clock.now,
   });
   return { ...fx, clock, p };
@@ -280,6 +281,7 @@ function pipelineOnItsOwnConnection(): TapPipeline {
   const db = testDb();
   return new TapPipeline(db, {
     cooldownSeconds: 300,
+    games: showcaseGames,
   });
 }
 

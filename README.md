@@ -117,9 +117,13 @@ apps/event-service/
 │   ├── app.ts             every route mounted, given the settings and the database
 │   ├── base-app.ts        what every response shares: never cached, errors as JSON, /api/health
 │   ├── config.ts          every setting, with its default
-│   ├── event/             the Event side: the hand-off's routes under /geekykey/v1, the tap
-│   │                      pipeline, /me, logging in and out, the session, station keys, and
-│   │                      its tables (stations, passport_stations, users, taps) in schema.ts
+│   ├── event/             the Event side's base, which every event gets: the hand-off's routes
+│   │                      under /geekykey/v1, the tap pipeline and the game interface, /me,
+│   │                      logging in and out, the session, station keys, and its tables
+│   │                      (stations, passport_stations, users, taps) in schema.ts
+│   ├── games/             one folder per game, each behind the interface in event/games.ts:
+│   │                      the passport, for now
+│   ├── showcase/          the showcase's own settings: which games run on which stations
 │   ├── claims-stand-in/   who owns each token until the Portal does: its four routes under
 │   │                      /claims-stand-in/v1, and its table (tokens) in schema.ts
 │   ├── db/                the connection pool, the migrator, and the column types both schemas share
@@ -143,6 +147,13 @@ Portal. Each keeps its tables in a schema file of its own. Drizzle writes one se
 migrations from both files, since it's one database, and no foreign key crosses between them.
 Neither imports the other: the lint rule in `.oxlintrc.json` stops it, and `src/areas.test.ts`
 checks the rule.
+
+The Event side is in three folders, so that after the repo split it can become a GitHub
+template. `src/event/` is the base every event gets. It stores each tap and asks the games
+running at its station for a status: `accepted` if any game counted the tap, otherwise
+`cooldown` if one held it back, otherwise `no_game`. `src/games/` has one folder per game, and
+`src/showcase/` holds this event's own settings. The base imports neither: `src/app.ts` hands
+it the games the settings name, and the same lint rule and test check that too.
 
 The Event Service has no station endpoints. Stations call the GeekyKey Service (see
 [Inside the GeekyKey Service](#inside-the-geekykey-service)), which reaches this server only
