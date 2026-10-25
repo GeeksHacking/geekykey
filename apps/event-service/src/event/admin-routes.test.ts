@@ -526,19 +526,26 @@ test("disabling or enabling a station this Event Service didn't register answers
   assert.deepEqual(logs(), []);
 });
 
-test("a participant can neither disable nor enable a station", async () => {
+test("a participant, or nobody signed in, can neither disable nor enable a station", async () => {
   const { signIn, post, addStation, registered } = await harness();
   await addStation("station-kept");
   await addStation("station-lost", { disabledAt: "2026-10-10T08:30:00.000Z" });
   const cookie = await signIn(PARTICIPANT);
-  for (const res of [
-    await post("/api/v1/admin/stations/station-kept/disable", cookie),
-    await post("/api/v1/admin/stations/station-lost/enable", cookie),
-  ]) {
-    assert.equal(res.status, 403);
-    assert.deepEqual(await res.json(), { error: "forbidden" });
+  const logs = captureLogs();
+  for (const [cookieSent, status, error] of [
+    [cookie, 403, "forbidden"],
+    ["", 401, "unauthenticated"],
+  ] as const) {
+    for (const res of [
+      await post("/api/v1/admin/stations/station-kept/disable", cookieSent),
+      await post("/api/v1/admin/stations/station-lost/enable", cookieSent),
+    ]) {
+      assert.equal(res.status, status);
+      assert.deepEqual(await res.json(), { error });
+    }
   }
   assert.deepEqual(await registered(), [
     { station_id: "station-kept", key_hash: "unused-station-kept" },
   ]);
+  assert.deepEqual(logs(), []);
 });

@@ -1185,11 +1185,10 @@ empties `disabled_at`, and the saved taps count once they arrive. Doing either t
 nothing. Each change is logged with who made it.
 
 - Either way the station keeps its ID, its key, its passport settings and its stamps.
-- Doing either twice answers `200` with the station as it was, so a second disable keeps the
-  first `disabled_at`.
-- The Event Service writes one `station_disabled` or `station_enabled` log line for each change,
-  with the organizer's user ID and the station's ID. Doing either twice changes nothing, so it
-  writes no line.
+- Doing it twice answers `200` with the station as it was, so a second disable keeps the first
+  `disabled_at`.
+- The log line is `station_disabled` or `station_enabled`, with the organizer's user ID and the
+  station's ID, and a repeat writes none.
 
 **Errors:** `unauthenticated`, `forbidden`, `not_found` for a station this Event Service didn't
 register, and `rate_limited` once the Event Service's rate limits arrive at checkpoint 7
