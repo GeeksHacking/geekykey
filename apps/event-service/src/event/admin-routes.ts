@@ -4,16 +4,17 @@ import { z } from "zod";
 import type { AppEnv } from "../app.ts";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
-import { jsonBody } from "../lib/validate.ts";
+import { jsonBody, queryParams } from "../lib/validate.ts";
 import {
   requireRole,
   requireSession,
   type SessionEnv,
   type SessionOptions,
 } from "./session-auth.ts";
-import { passportStations, stations } from "./schema.ts";
+import { passportStations, STORED_TAP_STATUSES, stations } from "./schema.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
+import { type LoggedTap, loadTapLog } from "./tap-log.ts";
 
 export interface AdminRouteDeps {
   session: SessionOptions;
@@ -79,6 +80,28 @@ function stationBody(station: BoardStation) {
   };
 }
 
+/** Which taps the scan log lists (9.3). Unknown query parameters are ignored. */
+const tapLogQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  before_id: z.coerce.number().int().optional(),
+  station_id: z.string().optional(),
+  status: z.enum(STORED_TAP_STATUSES).optional(),
+});
+
+/** A tap as the scan log lists it (the API agreement's 9.3). */
+function tapBody(tap: LoggedTap) {
+  return {
+    id: tap.id,
+    client_tap_id: tap.clientTapId,
+    station: { id: tap.stationId, name: tap.stationName },
+    user: { id: tap.userId, display_name: tap.displayName },
+    status: tap.status,
+    source: tap.source,
+    tapped_at: tap.tappedAt,
+    received_at: tap.receivedAt,
+  };
+}
+
 /**
  * Mounted at /api/v1/admin: the organizer endpoints (the API agreement's
  * section 9). Nobody signed in gets `unauthenticated`, and anyone not on the
@@ -98,6 +121,18 @@ export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps)
   app.get("/stations", async (c) => {
     const board = await loadStationBoard(c.var.db, now());
     return c.json({ stations: board.map(stationBody) });
+  });
+
+  // The scan log, newest first (9.3).
+  app.get("/taps", queryParams(tapLogQuerySchema), async (c) => {
+    const { limit, before_id, station_id, status } = c.req.valid("query");
+    const page = await loadTapLog(c.var.db, {
+      limit,
+      beforeId: before_id,
+      stationId: station_id,
+      status,
+    });
+    return c.json({ taps: page.taps.map(tapBody), next_before_id: page.nextBeforeId });
   });
 
   // Creating a station (9.7). Its key is in this answer and nowhere else: only its hash is stored.

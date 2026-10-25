@@ -1534,3 +1534,12 @@
     a change never moves it. From then on a tap there earns its stamp, and earlier taps stay as
     they were. The Event Service logs each change with the organizer who made it. The organizer
     screens still show demo data until they switch to it.
+
+- id: scan-log-endpoint
+  date: 2026-10-25
+  area: backend
+  change: >-
+    The Event Service can now give organizers the scan log: every stored tap, newest first,
+    with its station, who tapped, whether it counted and whether it came from a reader or the
+    QR fallback. Organizers can page back through older taps and filter by station or status.
+    No token ID is in it. The organizer screens still show demo data until they switch to it.

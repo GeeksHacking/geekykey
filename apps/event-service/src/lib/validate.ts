@@ -19,6 +19,11 @@ export function pathParams<T extends ZodType>(schema: T) {
   return zValidator("param", schema, failValidation);
 }
 
+/** The same check, for a route's query string, such as the scan log's filters. */
+export function queryParams<T extends ZodType>(schema: T) {
+  return zValidator("query", schema, failValidation);
+}
+
 function failValidation(
   result: { success: true } | { success: false; error: { issues: unknown } },
   c: Context,
