@@ -153,7 +153,8 @@ export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps)
 
   // Adding a station to the passport, or changing its settings (9.1). A
   // station added takes the last stamp slot, since slots follow added_at, and
-  // a change keeps added_at, so it never moves.
+  // a change keeps added_at, so it never moves. A save that changes nothing
+  // writes no log line, as a repeated disable doesn't.
   app.put("/stations/:id/passport", jsonBody(passportSchema), async (c) => {
     const id = c.req.param("id");
     const { name, location, points } = c.req.valid("json");
@@ -167,23 +168,39 @@ export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps)
         .for("update");
       if (!station) return null;
       const [current] = await tx
-        .select({ addedAt: passportStations.addedAt })
+        .select({
+          name: passportStations.name,
+          location: passportStations.location,
+          points: passportStations.points,
+          addedAt: passportStations.addedAt,
+        })
         .from(passportStations)
         .where(eq(passportStations.stationId, id))
         // To see the latest settings once the lock is held, as the tap pipeline's reads do.
         .for("update");
       if (current) {
-        await tx
-          .update(passportStations)
-          .set({ name, location, points })
-          .where(eq(passportStations.stationId, id));
-        return { added: false, addedAt: current.addedAt };
+        const same =
+          current.name === name && current.location === location && current.points === points;
+        if (!same) {
+          await tx
+            .update(passportStations)
+            .set({ name, location, points })
+            .where(eq(passportStations.stationId, id));
+        }
+        return { added: false, changed: !same, addedAt: current.addedAt };
       }
       const addedAt = now().toISOString();
       await tx.insert(passportStations).values({ stationId: id, name, location, points, addedAt });
-      return { added: true, addedAt };
+      return { added: true, changed: true, addedAt };
     });
     if (!saved) return c.json({ error: "not_found" }, 404);
+    // Once the transaction has committed, so a line never names a change that was rolled back.
+    if (saved.changed) {
+      log(saved.added ? "station_added_to_passport" : "station_passport_changed", {
+        user_id: c.var.user.id,
+        station_id: id,
+      });
+    }
     return c.json(
       { passport: { station_id: id, name, location, points, added_at: saved.addedAt } },
       saved.added ? 201 : 200,
