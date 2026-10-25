@@ -1524,3 +1524,13 @@
     until an organizer enables it again. The station keeps its key, its passport settings and
     its stamps either way. The Event Service logs each change with the organizer who made it.
     The organizer screens still show demo data until they switch to it.
+
+- id: passport-settings-endpoint
+  date: 2026-10-25
+  area: backend
+  change: >-
+    Organizers can now add a station to the passport, or change its name, location and points,
+    through the Event Service. A station added takes the last stamp slot in every passport, and
+    a change never moves it. From then on a tap there earns its stamp, and earlier taps stay as
+    they were.
+    The organizer screens still show demo data until they switch to it.

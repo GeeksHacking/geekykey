@@ -11,7 +11,7 @@ import {
   type SessionEnv,
   type SessionOptions,
 } from "./session-auth.ts";
-import { stations } from "./schema.ts";
+import { passportStations, stations } from "./schema.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
 
@@ -21,19 +21,40 @@ export interface AdminRouteDeps {
   now?: () => Date;
 }
 
-/** The longest station label, in Unicode code points (the API agreement's 9.7). */
-const LABEL_MAX = 80;
+/**
+ * The longest station label, passport name or location, in Unicode code
+ * points (the API agreement's 9.1 and 9.7).
+ */
+const TEXT_MAX = 80;
 
-/** A new station's label, the device's name: trimmed, then 1 to 80 code points. */
-const createStationSchema = z.object({
-  label: z
+/**
+ * Text an organizer types: trimmed, then at most 80 code points, and at least
+ * one unless `blankAllowed`.
+ */
+const organizerText = (field: string, { blankAllowed = false } = {}) =>
+  z
     .string()
     .trim()
     // Spread, not .length, which counts UTF-16 units and so would count an emoji twice.
     .refine(
-      (label) => label !== "" && [...label].length <= LABEL_MAX,
-      `label must be 1 to ${LABEL_MAX} characters`,
-    ),
+      (text) => (blankAllowed || text !== "") && [...text].length <= TEXT_MAX,
+      `${field} must be ${blankAllowed ? 0 : 1} to ${TEXT_MAX} characters`,
+    );
+
+/** A new station's label, the device's name. */
+const createStationSchema = z.object({ label: organizerText("label") });
+
+/**
+ * A station's passport settings. A blank or missing location is none, and
+ * missing points are 1, so a PUT always sets all three. Points fit the
+ * `int` column.
+ */
+const passportSchema = z.object({
+  name: organizerText("name"),
+  location: organizerText("location", { blankAllowed: true })
+    .nullish()
+    .transform((location) => location || null),
+  points: z.int32().min(0).default(1),
 });
 
 /** A station as the station board lists it (the API agreement's 9.2). */
@@ -128,6 +149,45 @@ export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps)
     const station = await loadBoardStation(c.var.db, now(), id);
     if (!station) return c.json({ error: "not_found" }, 404);
     return c.json({ station: stationBody(station) });
+  });
+
+  // Adding a station to the passport, or changing its settings (9.1). A
+  // station added takes the last stamp slot, since slots follow added_at, and
+  // a change keeps added_at, so it never moves.
+  app.put("/stations/:id/passport", jsonBody(passportSchema), async (c) => {
+    const id = c.req.param("id");
+    const { name, location, points } = c.req.valid("json");
+    const saved = await c.var.db.transaction(async (tx) => {
+      // The station's row, locked, so two organizers saving at once take turns
+      // and the second changes what the first added.
+      const [station] = await tx
+        .select({ id: stations.id })
+        .from(stations)
+        .where(eq(stations.id, id))
+        .for("update");
+      if (!station) return null;
+      const [current] = await tx
+        .select({ addedAt: passportStations.addedAt })
+        .from(passportStations)
+        .where(eq(passportStations.stationId, id))
+        // To see the latest settings once the lock is held, as the tap pipeline's reads do.
+        .for("update");
+      if (current) {
+        await tx
+          .update(passportStations)
+          .set({ name, location, points })
+          .where(eq(passportStations.stationId, id));
+        return { added: false, addedAt: current.addedAt };
+      }
+      const addedAt = now().toISOString();
+      await tx.insert(passportStations).values({ stationId: id, name, location, points, addedAt });
+      return { added: true, addedAt };
+    });
+    if (!saved) return c.json({ error: "not_found" }, 404);
+    return c.json(
+      { passport: { station_id: id, name, location, points, added_at: saved.addedAt } },
+      saved.added ? 201 : 200,
+    );
   });
 
   return app;
