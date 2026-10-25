@@ -4,6 +4,7 @@ import { createBaseApp } from "./base-app.ts";
 import { claimsStandInRoutes } from "./claims-stand-in/routes.ts";
 import type { Config } from "./config.ts";
 import type { Db } from "./db/pool.ts";
+import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
@@ -18,6 +19,8 @@ export type AppEnv = {
 export interface AppDeps {
   /** Google's keys, which POST /auth/firebase checks ID tokens against. Tests fake them. */
   googleKeys: GoogleSigningKeys;
+  /** The clock the station board tells online stations by. Tests pin it. */
+  now?: () => Date;
 }
 
 /**
@@ -41,7 +44,7 @@ export function createApp(
   config: Config,
   db: Db,
   // One set of keys for the server's life, so Google's keys are cached between logins.
-  { googleKeys }: AppDeps = { googleKeys: googleSigningKeys() },
+  { googleKeys, now }: AppDeps = { googleKeys: googleSigningKeys() },
 ) {
   // Built once and shared, so every route that reads or writes a session agrees on it.
   const session: SessionOptions = {
@@ -72,6 +75,7 @@ export function createApp(
     }),
   );
   app.route("/api/v1/me", meRoutes({ session }));
+  app.route("/api/v1/admin", adminRoutes({ session, now }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route("/geekykey/v1", handoffRoutes({ key: config.eventServiceKey, games: showcaseGames }));
 

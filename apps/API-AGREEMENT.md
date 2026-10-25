@@ -394,7 +394,7 @@ them.
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Checkpoint 7` | Add or change a station's passport settings |
-| GET | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | The station board |
+| GET | `/api/v1/admin/stations` | Organizer | `Implemented` | The station board |
 | POST | `/api/v1/admin/stations` | Organizer | `Checkpoint 7` | Create a station, key shown once |
 | POST | `/api/v1/admin/stations/{id}/key` | Organizer | `Checkpoint 7` | Replace a station's key, new key shown once |
 | POST | `/api/v1/admin/stations/{id}/disable` | Organizer | `Checkpoint 7` | Disable a station |
@@ -965,7 +965,7 @@ station board.
 **Errors:** `validation_failed`, and `not_found` for a station this Event Service didn't
 register.
 
-### 9.2 `GET /api/v1/admin/stations` (`Checkpoint 7`)
+### 9.2 `GET /api/v1/admin/stations` (`Implemented`)
 
 The station board: every station this Event Service has registered, enabled or disabled, with
 its health, its passport settings and its last tap.
@@ -1007,6 +1007,9 @@ its health, its passport settings and its last tap.
   station goes last.
 
 Poll this every 10 to 15 seconds for the station board.
+
+**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` once the Event Service's rate
+limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
 
 ### 9.3 `GET /api/v1/admin/taps` (`Checkpoint 7`)
 
@@ -1569,3 +1572,4 @@ Closed on 2026-10-10:
 | 2026-10-22 | The GeekyKey Service's user limits are `Implemented`. Each user gets 60 requests a minute to its API, and 20 token lookups and claims, which count toward the 60 as well. Either one, once passed, answers `429 rate_limited` with `Retry-After: 60`, as the station limit does. [Rate limits](#rate-limits) now says what counts: every `/api/v1` request with a session, by user ID, even one that fails its checks, but not `/auth/*` and not a request with no session, which still gets `401 unauthenticated`. A user over the 20 can still use `/me`, the release and login links. 8.2, 8.3, 8.5 and 8.6 point their `rate_limited` at it instead of at checkpoint 6, and 8.4's errors list `rate_limited`. No shape changes (BAC-70). |
 | 2026-10-22 | The GeekyKey screens now send the token lookup, the claim and the release to the GeekyKey Service. Section 13 drops the token page's "Demo data" sentence for a build with the service behind it, and the rule that kept Release and the claim-by-code form off My tokens until 8.2 and 8.3 were live. Only a GeekyKey screens build with no service behind it still shows a notice. No endpoint or shape changes (FRO-70). |
 | 2026-10-22 | Section 13 sets what the organiser's CSV download says and which file it hands over. The download is the file the service sent, unchanged, unless a name needed escaping, and only that name changes. The summary says the rule under the Download CSV button, and says when a file was changed that it is not the service's own. No endpoint or shape changes (FRO-48). |
+| 2026-10-25 | The Event Service's station board, `GET /api/v1/admin/stations` (9.2), is `Implemented`. It lists every station the Event Service has registered, disabled ones too. A station is `online` while it was last heard from less than 120 seconds ago, as the Event screens' mock already counts it. Its `last_tap_at` is the newest stored tap it sent, of any status. A QR fallback (9.4) doesn't count, since an organizer logs it, so a station whose reader died still shows a stale last tap. 9.2 now lists its errors. Section 9's opening already gave every organizer endpoint `unauthenticated` and `forbidden`, and `rate_limited` waits for the Event Service's rate limits. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79. No shape changes (BAC-73). |
