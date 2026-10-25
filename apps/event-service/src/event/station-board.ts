@@ -1,4 +1,4 @@
-import { asc, eq, max } from "drizzle-orm";
+import { asc, eq, max, type SQL } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import { passportStations, stations, taps } from "./schema.ts";
 
@@ -33,7 +33,24 @@ export interface BoardStation {
  * Every station this Event Service has registered, enabled or disabled, for
  * the station board, oldest first. `now` decides which are online.
  */
-export async function loadStationBoard(db: Db, now: Date): Promise<BoardStation[]> {
+export function loadStationBoard(db: Db, now: Date): Promise<BoardStation[]> {
+  return loadBoardStations(db, now);
+}
+
+/**
+ * One station as the board lists it, for the answers that change a station
+ * (the API agreement's 9.7 and 9.8), or null when there is no such station.
+ */
+export async function loadBoardStation(
+  db: Db,
+  now: Date,
+  stationId: string,
+): Promise<BoardStation | null> {
+  const [station] = await loadBoardStations(db, now, eq(stations.id, stationId));
+  return station ?? null;
+}
+
+async function loadBoardStations(db: Db, now: Date, where?: SQL): Promise<BoardStation[]> {
   // Each station's newest stored tap from the station itself. ISO strings sort as the times they write.
   const lastTaps = db
     .select({ stationId: taps.stationId, lastTapAt: max(taps.receivedAt).as("last_tap_at") })
@@ -51,6 +68,7 @@ export async function loadStationBoard(db: Db, now: Date): Promise<BoardStation[
     .from(stations)
     .leftJoin(passportStations, eq(passportStations.stationId, stations.id))
     .leftJoin(lastTaps, eq(lastTaps.stationId, stations.id))
+    .where(where)
     .orderBy(asc(stations.createdAt), asc(stations.id));
 
   const onlineSince = now.getTime() - ONLINE_WINDOW_SECONDS * 1000;

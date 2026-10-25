@@ -1504,3 +1504,13 @@
     too, with its passport settings, whether it was heard from in the last 2 minutes, its
     firmware version, how many taps it has saved, whether its reader works, and when its last
     tap arrived. The organizer screens still show demo data until they switch to it.
+
+- id: station-create-and-key-endpoints
+  date: 2026-10-25
+  area: backend
+  change: >-
+    Organizers can now create a station and replace a station's key through the Event Service.
+    Each shows the key once, and the Event Service stores only its hash. The GeekyKey Service
+    takes a new key within a minute and refuses the old one. A replaced key keeps the station's
+    ID, passport settings and stamps. The Event Service logs each change with the organizer who
+    made it, never with the key. The organizer screens still show demo data until they switch to it.
