@@ -175,7 +175,8 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
       [{ clientTapId, userId: user_id, tappedAt: null }],
       "qr_fallback",
     );
-    // The tap's ID, which the pipeline doesn't give back. It is stored by now, since the pipeline has committed.
+    // The tap's ID, which the pipeline doesn't give back. The pipeline has committed, so the
+    // row is there.
     const [stored] = await db
       .select({ id: taps.id })
       .from(taps)

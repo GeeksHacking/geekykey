@@ -47,14 +47,14 @@ async function harness() {
     { id: ORGANIZER, displayName: "Olive" },
     { id: PARTICIPANT, displayName: "Alex" },
   ]);
-  await addStation(BOOTH, "3D Printing Booth");
 
   /** Registers a station, outside the passport unless given a passport name. */
-  async function addStation(id: string, passportName?: string) {
+  const addStation = async (id: string, passportName?: string) => {
     await db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
     if (passportName)
       await db.insert(passportStations).values({ stationId: id, name: passportName });
-  }
+  };
+  await addStation(BOOTH, "3D Printing Booth");
 
   /** Signs in through dev-login and returns the cookie a browser would send back. */
   const signIn = async (userId: string): Promise<string> => {
@@ -234,7 +234,7 @@ test("an accepted QR fallback tap earns the participant the stamp and its points
   );
 });
 
-test("a disabled passport station still takes a QR fallback tap, as its saved taps would count", async () => {
+test("a disabled passport station still takes a QR fallback tap, and it counts at once", async () => {
   const { db, logTap } = await harness();
   await db.update(stations).set({ disabledAt: "2026-10-10T08:30:00.000Z" });
 
