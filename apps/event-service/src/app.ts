@@ -25,11 +25,13 @@ export interface AppDeps {
  * its database. src/server.ts serves it.
  *
  * Its routes come from two areas: the Event side (src/event/) and the claims
- * stand-in (src/claims-stand-in/). The Event side's base takes the games
- * this event runs from here, as its settings name them (src/showcase/). Until the stand-in goes at the switch to
+ * stand-in (src/claims-stand-in/). Until the stand-in goes at the switch to
  * the Portal, they share this one server, its settings and its database pool.
  * Stations call the GeekyKey Service, apps/geekykey-service, which reaches
  * both through their routes.
+ *
+ * The Event side's base takes the games this event runs from here, as its
+ * settings name them (src/showcase/), since it imports no game itself.
  *
  * The settings are read once, before this runs, so that which routes exist
  * can depend on them: POST /auth/dev-login is only there when

@@ -14,6 +14,9 @@
   // The Event side is the base (src/event/), the games (src/games/) and this event's settings
   // (src/showcase/). The base is what the GitHub template copies, so it imports neither of the
   // others: src/app.ts hands it the games the settings name (spec, checkpoint 7).
+  //
+  // A later override replaces an earlier one's patterns for the same file rather than adding to
+  // them, so each override lists every pattern its files need.
   "overrides": [
     {
       "files": ["src/event/**"],
@@ -126,7 +129,7 @@
           {
             "patterns": [
               {
-                "group": ["**/event/**", "!**/event/schema.ts"],
+                "group": ["**/event/**", "!**/event/schema.ts", "**/games/**", "**/showcase/**"],
                 "message": "A test may read another area's tables, and nothing else of it."
               }
             ]

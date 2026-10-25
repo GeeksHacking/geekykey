@@ -129,5 +129,7 @@ test("a test may use the whole server and read the other area's tables, and noth
     ],
     ["event/me-routes.test.ts", from("../claims-stand-in/routes.ts"), false],
     ["claims-stand-in/routes.test.ts", from("../event/tap-pipeline.ts"), false],
+    ["claims-stand-in/routes.test.ts", from("../games/passport/passport.ts"), false],
+    ["claims-stand-in/routes.test.ts", from("../showcase/games.ts"), false],
   ]);
 });
