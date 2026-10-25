@@ -5,20 +5,24 @@ import type { AppEnv } from "../app.ts";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, queryParams } from "../lib/validate.ts";
+import type { GameOnStations } from "./games.ts";
 import {
   requireRole,
   requireSession,
   type SessionEnv,
   type SessionOptions,
 } from "./session-auth.ts";
-import { passportStations, STORED_TAP_STATUSES, stations } from "./schema.ts";
+import { passportStations, STORED_TAP_STATUSES, stations, taps } from "./schema.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
 import { type LoggedTap, loadTapLog } from "./tap-log.ts";
+import { TapPipeline } from "./tap-pipeline.ts";
 
 export interface AdminRouteDeps {
   session: SessionOptions;
-  /** The clock the station board tells online stations by. */
+  /** The games this event runs, which judge a QR fallback tap as they judge a station's. */
+  games: readonly GameOnStations[];
+  /** The clock the station board tells online stations by, and a QR fallback tap is received by. */
   now?: () => Date;
 }
 
@@ -89,6 +93,16 @@ const tapLogQuerySchema = z.object({
   status: z.enum(STORED_TAP_STATUSES).optional(),
 });
 
+/**
+ * A QR fallback tap (9.4): the station it's logged at, and whose it is. The
+ * user ID is checked as a station tap's is (packages/handoff), once trimmed,
+ * since an organizer may type it.
+ */
+const fallbackTapSchema = z.object({
+  station_id: z.string(),
+  user_id: z.string().trim().min(1).max(128),
+});
+
 /** A tap as the scan log lists it (the API agreement's 9.3). */
 function tapBody(tap: LoggedTap) {
   return {
@@ -108,7 +122,7 @@ function tapBody(tap: LoggedTap) {
  * section 9). Nobody signed in gets `unauthenticated`, and anyone not on the
  * organizer list gets `forbidden`.
  */
-export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps) {
+export function adminRoutes({ session, games, now = () => new Date() }: AdminRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireRole("organizer"));
 
@@ -134,6 +148,44 @@ export function adminRoutes({ session, now = () => new Date() }: AdminRouteDeps)
       status,
     });
     return c.json({ taps: page.taps.map(tapBody), next_before_id: page.nextBeforeId });
+  });
+
+  // The QR fallback (9.4): an organizer logs a tap at a station for a
+  // participant. It goes through the station taps' pipeline, so the cooldown
+  // and the games treat it the same, with a client_tap_id of its own. Only a
+  // passport station takes one, so the passport counts it or holds it back,
+  // and it is never stored as no_game. Checking before the pipeline's
+  // transaction is enough, since passport settings are never removed.
+  app.post("/taps", jsonBody(fallbackTapSchema), async (c) => {
+    const { station_id, user_id } = c.req.valid("json");
+    const { db, config } = c.var;
+    const [inPassport] = await db
+      .select({ stationId: passportStations.stationId })
+      .from(passportStations)
+      .where(eq(passportStations.stationId, station_id));
+    if (!inPassport) return c.json({ error: "not_found" }, 404);
+    const clientTapId = crypto.randomUUID();
+    const pipeline = new TapPipeline(db, {
+      cooldownSeconds: config.tapCooldownSeconds,
+      games,
+      now,
+    });
+    const [result] = await pipeline.ingest(
+      station_id,
+      [{ clientTapId, userId: user_id, tappedAt: null }],
+      "qr_fallback",
+    );
+    // The tap's ID, which the pipeline doesn't give back. It is stored by now, since the pipeline has committed.
+    const [stored] = await db
+      .select({ id: taps.id })
+      .from(taps)
+      .where(and(eq(taps.stationId, station_id), eq(taps.clientTapId, clientTapId)));
+    log("qr_fallback_logged", {
+      user_id: c.var.user.id,
+      station_id,
+      client_tap_id: clientTapId,
+    });
+    return c.json({ result: { id: stored!.id, status: result!.status } }, 201);
   });
 
   // Creating a station (9.7). Its key is in this answer and nowhere else: only its hash is stored.

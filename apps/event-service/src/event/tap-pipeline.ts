@@ -188,6 +188,7 @@ export class TapPipeline {
         user_id: p.userId,
         tapped_at: p.tappedAt,
         status: p.status,
+        source,
       });
     }
     return results;

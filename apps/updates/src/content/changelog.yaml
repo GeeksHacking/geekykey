@@ -1543,3 +1543,13 @@
     filtered by station or status, with each tap's station, who tapped, whether it counted and
     whether a reader or the QR fallback sent it. The organizer screens still show demo data
     until they switch to it.
+
+- id: qr-fallback-endpoint
+  date: 2026-10-26
+  area: backend
+  change: >-
+    When a station's reader fails, an organizer can now log a tap for a participant by their
+    user ID through the Event Service's QR fallback. The tap earns the stamp and points a
+    station's tap would, and the cooldown applies to it the same way. The scan log marks it as a
+    QR fallback, and the Event Service logs which organizer entered it. The organizer screens
+    still show demo data until they switch to it.
