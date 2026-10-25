@@ -764,3 +764,28 @@ test("a disabled station can be added to the passport, and stays disabled", asyn
   assert.equal(station!.disabled_at, "2026-10-10T08:30:00.000Z");
   assert.equal(station!.passport?.name, "Booth");
 });
+
+test("adding or changing a station's settings logs who did it, and a save that changes nothing logs nothing", async () => {
+  const { signIn, putPassport, addStation } = await harness();
+  await addStation("station-3");
+  const cookie = await signIn(ORGANIZER);
+  const logs = captureLogs();
+  const settings = { name: "3D Printing Booth", location: "Hall A", points: 2 };
+  assert.equal((await putPassport("station-3", cookie, settings)).status, 201);
+  assert.equal((await putPassport("station-3", cookie, settings)).status, 200);
+  assert.equal((await putPassport("station-3", cookie, { ...settings, points: 3 })).status, 200);
+  assert.deepEqual(logs(), [
+    {
+      severity: "INFO",
+      message: "station_added_to_passport",
+      user_id: ORGANIZER,
+      station_id: "station-3",
+    },
+    {
+      severity: "INFO",
+      message: "station_passport_changed",
+      user_id: ORGANIZER,
+      station_id: "station-3",
+    },
+  ]);
+});
