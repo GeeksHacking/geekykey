@@ -8,6 +8,9 @@ import { tokens } from "./claims-stand-in/schema.ts";
 import { passportStations, stations, users } from "./event/schema.ts";
 import { generateStationKey, hashStationKey } from "./event/station-keys.ts";
 
+/** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
+export { showcaseGames } from "./showcase/games.ts";
+
 export interface TestFixture {
   db: Db;
   stationId: string;

@@ -10,9 +10,38 @@
   // schema. Until the claims stand-in goes at the switch to the Portal, the areas are one
   // server, so a test may still read the other area's tables, and use the whole server through
   // src/test-helpers.ts.
+  //
+  // The Event side is the base (src/event/), the games (src/games/) and this event's settings
+  // (src/showcase/). The base is what the GitHub template copies, so it imports neither of the
+  // others: src/app.ts hands it the games the settings name (spec, checkpoint 7).
   "overrides": [
     {
       "files": ["src/event/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/app.ts", "**/test-helpers.ts"],
+                "allowTypeImports": true,
+                "message": "The server's root brings in every area, so an area takes only its types."
+              },
+              {
+                "group": ["**/claims-stand-in/**"],
+                "message": "The Event side reaches the claims stand-in only through its requests."
+              },
+              {
+                "group": ["**/games/**", "**/showcase/**"],
+                "message": "The base takes its games from src/app.ts, so it works with any event's."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/games/**", "src/showcase/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -45,7 +74,7 @@
                 "message": "The server's root brings in every area, so an area takes only its types."
               },
               {
-                "group": ["**/event/**"],
+                "group": ["**/event/**", "**/games/**", "**/showcase/**"],
                 "message": "The claims stand-in reaches the Event side only through its requests."
               }
             ]
@@ -55,6 +84,26 @@
     },
     {
       "files": ["src/event/**/*.test.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/claims-stand-in/**", "!**/claims-stand-in/schema.ts"],
+                "message": "A test may read another area's tables, and nothing else of it."
+              },
+              {
+                "group": ["**/games/**", "**/showcase/**"],
+                "message": "The base's tests take the showcase's games from src/test-helpers.ts."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/games/**/*.test.ts", "src/showcase/**/*.test.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",

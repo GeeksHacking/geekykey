@@ -3,8 +3,15 @@ import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { trustedTappedAt } from "../lib/tapped-at.ts";
 import {
+  combinedStatus,
+  type GameContext,
+  type GameOnStations,
+  type GameStatus,
+  type GameTap,
+  type Tx,
+} from "./games.ts";
+import {
   type NewTap,
-  passportStations,
   type STORED_TAP_STATUSES,
   stations,
   type TAP_SOURCES,
@@ -33,6 +40,8 @@ export interface TapResult {
 
 export interface TapPipelineOptions {
   cooldownSeconds: number;
+  /** The games this event runs, from its settings (src/showcase/games.ts). */
+  games: readonly GameOnStations[];
   now?: () => Date;
 }
 
@@ -41,16 +50,8 @@ export class UnknownStation extends Error {
   override name = "UnknownStation";
 }
 
-/** The database inside one ingest's transaction. */
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
-
-interface PendingTap {
+interface PendingTap extends GameTap {
   index: number;
-  clientTapId: string;
-  tappedAt: string | null;
-  /** Time used for ordering and cooldown: device time when given, else server receipt time. */
-  effectiveAt: string;
-  userId: string;
   status: StoredTapStatus;
 }
 
@@ -60,9 +61,9 @@ interface PendingTap {
  * Designed for a remote database: one short transaction that locks the
  * station's row, reads existing IDs and cooldown state, and makes a single
  * multi-row insert. Every non-duplicate tap is stored, including cooldown
- * ones, so organizers can see repeat taps in the log. The passport is the
- * only game, so a tap at a station without passport settings is `no_game`.
- * Each stored tap gets a `tap_stored` log line once the transaction commits,
+ * ones, so organizers can see repeat taps in the log. The games running at
+ * the station judge each tap, and it's stored with their combined status:
+ * `no_game` when none runs there, or none counts it. Each stored tap gets a `tap_stored` log line once the transaction commits,
  * so taps lost to a restore can be rebuilt from the logs.
  *
  * It sees only users, never a token.
@@ -70,11 +71,13 @@ interface PendingTap {
 export class TapPipeline {
   #db: Db;
   #cooldownMs: number;
+  #games: readonly GameOnStations[];
   #now: () => Date;
 
   constructor(db: Db, options: TapPipelineOptions) {
     this.#db = db;
     this.#cooldownMs = options.cooldownSeconds * 1000;
+    this.#games = options.games;
     this.#now = options.now ?? (() => new Date());
   }
 
@@ -89,8 +92,7 @@ export class TapPipeline {
 
     const stored: PendingTap[] = [];
     const results = await this.#db.transaction(async (tx) => {
-      const station = await this.#lockStation(tx, stationId);
-      if (station === undefined) throw new UnknownStation();
+      if (!(await this.#lockStation(tx, stationId))) throw new UnknownStation();
       const results = Array.from<TapResult>({ length: incoming.length });
 
       // 1. Replays: client IDs already stored for this station, or repeated within this request.
@@ -118,29 +120,36 @@ export class TapPipeline {
           tappedAt,
           effectiveAt: tappedAt ?? receivedAt,
           userId: tap.userId,
-          status: station.inPassport ? "accepted" : "no_game",
+          status: "no_game",
         });
       });
       if (pending.length === 0) return results;
 
-      // 2. Cooldown: a user's tap is `cooldown` when one of their accepted taps at this
-      //    station, stored or earlier in this batch, is inside the window on either side of it.
-      //    Walking the batch in time order means an offline flush is judged by when taps happened.
-      //    No game counts a station outside the passport, so nothing there is held back.
-      const accepted = station.inPassport
-        ? await this.#acceptedTimes(tx, stationId, pending)
-        : new Map<string, string[]>();
-      const inTimeOrder = [...pending].sort((a, b) => a.effectiveAt.localeCompare(b.effectiveAt));
-      for (const p of inTimeOrder) {
-        if (p.status !== "accepted") continue;
-        const times = accepted.get(p.userId) ?? [];
-        if (times.some((at) => this.#withinCooldown(at, p.effectiveAt))) {
-          p.status = "cooldown";
-          continue;
+      // 2. The games at this station judge the rest, one after another on the one connection.
+      const context: GameContext = {
+        stationId,
+        source,
+        tx,
+        cooldown: (judged) => this.#cooldown(tx, stationId, judged),
+      };
+      const gameTaps: GameTap[] = pending.map(({ clientTapId, userId, tappedAt, effectiveAt }) => ({
+        clientTapId,
+        userId,
+        tappedAt,
+        effectiveAt,
+      }));
+      const byGame: GameStatus[][] = [];
+      for (const { game, stations: runsOn } of this.#games) {
+        if (runsOn !== "all" && !runsOn.includes(stationId)) continue;
+        const statuses = await game.judge(gameTaps, context);
+        if (statuses.length !== gameTaps.length) {
+          throw new Error(`${game.name} judged ${statuses.length} of ${gameTaps.length} taps`);
         }
-        times.push(p.effectiveAt);
-        accepted.set(p.userId, times);
+        byGame.push(statuses);
       }
+      pending.forEach((p, i) => {
+        p.status = combinedStatus(byGame.map((statuses) => statuses[i]!));
+      });
 
       // 3. One write round trip. With the lock held, no row here can already exist; the no-op
       //    update is only so that one never fails the batch. Never INSERT IGNORE, which would
@@ -199,18 +208,42 @@ export class TapPipeline {
    * with a statement of its own before BEGIN, and the locking reads need
    * nothing set.)
    *
-   * Reads whether the station has passport settings in the same round trip.
-   * Says whether it's in the passport, or undefined when there's no station.
+   * Says whether there is such a station.
    */
-  async #lockStation(tx: Tx, stationId: string): Promise<{ inPassport: boolean } | undefined> {
+  async #lockStation(tx: Tx, stationId: string): Promise<boolean> {
     const [station] = await tx
-      .select({ passportStationId: passportStations.stationId })
+      .select({ id: stations.id })
       .from(stations)
-      .leftJoin(passportStations, eq(passportStations.stationId, stations.id))
       .where(eq(stations.id, stationId))
       .limit(1)
       .for("update");
-    return station && { inPassport: station.passportStationId !== null };
+    return station !== undefined;
+  }
+
+  /**
+   * The cooldown, which GameContext.cooldown hands the games: a tap is held
+   * back when one of the same user's accepted taps at this station, stored or
+   * earlier in `judged`, is inside the window on either side of it. Walking
+   * `judged` in time order means an offline flush is judged by when taps
+   * happened.
+   */
+  async #cooldown(tx: Tx, stationId: string, judged: readonly GameTap[]): Promise<boolean[]> {
+    const heldBack = judged.map(() => false);
+    if (judged.length === 0) return heldBack;
+    const accepted = await this.#acceptedTimes(tx, stationId, judged);
+    const inTimeOrder = judged
+      .map((tap, index) => ({ tap, index }))
+      .sort((a, b) => a.tap.effectiveAt.localeCompare(b.tap.effectiveAt));
+    for (const { tap, index } of inTimeOrder) {
+      const times = accepted.get(tap.userId) ?? [];
+      if (times.some((at) => this.#withinCooldown(at, tap.effectiveAt))) {
+        heldBack[index] = true;
+        continue;
+      }
+      times.push(tap.effectiveAt);
+      accepted.set(tap.userId, times);
+    }
+    return heldBack;
   }
 
   #withinCooldown(a: string, b: string): boolean {
@@ -236,16 +269,16 @@ export class TapPipeline {
 
   /**
    * Times of the stored accepted taps at this station, per user, that are
-   * close enough to some tap in `pending` to put it in cooldown. Fetching
+   * close enough to some tap in `judged` to put it in cooldown. Fetching
    * every nearby tap, not just the latest, matters for a late offline flush:
    * its taps sit between ones already stored.
    */
   async #acceptedTimes(
     tx: Tx,
     stationId: string,
-    pending: PendingTap[],
+    judged: readonly GameTap[],
   ): Promise<Map<string, string[]>> {
-    const known = pending.map((p) => ({ userId: p.userId, at: Date.parse(p.effectiveAt) }));
+    const known = judged.map((p) => ({ userId: p.userId, at: Date.parse(p.effectiveAt) }));
     if (this.#cooldownMs <= 0) return new Map();
 
     const times = known.map((k) => k.at);
