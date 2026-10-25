@@ -83,7 +83,8 @@ function stationBody(station: BoardStation) {
 /** Which taps the scan log lists (9.3). Unknown query parameters are ignored. */
 const tapLogQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
-  before_id: z.coerce.number().int().optional(),
+  // At least 1, as every tap ID is, so an empty `before_id=`, which coerces to 0, fails too.
+  before_id: z.coerce.number().int().min(1).optional(),
   station_id: z.string().optional(),
   status: z.enum(STORED_TAP_STATUSES).optional(),
 });

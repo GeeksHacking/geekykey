@@ -1539,7 +1539,7 @@
   date: 2026-10-25
   area: backend
   change: >-
-    The Event Service can now give organizers the scan log: every stored tap, newest first,
-    with its station, who tapped, whether it counted and whether it came from a reader or the
-    QR fallback. Organizers can page back through older taps and filter by station or status.
-    No token ID is in it. The organizer screens still show demo data until they switch to it.
+    The Event Service can now give organizers the scan log, newest first and with no token IDs,
+    filtered by station or status, with each tap's station, who tapped, whether it counted and
+    whether a reader or the QR fallback sent it. The organizer screens still show demo data
+    until they switch to it.
