@@ -39,7 +39,7 @@ export function loadStationBoard(db: Db, now: Date): Promise<BoardStation[]> {
 
 /**
  * One station as the board lists it, for the answers that change a station
- * (the API agreement's 9.7 and 9.8), or null when there is no such station.
+ * (the API agreement's 9.7 to 9.9), or null when there is no such station.
  */
 export async function loadBoardStation(
   db: Db,
