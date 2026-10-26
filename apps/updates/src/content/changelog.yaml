@@ -1619,3 +1619,12 @@
     Checkpoint 7 passes on production: an organizer creates a station, puts it in the passport at
     a booth, watches its taps on the station board, the tap log and the map's data, disables and
     enables it within a minute, and downloads an export with the agreed columns.
+
+- id: screens-send-less-javascript
+  date: 2026-10-26
+  area: frontend
+  change: >-
+    Both sets of screens now send less JavaScript to a phone on its first visit: about 45 KB
+    less for the Event screens' passport, and about 16 KB less for the GeekyKey screens. The
+    Event screens load Firebase only to log in or out, and both use the smaller build of the
+    library that checks the services' answers.
