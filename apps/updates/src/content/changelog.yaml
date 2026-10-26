@@ -1644,3 +1644,11 @@
     Every pull request now runs the Event screens' browser tests in Chromium: a participant's
     sign-in, the header with a long name at four widths in both themes, and the focus after a page
     change.
+
+- id: export-escapes-any-value
+  date: 2026-10-27
+  area: frontend
+  change: >-
+    The organiser's CSV download now says it escapes any value a spreadsheet could run as a
+    formula, not only a name, which is what it already did. A user ID typed for a QR fallback and
+    a station's own tap ID are free text too.
