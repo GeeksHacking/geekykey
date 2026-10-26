@@ -150,7 +150,7 @@ describe("My tokens", () => {
     renderHome();
 
     const sentence = await screen.findByText(
-      "You haven't claimed a token yet. Tap one with your phone, or type its code below.",
+      "You haven't claimed a token yet. Tap one with your phone, or type its UID below.",
     );
     expect(sentence).toBeInTheDocument();
     // The sentence says "below", so the form follows it.
