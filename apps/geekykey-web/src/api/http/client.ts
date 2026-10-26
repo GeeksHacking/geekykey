@@ -172,7 +172,7 @@ function errorCodeForStatus(status: number): ErrorCode {
   if (status === 401) return "unauthenticated";
   if (status === 403) return "forbidden";
   if (status === 404) return "not_found";
-  if (status === 409) return "internal_error";
+  if (status === 409) return "token_taken";
   if (status === 429) return "rate_limited";
   // A bare 503 on these endpoints is claims_unavailable: event_service_unavailable only
   // ever answers a station, and the Worker in front of the screens answers
