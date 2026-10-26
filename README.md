@@ -608,10 +608,11 @@ Everyone else is a participant. The server reads it when it starts, so a change 
 restart, or a deploy in production. Empty or unset means nobody. With dev sign-in on, an unset
 list holds `dev-organizer-1`, so Priya Raman from the seed is an organizer.
 
-`MAP_SCREENS` lists the user IDs of the screens that show the map on the big screen, separated
-by commas, in the same way. A user on it may read the map (`GET /api/v1/map`) as organizers may,
-and every other organizer endpoint answers them `forbidden`. Empty or unset means nobody, even
-with dev sign-in on, since `dev-organizer-1` reads the map already.
+`MAP_SCREENS` lists the user IDs that the screens showing the map log in as, separated by commas,
+in the same way. A user on it may read the map (`GET /api/v1/map`) as organizers may, and every
+other organizer endpoint answers them `forbidden`. Empty or unset means nobody, even with dev
+sign-in on, since `dev-organizer-1` reads the map already.
+
 It also refuses to start without `DATABASE_URL`, the database's `mysql://` address. It
 connects over TLS, checking the database's certificate and name, unless the address is on
 your laptop, such as `127.0.0.1`.

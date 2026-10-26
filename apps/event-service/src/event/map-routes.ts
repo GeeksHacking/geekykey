@@ -26,11 +26,10 @@ function stationBody(station: MapStation) {
 }
 
 /**
- * Mounted at /api/v1/map: what the map on the big screen at our booth draws,
- * polled every 2 seconds (9.10). Organizers and the map screens may read
- * it. Anyone else signed in gets `forbidden`, and nobody signed in
- * `unauthenticated`. It isn't under /admin, since a map screen isn't an
- * organizer.
+ * Mounted at /api/v1/map: what the map at our booth draws, polled every 2
+ * seconds (9.10). Organizers and the map screens may read it. Anyone else
+ * signed in gets `forbidden`, and nobody signed in `unauthenticated`. It
+ * isn't under /admin, since a map screen isn't an organizer.
  */
 export function mapRoutes({ session }: MapRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
