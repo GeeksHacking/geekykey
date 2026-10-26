@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { onTestFinished, test, vi } from "vitest";
-import { TEST_EVENT_SERVICE_KEY, testApp, testDb } from "../test-helpers.ts";
+import { TEST_EVENT_SERVICE_KEY, screensSchemas, testApp, testDb } from "../test-helpers.ts";
 import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
@@ -15,17 +14,12 @@ const NOW = "2026-10-10T09:01:00.000Z";
 /** NOW, `seconds` earlier. */
 const secondsBefore = (seconds: number) => new Date(Date.parse(NOW) - seconds * 1000).toISOString();
 
-/**
- * The Event screens' own check of the board (apps/event-web), so the two can't
- * drift apart. Imported by a path tsc doesn't follow, since the screens' code
- * is checked with their settings, not the service's.
- */
-const SCREENS_SCHEMAS = fileURLToPath(
-  new URL("../../../event-web/src/api/schemas.ts", import.meta.url),
-);
-const { eventStationBoardResponseSchema } = (await import(/* @vite-ignore */ SCREENS_SCHEMAS)) as {
-  eventStationBoardResponseSchema: { parse(input: unknown): unknown };
-};
+const {
+  eventStationBoardResponseSchema,
+  stationKeyResponseSchema,
+  stationResponseSchema,
+  setStationPassportResponseSchema,
+} = screensSchemas;
 
 /** GET /api/v1/admin/stations, in the shape section 9.2 of API-AGREEMENT.md agrees. */
 interface BoardBody {
@@ -295,7 +289,7 @@ test("an organizer creates a station, sees its key once, and its key's hash is r
   const res = await post("/api/v1/admin/stations", await signIn(ORGANIZER), { label: "Reader 3" });
   assert.equal(res.status, 201);
   const body = (await res.json()) as StationKeyBody;
-  eventStationBoardResponseSchema.parse({ stations: [body.station] });
+  stationKeyResponseSchema.parse(body);
 
   assert.match(body.api_key, /^gk_sta_[A-Za-z0-9_-]{43}$/);
   assert.deepEqual(body.station, {
@@ -350,7 +344,7 @@ test("replacing a station's key keeps its ID and settings, and registers only th
   const res = await post(`/api/v1/admin/stations/${created.station.id}/key`, cookie);
   assert.equal(res.status, 200);
   const replaced = (await res.json()) as StationKeyBody;
-  eventStationBoardResponseSchema.parse({ stations: [replaced.station] });
+  stationKeyResponseSchema.parse(replaced);
 
   assert.match(replaced.api_key, /^gk_sta_[A-Za-z0-9_-]{43}$/);
   assert.notEqual(replaced.api_key, created.api_key);
@@ -453,7 +447,7 @@ test("disabling a station takes it off the registered stations, and logs who did
   const res = await post("/api/v1/admin/stations/station-lost/disable", await signIn(ORGANIZER));
   assert.equal(res.status, 200);
   const body = (await res.json()) as StationBody;
-  eventStationBoardResponseSchema.parse({ stations: [body.station] });
+  stationResponseSchema.parse(body);
 
   assert.deepEqual(body, { station: { ...before, disabled_at: NOW } });
   assert.deepEqual(await boardStation("station-lost"), body.station);
@@ -479,7 +473,7 @@ test("enabling a disabled station puts it back on the registered stations, and l
   const res = await post("/api/v1/admin/stations/station-found/enable", await signIn(ORGANIZER));
   assert.equal(res.status, 200);
   const body = (await res.json()) as StationBody;
-  eventStationBoardResponseSchema.parse({ stations: [body.station] });
+  stationResponseSchema.parse(body);
 
   assert.deepEqual(body, { station: { ...before, disabled_at: null } });
   assert.deepEqual((await board()).stations[0], body.station);
@@ -584,7 +578,9 @@ test("an organizer adds a station to the passport, which the board then shows", 
     points: 2,
     added_at: NOW,
   };
-  assert.deepEqual((await res.json()) as PassportBody, { passport: expected });
+  const body = (await res.json()) as PassportBody;
+  setStationPassportResponseSchema.parse(body);
+  assert.deepEqual(body, { passport: expected });
   const { station_id: _, ...onBoard } = expected;
   assert.deepEqual((await board()).stations[0]!.passport, onBoard);
 });
@@ -612,7 +608,9 @@ test("changing a station's settings answers 200, and keeps when it was added", a
     points: 3,
     added_at: "2026-10-02T03:00:00.000Z",
   };
-  assert.deepEqual((await res.json()) as PassportBody, { passport: expected });
+  const body = (await res.json()) as PassportBody;
+  setStationPassportResponseSchema.parse(body);
+  assert.deepEqual(body, { passport: expected });
   const { station_id: _, ...onBoard } = expected;
   assert.deepEqual((await board()).stations[0]!.passport, onBoard);
 });
