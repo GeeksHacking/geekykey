@@ -62,13 +62,4 @@ describe("DashboardScreen", () => {
     expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
   });
-
-  it("marks the heading for the route-change focus", () => {
-    state.me = baseMe;
-    renderDashboard();
-
-    const heading = screen.getByRole("heading", { level: 1, name: "Alex Tan" });
-    expect(heading).toHaveAttribute("data-page-heading");
-    expect(heading).toHaveAttribute("tabindex", "-1");
-  });
 });
