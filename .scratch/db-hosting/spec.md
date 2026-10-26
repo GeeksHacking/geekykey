@@ -264,7 +264,7 @@ Sources: [Who registers stations, where is a station key checked, and how does t
 | Event | `stations` | `id`, `api_key_hash` (unique), `label`, `disabled_at`, `created_at`, `last_seen_at`, `firmware_version`, `buffered_taps`, `reader_ok` | Today's table, reshaped. `label` is the device's name, such as "Reader 3"; its passport name, location and points move to `passport_stations`. `disabled_at` is empty while the station is enabled. Each hand-off sets `last_seen_at`, and a heartbeat's hand-off also sets the last three. This is the row the cooldown locks |
 | Event | `users` | `id`, `display_name`, `created_at`, and `name_set_at` from checkpoint 5 | The per-event copy. `id` is the user ID, and the name is copied from the login. `portal_user_id` and `role` go. `name_set_at` is when the user set their own name, which a login then never replaces, and stays empty until they do (BAC-60) |
 | Event | `taps` | `id`, `station_id`, `client_tap_id`, `user_id`, `source`, `status`, `tapped_at`, `received_at` | `source` is `ENUM('nfc', 'qr_fallback')` and `status` is `ENUM('accepted', 'cooldown', 'no_game')`. `(station_id, client_tap_id)` is unique. `user_id` is never empty and has no foreign key, so a tap by someone who has never logged in is still stored. `token_uid` goes |
-| Event | `passport_stations` | `station_id`, `name`, `location`, `points`, `added_at` | The passport's settings. Only these stations are stamp slots, in `added_at` order |
+| Event | `passport_stations` | `station_id`, `name`, `location`, `booth`, `points`, `added_at` | The passport's settings. Only these stations are stamp slots, in `added_at` order. `booth` says where the map draws the station, and is empty for none (checkpoint 7) |
 | Claims stand-in | `tokens` | `uid` (primary key), `user_id`, `claimed_at` | Only current owners: releasing deletes the row, so `revoked_at` goes. `user_id` is a user ID with no foreign key. Marked "GeekyKey's stand-in, removed after the switch", and dropped then |
 
 Sources: [Does TiDB fit this backend?](issues/01-tidb-fit.md), [How is the database set up?](issues/07-database-setup.md), [How is the Event Service built, deployed and staged on Cloud Run?](issues/27-event-service-on-cloud-run.md), [Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?](issues/24-stations-without-a-database.md), [How do we notice trouble on event day, and who watches?](issues/20-event-day-monitoring.md)
@@ -357,6 +357,7 @@ Every secret it has goes under `secrets.required`, so a deploy fails if one is m
 | Address | | `event-api.geekshacking.com`, a domain mapping behind Cloudflare's proxy, and its `run.app` address |
 | Size | | As in section 3.2. Minimum instances 0, and 1 on event days |
 | Setting | `ORGANIZERS` | User IDs. `dev-organizer-1` locally |
+| Setting | `MAP_SCREENS` | User IDs of the map screens, which may read the map's data (checkpoint 7). Empty until the booth screen's account exists |
 | Setting | `TAP_COOLDOWN_SECONDS` | `300`. 900 was suggested on 8 Oct, for Adam to decide (section 12) |
 | Setting | `FIREBASE_PROJECT_ID` | As for the GeekyKey Service |
 | Secret | `APP_SECRETS` | One JSON object holding the four values below, by name (13 Oct) |
