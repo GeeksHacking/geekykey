@@ -7,7 +7,13 @@ import {
   eventStationBoardResponseSchema,
   meResponseSchema,
   parseEventStationBoardResponse,
+  parseFallbackTapResponse,
+  parseListTapsResponse,
   parseMeResponse,
+  parseSetStationPassportResponse,
+  parseStationKeyResponse,
+  parseStationResponse,
+  parseStatsResponse,
 } from "@/api/schemas";
 
 describe("me response contract", () => {
@@ -160,6 +166,140 @@ describe("me response contract", () => {
   it("rejects a response with a missing required field", () => {
     expect(() =>
       parseMeResponse({ user: { id: "u", display_name: "U", role: "participant" } }),
+    ).toThrow(NetworkError);
+  });
+});
+
+describe("organizer response contract", () => {
+  /** A station as the board lists it (9.2), which 9.7 to 9.9 answer with. */
+  const station = {
+    id: "s1",
+    label: "Reader 3",
+    created_at: "2026-10-01T02:00:00.000Z",
+    disabled_at: null,
+    passport: null,
+    last_seen_at: null,
+    online: false,
+    firmware_version: null,
+    buffered_taps: null,
+    reader_ok: null,
+    last_tap_at: null,
+  };
+
+  it("validates the stats as agreement 9.5 gives them", () => {
+    const stats = {
+      total_taps: 412,
+      accepted_taps: 380,
+      unique_participants: 96,
+      stations: [
+        {
+          station_id: "s1",
+          name: "3D Printing Booth",
+          accepted_taps: 120,
+          unique_participants: 88,
+        },
+      ],
+    };
+
+    expect(parseStatsResponse(stats)).toEqual(stats);
+    expect(() => parseStatsResponse({ ...stats, total_taps: "412" })).toThrow(NetworkError);
+  });
+
+  it("validates a page of the tap log as agreement 9.3 gives it", () => {
+    const page = {
+      taps: [
+        {
+          id: 42,
+          client_tap_id: "tap-000123",
+          station: { id: "s1", name: "3D Printing Booth" },
+          user: { id: "dev-user-1", display_name: "Alex" },
+          status: "accepted",
+          source: "nfc",
+          tapped_at: "2026-10-10T09:00:00.000Z",
+          received_at: "2026-10-10T09:00:01.250Z",
+        },
+        {
+          // A QR fallback at a station without passport settings, for someone who has
+          // never logged in to this event: every null 9.3 allows.
+          id: 41,
+          client_tap_id: "6f1c2e4a-8d3b-4f7a-9c0e-1b2d3e4f5a6b",
+          station: { id: "s2", name: null },
+          user: { id: "dev-user-2", display_name: null },
+          status: "no_game",
+          source: "qr_fallback",
+          tapped_at: null,
+          received_at: "2026-10-10T08:59:00.000Z",
+        },
+      ],
+      next_before_id: 41,
+    };
+
+    expect(parseListTapsResponse(page)).toEqual(page);
+    expect(parseListTapsResponse({ taps: [], next_before_id: null })).toEqual({
+      taps: [],
+      next_before_id: null,
+    });
+    // The log holds stored taps only, and every one has a user.
+    expect(() =>
+      parseListTapsResponse({ ...page, taps: [{ ...page.taps[0], status: "duplicate" }] }),
+    ).toThrow(NetworkError);
+    expect(() =>
+      parseListTapsResponse({ ...page, taps: [{ ...page.taps[0], user: null }] }),
+    ).toThrow(NetworkError);
+  });
+
+  it("validates a QR fallback's result as agreement 9.4 gives it", () => {
+    const answer = { result: { id: 43, status: "accepted" } };
+
+    expect(parseFallbackTapResponse(answer)).toEqual(answer);
+    expect(parseFallbackTapResponse({ result: { id: 44, status: "cooldown" } })).toEqual({
+      result: { id: 44, status: "cooldown" },
+    });
+    // 9.4 refuses a station without passport settings, so a fallback is never no_game.
+    expect(() => parseFallbackTapResponse({ result: { id: 45, status: "no_game" } })).toThrow(
+      NetworkError,
+    );
+  });
+
+  it("validates a station and its key as agreement 9.7 and 9.8 give them", () => {
+    const answer = { station, api_key: "gk_sta_DuY" };
+
+    expect(parseStationKeyResponse(answer)).toEqual(answer);
+    expect(() => parseStationKeyResponse({ station })).toThrow(NetworkError);
+    expect(() =>
+      parseStationKeyResponse({ ...answer, station: { ...station, online: null } }),
+    ).toThrow(NetworkError);
+  });
+
+  it("validates a disabled or enabled station as agreement 9.9 gives it", () => {
+    const disabled = { station: { ...station, disabled_at: "2026-10-10T09:00:00.000Z" } };
+
+    expect(parseStationResponse(disabled)).toEqual(disabled);
+    expect(parseStationResponse({ station })).toEqual({ station });
+    expect(() => parseStationResponse({ station: { ...station, disabled_at: undefined } })).toThrow(
+      NetworkError,
+    );
+  });
+
+  it("validates passport settings as agreement 9.1 gives them", () => {
+    const answer = {
+      passport: {
+        station_id: "s1",
+        name: "3D Printing Booth",
+        location: null,
+        points: 1,
+        added_at: "2026-10-10T09:00:00.000Z",
+      },
+    };
+
+    expect(parseSetStationPassportResponse(answer)).toEqual(answer);
+    // 9.1 adds booth to the answer once checkpoint 7's map is built. Until the screens
+    // read it, an answer with it still parses.
+    expect(
+      parseSetStationPassportResponse({ passport: { ...answer.passport, booth: "A3" } }),
+    ).toEqual(answer);
+    expect(() =>
+      parseSetStationPassportResponse({ passport: { ...answer.passport, station_id: undefined } }),
     ).toThrow(NetworkError);
   });
 });

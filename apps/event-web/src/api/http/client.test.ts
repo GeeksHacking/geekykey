@@ -347,6 +347,28 @@ describe("HTTP client transport", () => {
     expect(error).toBeInstanceOf(NetworkError);
   });
 
+  it("turns an organizer answer in the wrong shape into a NetworkError", async () => {
+    // Every organizer answer is checked before a screen sees it, as /me's is, so a
+    // service that drifted from section 9 fails here and not inside a table.
+    const api = createHttpClient();
+    const calls: [string, () => Promise<unknown>][] = [
+      ["9.1", () => api.setStationPassport("s1", { name: "3D Printing Booth" })],
+      ["9.3", () => api.listTaps()],
+      ["9.4", () => api.createFallbackTap({ station_id: "s1", user_id: "dev-user-1" })],
+      ["9.5", () => api.stats()],
+      ["9.7", () => api.createStation({ label: "Reader 3" })],
+      ["9.8", () => api.replaceStationKey("s1")],
+      ["9.9 disable", () => api.disableStation("s1")],
+      ["9.9 enable", () => api.enableStation("s1")],
+    ];
+
+    for (const [section, call] of calls) {
+      fetchMock.mockResolvedValueOnce(response({ unexpected: true }));
+      const error = await call().catch((reason: unknown) => reason);
+      expect(error, section).toBeInstanceOf(NetworkError);
+    }
+  });
+
   it("aborts a request that exceeds the configured timeout", async () => {
     fetchMock.mockImplementation(
       (_url: string, init?: RequestInit) =>

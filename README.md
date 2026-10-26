@@ -681,13 +681,11 @@ stops it.
 
 `mise run dev` starts the Event screens with `VITE_LIVE_API=1`, and so does
 `mise exec -- pnpm dev:live` from `apps/event-web`, which starts the Event screens
-alone. That sends the methods listed in `apps/event-web/src/api/create-client.ts` to the
-Event Service on port 8001 and keeps everything else on mock data. So far the list has
-signing in (`devLogin` and `firebaseLogin`), signing out (`logout`) and `me`, which says
-who is signed in and carries a participant's points, stamps and recent taps. So with the
-backend running and seeded, you can sign in as Alex Tan or Priya Raman for real. The plan
-for switching the rest over is in `apps/event-web/CLAUDE.md`, under "Wiring an endpoint to
-the real backend".
+alone. They send every call to the Event Service on port 8001: signing in and out, `me`,
+the station board and its changes, the scan log, the QR fallback, the stats and the
+export. With the backend running and seeded, sign in as Alex Tan for the participant
+screens or Priya Raman for the organiser console. How to check a screen against the
+service is in `apps/event-web/CLAUDE.md`, under "The real backend".
 
 ### With the GeekyKey screens
 
