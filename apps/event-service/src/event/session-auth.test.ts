@@ -12,6 +12,7 @@ import {
   type SessionEnv,
   type SessionOptions,
 } from "./session-auth.ts";
+import { userLimit } from "./user-limit.ts";
 
 const ORGANIZER_ID = "organizer-1";
 
@@ -24,6 +25,7 @@ async function harness(overrides: Partial<SessionOptions> = {}) {
     secret: "test-secret-at-least-16",
     secure: false,
     organizers: new Set([ORGANIZER_ID]),
+    userLimit: userLimit(),
     ...overrides,
   };
 

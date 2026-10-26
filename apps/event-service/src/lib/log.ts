@@ -23,6 +23,8 @@ const LOG_LINES = {
   qr_fallback_logged: "INFO",
   // A Firebase login answered 503, because Google's keys couldn't be fetched to check the token.
   login_unavailable: "ERROR",
+  // A user passed the limit on requests a minute and got 429: which user, by ID.
+  rate_limited: "INFO",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

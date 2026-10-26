@@ -2,8 +2,10 @@ import { eq } from "drizzle-orm";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import type { Db } from "../db/pool.ts";
+import { log } from "../lib/log.ts";
 import { hasName } from "./display-names.ts";
 import { users } from "./schema.ts";
+import type { UserLimit } from "./user-limit.ts";
 
 export const SESSION_COOKIE = "event_session";
 
@@ -34,6 +36,8 @@ export interface SessionOptions {
   maxAgeSeconds?: number;
   /** From config.organizers: who is an organizer. Everyone else is a participant. */
   organizers: ReadonlySet<string>;
+  /** Counts each user's requests that requireSession lets through (user-limit.ts). */
+  userLimit: UserLimit;
 }
 
 /*
@@ -74,16 +78,11 @@ export function clearSession(c: Context, options: Pick<SessionOptions, "secure">
 }
 
 /**
- * The user behind the cookie, or null when there is no usable session. Null
- * covers all of: no cookie, a cookie that fails its signature, an expired one,
- * and one naming a user who no longer exists. Their role comes from the
- * organizer list, checked on every request, so a change to it takes effect
- * without anyone signing in again.
+ * The user ID the cookie names, or null when there's no cookie, it fails its
+ * signature or it has expired. Reads no database, so a request can be counted
+ * before the database is asked for anything.
  */
-export async function readSession(
-  c: Context<SessionEnv>,
-  options: SessionOptions,
-): Promise<SessionUser | null> {
+async function sessionUserId(c: Context, options: SessionOptions): Promise<string | null> {
   // false means the signature did not verify, undefined means there was no cookie.
   const value = await getSignedCookie(c, options.secret, SESSION_COOKIE);
   if (!value) return null;
@@ -96,7 +95,19 @@ export async function readSession(
   if (!userId || !Number.isFinite(expiresAt)) return null;
   // The browser already drops the cookie at max-age. This is what expires a copy of it.
   if (expiresAt <= Date.now()) return null;
+  return userId;
+}
 
+/**
+ * The session's user, from the users table, or null when they no longer
+ * exist. Their role comes from the organizer list, checked on every request,
+ * so a change to it takes effect without anyone signing in again.
+ */
+async function loadSessionUser(
+  c: Context<SessionEnv>,
+  userId: string,
+  options: SessionOptions,
+): Promise<SessionUser | null> {
   const [user] = await c.var.db
     .select({ id: users.id, displayName: users.displayName, nameSetAt: users.nameSetAt })
     .from(users)
@@ -115,10 +126,26 @@ export async function readSession(
  * Requires a signed-in user and sets `c.var.user`. Answers 401 with
  * `unauthenticated` otherwise, which the frontend reads as "signed out" rather
  * than as a failure.
+ *
+ * It counts the request against `options.userLimit` by the cookie's user ID,
+ * before the users table is read, and answers `429 rate_limited` with
+ * `Retry-After: 60` once the user is over it (the API agreement's section 2,
+ * "Rate limits"), writing a `rate_limited` log line with their ID. So every
+ * request with a session counts, before its path and body are checked, and
+ * one turned away costs the database nothing. A request with no session, or
+ * a cookie that fails its signature or has expired, isn't counted, since
+ * there's no user ID to count it by. /auth/* never mounts this, so it isn't
+ * counted either.
  */
 export function requireSession(options: SessionOptions): MiddlewareHandler<SessionEnv> {
   return async (c, next) => {
-    const user = await readSession(c, options);
+    const userId = await sessionUserId(c, options);
+    if (userId === null) return c.json({ error: "unauthenticated" }, 401);
+    if (!options.userLimit.allow(userId)) {
+      log("rate_limited", { user_id: userId });
+      return c.json({ error: "rate_limited" }, 429, { "Retry-After": "60" });
+    }
+    const user = await loadSessionUser(c, userId, options);
     if (!user) return c.json({ error: "unauthenticated" }, 401);
     c.set("user", user);
     return next();

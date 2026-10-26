@@ -159,9 +159,8 @@ only for `validation_failed` and follows Zod's issue format.
 
 ### Rate limits
 
-The GeekyKey Service's limits are `Implemented`, and the Event Service's limit is `Checkpoint 7`.
-Each limit counts a caller's requests over one minute, and once it is passed answers `429` with
-`{"error": "rate_limited"}` and `Retry-After: 60`.
+Every limit here is `Implemented`. Each limit counts a caller's requests over one minute, and
+once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-After: 60`.
 
 | Service | Counts | Limit a minute |
 |---|---|---|
@@ -181,6 +180,16 @@ Each limit counts a caller's requests over one minute, and once it is passed ans
   answer until they pass the 60.
 - The GeekyKey Service's limits are approximate. Cloudflare counts each one separately in each of
   its data centres, so a caller whose requests reach several can sometimes get past it.
+- The Event Service's limit counts by user ID every `/api/v1` request that has a session: `/me`,
+  the name change and every organizer endpoint. A request whose path or body fails its check
+  counts too. `/auth/*` isn't counted, nor are the hand-off routes, which the GeekyKey Service
+  calls with the Event Service key (section 11). A request with no session isn't counted, and gets
+  `401 unauthenticated`.
+- On the Event Service, a user's minute starts at their first request, and their first request
+  after it ends starts a new count. The passport's poll, one every 10 seconds, and the map's, one
+  every 2 seconds, stay well under the 60.
+- Each Event Service server instance keeps its own count, so a user whose requests reach two
+  instances can get up to 120 a minute through.
 
 ### CORS and cookies
 
@@ -748,7 +757,7 @@ Everything the participant dashboard and passport view need in one call.
   didn't count". `station_name` is `null` for a station without passport settings.
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
-**Errors:** `unauthenticated`.
+**Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 8.2 `POST /api/v1/tokens/{uid}/claim` on the GeekyKey Service (`Implemented`)
 
@@ -927,8 +936,8 @@ path `["display_name"]`, and leaves the name as it was.
 - Nothing checks what a name says. Until something shows names on a public screen, only the user
   and the organizers see it.
 
-**Errors:** `unauthenticated`, `validation_failed`, and `rate_limited` once the Event Service's
-rate limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
+**Errors:** `unauthenticated`, `validation_failed`, and `rate_limited`
+([Rate limits](#rate-limits)).
 
 ---
 
@@ -976,8 +985,7 @@ one that leaves out `points` sets the points back to 1.
   changes nothing answers `200` and writes none.
 
 **Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found` for a station this
-Event Service didn't register, and `rate_limited` once the Event Service's rate limits arrive at
-checkpoint 7 ([Rate limits](#rate-limits)).
+Event Service didn't register, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.2 `GET /api/v1/admin/stations` (`Implemented`)
 
@@ -1022,8 +1030,7 @@ its health, its passport settings and its last tap.
 
 Poll this every 10 to 15 seconds for the station board.
 
-**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` once the Event Service's rate
-limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
+**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.3 `GET /api/v1/admin/taps` (`Implemented`)
 
@@ -1069,8 +1076,8 @@ The live scan log, newest first.
   an empty list, not `not_found`.
 
 **Errors:** `unauthenticated`, `forbidden`, `validation_failed` for a query outside the table
-above, such as a `limit` of 0 or a `status` of `duplicate`, and `rate_limited` once the Event
-Service's rate limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
+above, such as a `limit` of 0 or a `status` of `duplicate`, and `rate_limited`
+([Rate limits](#rate-limits)).
 
 ### 9.4 `POST /api/v1/admin/taps` (`Implemented`)
 
@@ -1110,8 +1117,7 @@ Both fields are required. The Event Service generates the `client_tap_id`.
 - `validation_failed` for a missing field, or a `user_id` outside 1 to 128 characters.
 - `not_found` for a station without passport settings. A station this Event Service didn't
   register has none.
-- `rate_limited` once the Event Service's rate limits arrive at checkpoint 7
-  ([Rate limits](#rate-limits)).
+- `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.5 `GET /api/v1/admin/stats` (`Implemented`)
 
@@ -1140,8 +1146,7 @@ passport stations, in the order they were added.
   it keeps its stamp slot (9.9). A station without passport settings isn't listed, but its taps
   count in `total_taps`.
 
-**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` once the Event Service's rate
-limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
+**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.6 `GET /api/v1/admin/export.csv` (`Implemented`)
 
@@ -1168,8 +1173,7 @@ who has never logged in to this event.
 This is the data feed for the Sprint 2 A/B analysis, so it must not be cut from scope. The
 analysis needs neither token UIDs nor taps by unclaimed tokens (Joshua, 28 Sep).
 
-**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` once the Event Service's rate
-limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
+**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.7 `POST /api/v1/admin/stations` (`Implemented`)
 
@@ -1201,8 +1205,8 @@ counts a name.
 - The Event Service writes one `station_created` log line, with the organizer's user ID and the
   station's ID, never the key.
 
-**Errors:** `unauthenticated`, `forbidden`, `validation_failed`, and `rate_limited` once the
-Event Service's rate limits arrive at checkpoint 7 ([Rate limits](#rate-limits)).
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed`, and `rate_limited`
+([Rate limits](#rate-limits)).
 
 ### 9.8 `POST /api/v1/admin/stations/{id}/key` (`Implemented`)
 
@@ -1227,8 +1231,7 @@ As when a station is created, `api_key` is returned only here.
   the station's ID, never the key.
 
 **Errors:** `unauthenticated`, `forbidden`, `not_found` for a station this Event Service didn't
-register, and `rate_limited` once the Event Service's rate limits arrive at checkpoint 7
-([Rate limits](#rate-limits)).
+register, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.9 `POST /api/v1/admin/stations/{id}/disable` and `/enable` (`Implemented`)
 
@@ -1252,8 +1255,7 @@ nothing. Each change is logged with who made it.
   station's ID, and a repeat writes none.
 
 **Errors:** `unauthenticated`, `forbidden`, `not_found` for a station this Event Service didn't
-register, and `rate_limited` once the Event Service's rate limits arrive at checkpoint 7
-([Rate limits](#rate-limits)).
+register, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ---
 
@@ -1660,3 +1662,4 @@ Closed on 2026-10-10:
 | 2026-10-25 | The scan log, `GET /api/v1/admin/taps` (9.3), is `Implemented`. It lists stored taps of all three statuses and both sources, newest first by `id`, with no token ID. A tap's `id` always rises, since the taps table uses `AUTO_ID_CACHE=1`, so the cursor and the live feed stay in time order. 9.3 now says that `next_before_id` is the `id` of the last tap in `taps`, as the Event screens' mock already gives it. Its example said `41` after a page ending at tap 42, and by the "lower than" rule that would have skipped tap 41, so it now says `42`. 9.3 also says the filters and the cursor apply together, and that a `station_id` that isn't this Event Service's gives an empty list. A query outside the table, such as a `limit` of 201 or an empty `before_id`, gets `validation_failed`. The mock clamps the limit instead, but the screens always send 50. 9.3 now lists its errors. No shape changes. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79 (BAC-77). |
 | 2026-10-26 | The QR fallback, `POST /api/v1/admin/taps` (9.4), is `Implemented`. It stores the tap through the station taps' pipeline with `source = qr_fallback`, so the cooldown, stamps and points treat it as a station's tap. A station without passport settings, or one this Event Service didn't register, gets `not_found`, so a QR fallback tap is never `no_game`. **New limit:** the Event Service trims `user_id`, which must then be 1 to 128 characters, as in the hand-off. The Event screens' form trims it and allows 128, so every ID it sends passes, but the mock has no upper limit. **New rule:** a disabled station with passport settings takes a QR fallback tap too, and the tap counts at once, as the mock already allows. The `client_tap_id` is a random UUID and `tapped_at` is `null`, as the mock already stores them. Each one writes a `qr_fallback_logged` log line with the organizer's user ID, and the tap's own `tap_stored` line now carries its `source`, so a restore rebuilds it as a QR fallback. 9.4 now lists its errors. No shape changes. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79 (BAC-78). |
 | 2026-10-26 | The stats, `GET /api/v1/admin/stats` (9.5), and the export, `GET /api/v1/admin/export.csv` (9.6), are `Implemented`, with no token ID in either. 9.5 now says that `accepted_taps` and `unique_participants` count `accepted` taps only, as the summary screen's hint says, and that a passport station with no taps, or a disabled one, is listed with its counts. The Event screens' mock lists every station, naming one outside the passport by its label, but the agreement has always listed passport stations only, so the live screen shows fewer rows than the mock. 9.6 now says the rows run oldest first by `tap_id` after a line of column names, and how a value is quoted. **New rule:** every line ends in CRLF, as RFC 4180 has it, where the mock ends lines with a line feed alone. The screens' formula escaping reads both. The file is named `geekykey-taps.csv`, which the screens replace with their own name when they save it. Both now list their errors. No shape changes. Nothing calls them yet: the organizer screens switch to the Event Service in FRO-79 (BAC-79). |
+| 2026-10-26 | The Event Service's limit is `Implemented`: each user gets 60 requests a minute to its API, then `429 rate_limited` with `Retry-After: 60`, as on the GeekyKey Service. Each server instance counts in its own memory, so with two running, a user can get up to 120 a minute through. [Rate limits](#rate-limits) now says what counts, matching the GeekyKey Service's user limit: every `/api/v1` request with a session, by user ID, even one that fails its checks. `/auth/*`, the hand-off routes and a request with no session aren't counted. A user's minute starts at their first request. Each turned-away request writes a `rate_limited` log line with the user's ID. 8.1 now lists `rate_limited`, and 8.7 and 9.1 to 9.9 no longer say it waits for checkpoint 7. The screens already keep their last data on a `429` (section 13). No shape changes (BAC-80). |

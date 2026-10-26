@@ -9,6 +9,7 @@ import { authRoutes } from "./event/auth-routes.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
+import { userLimit } from "./event/user-limit.ts";
 import { showcaseGames } from "./showcase/games.ts";
 
 export type AppEnv = {
@@ -19,7 +20,7 @@ export type AppEnv = {
 export interface AppDeps {
   /** Google's keys, which POST /auth/firebase checks ID tokens against. Tests fake them. */
   googleKeys: GoogleSigningKeys;
-  /** The clock the station board tells online stations by. Tests pin it. */
+  /** The clock the station board tells online stations by, and the user limit counts minutes by. Tests pin it. */
   now?: () => Date;
 }
 
@@ -46,11 +47,13 @@ export function createApp(
   // One set of keys for the server's life, so Google's keys are cached between logins.
   { googleKeys, now }: AppDeps = { googleKeys: googleSigningKeys() },
 ) {
-  // Built once and shared, so every route that reads or writes a session agrees on it.
+  // Built once and shared, so every route that reads or writes a session agrees on it,
+  // and every request with a session counts toward the one limit on its user.
   const session: SessionOptions = {
     secret: config.sessionSecret,
     secure: config.sessionCookieSecure,
     organizers: new Set(config.organizers),
+    userLimit: userLimit(now),
   };
 
   const app = createBaseApp<AppEnv>();
