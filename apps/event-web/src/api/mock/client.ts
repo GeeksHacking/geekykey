@@ -106,10 +106,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;
   let pendingFailure: MockFailure | null = null;
   let nextTapId = data.taps.reduce((max, tap) => Math.max(max, tap.id), 0) + 1;
+  // Live clients skip the auth error for the session's own GET /me call (agreement FRO-50).
+  // Track whether the current call should publish, so fail() inside it matches.
+  let currentPublishAuth = true;
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
-  async function call<T>(work: () => T): Promise<T> {
+  async function call<T>(work: () => T, publishAuth = true): Promise<T> {
+    currentPublishAuth = publishAuth;
     const [min, max] = latency;
     const wait = min + Math.random() * Math.max(0, max - min);
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
@@ -118,7 +122,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       pendingFailure = null;
       if (failure === "network") throw new NetworkError();
       const error = new ApiError(HTTP_STATUS[failure], failure);
-      publishAuthError(error);
+      if (currentPublishAuth) publishAuthError(error);
       throw error;
     }
     return work();
@@ -127,7 +131,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   // Explicit type so TypeScript treats a bare `fail(...)` statement as the end of that path.
   const fail: (code: ErrorCode, issues?: ApiIssue[]) => never = (code, issues) => {
     const error = new ApiError(HTTP_STATUS[code], code, issues);
-    publishAuthError(error);
+    if (currentPublishAuth) publishAuthError(error);
     throw error;
   };
 
@@ -262,7 +266,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           stamps,
           recent_taps,
         };
-      }),
+      }, false),
 
     // Agreement 8.7. A name the user sets counts as their own, even `Guest`, and one that
     // breaks the rule leaves the name as it was.
