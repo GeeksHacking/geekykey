@@ -1603,3 +1603,11 @@
     The Event Service now gives the map its data: each passport station's booth, taps and
     visitors, with no names, user IDs or token IDs, readable by organizers and by the map screens
     a new setting lists. Organizers set each station's booth in its passport settings.
+
+- id: disabled-station-refused-in-a-minute
+  date: 2026-10-26
+  area: backend
+  change: >-
+    A station an organizer disables is now refused within a minute everywhere, and a new station
+    works within a minute. Before, a GeekyKey Service server that had sat idle could still let a
+    disabled station's taps in once, which checkpoint 7's production check caught at 62 seconds.
