@@ -1568,8 +1568,6 @@
   date: 2026-10-26
   area: backend
   change: >-
-    The Event Service now limits each signed-in user to 60 requests a minute and answers any more
-    with "too many requests". The passport checks for new stamps once every 10 seconds and the map
-    once every 2, so neither comes close. Logging in isn't counted. Each Cloud Run server keeps its
-    own count, so with two running a user could get up to 120 a minute through. That still stops
-    a screen stuck in a loop from using up the database's free allowance.
+    The Event Service now turns away a signed-in user's requests past 60 a minute, so a screen
+    stuck in a loop can't use up the database's free allowance. The passport and the organizer
+    screens poll well under that, and logging in isn't counted.

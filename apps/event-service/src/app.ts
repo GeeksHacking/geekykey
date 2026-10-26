@@ -20,7 +20,10 @@ export type AppEnv = {
 export interface AppDeps {
   /** Google's keys, which POST /auth/firebase checks ID tokens against. Tests fake them. */
   googleKeys: GoogleSigningKeys;
-  /** The clock the station board tells online stations by, and the user limit counts minutes by. Tests pin it. */
+  /**
+   * The clock the station board tells online stations by, and the user limit
+   * counts minutes by. Tests pin it.
+   */
   now?: () => Date;
 }
 

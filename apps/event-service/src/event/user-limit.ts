@@ -1,5 +1,5 @@
 /** How many requests a minute each user gets (the API agreement's section 2, "Rate limits"). */
-export const USER_REQUESTS_PER_MINUTE = 60;
+const USER_REQUESTS_PER_MINUTE = 60;
 
 const MINUTE_MS = 60_000;
 
