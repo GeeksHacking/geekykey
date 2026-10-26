@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import * as z from "zod/mini";
 
 import { describeError, isApiError } from "@/api/errors";
 import type { EventStationPassport } from "@/api/types";
@@ -23,12 +23,14 @@ import { applyApiIssues } from "@/lib/form-errors";
 const schema = z.object({
   name: z
     .string()
-    .trim()
-    .min(1, "Give the station a name.")
-    .max(80, "Keep it under 80 characters."),
-  location: z.string().trim().max(80, "Keep it under 80 characters."),
+    .check(
+      z.trim(),
+      z.minLength(1, "Give the station a name."),
+      z.maxLength(80, "Keep it under 80 characters."),
+    ),
+  location: z.string().check(z.trim(), z.maxLength(80, "Keep it under 80 characters.")),
   // Kept as text so the input stays controlled; converted on submit.
-  points: z.string().trim().regex(/^\d+$/, "Whole numbers only, 0 or more."),
+  points: z.string().check(z.trim(), z.regex(/^\d+$/, "Whole numbers only, 0 or more.")),
 });
 
 type StationValues = z.infer<typeof schema>;

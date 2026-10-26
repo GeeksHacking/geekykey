@@ -303,3 +303,71 @@ describe("organizer response contract", () => {
     ).toThrow(NetworkError);
   });
 });
+
+describe("the rules each field carries", () => {
+  const me = {
+    user: { id: "u", display_name: null, role: "participant", has_name: false },
+    points: 7,
+    stamps: [
+      {
+        station_id: "s1",
+        name: "3D Printing Booth",
+        location: null,
+        points: 3,
+        earned_at: "2026-10-10T17:04:00+08:00",
+      },
+    ],
+    recent_taps: [],
+  };
+
+  it("takes a time with a Z or an offset, and refuses one with neither", () => {
+    expect(parseMeResponse(me).stamps[0]?.earned_at).toBe("2026-10-10T17:04:00+08:00");
+    expect(() =>
+      parseMeResponse({ ...me, stamps: [{ ...me.stamps[0], earned_at: "2026-10-10T17:04:00" }] }),
+    ).toThrow(NetworkError);
+  });
+
+  it("refuses points that are negative or not whole", () => {
+    expect(() => parseMeResponse({ ...me, points: -1 })).toThrow(NetworkError);
+    expect(() => parseMeResponse({ ...me, points: 1.5 })).toThrow(NetworkError);
+    expect(() => parseMeResponse({ ...me, stamps: [{ ...me.stamps[0], points: -3 }] })).toThrow(
+      NetworkError,
+    );
+  });
+
+  it("refuses a count below zero and an ID that is not whole", () => {
+    expect(() =>
+      parseStatsResponse({
+        total_taps: 0,
+        accepted_taps: -1,
+        unique_participants: 0,
+        stations: [],
+      }),
+    ).toThrow(NetworkError);
+    expect(() => parseFallbackTapResponse({ result: { id: 43.5, status: "accepted" } })).toThrow(
+      NetworkError,
+    );
+    expect(() => parseListTapsResponse({ taps: [], next_before_id: 41.5 })).toThrow(NetworkError);
+  });
+
+  it("takes a station whose buffer count is unknown, and refuses a negative one", () => {
+    const station = {
+      id: "s1",
+      label: "Reader 3",
+      created_at: "2026-10-01T02:00:00.000Z",
+      disabled_at: null,
+      passport: null,
+      last_seen_at: null,
+      online: false,
+      firmware_version: null,
+      buffered_taps: null,
+      reader_ok: null,
+      last_tap_at: null,
+    };
+
+    expect(parseStationResponse({ station }).station.buffered_taps).toBeNull();
+    expect(() => parseStationResponse({ station: { ...station, buffered_taps: -2 } })).toThrow(
+      NetworkError,
+    );
+  });
+});
