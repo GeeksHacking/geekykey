@@ -1611,3 +1611,11 @@
     A station an organizer disables is now refused within a minute everywhere, and a new station
     works within a minute. Before, a GeekyKey Service server that had sat idle could still let a
     disabled station's taps in once, which checkpoint 7's production check caught at 62 seconds.
+
+- id: checkpoint-7-done
+  date: 2026-10-26
+  area: backend
+  change: >-
+    Checkpoint 7 passes on production: an organizer creates a station, puts it in the passport at
+    a booth, watches its taps on the station board, the tap log and the map's data, disables and
+    enables it within a minute, and downloads an export with the agreed columns.
