@@ -68,17 +68,35 @@ export class StationsCopy<S extends StationsSource> {
     { signal, waitUntil }: { signal: AbortSignal; waitUntil: WaitUntil },
   ): Promise<KeyCheck<S>> {
     let hit = this.#byKeyHash.get(keyHash);
-    if (hit === undefined) {
-      // A request already out costs nothing to join, but a list asked for in
-      // the last minute isn't asked for again, so junk keys can't make us
-      // call an Event Service that's down.
-      const due = this.#missing().filter(({ id }) => this.#asking.has(id) || this.#stale(id));
-      if (due.length > 0) await this.#fill(due, signal, waitUntil);
+    if (hit !== undefined && this.#due(hit.eventService.id)) {
+      // A list more than a minute old may still hold a station disabled since,
+      // so it's asked for again before the key is let in (the API agreement's 9.9).
+      await this.#wait([hit.eventService], signal, waitUntil);
       hit = this.#byKeyHash.get(keyHash);
     }
-    // Found or not, so a new station's key works within a minute even when
-    // it's the only one tapping (the API agreement's 9.7).
+    if (hit === undefined) {
+      // The key may be on a list not yet in hand, or on one more than a
+      // minute old, as a new station's is (the API agreement's 9.7).
+      const due = this.#eventServices.filter(({ id }) => this.#due(id));
+      const filling = due.some(({ id }) => !this.#lists.has(id));
+      const started = this.#now();
+      if (due.length > 0) await this.#wait(due, signal, waitUntil);
+      if (filling) {
+        log("stations_copy_filled", {
+          took_ms: this.#now() - started,
+          complete: this.#missing().length === 0,
+          missing: this.#missing().map(({ id }) => id),
+        });
+      }
+      hit = this.#byKeyHash.get(keyHash);
+    }
+    // The lists this request didn't wait for are refreshed after it, so the
+    // next request for one of their stations needn't wait.
     this.#refresh(waitUntil);
+    // A wait that used up the request's time leaves none for the owners and
+    // the hand-off, and a key on no list may be on the one still out, so the
+    // station is told to resend later (the API agreement's 11.5).
+    if (signal.aborted) return { result: "unavailable" };
     if (hit !== undefined) return { result: "found", ...hit };
     return this.#missing().length === 0 ? { result: "unknown" } : { result: "unavailable" };
   }
@@ -107,6 +125,16 @@ export class StationsCopy<S extends StationsSource> {
     }
   }
 
+  /**
+   * Whether a request should wait for the Event Service's list: one is
+   * already out, which costs nothing to join, or it was last asked for more
+   * than a minute ago. A list asked for in the last minute isn't asked for
+   * again, so junk keys can't make us call an Event Service that's down.
+   */
+  #due(id: string): boolean {
+    return this.#asking.has(id) || this.#stale(id);
+  }
+
   /** Whether the Event Service was never asked for its list, or last asked more than a minute ago. */
   #stale(id: string): boolean {
     const askedAt = this.#askedAt.get(id);
@@ -114,20 +142,14 @@ export class StationsCopy<S extends StationsSource> {
   }
 
   /**
-   * Asks each of `eventServices` for its list, on a station's request, and
-   * waits for the answers until `signal` fires. A list that comes later is
-   * still kept.
+   * Asks each of `eventServices` for its list and waits for the answers until
+   * `signal` fires. A list that comes later is still kept, and one that never
+   * comes leaves the last good list in place.
    */
-  async #fill(eventServices: S[], signal: AbortSignal, waitUntil: WaitUntil) {
-    const started = this.#now();
+  async #wait(eventServices: S[], signal: AbortSignal, waitUntil: WaitUntil) {
     const asked = Promise.all(eventServices.map((eventService) => this.#ask(eventService)));
     waitUntil(asked);
     await beforeDeadline(asked, signal, () => new Error("timeout")).catch(() => {});
-    log("stations_copy_filled", {
-      took_ms: this.#now() - started,
-      complete: this.#missing().length === 0,
-      missing: this.#missing().map(({ id }) => id),
-    });
   }
 
   /**
