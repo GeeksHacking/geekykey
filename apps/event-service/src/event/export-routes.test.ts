@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
 import { testApp, testDb } from "../test-helpers.ts";
@@ -11,6 +12,18 @@ const PARTICIPANT = "user-1";
 /** The export's first line: the API agreement's ten columns, in order (9.6). */
 const HEADER =
   "tap_id,client_tap_id,station_id,station_name,user_id,display_name,status,source,tapped_at,received_at";
+
+/**
+ * The Event screens' own list of the columns (apps/event-web), so the two can't
+ * drift apart. Imported by a path tsc doesn't follow, since the screens' code
+ * is checked with their settings, not the service's.
+ */
+const SCREENS_TYPES = fileURLToPath(
+  new URL("../../../event-web/src/api/types.ts", import.meta.url),
+);
+const { EXPORT_CSV_COLUMNS } = (await import(/* @vite-ignore */ SCREENS_TYPES)) as {
+  EXPORT_CSV_COLUMNS: readonly string[];
+};
 
 /**
  * Every test goes through GET /api/v1/admin/export.csv, the A/B analysis's
@@ -105,6 +118,11 @@ test("downloads a CSV file with the agreement's ten columns and one row per tap"
       `${id},tap-000123,station-3,3D Printing Booth,${PARTICIPANT},Alex,accepted,nfc,` +
       "2026-10-10T09:00:00.000Z,2026-10-10T09:00:01.250Z\r\n",
   );
+});
+
+test("the header is the columns the Event screens expect", async () => {
+  const { exportLines } = await harness();
+  assert.equal((await exportLines())[0], EXPORT_CSV_COLUMNS.join(","));
 });
 
 test("a value with a comma, a quote or a line break is quoted, with its quotes doubled", async () => {

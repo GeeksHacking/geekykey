@@ -13,10 +13,10 @@ import {
   type SessionOptions,
 } from "./session-auth.ts";
 import { passportStations, STORED_TAP_STATUSES, stations, taps } from "./schema.ts";
-import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { exportTapsCsv } from "./export.ts";
+import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
-import { loadStats } from "./stats.ts";
+import { type EventStats, loadStats } from "./stats.ts";
 import { type LoggedTap, loadTapLog } from "./tap-log.ts";
 import { TapPipeline } from "./tap-pipeline.ts";
 
@@ -119,6 +119,21 @@ function tapBody(tap: LoggedTap) {
   };
 }
 
+/** The organizers' totals as the summary reads them (the API agreement's 9.5). */
+function statsBody(stats: EventStats) {
+  return {
+    total_taps: stats.totalTaps,
+    accepted_taps: stats.acceptedTaps,
+    unique_participants: stats.uniqueParticipants,
+    stations: stats.stations.map((station) => ({
+      station_id: station.stationId,
+      name: station.name,
+      accepted_taps: station.acceptedTaps,
+      unique_participants: station.uniqueParticipants,
+    })),
+  };
+}
+
 /**
  * Mounted at /api/v1/admin: the organizer endpoints (the API agreement's
  * section 9). Nobody signed in gets `unauthenticated`, and anyone not on the
@@ -192,20 +207,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
   });
 
   // The organizers' totals (9.5).
-  app.get("/stats", async (c) => {
-    const stats = await loadStats(c.var.db);
-    return c.json({
-      total_taps: stats.totalTaps,
-      accepted_taps: stats.acceptedTaps,
-      unique_participants: stats.uniqueParticipants,
-      stations: stats.stations.map((station) => ({
-        station_id: station.stationId,
-        name: station.name,
-        accepted_taps: station.acceptedTaps,
-        unique_participants: station.uniqueParticipants,
-      })),
-    });
-  });
+  app.get("/stats", async (c) => c.json(statsBody(await loadStats(c.var.db))));
 
   // The stored taps as a file, for the A/B analysis (9.6).
   app.get("/export.csv", async (c) => {
