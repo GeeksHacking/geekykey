@@ -1184,8 +1184,8 @@ who has never logged in to this event.
   writes timestamps as the JSON answers give them.
 - The answer's `Content-Type` is `text/csv; charset=utf-8`, and `Content-Disposition` names the
   file `geekykey-taps.csv`.
-- Names come as they were typed. The screens escape a name that a spreadsheet could run as a
-  formula, and the Event Service doesn't (section 13).
+- Values come as they were typed or sent. The screens escape a value that a spreadsheet could
+  run as a formula, and the Event Service doesn't (section 13).
 
 This is the data feed for the Sprint 2 A/B analysis, so it must not be cut from scope. The
 analysis needs neither token UIDs nor taps by unclaimed tokens (Joshua, 28 Sep).
@@ -1638,10 +1638,10 @@ There are no GeekyKey admin screens.
   above its content. With no service behind the screens at all, it says "Demo data. This screen
   shows sample data." Every screen built so far sends every call to its own service, so with the
   service behind it, it shows no notice.
-- The organiser's CSV download is the file the service sent, unchanged, unless a name needs
-  escaping. The summary says the rule under the Download CSV button: **"A name that a spreadsheet
-  could run as a formula gets an apostrophe, so it stays text."** When the file was changed, it
-  says **"Some names were escaped, so this file is not the service's own."**
+- The organiser's CSV download is the file the service sent, unchanged, unless a value needs
+  escaping. The summary says the rule under the Download CSV button: **"A value that a
+  spreadsheet could run as a formula gets an apostrophe, so it stays text."** When the file was
+  changed, it says **"Some values were escaped, so this file is not the service's own."**
 
 Local setup, from checkpoint 1:
 
@@ -1746,3 +1746,4 @@ Closed on 2026-10-10:
 | 2026-10-26 | The map's data, `GET /api/v1/map` (9.10), is `Implemented`, and so is `booth` in passport settings (9.1) and the station board (9.2), so neither changes at checkpoint 7 any more. The Event Service trims `booth` and counts it in code points, as it does `location`: at most 80, with a blank or `null` booth answered as `null`. A save that changes only the booth writes a `station_passport_changed` log line. The map lists each passport station in stamp-slot order, disabled ones too. `taps` counts its `accepted` and `cooldown` taps from the station and the QR fallback, `unique_participants` counts the users with an `accepted` tap there, and `last_tap_at` is the newest of the counted taps. The Event Service's map screen list is its `MAP_SCREENS` setting, user IDs separated by commas and read when it starts, as `ORGANIZERS` is. It starts empty on staging and production. A map screen gets `forbidden` from every organizer endpoint, and its `/me` says `participant`. No shape changes (BAC-84). |
 | 2026-10-26 | Ethan, the screens owner, approved version 0.6 in its pull request (#148), so it is no longer a draft. No endpoint or shape changes (BAC-81). |
 | 2026-10-26 | 6.1's step 4 and 11.5 say the 4-second deadline also covers refreshing the GeekyKey Service's copy of the registered stations, not only filling an empty one. A station request now waits for a list more than a minute old before its key is checked, so a disabled station's key gets `401` within a minute on every Worker isolate, as 9.9 says, and a new station's key works within a minute, as 9.7 says. Before, a Worker that had sat idle answered once from its old list, and BAC-85's proof saw a disabled key accepted 61.7 seconds after the disable. A refresh that uses up the deadline answers `503 event_service_unavailable`. No shape changes (BAC-87). |
+| 2026-10-27 | 9.6 and section 13 say the screens escape any value a spreadsheet could run as a formula, not only a name. A `user_id` typed for a QR fallback and a station's `client_tap_id` are free text too, and the screens already escaped them. Section 13's two sentences under the Download CSV button say "value" where they said "name". No endpoint or shape changes (FRO-82). |
