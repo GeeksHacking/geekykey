@@ -96,10 +96,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;
   let pendingFailure: MockFailure | null = null;
+  // Live clients skip the auth error for the session's own /me call (agreement FRO-50).
+  // Track whether the current call should publish, so fail() inside it matches.
+  let currentPublishAuth = true;
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
-  async function call<T>(work: () => T): Promise<T> {
+  async function call<T>(work: () => T, publishAuth = true): Promise<T> {
+    currentPublishAuth = publishAuth;
     const [min, max] = latency;
     const wait = min + Math.random() * Math.max(0, max - min);
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
@@ -108,7 +112,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       pendingFailure = null;
       if (failure === "network") throw new NetworkError();
       const error = new ApiError(HTTP_STATUS[failure], failure);
-      publishAuthError(error);
+      if (currentPublishAuth) publishAuthError(error);
       throw error;
     }
     return work();
@@ -117,7 +121,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   // Explicit type so a bare `fail(...)` statement is the end of that path.
   const fail: (code: ErrorCode, issues?: ApiIssue[]) => never = (code, issues) => {
     const error = new ApiError(HTTP_STATUS[code], code, issues);
-    publishAuthError(error);
+    if (currentPublishAuth) publishAuthError(error);
     throw error;
   };
 
@@ -180,7 +184,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           tokens: ownedTokens(userId).map(toToken),
           events: events(),
         };
-      }),
+      }, false),
 
     devLogin: (userId) =>
       call(() => {
