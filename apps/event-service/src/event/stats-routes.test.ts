@@ -107,7 +107,7 @@ test("totals count every stored status, and participants by their accepted taps"
   assert.equal(body.unique_participants, 2);
 });
 
-test("lists each passport station, oldest settings first, with its accepted taps and participants", async () => {
+test("lists each passport station in stamp-slot order, with its accepted taps and participants", async () => {
   const { db, stats, addStation, addTap } = await harness();
   // Created in one order, added to the passport in another: the stamp slots follow the passport.
   await addStation("station-b", { name: "Booth B", addedAt: "2026-10-10T08:00:02.000Z" });

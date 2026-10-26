@@ -23,7 +23,7 @@ export interface StationStats {
 }
 
 /** Only accepted taps count for the passport, and so for participants. */
-const accepted = sql`${taps.status} = 'accepted'`;
+const isAccepted = eq(taps.status, "accepted");
 
 /**
  * Counts the stored taps. The two reads are sent together, so each sees its
@@ -35,9 +35,9 @@ export async function loadStats(db: Db): Promise<EventStats> {
     db
       .select({
         totalTaps: count(),
-        acceptedTaps: sql<number>`count(case when ${accepted} then 1 end)`.mapWith(Number),
+        acceptedTaps: sql<number>`count(case when ${isAccepted} then 1 end)`.mapWith(Number),
         uniqueParticipants:
-          sql<number>`count(distinct case when ${accepted} then ${taps.userId} end)`.mapWith(
+          sql<number>`count(distinct case when ${isAccepted} then ${taps.userId} end)`.mapWith(
             Number,
           ),
       })
@@ -51,10 +51,7 @@ export async function loadStats(db: Db): Promise<EventStats> {
         uniqueParticipants: countDistinct(taps.userId),
       })
       .from(passportStations)
-      .leftJoin(
-        taps,
-        and(eq(taps.stationId, passportStations.stationId), eq(taps.status, "accepted")),
-      )
+      .leftJoin(taps, and(eq(taps.stationId, passportStations.stationId), isAccepted))
       .groupBy(passportStations.stationId, passportStations.name, passportStations.addedAt)
       // The order they were added, as the passport's stamp slots are.
       .orderBy(asc(passportStations.addedAt), asc(passportStations.stationId)),
