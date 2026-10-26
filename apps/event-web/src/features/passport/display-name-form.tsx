@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import * as z from "zod/mini";
 
 import { describeError, isApiErrorCode } from "@/api/errors";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { isDisplayName } from "@/lib/display-name";
 const NAME_RULE = "Use 1 to 30 characters.";
 
 const schema = z.object({
-  display_name: z.string().refine(isDisplayName, NAME_RULE),
+  display_name: z.string().check(z.refine(isDisplayName, NAME_RULE)),
 });
 
 type NameValues = z.infer<typeof schema>;
