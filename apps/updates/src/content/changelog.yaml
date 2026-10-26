@@ -1553,3 +1553,13 @@
     station's tap would, and the cooldown applies to it the same way. The scan log marks it as a
     QR fallback, and the Event Service logs which organizer entered it. The organizer screens
     still show demo data until they switch to it.
+
+- id: stats-and-export-endpoints
+  date: 2026-10-26
+  area: backend
+  change: >-
+    Organizers can now read the event's totals from the Event Service: every tap, the taps that
+    counted, how many participants have a stamp, and each passport station's counts in stamp
+    order. They can also download every tap as a CSV file with the ten columns Joshua's A/B
+    analysis uses, with no token IDs. The organizer screens still show demo data until they
+    switch to it.

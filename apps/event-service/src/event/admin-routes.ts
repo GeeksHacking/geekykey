@@ -14,7 +14,9 @@ import {
 } from "./session-auth.ts";
 import { passportStations, STORED_TAP_STATUSES, stations, taps } from "./schema.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
+import { exportTapsCsv } from "./export.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
+import { loadStats } from "./stats.ts";
 import { type LoggedTap, loadTapLog } from "./tap-log.ts";
 import { TapPipeline } from "./tap-pipeline.ts";
 
@@ -187,6 +189,31 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
       client_tap_id: clientTapId,
     });
     return c.json({ result: { id: stored!.id, status: result!.status } }, 201);
+  });
+
+  // The organizers' totals (9.5).
+  app.get("/stats", async (c) => {
+    const stats = await loadStats(c.var.db);
+    return c.json({
+      total_taps: stats.totalTaps,
+      accepted_taps: stats.acceptedTaps,
+      unique_participants: stats.uniqueParticipants,
+      stations: stats.stations.map((station) => ({
+        station_id: station.stationId,
+        name: station.name,
+        accepted_taps: station.acceptedTaps,
+        unique_participants: station.uniqueParticipants,
+      })),
+    });
+  });
+
+  // The stored taps as a file, for the A/B analysis (9.6).
+  app.get("/export.csv", async (c) => {
+    const csv = await exportTapsCsv(c.var.db);
+    return c.body(csv, 200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="geekykey-taps.csv"',
+    });
   });
 
   // Creating a station (9.7). Its key is in this answer and nowhere else: only its hash is stored.
