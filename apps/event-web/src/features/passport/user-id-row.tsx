@@ -41,7 +41,7 @@ export function UserIdRow({ userId }: { userId: string }) {
       <p className="text-sm text-muted-foreground">
         Your user ID: <code className="font-mono text-foreground">{userId}</code>
       </p>
-      <Button size="sm" variant="outline" onClick={() => void copyUserId()}>
+      <Button variant="outline" onClick={() => void copyUserId()}>
         {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
         {copied ? "Copied" : "Copy"}
       </Button>
