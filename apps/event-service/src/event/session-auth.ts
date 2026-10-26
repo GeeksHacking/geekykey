@@ -36,7 +36,10 @@ export interface SessionOptions {
   maxAgeSeconds?: number;
   /** From config.organizers: who is an organizer. Everyone else is a participant. */
   organizers: ReadonlySet<string>;
-  /** From config.mapScreens: who may read the map besides organizers. A map screen is still a participant. */
+  /**
+   * From config.mapScreens: who may read the map besides organizers. A map
+   * screen is still a participant.
+   */
   mapScreens: ReadonlySet<string>;
   /** Counts each user's requests that requireSession lets through (user-limit.ts). */
   userLimit: UserLimit;

@@ -23,8 +23,8 @@ interface MapBody {
 }
 
 /**
- * Every test goes through GET /api/v1/map, what the map on the big screen
- * draws (the API agreement's 9.10). Stations, users and taps are written
+ * Every test goes through GET /api/v1/map, what the map draws (the API
+ * agreement's 9.10). Stations, users and taps are written
  * straight into the tables, so these tests depend only on what is stored.
  */
 async function harness(settings: Record<string, string> = {}) {
@@ -201,10 +201,24 @@ test("a map screen is no organizer: every organizer endpoint answers it forbidde
   // And its /me says participant, since a map screen isn't a role (8.1).
   const me = await app.request("/api/v1/me", { headers: { Cookie: cookie } });
   assert.equal(((await me.json()) as { user: { role: string } }).user.role, "participant");
-  // Nothing it sent changed the station.
-  const [station] = await db.select().from(stations).where(eq(stations.id, "station-3"));
-  assert.equal(station!.disabledAt, null);
-  assert.equal(station!.apiKeyHash, "unused-station-3");
+  // Nothing it sent changed anything: the board shows the one station as it was, and the
+  // GeekyKey Service still gets its old key's hash.
+  const board = await app.request("/api/v1/admin/stations", {
+    headers: { Cookie: await signIn(ORGANIZER) },
+  });
+  const boardBody = (await board.json()) as {
+    stations: { id: string; disabled_at: string | null; passport: { name: string } }[];
+  };
+  assert.deepEqual(
+    boardBody.stations.map((s) => [s.id, s.disabled_at, s.passport.name]),
+    [["station-3", null, "3D Printing Booth"]],
+  );
+  const registered = await app.request("/geekykey/v1/stations", {
+    headers: { Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}` },
+  });
+  assert.deepEqual(await registered.json(), {
+    stations: [{ station_id: "station-3", key_hash: "unused-station-3" }],
+  });
 });
 
 test("a booth set in the passport settings shows on the map and the station board", async () => {

@@ -919,8 +919,8 @@ Two settings in each service's `settings.env` say who may do more than a partici
 ID, separated by commas:
 
 - `ORGANIZERS` may use the organizer screens and read the map.
-- `MAP_SCREENS` may read the map on the big screen (the API agreement's 9.10), and nothing else
-  an organizer can. The screen at our booth logs in as a user kept for it, and that user's ID
+- `MAP_SCREENS` may read the map (the API agreement's 9.10), and nothing else an organizer
+  can. The screen at our booth logs in as a user kept for it, and that user's ID
   goes here.
 
 Both start empty, which means nobody. A user's ID is on their dashboard, under "Your user ID",

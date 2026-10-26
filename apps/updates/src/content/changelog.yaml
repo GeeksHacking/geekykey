@@ -1600,10 +1600,6 @@
   date: 2026-10-26
   area: backend
   change: >-
-    The Event Service now gives the map on the big screen its data: each passport station in
-    stamp order, with its booth, whether it's disabled, its taps, how many participants have its
-    stamp, and its last tap's time. A tap in the cooldown counts, so the map pulses even when the
-    tap earned nothing. It holds no names, user IDs or token IDs. Organizers can read it, and so
-    can the map screens listed in a new setting, which can't do anything else an organizer can.
-    Organizers can now set each station's booth in its passport settings, and the station board
-    shows it.
+    The Event Service now gives the map its data: each passport station's booth, taps and
+    visitors, with no names, user IDs or token IDs, readable by organizers and by the map screens
+    a new setting lists. Organizers set each station's booth in its passport settings.

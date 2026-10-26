@@ -3,9 +3,9 @@ import type { Db } from "../db/pool.ts";
 import { passportStations, stations, taps } from "./schema.ts";
 
 /**
- * One passport station as the map on the big screen draws it (the API
- * agreement's 9.10). No user ID, display name or token ID, so the map tells
- * nobody where anyone has been.
+ * One passport station as the map draws it (the API agreement's 9.10). No
+ * user ID, display name or token ID, so the map tells nobody where anyone
+ * has been.
  */
 export interface MapStation {
   stationId: string;
