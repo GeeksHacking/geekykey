@@ -24,8 +24,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 /*
   The real client. Same interface and the same thrown errors as the mock, so no
-  screen can tell them apart. Which methods the app actually calls through here
-  is decided in src/api/create-client.ts, one slice at a time.
+  screen can tell them apart. A live build runs every method through here, as
+  src/api/create-client.ts decides.
 
   Everything below send() is plumbing: a path, a body, and the schema in
   src/api/schemas.ts that checks the answer. send() itself is the part that has to be right.
@@ -81,10 +81,10 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     throw error;
   }
 
-  async function sendJson<T>(path: string, init?: RequestInit): Promise<T> {
+  async function sendJson(path: string, init?: RequestInit): Promise<unknown> {
     const response = await send(path, init);
     try {
-      return (await response.json()) as T;
+      return (await response.json()) as unknown;
     } catch {
       throw new NetworkError("The server returned an invalid response");
     }
@@ -103,12 +103,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
   }
 
   return {
-    me: () => sendJson<unknown>("/api/v1/me").then(parseMeResponse),
+    me: () => sendJson("/api/v1/me").then(parseMeResponse),
 
     // Agreement 8.7. The answer replaces the user in the ["me"] cache, so it is checked
     // like /me's.
     setDisplayName: (input) =>
-      sendJson<unknown>("/api/v1/me", jsonBody(input, "PATCH")).then(parseSetDisplayNameResponse),
+      sendJson("/api/v1/me", jsonBody(input, "PATCH")).then(parseSetDisplayNameResponse),
 
     devLogin: async (userId) => {
       await send("/auth/dev-login", postJson({ user_id: userId }));
@@ -132,43 +132,42 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     // Agreement 9.2. The Event Service answers with its own registered stations, so
     // this is the only call to this path that reads.
-    listStationBoard: () =>
-      sendJson<unknown>("/api/v1/admin/stations").then(parseEventStationBoardResponse),
+    listStationBoard: () => sendJson("/api/v1/admin/stations").then(parseEventStationBoardResponse),
 
     // Agreement 9.7. The response is the one place the key is ever sent.
     createStation: (input) =>
-      sendJson<unknown>("/api/v1/admin/stations", postJson(input)).then(parseStationKeyResponse),
+      sendJson("/api/v1/admin/stations", postJson(input)).then(parseStationKeyResponse),
 
     // 9.8 sends no body, so this is the shape logout already uses rather than jsonBody.
     replaceStationKey: (stationId) =>
-      sendJson<unknown>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/key`, {
+      sendJson(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/key`, {
         method: "POST",
       }).then(parseStationKeyResponse),
 
     // 9.9 is the same bodyless shape, answered with the station alone instead of a key.
     disableStation: (stationId) =>
-      sendJson<unknown>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/disable`, {
+      sendJson(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/disable`, {
         method: "POST",
       }).then(parseStationResponse),
 
     enableStation: (stationId) =>
-      sendJson<unknown>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/enable`, {
+      sendJson(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/enable`, {
         method: "POST",
       }).then(parseStationResponse),
 
     setStationPassport: (stationId, input) =>
-      sendJson<unknown>(
+      sendJson(
         `/api/v1/admin/stations/${encodeURIComponent(stationId)}/passport`,
         jsonBody(input, "PUT"),
       ).then(parseSetStationPassportResponse),
 
     listTaps: (query) =>
-      sendJson<unknown>(`/api/v1/admin/taps${toSearch(query)}`).then(parseListTapsResponse),
+      sendJson(`/api/v1/admin/taps${toSearch(query)}`).then(parseListTapsResponse),
 
     createFallbackTap: (input) =>
-      sendJson<unknown>("/api/v1/admin/taps", postJson(input)).then(parseFallbackTapResponse),
+      sendJson("/api/v1/admin/taps", postJson(input)).then(parseFallbackTapResponse),
 
-    stats: () => sendJson<unknown>("/api/v1/admin/stats").then(parseStatsResponse),
+    stats: () => sendJson("/api/v1/admin/stats").then(parseStatsResponse),
 
     exportCsv: async () => (await send("/api/v1/admin/export.csv")).blob(),
   };
