@@ -6,7 +6,6 @@ import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type { MeResponse } from "@/api/types";
 import { POLL_ME_MS } from "@/lib/constants";
-import { signOutOfFirebase } from "@/lib/firebase";
 import { SessionContext, type SessionStatus } from "@/lib/session";
 
 /*
@@ -20,6 +19,8 @@ import { SessionContext, type SessionStatus } from "@/lib/session";
   `loginLink` is the link the page arrived with, from takeLoginLink() in
   lib/login-link.ts. The first /me sends it before it reads, so nothing reads the
   session the browser had before the link replaces it (agreement 7.4).
+
+  Firebase is imported where it's used, so the pages that never sign out don't load it.
 */
 export function SessionProvider({
   children,
@@ -141,6 +142,7 @@ export function SessionProvider({
       // failure is logged and not fatal: the service's cookie is the session, and the user
       // has to see that failing.
       try {
+        const { signOutOfFirebase } = await import("@/lib/firebase");
         await signOutOfFirebase();
       } catch (error) {
         console.error("Signing out of Firebase failed", error);
