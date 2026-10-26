@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
-import { ApiError } from "@/api/errors";
+import { ApiError, AUTH_ERROR_EVENT } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID, SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { EXPORT_CSV_COLUMNS } from "@/api/types";
@@ -129,6 +129,45 @@ describe("sessions and roles", () => {
     await api.devLogin(SEEDED_PARTICIPANT_ID);
     const me = await api.me();
     expect(me.recent_taps[0]).toMatchObject({ station_name: null, status: "no_game" });
+  });
+});
+
+describe("the auth error the session provider hears", () => {
+  function listen(): unknown[] {
+    const heard: unknown[] = [];
+    const onAuthError = (event: Event) => heard.push((event as CustomEvent).detail);
+    window.addEventListener(AUTH_ERROR_EVENT, onAuthError);
+    onTestFinished(() => window.removeEventListener(AUTH_ERROR_EVENT, onAuthError));
+    return heard;
+  }
+
+  it("is not published when GET /me fails, as the live client does", async () => {
+    const heard = listen();
+    const api = client();
+
+    await expectApiError(api.me(), "unauthenticated", 401);
+    api.mock.failNext("forbidden");
+    await expectApiError(api.me(), "forbidden", 403);
+
+    expect(heard).toEqual([]);
+  });
+
+  it("is published when any other call fails", async () => {
+    const heard = listen();
+
+    await expectApiError(client().listStationBoard(), "unauthenticated", 401);
+
+    expect(heard).toHaveLength(1);
+  });
+
+  it("keeps each call's own choice when calls overlap", async () => {
+    // Both calls wait out the latency together, so the board's call starts while /me's waits.
+    const heard = listen();
+    const api = createMockClient({ latencyMs: [5, 5], storage: null });
+
+    await Promise.allSettled([api.me(), api.listStationBoard()]);
+
+    expect(heard).toHaveLength(1);
   });
 });
 
