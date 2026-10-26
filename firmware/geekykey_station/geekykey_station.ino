@@ -1,17 +1,31 @@
 /*
-  ESP32-S3 + RC522 -> read an NTAG213 -> POST the tap to the GeekyKey backend
+  ESP32 + RC522 -> read an NTAG213 -> POST the tap to the GeekyKey backend
 
-  Wiring:
-    RC522 3.3V  -> ESP32-S3 3V3
-    RC522 GND   -> ESP32-S3 GND
-    RC522 RST   -> GPIO9
-    RC522 SCK   -> GPIO12
-    RC522 MISO  -> GPIO13
-    RC522 MOSI  -> GPIO11
-    RC522 SDA   -> GPIO10   (this is the chip-select / SS pin)
-    RC522 IRQ   -> not connected
-    Buzzer +    -> GPIO21   (an active buzzer: it sounds while the pin is HIGH)
-    Buzzer -    -> GND
+  One sketch for two boards: the ESP32-S3, and the classic ESP32 on a DOIT
+  ESP32 DevKit V1. The board picked in the IDE chooses the pins below, so the
+  same sketch builds for either with no edits.
+
+  Wiring:                ESP32-S3    classic ESP32
+    RC522 3.3V        -> 3V3         3V3
+    RC522 GND         -> GND         GND
+    RC522 RST         -> GPIO9       GPIO4
+    RC522 SCK         -> GPIO12      GPIO18
+    RC522 MISO        -> GPIO13      GPIO19
+    RC522 MOSI        -> GPIO11      GPIO23
+    RC522 SDA         -> GPIO10      GPIO5    (this is the chip-select / SS pin)
+    RC522 IRQ         -> not connected
+    LCD SDA           -> GPIO7       GPIO21
+    LCD SCL           -> GPIO6       GPIO22
+    Blue LED          -> GPIO4       GPIO25
+    Red LED           -> GPIO5       GPIO26
+    Amber LED         -> GPIO3       GPIO27   (LED_PIN_YELLOW below)
+    Buzzer +          -> GPIO21      GPIO32   (an active buzzer: it sounds while the pin is HIGH)
+    Buzzer -          -> GND         GND
+
+  The classic ESP32 can't take the S3's pins: GPIO6 to 11 drive its flash chip,
+  so I2C on 7 and 6 restarts it in a loop, the S3's LEDs on 4 and 5 would sit
+  on its RST and SS, and GPIO3 is its UART's RX pin. Its buzzer is on GPIO32
+  because the screen's SDA takes GPIO21.
 
   Libraries needed (Library Manager):
     "MFRC522"
@@ -57,6 +71,8 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
+// The pins for the board picked in the IDE (the wiring at the top).
+#if CONFIG_IDF_TARGET_ESP32S3
 #define SS_PIN 10
 #define RST_PIN 9
 #define SCK_PIN 12
@@ -67,8 +83,23 @@
 #define LED_PIN_YELLOW 3
 #define I2C_SDA 7
 #define I2C_SCL 6
-#define NO_LED -1
 #define BUZZER_PIN 21
+#elif CONFIG_IDF_TARGET_ESP32
+#define SS_PIN 5
+#define RST_PIN 4
+#define SCK_PIN 18
+#define MISO_PIN 19
+#define MOSI_PIN 23
+#define LED_PIN_BLUE 25
+#define LED_PIN_RED 26
+#define LED_PIN_YELLOW 27
+#define I2C_SDA 21
+#define I2C_SCL 22
+#define BUZZER_PIN 32
+#else
+#error "The station has pins for the ESP32-S3 and the classic ESP32 only. Pick one of those boards."
+#endif
+#define NO_LED -1
 
 // The sounds a result can play on the buzzer. Each one is shorter than
 // RESULT_SHOW_MS, so it ends while the result still shows.
@@ -79,7 +110,7 @@
 
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-10-23"
+#define FIRMWARE_VERSION "2026-10-26"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL

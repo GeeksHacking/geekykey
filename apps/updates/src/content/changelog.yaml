@@ -1587,3 +1587,11 @@
     The organiser screens now run on the Event Service's real data. Creating a station, its key,
     passport settings, disabling and enabling, the scan log, the QR fallback, the summary and the
     CSV download all go to the service, and the "Demo data" notice is gone from a live build.
+
+- id: station-classic-esp32
+  date: 2026-10-26
+  area: firmware
+  change: >-
+    The station sketch now builds for the classic ESP32 (a DOIT DevKit V1) as well as the ESP32-S3,
+    with no edits. The board picked in the Arduino IDE chooses the pins, and on the classic ESP32
+    the buzzer moves to GPIO32 because the screen uses GPIO21.
