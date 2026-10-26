@@ -26,7 +26,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-// Mock client, or the mock with the live slices swapped in. src/api/create-client.ts decides.
+// The mock client, or the HTTP client in a live build. src/api/create-client.ts decides.
 const api = createAppClient();
 const queryClient = createQueryClient();
 

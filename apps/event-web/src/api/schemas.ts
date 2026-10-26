@@ -1,7 +1,17 @@
 import { z } from "zod";
 
 import { NetworkError } from "@/api/errors";
-import type { EventStationBoardResponse, MeResponse, SetDisplayNameResponse } from "@/api/types";
+import type {
+  EventStationBoardResponse,
+  FallbackTapResponse,
+  ListTapsResponse,
+  MeResponse,
+  SetDisplayNameResponse,
+  SetStationPassportResponse,
+  StationKeyResponse,
+  StationResponse,
+  StatsResponse,
+} from "@/api/types";
 
 const isoTimestamp = z.iso.datetime({ offset: true });
 const role = z.enum(["participant", "organizer"]);
@@ -58,6 +68,61 @@ export const eventStationBoardResponseSchema: z.ZodType<EventStationBoardRespons
   stations: z.array(eventStationBoardStationSchema),
 });
 
+/** Agreement 9.1. Here `station_id` sits inside `passport`, which the board's doesn't have. */
+export const setStationPassportResponseSchema: z.ZodType<SetStationPassportResponse> = z.object({
+  passport: eventPassportSchema.extend({ station_id: z.string() }),
+});
+
+/** Agreement 9.7 and 9.8: the station as the board lists it, with the key shown once. */
+export const stationKeyResponseSchema: z.ZodType<StationKeyResponse> = z.object({
+  station: eventStationBoardStationSchema,
+  api_key: z.string(),
+});
+
+/** Agreement 9.9: the station as the board lists it, and no key. */
+export const stationResponseSchema: z.ZodType<StationResponse> = z.object({
+  station: eventStationBoardStationSchema,
+});
+
+const count = z.number().int().nonnegative();
+
+/** Agreement 9.5. */
+export const statsResponseSchema: z.ZodType<StatsResponse> = z.object({
+  total_taps: count,
+  accepted_taps: count,
+  unique_participants: count,
+  stations: z.array(
+    z.object({
+      station_id: z.string(),
+      name: z.string(),
+      accepted_taps: count,
+      unique_participants: count,
+    }),
+  ),
+});
+
+/** Agreement 9.3. The log holds stored taps only, so no `duplicate`, and each has a user. */
+export const listTapsResponseSchema: z.ZodType<ListTapsResponse> = z.object({
+  taps: z.array(
+    z.object({
+      id: z.number().int(),
+      client_tap_id: z.string(),
+      station: z.object({ id: z.string(), name: z.string().nullable() }),
+      user: z.object({ id: z.string(), display_name: z.string().nullable() }),
+      status: tapStatus,
+      source: tapSource,
+      tapped_at: isoTimestamp.nullable(),
+      received_at: isoTimestamp,
+    }),
+  ),
+  next_before_id: z.number().int().nullable(),
+});
+
+/** Agreement 9.4. A fallback goes only to a passport station, so it is never `no_game`. */
+export const fallbackTapResponseSchema: z.ZodType<FallbackTapResponse> = z.object({
+  result: z.object({ id: z.number().int(), status: z.enum(["accepted", "cooldown"]) }),
+});
+
 /**
  * The Event Service's /me, matching MeResponse in api/types.ts.
  *
@@ -101,3 +166,30 @@ export function parseSetDisplayNameResponse(input: unknown): SetDisplayNameRespo
   }
   return result.data;
 }
+
+/** Checks an organizer answer against its schema, so a wrong shape fails here and not in a screen. */
+function parseOrganizerResponse<T>(schema: z.ZodType<T>, input: unknown): T {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    throw new NetworkError("The server returned an unexpected response");
+  }
+  return result.data;
+}
+
+export const parseStatsResponse = (input: unknown) =>
+  parseOrganizerResponse(statsResponseSchema, input);
+
+export const parseListTapsResponse = (input: unknown) =>
+  parseOrganizerResponse(listTapsResponseSchema, input);
+
+export const parseFallbackTapResponse = (input: unknown) =>
+  parseOrganizerResponse(fallbackTapResponseSchema, input);
+
+export const parseStationKeyResponse = (input: unknown) =>
+  parseOrganizerResponse(stationKeyResponseSchema, input);
+
+export const parseStationResponse = (input: unknown) =>
+  parseOrganizerResponse(stationResponseSchema, input);
+
+export const parseSetStationPassportResponse = (input: unknown) =>
+  parseOrganizerResponse(setStationPassportResponseSchema, input);

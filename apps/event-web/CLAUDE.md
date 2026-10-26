@@ -28,18 +28,15 @@ Showcase is 18 Nov 2026. Scope down before adding features.
 
 Do not copy content from the agreement or the skill into this file. Link to it.
 
-## Current phase: staged live session, mock resources
+## Mock and live builds
 
-The screens are built against the mock and the first live session slice is now enabled:
-`me`, `setDisplayName`, `devLogin`, `firebaseLogin`, `loginLink`, and `logout` use the backend in
-live mode.
-Admin, fallback, stats, and export remain mock-backed until their service routes are
-implemented. Token claiming lives in the separate GeekyKey app, not in these Event screens.
-The mock/live split is intentional; screens never need to know which client supplied a value.
-
-`src/api/create-client.ts` is still the only file that changes when an endpoint goes live.
-`src/api/service-client.ts` prepares the future GeekyKey/Event Service split without changing
-screen contracts yet.
+`src/api/create-client.ts` decides which client the app runs on. A live build
+(`VITE_LIVE_API=1`) sends every method to the Event Service: the session, the station board
+and its writes, the scan log, the QR fallback, the stats and the export. A mock build answers
+every method from `src/api/mock`, and the organiser console says so in section 13's "Demo
+data" notice (`src/components/layout/data-source-notice.tsx`). A live build shows no notice.
+Token claiming lives in the separate GeekyKey app, not in these Event screens. Screens never
+need to know which client supplied a value.
 
 Rules that make this possible:
 
@@ -47,8 +44,8 @@ Rules that make this possible:
 - `src/api/types.ts` mirrors the agreement field for field, in `snake_case`. Never add a
   field the agreement does not have. If a screen needs something missing, propose a change
   to the agreement instead of inventing it.
-- `src/api/mock/` holds fixtures and a mock client with the same interface as the future
-  HTTP client. Fixtures use the seeded IDs (`dev-user-1`, `dev-organizer-1`), cover the
+- `src/api/mock/` holds fixtures and a mock client with the same interface as the HTTP
+  client. Fixtures use the seeded IDs (`dev-user-1`, `dev-organizer-1`), cover the
   statuses currently used by the mock, include stamps with `earned_at: null`, and use realistic,
   uneven data. No round numbers, no "John Doe".
 - The mock client simulates latency and can be told to fail with any error code from the
@@ -57,75 +54,48 @@ Rules that make this possible:
   `simulate: true` (the default in `api/create-client.ts`) a station simulator keeps the
   online stations' heartbeat fresh and drips in new taps, so polling has something to show.
 
-## Wiring an endpoint to the real backend
+## The real backend
 
-No screen, hook, or query key changes when an endpoint goes live. `src/api/create-client.ts`
-changes, and nothing else. It is worth reading that file before the first slice.
+No screen, hook, or query key knows whether it talks to the mock or to the Event Service.
+`pnpm dev` runs entirely on the mock, so nobody doing UI work is blocked on a running backend.
+`pnpm dev:live` sets `VITE_LIVE_API=1` and sends every call to the Event Service. On Windows
+PowerShell, `$env:VITE_LIVE_API="1"; pnpm dev`.
 
-`pnpm dev` is unchanged and still runs entirely on the mock, so nobody doing UI work is
-blocked on a running backend. `pnpm dev:live` sets `VITE_LIVE_API=1`, which sends the
-methods listed in `liveMethods()` to the real backend and leaves every other method on the
-mock. On Windows PowerShell, `$env:VITE_LIVE_API="1"; pnpm dev`.
+`src/api/service-client.ts` groups the methods under the service that owns them in the
+agreement: a session bundle and an Event bundle. It has no GeekyKey bundle because these
+screens make no GeekyKey call. The screens still consume the single `ApiClient`.
 
-Migrate in slices, not one method at a time. The session slice in particular has to move
-as a unit: a live `me()` with a mock `devLogin()` means nobody can sign in.
+`GET /api/v1/admin/stations` is the organiser's station board (9.2), which the station
+screen, the fallback picker and the scan-log filter all read through `listStationBoard`.
+Each Event Service registers and issues its own stations (9.7 to 9.9), and the GeekyKey
+Service keeps only a copy in memory of what they registered.
 
-### Two-service preparation
+To check a screen against the real service:
 
-`apps/API-AGREEMENT.md` v0.2 separates the GeekyKey Service from the Event Service. The
-current screens still consume one `ApiClient` so existing hooks do not change during the
-staged migration. `src/api/service-client.ts` provides a non-breaking session/Event
-bundle for new code, and has no GeekyKey slice because these screens make no GeekyKey
-call. Do not move a route to that bundle until its backend endpoint and response contract are
-implemented; the bundle is organizational preparation, not a second live switch.
-
-`GET /api/v1/admin/stations` is on the Event Service. It is the Organizer's station board
-(9.2), which the station screen, the fallback picker and the scan-log filter need.
-Agreement section 10 has held no endpoints since version 0.3, so the GeekyKey
-Service's former station registry and `createStation` are no longer part of the contract: each
-Event Service registers and issues its own stations (9.7 to 9.9), and the GeekyKey Service
-keeps only a copy in memory of what they registered. There is one call to the stations path,
-`listStationBoard`, and it answers with the board (9.2).
-
-| # | Slice | Methods | Screens it makes real |
-|---|---|---|---|
-| 1 | Session | `devLogin`, `firebaseLogin`, `loginLink`, `logout`, `me`, `setDisplayName` | `/login`, `/`, `/passport`, `/activity` |
-| 2 | Stations | `listStationBoard`, `createStation`, `setStationPassport` | `/admin/stations`, the picker on `/admin/fallback` |
-| 3 | Scan log | `listTaps` | `/admin/taps` |
-| 4 | Event tail | `createFallbackTap`, `stats`, `exportCsv` | `/admin/summary`, `/admin/fallback` |
-
-One slice, start to finish:
-
-1. The endpoint is live in `apps/event-service` with tests, and its row in the agreement says
-   `Implemented`. Until then, leave it on the mock.
-2. Start the backend: `mise run db:up` and `mise run seed` once (Docker must be running),
+1. Start the backend: `mise run db:up` and `mise run seed` once (Docker must be running),
    then `mise run dev:event-service`.
-3. Add the method's name to `LIVE_METHOD_NAMES` and the method itself to `liveMethods()` in
-   `src/api/create-client.ts`. The type checker asks for both, so a half-done slice does not
-   build.
-4. `pnpm dev:live`, then work through each screen in the slice: populated, loading, empty,
-   and every error path. Force the errors for real now rather than with `failNext`. Stop
-   the backend for a network failure, sign out for a 401, and sign in as `dev-user-1` and
-   open `/admin/stations` for a 403.
-5. Compare the real JSON against `src/api/types.ts` field by field, for example
-   `curl -s localhost:8001/api/v1/admin/stations | jq`. If they differ, the agreement wins
-   and the backend is fixed. Never widen `types.ts` to match a backend that drifted.
-6. `pnpm typecheck`, `pnpm lint` and `pnpm test` still pass with the flag off.
+2. `pnpm dev:live`, then work through the screen: populated, loading, empty, and every error
+   path. Force the errors for real rather than with `failNext`. Stop the backend for a
+   network failure, sign out for a 401, and sign in as `dev-user-1` and open
+   `/admin/stations` for a 403.
+3. If the real JSON differs from `src/api/types.ts`, the agreement wins and the backend is
+   fixed. Never widen `types.ts` to match a backend that drifted.
+
+The HTTP client checks every JSON answer against its schema in `src/api/schemas.ts`, so an
+answer in the wrong shape becomes a `NetworkError` before a screen sees it. The Event
+Service's route tests parse their own answers with the same schemas, so the service and the
+screens can't drift apart without a failing test.
 
 `send()` in `src/api/http/client.ts` is implemented. It sends credentialed requests, handles
 2xx/204 responses, parses the JSON error envelope, and turns transport or malformed-success
 failures into the shared `ApiError`/`NetworkError` types. Keep transport behavior there; do
 not add per-screen reshaping, points, stamp, or cooldown calculations.
 
-Two things that look like bugs and are not:
+One thing that looks like a bug and is not:
 
 - The mock session is a `sessionStorage` key called `gk-mock-session`, and the real one is
   an HttpOnly cookie. Neither knows about the other. Sign out before switching modes, or
   use a fresh tab.
-- Between slices the data does not line up. After slice 1 you are signed in as the real
-  `dev-user-1` while stations and taps still come from fixtures, so IDs will not match
-  across screens. That is expected and it goes away as the next slice lands. Do not chase
-  it, and do not patch fixtures to paper over it.
 
 ## Stack
 
@@ -258,7 +228,7 @@ Run from `apps/event-web`.
 
 ```
 pnpm dev          # Vite dev server on http://localhost:5173, fully mocked
-pnpm dev:live     # same, but the live slices in src/api/create-client.ts hit the backend
+pnpm dev:live     # same, but every call goes to the Event Service on :8001
 pnpm build        # typecheck, then production build to dist/
 pnpm preview      # serve dist/ locally
 pnpm typecheck    # tsc --noEmit
@@ -364,12 +334,11 @@ apps/event-web/
       context.ts            # useApi()
       provider.tsx
       errors.ts             # ApiError, NetworkError, describeError(), publishAuthError()
-      schemas.ts            # Zod validation of the two responses we parse
-      mock/                 # fixtures + mock client (current phase)
+      schemas.ts            # Zod validation of every JSON answer the HTTP client parses
+      mock/                 # fixtures + mock client
       http/                 # fetch client, credentialed transport, error envelope, response validation
-      create-client.ts      # the mock, or the mock with the live slices swapped in
-      service-client.ts     # non-breaking preparation for the GeekyKey/Event Service split
-      mode.ts               # mock/live data-source indicator rules
+      create-client.ts      # the mock, or the HTTP client in a live build
+      service-client.ts     # the methods grouped by the service that owns them
     lib/                    # shared infrastructure, safe to import from any feature
       session.ts            # "am I logged in": useSession(), useMe()
       session-provider.tsx
@@ -602,8 +571,8 @@ trigger and then click the option; and headless Arc crashes after a few navigati
 
 ## Do not
 
-- Do not call the real backend from screens during mock mode. The only allowed live calls
-  are the session methods listed in `create-client.ts`, and only in `VITE_LIVE_API=1`.
+- Do not call the real backend from screens. Every call goes through the `ApiClient`, which
+  is the mock unless `VITE_LIVE_API=1`.
 - Do not invent API fields or endpoints. Change the agreement first.
 - Do not build leaderboards, dual-tap, quests, event CRUD, tap editing, or device
   configuration UI.

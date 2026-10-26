@@ -1579,3 +1579,11 @@
     The Event Service now turns away a signed-in user's requests past 60 a minute, so a screen
     stuck in a loop can't use up the database's free allowance. The passport and the organizer
     screens poll well under that, and logging in isn't counted.
+
+- id: organiser-screens-live
+  date: 2026-10-26
+  area: frontend
+  change: >-
+    The organiser screens now run on the Event Service's real data. Creating a station, its key,
+    passport settings, disabling and enabling, the scan log, the QR fallback, the summary and the
+    CSV download all go to the service, and the "Demo data" notice is gone from a live build.

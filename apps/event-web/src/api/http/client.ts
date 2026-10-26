@@ -1,20 +1,16 @@
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
-import type {
-  ApiIssue,
-  StationKeyResponse,
-  StationResponse,
-  ErrorCode,
-  FallbackTapResponse,
-  ListTapsQuery,
-  ListTapsResponse,
-  SetStationPassportResponse,
-  StatsResponse,
-} from "@/api/types";
+import type { ApiIssue, ErrorCode, ListTapsQuery } from "@/api/types";
 import {
   parseEventStationBoardResponse,
+  parseFallbackTapResponse,
+  parseListTapsResponse,
   parseMeResponse,
   parseSetDisplayNameResponse,
+  parseSetStationPassportResponse,
+  parseStationKeyResponse,
+  parseStationResponse,
+  parseStatsResponse,
 } from "@/api/schemas";
 
 export interface HttpClientOptions {
@@ -31,8 +27,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
   screen can tell them apart. Which methods the app actually calls through here
   is decided in src/api/create-client.ts, one slice at a time.
 
-  Everything below send() is plumbing: a path, a body, and a cast to the type in
-  src/api/types.ts. send() itself is the part that has to be right.
+  Everything below send() is plumbing: a path, a body, and the schema in
+  src/api/schemas.ts that checks the answer. send() itself is the part that has to be right.
 */
 export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
   const baseUrl = (options.baseUrl ?? "").replace(/\/+$/, "");
@@ -141,37 +137,38 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     // Agreement 9.7. The response is the one place the key is ever sent.
     createStation: (input) =>
-      sendJson<StationKeyResponse>("/api/v1/admin/stations", postJson(input)),
+      sendJson<unknown>("/api/v1/admin/stations", postJson(input)).then(parseStationKeyResponse),
 
     // 9.8 sends no body, so this is the shape logout already uses rather than jsonBody.
     replaceStationKey: (stationId) =>
-      sendJson<StationKeyResponse>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/key`, {
+      sendJson<unknown>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/key`, {
         method: "POST",
-      }),
+      }).then(parseStationKeyResponse),
 
     // 9.9 is the same bodyless shape, answered with the station alone instead of a key.
     disableStation: (stationId) =>
-      sendJson<StationResponse>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/disable`, {
+      sendJson<unknown>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/disable`, {
         method: "POST",
-      }),
+      }).then(parseStationResponse),
 
     enableStation: (stationId) =>
-      sendJson<StationResponse>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/enable`, {
+      sendJson<unknown>(`/api/v1/admin/stations/${encodeURIComponent(stationId)}/enable`, {
         method: "POST",
-      }),
+      }).then(parseStationResponse),
 
     setStationPassport: (stationId, input) =>
-      sendJson<SetStationPassportResponse>(
+      sendJson<unknown>(
         `/api/v1/admin/stations/${encodeURIComponent(stationId)}/passport`,
         jsonBody(input, "PUT"),
-      ),
+      ).then(parseSetStationPassportResponse),
 
-    listTaps: (query) => sendJson<ListTapsResponse>(`/api/v1/admin/taps${toSearch(query)}`),
+    listTaps: (query) =>
+      sendJson<unknown>(`/api/v1/admin/taps${toSearch(query)}`).then(parseListTapsResponse),
 
     createFallbackTap: (input) =>
-      sendJson<FallbackTapResponse>("/api/v1/admin/taps", postJson(input)),
+      sendJson<unknown>("/api/v1/admin/taps", postJson(input)).then(parseFallbackTapResponse),
 
-    stats: () => sendJson<StatsResponse>("/api/v1/admin/stats"),
+    stats: () => sendJson<unknown>("/api/v1/admin/stats").then(parseStatsResponse),
 
     exportCsv: async () => (await send("/api/v1/admin/export.csv")).blob(),
   };

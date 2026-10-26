@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LIVE_METHODS, createAppClient } from "@/api/create-client";
+import { createAppClient } from "@/api/create-client";
+import type { MockApiClient } from "@/api/mock/client";
+import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 
 const me = {
   user: { id: "dev-user-1", display_name: "Alex", role: "participant" as const, has_name: true },
@@ -32,7 +34,18 @@ afterEach(() => {
 });
 
 describe("createAppClient", () => {
-  it("uses the HTTP session slice in live mode", async () => {
+  it("runs every method on the mock, because the live flag is off", async () => {
+    // A mock build is the mock itself, so its test controls are there to sign it in.
+    const api = createAppClient({ live: false }) as MockApiClient;
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+
+    await expect(api.listStationBoard()).resolves.toEqual(
+      expect.objectContaining({ stations: expect.any(Array) }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the session to the service in live mode", async () => {
     fetchMock
       .mockResolvedValueOnce(noContentResponse())
       .mockResolvedValueOnce(jsonResponse(me))
@@ -77,63 +90,82 @@ describe("createAppClient", () => {
     );
   });
 
-  it("keeps the resource methods on the mock while the live slice is active", async () => {
-    fetchMock.mockResolvedValueOnce(noContentResponse());
+  it("sends every organizer call to the service in live mode", async () => {
+    // Section 9's answers, in the order the calls below make them.
+    const station = {
+      id: "s1",
+      label: "Reader 3",
+      created_at: "2026-10-01T02:00:00.000Z",
+      disabled_at: null,
+      passport: null,
+      last_seen_at: null,
+      online: false,
+      firmware_version: null,
+      buffered_taps: null,
+      reader_ok: null,
+      last_tap_at: null,
+    };
+    const passport = {
+      station_id: "s1",
+      name: "3D Printing Booth",
+      location: null,
+      points: 1,
+      added_at: "2026-10-10T09:00:00.000Z",
+    };
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ stations: [station] }))
+      .mockResolvedValueOnce(jsonResponse({ station, api_key: "gk_sta_DuY" }, 201))
+      .mockResolvedValueOnce(jsonResponse({ station, api_key: "gk_sta_Qm7" }))
+      .mockResolvedValueOnce(
+        jsonResponse({ station: { ...station, disabled_at: "2026-10-10T09:01:00.000Z" } }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ station }))
+      .mockResolvedValueOnce(jsonResponse({ passport }, 201))
+      .mockResolvedValueOnce(jsonResponse({ taps: [], next_before_id: null }))
+      .mockResolvedValueOnce(jsonResponse({ result: { id: 43, status: "accepted" } }, 201))
+      .mockResolvedValueOnce(
+        jsonResponse({ total_taps: 0, accepted_taps: 0, unique_participants: 0, stations: [] }),
+      )
+      .mockResolvedValueOnce(
+        new Response("tap_id,client_tap_id\r\n", {
+          headers: { "Content-Type": "text/csv; charset=utf-8" },
+        }),
+      );
     const api = createAppClient({ live: true });
-    await api.devLogin("dev-organizer-1");
 
-    await expect(api.listStationBoard()).resolves.toEqual(
-      expect.objectContaining({ stations: expect.any(Array) }),
+    await expect(api.listStationBoard()).resolves.toEqual({ stations: [station] });
+    await expect(api.createStation({ label: "Reader 3" })).resolves.toEqual(
+      expect.objectContaining({ api_key: "gk_sta_DuY" }),
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps the mock's session when the service cannot answer", async () => {
-    // A 503 says the service is down, not that the session is gone, so the mock
-    // keeps the organiser it had and the mocked screens still work. The body is
-    // the Worker's own 503 (agreement 2), and the screens' code list holds it, so
-    // the client reads the code from the body rather than from the status.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const api = createAppClient({ live: true });
-    await api.devLogin("dev-organizer-1");
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
-    await expect(api.me()).rejects.toThrow();
-
-    await expect(api.listStationBoard()).resolves.toEqual(
-      expect.objectContaining({ stations: expect.any(Array) }),
+    await expect(api.replaceStationKey("s1")).resolves.toEqual(
+      expect.objectContaining({ api_key: "gk_sta_Qm7" }),
     );
-  });
+    await api.disableStation("s1");
+    await api.enableStation("s1");
+    await expect(api.setStationPassport("s1", { name: "3D Printing Booth" })).resolves.toEqual({
+      passport,
+    });
+    await api.listTaps({ station_id: "s1" });
+    await api.createFallbackTap({ station_id: "s1", user_id: "dev-user-1" });
+    await api.stats();
+    await expect((await api.exportCsv()).text()).resolves.toBe("tap_id,client_tap_id\r\n");
 
-  it("keeps the mock's session when a dev login fails", async () => {
-    // The failed login leaves the service's cookie as it was, so the mock keeps
-    // the organiser it had.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const api = createAppClient({ live: true });
-    await api.devLogin("dev-organizer-1");
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
-    await expect(api.devLogin("dev-user-1")).rejects.toThrow();
-
-    await expect(api.listStationBoard()).resolves.toEqual(
-      expect.objectContaining({ stations: expect.any(Array) }),
-    );
-  });
-
-  it("drops the mock's session when a Firebase login starts", async () => {
-    // A /me that cannot answer once the login is through must not leave the mock
-    // signed in as the user who was there before.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const api = createAppClient({ live: true });
-    await api.devLogin("dev-organizer-1");
-
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    await api.firebaseLogin("id-token-from-firebase");
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
-    await expect(api.me()).rejects.toThrow();
-
-    await expect(api.listStationBoard()).rejects.toThrow("unauthenticated");
+    const calls = fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method]);
+    expect(calls).toEqual([
+      ["/api/v1/admin/stations", undefined],
+      ["/api/v1/admin/stations", "POST"],
+      ["/api/v1/admin/stations/s1/key", "POST"],
+      ["/api/v1/admin/stations/s1/disable", "POST"],
+      ["/api/v1/admin/stations/s1/enable", "POST"],
+      ["/api/v1/admin/stations/s1/passport", "PUT"],
+      ["/api/v1/admin/taps?station_id=s1", undefined],
+      ["/api/v1/admin/taps", "POST"],
+      ["/api/v1/admin/stats", undefined],
+      ["/api/v1/admin/export.csv", undefined],
+    ]);
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init).toEqual(expect.objectContaining({ credentials: "include" }));
+    }
   });
 
   it("sends the login link to the service", async () => {
@@ -150,46 +182,5 @@ describe("createAppClient", () => {
         credentials: "include",
       }),
     );
-  });
-
-  it("drops the mock's session once a login link logs someone in", async () => {
-    // The link's user replaces the one who was there (agreement 7.4), so a /me that
-    // cannot answer straight afterwards must not leave the mock signed in as them.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const api = createAppClient({ live: true });
-    await api.devLogin("dev-organizer-1");
-
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    await api.loginLink("eyJ2IjoxfQ.c2ln");
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "service_unavailable" }, 503));
-    await expect(api.me()).rejects.toThrow();
-
-    await expect(api.listStationBoard()).rejects.toThrow("unauthenticated");
-  });
-
-  it("keeps the mock's session when a login link fails", async () => {
-    // Agreement 7.4: a link that fails leaves the existing session as it was.
-    fetchMock.mockResolvedValueOnce(noContentResponse());
-    const api = createAppClient({ live: true });
-    await api.devLogin("dev-organizer-1");
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "invalid_login_link" }, 401));
-    await expect(api.loginLink("eyJ2IjoxfQ.c2ln")).rejects.toThrow("invalid_login_link");
-
-    await expect(api.listStationBoard()).resolves.toEqual(
-      expect.objectContaining({ stations: expect.any(Array) }),
-    );
-  });
-
-  it("names the live methods, so the notice and the tests read one list", () => {
-    expect([...LIVE_METHODS].sort()).toEqual([
-      "devLogin",
-      "firebaseLogin",
-      "loginLink",
-      "logout",
-      "me",
-      "setDisplayName",
-    ]);
   });
 });
