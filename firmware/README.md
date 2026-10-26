@@ -16,8 +16,13 @@ How the station talks to the server is in [the API agreement](../apps/API-AGREEM
 
 1. Copy `geekykey_station/secrets.example.h` to `geekykey_station/secrets.h` and fill it in. It's
    gitignored, so the key never reaches the repo.
-2. In the Arduino IDE, pick the board and set **USB CDC On Boot** to **Enabled**. Without it, the
-   ESP32-S3 prints nothing on its USB port and the setup mode can't hear you.
+2. In the Arduino IDE, pick the board. The sketch picks its pins from that board, and the wiring for
+   each is at the top of `geekykey_station.ino`.
+   - For an ESP32-S3, pick **ESP32S3 Dev Module** and set **USB CDC On Boot** to **Enabled**.
+     Without it, the S3 prints nothing on its USB port and the setup mode can't hear you.
+   - For a classic ESP32 on a DOIT DevKit V1, pick **DOIT ESP32 DEVKIT V1**. It needs no USB CDC
+     setting, because its USB port goes through a separate USB-to-serial chip. Opening that port
+     restarts the station.
 3. Upload.
 
 `secrets.h` only gives the first settings. After that, the setup mode changes them.
