@@ -813,7 +813,7 @@ Waits on Qing Guan's tag APIs, and on events logging in through the Portal. Juli
 
 Until then, anyone with write access could push to `main` and deploy, so the team's rule is pull requests only.
 
-**The screens** (Ethan's team). They build against the mock client from the API agreement, and wire each screen as its endpoint lands, as `apps/event-web/CLAUDE.md` describes.
+**The screens** (Ethan's team). They build against the mock client from the API agreement, and wire each screen as its endpoint lands. `apps/event-web/CLAUDE.md`, under "The real backend", says how to check a screen against the service.
 
 - **`apps/geekykey-web`:**
   - the token page at `/t/<UID>`, with its five views, landing back on it after login, and a button for each event in the owner's view;
