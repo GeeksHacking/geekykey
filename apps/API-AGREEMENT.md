@@ -480,8 +480,8 @@ item has a [`tap_status`](#tap_status).
    then from the Portal. A token nobody has claimed gets `unknown_token`.
 3. It hands every other tap to the Event Service that registered the station in one call, the
    hand-off (11.2), and passes back the statuses it answers unchanged.
-4. Steps 2 and 3 share one deadline of 4 seconds (11.5, provisional), with filling an empty
-   copy of the registered stations in step 1. If the owners can't be found properly in time, the whole request fails with `503 claims_unavailable`. If the Event
+4. Steps 2 and 3 share one deadline of 4 seconds (11.5, provisional), with filling or
+   refreshing the copy of the registered stations in step 1. If the owners can't be found properly in time, the whole request fails with `503 claims_unavailable`. If the Event
    Service doesn't answer properly in what's left, it fails with
    `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
@@ -1483,9 +1483,10 @@ failed may still have stored some of its taps (11.5).
 
 ### 11.5 The 4-second deadline
 
-The GeekyKey Service gives each station request one deadline of 4 seconds for filling an empty
-copy of the registered stations (11.1), finding the tokens' owners and the hand-off together, so
-each step gets whatever the ones before it leave. The
+The GeekyKey Service gives each station request one deadline of 4 seconds for filling or
+refreshing its copy of the registered stations (11.1), finding the tokens' owners and the
+hand-off together, so each step gets whatever the ones before it leave. A list more than a
+minute old is refreshed before the key is checked against it. The
 station waits 5. Provisional until our first deploy measures a cold start: a cold start lands on
 the first call that wakes a server, so keep yours warm on event days, or able to answer from
 cold within about 3 seconds.
@@ -1744,3 +1745,4 @@ Closed on 2026-10-10:
 | 2026-10-26 | The Event screens now send every organizer call to the Event Service: the station board and its changes (9.1, 9.2, 9.7 to 9.9), the scan log (9.3), the QR fallback (9.4), the stats (9.5) and the export (9.6). Section 13 drops the organiser screens' "Demo data" sentence for a build with the service behind it. Only a build with no service behind it still shows a notice, and a screen built later, such as the map (9.10), follows the same rule until its endpoints are live. No endpoint or shape changes (FRO-79). |
 | 2026-10-26 | The map's data, `GET /api/v1/map` (9.10), is `Implemented`, and so is `booth` in passport settings (9.1) and the station board (9.2), so neither changes at checkpoint 7 any more. The Event Service trims `booth` and counts it in code points, as it does `location`: at most 80, with a blank or `null` booth answered as `null`. A save that changes only the booth writes a `station_passport_changed` log line. The map lists each passport station in stamp-slot order, disabled ones too. `taps` counts its `accepted` and `cooldown` taps from the station and the QR fallback, `unique_participants` counts the users with an `accepted` tap there, and `last_tap_at` is the newest of the counted taps. The Event Service's map screen list is its `MAP_SCREENS` setting, user IDs separated by commas and read when it starts, as `ORGANIZERS` is. It starts empty on staging and production. A map screen gets `forbidden` from every organizer endpoint, and its `/me` says `participant`. No shape changes (BAC-84). |
 | 2026-10-26 | Ethan, the screens owner, approved version 0.6 in its pull request (#148), so it is no longer a draft. No endpoint or shape changes (BAC-81). |
+| 2026-10-26 | 6.1's step 4 and 11.5 say the 4-second deadline also covers refreshing the GeekyKey Service's copy of the registered stations, not only filling an empty one. A station request now waits for a list more than a minute old before its key is checked, so a disabled station's key gets `401` within a minute on every Worker isolate, as 9.9 says, and a new station's key works within a minute, as 9.7 says. Before, a Worker that had sat idle answered once from its old list, and BAC-85's proof saw a disabled key accepted 62 to 68 seconds after the disable. A refresh that uses up the deadline answers `503 event_service_unavailable`. No shape changes (BAC-87). |
