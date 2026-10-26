@@ -69,6 +69,16 @@ jobs:
       - name: Build
         run: pnpm build:event-web
 
+      # The Playwright tests in e2e/ run the mock dev server in Chromium: the
+      # smoke run, the header with a long name, and the focus after a route
+      # change. Install the browser Playwright's version expects, with the
+      # system libraries it needs on Ubuntu.
+      - name: Install Chromium
+        run: pnpm --filter @geekykey/event-web exec playwright install --with-deps chromium
+
+      - name: End-to-end test
+        run: pnpm --filter @geekykey/event-web test:e2e
+
       # The Worker that serves the screens and forwards /api and /auth to the
       # Event Service (worker/ and wrangler.jsonc). Its tests run it in
       # `wrangler dev` with the build above, so they come after Build.
