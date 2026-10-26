@@ -1563,3 +1563,13 @@
     order. They can also download every tap as a CSV file with the ten columns Joshua's A/B
     analysis uses, with no token IDs. The organizer screens still show demo data until they
     switch to it.
+
+- id: event-service-user-limit
+  date: 2026-10-26
+  area: backend
+  change: >-
+    The Event Service now limits each signed-in user to 60 requests a minute and answers any more
+    with "too many requests". The passport checks for new stamps once every 10 seconds and the map
+    once every 2, so neither comes close. Logging in isn't counted. Each Cloud Run server keeps its
+    own count, so with two running a user could get up to 120 a minute through. That still stops
+    a screen stuck in a loop from using up the database's free allowance.
