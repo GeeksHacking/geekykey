@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 import { NetworkError } from "@/api/errors";
 import type { LoginLink, MeResponse, Token, TokenLookup } from "@/api/types";
@@ -6,9 +6,9 @@ import type { LoginLink, MeResponse, Token, TokenLookup } from "@/api/types";
 const isoTimestamp = z.iso.datetime({ offset: true });
 const tokenOwner = z.enum(["nobody", "you", "someone_else"]);
 
-const tokenSchema: z.ZodType<Token> = z.object({
+const tokenSchema: z.ZodMiniType<Token> = z.object({
   uid: z.string(),
-  claimed_at: isoTimestamp.nullable(),
+  claimed_at: z.nullable(isoTimestamp),
 });
 
 const eventServiceLinkSchema = z.object({
@@ -17,15 +17,15 @@ const eventServiceLinkSchema = z.object({
   url: z.string(),
 });
 
-const tokenLookupSchema: z.ZodType<TokenLookup> = z.object({
+const tokenLookupSchema: z.ZodMiniType<TokenLookup> = z.object({
   uid: z.string(),
   owner: tokenOwner,
-  claimed_at: isoTimestamp.nullable(),
-  owner_id: z.string().nullable(),
+  claimed_at: z.nullable(isoTimestamp),
+  owner_id: z.nullable(z.string()),
 });
 
 /** The GeekyKey Service's /me (agreement 8.4). Note: no display name and no points. */
-export const meResponseSchema: z.ZodType<MeResponse> = z.object({
+export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   user: z.object({ id: z.string(), is_geekykey_admin: z.boolean() }),
   tokens: z.array(tokenSchema),
   events: z.array(eventServiceLinkSchema),
@@ -36,13 +36,13 @@ export const tokenLookupResponseSchema = z.object({ token: tokenLookupSchema });
 export const claimResponseSchema = z.object({ token: tokenSchema });
 
 /** Agreement 8.6: the answer is the link itself, with no wrapper. */
-export const loginLinkResponseSchema: z.ZodType<LoginLink> = z.object({
+export const loginLinkResponseSchema: z.ZodMiniType<LoginLink> = z.object({
   url: z.string(),
   expires_at: isoTimestamp,
 });
 
 /** One helper for every parse, so an unexpected shape is always a NetworkError. */
-function parse<T>(schema: z.ZodType<T>, input: unknown, what: string): T {
+function parse<T>(schema: z.ZodMiniType<T>, input: unknown, what: string): T {
   const result = schema.safeParse(input);
   if (!result.success) {
     throw new NetworkError(`The server returned an unexpected ${what}`);
