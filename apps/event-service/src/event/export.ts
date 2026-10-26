@@ -1,6 +1,7 @@
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { passportStations, taps, users } from "./schema.ts";
+import { taps } from "./schema.ts";
+import { type LoggedTap, selectLoggedTaps } from "./tap-log.ts";
 
 /** The export's columns, in the API agreement's order (9.6). */
 const COLUMNS = [
@@ -34,26 +35,23 @@ function csvCell(value: string): string {
  * Every line ends in CRLF, as RFC 4180 has it.
  */
 export async function exportTapsCsv(db: Db): Promise<string> {
-  const rows = await db
-    .select({
-      tap_id: taps.id,
-      client_tap_id: taps.clientTapId,
-      station_id: taps.stationId,
-      station_name: passportStations.name,
-      user_id: taps.userId,
-      display_name: users.displayName,
-      status: taps.status,
-      source: taps.source,
-      tapped_at: taps.tappedAt,
-      received_at: taps.receivedAt,
-    })
-    .from(taps)
-    .leftJoin(passportStations, eq(passportStations.stationId, taps.stationId))
-    .leftJoin(users, eq(users.id, taps.userId))
-    .orderBy(asc(taps.id));
-  const lines = [
-    COLUMNS.join(","),
-    ...rows.map((row) => COLUMNS.map((column) => csvCell(String(row[column] ?? ""))).join(",")),
-  ];
+  const rows = await selectLoggedTaps(db).orderBy(asc(taps.id));
+  const lines = [COLUMNS.join(","), ...rows.map((tap) => csvRow(tap).map(csvCell).join(","))];
   return lines.map((line) => `${line}\r\n`).join("");
+}
+
+/** A tap's cells, in COLUMNS' order. */
+function csvRow(tap: LoggedTap): string[] {
+  return [
+    String(tap.id),
+    tap.clientTapId,
+    tap.stationId,
+    tap.stationName ?? "",
+    tap.userId,
+    tap.displayName ?? "",
+    tap.status,
+    tap.source,
+    tap.tappedAt ?? "",
+    tap.receivedAt,
+  ];
 }
