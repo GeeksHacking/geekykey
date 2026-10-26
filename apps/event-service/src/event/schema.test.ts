@@ -29,7 +29,7 @@ test("each Event table has only the columns the spec gives it", async () => {
       "tapped_at",
       "received_at",
     ],
-    passport_stations: ["station_id", "name", "location", "points", "added_at"],
+    passport_stations: ["station_id", "name", "location", "booth", "points", "added_at"],
   };
   for (const [table, columns] of Object.entries(expected)) {
     assert.deepEqual((await columnsOf(testDb(), table)).toSorted(), columns.toSorted(), table);

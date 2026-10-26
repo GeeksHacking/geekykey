@@ -12,7 +12,14 @@ export interface BoardStation {
   createdAt: string;
   disabledAt: string | null;
   /** Its passport settings, or null for a station not in the passport, whose taps get `no_game`. */
-  passport: { name: string; location: string | null; points: number; addedAt: string } | null;
+  passport: {
+    name: string;
+    location: string | null;
+    /** Where the map draws it (9.10), or null. */
+    booth: string | null;
+    points: number;
+    addedAt: string;
+  } | null;
   /** When a tap or a heartbeat last came from it. */
   lastSeenAt: string | null;
   /** Whether `lastSeenAt` is less than ONLINE_WINDOW_SECONDS ago. */
@@ -80,6 +87,7 @@ async function loadBoardStations(db: Db, now: Date, where?: SQL): Promise<BoardS
     passport: passport && {
       name: passport.name,
       location: passport.location,
+      booth: passport.booth,
       points: passport.points,
       addedAt: passport.addedAt,
     },

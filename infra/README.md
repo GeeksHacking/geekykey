@@ -913,6 +913,27 @@ gcloud run services describe event-service --region=asia-southeast1 \
 
 An empty answer means 0.
 
+### Organizers and map screens
+
+Two settings in each service's `settings.env` say who may do more than a participant, by user
+ID, separated by commas:
+
+- `ORGANIZERS` may use the organizer screens and read the map.
+- `MAP_SCREENS` may read the map on the big screen (the API agreement's 9.10), and nothing else
+  an organizer can. The screen at our booth logs in as a user kept for it, and that user's ID
+  goes here.
+
+Both start empty, which means nobody. A user's ID is on their dashboard, under "Your user ID",
+once they've logged in to the Event screens. Add it in a pull request. The server reads both lists when it starts, so
+the change takes effect at the deploy: production's when the pull request merges, and staging's
+when the deploy runs by hand from the branch. Neither is a secret, so check what the running
+revision has with:
+
+```bash
+gcloud run services describe event-service --region=asia-southeast1 \
+  --format="yaml(spec.template.spec.containers[0].env)" | grep -A1 -E "ORGANIZERS|MAP_SCREENS"
+```
+
 ### Rolling back
 
 Each deploy makes a new revision: the service's settings and image as they were at that

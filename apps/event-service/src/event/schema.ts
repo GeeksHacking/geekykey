@@ -66,6 +66,12 @@ export const passportStations = mysqlTable("passport_stations", {
   /** The station's name in the passport, such as "3D Printing Booth". */
   name: text("name").notNull(),
   location: text("location"),
+  /**
+   * Which booth in the hall the station stands at, so the map draws it there
+   * (the API agreement's 9.10). Free text, which the map screen matches to a
+   * booth in its own floor plan. Null for none.
+   */
+  booth: text("booth"),
   /** Station points: what one accepted tap there is worth. */
   points: int("points").notNull().default(1),
   /** When the station was added to the passport, which orders the stamp slots. */

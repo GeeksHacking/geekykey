@@ -28,7 +28,13 @@ interface BoardBody {
     label: string;
     created_at: string;
     disabled_at: string | null;
-    passport: { name: string; location: string | null; points: number; added_at: string } | null;
+    passport: {
+      name: string;
+      location: string | null;
+      booth: string | null;
+      points: number;
+      added_at: string;
+    } | null;
     last_seen_at: string | null;
     online: boolean;
     firmware_version: string | null;
@@ -184,6 +190,7 @@ test("lists a station with its passport settings, its health and its last tap", 
     stationId: "station-3",
     name: "3D Printing Booth",
     location: "Hall A",
+    booth: "A3",
     points: 2,
     addedAt: "2026-10-02T03:00:00.000Z",
   });
@@ -199,6 +206,7 @@ test("lists a station with its passport settings, its health and its last tap", 
         passport: {
           name: "3D Printing Booth",
           location: "Hall A",
+          booth: "A3",
           points: 2,
           added_at: "2026-10-02T03:00:00.000Z",
         },
@@ -557,6 +565,7 @@ interface PassportBody {
     station_id: string;
     name: string;
     location: string | null;
+    booth: string | null;
     points: number;
     added_at: string;
   };
@@ -568,6 +577,7 @@ test("an organizer adds a station to the passport, which the board then shows", 
   const res = await putPassport("station-3", await signIn(ORGANIZER), {
     name: "3D Printing Booth",
     location: "Hall A",
+    booth: "A3",
     points: 2,
   });
   assert.equal(res.status, 201);
@@ -575,6 +585,7 @@ test("an organizer adds a station to the passport, which the board then shows", 
     station_id: "station-3",
     name: "3D Printing Booth",
     location: "Hall A",
+    booth: "A3",
     points: 2,
     added_at: NOW,
   };
@@ -585,16 +596,18 @@ test("an organizer adds a station to the passport, which the board then shows", 
   assert.deepEqual((await board()).stations[0]!.passport, onBoard);
 });
 
-test("changing a station's settings answers 200, and keeps when it was added", async () => {
+test("changing a station's settings answers 200, keeps when it was added, and sets every field", async () => {
   const { db, signIn, putPassport, addStation, board } = await harness();
   await addStation("station-3");
   await db.insert(passportStations).values({
     stationId: "station-3",
     name: "3D Printing",
     location: "Hall A",
+    booth: "A3",
     points: 2,
     addedAt: "2026-10-02T03:00:00.000Z",
   });
+  // With no booth, which clears the one it had.
   const res = await putPassport("station-3", await signIn(ORGANIZER), {
     name: "3D Printing Booth",
     location: "Hall B",
@@ -605,6 +618,7 @@ test("changing a station's settings answers 200, and keeps when it was added", a
     station_id: "station-3",
     name: "3D Printing Booth",
     location: "Hall B",
+    booth: null,
     points: 3,
     added_at: "2026-10-02T03:00:00.000Z",
   };
@@ -635,6 +649,8 @@ test("a bad passport body answers validation_failed and leaves the station as it
     [{ name: 3 }, "name"],
     [{ name: "Booth", location: "x".repeat(81) }, "location"],
     [{ name: "Booth", location: 3 }, "location"],
+    [{ name: "Booth", booth: "x".repeat(81) }, "booth"],
+    [{ name: "Booth", booth: 3 }, "booth"],
     [{ name: "Booth", points: -1 }, "points"],
     [{ name: "Booth", points: 1.5 }, "points"],
     [{ name: "Booth", points: "1" }, "points"],
@@ -653,7 +669,7 @@ test("a bad passport body answers validation_failed and leaves the station as it
   assert.equal((await board()).stations[0]!.passport, null);
 });
 
-test("a name and a location are trimmed, a blank location is none, and points default to 1", async () => {
+test("a name, a location and a booth are trimmed, a blank location or booth is none, and points default to 1", async () => {
   const { signIn, putPassport, addStation } = await harness();
   await addStation("station-3");
   await addStation("station-4");
@@ -662,13 +678,21 @@ test("a name and a location are trimmed, a blank location is none, and points de
   // 80 emoji: 80 code points, though 160 UTF-16 units.
   const longest = "🎉".repeat(80);
   for (const [stationId, body, expected] of [
-    ["station-3", { name: "  Booth  ", location: "  " }, { name: "Booth", location: null }],
+    [
+      "station-3",
+      { name: "  Booth  ", location: "  ", booth: " " },
+      { name: "Booth", location: null, booth: null },
+    ],
     [
       "station-4",
-      { name: longest, location: ` ${longest} ` },
-      { name: longest, location: longest },
+      { name: longest, location: ` ${longest} `, booth: ` ${longest} ` },
+      { name: longest, location: longest, booth: longest },
     ],
-    ["station-5", { name: "Booth", location: null }, { name: "Booth", location: null }],
+    [
+      "station-5",
+      { name: "Booth", location: null, booth: null },
+      { name: "Booth", location: null, booth: null },
+    ],
   ] as const) {
     const res = await putPassport(stationId, cookie, body);
     assert.equal(res.status, 201);
@@ -772,10 +796,20 @@ test("adding or changing a station's settings logs who did it, and a save that c
   assert.equal((await putPassport("station-3", cookie, settings)).status, 201);
   assert.equal((await putPassport("station-3", cookie, settings)).status, 200);
   assert.equal((await putPassport("station-3", cookie, { ...settings, points: 3 })).status, 200);
+  // A change of booth alone is a change too.
+  const moved = { ...settings, points: 3, booth: "B7" };
+  assert.equal((await putPassport("station-3", cookie, moved)).status, 200);
+  assert.equal((await putPassport("station-3", cookie, moved)).status, 200);
   assert.deepEqual(logs(), [
     {
       severity: "INFO",
       message: "station_added_to_passport",
+      user_id: ORGANIZER,
+      station_id: "station-3",
+    },
+    {
+      severity: "INFO",
+      message: "station_passport_changed",
       user_id: ORGANIZER,
       station_id: "station-3",
     },

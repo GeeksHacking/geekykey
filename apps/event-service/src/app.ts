@@ -7,6 +7,7 @@ import type { Db } from "./db/pool.ts";
 import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
+import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
 import { userLimit } from "./event/user-limit.ts";
@@ -56,6 +57,7 @@ export function createApp(
     secret: config.sessionSecret,
     secure: config.sessionCookieSecure,
     organizers: new Set(config.organizers),
+    mapScreens: new Set(config.mapScreens),
     userLimit: userLimit(now),
   };
 
@@ -82,6 +84,7 @@ export function createApp(
   );
   app.route("/api/v1/me", meRoutes({ session }));
   app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now }));
+  app.route("/api/v1/map", mapRoutes({ session }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route("/geekykey/v1", handoffRoutes({ key: config.eventServiceKey, games: showcaseGames }));
 
