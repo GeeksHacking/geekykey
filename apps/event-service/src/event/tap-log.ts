@@ -38,14 +38,11 @@ export interface TapLogPage {
 }
 
 /**
- * The stored taps, newest first. By ID, which the before_id cursor pages by:
- * the taps table's AUTO_ID_CACHE=1 makes a newer tap's ID always higher.
+ * Every stored tap with its station's passport name and its user's display
+ * name, for the scan log and the export to narrow and order.
  */
-export async function loadTapLog(
-  db: Db,
-  { limit, beforeId, stationId, status }: TapLogQuery,
-): Promise<TapLogPage> {
-  const rows = await db
+export function selectLoggedTaps(db: Db) {
+  return db
     .select({
       id: taps.id,
       clientTapId: taps.clientTapId,
@@ -61,6 +58,18 @@ export async function loadTapLog(
     .from(taps)
     .leftJoin(passportStations, eq(passportStations.stationId, taps.stationId))
     .leftJoin(users, eq(users.id, taps.userId))
+    .$dynamic();
+}
+
+/**
+ * The stored taps, newest first. By ID, which the before_id cursor pages by:
+ * the taps table's AUTO_ID_CACHE=1 makes a newer tap's ID always higher.
+ */
+export async function loadTapLog(
+  db: Db,
+  { limit, beforeId, stationId, status }: TapLogQuery,
+): Promise<TapLogPage> {
+  const rows = await selectLoggedTaps(db)
     .where(
       and(
         beforeId === undefined ? undefined : lt(taps.id, beforeId),
