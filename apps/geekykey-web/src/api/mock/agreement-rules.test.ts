@@ -44,6 +44,15 @@ describe("agreement 8.4: /me lists the user's tokens oldest claim first", () => 
     const api = mock(data, "dev-user-9", () => (clock.at += 60_000));
 
     await api.claimToken("04E5F7091B3D");
+    await api.claimToken("04F7091B3D5E7C");
+
+    // Swap the two claim times so storage order is the reverse of chronological
+    // order, as the test above does with seeded tokens. Without the sort in
+    // ownedTokens this reads back unsorted and the assertion below fails.
+    const owned = data.tokens.filter((token) => token.owner_id === "dev-user-9");
+    const swap = owned[0]!.claimed_at!;
+    owned[0]!.claimed_at = owned[1]!.claimed_at;
+    owned[1]!.claimed_at = swap;
 
     const me = await api.me();
     const times = me.tokens.map((token) => token.claimed_at ?? "");
