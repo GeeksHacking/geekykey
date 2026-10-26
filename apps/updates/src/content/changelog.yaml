@@ -1413,14 +1413,6 @@
     notice is gone. My tokens has a Release button on each token, and a form to claim a token
     by typing its code.
 
-- id: the-export-says-when-it-was-rewritten
-  date: 2026-10-22
-  area: frontend
-  change: >-
-    The organiser's CSV download is the file the service sent, unless a name needed escaping, and
-    only that name changes. The summary says the rule under the Download CSV button, and says when
-    a file was changed that it is not the service's own.
-
 - id: checkpoint-6-done
   date: 2026-10-23
   area: backend
@@ -1431,6 +1423,14 @@
     else held, and a guest claimed one from its token page. The tests show each of the three rate
     limits turning requests away. Checkpoint 7, the Event Service's features for organizers, comes
     next.
+
+- id: the-export-says-when-it-was-rewritten
+  date: 2026-10-23
+  area: frontend
+  change: >-
+    The organiser's CSV download is the file the service sent, unless a name needed escaping, and
+    only that name changes. The summary says the rule under the Download CSV button. When a name
+    was escaped, it also says the file is not the service's own.
 
 - id: showcase-plan-off-the-phone
   date: 2026-10-23
@@ -1495,14 +1495,6 @@
     Worker's two calls to Cloud Run took 0.07 seconds instead of 0.65. Production taps through
     Paris took about 2.2 seconds without it. The trade-off we accept: a tap that Cloudflare
     answers far away still crosses to Singapore once, inside Cloudflare, before the Worker runs.
-
-- id: header-holds-a-long-name
-  date: 2026-10-23
-  area: frontend
-  change: >-
-    The header's "GeekyKey" wordmark and tabs stay in place when a display name is long, because
-    the account menu cuts the name short instead. The whole name stays in the menu that opens
-    from it, and the organiser console's sidebar and header do the same.
 
 - id: station-board-endpoint
   date: 2026-10-25
@@ -1580,6 +1572,14 @@
     stuck in a loop can't use up the database's free allowance. The passport and the organizer
     screens poll well under that, and logging in isn't counted.
 
+- id: header-holds-a-long-name
+  date: 2026-10-26
+  area: frontend
+  change: >-
+    The header's "GeekyKey" wordmark and tabs stay in place when a display name is long, because
+    the account menu cuts the name short instead. The whole name stays in the menu that opens
+    from it, and the organiser console's sidebar and header do the same.
+
 - id: organiser-screens-live
   date: 2026-10-26
   area: frontend
@@ -1628,3 +1628,19 @@
     less for the Event screens' passport, and about 16 KB less for the GeekyKey screens. The
     Event screens load Firebase only to log in or out, and both use the smaller build of the
     library that checks the services' answers.
+
+- id: route-change-focus
+  date: 2026-10-26
+  area: frontend
+  change: >-
+    On the Event screens, going to another page now moves the keyboard and screen reader focus to
+    that page's heading, the dashboard's included. Before, the focus moved before the new page
+    appeared, and was lost.
+
+- id: event-screens-browser-tests-in-ci
+  date: 2026-10-26
+  area: tooling
+  change: >-
+    Every pull request now runs the Event screens' browser tests in Chromium: a participant's
+    sign-in, the header with a long name at four widths in both themes, and the focus after a page
+    change.
