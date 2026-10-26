@@ -35,6 +35,13 @@ export interface Config {
    */
   organizers: string[];
   /**
+   * The map screens, by user ID: the users the screens showing the map (the
+   * API agreement's 9.10) log in as. They may read the map, as organizers
+   * may, and nothing else an organizer can. Read once at start-up, and
+   * checked on every request.
+   */
+  mapScreens: string[];
+  /**
    * The Firebase project whose ID tokens POST /auth/firebase accepts, at the
    * showcase (ADR 0004): `geekykey-b035a`, the same as the GeekyKey
    * Service's, so a user has the same ID in both.
@@ -225,6 +232,8 @@ export function loadConfig(env: Env): Config {
     claimsStandInKey: keyFromEnv(env, "CLAIMS_STAND_IN_KEY", devAuthEnabled),
     eventServiceKey: keyFromEnv(env, "EVENT_SERVICE_KEY", devAuthEnabled),
     organizers: userIdsFromEnv(env, "ORGANIZERS", devAuthEnabled, DEV_ORGANIZERS),
+    // Locally the organizer reads the map, so there's no map screen until one is listed.
+    mapScreens: userIdsFromEnv(env, "MAP_SCREENS", devAuthEnabled, []),
     firebaseProjectId: firebaseProjectIdFromEnv(env),
   };
 }

@@ -36,6 +36,8 @@ export interface SessionOptions {
   maxAgeSeconds?: number;
   /** From config.organizers: who is an organizer. Everyone else is a participant. */
   organizers: ReadonlySet<string>;
+  /** From config.mapScreens: who may read the map besides organizers. A map screen is still a participant. */
+  mapScreens: ReadonlySet<string>;
   /** Counts each user's requests that requireSession lets through (user-limit.ts). */
   userLimit: UserLimit;
 }
@@ -156,6 +158,20 @@ export function requireSession(options: SessionOptions): MiddlewareHandler<Sessi
 export function requireRole(role: Role): MiddlewareHandler<SessionEnv> {
   return async (c, next) => {
     if (c.var.user.role !== role) return c.json({ error: "forbidden" }, 403);
+    return await next();
+  };
+}
+
+/**
+ * Restricts a route to organizers and the map screens (the API agreement's
+ * 9.10). Mount it after requireSession, never alone.
+ */
+export function requireMapReader(options: SessionOptions): MiddlewareHandler<SessionEnv> {
+  return async (c, next) => {
+    const { user } = c.var;
+    if (user.role !== "organizer" && !options.mapScreens.has(user.id)) {
+      return c.json({ error: "forbidden" }, 403);
+    }
     return await next();
   };
 }

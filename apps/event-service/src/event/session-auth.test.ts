@@ -25,6 +25,7 @@ async function harness(overrides: Partial<SessionOptions> = {}) {
     secret: "test-secret-at-least-16",
     secure: false,
     organizers: new Set([ORGANIZER_ID]),
+    mapScreens: new Set(),
     userLimit: userLimit(),
     ...overrides,
   };

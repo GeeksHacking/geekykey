@@ -78,6 +78,13 @@
       "when": 1792560549117,
       "tag": "0010_the_used_login_links",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1792987232645,
+      "tag": "0011_the_passport_has_booths",
+      "breakpoints": true
     }
   ]
 }

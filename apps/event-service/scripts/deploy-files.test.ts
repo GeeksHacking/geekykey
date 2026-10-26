@@ -66,6 +66,12 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       assert.ok(!config.organizers.includes("dev-organizer-1"));
     });
 
+    test("it has the map screen list, empty until the booth screen's user is known", () => {
+      assert.ok("MAP_SCREENS" in settings, "MAP_SCREENS is missing");
+      const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
+      assert.deepEqual(config.mapScreens, []);
+    });
+
     test("it logs users in with the showcase's Firebase project, as the GeekyKey Service does", () => {
       const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
       assert.equal(config.firebaseProjectId, "geekykey-b035a");
@@ -77,6 +83,7 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       assert.deepEqual(Object.keys(settings).sort(), [
         "DEV_AUTH_ENABLED",
         "FIREBASE_PROJECT_ID",
+        "MAP_SCREENS",
         "ORGANIZERS",
         "TAP_COOLDOWN_SECONDS",
       ]);

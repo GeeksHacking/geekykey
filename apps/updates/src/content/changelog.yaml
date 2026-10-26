@@ -1595,3 +1595,15 @@
     The station sketch now builds for the classic ESP32 (a DOIT DevKit V1) as well as the ESP32-S3,
     with no edits. The board picked in the Arduino IDE chooses the pins, and on the classic ESP32
     the buzzer moves to GPIO32 because the screen uses GPIO21.
+
+- id: map-data-endpoint
+  date: 2026-10-26
+  area: backend
+  change: >-
+    The Event Service now gives the map on the big screen its data: each passport station in
+    stamp order, with its booth, whether it's disabled, its taps, how many participants have its
+    stamp, and its last tap's time. A tap in the cooldown counts, so the map pulses even when the
+    tap earned nothing. It holds no names, user IDs or token IDs. Organizers can read it, and so
+    can the map screens listed in a new setting, which can't do anything else an organizer can.
+    Organizers can now set each station's booth in its passport settings, and the station board
+    shows it.

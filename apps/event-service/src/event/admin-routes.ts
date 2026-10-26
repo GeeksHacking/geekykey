@@ -29,8 +29,8 @@ export interface AdminRouteDeps {
 }
 
 /**
- * The longest station label, passport name or location, in Unicode code
- * points (the API agreement's 9.1 and 9.7).
+ * The longest station label, passport name, location or booth, in Unicode
+ * code points (the API agreement's 9.1 and 9.7).
  */
 const TEXT_MAX = 80;
 
@@ -51,16 +51,21 @@ const organizerText = (field: string, { blankAllowed = false } = {}) =>
 /** A new station's label, the device's name. */
 const createStationSchema = z.object({ label: organizerText("label") });
 
+/** Optional text an organizer types: a blank or missing one is none. */
+const optionalOrganizerText = (field: string) =>
+  organizerText(field, { blankAllowed: true })
+    .nullish()
+    .transform((text) => text || null);
+
 /**
- * A station's passport settings. A blank or missing location is none, and
- * missing points are 1, so a PUT always sets all three. Points fit the
- * `int` column.
+ * A station's passport settings. A blank or missing location or booth is
+ * none, and missing points are 1, so a PUT always sets all four. Points fit
+ * the `int` column.
  */
 const passportSchema = z.object({
   name: organizerText("name"),
-  location: organizerText("location", { blankAllowed: true })
-    .nullish()
-    .transform((location) => location || null),
+  location: optionalOrganizerText("location"),
+  booth: optionalOrganizerText("booth"),
   points: z.int32().min(0).default(1),
 });
 
@@ -74,6 +79,7 @@ function stationBody(station: BoardStation) {
     passport: station.passport && {
       name: station.passport.name,
       location: station.passport.location,
+      booth: station.passport.booth,
       points: station.passport.points,
       added_at: station.passport.addedAt,
     },
@@ -275,7 +281,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
   // writes no log line, as a repeated disable doesn't.
   app.put("/stations/:id/passport", jsonBody(passportSchema), async (c) => {
     const id = c.req.param("id");
-    const { name, location, points } = c.req.valid("json");
+    const { name, location, booth, points } = c.req.valid("json");
     const saved = await c.var.db.transaction(async (tx) => {
       // The station's row, locked, so two organizers saving at once take turns
       // and the second changes what the first added.
@@ -289,6 +295,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         .select({
           name: passportStations.name,
           location: passportStations.location,
+          booth: passportStations.booth,
           points: passportStations.points,
           addedAt: passportStations.addedAt,
         })
@@ -298,17 +305,22 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         .for("update");
       if (current) {
         const same =
-          current.name === name && current.location === location && current.points === points;
+          current.name === name &&
+          current.location === location &&
+          current.booth === booth &&
+          current.points === points;
         if (!same) {
           await tx
             .update(passportStations)
-            .set({ name, location, points })
+            .set({ name, location, booth, points })
             .where(eq(passportStations.stationId, id));
         }
         return { added: false, changed: !same, addedAt: current.addedAt };
       }
       const addedAt = now().toISOString();
-      await tx.insert(passportStations).values({ stationId: id, name, location, points, addedAt });
+      await tx
+        .insert(passportStations)
+        .values({ stationId: id, name, location, booth, points, addedAt });
       return { added: true, changed: true, addedAt };
     });
     if (!saved) return c.json({ error: "not_found" }, 404);
@@ -320,7 +332,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
       });
     }
     return c.json(
-      { passport: { station_id: id, name, location, points, added_at: saved.addedAt } },
+      { passport: { station_id: id, name, location, booth, points, added_at: saved.addedAt } },
       saved.added ? 201 : 200,
     );
   });
