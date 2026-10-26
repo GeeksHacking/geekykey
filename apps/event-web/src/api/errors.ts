@@ -64,10 +64,9 @@ export function describeError(error: unknown): string {
         return "Too many requests. Wait a minute and try again.";
       case "invalid_event_service_key":
         return "The event service key is missing or invalid.";
-      // The Worker in front of the screens answers 503 service_unavailable when the
-      // service behind it gave no answer at all (agreement section 2). Ethan settled the
-      // wording on 21 Oct: the sentence below, which fits these screens too. Section 13
-      // sets no wording for it.
+      // service_unavailable is what the Worker in front of the screens answers when the
+      // service behind it gave no answer at all (agreement section 2). Section 13 sets no
+      // wording for it, and Ethan settled on this sentence on 21 Oct.
       case "event_service_unavailable":
       case "claims_unavailable":
       case "service_unavailable":
