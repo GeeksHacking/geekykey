@@ -41,7 +41,7 @@ export function HomePage() {
 function NoTokensYet() {
   return (
     <p className="mt-6 max-w-md text-base text-muted-foreground">
-      You haven't claimed a token yet. Tap one with your phone, or type its code below.
+      You haven't claimed a token yet. Tap one with your phone, or type its UID below.
     </p>
   );
 }
