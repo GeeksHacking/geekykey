@@ -10,7 +10,11 @@ import { expect, test, type Page } from "@playwright/test";
   The organiser console has the same name in a sidebar row, which is narrower still.
 */
 
-const LONG_NAME = "Lee Jun Lei Adam Student";
+/**
+ * Longer than the name the ticket found on production, in the same shape: a school Google
+ * account's full name with "Student" on the end.
+ */
+const LONG_NAME = "Ong Shu Hui Rachel Student";
 /** 29 characters with nowhere to wrap, which the agreement's 30-character limit allows. */
 const UNBROKEN_NAME = "MaximilianaWolfeschlegelstein";
 /** The ticket's three widths, plus the phone width CLAUDE.md's definition of done asks for. */
