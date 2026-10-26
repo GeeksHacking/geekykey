@@ -1,8 +1,8 @@
 export interface EscapedCsv {
   /** The file to save. The service's own text, unless a cell had to change. */
   csv: string;
-  /** True when a cell was changed, so the file is no longer the service's file. */
-  rewritten: boolean;
+  /** True when a cell was escaped, so the file is no longer the service's file. */
+  escaped: boolean;
 }
 
 interface CsvCell {
@@ -18,7 +18,7 @@ interface CsvCell {
  * it, and nothing else in the file moves.
  */
 export function escapeSpreadsheetFormulas(csv: string): EscapedCsv {
-  if (!csv) return { csv: "", rewritten: false };
+  if (!csv) return { csv: "", escaped: false };
 
   const insertions: number[] = [];
   for (const row of parseCsv(csv)) {
@@ -27,16 +27,16 @@ export function escapeSpreadsheetFormulas(csv: string): EscapedCsv {
     }
   }
 
-  if (insertions.length === 0) return { csv, rewritten: false };
+  if (insertions.length === 0) return { csv, escaped: false };
 
-  let escaped = "";
+  let output = "";
   let cursor = 0;
   for (const at of insertions) {
-    escaped += `${csv.slice(cursor, at)}'`;
+    output += `${csv.slice(cursor, at)}'`;
     cursor = at;
   }
-  escaped += csv.slice(cursor);
-  return { csv: escaped, rewritten: true };
+  output += csv.slice(cursor);
+  return { csv: output, escaped: true };
 }
 
 function parseCsv(csv: string): CsvCell[][] {
