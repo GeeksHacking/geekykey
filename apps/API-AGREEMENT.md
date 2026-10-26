@@ -9,12 +9,12 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 | GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | `apps/geekykey-service` |
 | Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/event-service` |
 | GeekyKey screens | The token page and My tokens | `apps/geekykey-web` |
-| Event screens | The dashboard, passport, activity and organizer screens, including the station board | `apps/event-web` |
+| Event screens | The dashboard, passport, activity and organizer screens, including the station board, and the map on the big screen at our booth | `apps/event-web` |
 
 | | |
 |---|---|
-| Version | 0.5 |
-| Date | 22 October 2026 |
+| Version | 0.6 (draft) |
+| Date | 26 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -40,7 +40,7 @@ The full plan is section 6 of [the migration spec](../.scratch/db-hosting/spec.m
 | 4 | The GeekyKey Service cut out as a Worker at `https://key-api.geekshacking.com`, and the stations moved to it. Done |
 | 5 | Login through Firebase, with Google, GeeksHacking's login or as a guest, login links, and both sets of screens deployed |
 | 6 | The GeekyKey Service's features: claiming and releasing, rate limits |
-| 7 | The Event Service's features: the organizers' station endpoints, the station board, passport settings, the tap log, stats, the export, the QR fallback |
+| 7 | The Event Service's features: the organizers' station endpoints, the station board, passport settings, the tap log, stats, the export, the QR fallback, the map's data |
 | 8 | Ready for the event |
 
 ---
@@ -114,7 +114,7 @@ of an Event Service lives under `/geekykey/v1`.
 | 204 | Successful delete or logout, no body |
 | 400 | Body, query or path failed validation. Body contains `issues` |
 | 401 | Not authenticated, or a station key, Event Service key or login link is missing or invalid. A disabled station's key also gets 401 |
-| 403 | Authenticated but not allowed: not an organizer, or not a GeekyKey admin |
+| 403 | Authenticated but not allowed: not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs |
 | 404 | Resource does not exist or is not visible to this user |
 | 409 | Conflict with existing state: a token someone else has claimed, or a user who already holds 3 tokens |
 | 429 | Too many requests from this caller in the last minute. See [Rate limits](#rate-limits) |
@@ -146,7 +146,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
 | `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1` |
-| `forbidden` | 403 | Not on the organizer list or the GeekyKey admin list, as the endpoint needs |
+| `forbidden` | 403 | Not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs |
 | `not_found` | 404 | |
 | `token_taken` | 409 | Someone else has claimed this token |
 | `token_limit_reached` | 409 | The user already holds 3 tokens |
@@ -189,6 +189,7 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 - On the Event Service, a user's minute starts at their first request, and their first request
   after it ends starts a new count. An organizer's screens share one count: the station board
   polled every 10 to 15 seconds (9.2) and the scan log every 5 (9.3) use at most 18 a minute.
+  The map, polled every 2 seconds (9.10), uses 30, so an organizer with all three open uses 48.
 - Each Event Service server instance keeps its own count, so a user whose requests reach two
   instances can get up to 120 a minute through.
 
@@ -222,14 +223,20 @@ the session cookie by default.
 |---|---|---|
 | Participant | `event_session` | The Event Service |
 | Organizer | `event_session`, with a user ID on the Event Service's organizer list (not `users.role`) | The Event Service, including its stations |
+| Map screen | `event_session`, with a user ID on the Event Service's map screen list | The Event Service, for the map's data (9.10) as well as what a participant calls |
 | User | `gk_session` | The GeekyKey Service: the token page and My tokens |
 | GeekyKey admin | `gk_session`, with a user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
 | GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
 
-- The organizer list and the GeekyKey admin list are settings of their service, changed through
-  a reviewed pull request and a deploy. Each is checked on every request, so removing someone
-  takes effect at the next deploy. One person can be on both.
+- The organizer list, the map screen list and the GeekyKey admin list are settings of their
+  service, changed through a reviewed pull request and a deploy. Each is checked on every
+  request, so removing someone takes effect at the next deploy. One person can be on more than
+  one.
+- The map screen list holds the user IDs that the screens showing the map (9.10) log in as. The
+  screen at our booth logs in on the Event screens with an account kept for it. Someone who gets
+  hold of that login can read the map, and every other organizer endpoint answers them
+  `forbidden`.
 - The user ID is always taken from the session, never from a request body, except where an
   endpoint says otherwise: an organizer's QR fallback tap names the participant, and a GeekyKey
   admin's release names the owner. An endpoint that "acts on the current user" means the user
@@ -354,7 +361,7 @@ compute it.
 
 `participant` or `organizer`, worked out by the Event Service from its organizer list on every
 request. Being a GeekyKey admin is not a `role`: the GeekyKey Service's `/me` says
-`is_geekykey_admin`.
+`is_geekykey_admin`. Nor is being a map screen: a map screen's `/me` says `participant` (9.10).
 
 ### Stamps and points
 
@@ -403,8 +410,8 @@ them.
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows |
-| PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Implemented` | Add or change a station's passport settings |
-| GET | `/api/v1/admin/stations` | Organizer | `Implemented` | The station board |
+| PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Implemented, changes at checkpoint 7` | Add or change a station's passport settings |
+| GET | `/api/v1/admin/stations` | Organizer | `Implemented, changes at checkpoint 7` | The station board |
 | POST | `/api/v1/admin/stations` | Organizer | `Implemented` | Create a station, key shown once |
 | POST | `/api/v1/admin/stations/{id}/key` | Organizer | `Implemented` | Replace a station's key, new key shown once |
 | POST | `/api/v1/admin/stations/{id}/disable` | Organizer | `Implemented` | Disable a station |
@@ -413,6 +420,7 @@ them.
 | POST | `/api/v1/admin/taps` | Organizer | `Implemented` | QR fallback tap |
 | GET | `/api/v1/admin/stats` | Organizer | `Implemented` | Totals for the dashboard |
 | GET | `/api/v1/admin/export.csv` | Organizer | `Implemented` | Raw tap export for the A/B analysis |
+| GET | `/api/v1/map` | Organizer, map screen | `Checkpoint 7` | Each passport station's booth and counts, for the map |
 
 ---
 
@@ -945,10 +953,11 @@ path `["display_name"]`, and leaves the name as it was.
 ## 9. Organizer endpoints
 
 On the Event Service. All require `event_session` for a user on the Event Service's organizer
-list. Anyone else gets `forbidden`. Organizers also look after their event's stations: 9.7 to 9.9
-create them, replace their keys, and disable and enable them.
+list, except the map (9.10), which a user on its map screen list may read too. Anyone else gets
+`forbidden`. Organizers also look after their event's stations: 9.7 to 9.9 create them, replace
+their keys, and disable and enable them.
 
-### 9.1 `PUT /api/v1/admin/stations/{id}/passport` (`Implemented`)
+### 9.1 `PUT /api/v1/admin/stations/{id}/passport` (`Implemented, changes at checkpoint 7`)
 
 Add a station to the passport, or change its settings. `{id}` is the station's ID from the
 station board.
@@ -956,24 +965,33 @@ station board.
 **Request**
 
 ```json
-{ "name": "3D Printing Booth", "location": "Hall A", "points": 1 }
+{ "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1 }
 ```
 
-`location` optional, `points` optional (default 1, integer 0 or more).
+`location` optional, `booth` optional, `points` optional (default 1, integer 0 or more).
 
-The Event Service trims `name` and `location` and counts them in Unicode code points, as 9.7
-counts a label. `name` must then be 1 to 80 code points, and `location` at most 80. A blank or
-`null` `location` means none, and the answer gives it as `null`. `points` must also fit a 32-bit
-integer, so at most 2147483647.
+`booth` says which booth in the hall the station stands at, so the map (9.10) draws it there. It
+is free text, which the map screen matches to a booth name in its own floor plan. `location`
+stays the text participants read in the passport (8.1), which doesn't show the booth. An
+organizer who moves a station on the day changes its booth here, with no deploy.
 
-Each request sets all three fields. A change that leaves out `location` clears the location, and
-one that leaves out `points` sets the points back to 1.
+The Event Service trims `name`, `location` and `booth` and counts them in Unicode code points, as
+9.7 counts a label. `name` must then be 1 to 80 code points, and `location` and `booth` at most
+80 each. A blank or `null` `location` or `booth` means none, and the answer gives it as `null`.
+`points` must also fit a 32-bit integer, so at most 2147483647.
+
+Each request sets all four fields. A change that leaves out `location` or `booth` clears it, and
+one that leaves out `points` sets the points back to 1. So the station board's form sends the
+booth back with every save, even one that changes only the name.
 
 **Response `201`** when added, **`200`** when changed:
 
 ```json
-{ "passport": { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "added_at": "…" } }
+{ "passport": { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "added_at": "…" } }
 ```
+
+**Until checkpoint 7's map is built,** the Event Service ignores `booth` in the request and leaves
+it out of the answer.
 
 - A station added to the passport takes the last stamp slot. Changing its settings never moves
   it.
@@ -988,7 +1006,7 @@ one that leaves out `points` sets the points back to 1.
 **Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found` for a station this
 Event Service didn't register, and `rate_limited` ([Rate limits](#rate-limits)).
 
-### 9.2 `GET /api/v1/admin/stations` (`Implemented`)
+### 9.2 `GET /api/v1/admin/stations` (`Implemented, changes at checkpoint 7`)
 
 The station board: every station this Event Service has registered, enabled or disabled, with
 its health, its passport settings and its last tap.
@@ -1003,7 +1021,7 @@ its health, its passport settings and its last tap.
       "label": "Reader 3",
       "created_at": "2026-10-01T02:00:00.000Z",
       "disabled_at": null,
-      "passport": { "name": "3D Printing Booth", "location": "Hall A", "points": 1, "added_at": "…" },
+      "passport": { "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "added_at": "…" },
       "last_seen_at": "2026-10-10T09:00:01.250Z",
       "online": true,
       "firmware_version": "0.3.1",
@@ -1020,6 +1038,7 @@ its health, its passport settings and its last tap.
 | `label` | The device's name, such as "Reader 3". Its name in the passport is `passport.name` |
 | `disabled_at` | When an organizer disabled it, or `null` while it is enabled |
 | `passport` | `null` for a station without passport settings. The screen shows it as "Not in the passport", with a button to add its settings (9.1). Its taps get `no_game` |
+| `passport.booth` | The booth the map draws it at (9.1), or `null`. Until checkpoint 7's map is built, `passport` has no `booth` |
 | `last_seen_at`, `online` | When this Event Service last heard from the station, by a tap or a heartbeat, and whether that was within 120 seconds |
 | `firmware_version`, `buffered_taps`, `reader_ok` | From its last heartbeat, or `null` |
 | `last_tap_at` | When this Event Service last received a stored tap from the station, or `null` |
@@ -1257,6 +1276,66 @@ nothing. Each change is logged with who made it.
 
 **Errors:** `unauthenticated`, `forbidden`, `not_found` for a station this Event Service didn't
 register, and `rate_limited` ([Rate limits](#rate-limits)).
+
+### 9.10 `GET /api/v1/map` (`Checkpoint 7`)
+
+What the map on the big screen at our booth draws: each passport station, with its booth and
+counts.
+
+**Auth:** `event_session`, for a user on the organizer list or the map screen list
+([Who calls what](#who-calls-what)). Anyone else signed in gets `forbidden`, and a request with no
+session gets `unauthenticated`. It isn't under `/admin`, because a map screen isn't an organizer.
+
+**Response `200`**
+
+```json
+{
+  "stations": [
+    {
+      "station_id": "…",
+      "name": "3D Printing Booth",
+      "booth": "A3",
+      "disabled": false,
+      "taps": 57,
+      "unique_participants": 41,
+      "last_tap_at": "2026-10-10T08:58:12.004Z"
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `name` | Its name in the passport |
+| `booth` | Its booth from its passport settings (9.1), or `null` |
+| `disabled` | `true` while an organizer has it disabled (9.9) |
+| `taps` | How many of its taps are `accepted` or `cooldown`, from the station and the QR fallback (9.4). `no_game` taps, stored before it joined the passport, aren't counted |
+| `unique_participants` | The users with an `accepted` tap there, which is the number of stamps earned there, as in 9.5 |
+| `last_tap_at` | When the Event Service received the newest tap that `taps` counts, or `null` |
+
+- `stations` lists every station with passport settings, in stamp-slot order (section 4), as
+  `stamps` does in 8.1. A disabled station is listed too, and one with no taps has zeros and a
+  `null` `last_tap_at`.
+- The answer has no user ID, display name or token UID, and fields added later won't either.
+- `last_tap_at` isn't the station board's (9.2): this one counts a QR fallback tap and leaves out
+  `no_game`.
+- A station pulses when its `taps` goes up between two polls. A tap in the cooldown counts, so
+  the map pulses even when the tap earned nothing.
+- The floor plan is the screen's own, a 2D plan first and a 3D model later, both naming the same
+  booths. The Event Service stores no coordinates. The screen treats a `booth` its plan doesn't
+  name the same as `null`.
+- Suggested: a station whose booth is `null` or unknown shows beside the map, so an organizer
+  notices and fixes its passport settings. A disabled station stays on the map, marked, and
+  doesn't pulse, even when a QR fallback tap (9.4) raises its `taps`.
+- A map screen's `/me` says `participant` (8.1), so `/me` can't tell the screen whether it may
+  read the map. The screen reads the map, and `forbidden` means it may not.
+- Dual-tap connections, once they're built, add their own fields here, in the change that takes
+  them out of section 12.
+
+Poll this every 2 seconds while the map is shown. That uses 30 of the user's 60 requests a minute
+([Rate limits](#rate-limits)).
+
+**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ---
 
@@ -1531,6 +1610,7 @@ There are no GeekyKey admin screens.
 | Organizer station board | `GET /api/v1/admin/stations`, polled; `PUT /api/v1/admin/stations/{id}/passport`; `POST /api/v1/admin/stations`; `POST /api/v1/admin/stations/{id}/key`; `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
 | Organizer summary | `GET /api/v1/admin/stats`, `GET /api/v1/admin/export.csv` |
+| Map, on the big screen at our booth | `GET /api/v1/map`, polled every 2 seconds. Logged in as a map screen, or as an organizer |
 
 - On `429`, screens that poll keep showing their last data. The token page, the claim form and My
   tokens say "Too many tries. Wait a minute and try again."
@@ -1664,3 +1744,4 @@ Closed on 2026-10-10:
 | 2026-10-26 | The QR fallback, `POST /api/v1/admin/taps` (9.4), is `Implemented`. It stores the tap through the station taps' pipeline with `source = qr_fallback`, so the cooldown, stamps and points treat it as a station's tap. A station without passport settings, or one this Event Service didn't register, gets `not_found`, so a QR fallback tap is never `no_game`. **New limit:** the Event Service trims `user_id`, which must then be 1 to 128 characters, as in the hand-off. The Event screens' form trims it and allows 128, so every ID it sends passes, but the mock has no upper limit. **New rule:** a disabled station with passport settings takes a QR fallback tap too, and the tap counts at once, as the mock already allows. The `client_tap_id` is a random UUID and `tapped_at` is `null`, as the mock already stores them. Each one writes a `qr_fallback_logged` log line with the organizer's user ID, and the tap's own `tap_stored` line now carries its `source`, so a restore rebuilds it as a QR fallback. 9.4 now lists its errors. No shape changes. Nothing calls it yet: the organizer screens switch to the Event Service in FRO-79 (BAC-78). |
 | 2026-10-26 | The stats, `GET /api/v1/admin/stats` (9.5), and the export, `GET /api/v1/admin/export.csv` (9.6), are `Implemented`, with no token ID in either. 9.5 now says that `accepted_taps` and `unique_participants` count `accepted` taps only, as the summary screen's hint says, and that a passport station with no taps, or a disabled one, is listed with its counts. The Event screens' mock lists every station, naming one outside the passport by its label, but the agreement has always listed passport stations only, so the live screen shows fewer rows than the mock. 9.6 now says the rows run oldest first by `tap_id` after a line of column names, and how a value is quoted. **New rule:** every line ends in CRLF, as RFC 4180 has it, where the mock ends lines with a line feed alone. The screens' formula escaping reads both. The file is named `geekykey-taps.csv`, which the screens replace with their own name when they save it. Both now list their errors. No shape changes. Nothing calls them yet: the organizer screens switch to the Event Service in FRO-79 (BAC-79). |
 | 2026-10-26 | The Event Service's limit is `Implemented`: each user gets 60 requests a minute to its API, then `429 rate_limited` with `Retry-After: 60`, as on the GeekyKey Service. Each server instance counts in its own memory, so with two running, a user can get up to 120 a minute through. [Rate limits](#rate-limits) now says what counts, matching the GeekyKey Service's user limit: every `/api/v1` request with a session, by user ID, even one that fails its checks. `/auth/*`, the hand-off routes and a request with no session aren't counted. A user's minute starts at their first request, and an organizer's polls of the station board and the scan log use at most 18 of the 60. Each turned-away request writes a `rate_limited` log line with the user's ID. 8.1 now lists `rate_limited`, and 8.7 and 9.1 to 9.9 no longer say it waits for checkpoint 7. The screens already keep their last data on a `429` (section 13). No shape changes (BAC-80). |
+| 2026-10-26 | Version 0.6 (draft): the map on the big screen at our booth, as checkpoint 7 of the [migration spec](../.scratch/db-hosting/spec.md) settled on 23 Oct. **New:** `GET /api/v1/map` (9.10), `Checkpoint 7`, giving each passport station in stamp-slot order with its passport name, booth, whether it is disabled, its `accepted` and `cooldown` taps, its unique participants and its last tap's time, and no user ID, name or token UID. Organizers may read it, and so may the users on a new setting of the Event Service, the map screen list ([Who calls what](#who-calls-what)). Anyone else signed in gets `forbidden`. The screen polls it every 2 seconds, which uses 30 of the user's 60 requests a minute. **New field:** `booth`, optional, in passport settings (9.1) and the station board's `passport` (9.2), at checkpoint 7. It is free text, at most 80 code points, matched by the screen to a booth name in its own floor plan, and `location` stays the text participants read. Like `location`, a save that leaves it out clears it. Until it's built, the Event Service ignores `booth` and leaves it out of its answers. A map screen isn't a `role`: its `/me` says `participant`. Section 13 adds the map. Connections stay out of scope until their own change to section 12 (BAC-81). |
