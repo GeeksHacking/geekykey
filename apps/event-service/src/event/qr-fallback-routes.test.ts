@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { onTestFinished, test, vi } from "vitest";
-import { fakeClock, testApp, testDb } from "../test-helpers.ts";
+import { fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
 import { passportStations, stations, taps, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
@@ -79,7 +79,9 @@ async function harness() {
   const logTap = async (stationId = BOOTH, userId = PARTICIPANT): Promise<FallbackBody> => {
     const res = await postTap(await signIn(ORGANIZER), { station_id: stationId, user_id: userId });
     assert.equal(res.status, 201);
-    return (await res.json()) as FallbackBody;
+    const body: unknown = await res.json();
+    screensSchemas.fallbackTapResponseSchema.parse(body);
+    return body as FallbackBody;
   };
 
   /** Every stored tap, newest first, as the organizer's scan log lists them. */

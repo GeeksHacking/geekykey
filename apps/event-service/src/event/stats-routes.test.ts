@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
-import { testApp, testDb } from "../test-helpers.ts";
+import { screensSchemas, testApp, testDb } from "../test-helpers.ts";
 import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
@@ -55,7 +55,9 @@ async function harness() {
   const stats = async (): Promise<StatsBody> => {
     const res = await getStats(await signIn(ORGANIZER));
     assert.equal(res.status, 200);
-    return (await res.json()) as StatsBody;
+    const body: unknown = await res.json();
+    screensSchemas.statsResponseSchema.parse(body);
+    return body as StatsBody;
   };
 
   /** Registers a station, outside the passport unless given passport settings. */

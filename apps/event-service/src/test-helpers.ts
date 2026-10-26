@@ -1,4 +1,5 @@
 import { unreachableGoogleKeys } from "@geekykey/firebase-login/testing";
+import { fileURLToPath } from "node:url";
 import { afterAll } from "vitest";
 import { localDatabaseUrl } from "../scripts/local-tidb.ts";
 import { type AppDeps, createApp } from "./app.ts";
@@ -10,6 +11,31 @@ import { generateStationKey, hashStationKey } from "./event/station-keys.ts";
 
 /** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
 export { showcaseGames } from "./showcase/games.ts";
+
+/** One of the Event screens' checks of an answer, from apps/event-web/src/api/schemas.ts. */
+export interface ScreensSchema {
+  parse(input: unknown): unknown;
+}
+
+/**
+ * The Event screens' own checks of the organizer answers, so the service and the
+ * screens can't drift apart: a route test that parses its answer with one fails
+ * when the service sends what the screens would refuse. Imported by a path tsc
+ * doesn't follow, since the screens' code is checked with their settings, not
+ * the service's.
+ */
+export const screensSchemas = (await import(
+  /* @vite-ignore */ fileURLToPath(new URL("../../event-web/src/api/schemas.ts", import.meta.url))
+)) as Record<
+  | "eventStationBoardResponseSchema"
+  | "stationKeyResponseSchema"
+  | "stationResponseSchema"
+  | "setStationPassportResponseSchema"
+  | "listTapsResponseSchema"
+  | "fallbackTapResponseSchema"
+  | "statsResponseSchema",
+  ScreensSchema
+>;
 
 export interface TestFixture {
   db: Db;

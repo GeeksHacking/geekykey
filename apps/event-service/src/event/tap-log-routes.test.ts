@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
-import { testApp, testDb } from "../test-helpers.ts";
+import { screensSchemas, testApp, testDb } from "../test-helpers.ts";
 import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
@@ -57,7 +57,9 @@ async function harness() {
   const tapLog = async (query = ""): Promise<TapLogBody> => {
     const res = await getTaps(await signIn(ORGANIZER), query);
     assert.equal(res.status, 200);
-    return (await res.json()) as TapLogBody;
+    const body: unknown = await res.json();
+    screensSchemas.listTapsResponseSchema.parse(body);
+    return body as TapLogBody;
   };
 
   /** Registers a station, outside the passport unless given a passport name. */
