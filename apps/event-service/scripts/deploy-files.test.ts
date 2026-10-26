@@ -66,10 +66,16 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       assert.ok(!config.organizers.includes("dev-organizer-1"));
     });
 
-    test("it has the map screen list, empty until the booth screen's user is known", () => {
+    test("it has the map screen list, with no organizer on it", () => {
+      // A map screen sits where the public can reach it, so its login mustn't
+      // open the organizer screens too.
       assert.ok("MAP_SCREENS" in settings, "MAP_SCREENS is missing");
       const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
-      assert.deepEqual(config.mapScreens, []);
+      const organizers = new Set(config.organizers);
+      assert.deepEqual(
+        config.mapScreens.filter((id) => organizers.has(id)),
+        [],
+      );
     });
 
     test("it logs users in with the showcase's Firebase project, as the GeekyKey Service does", () => {
