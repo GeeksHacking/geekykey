@@ -14,8 +14,9 @@ interface CsvCell {
 
 /**
  * The export is the data feed for the A/B analysis, so the file the organiser saves is the file
- * the service sent. A name a spreadsheet could run as a formula gets an apostrophe in front of
- * it, and nothing else in the file moves.
+ * the service sent. A value a spreadsheet could run as a formula gets an apostrophe in front of
+ * it, and nothing else in the file moves (section 13). Any cell can hold one: names are typed,
+ * a QR fallback's user_id is typed, and a station sends its own client_tap_id.
  */
 export function escapeSpreadsheetFormulas(csv: string): EscapedCsv {
   if (!csv) return { csv: "", escaped: false };
@@ -99,9 +100,8 @@ function parseCsv(csv: string): CsvCell[][] {
 }
 
 /**
- * Section 13 names a name a spreadsheet could run as a formula. This check is deliberately wider,
- * as the export's check was before it: it allows whitespace before the character, and catches a
- * leading tab or carriage return.
+ * A value a spreadsheet could run as a formula starts with =, +, - or @, after any whitespace,
+ * or with a tab or a carriage return.
  */
 function needsEscaping(value: string): boolean {
   return /^[\t\r]/.test(value) || /^\s*[=+\-@]/u.test(value);

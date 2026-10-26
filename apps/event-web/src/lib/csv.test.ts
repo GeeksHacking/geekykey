@@ -41,6 +41,17 @@ describe("escapeSpreadsheetFormulas", () => {
 
   // A spreadsheet ignores the spaces before deciding the cell is a formula, so the rule covers
   // them, and the apostrophe goes in front of the spaces.
+  it("escapes a value in any column, not only a name", () => {
+    // A QR fallback's user_id is typed by an organiser, and a station sends its own
+    // client_tap_id, so either can start like a formula (section 13).
+    const csv = "tap_id,client_tap_id,user_id\r\n1,@sum,=1+1\r\n";
+
+    expect(escapeSpreadsheetFormulas(csv)).toEqual({
+      csv: "tap_id,client_tap_id,user_id\r\n1,'@sum,'=1+1\r\n",
+      escaped: true,
+    });
+  });
+
   it("escapes a name that has spaces before the character", () => {
     const csv = "tap_id,display_name\r\n1,  =2+2\r\n";
 
