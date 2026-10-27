@@ -147,6 +147,17 @@ describe("geekykey-web http client", () => {
     await expect(api.me()).rejects.toMatchObject({ status: 503, code: "claims_unavailable" });
   });
 
+  it("falls back to token_taken for a bare 409, not internal_error", async () => {
+    // A 409 with no readable body is still one of the claim's two codes (agreement 8.2).
+    stubFetch(() => new Response("conflict", { status: 409 }));
+    const api = createHttpClient();
+
+    await expect(api.claimToken("04E5F7091B3D")).rejects.toMatchObject({
+      status: 409,
+      code: "token_taken",
+    });
+  });
+
   it("gives a 401 on the login invalid_token, not a lost session", async () => {
     // Agreement 7.2: the login answers 401 invalid_token. Every other 401 is
     // unauthenticated, which the session provider reads as a signed-out user.

@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import * as z from "zod/mini";
 
 import { describeError, isApiError } from "@/api/errors";
 import type { StationKeyResponse } from "@/api/types";
@@ -23,9 +23,11 @@ import { applyApiIssues } from "@/lib/form-errors";
 const schema = z.object({
   label: z
     .string()
-    .trim()
-    .min(1, "Give the station a label.")
-    .max(80, "Keep it under 80 characters."),
+    .check(
+      z.trim(),
+      z.minLength(1, "Give the station a label."),
+      z.maxLength(80, "Keep it under 80 characters."),
+    ),
 });
 
 type StationValues = z.infer<typeof schema>;

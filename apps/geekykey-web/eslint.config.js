@@ -35,4 +35,15 @@ export default defineConfig([
     files: ["src/routes/**/*.tsx", "src/components/ui/*.tsx", "src/test/**/*.tsx"],
     rules: { "react-refresh/only-export-components": "off" },
   },
+  {
+    // One import of classic zod puts all of it in the page's JavaScript, on top of the
+    // zod/mini every page already loads for src/api/schemas.ts (FRO-67).
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: [{ name: "zod", message: "Import zod/mini, which the rest of the app uses." }] },
+      ],
+    },
+  },
 ]);

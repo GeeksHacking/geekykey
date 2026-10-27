@@ -165,9 +165,12 @@ test("a fill that runs out of the request's time is unavailable, and answers in 
   assert.ok(took < 500, `took ${took} ms`);
 });
 
-test("a copy more than a minute old is used for the request, then refreshed without it waiting", async () => {
+test("a list more than a minute old is asked for again before the request is answered, so a disabled station's key is refused at once", async () => {
   loggedLines();
-  const showcase = eventService("showcase", listOf(["station-1", hashOf("a")]));
+  const showcase = eventService(
+    "showcase",
+    listOf(["station-1", hashOf("a")], ["station-2", hashOf("b")]),
+  );
   const { find, settled, time } = copyOf([showcase]);
   await find(hashOf("a"));
 
@@ -177,20 +180,13 @@ test("a copy more than a minute old is used for the request, then refreshed with
   await settled();
   assert.equal(showcase.requests, 1);
 
-  // Older: the request is answered from the old list while the refresh is still out.
-  let answer!: (list: RegisteredStation[]) => void;
-  showcase.answer = () => new Promise((resolve) => (answer = resolve));
+  // Older, and station-1 is disabled: the request that finds the copy old waits for the new list.
+  showcase.answer = listOf(["station-2", hashOf("b")]);
   time.advance(1);
-  const found = await find(hashOf("a"));
-  assert.equal(found.result === "found" && found.stationId, "station-1");
-  assert.equal(showcase.requests, 2);
-
-  // Once the refresh comes back, its list is the one used.
-  answer([{ station_id: "station-1", key_hash: hashOf("c") }]);
-  await settled();
   assert.deepEqual(await find(hashOf("a")), { result: "unknown" });
-  const replaced = await find(hashOf("c"));
-  assert.equal(replaced.result === "found" && replaced.stationId, "station-1");
+  assert.equal(showcase.requests, 2);
+  const found = await find(hashOf("b"));
+  assert.equal(found.result === "found" && found.stationId, "station-2");
   assert.equal(showcase.requests, 2);
 });
 
@@ -213,6 +209,34 @@ test("when a refresh fails, the last good list is kept, however old, and the fai
   assert.deepEqual(await find(hashOf("f")), { result: "unknown" });
 });
 
+test("a refresh that runs out of the request's time is unavailable, and answers in time, leaving the last good list", async () => {
+  loggedLines();
+  const showcase = eventService("showcase", listOf(["station-1", hashOf("a")]));
+  const { find, settled, time } = copyOf([showcase]);
+  await find(hashOf("a"));
+
+  let fail!: (err: Error) => void;
+  showcase.answer = () => new Promise((_, reject) => (fail = reject));
+  time.advance(MINUTE + 1);
+  // No time is left for the owners and the hand-off, and a key on no list may
+  // be on the one still out, so either way the station resends later.
+  const started = Date.now();
+  const checks = await Promise.all([
+    find(hashOf("a"), AbortSignal.timeout(50)),
+    find(hashOf("b"), AbortSignal.timeout(50)),
+  ]);
+  assert.deepEqual(checks, [{ result: "unavailable" }, { result: "unavailable" }]);
+  const took = Date.now() - started;
+  assert.ok(took < 500, `took ${took} ms`);
+
+  // Once the refresh has failed, the last good list answers until the minute is up.
+  fail(new EventServiceUnavailable("timeout"));
+  await settled();
+  const found = await find(hashOf("a"));
+  assert.equal(found.result === "found" && found.stationId, "station-1");
+  assert.equal(showcase.requests, 2);
+});
+
 test("a failed refresh isn't tried again for a minute", async () => {
   loggedLines();
   const showcase = eventService("showcase", listOf(["station-1", hashOf("a")]));
@@ -228,33 +252,46 @@ test("a failed refresh isn't tried again for a minute", async () => {
   assert.equal(showcase.requests, 2);
 });
 
-test("an unknown key is unknown at once, and refreshes a copy more than a minute old, so a new station's key works", async () => {
+test("a request that comes while a list more than a minute old is being asked for waits for the same answer", async () => {
+  loggedLines();
+  const showcase = eventService(
+    "showcase",
+    listOf(["station-1", hashOf("a")], ["station-2", hashOf("b")]),
+  );
+  const { find, time } = copyOf([showcase]);
+  await find(hashOf("a"));
+
+  let answer!: (list: RegisteredStation[]) => void;
+  showcase.answer = () => new Promise((resolve) => (answer = resolve));
+  time.advance(MINUTE + 1);
+  const first = find(hashOf("a"));
+  const second = find(hashOf("a"));
+  answer([{ station_id: "station-2", key_hash: hashOf("b") }]);
+  assert.deepEqual(await Promise.all([first, second]), [
+    { result: "unknown" },
+    { result: "unknown" },
+  ]);
+  assert.equal(showcase.requests, 2);
+});
+
+test("an unknown key waits for a list more than a minute old, so a new station's key works at once", async () => {
   loggedLines();
   const showcase = eventService("showcase", listOf(["station-1", hashOf("a")]));
   const { find, settled, time } = copyOf([showcase]);
   await find(hashOf("a"));
 
-  // Not yet a minute old: no request.
+  // Not yet a minute old: no request, so the new station's key is unknown for now.
+  showcase.answer = listOf(["station-1", hashOf("a")], ["station-2", hashOf("b")]);
   time.advance(MINUTE);
   assert.deepEqual(await find(hashOf("b")), { result: "unknown" });
   await settled();
   assert.equal(showcase.requests, 1);
 
-  // Older: the new station's key is unknown while the refresh is still out.
-  let answer!: (list: RegisteredStation[]) => void;
-  showcase.answer = () => new Promise((resolve) => (answer = resolve));
+  // Older: the request that finds the copy old waits for the new list, and finds the key.
   time.advance(1);
-  assert.deepEqual(await find(hashOf("b")), { result: "unknown" });
-  assert.equal(showcase.requests, 2);
-
-  // Once the refresh comes back, its next request finds it.
-  answer([
-    { station_id: "station-1", key_hash: hashOf("a") },
-    { station_id: "station-2", key_hash: hashOf("b") },
-  ]);
-  await settled();
   const found = await find(hashOf("b"));
   assert.equal(found.result === "found" && found.stationId, "station-2");
+  assert.equal(showcase.requests, 2);
 });
 
 test("with a list missing, a key on no other list also refreshes the lists in hand, each asked for once", async () => {
@@ -266,11 +303,12 @@ test("with a list missing, a key on no other list also refreshes the lists in ha
 
   showcase.answer = listOf(["station-1", hashOf("a")], ["station-2", hashOf("b")]);
   time.advance(MINUTE + 1);
-  assert.deepEqual(await find(hashOf("b")), { result: "unavailable" });
-  await settled();
-  assert.deepEqual([showcase.requests, other.requests], [2, 2]);
   const found = await find(hashOf("b"));
   assert.equal(found.result === "found" && found.stationId, "station-2");
+  await settled();
+  assert.deepEqual([showcase.requests, other.requests], [2, 2]);
+  // The other list is still missing, so a key on neither may be on it.
+  assert.deepEqual(await find(hashOf("f")), { result: "unavailable" });
 });
 
 test("unknown keys ask an Event Service for its list at most once a minute, so junk keys can't flood it", async () => {

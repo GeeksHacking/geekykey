@@ -63,11 +63,11 @@ describe("ExportButton", () => {
 
     expect(
       screen.getByText(
-        "A name that a spreadsheet could run as a formula gets an apostrophe, so it stays text.",
+        "A value that a spreadsheet could run as a formula gets an apostrophe, so it stays text.",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText("Some names were escaped, so this file is not the service's own."),
+      screen.queryByText("Some values were escaped, so this file is not the service's own."),
     ).not.toBeInTheDocument();
 
     await act(async () => {
@@ -78,7 +78,7 @@ describe("ExportButton", () => {
     expect(createdBlob).toBeInstanceOf(Blob);
     expect(await createdBlob?.text()).toBe(await (await api.exportCsv()).text());
     expect(
-      screen.queryByText("Some names were escaped, so this file is not the service's own."),
+      screen.queryByText("Some values were escaped, so this file is not the service's own."),
     ).not.toBeInTheDocument();
     expect(revokeObjectUrl).not.toHaveBeenCalled();
 
@@ -103,7 +103,7 @@ describe("ExportButton", () => {
     expect(click).toHaveBeenCalledTimes(1);
     expect(await createdBlob?.text()).toContain("'=2+2");
     expect(
-      screen.getByText("Some names were escaped, so this file is not the service's own."),
+      screen.getByText("Some values were escaped, so this file is not the service's own."),
     ).toBeInTheDocument();
   });
 });

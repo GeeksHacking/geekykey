@@ -44,8 +44,6 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   // the switch, cannot say who owns a token within 4 seconds.
   claims_unavailable: 503,
   login_unavailable: 503,
-  // The Worker in front of the screens answers this when the GeekyKey Service gave no
-  // answer at all (agreement section 2).
   service_unavailable: 503,
 };
 
@@ -96,33 +94,33 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;
   let pendingFailure: MockFailure | null = null;
-  // Live clients skip the auth error for the session's own /me call (agreement FRO-50).
-  // Track whether the current call should publish, so fail() inside it matches.
-  let currentPublishAuth = true;
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
+  // The live clients skip the auth error for the session's own GET /me, because a 401 there
+  // means nobody is signed in. Each call keeps its own flag, so calls that overlap during the
+  // simulated latency cannot change each other's.
   async function call<T>(work: () => T, publishAuth = true): Promise<T> {
-    currentPublishAuth = publishAuth;
     const [min, max] = latency;
     const wait = min + Math.random() * Math.max(0, max - min);
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-    if (pendingFailure) {
-      const failure = pendingFailure;
-      pendingFailure = null;
-      if (failure === "network") throw new NetworkError();
-      const error = new ApiError(HTTP_STATUS[failure], failure);
-      if (currentPublishAuth) publishAuthError(error);
+    try {
+      if (pendingFailure) {
+        const failure = pendingFailure;
+        pendingFailure = null;
+        if (failure === "network") throw new NetworkError();
+        throw new ApiError(HTTP_STATUS[failure], failure);
+      }
+      return work();
+    } catch (error) {
+      if (publishAuth) publishAuthError(error);
       throw error;
     }
-    return work();
   }
 
   // Explicit type so a bare `fail(...)` statement is the end of that path.
   const fail: (code: ErrorCode, issues?: ApiIssue[]) => never = (code, issues) => {
-    const error = new ApiError(HTTP_STATUS[code], code, issues);
-    if (currentPublishAuth) publishAuthError(error);
-    throw error;
+    throw new ApiError(HTTP_STATUS[code], code, issues);
   };
 
   function currentUserId(): string {

@@ -480,8 +480,8 @@ item has a [`tap_status`](#tap_status).
    then from the Portal. A token nobody has claimed gets `unknown_token`.
 3. It hands every other tap to the Event Service that registered the station in one call, the
    hand-off (11.2), and passes back the statuses it answers unchanged.
-4. Steps 2 and 3 share one deadline of 4 seconds (11.5, provisional), with filling an empty
-   copy of the registered stations in step 1. If the owners can't be found properly in time, the whole request fails with `503 claims_unavailable`. If the Event
+4. Steps 2 and 3 share one deadline of 4 seconds (11.5, provisional), with filling or
+   refreshing the copy of the registered stations in step 1. If the owners can't be found properly in time, the whole request fails with `503 claims_unavailable`. If the Event
    Service doesn't answer properly in what's left, it fails with
    `503 event_service_unavailable`. Either way, the station keeps every tap in it to resend.
 
@@ -563,6 +563,9 @@ whether the reader works.
 
 - Stations call this at boot and every 60 seconds. At boot it replaces `/api/health`, because
   it also proves the station key.
+- A station may hold a heartbeat back while it answers taps, since a tap read during a heartbeat
+  is lost, but by at most 30 seconds. So two heartbeats can be up to about 90 seconds apart, and
+  the taps meanwhile keep the station online.
 - It is the station's clock: set the clock from `server_time` every time, and send `tapped_at`
   only once it has been set.
 - Every 60 seconds also keeps the HTTPS connection open, since Cloudflare closes an idle one
@@ -1184,8 +1187,8 @@ who has never logged in to this event.
   writes timestamps as the JSON answers give them.
 - The answer's `Content-Type` is `text/csv; charset=utf-8`, and `Content-Disposition` names the
   file `geekykey-taps.csv`.
-- Names come as they were typed. The screens escape a name that a spreadsheet could run as a
-  formula, and the Event Service doesn't (section 13).
+- Values come as they were typed or sent. The screens escape a value that a spreadsheet could
+  run as a formula, and the Event Service doesn't (section 13).
 
 This is the data feed for the Sprint 2 A/B analysis, so it must not be cut from scope. The
 analysis needs neither token UIDs nor taps by unclaimed tokens (Joshua, 28 Sep).
@@ -1483,9 +1486,10 @@ failed may still have stored some of its taps (11.5).
 
 ### 11.5 The 4-second deadline
 
-The GeekyKey Service gives each station request one deadline of 4 seconds for filling an empty
-copy of the registered stations (11.1), finding the tokens' owners and the hand-off together, so
-each step gets whatever the ones before it leave. The
+The GeekyKey Service gives each station request one deadline of 4 seconds for filling or
+refreshing its copy of the registered stations (11.1), finding the tokens' owners and the
+hand-off together, so each step gets whatever the ones before it leave. A list more than a
+minute old is refreshed before the key is checked against it. The
 station waits 5. Provisional until our first deploy measures a cold start: a cold start lands on
 the first call that wakes a server, so keep yours warm on event days, or able to answer from
 cold within about 3 seconds.
@@ -1637,10 +1641,10 @@ There are no GeekyKey admin screens.
   above its content. With no service behind the screens at all, it says "Demo data. This screen
   shows sample data." Every screen built so far sends every call to its own service, so with the
   service behind it, it shows no notice.
-- The organiser's CSV download is the file the service sent, unchanged, unless a name needs
-  escaping. The summary says the rule under the Download CSV button: **"A name that a spreadsheet
-  could run as a formula gets an apostrophe, so it stays text."** When the file was changed, it
-  says **"Some names were escaped, so this file is not the service's own."**
+- The organiser's CSV download is the file the service sent, unchanged, unless a value needs
+  escaping. The summary says the rule under the Download CSV button: **"A value that a
+  spreadsheet could run as a formula gets an apostrophe, so it stays text."** When the file was
+  changed, it says **"Some values were escaped, so this file is not the service's own."**
 
 Local setup, from checkpoint 1:
 
@@ -1744,3 +1748,6 @@ Closed on 2026-10-10:
 | 2026-10-26 | The Event screens now send every organizer call to the Event Service: the station board and its changes (9.1, 9.2, 9.7 to 9.9), the scan log (9.3), the QR fallback (9.4), the stats (9.5) and the export (9.6). Section 13 drops the organiser screens' "Demo data" sentence for a build with the service behind it. Only a build with no service behind it still shows a notice, and a screen built later, such as the map (9.10), follows the same rule until its endpoints are live. No endpoint or shape changes (FRO-79). |
 | 2026-10-26 | The map's data, `GET /api/v1/map` (9.10), is `Implemented`, and so is `booth` in passport settings (9.1) and the station board (9.2), so neither changes at checkpoint 7 any more. The Event Service trims `booth` and counts it in code points, as it does `location`: at most 80, with a blank or `null` booth answered as `null`. A save that changes only the booth writes a `station_passport_changed` log line. The map lists each passport station in stamp-slot order, disabled ones too. `taps` counts its `accepted` and `cooldown` taps from the station and the QR fallback, `unique_participants` counts the users with an `accepted` tap there, and `last_tap_at` is the newest of the counted taps. The Event Service's map screen list is its `MAP_SCREENS` setting, user IDs separated by commas and read when it starts, as `ORGANIZERS` is. It starts empty on staging and production. A map screen gets `forbidden` from every organizer endpoint, and its `/me` says `participant`. No shape changes (BAC-84). |
 | 2026-10-26 | Ethan, the screens owner, approved version 0.6 in its pull request (#148), so it is no longer a draft. No endpoint or shape changes (BAC-81). |
+| 2026-10-26 | 6.1's step 4 and 11.5 say the 4-second deadline also covers refreshing the GeekyKey Service's copy of the registered stations, not only filling an empty one. A station request now waits for a list more than a minute old before its key is checked, so a disabled station's key gets `401` within a minute on every Worker isolate, as 9.9 says, and a new station's key works within a minute, as 9.7 says. Before, a Worker that had sat idle answered once from its old list, and BAC-85's proof saw a disabled key accepted 61.7 seconds after the disable. A refresh that uses up the deadline answers `503 event_service_unavailable`. No shape changes (BAC-87). |
+| 2026-10-27 | 9.6 and section 13 say the screens escape any value a spreadsheet could run as a formula, not only a name. A `user_id` typed for a QR fallback and a station's `client_tap_id` are free text too, and the screens already escaped them. Section 13's two sentences under the Download CSV button say "value" where they said "name". No endpoint or shape changes (FRO-82). |
+| 2026-10-27 | 6.2 says a station may hold a heartbeat back by at most 30 seconds while it answers taps, so two heartbeats can be up to about 90 seconds apart. Ours waits while a result shows and for 2 seconds after one. No endpoint or shape changes (HAR-19). |

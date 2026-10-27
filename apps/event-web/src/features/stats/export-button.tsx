@@ -10,28 +10,28 @@ import { formatFileStamp } from "@/lib/format";
 
 /** Section 13 sets both sentences, and the screens use them as they are written there. */
 const ESCAPING_RULE =
-  "A name that a spreadsheet could run as a formula gets an apostrophe, so it stays text.";
-const REWRITTEN_NOTICE = "Some names were escaped, so this file is not the service's own.";
+  "A value that a spreadsheet could run as a formula gets an apostrophe, so it stays text.";
+const ESCAPED_NOTICE = "Some values were escaped, so this file is not the service's own.";
 
 /** GET /admin/export.csv. The raw tap feed for the Sprint 2 analysis, so it must never be cut. */
 export function ExportButton() {
   const api = useApi();
   const [pending, setPending] = useState(false);
-  const [rewritten, setRewritten] = useState(false);
+  const [escaped, setEscaped] = useState(false);
 
   async function download() {
     setPending(true);
-    setRewritten(false);
+    setEscaped(false);
     let anchor: HTMLAnchorElement | null = null;
     let objectUrl: string | null = null;
     try {
       const source = await api.exportCsv();
-      const { csv, rewritten: fileWasChanged } = escapeSpreadsheetFormulas(await source.text());
-      // The service's own file, unless a name had to be escaped.
-      const blob = fileWasChanged
-        ? new Blob([csv], { type: source.type || "text/csv;charset=utf-8" })
+      const result = escapeSpreadsheetFormulas(await source.text());
+      // The service's own file, unless a value had to be escaped.
+      const blob = result.escaped
+        ? new Blob([result.csv], { type: source.type || "text/csv;charset=utf-8" })
         : source;
-      setRewritten(fileWasChanged);
+      setEscaped(result.escaped);
       objectUrl = URL.createObjectURL(blob);
       anchor = document.createElement("a");
       anchor.href = objectUrl;
@@ -58,7 +58,7 @@ export function ExportButton() {
       </Button>
       <p className="max-w-[36ch] text-xs text-muted-foreground">{ESCAPING_RULE}</p>
       <p role="status" className="max-w-[36ch] text-xs text-foreground">
-        {rewritten ? REWRITTEN_NOTICE : null}
+        {escaped ? ESCAPED_NOTICE : null}
       </p>
     </div>
   );

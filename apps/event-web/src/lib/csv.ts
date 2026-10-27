@@ -1,8 +1,8 @@
 export interface EscapedCsv {
   /** The file to save. The service's own text, unless a cell had to change. */
   csv: string;
-  /** True when a cell was changed, so the file is no longer the service's file. */
-  rewritten: boolean;
+  /** True when a cell was escaped, so the file is no longer the service's file. */
+  escaped: boolean;
 }
 
 interface CsvCell {
@@ -14,11 +14,12 @@ interface CsvCell {
 
 /**
  * The export is the data feed for the A/B analysis, so the file the organiser saves is the file
- * the service sent. A name a spreadsheet could run as a formula gets an apostrophe in front of
- * it, and nothing else in the file moves.
+ * the service sent. A value a spreadsheet could run as a formula gets an apostrophe in front of
+ * it, and nothing else in the file moves (section 13). Any cell can hold one: names are typed,
+ * a QR fallback's user_id is typed, and a station sends its own client_tap_id.
  */
 export function escapeSpreadsheetFormulas(csv: string): EscapedCsv {
-  if (!csv) return { csv: "", rewritten: false };
+  if (!csv) return { csv: "", escaped: false };
 
   const insertions: number[] = [];
   for (const row of parseCsv(csv)) {
@@ -27,16 +28,16 @@ export function escapeSpreadsheetFormulas(csv: string): EscapedCsv {
     }
   }
 
-  if (insertions.length === 0) return { csv, rewritten: false };
+  if (insertions.length === 0) return { csv, escaped: false };
 
-  let escaped = "";
+  let output = "";
   let cursor = 0;
   for (const at of insertions) {
-    escaped += `${csv.slice(cursor, at)}'`;
+    output += `${csv.slice(cursor, at)}'`;
     cursor = at;
   }
-  escaped += csv.slice(cursor);
-  return { csv: escaped, rewritten: true };
+  output += csv.slice(cursor);
+  return { csv: output, escaped: true };
 }
 
 function parseCsv(csv: string): CsvCell[][] {
@@ -99,9 +100,8 @@ function parseCsv(csv: string): CsvCell[][] {
 }
 
 /**
- * Section 13 names a name a spreadsheet could run as a formula. This check is deliberately wider,
- * as the export's check was before it: it allows whitespace before the character, and catches a
- * leading tab or carriage return.
+ * A value a spreadsheet could run as a formula starts with =, +, - or @, after any whitespace,
+ * or with a tab or a carriage return.
  */
 function needsEscaping(value: string): boolean {
   return /^[\t\r]/.test(value) || /^\s*[=+\-@]/u.test(value);

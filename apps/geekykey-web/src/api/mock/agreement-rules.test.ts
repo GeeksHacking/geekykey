@@ -41,22 +41,19 @@ describe("agreement 8.4: /me lists the user's tokens oldest claim first", () => 
   it("puts a token claimed later after the ones claimed earlier", async () => {
     const clock = { at: Date.UTC(2026, 9, 7, 8, 0, 0) };
     const data = createFixtures(clock.at);
+    // Free a seeded token that sits before 04E5F7091B3D in the fixtures, then claim the
+    // two in the other order, so the order they are stored in is the reverse of the order
+    // they were claimed in. Without the sort in `ownedTokens`, this reads back unsorted.
+    const stored = data.tokens.find((token) => token.uid === "04C3D5F70912")!;
+    stored.owner_id = null;
+    stored.claimed_at = null;
     const api = mock(data, "dev-user-9", () => (clock.at += 60_000));
 
     await api.claimToken("04E5F7091B3D");
-    await api.claimToken("04F7091B3D5E7C");
-
-    // Swap the two claim times so storage order is the reverse of chronological
-    // order, as the test above does with seeded tokens. Without the sort in
-    // ownedTokens this reads back unsorted and the assertion below fails.
-    const owned = data.tokens.filter((token) => token.owner_id === "dev-user-9");
-    const swap = owned[0]!.claimed_at!;
-    owned[0]!.claimed_at = owned[1]!.claimed_at;
-    owned[1]!.claimed_at = swap;
+    await api.claimToken("04C3D5F70912");
 
     const me = await api.me();
-    const times = me.tokens.map((token) => token.claimed_at ?? "");
-    expect([...times].sort()).toEqual(times);
+    expect(me.tokens.map((token) => token.uid)).toEqual(["04E5F7091B3D", "04C3D5F70912"]);
   });
 });
 

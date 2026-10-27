@@ -17,7 +17,8 @@ Read those files before adding screens. They are references, not documents to co
 - Do not introduce a shared component package between the two web apps.
 - Copy a shadcn component from `apps/event-web/src/components/ui/` only when a GeekyKey screen needs it.
 - Forms use react-hook-form and zod through the shadcn `Form`, in `src/components/ui/form.tsx` and
-  `src/components/ui/input.tsx`.
+  `src/components/ui/input.tsx`. Import `zod/mini`, as the Event screens do; lint refuses `zod`
+  (see the Forms row of the stack table in `apps/event-web/CLAUDE.md`).
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see "Tailwind 4 notes" in `apps/event-web/CLAUDE.md`).

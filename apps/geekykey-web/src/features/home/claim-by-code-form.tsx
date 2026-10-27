@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import * as z from "zod/mini";
 
 import { describeError, isApiError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
@@ -27,14 +27,14 @@ import { useClaimToken } from "@/lib/use-claim-token";
  * through.
  */
 const schema = z.object({
-  uid: z
-    .string()
-    .trim()
-    .min(1, "Enter the token UID.")
-    .refine((value) => isValidUid(normalizeUid(value)), {
+  uid: z.string().check(
+    z.trim(),
+    z.minLength(1, "Enter the token UID."),
+    z.refine((value) => isValidUid(normalizeUid(value)), {
       message:
         "A token's UID is 4 to 10 bytes of hex, so an even number of characters, for example 04:A1:B2:C3:D4:E5:F6.",
     }),
+  ),
 });
 
 type ClaimValues = z.infer<typeof schema>;

@@ -114,7 +114,7 @@ One thing that looks like a bug and is not:
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
 | Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
 | Motion | CSS/shadcn transitions | No motion library is currently required; do not add one without agreeing it in the stack |
-| Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport |
+| Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport. Import `zod/mini`, here and in `src/api/schemas.ts`, and lint refuses `zod`. Every page loads the schemas, and one import of `zod` would put all of classic zod on top, about 10 KB gzipped (FRO-67). Mini writes `.nullable()` as `z.nullable(...)` and `.min(1, "...")` as `.check(z.minLength(1, "..."))` |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | ESLint flat config + typescript-eslint | |
 | Format | oxfmt | Prettier-compatible and fast. Settings in `.oxfmtrc.jsonc`; Markdown and `routeTree.gen.ts` are skipped. Pinned to an exact version, because a new release can change the output and everyone must format the same way |

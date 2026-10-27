@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/layout/page-heading";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ParticipantTapList } from "@/components/participant-tap-list";
 import { DashboardClaimHelp } from "@/features/passport/dashboard-claim-help";
@@ -17,9 +18,7 @@ export function DashboardScreen() {
     <div className="space-y-10">
       <div>
         <p className="text-sm text-muted-foreground">Signed in as</p>
-        <h1 tabIndex={-1} data-page-heading className="text-2xl font-semibold tracking-heading">
-          {me.user.display_name ?? "Welcome back"}
-        </h1>
+        <PageHeading>{me.user.display_name ?? "Welcome back"}</PageHeading>
         <UserIdRow userId={me.user.id} />
       </div>
 

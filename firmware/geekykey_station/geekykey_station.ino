@@ -50,9 +50,9 @@
   and for POST /api/v1/stations/heartbeat in section 6.2.
 
   The heartbeat goes at boot and every 60 seconds, with any saved taps sent
-  just before it. Its answer's server_time sets the station's clock, and taps
-  carry tapped_at once the clock is set. There is no NTP: some venue WiFi
-  blocks it.
+  just before it, held back a few seconds while a tap is being answered. Its
+  answer's server_time sets the station's clock, and taps carry tapped_at once
+  the clock is set. There is no NTP: some venue WiFi blocks it.
 */
 
 #include <SPI.h>
@@ -68,6 +68,7 @@
 #include <time.h>
 #include "secrets.h"
 #include "ca_roots.h"
+#include "tap_timing.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
@@ -101,22 +102,28 @@
 #endif
 #define NO_LED -1
 
-// The sounds a result can play on the buzzer. Each one is shorter than
-// RESULT_SHOW_MS, so it ends while the result still shows.
-#define SOUND_NONE 0
-#define SOUND_ACCEPTED 1  // one 1-second beep
-#define SOUND_COOLDOWN 2  // two slow beeps: not yet, try again later
-#define SOUND_ERROR 3     // three fast beeps: something is wrong
-
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-10-26"
+#define FIRMWARE_VERSION "2026-10-27"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
 
+// A heartbeat holds up the station for as long as its requests take, and a
+// tag read meanwhile is lost. So a heartbeat that falls due waits while a
+// result shows and for this long after one, when the next tap is likeliest.
+// On 27 Oct 2026, with taps 3 to 7 s apart, 5 s held one back 29 s; a warm
+// heartbeat takes about 40 ms, so a short gap is enough...
+#define HEARTBEAT_QUIET_MS 2000UL
+// ...but no longer than this past its time, so a busy station still sends one.
+#define HEARTBEAT_MAX_DELAY_MS 30000UL
+
 // How long a tap's result stays on the screen, with its LED on.
 #define RESULT_SHOW_MS 2000UL
+
+// The click the moment a tag is read, before the tap is saved and sent, so the
+// person knows it was read while the server answers.
+#define CLICK_MS 40UL
 
 // How long boot waits for WiFi before carrying on without it. The ESP32 keeps
 // trying in the background, and taps are saved until it connects. The setup
@@ -130,12 +137,6 @@
 // The longest line the serial port takes. A server address is the longest
 // thing typed; anything past this is dropped.
 #define SERIAL_LINE_MAX 200
-
-// A token that slips off the reader and back while its result shows is read
-// again straight after, and the server would only answer `cooldown`. So the
-// same token is skipped for this long once its result has gone. This is not
-// the cooldown: only the server decides whether a tap counts.
-#define SAME_TOKEN_IGNORE_MS 3000UL
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -187,8 +188,27 @@ MFRC522 rfid(SS_PIN, MFRC522::UNUSED_PIN);
 Preferences prefs;
 uint32_t nextTapId = 0;
 
-String lastUid = "";
-unsigned long lastResultEndedAt = 0;
+// The last token sent, so the same token tapped again a moment later is
+// answered from memory with no request (answerToken in tap_timing.h).
+LastToken lastToken;
+
+// A result, as showResult takes it. Every caller passes string literals, so
+// the pointers stay good for as long as the station runs.
+struct Result {
+  const char *line1 = "";
+  const char *line2 = "";
+  int ledPin = NO_LED;
+  int sound = SOUND_NONE;
+};
+// The last result shown, to show again when its token is tapped once more.
+Result lastResult;
+
+// The result on the screen, if any. showResult returns at once, and loop()
+// plays the sound and ends the result (tickResult), so the reader is still read
+// while a result shows.
+bool resultShowing = false;
+unsigned long resultShownAt = 0;
+unsigned long resultEndedAt = 0;
 
 #define QUEUE_CAPACITY 100
 #define QUEUE_BATCH_MAX QUEUE_CAPACITY
@@ -209,6 +229,19 @@ struct QueueAttempt {
 
 uint8_t queueHead = 0;
 uint8_t queueCount = 0;
+
+// When each step of the tap being handled happened, by millis(), so the serial
+// port shows where a tap's wait goes (printTapTiming). readAt is 0 between
+// taps, so a heartbeat's sending of saved taps leaves the rest alone.
+struct TapTiming {
+  unsigned long readAt = 0;
+  unsigned long clickedAt = 0;
+  unsigned long savedAt = 0;
+  unsigned long sentAt = 0;
+  unsigned long answeredAt = 0;
+  bool reused = false;  // the request went over the kept-open connection
+};
+TapTiming tapTiming;
 
 // Set once a heartbeat's answer has set the clock. Until then, taps are sent
 // without tapped_at, and the server times them when they arrive.
@@ -316,41 +349,121 @@ void setup() {
 
   // The first heartbeat replaces a health check, since it also proves the
   // station key, and sets the clock before anyone taps.
-  if (heartbeatTick() == 401) showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
+  const int heartbeatCode = heartbeatTick();
 
   Serial.println("Ready. Tap an NTAG213 tag...");
-  showReady();
+  // The setup error is a result, which loop() ends by going to Ready.
+  if (heartbeatCode == 401) {
+    showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
+  } else {
+    showReady();
+  }
 }
 
 void loop() {
   pollSerial();
-  if ((long)(millis() - nextHeartbeatAt) >= 0) heartbeatTick();
+  tickResult();
+  if (heartbeatMayStart()) heartbeatTick();
 
-  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
-    delay(50);
+  String uid;
+  unsigned long readAt = 0;
+  if (!readTokenUid(uid, readAt)) {
+    // While a result shows, come straight back to play its sound on time.
+    // Asking the reader already takes about 25 ms when no tag is there.
+    if (!resultShowing) delay(50);
     return;
   }
-
-  // The backend identifies a tag by its hardware UID, which is available as
-  // soon as PICC_ReadCardSerial succeeds. Nothing else on the tag is read.
-  String uid = uidToHex(rfid.uid);
-  rfid.PICC_HaltA();
-  rfid.PCD_StopCrypto1();
 
   Serial.println("UID: " + uid);
 
-  if (uid == lastUid && millis() - lastResultEndedAt < SAME_TOKEN_IGNORE_MS) {
-    Serial.println("Skipped: the same tag again straight after its result");
-    return;
+  switch (answerToken(lastToken, uid.c_str(), readAt, resultShowing)) {
+    case KEEP_RESULT:
+      // A token that slipped off and back and one tapped again on purpose look
+      // the same here, so both get the click and the result stays as it is.
+      Serial.println("Same token again while its result shows: a click, the result left as it is");
+      clickDuringResult();
+      return;
+    case ALREADY_COUNTED:
+      Serial.println("Same token again straight after: answered from memory, not sent");
+      showResult("Already counted", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
+      return;
+    case SHOW_LAST_RESULT:
+      Serial.println("Same token again straight after: its last result again, not sent");
+      showResult(lastResult.line1, lastResult.line2, lastResult.ledPin, lastResult.sound);
+      return;
+    case SEND_TAP:
+      break;
   }
 
-  handleTap(uid);
-  lastUid = uid;
-  lastResultEndedAt = millis();
+  // Answer at once: a different token ends the result showing, and the click
+  // and the screen change come before the flash writes and the request.
+  endResult();
+  beep(CLICK_MS);
+  showScreen("Sending...", "Hold on");
+  tapTiming = TapTiming{};
+  tapTiming.readAt = readAt;
+  tapTiming.clickedAt = millis();
+  const bool counted = handleTap(uid);
+  rememberToken(lastToken, uid.c_str(), readAt, counted);
 }
 
-// Saves the tap, sends it with any saved taps, and shows the result.
-void handleTap(const String &uid) {
+// Reads the UID of a token on the reader, and checks it before trusting it.
+// The backend identifies a token by its hardware UID alone. On 27 Oct 2026 a
+// token leaving the reader read as 04E40000000000, 04E45150320000 and
+// 00000000000000, its own bytes cut off by zeros, and the same way when read
+// twice: the library recomputes the UID's check bytes rather than checking
+// the ones the token sent. So the station reads it back from the token itself
+// (uidMatchesPageZero). A read it doesn't trust leaves the token un-halted, so
+// a token still on the reader is read afresh on the next pass. `readAt` is the
+// first read's time, so the tap timing counts the check too.
+bool readTokenUid(String &uid, unsigned long &readAt) {
+  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return false;
+  readAt = millis();
+  const String first = uidToHex(rfid.uid);
+  // Our NTAG213 tokens, and any Ultralight-type card, have a 7-byte UID and SAK
+  // 0x00, and can be read back. Other cards are only selected a second time.
+  const bool readBack = rfid.uid.size == 7 && rfid.uid.sak == 0x00;
+  if (readBack ? !uidMatchesPageZero() : !uidReadsAgain(first)) {
+    Serial.println("Read " + first + " but couldn't confirm it: ignored");
+    return false;
+  }
+  rfid.PICC_HaltA();
+  rfid.PCD_StopCrypto1();
+  uid = first;
+  return true;
+}
+
+// Reads pages 0 to 3 from the selected token, an answer the library checks
+// with its CRC. Pages 0 and 1 hold the UID with its two check bytes (BCC0 and
+// BCC1, NTAG213 data sheet 8.5.1), so a token selected with a wrong UID
+// doesn't answer, and a right UID has to match all nine bytes.
+bool uidMatchesPageZero() {
+  byte page[18];
+  byte pageSize = sizeof(page);
+  if (rfid.MIFARE_Read(0, page, &pageSize) != MFRC522::STATUS_OK) return false;
+  const byte *u = rfid.uid.uidByte;
+  const byte bcc0 = 0x88 ^ u[0] ^ u[1] ^ u[2];  // 0x88 is the cascade tag
+  const byte bcc1 = u[3] ^ u[4] ^ u[5] ^ u[6];
+  return page[0] == u[0] && page[1] == u[1] && page[2] == u[2] && page[3] == bcc0 &&
+         page[4] == u[3] && page[5] == u[4] && page[6] == u[5] && page[7] == u[6] && page[8] == bcc1;
+}
+
+// Wakes the card and selects it again into an empty UID, and says whether it
+// reads the same. The library fills the UID in place, so reading into the
+// same one could keep bytes from the first read.
+bool uidReadsAgain(const String &first) {
+  rfid.PICC_HaltA();
+  byte atqa[2];
+  byte atqaSize = sizeof(atqa);
+  MFRC522::Uid again = {};
+  if (rfid.PICC_WakeupA(atqa, &atqaSize) != MFRC522::STATUS_OK) return false;
+  if (rfid.PICC_Select(&again) != MFRC522::STATUS_OK) return false;
+  return uidToHex(again) == first;
+}
+
+// Saves the tap, sends it with any saved taps, and shows the result. Returns
+// whether the server counted the tap: accepted, or cooldown for one before it.
+bool handleTap(const String &uid) {
   String clientTapId = takeClientTapId();
   // Saved with the tap, so a tap resent later keeps the time it was made.
   QueuedTap tap = {clientTapId, uid, clockSet ? isoNow() : ""};
@@ -360,8 +473,9 @@ void handleTap(const String &uid) {
     } else {
       showResult("STORAGE ERROR", "Check station", LED_PIN_RED, SOUND_ERROR);
     }
-    return;
+    return false;
   }
+  tapTiming.savedAt = millis();
 
   QueueAttempt attempt = flushQueue(clientTapId);
   if (attempt.newTapStatus.length() > 0) {
@@ -374,6 +488,7 @@ void handleTap(const String &uid) {
     // The tap is saved and will be sent again, so this is not an error.
     showResult("QUEUED", "Will send later", NO_LED, SOUND_NONE);
   }
+  return attempt.newTapStatus == "accepted" || attempt.newTapStatus == "cooldown";
 }
 
 String queueSlotKey(uint8_t slot) {
@@ -524,9 +639,14 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", String("Bearer ") + stationKey);
+  if (tapTiming.readAt != 0) {
+    tapTiming.reused = http.connected();
+    tapTiming.sentAt = millis();
+  }
   const int code = http.POST(body);
   const String response = code > 0 ? http.getString() : "";
   http.end();
+  if (tapTiming.readAt != 0) tapTiming.answeredAt = millis();
   result.httpCode = code;
 
   if (code <= 0) {
@@ -609,7 +729,9 @@ void showTapStatus(const String &status) {
   if (status == "accepted") {
     showResult("ACCEPTED", "Points added", LED_PIN_BLUE, SOUND_ACCEPTED);
   } else if (status == "cooldown") {
-    showResult("COOLDOWN", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
+    // The same words as a repeat tap answered on the station, and as 6.1's
+    // table suggests.
+    showResult("Already counted", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
   } else if (status == "unknown_token") {
     showResult("UNKNOWN TAG", "Pair this token", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "no_event") {
@@ -623,41 +745,76 @@ void showTapStatus(const String &status) {
   }
 }
 
-// Shows a result for about 2 seconds with its LED on and its sound playing
-// from the start, then goes back to Ready.
+// Shows a result with its LED on and its sound starting, and returns at once.
+// tickResult() plays the sound and goes back to Ready after RESULT_SHOW_MS. A
+// result already showing ends first.
 void showResult(const char *line1, const char *line2, int ledPin, int sound) {
+  endResult();
   showScreen(line1, line2);
   if (ledPin != NO_LED) digitalWrite(ledPin, HIGH);
-  const unsigned long shownAt = millis();
-  playSound(sound);
-  const unsigned long played = millis() - shownAt;
-  if (played < RESULT_SHOW_MS) delay(RESULT_SHOW_MS - played);
-  if (ledPin != NO_LED) digitalWrite(ledPin, LOW);
-  showReady();
+  printTapTiming();
+  lastResult.line1 = line1;
+  lastResult.line2 = line2;
+  lastResult.ledPin = ledPin;
+  lastResult.sound = sound;
+  resultShowing = true;
+  resultShownAt = millis();
+  tickResult();
 }
 
-// Plays one of the SOUND_ values and returns when it ends. The buzzer is an
-// active one, which sounds while its pin is HIGH, so a sound is a pattern of
-// beeps and gaps with no pitch.
-void playSound(int sound) {
-  if (sound == SOUND_ACCEPTED) {
-    beep(1000);
-  } else if (sound == SOUND_COOLDOWN) {
-    beep(200);
-    delay(200);
-    beep(200);
-  } else if (sound == SOUND_ERROR) {
-    for (int i = 0; i < 3; i++) {
-      if (i > 0) delay(80);
-      beep(80);
-    }
+// Called from loop(): sets the buzzer for where the sound is, and goes back to
+// Ready once the result has shown for RESULT_SHOW_MS.
+void tickResult() {
+  if (!resultShowing) return;
+  const uint32_t elapsed = millis() - resultShownAt;
+  if (elapsed >= RESULT_SHOW_MS) {
+    endResult();
+    showReady();
+    return;
   }
+  digitalWrite(BUZZER_PIN, soundIsOn(lastResult.sound, elapsed) ? HIGH : LOW);
 }
 
+// Turns off the result's LED and the buzzer, and leaves the screen as it is.
+void endResult() {
+  if (!resultShowing) return;
+  digitalWrite(BUZZER_PIN, LOW);
+  if (lastResult.ledPin != NO_LED) digitalWrite(lastResult.ledPin, LOW);
+  resultShowing = false;
+  resultEndedAt = millis();
+}
+
+// The click while a result shows, unless its sound is on already: a click
+// then would only cut a gap into the beep.
+void clickDuringResult() {
+  if (soundIsOn(lastResult.sound, millis() - resultShownAt)) return;
+  beep(CLICK_MS);
+}
+
+// Sounds the buzzer for `ms` and waits: only for the click, which is short.
 void beep(unsigned long ms) {
   digitalWrite(BUZZER_PIN, HIGH);
   delay(ms);
   digitalWrite(BUZZER_PIN, LOW);
+}
+
+// One line per tap, in milliseconds after its tag was read: when it clicked,
+// was saved to flash, sent and answered, and when its result showed. "-" is a step that
+// didn't happen, such as sending with no WiFi. Then forgets the tap, so a
+// result with no tag behind it prints nothing.
+void printTapTiming() {
+  if (tapTiming.readAt == 0) return;
+  const unsigned long shownAt = millis();
+  const char *connection = tapTiming.reused ? "open connection" : "new connection";
+  Serial.println("Tap timing (ms after read): click " + msAfterRead(tapTiming.clickedAt) + ", saved " +
+                 msAfterRead(tapTiming.savedAt) + ", sent " + msAfterRead(tapTiming.sentAt) + " (" +
+                 connection + "), answered " + msAfterRead(tapTiming.answeredAt) + ", shown " +
+                 msAfterRead(shownAt));
+  tapTiming = TapTiming{};
+}
+
+String msAfterRead(unsigned long at) {
+  return at == 0 ? String("-") : String(at - tapTiming.readAt);
 }
 
 // Ready, unless the reader isn't answering: then the red LED stays on and the
@@ -836,14 +993,30 @@ void checkReader() {
   showReady();
 }
 
+// Whether a heartbeat may start now: it's due, no result shows, and the
+// station has been quiet for HEARTBEAT_QUIET_MS, or the heartbeat is already
+// HEARTBEAT_MAX_DELAY_MS late.
+bool heartbeatMayStart() {
+  const unsigned long now = millis();
+  if ((long)(now - nextHeartbeatAt) < 0) return false;
+  if (resultShowing) return false;
+  if (now - resultEndedAt >= HEARTBEAT_QUIET_MS) return true;
+  return now - nextHeartbeatAt >= HEARTBEAT_MAX_DELAY_MS;
+}
+
 // Every 60 seconds and at boot: checks the reader, sends any saved taps, then
 // sends the heartbeat, so buffered_taps counts what is still saved. Returns
 // the heartbeat's HTTP code, or 0 when it wasn't sent.
 int heartbeatTick() {
-  nextHeartbeatAt = millis() + HEARTBEAT_INTERVAL_MS;
+  const unsigned long startedAt = millis();
+  nextHeartbeatAt = startedAt + HEARTBEAT_INTERVAL_MS;
   checkReader();
   flushQueue();
-  return sendHeartbeat();
+  const unsigned long flushedAt = millis();
+  const int code = sendHeartbeat();
+  Serial.println("Heartbeat timing: " + String(millis() - startedAt) + " ms, saved taps " +
+                 String(flushedAt - startedAt) + " ms of it");
+  return code;
 }
 
 // POST /api/v1/stations/heartbeat (the API agreement's 6.2). A 200 sets the
@@ -1097,6 +1270,7 @@ void printSetupHelp() {
 // Never returns: the station restarts to leave it, so every setting takes
 // effect through the same start-up as always.
 void runSetupMode() {
+  endResult();
   showScreen("Setup mode", "Use USB serial");
   digitalWrite(LED_PIN_BLUE, LOW);
   digitalWrite(LED_PIN_RED, LOW);

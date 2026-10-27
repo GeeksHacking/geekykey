@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import * as z from "zod/mini";
 
 import { describeError, isApiError, isApiErrorCode } from "@/api/errors";
 import type { FallbackTapRequest, FallbackTapResponse } from "@/api/types";
@@ -33,12 +33,14 @@ import { applyApiIssues } from "@/lib/form-errors";
 const MAX_USER_ID_LENGTH = 128;
 
 const schema = z.object({
-  station_id: z.string().min(1, "Choose a station."),
+  station_id: z.string().check(z.minLength(1, "Choose a station.")),
   user_id: z
     .string()
-    .trim()
-    .min(1, "Enter the participant's user ID.")
-    .max(MAX_USER_ID_LENGTH, "User IDs must be 128 characters or fewer."),
+    .check(
+      z.trim(),
+      z.minLength(1, "Enter the participant's user ID."),
+      z.maxLength(MAX_USER_ID_LENGTH, "User IDs must be 128 characters or fewer."),
+    ),
 });
 
 type FallbackValues = z.infer<typeof schema>;

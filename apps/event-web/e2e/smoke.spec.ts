@@ -28,3 +28,16 @@ test("mobile participant layout keeps its bottom navigation usable", async ({ pa
   await expect(mobileNav).toBeVisible();
   await expect(mobileNav.getByRole("link", { name: "Passport" })).toBeVisible();
 });
+
+test("a route change to the dashboard focuses its heading", async ({ page }) => {
+  // FRO-49. The shell moves the focus to the new page's heading, so a screen-reader or
+  // keyboard user hears which page they are on, and the dashboard is the page used most.
+  await signInAsParticipant(page);
+  const nav = page.locator('nav[aria-label="Sections"]:visible');
+
+  await nav.getByRole("link", { name: "Passport" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Passport" })).toBeFocused();
+  await nav.getByRole("link", { name: "Home" }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name: "Alex Tan" })).toBeFocused();
+});
