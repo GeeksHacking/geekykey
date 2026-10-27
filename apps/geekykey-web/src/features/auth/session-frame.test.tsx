@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
@@ -28,6 +29,9 @@ beforeEach(() => {
   vi.restoreAllMocks();
   isSignedInAsGuest.mockReset();
   isSignedInAsGuest.mockResolvedValue(false);
+  // Sonner keeps its queue in module state, so a toast raised in one test would otherwise
+  // be replayed into the Toaster mounted by the next one.
+  toast.dismiss();
 });
 
 /*
@@ -121,6 +125,26 @@ describe("the signed-in shell", () => {
     expect(screen.queryByRole("button", { name: "Account menu" })).not.toBeInTheDocument();
     // A Google user can sign in again as themselves, so nobody asks them first.
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    // Nothing to report: the sign-out worked, and the login screen explains itself.
+    expect(document.querySelector("[data-sonner-toast]")).toBeNull();
+  });
+
+  it("shows the error message when signing out fails, and lands on /login anyway", async () => {
+    const user = userEvent.setup();
+    const { router, api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+    // The service answers 503 to the logout. The provider settles the session regardless, so
+    // the screens leave for /login, and the message has to outlive that redirect.
+    api.mock.failNext("service_unavailable");
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: /Sign out/ }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    expect(screen.queryByRole("button", { name: "Account menu" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("A required service is unavailable. Try again shortly."),
+    ).toBeInTheDocument();
   });
 
   it("asks a guest before signing them out, in section 13's words", async () => {
