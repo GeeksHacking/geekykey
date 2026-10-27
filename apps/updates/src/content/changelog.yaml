@@ -1691,3 +1691,13 @@
     is on Tue 17 Nov, not 18 Nov, and this site's schedule now says so. The backend still freezes
     on 11 Nov, and the last merge is now Sun 15 Nov. Until then, the button on the token page
     reads "Open Grad Tea" instead of "Open Capstone Showcase".
+
+- id: grad-tea-pilots-the-showcase-games
+  date: 2026-10-28
+  area: admin
+  change: >-
+    The grad tea now pilots the showcase's own games instead of choosing between new ones: the
+    passport, with the trail's clues on printed cards at each station, and connections between
+    guests. The quiz is dropped, and Find Gatsby stays a stretch game, decided on 5 Nov. At the
+    showcase, each partner station will carry an NFC sticker and a QR code that open the group's
+    own page.
