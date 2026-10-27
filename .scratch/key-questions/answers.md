@@ -47,7 +47,6 @@ Updated 12 Oct 2026 for the 8 Oct meeting and what followed: the showcase logs i
    | NTAG 424 DNA tags against cloning | NTAG213. We accept that tags can be cloned | ADR 0001, "Consequences" |
    | Docker container on Cloud Run, Hono/Deno, SQLite | Partly right again since 2 Oct: the Event Service is Hono on Node, in a container on Cloud Run. The GeekyKey Service and the screens are Cloudflare Workers. TiDB, with no Deno or SQLite | ADR 0003, spec §3.2 |
    | Wi-Fi access-point setup page on the station | Partly right again since 8 Oct: Wi-Fi and the key are compiled into `secrets.h` today, and a setup mode, from a serial terminal or a browser page, is planned for a new server address, key and Wi-Fi network (HAR-14) | firmware, spec §2 |
-   | Showcase on 17 Nov, setup on 16 Nov | Showcase Wed 18 Nov, setup Tue 17 Nov | spec §1, §2 |
    | Puzzle pieces collected from sponsors and swapped | Not built or planned. The passport is | CONTEXT, API |
    | WebSockets (WS) | Polling only | map "Out of scope", API §12 |
    | Roles: Joshua on frontend, Ethan on UI/UX and the token | Ethan leads the frontend. Joshua owns ideas and the report | update 23 Sep (Sprint 1 opens) |

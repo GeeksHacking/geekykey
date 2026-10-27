@@ -834,7 +834,7 @@ him away, the setting goes to Julian.
 | Automatic clean-up of guests | Settings tab, where Firebase calls it automatic clean-up of anonymous accounts | On, before the rehearsal. Firebase deletes each guest once they are 30 days old | 21 Oct 2026 |
 | Sign-up quota, for the A/B test at the grad tea | Sign-in method tab, below the list of providers | 800 an hour on Thu 12 Nov 2026 | Scheduled 21 Oct 2026 |
 | Sign-up quota, for the rehearsal on Sat 7 Nov 2026 | None | Not raised. The 12 Nov window holds Firebase's one scheduled quota, so the rehearsal has the usual 100 an hour from one address | Not needed |
-| Sign-up quota, for the showcase | Sign-in method tab, below the list of providers | From Tue 17 Nov 2026 00:00 to Thu 19 Nov 2026 00:00, Singapore time. 800 an hour, as on 12 Nov, unless the A/B test shows it needs more | Not yet. Set on 13 Nov or later |
+| Sign-up quota, for the showcase | Sign-in method tab, below the list of providers | From Mon 16 Nov 2026 00:00 to Wed 18 Nov 2026 00:00, Singapore time. 800 an hour, as on 12 Nov, unless the A/B test shows it needs more | Not yet. Set on 13 Nov or later |
 
 **Automatic clean-up needs the Identity Platform upgrade.** If the Settings tab doesn't
 offer it, upgrade first. Once clean-up is on, Firebase doesn't count guests towards the
@@ -889,8 +889,8 @@ the guest settings:
 ### The warm instance
 
 With no instance running, the first tap waits for one to start, about 1.3 to 2.0 seconds
-(measured 11 Oct 2026). On event days one instance is kept running: the rehearsal (by 7 Nov), and from the morning of 17 Nov to the
-end of 18 Nov. This changes the service, not a revision, so a deploy doesn't undo it.
+(measured 11 Oct 2026). On event days one instance is kept running: the rehearsal (by 7 Nov), and from the morning of 16 Nov to the
+end of 17 Nov. This changes the service, not a revision, so a deploy doesn't undo it.
 
 Switch it on:
 

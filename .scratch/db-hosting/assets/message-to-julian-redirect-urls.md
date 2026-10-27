@@ -149,7 +149,7 @@ Hi Julian / Qing Guan, the GeekyKey screens and the showcase screens are ready t
 Fill in the hours first. Since 1 Oct the team can't see production's logs or usage, so settle how we watch the day first (spec section 12): this may need one more ask of Julian.
 
 ```text
-Hi Julian and Qing Guan! For the showcase on 18 Nov (<start> to <end>), could you both be reachable by phone during those hours, in case something breaks that only you can fix? We'll only call if something's down:
+Hi Julian and Qing Guan! For the showcase on 17 Nov (<start> to <end>), could you both be reachable by phone during those hours, in case something breaks that only you can fix? We'll only call if something's down:
 - *Julian*: GeeksHacking's Cloudflare account (e.g. upgrading to Workers Paid on the spot if we run out of the free day's requests) and TiDB
 - *Qing Guan*: the Portal, since everyone logs in through it, and the geekshacking.com zone settings
 

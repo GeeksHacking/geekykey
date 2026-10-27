@@ -12,7 +12,7 @@ Two audiences, two surfaces:
 - **Organisers** on a laptop at the registration desk or a booth. Desktop first, denser.
 
 Key dates: Sprint 1 is 21 Sep to 4 Oct 2026. The Sprint 2 A/B test runs 5 to 18 Oct.
-Showcase is 18 Nov 2026. Scope down before adding features.
+Showcase is 17 Nov 2026. Scope down before adding features.
 
 ## Sources of truth
 

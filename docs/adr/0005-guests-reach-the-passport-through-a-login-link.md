@@ -48,7 +48,7 @@ passport. So guests need a way across, and the login link is it.
   sets is never replaced by a login. A new user with no name is `Guest`.
 - In Firebase, the Anonymous provider is turned on, and anonymous accounts are deleted after 30
   days. Firebase allows 100 new accounts an hour from one IP address, so the limit is raised for
-  the rehearsal on 7 Nov and for 17 to 18 Nov, when visitors share the venue's Wi-Fi.
+  the rehearsal on 7 Nov and for 16 to 17 Nov, when visitors share the venue's Wi-Fi.
 - A guest can't be turned into a Google account at the showcase. That waits in the backlog.
 - After the showcase, guests and login links go with Firebase's login. A login link between the
   GeekyKey screens and an event could still be useful with the Portal, which is decided then.

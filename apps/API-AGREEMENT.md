@@ -19,7 +19,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 | Event Service owner | Adam |
 | Screens owner | Ethan |
 | Station firmware owner | Zi Tao |
-| Scope | Up to the capstone showcase on 18 November 2026. See [Out of scope](#12-out-of-scope-for-the-showcase). |
+| Scope | Up to the capstone showcase on 17 November 2026. See [Out of scope](#12-out-of-scope-for-the-showcase). |
 
 **Status legend used throughout**
 

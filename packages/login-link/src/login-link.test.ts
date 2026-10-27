@@ -5,7 +5,7 @@ import { loginLinks } from "./login-link.ts";
 /** An Event Service key, as `openssl rand -hex 32` writes one. */
 const KEY = "e".repeat(64);
 
-/** 18 Nov 2026, 13:00 UTC: the showcase's afternoon. */
+/** 18 Nov 2026, 13:00 UTC, so a link expires at the agreement's example `expires_at`. */
 const NOW = new Date("2026-11-18T13:00:00.000Z");
 
 test("a link reads back as the user and name it was made for, for 60 seconds", async () => {
