@@ -94,8 +94,8 @@ Adam's calls on the grad tea, from 26 and 27 Oct (BAC-88). Section 6, "The grad 
 3. **Engagement is unique people per game,** counted from each game's own records, and games swap between stations partway through the evening.
 4. **The games:** the speakeasy quiz, the green light trail on every station, and Find Gatsby as the stretch game. No passport at the grad tea. The e-paper map card is a prototype shown at the showcase, not a game.
 5. **Each station's game becomes organizer data,** and a station's booth moves from its passport settings onto the station. Both change the agreement, so Ethan approves them.
-6. **One Event Service runs both events.** Each event's games and their content are in the code side by side, and organizers choose each station's game. Between the events, Adam copies the data and then clears it.
-7. **One pull request switches from the grad tea to the showcase:** the screens' look, the event's name on the token page, and the winning game's showcase content. It merges by Sun 15 Nov.
+6. **One Event Service runs both events.** Each event's games and their content are in the code side by side, and organizers choose each station's game. Between the events, Adam copies the data and then clears it. The agreement's section 12 now says one event at a time.
+7. **One pull request switches from the grad tea to the showcase:** the screens' look, the event's name on the token page, and the winning game's showcase content. It merges by Sun 15 Nov. Until then, the token page's button reads "Open Grad Tea".
 8. **The showcase is on Tue 17 Nov,** with setup on Mon 16 Nov. The backend freezes from Wed 11 Nov, and the last merge is on Sun 15 Nov.
 9. **Tokens go back in a collection box** at the end of the grad tea, from participants who don't want to keep them.
 
@@ -363,7 +363,7 @@ Settings for a Worker live in its `wrangler.jsonc`. Settings for the Event Servi
 | Side doors off | `workers_dev`, `preview_urls` | Both `false` |
 | Placement | `placement` | `{ "region": "gcp:asia-southeast1" }`, so the Worker runs near Cloud Run whichever data centre answered (BAC-63, section 11.3) |
 | Binding | Rate limits | See the table below |
-| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, an `https://` address, and optionally a public address, `public_url`, for the token page's and My tokens' buttons, which show its name. For the showcase, one entry: `showcase`, "Capstone Showcase", `https://event-api.geekshacking.com`, `https://event.geekshacking.com`. For the grad tea, the same entry carries the grad tea's name, and the switch after it puts "Capstone Showcase" back (section 6, "The grad tea") |
+| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, an `https://` address, and optionally a public address, `public_url`, for the token page's and My tokens' buttons, which show its name. For the showcase, one entry: `showcase`, "Capstone Showcase", `https://event-api.geekshacking.com`, `https://event.geekshacking.com`. Until the grad tea, the same entry is named "Grad Tea", and the switch after it puts "Capstone Showcase" back (section 6, "The grad tea") |
 | Setting | `CLAIMS_STAND_IN_URL` | `https://event-api.geekshacking.com/claims-stand-in/v1`, until the switch |
 | Setting | `GEEKYKEY_ADMINS` | User IDs. Adam, Ethan and Zi Tao for the showcase |
 | Setting | `MAX_TOKENS_PER_USER` | `3` |
@@ -631,7 +631,7 @@ Changed on 8 Oct: the showcase logs in through Firebase, not the Portal ([ADR 00
 
 - **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changed with it, in version 0.4 (10 Oct). Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID and, since 0.5, the login's name, which a login link carries.
 - **The GeekyKey Service's `/me`** (agreement 8.4), with the user's tokens and the events that have a public address. *Changed 21 Oct (BAC-55):* moved here from checkpoint 6, since the GeekyKey screens' "Am I logged in?" is this call, and checkpoint 5 is done only when logging in works on both hostnames. Its shape doesn't change.
-- **Guests and login links** (BAC-54). Adam turns on Firebase's Anonymous provider and the automatic deletion of anonymous accounts after 30 days, and the limit of 100 new accounts an hour from one IP address is raised for the rehearsal and for 17 to 18 Nov (runbook step 14). *Changed 27 Oct:* Firebase holds one scheduled quota at a time. It's 800 an hour on 12 Nov for the grad tea (scheduled 21 Oct), so the rehearsal keeps the usual 100, and Adam schedules the showcase's for 17 Nov on 13 Nov or later. The login link's key is derived from the Event Service key (agreement 11.9), so there's no new secret. The Event Service keeps each used link's ID until it expires, in a new table, and `users` records whether the user set their name.
+- **Guests and login links** (BAC-54). Adam turns on Firebase's Anonymous provider and the automatic deletion of anonymous accounts after 30 days, and the limit of 100 new accounts an hour from one IP address is raised for the rehearsal and for 17 to 18 Nov (runbook step 14). *Changed 27 Oct:* Firebase holds one scheduled quota at a time. It's 800 an hour on 12 Nov for the grad tea (scheduled 21 Oct), so the rehearsal keeps the usual 100, and Adam schedules the showcase's for 17 Nov on 13 Nov or later (BAC-97). The login link's key is derived from the Event Service key (agreement 11.9), so there's no new secret. The Event Service keeps each used link's ID until it expires, in a new table, and `users` records whether the user set their name.
 - **The forwarding Workers.** A small `worker/` folder in `apps/event-web` and in `apps/geekykey-web`, with its own Wrangler config (section 5.1). Adam writes them. Afterwards Ethan owns them, and Adam reviews any change to their list of paths.
 - **`apps/geekykey-web`** exists by now, from the screens track, with at least its login and shell.
 
@@ -846,14 +846,14 @@ Settled by Adam on 27 Oct.
 - **Both events' games are in the code.** Each event's own content sits beside the other's: the grad tea's 1920s questions, its trail clues and Gatsby in `src/grad-tea/`, and the showcase's in `src/showcase/` (the folder names are the spec's call). The lint rule keeps the base from importing either. The Event Service offers organizers every game from both folders.
 - **Organizers choose each station's game,** as data (BAC-90). Today it's code, in `src/showcase/games.ts`. So going from one event to the other needs no deploy, and neither does a swap during the evening.
 - **Copy, then clear, between the events.** Adam takes a copy at the end of the grad tea, which is the source for Joshua's analysis. The evening-before clear on Mon 16 Nov then empties the grad tea's taps, claims and game records (checkpoint 8).
-- **The agreement says otherwise today.** Its section 12 says "One Event Service runs one event", its section 1 says ours runs the capstone showcase, and its scope still gives the showcase as 18 November. BAC-90's agreement change makes it one event at a time, names the grad tea and corrects the date, for Ethan's approval.
+- **The agreement follows** (BAC-88, for Ethan's approval). Its section 12 said "One Event Service runs one event", and now says one event at a time. Its section 1 says ours runs the grad tea, then the showcase, and its scope gives the showcase as 17 November.
 
 #### The switch from the grad tea to the showcase
 
 Settled by Adam on 27 Oct. Three things show which event is on, and none of them is data.
 
 - **The Event screens' look:** Gatsby for the grad tea, sci-fi for the showcase (FRO-85, FRO-77). "Theme" already means light and dark in `globals.css`, so this is called the event's look. Ethan may choose another name.
-- **The event's name on the token page and My tokens,** which comes from `EVENT_SERVICES` in `geekykey-service` (section 5.1). The entry takes the grad tea's name by Tue 10 Nov, and "Capstone Showcase" back at the switch. Its ID stays `showcase`, with the same key.
+- **The event's name on the token page and My tokens,** which comes from `EVENT_SERVICES` in `geekykey-service` (section 5.1). The entry says "Grad Tea" from BAC-88's merge, so the button reads "Open Grad Tea", and takes "Capstone Showcase" back at the switch. A banner may replace the name later (Adam, 27 Oct). Its ID stays `showcase`, with the same key.
 - **The winning game's showcase content,** if it has any, such as sci-fi questions for the quiz.
 
 One pull request after the grad tea changes all three, and merges by Sun 15 Nov. It's a planned exception to the backend freeze, like a fix Adam approves. It changes content and settings only, never how a game works. Organizers then set the station at our booth to run the winning game.
@@ -885,7 +885,7 @@ One pull request after the grad tea changes all three, and merges by Sun 15 Nov.
 
 Every backend ticket merges by Tue 10 Nov, and needs Ethan's approval of its part of the agreement.
 
-- **Backend:** BAC-89 (the booth on the station), BAC-90 (each station's game, and the agreement's "one event at a time"), BAC-91 (the two game calls), BAC-92 (the quiz), BAC-93 (the trail) and BAC-96 (Find Gatsby). The grad tea's name in `EVENT_SERVICES` is a one-line change to `geekykey-service` by Tue 10 Nov, with no ticket yet.
+- **Backend:** BAC-89 (the booth on the station), BAC-90 (each station's game), BAC-91 (the two game calls), BAC-92 (the quiz), BAC-93 (the trail) and BAC-96 (Find Gatsby). The grad tea's name in `EVENT_SERVICES`, "Grad Tea", went in with the spec (BAC-88).
 - **Content and the venue:** BAC-94 (the questions and clues, final by Mon 9 Nov) and BAC-95 (the MPH, with Mr Yaseer).
 - **Screens:** FRO-83 (moving stations and setting their games), FRO-84 (the map shows each station's game), FRO-85 (the Gatsby look), FRO-86 (the quiz), FRO-87 (the trail) and FRO-88 (Find Gatsby).
 - **Stations:** HAR-21 (the tests), HAR-22 (the hardware order), HAR-23 (Find Gatsby's firmware) and HAR-24 (the e-paper map card).
@@ -997,7 +997,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### 8.2 Other docs
 
-- **`apps/event-web/CLAUDE.md`,** for Ethan to update: the backend is Node on Cloud Run, not a Worker; the station screens (creating a station, its key, disabling it) stay on the organizers' station board; there is no status call. *27 Oct:* it says the showcase is on 18 Nov, which should be Tue 17 Nov, and FRO-85 adds how the event's look is picked.
+- **`apps/event-web/CLAUDE.md`,** for Ethan to update: the backend is Node on Cloud Run, not a Worker; the station screens (creating a station, its key, disabling it) stay on the organizers' station board; there is no status call. *27 Oct:* its key dates now give the grad tea and the showcase on 17 Nov (BAC-88), and FRO-85 adds how the event's look is picked.
 - **`apps/geekykey-web/CLAUDE.md`:** no GeekyKey admin screens; a GeekyKey admin releases a found token on its token page.
 - **The Single Source of Truth** still says Docker on Cloud Run with SQLite; it's the team's to correct. Its date for the showcase, 17 Nov, was right (27 Oct).
 
@@ -1067,7 +1067,7 @@ The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on 
   - **the evening of Wed 11 Nov:** every station shows 0 saved taps on the board, and Adam runs `db:clear-test-data`, which takes its own copy first;
   - **Thu 12 Nov:** Adam switches the warm instance on in the morning. The group sets up in the MPH before 3:30 pm and does the morning check below. No station is in the passport at the grad tea, so the check looks at each station's game instead of its passport settings (BAC-90). The grad tea runs from 3:30 to 6:30 pm, with the games swapped between stations once, around 5 pm. Afterwards, Adam takes a copy, the source for Joshua's analysis, and switches the warm instance off;
   - **by Fri 13 Nov:** Joshua and Adam choose the winning game from the copy;
-  - **by Sun 15 Nov:** the switch's pull request merges, and organizers set the station at our booth to run the winning game. Adam schedules Firebase's limit on new accounts for the showcase on 13 Nov or later (runbook step 14).
+  - **by Sun 15 Nov:** the switch's pull request merges, and organizers set the station at our booth to run the winning game. Adam schedules Firebase's limit on new accounts for the showcase on 13 Nov or later (runbook step 14, BAC-97).
 - **The morning of Mon 16 Nov:** Adam switches the warm instance on, before setup.
 - **The evening before, Mon 16 Nov,** after the day's setup at the venue: every station shows 0 saved taps on the board; Adam runs `db:clear-test-data`, which takes its own copy first; and from then on nobody makes a test claim or taps a claimed token. If we're still on TiDB's free allowance, Julian checks its Request Units, which only he can see: if less than twice what the rehearsal used is left, he raises TiDB's spending limit above $0.
 - **The morning,** before check-in: tap each station with an unclaimed token and expect `Not claimed yet`, which proves the station's Wi-Fi, key, certificate and registration and stores nothing. The station board shows any station missing passport settings. The organizers' stats still show 0 taps.
@@ -1219,7 +1219,6 @@ The same 25 rounds sent straight from the server, which Cloudflare answers in Si
 - **This year's floor plan of the showcase hall,** with where the booths stand, from the teachers. The map on the big screen is drawn from it (checkpoint 7), and the layout we know, three walled areas of about 3, 6 and 5 booths, is from an earlier year.
 - **The showcase's theme,** from the teachers, for the screens' theme (checkpoint 7). *26 Oct:* the teachers have no theme for the showcase, so the group chose sci-fi, which the teachers haven't seen yet.
 - **The MPH for the grad tea** (BAC-95): its floor plan, the projector, three places with power sockets, using our own network, and time to set up before 3:30 pm, all asked of Mr Yaseer. The trail's clues, the map and the plan for the stations wait on the floor plan.
-- **The grad tea's name** on the token page's button, which the `showcase` entry in `EVENT_SERVICES` carries from Tue 10 Nov until the switch (section 6, "The grad tea").
 
 - ~~**Julian's and Qing Guan's agreement to guests** (ADR 0005), asked at the meeting on Fri 23 Oct, since guests add a way to sign in to what they decided on 8 Oct.~~ *Answered 23 Oct:* yes, guests are OK.
 
