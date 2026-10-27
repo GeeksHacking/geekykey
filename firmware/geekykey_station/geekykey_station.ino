@@ -729,7 +729,9 @@ void showTapStatus(const String &status) {
   if (status == "accepted") {
     showResult("ACCEPTED", "Points added", LED_PIN_BLUE, SOUND_ACCEPTED);
   } else if (status == "cooldown") {
-    showResult("COOLDOWN", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
+    // The same words as a repeat tap answered on the station, and as 6.1's
+    // table suggests.
+    showResult("Already counted", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
   } else if (status == "unknown_token") {
     showResult("UNKNOWN TAG", "Pair this token", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "no_event") {
