@@ -1664,3 +1664,10 @@
     silence. The station also checks each UID against the token itself, which stopped misreads
     such as 04E40000000000 from being sent as taps. Before the change, a tap's result took 0.25 to
     1.6 seconds to show, with nothing on the screen meanwhile.
+
+- id: geekykey-screens-report-a-failed-sign-out
+  date: 2026-10-27
+  area: frontend
+  change: >-
+    On the GeekyKey screens, a sign-out that fails now says so, with the service's message,
+    instead of returning to the login page in silence.
