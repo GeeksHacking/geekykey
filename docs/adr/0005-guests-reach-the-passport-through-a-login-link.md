@@ -52,7 +52,7 @@ passport. So guests need a way across, and the login link is it.
   *Changed 27 Oct 2026 (BAC-88):* Firebase holds one scheduled limit at a time, and it's 800 an
   hour on Thu 12 Nov for the grad tea, which runs on the same Event Service before the showcase.
   So the rehearsal keeps the usual 100 an hour, and Adam schedules the showcase's raise, for
-  Tue 17 Nov, on 13 Nov or later, once the grad tea's has ended.
+  Tue 17 Nov, on 13 Nov or later, once the grad tea's has ended (BAC-97).
 - A guest can't be turned into a Google account at the showcase. That waits in the backlog.
 - After the showcase, guests and login links go with Firebase's login. A login link between the
   GeekyKey screens and an event could still be useful with the Portal, which is decided then.

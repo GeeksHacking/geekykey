@@ -7,7 +7,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 | Part | What it does | Code |
 |---|---|---|
 | GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | `apps/geekykey-service` |
-| Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/event-service` |
+| Event Service | Runs one event's games, and registers that event's stations. Ours runs the grad tea on 12 November 2026, then the capstone showcase, whose first game is the passport. A server on Google Cloud Run | `apps/event-service` |
 | GeekyKey screens | The token page and My tokens | `apps/geekykey-web` |
 | Event screens | The dashboard, passport, activity and organizer screens, including the station board, and the map on the big screen at our booth | `apps/event-web` |
 
@@ -19,7 +19,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 | Event Service owner | Adam |
 | Screens owner | Ethan |
 | Station firmware owner | Zi Tao |
-| Scope | Up to the capstone showcase on 18 November 2026. See [Out of scope](#12-out-of-scope-for-the-showcase). |
+| Scope | Up to the capstone showcase on 17 November 2026. See [Out of scope](#12-out-of-scope-for-the-showcase). |
 
 **Status legend used throughout**
 
@@ -1570,8 +1570,9 @@ answers `invalid_login_link` (401) if any check fails. It never logs a link.
 
 Not exposed by the API before the showcase. Listed so nobody builds UI against them.
 
-- Several events in one Event Service, or any event CRUD. One Event Service runs one event, and a
-  station belongs to one Event Service.
+- Several events at once in one Event Service, or any event CRUD. One Event Service runs one event
+  at a time, and a station belongs to one Event Service. Ours runs the grad tea, then the
+  showcase, with its data cleared between them.
 - Moving a station between Event Services. A reader moved to another event becomes a new station
   there.
 - Dual-tap connections, leaderboards, or archetype quests.
@@ -1751,3 +1752,4 @@ Closed on 2026-10-10:
 | 2026-10-26 | 6.1's step 4 and 11.5 say the 4-second deadline also covers refreshing the GeekyKey Service's copy of the registered stations, not only filling an empty one. A station request now waits for a list more than a minute old before its key is checked, so a disabled station's key gets `401` within a minute on every Worker isolate, as 9.9 says, and a new station's key works within a minute, as 9.7 says. Before, a Worker that had sat idle answered once from its old list, and BAC-85's proof saw a disabled key accepted 61.7 seconds after the disable. A refresh that uses up the deadline answers `503 event_service_unavailable`. No shape changes (BAC-87). |
 | 2026-10-27 | 9.6 and section 13 say the screens escape any value a spreadsheet could run as a formula, not only a name. A `user_id` typed for a QR fallback and a station's `client_tap_id` are free text too, and the screens already escaped them. Section 13's two sentences under the Download CSV button say "value" where they said "name". No endpoint or shape changes (FRO-82). |
 | 2026-10-27 | 6.2 says a station may hold a heartbeat back by at most 30 seconds while it answers taps, so two heartbeats can be up to about 90 seconds apart. Ours waits while a result shows and for 2 seconds after one. No endpoint or shape changes (HAR-19). |
+| 2026-10-27 | Our Event Service runs the grad tea on 12 November 2026, then the showcase, one event at a time with its data cleared between them (section 12, and the table at the top). The showcase is on 17 November 2026, not 18 November, as the scope now says. No endpoint or shape changes (BAC-88). |
