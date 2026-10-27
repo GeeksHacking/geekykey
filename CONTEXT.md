@@ -166,7 +166,7 @@ _Avoid_: big screen, which is only the display it runs on; dashboard
 A named place on the event's floor plan where a station stands. The floor plan says where each
 booth is; the passport says which booth each station is at, so a station can move booth without
 becoming a different station.
-_Avoid_: location, which is the text a participant reads in the passport
+_Avoid_: location, which is the text a participant reads in the passport; spot
 
 **Connection**:
 A link between two participants, made when both tap at the same connection point within a few
