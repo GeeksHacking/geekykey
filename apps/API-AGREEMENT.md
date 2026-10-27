@@ -563,6 +563,9 @@ whether the reader works.
 
 - Stations call this at boot and every 60 seconds. At boot it replaces `/api/health`, because
   it also proves the station key.
+- A station may hold a heartbeat back while it answers taps, since a tap read during a heartbeat
+  is lost, but by at most 30 seconds. So two heartbeats can be up to about 90 seconds apart, and
+  the taps meanwhile keep the station online.
 - It is the station's clock: set the clock from `server_time` every time, and send `tapped_at`
   only once it has been set.
 - Every 60 seconds also keeps the HTTPS connection open, since Cloudflare closes an idle one
@@ -1747,3 +1750,4 @@ Closed on 2026-10-10:
 | 2026-10-26 | Ethan, the screens owner, approved version 0.6 in its pull request (#148), so it is no longer a draft. No endpoint or shape changes (BAC-81). |
 | 2026-10-26 | 6.1's step 4 and 11.5 say the 4-second deadline also covers refreshing the GeekyKey Service's copy of the registered stations, not only filling an empty one. A station request now waits for a list more than a minute old before its key is checked, so a disabled station's key gets `401` within a minute on every Worker isolate, as 9.9 says, and a new station's key works within a minute, as 9.7 says. Before, a Worker that had sat idle answered once from its old list, and BAC-85's proof saw a disabled key accepted 61.7 seconds after the disable. A refresh that uses up the deadline answers `503 event_service_unavailable`. No shape changes (BAC-87). |
 | 2026-10-27 | 9.6 and section 13 say the screens escape any value a spreadsheet could run as a formula, not only a name. A `user_id` typed for a QR fallback and a station's `client_tap_id` are free text too, and the screens already escaped them. Section 13's two sentences under the Download CSV button say "value" where they said "name". No endpoint or shape changes (FRO-82). |
+| 2026-10-27 | 6.2 says a station may hold a heartbeat back by at most 30 seconds while it answers taps, so two heartbeats can be up to about 90 seconds apart. Ours waits while a result shows and for 2 seconds after one. No endpoint or shape changes (HAR-19). |
