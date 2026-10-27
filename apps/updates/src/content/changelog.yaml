@@ -1678,3 +1678,15 @@
   change: >-
     When the Event Service rate-limits a poll, the organiser's summary keeps its numbers on
     screen. A note says they may be a moment old, instead of showing an error.
+
+- id: grad-tea-plan-in-the-spec
+  date: 2026-10-27
+  area: admin
+  change: >-
+    The A/B test runs at the grad tea on Thu 12 Nov, in the MPH, and the spec now has its plan.
+    It tries several games at once with a Gatsby party look: a quiz, a trail of clues across the
+    hall and, if there's time, Find Gatsby, where participants track down a hidden station. The
+    game with the most unique people becomes our booth's game at the showcase. Both events run on the same Event Service,
+    where organizers choose each station's game, and Adam clears the data in between. The showcase
+    is on Tue 17 Nov, not 18 Nov, and this site's schedule now says so. The backend still freezes
+    on 11 Nov, and the last merge is now Sun 15 Nov.
