@@ -51,8 +51,3 @@ export function useMe(): { me: MeResponse; refresh: () => Promise<void> } {
   }
   return { me: session.me, refresh: session.refresh };
 }
-
-/** The signed-in user's ID, for screens that only need to know who this is. */
-export function useIsGeekyKeyAdmin(): boolean {
-  return useMe().me.user.is_geekykey_admin;
-}
