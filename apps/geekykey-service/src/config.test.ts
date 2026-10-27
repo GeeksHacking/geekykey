@@ -67,7 +67,7 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
     eventServices: [
       {
         id: "showcase",
-        name: "Capstone Showcase",
+        name: "Grad Tea",
         url: "https://event-api.geekshacking.com",
         publicUrl: "https://event.geekshacking.com",
         key: EVENT_SERVICE_KEY_SHOWCASE,

@@ -71,7 +71,7 @@ test("a user gets their ID, their tokens oldest claim first, and the showcase to
       { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:00:00.000Z" },
       { uid: "DEADBEEF", claimed_at: "2026-11-18T05:30:00.000Z" },
     ],
-    events: [{ id: "showcase", name: "Capstone Showcase", url: "https://event.geekshacking.com" }],
+    events: [{ id: "showcase", name: "Grad Tea", url: "https://event.geekshacking.com" }],
   });
 
   // It asked the stand-in for this user's tokens, with the stand-in's key.
