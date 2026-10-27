@@ -517,16 +517,21 @@ describe("SessionProvider's /me poll", () => {
     focusManager.setFocused(true);
   });
 
+  async function advance(ms: number) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+  }
+
   it("stops the timer when the login page's /me answers 401", async () => {
     const { api, result } = setup();
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     const me = vi.spyOn(api, "me");
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
-    });
-
     // Three poll intervals. Without the condition the provider asked three times here.
+    // The login test below is the control that shows this setup schedules the timer at all.
+    await advance(30_000);
+
     expect(me).not.toHaveBeenCalled();
   });
 
@@ -539,21 +544,29 @@ describe("SessionProvider's /me poll", () => {
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
     const me = vi.spyOn(api, "me");
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(8_000);
-    });
+    await advance(8_000);
     expect(me).not.toHaveBeenCalled();
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_000);
-    });
+    await advance(3_000);
     await waitFor(() => expect(me).toHaveBeenCalledTimes(1));
 
     // The first poll leaves a session in the cache, so the next one follows 10 seconds later.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_500);
-    });
+    await advance(10_500);
     await waitFor(() => expect(me).toHaveBeenCalledTimes(2));
+  });
+
+  it("starts the poll after a login link signs the person in", async () => {
+    // Agreement 7.4: the link is sent inside the first /me, so the answer is the query's
+    // own data rather than a session written by a mutation.
+    const { api, result } = setup(undefined, "mock");
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    const me = vi.spyOn(api, "me");
+
+    await advance(8_000);
+    expect(me).not.toHaveBeenCalled();
+
+    await advance(3_000);
+    await waitFor(() => expect(me).toHaveBeenCalledTimes(1));
   });
 
   it("stops when a poll answers 401 and the session ends", async () => {
@@ -562,16 +575,26 @@ describe("SessionProvider's /me poll", () => {
     const me = vi.spyOn(api, "me");
     api.mock.failNext("unauthenticated");
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(11_500);
-    });
+    await advance(11_500);
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(me).toHaveBeenCalledTimes(1);
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
-    });
+    await advance(30_000);
     expect(me).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the timer when the person signs out", async () => {
+    const { api, result } = setup((client) => client.mock.setSession(SEEDED_PARTICIPANT_ID));
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    const me = vi.spyOn(api, "me");
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+    await advance(30_000);
+    expect(me).not.toHaveBeenCalled();
   });
 
   it("still asks once when the tab is returned to while signed out", async () => {
@@ -580,18 +603,14 @@ describe("SessionProvider's /me poll", () => {
     const me = vi.spyOn(api, "me");
 
     // A focus refetch only runs once the query is stale, which is after 5 seconds.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(6_000);
-    });
+    await advance(6_000);
 
     act(() => focusManager.setFocused(false));
     act(() => focusManager.setFocused(true));
     await waitFor(() => expect(me).toHaveBeenCalledTimes(1));
 
     // That refetch answers 401 again, so the timer stays off.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
-    });
+    await advance(30_000);
     expect(me).toHaveBeenCalledTimes(1);
   });
 });
