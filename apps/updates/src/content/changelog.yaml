@@ -1671,3 +1671,10 @@
   change: >-
     On the GeekyKey screens, a sign-out that fails now says so, with the service's message,
     instead of returning to the login page in silence.
+
+- id: summary-keeps-its-numbers-when-rate-limited
+  date: 2026-10-27
+  area: frontend
+  change: >-
+    The organiser's summary keeps its numbers on screen when the Event Service rate-limits a
+    poll, with a note that they may be a moment old, instead of replacing them with an error.
