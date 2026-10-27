@@ -111,8 +111,10 @@
 
 // A heartbeat holds up the station for as long as its requests take, and a
 // tag read meanwhile is lost. So a heartbeat that falls due waits while a
-// result shows and for this long after one, when the next tap is likeliest...
-#define HEARTBEAT_QUIET_MS 5000UL
+// result shows and for this long after one, when the next tap is likeliest.
+// On 27 Oct 2026, with taps 3 to 7 s apart, 5 s held one back 29 s; a warm
+// heartbeat takes about 40 ms, so a short gap is enough...
+#define HEARTBEAT_QUIET_MS 2000UL
 // ...but no longer than this past its time, so a busy station still sends one.
 #define HEARTBEAT_MAX_DELAY_MS 30000UL
 
@@ -363,19 +365,14 @@ void loop() {
   tickResult();
   if (heartbeatMayStart()) heartbeatTick();
 
-  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) {
+  String uid;
+  unsigned long readAt = 0;
+  if (!readTokenUid(uid, readAt)) {
     // While a result shows, come straight back to play its sound on time.
     // Asking the reader already takes about 25 ms when no tag is there.
     if (!resultShowing) delay(50);
     return;
   }
-
-  // The backend identifies a tag by its hardware UID, which is available as
-  // soon as PICC_ReadCardSerial succeeds. Nothing else on the tag is read.
-  const unsigned long readAt = millis();
-  String uid = uidToHex(rfid.uid);
-  rfid.PICC_HaltA();
-  rfid.PCD_StopCrypto1();
 
   Serial.println("UID: " + uid);
 
@@ -408,6 +405,34 @@ void loop() {
   tapTiming.clickedAt = millis();
   const bool counted = handleTap(uid);
   rememberToken(lastToken, uid.c_str(), readAt, counted);
+}
+
+// Reads the UID of a token on the reader, twice. The backend identifies a
+// token by its hardware UID alone, so nothing else on it is read. On 27 Oct
+// 2026 a token leaving the reader read once as 04E40000000000, its first two
+// bytes and then zeros, and was sent as a different token. So the station
+// wakes the token and selects it again, and trusts the UID only when both
+// reads agree. A read it doesn't trust leaves the token un-halted, so a token
+// still on the reader is read afresh on the next pass. `readAt` is the first
+// read's time, so the tap timing counts the second read too.
+bool readTokenUid(String &uid, unsigned long &readAt) {
+  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return false;
+  readAt = millis();
+  const String first = uidToHex(rfid.uid);
+  rfid.PICC_HaltA();
+  byte atqa[2];
+  byte atqaSize = sizeof(atqa);
+  const bool readAgain = rfid.PICC_WakeupA(atqa, &atqaSize) == MFRC522::STATUS_OK &&
+                         rfid.PICC_Select(&rfid.uid) == MFRC522::STATUS_OK;
+  const String second = readAgain ? uidToHex(rfid.uid) : String("");
+  if (second != first) {
+    Serial.println("Read " + first + " once but not again: ignored");
+    return false;
+  }
+  rfid.PICC_HaltA();
+  rfid.PCD_StopCrypto1();
+  uid = first;
+  return true;
 }
 
 // Saves the tap, sends it with any saved taps, and shows the result. Returns
