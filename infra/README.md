@@ -832,7 +832,7 @@ him away, the setting goes to Julian.
 | GeeksHacking's login | Sign-in method tab, then Add new provider, then OpenID Connect | Provider ID `oidc.geekshacking`, with the client Qing Guan issues for the two `/__/auth/handler` addresses above. Turned off again if Mr Pang says no | Not yet. Waits on Qing Guan's client |
 | Anonymous sign-in, for guests | Sign-in method tab | On | On by 21 Oct 2026, when BAC-58's check signed a guest in |
 | Automatic clean-up of guests | Settings tab, where Firebase calls it automatic clean-up of anonymous accounts | On, before the rehearsal. Firebase deletes each guest once they are 30 days old | 21 Oct 2026 |
-| Sign-up quota, for the A/B test at the grad tea | Sign-in method tab, below the list of providers | 800 an hour on Thu 12 Nov 2026 | Scheduled 21 Oct 2026 |
+| Sign-up quota, for the grad tea | Sign-in method tab, below the list of providers | 800 an hour on Thu 12 Nov 2026 | Scheduled 21 Oct 2026 |
 | Sign-up quota, for the rehearsal on Sat 7 Nov 2026 | None | Not raised. The 12 Nov window holds Firebase's one scheduled quota, so the rehearsal has the usual 100 an hour from one address | Not needed |
 | Sign-up quota, for the showcase | Sign-in method tab, below the list of providers | From Tue 17 Nov 2026 00:00 to Wed 18 Nov 2026 00:00, Singapore time, the showcase's day. 800 an hour, as on 12 Nov, unless the A/B test shows it needs more | Not yet. Set on 13 Nov or later |
 
@@ -850,7 +850,7 @@ console caps it lower, use its highest. Write the number you set into the table.
 Firebase holds one scheduled quota at a time. So the showcase's goes in once the 12 Nov
 window has ended, on 13 Nov or later. If it needs more than the console allows, Firebase asks
 for two weeks' notice, which by then is too late. So if 800 may not be enough for the
-showcase, ask Firebase support by 3 Nov, before the A/B test can tell you.
+showcase, ask Firebase support by 3 Nov, before the grad tea can tell you.
 
 **Checking what's set.** The console is the place to change these. This prints what the
 project has, for anyone signed in to `gcloud` who can read the project's settings:
