@@ -11,8 +11,8 @@ Two audiences, two surfaces:
 - **Participants** on their own phones, mid-event, often under dim venue lighting. Mobile first.
 - **Organisers** on a laptop at the registration desk or a booth. Desktop first, denser.
 
-Key dates: the A/B test runs at the grad tea on 12 Nov 2026, and the showcase is on 17 Nov
-2026. Scope down before adding features.
+Key dates: the grad tea on 12 Nov 2026 is a pilot of the showcase's games, and the showcase is on
+17 Nov 2026. Scope down before adding features.
 
 ## Sources of truth
 
