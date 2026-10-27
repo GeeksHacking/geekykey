@@ -210,6 +210,18 @@ struct QueueAttempt {
 uint8_t queueHead = 0;
 uint8_t queueCount = 0;
 
+// When each step of the tap being handled happened, by millis(), so the serial
+// port shows where a tap's wait goes (printTapTiming). readAt is 0 between
+// taps, so a heartbeat's sending of saved taps leaves the rest alone.
+struct TapTiming {
+  unsigned long readAt = 0;
+  unsigned long savedAt = 0;
+  unsigned long sentAt = 0;
+  unsigned long answeredAt = 0;
+  bool reused = false;  // the request went over the kept-open connection
+};
+TapTiming tapTiming;
+
 // Set once a heartbeat's answer has set the clock. Until then, taps are sent
 // without tapped_at, and the server times them when they arrive.
 bool clockSet = false;
@@ -338,12 +350,15 @@ void loop() {
   rfid.PCD_StopCrypto1();
 
   Serial.println("UID: " + uid);
+  const unsigned long readAt = millis();
 
   if (uid == lastUid && millis() - lastResultEndedAt < SAME_TOKEN_IGNORE_MS) {
     Serial.println("Skipped: the same tag again straight after its result");
     return;
   }
 
+  tapTiming = TapTiming{};
+  tapTiming.readAt = readAt;
   handleTap(uid);
   lastUid = uid;
   lastResultEndedAt = millis();
@@ -362,6 +377,7 @@ void handleTap(const String &uid) {
     }
     return;
   }
+  tapTiming.savedAt = millis();
 
   QueueAttempt attempt = flushQueue(clientTapId);
   if (attempt.newTapStatus.length() > 0) {
@@ -524,9 +540,14 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
   http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", String("Bearer ") + stationKey);
+  if (tapTiming.readAt != 0) {
+    tapTiming.reused = http.connected();
+    tapTiming.sentAt = millis();
+  }
   const int code = http.POST(body);
   const String response = code > 0 ? http.getString() : "";
   http.end();
+  if (tapTiming.readAt != 0) tapTiming.answeredAt = millis();
   result.httpCode = code;
 
   if (code <= 0) {
@@ -628,6 +649,7 @@ void showTapStatus(const String &status) {
 void showResult(const char *line1, const char *line2, int ledPin, int sound) {
   showScreen(line1, line2);
   if (ledPin != NO_LED) digitalWrite(ledPin, HIGH);
+  printTapTiming();
   const unsigned long shownAt = millis();
   playSound(sound);
   const unsigned long played = millis() - shownAt;
@@ -658,6 +680,23 @@ void beep(unsigned long ms) {
   digitalWrite(BUZZER_PIN, HIGH);
   delay(ms);
   digitalWrite(BUZZER_PIN, LOW);
+}
+
+// One line per tap, in milliseconds after its tag was read: when it was saved
+// to flash, sent and answered, and when its result showed. "-" is a step that
+// didn't happen, such as sending with no WiFi. Then forgets the tap, so a
+// result with no tag behind it prints nothing.
+void printTapTiming() {
+  if (tapTiming.readAt == 0) return;
+  const unsigned long shownAt = millis();
+  Serial.println("Tap timing (ms after read): saved " + msAfterRead(tapTiming.savedAt) + ", sent " +
+                 msAfterRead(tapTiming.sentAt) + " (" + (tapTiming.reused ? "open connection" : "new connection") +
+                 "), answered " + msAfterRead(tapTiming.answeredAt) + ", shown " + msAfterRead(shownAt));
+  tapTiming = TapTiming{};
+}
+
+String msAfterRead(unsigned long at) {
+  return at == 0 ? String("-") : String(at - tapTiming.readAt);
 }
 
 // Ready, unless the reader isn't answering: then the red LED stays on and the
@@ -840,10 +879,15 @@ void checkReader() {
 // sends the heartbeat, so buffered_taps counts what is still saved. Returns
 // the heartbeat's HTTP code, or 0 when it wasn't sent.
 int heartbeatTick() {
-  nextHeartbeatAt = millis() + HEARTBEAT_INTERVAL_MS;
+  const unsigned long startedAt = millis();
+  nextHeartbeatAt = startedAt + HEARTBEAT_INTERVAL_MS;
   checkReader();
   flushQueue();
-  return sendHeartbeat();
+  const unsigned long flushedAt = millis();
+  const int code = sendHeartbeat();
+  Serial.println("Heartbeat timing: " + String(millis() - startedAt) + " ms, saved taps " +
+                 String(flushedAt - startedAt) + " ms of it");
+  return code;
 }
 
 // POST /api/v1/stations/heartbeat (the API agreement's 6.2). A 200 sets the
