@@ -101,8 +101,10 @@
     // showcase at http://localhost:8001, and its screens at 5173.
     "EVENT_SERVICES": [
       {
+        // "Grad Tea" until the switch after the grad tea on 12 Nov puts
+        // "Capstone Showcase" back, by 15 Nov (migration spec, section 6).
         "id": "showcase",
-        "name": "Capstone Showcase",
+        "name": "Grad Tea",
         "url": "https://event-api.geekshacking.com",
         "public_url": "https://event.geekshacking.com",
       },
