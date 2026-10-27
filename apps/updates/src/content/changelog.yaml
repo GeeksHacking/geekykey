@@ -1689,4 +1689,5 @@
     game with the most unique people becomes our booth's game at the showcase. Both events run on the same Event Service,
     where organizers choose each station's game, and Adam clears the data in between. The showcase
     is on Tue 17 Nov, not 18 Nov, and this site's schedule now says so. The backend still freezes
-    on 11 Nov, and the last merge is now Sun 15 Nov.
+    on 11 Nov, and the last merge is now Sun 15 Nov. Until then, the button on the token page
+    reads "Open Grad Tea" instead of "Open Capstone Showcase".
