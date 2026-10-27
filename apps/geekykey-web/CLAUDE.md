@@ -16,6 +16,8 @@ Read those files before adding screens. They are references, not documents to co
 - API types follow the agreement; the mock is the default test and demo data source.
 - Do not introduce a shared component package between the two web apps.
 - Copy a shadcn component from `apps/event-web/src/components/ui/` only when a GeekyKey screen needs it.
+- Toasts render from the `Toaster` in `routes/__root.tsx`, above the route tree, so a message
+  survives the redirect to `/login`.
 - Forms use react-hook-form and zod through the shadcn `Form`, in `src/components/ui/form.tsx` and
   `src/components/ui/input.tsx`. Import `zod/mini`, as the Event screens do; lint refuses `zod`
   (see the Forms row of the stack table in `apps/event-web/CLAUDE.md`).
