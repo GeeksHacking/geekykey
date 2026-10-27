@@ -1,7 +1,7 @@
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import { ApiError, AUTH_ERROR_EVENT } from "@/api/errors";
-import { createMockClient, type MockApiClient, normalizeUid } from "@/api/mock/client";
+import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { ErrorCode } from "@/api/types";
 
@@ -40,12 +40,6 @@ describe("geekykey-web mock client", () => {
   });
 
   describe("token UIDs", () => {
-    it("normalises separators and case to one token", () => {
-      expect(normalizeUid("04:a1:b2:c3:d4:e5:f6")).toBe("04A1B2C3D4E5F6");
-      expect(normalizeUid("04-a1-b2-c3-d4-e5-f6")).toBe("04A1B2C3D4E5F6");
-      expect(normalizeUid("04a1b2c3d4e5f6")).toBe("04A1B2C3D4E5F6");
-    });
-
     it("looks a token up in any separator style", async () => {
       const api = setup();
       expect((await api.getToken("04:e5:f7:09:1b:3d")).uid).toBe(UNCLAIMED);

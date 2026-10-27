@@ -7,6 +7,7 @@ import {
   type MockToken,
 } from "@/api/mock/fixtures";
 import { MOCK_LATENCY_MS } from "@/lib/constants";
+import { isValidUid, normalizeUid } from "@/lib/token-uid";
 import type {
   ApiIssue,
   ErrorCode,
@@ -67,24 +68,6 @@ export interface MockControls {
 }
 
 export type MockApiClient = ApiClient & { mock: MockControls };
-
-/**
- * Agreement "Token UID": normalise by stripping anything that is not a hex digit
- * and upper-casing, so `04:a1:b2:c3:d4:e5:f6` and `04A1B2C3D4E5F6` are one token.
- * After normalisation a UID is 4 to 10 bytes, that is 8 to 20 hex characters.
- */
-export function normalizeUid(raw: string): string {
-  return raw.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
-}
-
-/**
- * A UID is 4 to 10 bytes, "that is 8 to 20 hex characters" (agreement "Token UID").
- * The count must also be even: a chip's UID is whole bytes, so an odd number of hex
- * characters is not a UID any token carries.
- */
-function isValidNormalizedUid(uid: string): boolean {
-  return uid.length >= 8 && uid.length <= 20 && uid.length % 2 === 0;
-}
 
 export function createMockClient(options: MockClientOptions = {}): MockApiClient {
   const now = options.now ?? (() => Date.now());
@@ -207,7 +190,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call((): TokenLookup => {
         const userId = currentUserId();
         const normalized = normalizeUid(uid);
-        if (!isValidNormalizedUid(normalized)) fail("validation_failed");
+        if (!isValidUid(normalized)) fail("validation_failed");
         // A well-formed UID no token carries reads as unclaimed rather than missing:
         // 8.5 lists only unauthenticated, validation_failed and rate_limited, and a
         // UID-shaped string is one the hardware could answer with.
@@ -228,7 +211,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call((): Token => {
         const userId = currentUserId();
         const normalized = normalizeUid(uid);
-        if (!isValidNormalizedUid(normalized)) fail("validation_failed");
+        if (!isValidUid(normalized)) fail("validation_failed");
         // A well-formed UID no token carries is claimable, as on the lookup. 8.2
         // lists no not_found either.
         const token = tokenByUid(normalized) ?? emptyToken(normalized);
@@ -250,7 +233,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call(() => {
         const userId = currentUserId();
         const normalized = normalizeUid(uid);
-        if (!isValidNormalizedUid(normalized)) fail("validation_failed");
+        if (!isValidUid(normalized)) fail("validation_failed");
         const token = tokenByUid(normalized);
         if (!token) fail("not_found");
 
