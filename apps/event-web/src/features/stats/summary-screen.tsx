@@ -4,11 +4,13 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { PageHeader } from "@/components/layout/page-header";
+import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/features/stats/export-button";
 import { StatTile } from "@/features/stats/stat-tile";
 import { StationBreakdown } from "@/features/stats/station-breakdown";
 import { useStats } from "@/features/stats/use-stats";
+import { showStaleNote } from "@/lib/rate-limit";
 
 export function SummaryScreen() {
   const stats = useStats();
@@ -34,7 +36,9 @@ export function SummaryScreen() {
     const data = stats.data;
     body = (
       <div className="space-y-10">
-        {stats.isError ? (
+        {showStaleNote(stats.error, stats.data !== undefined) ? (
+          <StaleDataNote onRetry={() => void stats.refetch()} />
+        ) : stats.isError ? (
           <InlineQueryError
             error={stats.error}
             onRetry={() => void stats.refetch()}
