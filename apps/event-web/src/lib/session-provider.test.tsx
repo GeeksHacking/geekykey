@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
@@ -501,5 +501,30 @@ describe("SessionProvider with a login link", () => {
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(api.loginLink).not.toHaveBeenCalled();
     expect(result.current.loginLinkError).toBeUndefined();
+  });
+});
+
+describe("SessionProvider's /me poll", () => {
+  // The timer is the behaviour under test, so fake it. shouldAdvanceTime keeps waitFor's
+  // own timers moving; advanceTimersByTimeAsync jumps over the poll interval.
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("stops the timer when the login page's /me answers 401", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    const me = vi.spyOn(api, "me");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    // Three poll intervals. Without the condition the provider asked three times here.
+    expect(me).not.toHaveBeenCalled();
   });
 });

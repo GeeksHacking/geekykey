@@ -146,7 +146,9 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
 - The session is the `["me"]` query in `lib/session-provider.tsx`. A 401 is a normal
   answer, so the query function returns `null` for it instead of throwing; `undefined`
   means not fetched yet, an object means signed in. Sign-out sets it to `null` and drops
-  every other cached query so nothing leaks to the next person at a shared laptop.
+  every other cached query so nothing leaks to the next person at a shared laptop. The
+  10-second poll runs only while the cache holds a user: a 401 or a sign-out stops it, a
+  login starts it again, and the focus refetch still asks once.
 - The first `["me"]` read also sends the login link a page arrived with
   (`POST /auth/login-link`, agreement 7.4). It is a write, but it is not a mutation: the
   agreement has it sent before anything reads `/me`, and sending it inside that read is
