@@ -137,8 +137,9 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
   `lib/constants.ts`. Example: `features/stations/use-station-board.ts`.
 - Writes are `useMutation` hooks whose `onSuccess` invalidates the keys they change, so
   screens never pass "refetch me" callbacks around. Example:
-  `features/fallback/use-log-fallback-tap.ts` invalidates `["me"]` after a successful QR
-  fallback. A write that answers with what it changed puts that into the cache instead:
+  `features/fallback/use-log-fallback-tap.ts` invalidates `["taps"]` and `queryKeys.stats`
+  after a successful QR fallback, because the tap shows up in the scan log and the totals.
+  A write that answers with what it changed puts that into the cache instead:
   `features/passport/use-set-display-name.ts` writes the `user` that `PATCH /me` answers
   into `["me"]`.
 - Screens read `isPending`, `isError`, `isFetching`, `dataUpdatedAt`, and `data`. They do
