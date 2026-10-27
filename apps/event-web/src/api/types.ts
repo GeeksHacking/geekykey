@@ -183,11 +183,6 @@ export interface StationStats {
   unique_participants: number;
 }
 
-/** POST /auth/dev-login */
-export interface DevLoginRequest {
-  user_id: string;
-}
-
 export type ErrorCode =
   | "validation_failed"
   | "unauthenticated"
