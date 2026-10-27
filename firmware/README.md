@@ -27,6 +27,19 @@ How the station talks to the server is in [the API agreement](../apps/API-AGREEM
 
 `secrets.h` only gives the first settings. After that, the setup mode changes them.
 
+## Testing the station's timing rules
+
+The station's rules about time are in `geekykey_station/tap_timing.h`: when the buzzer is on during
+a result's sound, and how a token tapped again a moment later is answered without a request. They
+touch no pins, so their tests run on a laptop with any C++ compiler, from the repo root:
+
+```sh
+c++ -std=c++17 -Wall -Wextra -o /tmp/tap_timing_test firmware/geekykey_station/test/tap_timing_test.cpp && /tmp/tap_timing_test
+```
+
+It prints `All passed`, or each check that failed. The Arduino IDE never builds the `test/` folder,
+so nothing in it reaches a station.
+
 ## The setup mode
 
 The setup mode gives a station a new server address, station key or Wi-Fi network without a
