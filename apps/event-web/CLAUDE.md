@@ -248,6 +248,11 @@ pnpm worker:test      # the Worker's tests; needs dist/, so build first
 pnpm worker:dry-run   # bundles the Worker and checks wrangler.jsonc, without deploying
 ```
 
+The first `pnpm test:e2e` on a machine, and the first after a Playwright version bump, both
+need `pnpm exec playwright install chromium`. Each Playwright version wants its own Chromium
+build, so without it the suite stops with "Executable doesn't exist" instead of a test
+failure.
+
 Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test:event-web`,
 `pnpm format:event-web`.
 
@@ -568,9 +573,10 @@ backend. Working agreement from the 2 September 2026 team meeting:
 7. shadcn components customised to the tokens, not default.
 8. Only endpoints and fields from the agreement are referenced.
 
-For screenshots, Playwright against the dev server with its own Chromium build works well.
-Two gotchas: Radix Select ignores a synthetic click, so dispatch a `pointerdown` on the
-trigger and then click the option; and headless Arc crashes after a few navigations.
+For screenshots, Playwright against the dev server works well once its Chromium build is
+installed; the Commands section says how. Two gotchas: Radix Select ignores a synthetic
+click, so dispatch a `pointerdown` on the trigger and then click the option; and headless
+Arc crashes after a few navigations.
 
 ## Do not
 
