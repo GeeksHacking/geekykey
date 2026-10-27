@@ -407,32 +407,58 @@ void loop() {
   rememberToken(lastToken, uid.c_str(), readAt, counted);
 }
 
-// Reads the UID of a token on the reader, twice. The backend identifies a
-// token by its hardware UID alone, so nothing else on it is read. On 27 Oct
-// 2026 a token leaving the reader read once as 04E40000000000, its first two
-// bytes and then zeros, and was sent as a different token. So the station
-// wakes the token and selects it again, and trusts the UID only when both
-// reads agree. A read it doesn't trust leaves the token un-halted, so a token
-// still on the reader is read afresh on the next pass. `readAt` is the first
-// read's time, so the tap timing counts the second read too.
+// Reads the UID of a token on the reader, and checks it before trusting it.
+// The backend identifies a token by its hardware UID alone. On 27 Oct 2026 a
+// token leaving the reader read as 04E40000000000, 04E45150320000 and
+// 00000000000000, its own bytes cut off by zeros, and the same way when read
+// twice: the library recomputes the UID's check bytes rather than checking
+// the ones the token sent. So the station reads it back from the token itself
+// (uidMatchesPageZero). A read it doesn't trust leaves the token un-halted, so
+// a token still on the reader is read afresh on the next pass. `readAt` is the
+// first read's time, so the tap timing counts the check too.
 bool readTokenUid(String &uid, unsigned long &readAt) {
   if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return false;
   readAt = millis();
   const String first = uidToHex(rfid.uid);
-  rfid.PICC_HaltA();
-  byte atqa[2];
-  byte atqaSize = sizeof(atqa);
-  const bool readAgain = rfid.PICC_WakeupA(atqa, &atqaSize) == MFRC522::STATUS_OK &&
-                         rfid.PICC_Select(&rfid.uid) == MFRC522::STATUS_OK;
-  const String second = readAgain ? uidToHex(rfid.uid) : String("");
-  if (second != first) {
-    Serial.println("Read " + first + " once but not again: ignored");
+  // Our NTAG213 tokens, and any Ultralight-type card, have a 7-byte UID and SAK
+  // 0x00, and can be read back. Other cards are only selected a second time.
+  const bool readBack = rfid.uid.size == 7 && rfid.uid.sak == 0x00;
+  if (readBack ? !uidMatchesPageZero() : !uidReadsAgain(first)) {
+    Serial.println("Read " + first + " but couldn't confirm it: ignored");
     return false;
   }
   rfid.PICC_HaltA();
   rfid.PCD_StopCrypto1();
   uid = first;
   return true;
+}
+
+// Reads pages 0 to 3 from the selected token, an answer the library checks
+// with its CRC. Pages 0 and 1 hold the UID with its two check bytes (BCC0 and
+// BCC1, NTAG213 data sheet 8.5.1), so a token selected with a wrong UID
+// doesn't answer, and a right UID has to match all nine bytes.
+bool uidMatchesPageZero() {
+  byte page[18];
+  byte pageSize = sizeof(page);
+  if (rfid.MIFARE_Read(0, page, &pageSize) != MFRC522::STATUS_OK) return false;
+  const byte *u = rfid.uid.uidByte;
+  const byte bcc0 = 0x88 ^ u[0] ^ u[1] ^ u[2];  // 0x88 is the cascade tag
+  const byte bcc1 = u[3] ^ u[4] ^ u[5] ^ u[6];
+  return page[0] == u[0] && page[1] == u[1] && page[2] == u[2] && page[3] == bcc0 &&
+         page[4] == u[3] && page[5] == u[4] && page[6] == u[5] && page[7] == u[6] && page[8] == bcc1;
+}
+
+// Wakes the card and selects it again into an empty UID, and says whether it
+// reads the same. The library fills the UID in place, so reading into the
+// same one could keep bytes from the first read.
+bool uidReadsAgain(const String &first) {
+  rfid.PICC_HaltA();
+  byte atqa[2];
+  byte atqaSize = sizeof(atqa);
+  MFRC522::Uid again = {};
+  if (rfid.PICC_WakeupA(atqa, &atqaSize) != MFRC522::STATUS_OK) return false;
+  if (rfid.PICC_Select(&again) != MFRC522::STATUS_OK) return false;
+  return uidToHex(again) == first;
 }
 
 // Saves the tap, sends it with any saved taps, and shows the result. Returns
