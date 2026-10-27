@@ -4,11 +4,10 @@ import { cn } from "@/lib/utils";
 
 interface TapStatusLabelProps {
   status: TapStatus;
-  audience?: "organiser" | "participant";
   className?: string;
 }
 
-export function TapStatusLabel({ status, audience = "organiser", className }: TapStatusLabelProps) {
+export function TapStatusLabel({ status, className }: TapStatusLabelProps) {
   const meta = TAP_STATUS_META[status];
   const StatusIcon = meta.icon;
   return (
@@ -20,7 +19,7 @@ export function TapStatusLabel({ status, audience = "organiser", className }: Ta
       )}
     >
       <StatusIcon weight="fill" className="h-4 w-4 shrink-0" aria-hidden />
-      {audience === "participant" ? meta.participantLabel : meta.label}
+      {meta.label}
     </span>
   );
 }

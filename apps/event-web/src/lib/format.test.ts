@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatDate,
   formatDateTime,
   formatDayLabel,
   formatPoints,
-  formatRelative,
   formatTime,
   formatTimeWithSeconds,
   formatWhen,
@@ -19,20 +17,13 @@ describe("formatPoints", () => {
   });
 });
 
-describe("formatRelative", () => {
+describe("invalid timestamps", () => {
   const now = new Date("2026-10-10T09:00:00.000Z");
-  it("steps through seconds, minutes, and hours", () => {
-    expect(formatRelative("2026-10-10T08:59:55.000Z", now)).toBe("just now");
-    expect(formatRelative("2026-10-10T08:59:20.000Z", now)).toBe("40 s ago");
-    expect(formatRelative("2026-10-10T08:46:00.000Z", now)).toBe("14 min ago");
-    expect(formatRelative("2026-10-10T06:00:00.000Z", now)).toBe("3 h ago");
-  });
 
-  it("does not throw for an invalid API timestamp", () => {
-    expect(formatRelative("not-a-date", now)).toBe("Unknown");
+  it("falls back to a readable value", () => {
     expect(formatDayLabel("not-a-date", now)).toBe("Unknown date");
     expect(formatWhen("not-a-date", now)).toBe("Unknown");
-    expect(formatDate("not-a-date")).toBe("Not recorded");
+    expect(formatDateTime("not-a-date")).toBe("Not recorded");
   });
 
   it("never returns an em-dash or en-dash, in any format", () => {
@@ -41,9 +32,7 @@ describe("formatRelative", () => {
     for (const formatted of [
       formatTime("not-a-date"),
       formatTimeWithSeconds("not-a-date"),
-      formatDate("not-a-date"),
       formatDateTime("not-a-date"),
-      formatRelative("not-a-date", now),
       formatDayLabel("not-a-date", now),
       formatWhen("not-a-date", now),
     ]) {

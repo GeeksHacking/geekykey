@@ -16,9 +16,4 @@ describe("TapStatusLabel", () => {
     expect(screen.getByText("Cooldown")).toBeInTheDocument();
     expect(screen.getByText("No game")).toBeInTheDocument();
   });
-
-  it("uses plain-language wording for participants", () => {
-    render(<TapStatusLabel status="cooldown" audience="participant" />);
-    expect(screen.getByText("Too soon")).toBeInTheDocument();
-  });
 });
