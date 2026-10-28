@@ -1701,3 +1701,11 @@
     guests. The quiz is dropped, and Find Gatsby stays a stretch game, decided on 5 Nov. At the
     showcase, each partner station will carry an NFC sticker and a QR code that open the group's
     own page.
+
+- id: station-sends-taps-sooner
+  date: 2026-10-28
+  area: firmware
+  change: >-
+    The station sends a tap while its click still sounds, instead of after it, and checks the
+    reader every 10 ms instead of every 50. The ESP32-S3 build now has a 3 MB space for its code
+    instead of 1.25 MB, of which it uses 36%, so later station features have room.
