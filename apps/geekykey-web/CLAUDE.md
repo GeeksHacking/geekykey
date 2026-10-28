@@ -58,7 +58,10 @@ logs them in again without showing the login. A returning guest who saw the logi
 would press "Continue as guest" and become a new guest, who doesn't own their tokens. For the
 same reason a guest is asked before signing out, in section 13's words (FRO-62).
 A sign-out waits for that returning-user login to finish before it clears the cookie, so a
-login already in flight cannot set the cookie again (FRO-69).
+login already in flight cannot set the cookie again (FRO-69). A sign-in waits for a
+returning-user login already running and stops a new one from starting, so the sign-in is
+the last write to the cookie. A `/me` that answers 401 after the session has changed does
+not start a login either (FRO-91).
 My tokens and the token page carry a button for each event in `/me`, which asks the
 GeekyKey Service for a login link (agreement 8.6) and opens it, so the user reaches an
 event's screens as the same user (FRO-31). The buttons are in
