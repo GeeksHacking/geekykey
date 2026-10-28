@@ -35,8 +35,6 @@ async function setup() {
     user,
     /** The board names a row by its passport name when it has one, so the tests do too. */
     firstName: first.passport?.name ?? first.label,
-    /** FRO-24's reveal titles the station by its device label, which is what 9.8 returns. */
-    firstLabel: first.label,
     disabledName: disabled.passport?.name ?? disabled.label,
     disabledId: disabled.id,
   };
@@ -66,7 +64,7 @@ describe("replacing a station's key", () => {
   // show it. The reveal is a second dialog, which is why it survives the alert closing: the
   // confirm button's preventDefault is not what this test holds, the not_found one below is.
   it("replaces the key, then shows the new one once in the reveal", async () => {
-    const { api, user, firstName, firstLabel } = await setup();
+    const { api, user, firstName } = await setup();
     const sent = vi.spyOn(api, "replaceStationKey");
 
     await openDialog(user, firstName);
@@ -78,8 +76,8 @@ describe("replacing a station's key", () => {
     const field = (await screen.findByLabelText("Station key")) as HTMLInputElement;
     expect(field.value).toMatch(/^gk_sta_/);
     // The reveal's replace half, not the create half's "is ready".
-    expect(screen.getByText(`${firstLabel} has a new key`)).toBeInTheDocument();
-    expect(screen.queryByText(`${firstLabel} is ready`)).not.toBeInTheDocument();
+    expect(screen.getByText(`${firstName} has a new key`)).toBeInTheDocument();
+    expect(screen.queryByText(`${firstName} is ready`)).not.toBeInTheDocument();
   });
 
   // 9.8 answers not_found for a station this Event Service does not have. FRO-28 asks for a

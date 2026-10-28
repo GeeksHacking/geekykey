@@ -21,9 +21,13 @@ export function StationKeyReveal({ kind, result, onDone }: StationKeyRevealProps
   const copiedResetTimer = useRef<number | null>(null);
 
   const isReplacement = kind === "replace";
-  const title = isReplacement
-    ? `${result.station.label} has a new key`
-    : `${result.station.label} is ready`;
+  // The row that opened a replacement names the station by its passport name (9.2), so the
+  // reveal says the same name. A station created by 9.7 has no passport settings yet, so
+  // its device label is the only name it has.
+  const stationName = isReplacement
+    ? (result.station.passport?.name ?? result.station.label)
+    : result.station.label;
+  const title = isReplacement ? `${stationName} has a new key` : `${stationName} is ready`;
   // The setup mode is where either key goes. A replacement also has to say the old one is
   // going, because 9.8 stops it within a minute, and that the station is untouched.
   const description = isReplacement

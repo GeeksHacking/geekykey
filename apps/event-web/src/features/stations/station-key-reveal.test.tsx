@@ -32,6 +32,19 @@ const result: StationKeyResponse = {
   api_key: "gk_sta_example",
 };
 
+const withPassport: StationKeyResponse = {
+  ...result,
+  station: {
+    ...result.station,
+    passport: {
+      name: "3D Printing Booth",
+      location: "Hall A",
+      points: 1,
+      added_at: "2026-10-10T00:00:00.000Z",
+    },
+  },
+};
+
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
 
 beforeEach(() => {
@@ -51,8 +64,8 @@ function renderReveal() {
   return render(<StationKeyReveal kind="create" result={result} onDone={vi.fn()} />);
 }
 
-function renderReplacement() {
-  return render(<StationKeyReveal kind="replace" result={result} onDone={vi.fn()} />);
+function renderReplacement(replacement: StationKeyResponse = result) {
+  return render(<StationKeyReveal kind="replace" result={replacement} onDone={vi.fn()} />);
 }
 
 describe("StationKeyReveal", () => {
@@ -178,6 +191,16 @@ describe("StationKeyReveal", () => {
     expect(shown).toContain(
       "Put this key into the station's setup mode. The old key stops working within a minute. It is the same station, so its ID, its passport settings and its stamps all stay.",
     );
+  });
+
+  // 9.2 names a station in the passport, and the row that opened this flow uses that name.
+  // The reveal must not fall back to the device label, or one flow names the station twice.
+  it("titles a replacement by the passport name its row used", () => {
+    const { container } = renderReplacement(withPassport);
+    const shown = container.textContent ?? "";
+
+    expect(shown).toContain("3D Printing Booth has a new key");
+    expect(shown).not.toContain("Reader 3 has a new key");
   });
 
   // Asserted as an absence, because the failure is an organizer reading that they can replace
