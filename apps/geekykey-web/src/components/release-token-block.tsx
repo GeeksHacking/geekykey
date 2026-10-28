@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 /*
-  Lives in components/ so two features can host it (apps/frontend/CLAUDE.md: shared
+  Lives in components/ so two features can host it (apps/event-web/CLAUDE.md: shared
   feature components go here, never feature to feature): the token page's owner view
   and My tokens' rows both hand in the same releasing controls.
 */

@@ -1,10 +1,10 @@
 /*
   Seed data for the mock client, shaped like the GeekyKey Service (agreement 8.4).
   Deterministic so tests are stable, but anchored to "now" so timestamps look live.
-  Uneven numbers on purpose, as apps/frontend/CLAUDE.md asks.
+  Uneven numbers on purpose, as apps/event-web/CLAUDE.md asks.
 
   There are no stations here. Agreement version 0.3 emptied section 10: each Event
-  Service registers its own stations, so the registry lives in apps/frontend now.
+  Service registers its own stations, so the registry lives in apps/event-web now.
 */
 
 export interface MockEventService {

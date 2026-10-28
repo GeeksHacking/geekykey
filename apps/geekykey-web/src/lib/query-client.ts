@@ -14,7 +14,7 @@ interface QueryClientOptions {
 }
 
 /**
- * One place for the cache policy, matching apps/frontend. An ApiError is a definite
+ * One place for the cache policy, matching apps/event-web. An ApiError is a definite
  * answer from the service, so it is never retried; only network failures get another go.
  */
 export function createQueryClient({ retry = true, retryDelay }: QueryClientOptions = {}) {

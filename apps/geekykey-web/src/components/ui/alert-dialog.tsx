@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 /*
-  Copied from apps/frontend/src/components/ui/alert-dialog.tsx, which geekykey-web/CLAUDE.md
+  Copied from apps/event-web/src/components/ui/alert-dialog.tsx, which geekykey-web/CLAUDE.md
   allows when a GeekyKey screen needs it: the token page confirms a release with this, since
   releasing cannot be undone. @radix-ui/react-alert-dialog is already a dependency here.
 */
