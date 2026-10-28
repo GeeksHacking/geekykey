@@ -714,18 +714,18 @@ test("a save that leaves out the link clears it, and a change of link alone is a
   const cookie = await signIn(ORGANIZER);
   const logs = captureLogs();
   const settings = { name: "3D Printing", points: 1 };
-  const linkAfter = async (body: unknown) => {
+  const savedLink = async (body: unknown) => {
     const res = await putPassport("station-3", cookie, body);
     assert.equal(res.status, 200);
     return ((await res.json()) as PassportBody).passport.link;
   };
 
-  assert.equal(await linkAfter(settings), null);
+  assert.equal(await savedLink(settings), null);
   assert.equal((await board()).stations[0]!.passport?.link, null);
   const relinked = { ...settings, link: "https://example.com/printing" };
-  assert.equal(await linkAfter(relinked), "https://example.com/printing");
+  assert.equal(await savedLink(relinked), "https://example.com/printing");
   // The same link again changes nothing.
-  assert.equal(await linkAfter(relinked), "https://example.com/printing");
+  assert.equal(await savedLink(relinked), "https://example.com/printing");
   assert.equal((await board()).stations[0]!.passport?.link, "https://example.com/printing");
   const changed = {
     severity: "INFO",
@@ -765,6 +765,9 @@ test("a bad passport body answers validation_failed and leaves the station as it
     [{ name: "Booth", link: "http://example.com" }, "link"],
     [{ name: "Booth", link: "javascript:alert(1)" }, "link"],
     [{ name: "Booth", link: "example.com" }, "link"],
+    // A browser reads these on our own page as paths on our own site.
+    [{ name: "Booth", link: "https:example.com" }, "link"],
+    [{ name: "Booth", link: "https:/example.com" }, "link"],
     [{ name: "Booth", link: `https://example.com/${"x".repeat(281)}` }, "link"],
     [{ name: "Booth", link: 3 }, "link"],
   ] as const) {

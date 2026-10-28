@@ -77,8 +77,11 @@ const boothText = organizerText("booth", { blankAllowed: true })
 /** The longest link to a group's page, in Unicode code points (the API agreement's 9.1). */
 const LINK_MAX = 300;
 
-/** A URL a browser opens over https:, which the passport's button may open. */
-const httpsUrl = z.url({ protocol: /^https$/ });
+/**
+ * A URL a browser opens over https:, written with its `//`. A browser reads
+ * `https:example.com` on our own https: page as a path on our own site.
+ */
+const httpsUrl = z.url({ protocol: /^https$/ }).regex(/^https:\/\//i);
 
 /**
  * The group's page (9.1): trimmed, then a blank or missing one is none, and
