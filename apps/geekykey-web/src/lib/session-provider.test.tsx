@@ -198,6 +198,164 @@ describe("SessionProvider", () => {
       await waitFor(() => expect(result.current.status).toBe("anonymous"));
       expect(result.current.me).toBeNull();
     });
+
+    it("leaves the new person signed in when a sign-in starts while the returning login is in flight", async () => {
+      // Firebase remembers the returning user, so the first /me logs them in again.
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+
+      // Hold POST /auth/firebase, as a slow network would.
+      let releaseLogin!: () => void;
+      const loginGate = new Promise<void>((resolve) => {
+        releaseLogin = resolve;
+      });
+
+      const { api, result } = setup((api) => {
+        const realFirebaseLogin = api.firebaseLogin.bind(api);
+        vi.spyOn(api, "firebaseLogin").mockImplementation(async (idToken: string) => {
+          await loginGate;
+          return realFirebaseLogin(idToken);
+        });
+      });
+      const devLogin = vi.spyOn(api, "devLogin");
+
+      await waitFor(() => expect(api.firebaseLogin).toHaveBeenCalledWith("saved-id-token"));
+
+      // The new person signs in while the returning login is in flight.
+      let signIn!: Promise<MeResponse>;
+      act(() => {
+        signIn = result.current.signIn(SEEDED_ADMIN_ID);
+      });
+
+      // The sign-in must not send its own login while the returning one can still land.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(devLogin).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseLogin();
+        await signIn;
+      });
+
+      await waitFor(() => expect(result.current.me?.user.id).toBe(SEEDED_ADMIN_ID));
+      await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_ADMIN_ID } });
+    });
+
+    it("does not log the returning user in again when a /me answers 401 during a sign-in", async () => {
+      // The first /me answers 401 with nobody in Firebase, so the page starts signed out.
+      savedUserIdToken.mockResolvedValue(null);
+
+      // Hold both logins, so the test decides which one lands last.
+      let releaseDevLogin!: () => void;
+      const devLoginGate = new Promise<void>((resolve) => {
+        releaseDevLogin = resolve;
+      });
+      let releaseFirebaseLogin!: () => void;
+      const firebaseLoginGate = new Promise<void>((resolve) => {
+        releaseFirebaseLogin = resolve;
+      });
+
+      let meCalls = 0;
+      const { api, result } = setup((api) => {
+        const realMe = api.me.bind(api);
+        vi.spyOn(api, "me").mockImplementation(async () => {
+          meCalls += 1;
+          return realMe();
+        });
+        const realDevLogin = api.devLogin.bind(api);
+        vi.spyOn(api, "devLogin").mockImplementation(async (userId: string) => {
+          await devLoginGate;
+          return realDevLogin(userId);
+        });
+        const realFirebaseLogin = api.firebaseLogin.bind(api);
+        vi.spyOn(api, "firebaseLogin").mockImplementation(async (idToken: string) => {
+          await firebaseLoginGate;
+          return realFirebaseLogin(idToken);
+        });
+      });
+
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+      // Firebase now remembers the previous user, and the new person starts signing in.
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+      let signIn!: Promise<MeResponse>;
+      act(() => {
+        signIn = result.current.signIn(SEEDED_ADMIN_ID);
+      });
+      await waitFor(() => expect(api.devLogin).toHaveBeenCalledWith(SEEDED_ADMIN_ID));
+
+      // A /me that went out during the sign-in answers 401. It must not start the
+      // returning user's login, because that login could land after the sign-in's.
+      act(() => {
+        void result.current.refresh();
+      });
+      await waitFor(() => expect(meCalls).toBe(2));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(api.firebaseLogin).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseDevLogin();
+        await signIn;
+      });
+      // Nothing is waiting on this gate unless the returning login started.
+      releaseFirebaseLogin();
+
+      await waitFor(() => expect(result.current.me?.user.id).toBe(SEEDED_ADMIN_ID));
+      await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_ADMIN_ID } });
+    });
+
+    it("does not start a returning login from a /me that lands after the sign-in", async () => {
+      const { api, queryClient, result } = setup((api) => vi.spyOn(api, "firebaseLogin"));
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+      // Firebase still remembers the previous user, so a late 401 would log them in again.
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+
+      // The sign-in waits here, so a /me can go out while it is in flight.
+      let signInCanFinish!: () => void;
+      const signInGate = new Promise<void>((resolve) => {
+        signInCanFinish = resolve;
+      });
+      const realDevLogin = api.devLogin.bind(api);
+      vi.spyOn(api, "devLogin").mockImplementation(async (userId: string) => {
+        await signInGate;
+        return realDevLogin(userId);
+      });
+
+      // A /me that goes out now answers 401, because the cookie is not set yet. It lands
+      // when the test says so.
+      const poll = holdNextMe(api);
+
+      let signIn: Promise<MeResponse> | undefined;
+      act(() => {
+        signIn = result.current.signIn(SEEDED_ADMIN_ID);
+      });
+      // A poll goes out now, while the sign-in is still in flight.
+      poll.holdTheNextOne();
+      act(() => {
+        void result.current.refresh();
+      });
+      signInCanFinish();
+      await act(async () => {
+        await signIn;
+      });
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+      // The poll's 401 lands now, after the sign-in has finished. Its answer says nothing
+      // about the session in place, so it must not log the previous user back in.
+      await act(async () => {
+        poll.refuse(new ApiError(401, "unauthenticated"));
+      });
+      await waitFor(() =>
+        expect(queryClient.getQueryState(queryKeys.me)?.fetchStatus).toBe("idle"),
+      );
+
+      expect(result.current.me?.user.id).toBe(SEEDED_ADMIN_ID);
+      expect(api.firebaseLogin).not.toHaveBeenCalled();
+      await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_ADMIN_ID } });
+    });
   });
 
   it("signs in, exposes /me, and signs out back to anonymous", async () => {

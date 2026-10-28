@@ -40,13 +40,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // (FRO-69).
   const loginAgainInFlight = useRef<Promise<MeResponse | null> | null>(null);
 
+  // Sign-ins that are running. A returning login must not start while one is, or its
+  // POST /auth/firebase could land after the sign-in's and set the cookie back to the
+  // previous user (FRO-91).
+  const signInsInFlight = useRef(0);
+
+  // The session's version. A /me that was asked for under an older version must not act
+  // on its answer, because a sign-in or sign-out may have changed the session since
+  // (FRO-91).
+  const sessionVersion = useRef(0);
+
   const me = useQuery({
     queryKey: queryKeys.me,
     queryFn: async (): Promise<MeResponse | null> => {
+      const version = sessionVersion.current;
       try {
         return await api.me();
       } catch (error) {
-        if (isApiErrorCode(error, "unauthenticated")) return logInAgain();
+        if (isApiErrorCode(error, "unauthenticated")) return logInAgain(version);
         throw error;
       }
     },
@@ -54,8 +65,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
 
   // Any failure here only means the login shows, as it would have without this.
-  function logInAgain(): Promise<MeResponse | null> {
+  function logInAgain(version: number): Promise<MeResponse | null> {
     if (!mayLogInAgain.current) return Promise.resolve(null);
+    // The session changed since this /me was sent, so its 401 describes a session that is
+    // no longer there. A login now would undo the sign-in that replaced it (FRO-91).
+    if (version !== sessionVersion.current) return Promise.resolve(null);
+    // The sign-in that is running has to be the last write to the session cookie, so a
+    // 401 that arrives while it runs does not start a returning login (FRO-91).
+    if (signInsInFlight.current > 0) return Promise.resolve(null);
     // One login at a time, so a sign-out has one promise to wait for and two /me reads
     // cannot send two logins.
     if (loginAgainInFlight.current) return loginAgainInFlight.current;
@@ -111,6 +128,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    */
   const settleSession = useCallback(
     (data: MeResponse | null) => {
+      // A new version, so a /me that was asked for before this write cannot act on its
+      // answer. Its 401 must not start a returning login that would undo the new session
+      // (FRO-91).
+      sessionVersion.current += 1;
       void queryClient.cancelQueries({ queryKey: queryKeys.me });
       queryClient.setQueryData(queryKeys.me, data);
     },
@@ -118,6 +139,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const clearForSignIn = useCallback(() => {
+    // Count the sign-in before the cancel below, so a 401 already on its way cannot
+    // start a returning login during it (FRO-91).
+    signInsInFlight.current += 1;
     // Drop a pre-login poll so its late response cannot overwrite the new identity, and
     // clear the session before the request so a failed sign-in cannot leave the old
     // account visible.
@@ -125,6 +149,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setAuthorizationFailure(undefined);
     clearIdentityQueries();
   }, [clearIdentityQueries, settleSession]);
+
+  const finishSignIn = useCallback(() => {
+    signInsInFlight.current -= 1;
+  }, []);
 
   const completeSignIn = useCallback(
     (data: MeResponse) => {
@@ -134,17 +162,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [settleSession],
   );
 
-  const signIn = useMutation({
-    mutationFn: async (userId: string) => {
-      await api.devLogin(userId);
+  // A returning login that was already running must land first, or its POST /auth/firebase
+  // could set the cookie after this sign-in's and undo it (FRO-91). The wait has no
+  // deadline, as the sign-out's wait has none (FRO-69).
+  const signInAndReadMe = useCallback(
+    async (request: () => Promise<void>): Promise<MeResponse> => {
+      await loginAgainInFlight.current;
+      await request();
       return api.me();
     },
+    [api],
+  );
+
+  const signIn = useMutation({
+    mutationFn: (userId: string) => signInAndReadMe(() => api.devLogin(userId)),
     onMutate: clearForSignIn,
     onSuccess: completeSignIn,
     // A failed sign-in leaves the screens signed out, so the session is settled again
     // here, and a poll that was asked for before the failure cannot bring the old
     // account back.
     onError: () => settleSession(null),
+    onSettled: finishSignIn,
   });
 
   // Agreement 7.2: the screens sign in with the ID token Firebase's web SDK gave them, and
@@ -152,13 +190,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // A returning user's login goes through the /me query instead (logInAgain), so it
   // never shows as a sign-in on the login screen.
   const signInWithFirebase = useMutation({
-    mutationFn: async (idToken: string) => {
-      await api.firebaseLogin(idToken);
-      return api.me();
-    },
+    mutationFn: (idToken: string) => signInAndReadMe(() => api.firebaseLogin(idToken)),
     onMutate: clearForSignIn,
     onSuccess: completeSignIn,
     onError: () => settleSession(null),
+    onSettled: finishSignIn,
   });
 
   const signOut = useMutation({
