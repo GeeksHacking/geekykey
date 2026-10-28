@@ -19,7 +19,12 @@ How the station talks to the server is in [the API agreement](../apps/API-AGREEM
 2. In the Arduino IDE, pick the board. The sketch picks its pins from that board, and the wiring for
    each is at the top of `geekykey_station.ino`.
    - For an ESP32-S3, pick **ESP32S3 Dev Module** and set **USB CDC On Boot** to **Enabled**.
-     Without it, the S3 prints nothing on its USB port and the setup mode can't hear you.
+     Without it, the S3 prints nothing on its USB port and the setup mode can't hear you. Also set
+     **Partition Scheme** to **Huge APP (3MB No OTA/1MB SPIFFS)**. The default scheme leaves the
+     sketch 1.25 MB, and it already uses 1.14 MB. The station is updated over USB, never over the
+     air, so it doesn't need the default's second copy of the app. Both schemes keep the settings and
+     saved taps in the same place, so a reflash with either keeps them. With `arduino-cli`, the
+     board is `esp32:esp32:esp32s3:CDCOnBoot=cdc,PartitionScheme=huge_app`.
    - For a classic ESP32 on a DOIT DevKit V1, pick **DOIT ESP32 DEVKIT V1**. It needs no USB CDC
      setting, because its USB port goes through a separate USB-to-serial chip. Opening that port
      restarts the station.
