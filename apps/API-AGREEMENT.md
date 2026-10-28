@@ -1017,7 +1017,8 @@ leaves the station's booth as it is, and one that gives `booth`, even `null`, se
   it.
 - A station with no game runs the passport from then on (section 4, [Games](#games)), so its
   taps get `accepted` or `cooldown` instead of `no_game`. Taps already stored as `no_game` stay
-  as they are. A station whose game is fixed keeps having none.
+  as they are. A station whose game is fixed keeps having none. Giving it the passport writes the
+  `station_game_changed` line that 9.11 writes, beside this call's own.
 - A station that runs another game keeps it. Its settings are saved, and it isn't a stamp slot
   until an organizer sets its game to `passport` (9.11).
 - A disabled station can be added or changed too, and its settings count once it is enabled
@@ -1157,7 +1158,8 @@ Both fields are required. The Event Service generates the `client_tap_id`.
 - `user_id` is a user ID. It is accepted even if that user has never logged in to this
   event, the same as a station tap by them. The Event Service trims it, then it must be 1 to 128
   characters, as in the hand-off (11.2).
-- `status` is `accepted` or `cooldown`.
+- `status` is `accepted` or `cooldown`, unless an organizer changes the station's game (9.11) at
+  the same moment, when it can be `no_game`.
 - The `client_tap_id` is a random UUID, and `tapped_at` is `null`, so the cooldown goes by when
   the Event Service received the tap.
 - A disabled stamp slot takes a QR fallback tap too, and the tap counts at once, since a disabled

@@ -97,7 +97,8 @@ can no longer tap, such as a lost token.
 One tap point at one event, registered by that event's Event Service, with its own station key.
 Its hardware lent to another event becomes a new station there. It runs one of the event's games,
 or none, as an organizer chooses, and that game sets what a tap there counts for, such as its
-station points. The choice is fixed once a tap there has counted. An organizer can disable a
+station points. The choice is fixed once a game has counted a tap there or held one back. An
+organizer can disable a
 station, turning away everything it sends until it is enabled again.
 _Avoid_: reader, device
 
