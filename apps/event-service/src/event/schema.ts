@@ -55,9 +55,10 @@ export const stations = mysqlTable("stations", {
   readerOk: boolean("reader_ok"),
   /**
    * The game an organizer chose for the station, by the game's ID (the API
-   * agreement's 9.11), or null for none. Only one of the event's games is
-   * meant, but the base knows none by name, so an ID no game has means none
-   * runs there. Fixed once the station has a tap a game counted or held back.
+   * agreement's 9.11), or null for none. 9.11 takes only the event's games,
+   * and an ID no game of the event's has means none runs there, as after a
+   * deploy that drops a game. Fixed once the station has a tap a game counted
+   * or held back.
    */
   game: varchar("game", { length: 64 }),
 });
@@ -97,6 +98,11 @@ export const passportStations = mysqlTable("passport_stations", {
 export const TAP_SOURCES = ["nfc", "qr_fallback"] as const;
 /** `duplicate` and the GeekyKey Service's `unknown_token` are answered, never stored. */
 export const STORED_TAP_STATUSES = ["accepted", "cooldown", "no_game"] as const;
+/**
+ * The statuses of a tap a game judged, counting it or holding it back. One
+ * fixes its station's game (9.11), and the map counts them (9.10).
+ */
+export const COUNTED_TAP_STATUSES = ["accepted", "cooldown"] as const;
 
 /**
  * The migration adds `AUTO_ID_CACHE=1` to this table by hand, since Drizzle

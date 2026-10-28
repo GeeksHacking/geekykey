@@ -1,6 +1,6 @@
 import { asc, eq, inArray, max, type SQL, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { passportStations, stations, taps } from "./schema.ts";
+import { COUNTED_TAP_STATUSES, passportStations, stations, taps } from "./schema.ts";
 
 /** How recently a station must have been heard from to be online (the API agreement's 9.2). */
 const ONLINE_WINDOW_SECONDS = 120;
@@ -77,7 +77,7 @@ async function loadBoardStations(db: Db, now: Date, where?: SQL): Promise<BoardS
   const countedTaps = db
     .selectDistinct({ stationId: taps.stationId })
     .from(taps)
-    .where(inArray(taps.status, ["accepted", "cooldown"]))
+    .where(inArray(taps.status, COUNTED_TAP_STATUSES))
     .as("counted_taps");
 
   const rows = await db
