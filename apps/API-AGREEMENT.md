@@ -13,7 +13,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.7 (draft) |
+| Version | 0.8 (draft) |
 | Date | 28 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
@@ -763,8 +763,8 @@ Everything the participant dashboard and passport view need in one call.
   "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true },
   "points": 3,
   "stamps": [
-    { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "earned_at": "2026-10-10T09:00:01.250Z" },
-    { "station_id": "…", "name": "Cloud Sponsor",     "location": "Hall B", "points": 2, "earned_at": null }
+    { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "link": "https://example.com/3d-printing", "earned_at": "2026-10-10T09:00:01.250Z" },
+    { "station_id": "…", "name": "Cloud Sponsor",     "location": "Hall B", "points": 2, "link": null, "earned_at": null }
   ],
   "recent_taps": [
     { "id": 42, "station_id": "…", "station_name": "3D Printing Booth", "status": "accepted", "source": "nfc", "tapped_at": "2026-10-10T09:00:00.000Z", "received_at": "2026-10-10T09:00:01.250Z" }
@@ -785,6 +785,9 @@ Everything the participant dashboard and passport view need in one call.
   offline, that is when it sent the tap, not when it read the token.
 - `stamps[].points` is what one accepted tap at that station is worth, not what this user has
   earned there. The user's total is `points`.
+- `stamps[].link` is the group's page from the station's passport settings (9.1), or `null`.
+  It comes with every stamp slot, earned or not, so the passport has it as soon as a poll shows
+  a new stamp, and offers it with a button (section 13).
 - `recent_taps` is the user's last 50 stored taps, newest first by when the Event Service
   received them. Statuses other than `accepted` are included so a participant can see "that tap
   didn't count". `station_name` is `null` for a station that isn't a stamp slot.
@@ -989,10 +992,11 @@ station board.
 **Request**
 
 ```json
-{ "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1 }
+{ "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "link": "https://example.com/3d-printing" }
 ```
 
-`location` optional, `booth` optional, `points` optional (default 1, integer 0 or more).
+`location` optional, `booth` optional, `points` optional (default 1, integer 0 or more), `link`
+optional.
 
 `booth` sets the station's booth, as 9.12 does. The booth belongs to the station, whatever game
 it runs, and `passport.booth` gives the same value. `location` stays the text participants read
@@ -1003,14 +1007,20 @@ The Event Service trims `name`, `location` and `booth` and counts them in Unicod
 80 each. A blank or `null` `location` or `booth` means none, and the answer gives it as `null`.
 `points` must also fit a 32-bit integer, so at most 2147483647.
 
-Each request sets `name`, `location` and `points`. A change that leaves out `location` clears it,
-and one that leaves out `points` sets the points back to 1. A request that leaves out `booth`
+`link` is the group's page, which the passport offers after a stamp there (8.1). The Event Service
+trims it too, and a blank or `null` link means none. Otherwise it must be a URL a browser opens
+over `https:`, and at most 300 code points. The Event Service keeps it as given, without
+rewriting it, so the station board's form shows what the organizer typed.
+
+Each request sets `name`, `location`, `points` and `link`. A change that leaves out `location`
+or `link` clears it, so the station board's form sends both back with every save. One that
+leaves out `points` sets the points back to 1. A request that leaves out `booth`
 leaves the station's booth as it is, and one that gives `booth`, even `null`, sets it.
 
 **Response `201`** when added, **`200`** when changed:
 
 ```json
-{ "passport": { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "added_at": "…" } }
+{ "passport": { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "link": "https://example.com/3d-printing", "added_at": "…" } }
 ```
 
 - A station added to the passport takes the last stamp slot. Changing its settings never moves
@@ -1054,7 +1064,7 @@ organizers can choose from.
       "game": "passport",
       "game_fixed": true,
       "booth": "A3",
-      "passport": { "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "added_at": "…" },
+      "passport": { "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "link": "https://example.com/3d-printing", "added_at": "…" },
       "last_seen_at": "2026-10-10T09:00:01.250Z",
       "online": true,
       "firmware_version": "0.3.1",
@@ -1076,6 +1086,7 @@ organizers can choose from.
 | `booth` | The booth the map draws it at (9.12), or `null` |
 | `passport` | `null` for a station without passport settings. The screen shows it as "Not in the passport", with a button to add its settings (9.1). A station with settings is a stamp slot only while its `game` is `passport` |
 | `passport.booth` | The same as `booth`, kept because fields are never removed. Read `booth` |
+| `passport.link` | The group's page that 8.1 gives with the station's stamp (9.1), or `null` |
 | `last_seen_at`, `online` | When this Event Service last heard from the station, by a tap or a heartbeat, and whether that was within 120 seconds |
 | `firmware_version`, `buffered_taps`, `reader_ok` | From its last heartbeat, or `null` |
 | `last_tap_at` | When this Event Service last received a stored tap from the station, or `null` |
@@ -1766,6 +1777,10 @@ There are no GeekyKey admin screens.
 - When `has_name` is `false`, the passport asks "What should we call you?", with **Save** and
   **Skip**. Skipping keeps `Guest`, and the passport keeps a way to set the name later. On
   `validation_failed` it says "Use 1 to 30 characters."
+- When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
+  offers the group's page with a button, **"Open their page?"**, which opens `link` in a new tab.
+  It never opens the page by itself, since a browser opens one only after a press. A stamp with
+  no link shows no button.
 - Until its endpoints are live, a screen that answers from the screens' own sample data says so
   above its content. With no service behind the screens at all, it says "Demo data. This screen
   shows sample data." Every screen built so far sends every call to its own service, so with the
@@ -1882,3 +1897,4 @@ Closed on 2026-10-10:
 | 2026-10-27 | 6.2 says a station may hold a heartbeat back by at most 30 seconds while it answers taps, so two heartbeats can be up to about 90 seconds apart. Ours waits while a result shows and for 2 seconds after one. No endpoint or shape changes (HAR-19). |
 | 2026-10-27 | Our Event Service runs the grad tea on 12 November 2026, then the showcase, one event at a time with its data cleared between them (section 12, and the table at the top). The showcase is on 17 November 2026, not 18 November, as the scope now says. No endpoint or shape changes (BAC-88). |
 | 2026-10-28 | Version 0.7, a draft for Ethan's review, with BAC-90's change and BAC-89's together. Each station runs one of the event's games, or none (section 4, "Games"). 9.2 lists the games organizers can choose from, and gives each station its `game` and `game_fixed`. The new 9.11 sets a station's game. The game is fixed once a game has counted or held back a tap there, and a change then answers the new `409 station_has_taps`, with the station board's sentence in section 13. Stamp slots are now the stations that run the passport and have its settings, in 8.1, 9.3, 9.4, 9.5, 9.6 and 9.10, so a station that keeps its settings but runs another game has no passport name in any of them. 9.1 gives a station with no game the passport, so the station board's "add to the passport" still makes a station count. The migration gives every station with passport settings the passport, so taps are judged as before. 9.10 lists every station with its `game`, the stamp slots first, so the map can draw connection points (BAC-90). The booth moves onto the station: 9.2 gives each station's `booth`, and the new 9.12 sets it at any time. 9.1's `booth` sets the same value, and a request that leaves it out no longer clears it. `passport.booth` stays, with the same value, and 9.10's `booth` is the station's. A change of booth, through 9.1 or 9.12, writes a new log line, `station_booth_changed` (BAC-89). No field is removed. |
+| 2026-10-28 | Version 0.8, a draft for Ethan's review: a passport station can give the group's page with its stamp (BAC-99). 9.1 takes an optional `link`, trimmed, which must be a URL a browser opens over `https:`, at most 300 code points. Any other link gets `validation_failed`. A blank or `null` link is none, and a request that leaves it out clears it, as `location` does. 9.2 gives it as `passport.link`, and 8.1 gives it with each stamp as `stamps[].link`, or `null`. Section 13 has the button the passport shows after a new stamp with a link, "Open their page?". A new nullable column holds it, so the version still running keeps working while it deploys. No field is removed. |
