@@ -14,6 +14,9 @@ export function useSetDisplayName() {
   return useMutation({
     mutationFn: (displayName: string) => api.setDisplayName({ display_name: displayName }),
     onSuccess: ({ user }) => {
+      // A poll asked for before the PATCH answers with the user as they were then, so drop
+      // it, or its late answer puts the old name back and the prompt returns (FRO-68).
+      void queryClient.cancelQueries({ queryKey: queryKeys.me });
       queryClient.setQueryData<MeResponse | null>(queryKeys.me, (me) =>
         me ? { ...me, user } : me,
       );
