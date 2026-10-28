@@ -7,6 +7,7 @@ import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { MeResponse } from "@/api/types";
 import { useSession } from "@/lib/session";
+import { FIREBASE_SIGN_OUT_FAILED_KEY } from "@/lib/sign-out-marker";
 import { createTestProviders } from "@/test/providers";
 
 const { signOutOfFirebase, savedUserIdToken } = vi.hoisted(() => ({
@@ -22,6 +23,8 @@ beforeEach(() => {
   // Firebase remembers nobody unless a test says otherwise.
   savedUserIdToken.mockReset();
   savedUserIdToken.mockResolvedValue(null);
+  // A persisted sign-out survives a reload, so no test may inherit another's.
+  localStorage.removeItem(FIREBASE_SIGN_OUT_FAILED_KEY);
 });
 
 /** A token the seeded participant owns, used as an identity-scoped cache key. */
@@ -30,9 +33,8 @@ const SOME_UID = "04A1B2C3D4E5F6";
 /** Any shape, as a cached value: these tests only care that the key gets cleared. */
 const cachedToken = { uid: SOME_UID, owner: "you", claimed_at: null, owner_id: null };
 
-function setup(prepare?: (api: MockApiClient) => void) {
-  const api = createMockClient({ latencyMs: [0, 0], storage: null });
-  prepare?.(api);
+/** One page load: a fresh query cache and a fresh provider over the same service. */
+function mount(api: MockApiClient) {
   const { Providers, queryClient } = createTestProviders(api, { session: true });
   // Every status the screens saw, so a test can tell that the login never showed.
   const statuses: string[] = [];
@@ -44,7 +46,36 @@ function setup(prepare?: (api: MockApiClient) => void) {
     },
     { wrapper: Providers },
   );
-  return { api, queryClient, statuses, ...rendered };
+  return { queryClient, statuses, ...rendered };
+}
+
+function setup(prepare?: (api: MockApiClient) => void) {
+  const api = createMockClient({ latencyMs: [0, 0], storage: null });
+  prepare?.(api);
+  return { api, ...mount(api) };
+}
+
+/**
+ * Signs in, then signs out while Firebase's sign-out fails and Firebase still remembers the
+ * user. The page is unmounted, leaving the marker that a reload reads.
+ */
+async function signOutWithFirebaseFailing(api: MockApiClient) {
+  const page = mount(api);
+  await waitFor(() => expect(page.result.current.status).toBe("anonymous"));
+  await act(async () => {
+    await page.result.current.signIn(SEEDED_PARTICIPANT_ID);
+  });
+  await waitFor(() => expect(page.result.current.status).toBe("authenticated"));
+
+  // Firebase's sign-out fails, so it still remembers the user after the sign-out.
+  signOutOfFirebase.mockRejectedValue(new Error("firebase is down"));
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  savedUserIdToken.mockResolvedValue("saved-id-token");
+  await act(async () => {
+    await page.result.current.signOut();
+  });
+  expect(page.result.current.status).toBe("anonymous");
+  page.unmount();
 }
 
 /**
@@ -355,6 +386,48 @@ describe("SessionProvider", () => {
       expect(result.current.me?.user.id).toBe(SEEDED_ADMIN_ID);
       expect(api.firebaseLogin).not.toHaveBeenCalled();
       await expect(api.me()).resolves.toMatchObject({ user: { id: SEEDED_ADMIN_ID } });
+    });
+  });
+
+  describe("a failed Firebase sign-out (FRO-92)", () => {
+    it("keeps the person signed out after a reload when Firebase's sign-out failed", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      await signOutWithFirebaseFailing(api);
+
+      // The reload. The service's cookie is gone, so /me answers 401, and Firebase still
+      // remembers the user, which used to log them straight back in.
+      const firebaseLogin = vi.spyOn(api, "firebaseLogin");
+      const second = mount(api);
+      await waitFor(() => expect(second.result.current.status).not.toBe("loading"));
+
+      expect(second.result.current.status).toBe("anonymous");
+      expect(second.result.current.me).toBeNull();
+      expect(firebaseLogin).not.toHaveBeenCalled();
+      await expect(api.me()).rejects.toMatchObject({ status: 401, code: "unauthenticated" });
+    });
+
+    it("logs the returning user in again once a sign-in clears the failed sign-out", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      await signOutWithFirebaseFailing(api);
+
+      const second = mount(api);
+      await waitFor(() => expect(second.result.current.status).toBe("anonymous"));
+
+      // An explicit sign-in is the new person's intent, so it ends the persisted sign-out.
+      await act(async () => {
+        await second.result.current.signIn(SEEDED_ADMIN_ID);
+      });
+      await waitFor(() => expect(second.result.current.status).toBe("authenticated"));
+
+      // The service's 12-hour session ends and Firebase still remembers the user. The next
+      // /me must log them in again, so the marker must not outlive the sign-in.
+      const firebaseLogin = vi.spyOn(api, "firebaseLogin");
+      api.mock.setSession(null);
+      await act(async () => {
+        await second.result.current.refresh();
+      });
+      await waitFor(() => expect(firebaseLogin).toHaveBeenCalledWith("saved-id-token"));
+      await waitFor(() => expect(second.result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID));
     });
   });
 

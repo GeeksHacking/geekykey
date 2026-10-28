@@ -6,6 +6,11 @@ import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type { MeResponse } from "@/api/types";
 import { SessionContext, type SessionStatus } from "@/lib/session";
+import {
+  clearFirebaseSignOutFailed,
+  hasFailedFirebaseSignOut,
+  markFirebaseSignOutFailed,
+} from "@/lib/sign-out-marker";
 
 /*
   The session is the ["me"] query on the GeekyKey Service (agreement 8.4). Its data has
@@ -19,7 +24,8 @@ import { SessionContext, type SessionStatus } from "@/lib/session";
   Before it settles on null, a 401 logs a returning user in again if Firebase still
   remembers them (agreement 7.2), so the query stays pending and no screen shows the login
   meanwhile. That matters most for a guest: the login would offer "Continue as guest"
-  again, which makes a new guest who doesn't own their token.
+  again, which makes a new guest who doesn't own their token. A sign-out whose Firebase
+  call failed stops that login, across page loads, until someone signs in again (FRO-92).
 
   Firebase is imported where it's used, so a signed-in user's pages don't load it.
 */
@@ -67,6 +73,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Any failure here only means the login shows, as it would have without this.
   function logInAgain(version: number): Promise<MeResponse | null> {
     if (!mayLogInAgain.current) return Promise.resolve(null);
+    // A sign-out on an earlier page load could not clear Firebase, so Firebase still
+    // remembers the person who left. Logging them back in would undo that sign-out
+    // (FRO-92).
+    if (hasFailedFirebaseSignOut()) return Promise.resolve(null);
     // The session changed since this /me was sent, so its 401 describes a session that is
     // no longer there. A login now would undo the sign-in that replaced it (FRO-91).
     if (version !== sessionVersion.current) return Promise.resolve(null);
@@ -156,6 +166,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const completeSignIn = useCallback(
     (data: MeResponse) => {
+      // The person chose to sign in again, so a failed Firebase sign-out no longer holds
+      // them out (FRO-92).
+      clearFirebaseSignOutFailed();
       mayLogInAgain.current = true;
       settleSession(data);
     },
@@ -203,12 +216,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // stay signed in to Firebase. Firebase goes first, because agreement 7.2 has the
       // screens sign a returning user in again whenever Firebase still has them, and a
       // sign-out that left it signed in would sign the same person straight back in. Its
-      // failure is logged and not fatal: the service's cookie is the session, and the user
-      // has to see that failing.
+      // failure is logged and not fatal: the service's cookie is the session. A failed
+      // Firebase sign-out is remembered across the next page load (FRO-92).
       try {
         const { signOutOfFirebase } = await import("@/lib/firebase");
         await signOutOfFirebase();
       } catch (error) {
+        // Firebase still remembers the user, and its memory outlives this page, so the
+        // marker stops the next load's returning login from undoing the sign-out
+        // (FRO-92).
+        markFirebaseSignOutFailed();
         console.error("Signing out of Firebase failed", error);
       }
       // A returning-user login that was already running may still have POST /auth/firebase
