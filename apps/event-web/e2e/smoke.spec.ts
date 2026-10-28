@@ -20,13 +20,43 @@ test("participant cannot open organiser routes", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Organisers only" })).toBeVisible();
 });
 
-test("mobile participant layout keeps its bottom navigation usable", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test("the participant tabs fit, read and mark the current one at 360 px", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
   await signInAsParticipant(page);
 
-  const mobileNav = page.getByRole("navigation", { name: "Sections" }).last();
-  await expect(mobileNav).toBeVisible();
-  await expect(mobileNav.getByRole("link", { name: "Passport" })).toBeVisible();
+  const nav = page.locator('nav[aria-label="Sections"]:visible');
+  await expect(nav).toBeVisible();
+
+  for (const name of ["Home", "Passport", "Activity"]) {
+    await expect(nav.getByRole("link", { name })).toBeVisible();
+  }
+
+  // 12 px is the smallest label FRO-71 allows on a phone.
+  const links = nav.getByRole("link");
+  for (let index = 0; index < (await links.count()); index += 1) {
+    const fontSize = await links
+      .nth(index)
+      .evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+    expect(fontSize).toBeGreaterThanOrEqual(12);
+  }
+
+  // The current tab is a pill inside the bar rather than a third of the screen, and only it
+  // carries the kit's yellow fill.
+  const home = nav.getByRole("link", { name: "Home" });
+  await expect(home).toHaveAttribute("aria-current", "page");
+
+  const pill = home.locator("span").first();
+  const [navBox, pillBox] = await Promise.all([nav.boundingBox(), pill.boundingBox()]);
+  expect(pillBox!.x).toBeGreaterThan(navBox!.x);
+  expect(pillBox!.x + pillBox!.width).toBeLessThan(navBox!.x + navBox!.width);
+  expect(await pill.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(
+    "rgba(0, 0, 0, 0)",
+  );
+
+  const passportPill = nav.getByRole("link", { name: "Passport" }).locator("span").first();
+  expect(await passportPill.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+    "rgba(0, 0, 0, 0)",
+  );
 });
 
 test("a route change to the dashboard focuses its heading", async ({ page }) => {
