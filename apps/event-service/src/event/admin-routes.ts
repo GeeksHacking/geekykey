@@ -74,16 +74,37 @@ const boothText = organizerText("booth", { blankAllowed: true })
   .nullable()
   .transform((text) => text || null);
 
+/** The longest link to a group's page, in Unicode code points (the API agreement's 9.1). */
+const LINK_MAX = 300;
+
+/** A URL a browser opens over https:, which the passport's button may open. */
+const httpsUrl = z.url({ protocol: /^https$/ });
+
 /**
- * A station's passport settings. A blank or missing location is none, and
- * missing points are 1, so a PUT always sets all three. Points fit the `int`
- * column. The booth is the station's, and a missing one leaves it as it is.
+ * The group's page (9.1): trimmed, then a blank or missing one is none, and
+ * any other must be an https: URL of at most 300 code points, kept as typed.
+ */
+const linkText = z
+  .string()
+  .trim()
+  .refine(
+    (text) => text === "" || ([...text].length <= LINK_MAX && httpsUrl.safeParse(text).success),
+    `link must be an https: URL of at most ${LINK_MAX} characters`,
+  )
+  .nullish()
+  .transform((text) => text || null);
+
+/**
+ * A station's passport settings. A blank or missing location or link is none,
+ * and missing points are 1, so a PUT always sets all four. Points fit the
+ * `int` column. The booth is the station's, and a missing one leaves it as it is.
  */
 const passportSchema = z.object({
   name: organizerText("name"),
   location: optionalOrganizerText("location"),
   booth: boothText.optional(),
   points: z.int32().min(0).default(1),
+  link: linkText,
 });
 
 /** A station's booth (9.12), which is never left out. */
@@ -121,6 +142,7 @@ function stationBody(station: BoardStation) {
       // The station's booth, kept in the passport because fields are never removed (9.2).
       booth: station.booth,
       points: station.passport.points,
+      link: station.passport.link,
       added_at: station.passport.addedAt,
     },
     last_seen_at: station.lastSeenAt,
@@ -389,7 +411,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
   // writes no log line, as a repeated disable doesn't.
   app.put("/stations/:id/passport", jsonBody(passportSchema), async (c) => {
     const id = c.req.param("id");
-    const { name, location, booth, points } = c.req.valid("json");
+    const { name, location, booth, points, link } = c.req.valid("json");
     const saved = await c.var.db.transaction(async (tx) => {
       // The station's row, locked, so two organizers saving at once take turns
       // and the second changes what the first added.
@@ -418,6 +440,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
           name: passportStations.name,
           location: passportStations.location,
           points: passportStations.points,
+          link: passportStations.link,
           addedAt: passportStations.addedAt,
         })
         .from(passportStations)
@@ -426,11 +449,14 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         .for("update");
       if (current) {
         const same =
-          current.name === name && current.location === location && current.points === points;
+          current.name === name &&
+          current.location === location &&
+          current.points === points &&
+          current.link === link;
         if (!same) {
           await tx
             .update(passportStations)
-            .set({ name, location, points })
+            .set({ name, location, points, link })
             .where(eq(passportStations.stationId, id));
         }
         return {
@@ -443,7 +469,9 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         };
       }
       const addedAt = now().toISOString();
-      await tx.insert(passportStations).values({ stationId: id, name, location, points, addedAt });
+      await tx
+        .insert(passportStations)
+        .values({ stationId: id, name, location, points, link, addedAt });
       return {
         added: true,
         changed: true,
@@ -481,6 +509,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
           location,
           booth: saved.booth,
           points,
+          link,
           added_at: saved.addedAt,
         },
       },

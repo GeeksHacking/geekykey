@@ -14,6 +14,8 @@ export interface StampSlot {
   location: string | null;
   /** Station points: what one accepted tap there is worth, not what this participant earned there. */
   points: number;
+  /** The group's page, offered once the stamp is earned. Null for none. */
+  link: string | null;
   /** When the Event Service received the first accepted tap there. Null while the slot is empty. */
   earnedAt: string | null;
 }
@@ -57,6 +59,7 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
         name: passportStations.name,
         location: passportStations.location,
         points: passportStations.points,
+        link: passportStations.link,
       })
       .from(passportStations)
       .innerJoin(stations, and(eq(stations.id, passportStations.stationId), runsThePassport))
@@ -109,6 +112,7 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
       name: station.name,
       location: station.location,
       points: station.points,
+      link: station.link,
       earnedAt: visitsByStation.get(station.id)?.firstAt ?? null,
     })),
     recentTaps,

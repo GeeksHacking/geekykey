@@ -91,6 +91,11 @@ export const passportStations = mysqlTable("passport_stations", {
   location: text("location"),
   /** Station points: what one accepted tap there is worth. */
   points: int("points").notNull().default(1),
+  /**
+   * The group's page, an https: URL that /me gives with the station's stamp,
+   * so the passport can offer it after a new stamp. Null for none.
+   */
+  link: text("link"),
   /** When the station was added to the passport, which orders the stamp slots. */
   addedAt: isoTimestamp("added_at").notNull().$defaultFn(isoNow),
 });

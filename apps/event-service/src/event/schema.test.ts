@@ -31,7 +31,7 @@ test("each Event table has only the columns the spec gives it", async () => {
       "tapped_at",
       "received_at",
     ],
-    passport_stations: ["station_id", "name", "location", "points", "added_at"],
+    passport_stations: ["station_id", "name", "location", "points", "added_at", "link"],
   };
   for (const [table, columns] of Object.entries(expected)) {
     assert.deepEqual((await columnsOf(testDb(), table)).toSorted(), columns.toSorted(), table);
@@ -199,6 +199,8 @@ test("dropping the passport's booth keeps each station's booth and passport sett
       location: "Hall A",
       points: 2,
       added_at: "2026-10-12T05:00:00.000Z",
+      // From 0015, which gives every station no link.
+      link: null,
     },
     {
       station_id: "without-booth",
@@ -206,6 +208,7 @@ test("dropping the passport's booth keeps each station's booth and passport sett
       location: null,
       points: 1,
       added_at: "2026-10-12T05:01:00.000Z",
+      link: null,
     },
   ]);
 });

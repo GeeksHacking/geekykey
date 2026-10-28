@@ -50,6 +50,7 @@ export function meRoutes({ session }: MeRouteDeps) {
         name: slot.name,
         location: slot.location,
         points: slot.points,
+        link: slot.link,
         earned_at: slot.earnedAt,
       })),
       recent_taps: me.recentTaps.map((t) => ({
