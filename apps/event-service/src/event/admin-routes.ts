@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
@@ -66,16 +66,28 @@ const optionalOrganizerText = (field: string) =>
     .transform((text) => text || null);
 
 /**
- * A station's passport settings. A blank or missing location or booth is
- * none, and missing points are 1, so a PUT always sets all four. Points fit
- * the `int` column.
+ * A station's booth (9.1, 9.12): a blank or null one is none. Nullable, not
+ * nullish like optionalOrganizerText, so a booth 9.1 leaves out stays
+ * undefined and keeps the station's.
+ */
+const boothText = organizerText("booth", { blankAllowed: true })
+  .nullable()
+  .transform((text) => text || null);
+
+/**
+ * A station's passport settings. A blank or missing location is none, and
+ * missing points are 1, so a PUT always sets all three. Points fit the `int`
+ * column. The booth is the station's, and a missing one leaves it as it is.
  */
 const passportSchema = z.object({
   name: organizerText("name"),
   location: optionalOrganizerText("location"),
-  booth: optionalOrganizerText("booth"),
+  booth: boothText.optional(),
   points: z.int32().min(0).default(1),
 });
+
+/** A station's booth (9.12), which is never left out. */
+const boothSchema = z.object({ booth: boothText });
 
 /**
  * Whether the station has a stored tap that a game counted or held back, from
@@ -102,10 +114,12 @@ function stationBody(station: BoardStation) {
     disabled_at: station.disabledAt,
     game: station.game,
     game_fixed: station.gameFixed,
+    booth: station.booth,
     passport: station.passport && {
       name: station.passport.name,
       location: station.passport.location,
-      booth: station.passport.booth,
+      // The station's booth, kept in the passport because fields are never removed (9.2).
+      booth: station.booth,
       points: station.passport.points,
       added_at: station.passport.addedAt,
     },
@@ -350,6 +364,25 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
     return c.json({ station: stationBody(station!) });
   });
 
+  // Setting the booth a station stands at, or none (9.12), at any time and
+  // whatever game it runs. Only a different booth changes the row, so the
+  // same booth again writes no log line.
+  app.put("/stations/:id/booth", jsonBody(boothSchema), async (c) => {
+    const id = c.req.param("id");
+    const { booth } = c.req.valid("json");
+    const [result] = await c.var.db
+      .update(stations)
+      .set({ booth })
+      // <=> is equality that counts two nulls as equal.
+      .where(and(eq(stations.id, id), sql`not (${stations.booth} <=> ${booth})`));
+    if (result.affectedRows > 0) {
+      log("station_booth_changed", { user_id: c.var.user.id, station_id: id });
+    }
+    const station = await loadBoardStation(c.var.db, now(), id);
+    if (!station) return c.json({ error: "not_found" }, 404);
+    return c.json({ station: stationBody(station) });
+  });
+
   // Adding a station to the passport, or changing its settings (9.1). A
   // station added takes the last stamp slot, since slots follow added_at, and
   // a change keeps added_at, so it never moves. A save that changes nothing
@@ -361,11 +394,17 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
       // The station's row, locked, so two organizers saving at once take turns
       // and the second changes what the first added.
       const [station] = await tx
-        .select({ game: stations.game })
+        .select({ game: stations.game, booth: stations.booth })
         .from(stations)
         .where(eq(stations.id, id))
         .for("update");
       if (!station) return null;
+      // The booth is the station's (9.12), so a save that leaves it out keeps it.
+      const boothChanged = booth !== undefined && booth !== station.booth;
+      if (boothChanged) {
+        await tx.update(stations).set({ booth }).where(eq(stations.id, id));
+      }
+      const savedBooth = booth === undefined ? station.booth : booth;
       // A station with no game runs the passport from now on, so its next taps
       // count, unless its game is fixed or this event doesn't run the passport.
       // Any other game stays.
@@ -378,7 +417,6 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         .select({
           name: passportStations.name,
           location: passportStations.location,
-          booth: passportStations.booth,
           points: passportStations.points,
           addedAt: passportStations.addedAt,
         })
@@ -388,23 +426,32 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         .for("update");
       if (current) {
         const same =
-          current.name === name &&
-          current.location === location &&
-          current.booth === booth &&
-          current.points === points;
+          current.name === name && current.location === location && current.points === points;
         if (!same) {
           await tx
             .update(passportStations)
-            .set({ name, location, booth, points })
+            .set({ name, location, points })
             .where(eq(passportStations.stationId, id));
         }
-        return { added: false, changed: !same, givenThePassport, addedAt: current.addedAt };
+        return {
+          added: false,
+          changed: !same,
+          givenThePassport,
+          boothChanged,
+          booth: savedBooth,
+          addedAt: current.addedAt,
+        };
       }
       const addedAt = now().toISOString();
-      await tx
-        .insert(passportStations)
-        .values({ stationId: id, name, location, booth, points, addedAt });
-      return { added: true, changed: true, givenThePassport, addedAt };
+      await tx.insert(passportStations).values({ stationId: id, name, location, points, addedAt });
+      return {
+        added: true,
+        changed: true,
+        givenThePassport,
+        boothChanged,
+        booth: savedBooth,
+        addedAt,
+      };
     });
     if (!saved) return c.json({ error: "not_found" }, 404);
     // Once the transaction has committed, so a line never names a change that was rolled back.
@@ -422,8 +469,21 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         game: PASSPORT_GAME_ID,
       });
     }
+    // And the line 9.12 writes, for a change of the station's booth.
+    if (saved.boothChanged) {
+      log("station_booth_changed", { user_id: c.var.user.id, station_id: id });
+    }
     return c.json(
-      { passport: { station_id: id, name, location, booth, points, added_at: saved.addedAt } },
+      {
+        passport: {
+          station_id: id,
+          name,
+          location,
+          booth: saved.booth,
+          points,
+          added_at: saved.addedAt,
+        },
+      },
       saved.added ? 201 : 200,
     );
   });

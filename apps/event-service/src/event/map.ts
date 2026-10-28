@@ -13,7 +13,7 @@ export interface MapStation {
   game: string | null;
   /** Its name in the passport while it's a stamp slot, or null. */
   name: string | null;
-  /** Its booth from its passport settings, or null. */
+  /** The booth it stands at (9.12), whatever game it runs, or null. */
   booth: string | null;
   /** Whether an organizer has it disabled. */
   disabled: boolean;
@@ -46,7 +46,7 @@ export function loadMap(db: Db): Promise<MapStation[]> {
       stationId: stations.id,
       game: stations.game,
       name: sql<string | null>`case when ${runsThePassport} then ${passportStations.name} end`,
-      booth: passportStations.booth,
+      booth: stations.booth,
       disabled: sql<boolean>`${stations.disabledAt} is not null`.mapWith(Boolean),
       taps: count(taps.id),
       uniqueParticipants:
@@ -62,10 +62,10 @@ export function loadMap(db: Db): Promise<MapStation[]> {
     .groupBy(
       stations.id,
       stations.game,
+      stations.booth,
       stations.disabledAt,
       stations.createdAt,
       passportStations.name,
-      passportStations.booth,
       passportStations.addedAt,
     )
     .orderBy(
