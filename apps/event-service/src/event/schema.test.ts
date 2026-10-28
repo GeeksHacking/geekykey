@@ -31,7 +31,7 @@ test("each Event table has only the columns the spec gives it", async () => {
       "tapped_at",
       "received_at",
     ],
-    passport_stations: ["station_id", "name", "location", "booth", "points", "added_at"],
+    passport_stations: ["station_id", "name", "location", "points", "added_at"],
   };
   for (const [table, columns] of Object.entries(expected)) {
     assert.deepEqual((await columnsOf(testDb(), table)).toSorted(), columns.toSorted(), table);
@@ -163,5 +163,49 @@ test("a booth set in a station's passport settings moves onto the station", asyn
     { id: "not-in-passport", booth: null },
     { id: "with-booth", booth: "A3" },
     { id: "without-booth", booth: null },
+  ]);
+});
+
+test("dropping the passport's booth keeps each station's booth and passport settings", async () => {
+  // Production as 0013 left it: each booth copied onto its station, and the
+  // old column still holding it.
+  const url = await scratchDatabase("geekykey_event_migration");
+  await migrate(url, await migrationsUpTo("0013_the_booth_is_on_the_station"));
+  const connection = await createConnection({ uri: url });
+  onTestFinished(() => connection.end());
+  await connection.query(
+    `INSERT INTO stations (id, label, api_key_hash, created_at, game, booth) VALUES
+      ('with-booth', 'Reader 1', '${"a".repeat(64)}', '2026-10-12T05:00:00.000Z', 'passport', 'A3'),
+      ('without-booth', 'Reader 2', '${"b".repeat(64)}', '2026-10-12T05:00:00.000Z', 'passport', NULL)`,
+  );
+  await connection.query(
+    `INSERT INTO passport_stations (station_id, name, location, booth, points, added_at) VALUES
+      ('with-booth', 'Booth 1', 'Hall A', 'A3', 2, '2026-10-12T05:00:00.000Z'),
+      ('without-booth', 'Booth 2', NULL, NULL, 1, '2026-10-12T05:01:00.000Z')`,
+  );
+
+  await migrate(url);
+
+  const [stations] = await connection.query("SELECT id, booth FROM stations ORDER BY id");
+  assert.deepEqual(stations, [
+    { id: "with-booth", booth: "A3" },
+    { id: "without-booth", booth: null },
+  ]);
+  const [passport] = await connection.query("SELECT * FROM passport_stations ORDER BY station_id");
+  assert.deepEqual(passport, [
+    {
+      station_id: "with-booth",
+      name: "Booth 1",
+      location: "Hall A",
+      points: 2,
+      added_at: "2026-10-12T05:00:00.000Z",
+    },
+    {
+      station_id: "without-booth",
+      name: "Booth 2",
+      location: null,
+      points: 1,
+      added_at: "2026-10-12T05:01:00.000Z",
+    },
   ]);
 });

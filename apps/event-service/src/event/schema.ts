@@ -89,13 +89,6 @@ export const passportStations = mysqlTable("passport_stations", {
   /** The station's name in the passport, such as "3D Printing Booth". */
   name: text("name").notNull(),
   location: text("location"),
-  /**
-   * No longer set or shown, since the booth moved onto stations (BAC-89).
-   * Dropped by a later migration. Drizzle still names it in every query on
-   * this table, so the drop breaks the version running then for the seconds
-   * before the next one serves, as 0008 did.
-   */
-  booth: text("booth"),
   /** Station points: what one accepted tap there is worth. */
   points: int("points").notNull().default(1),
   /** When the station was added to the passport, which orders the stamp slots. */

@@ -72,7 +72,7 @@ async function harness(settings: Record<string, string> = {}) {
    */
   const addStation = async (
     id: string,
-    passport?: Omit<typeof passportStations.$inferInsert, "stationId" | "booth">,
+    passport?: Omit<typeof passportStations.$inferInsert, "stationId">,
     station: Partial<typeof stations.$inferInsert> = {},
   ) => {
     await db.insert(stations).values({
