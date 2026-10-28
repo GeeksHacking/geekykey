@@ -1779,9 +1779,9 @@ There are no GeekyKey admin screens.
   **Skip**. Skipping keeps `Guest`, and the passport keeps a way to set the name later. On
   `validation_failed` it says "Use 1 to 30 characters."
 - When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
-  offers the group's page with a button, **"Open their page?"**, which opens `link` in a new tab.
-  It never opens the page by itself, since a browser opens one only after a press. A stamp with
-  no link shows no button.
+  shows the stamp's `name` with a button, **"Open their page?"**, which opens `link` in a new
+  tab. It never opens the page by itself, since a browser opens one only after a press. A stamp
+  with no link shows no button.
 - Until its endpoints are live, a screen that answers from the screens' own sample data says so
   above its content. With no service behind the screens at all, it says "Demo data. This screen
   shows sample data." Every screen built so far sends every call to its own service, so with the
