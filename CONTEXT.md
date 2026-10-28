@@ -166,8 +166,8 @@ _Avoid_: big screen, which is only the display it runs on; dashboard
 
 **Booth**:
 A named place on the event's floor plan where a station stands. The floor plan says where each
-booth is; the passport says which booth each station is at, so a station can move booth without
-becoming a different station.
+booth is; each station says which booth it stands at, whatever game it runs, so a station can
+move booth without becoming a different station.
 _Avoid_: location, which is the text a participant reads in the passport; spot
 
 **Connection**:
