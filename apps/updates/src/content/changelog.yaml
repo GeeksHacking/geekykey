@@ -1741,7 +1741,7 @@
   date: 2026-10-28
   area: backend
   change: >-
-    An organizer can give a passport station a link to its group's page, and each stamp now
-    carries that link, so the passport can offer a button to the page after a new stamp. A link
-    must start with https: and be at most 300 characters. The button itself is FRO-89, and the
+    An organizer can give a passport station a link to its group's page, and /me now gives each
+    stamp its station's link, so the passport can offer a button to the page after a new stamp. A
+    link must be a web address that starts with https:// and be at most 300 characters. The button itself is FRO-89, and the
     agreement change waits for Ethan's review.
