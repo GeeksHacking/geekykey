@@ -150,6 +150,54 @@ describe("SessionProvider", () => {
       expect(result.current.status).toBe("anonymous");
       expect(firebaseLogin).not.toHaveBeenCalled();
     });
+
+    it("leaves the service signed out when a sign-out starts while the login is in flight", async () => {
+      // Firebase remembers the user while the service's /me answers 401, so the provider
+      // starts agreement 7.2's login again.
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+
+      // Hold POST /auth/firebase in flight, as a slow network would.
+      let releaseLogin!: () => void;
+      const loginGate = new Promise<void>((resolve) => {
+        releaseLogin = resolve;
+      });
+
+      const { api, result } = setup((api) => {
+        const realFirebaseLogin = api.firebaseLogin.bind(api);
+        vi.spyOn(api, "firebaseLogin").mockImplementation(async (idToken: string) => {
+          await loginGate;
+          return realFirebaseLogin(idToken);
+        });
+      });
+      const logout = vi.spyOn(api, "logout");
+
+      await waitFor(() => expect(api.firebaseLogin).toHaveBeenCalledWith("saved-id-token"));
+
+      let signOut!: Promise<void>;
+      act(() => {
+        signOut = result.current.signOut();
+      });
+      // The sign-out has started and Firebase is signed out, but the service must not be
+      // told to log out while the login can still set the cookie again.
+      await waitFor(() => expect(signOutOfFirebase).toHaveBeenCalled());
+      expect(logout).not.toHaveBeenCalled();
+
+      await act(async () => {
+        releaseLogin();
+        await signOut;
+      });
+
+      // The login landed while the sign-out was running. The service is signed out, and
+      // the next /me says so.
+      expect(logout).toHaveBeenCalledTimes(1);
+      await expect(api.me()).rejects.toMatchObject({ status: 401, code: "unauthenticated" });
+      // The provider's own next read must not sign the person back in either.
+      await act(async () => {
+        await result.current.refresh();
+      });
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+      expect(result.current.me).toBeNull();
+    });
   });
 
   it("signs in, exposes /me, and signs out back to anonymous", async () => {
