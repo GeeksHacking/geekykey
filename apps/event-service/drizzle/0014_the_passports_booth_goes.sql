@@ -1,0 +1,14 @@
+-- The contract step of 0013 (BAC-101): passport_stations.booth goes, since
+-- each station's booth is on stations and nothing reads the old column. Each
+-- station keeps the booth 0013 copied onto it, and its passport settings.
+-- The version still running names this column wherever it reads a whole row
+-- of passport_stations or adds one, since Drizzle lists every column its
+-- schema knows. From this migration until the new version serves, about 20
+-- seconds in the deploy job, its station board fails, and so does every
+-- organizer change to a station: creating one, a new key, disabling or
+-- enabling, its game, its booth, and its first passport settings. Most of
+-- those make the change and then fail to answer, so a new station or a new
+-- key is stored but its key is never shown, and nobody changes a station in
+-- that window. Taps, the passport and the map name their columns, and keep
+-- working.
+ALTER TABLE `passport_stations` DROP COLUMN `booth`;

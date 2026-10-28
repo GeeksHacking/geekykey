@@ -99,6 +99,13 @@
       "when": 1793166150298,
       "tag": "0013_the_booth_is_on_the_station",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1793189466372,
+      "tag": "0014_the_passports_booth_goes",
+      "breakpoints": true
     }
   ]
 }
