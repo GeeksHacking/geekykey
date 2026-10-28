@@ -1,7 +1,7 @@
 /**
- * Timestamp formatting, matching apps/frontend's helpers so a claim time reads the same
+ * Timestamp formatting, matching apps/event-web's helpers so a claim time reads the same
  * on both sets of screens. Only what this app needs today; the rest live in
- * apps/frontend/src/lib/format.ts for the Event screens.
+ * apps/event-web/src/lib/format.ts for the Event screens.
  */
 
 const timeFormat = new Intl.DateTimeFormat(undefined, {

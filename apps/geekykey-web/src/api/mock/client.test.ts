@@ -442,7 +442,7 @@ describe("geekykey-web mock client", () => {
   describe("no station endpoints since 0.3", () => {
     it("has no station methods left on the client", () => {
       // Section 10 is empty: each Event Service registers its own stations now, so the
-      // registry belongs to apps/frontend (agreement 9.7 to 9.9).
+      // registry belongs to apps/event-web (agreement 9.7 to 9.9).
       const api = createMockClient({ latencyMs: [0, 0], storage: null });
       const methods = Object.keys(api).filter((key) => key !== "mock");
       for (const gone of [
