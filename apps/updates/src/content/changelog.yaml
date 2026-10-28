@@ -1719,3 +1719,12 @@
     game is fixed once that game has counted or held back a tap there. The trade-offs we accept:
     a station can't change game mid-evening, and a station moved off the passport keeps its
     passport settings, unused.
+
+- id: booth-on-the-station
+  date: 2026-10-28
+  area: backend
+  change: >-
+    A station's booth now belongs to the station, not to its passport settings, so the map can
+    draw a connection point, or a station running any other game, at its booth. Organizers can
+    move a station to another booth at any time, even after its first tap, and each station keeps
+    the booth it had before the change.
