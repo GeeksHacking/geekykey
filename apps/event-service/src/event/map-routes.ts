@@ -12,10 +12,11 @@ export interface MapRouteDeps {
   session: SessionOptions;
 }
 
-/** A passport station as the map's data lists it (the API agreement's 9.10). */
+/** A station as the map's data lists it (the API agreement's 9.10). */
 function stationBody(station: MapStation) {
   return {
     station_id: station.stationId,
+    game: station.game,
     name: station.name,
     booth: station.booth,
     disabled: station.disabled,

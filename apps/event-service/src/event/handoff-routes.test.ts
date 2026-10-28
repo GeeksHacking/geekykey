@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { onTestFinished, test, vi } from "vitest";
 import { setupFixture, testApp, testDb, TEST_EVENT_SERVICE_KEY } from "../test-helpers.ts";
-import { stations, taps } from "./schema.ts";
+import { passportStations, stations, taps } from "./schema.ts";
 
 // The Event side's hand-off, as the GeekyKey Service sends it: the API
 // agreement's 11.2.
@@ -103,6 +103,42 @@ test("a tap at a station without passport settings is stored and answered no_gam
   assert.deepEqual(await storedTaps(), [
     { station: "station-2", id: "t1", user: userId, status: "no_game" },
   ]);
+});
+
+test("a tap at a station running another game earns no stamp, even with passport settings", async () => {
+  const { userId } = await setupFixture();
+  await testDb()
+    .insert(stations)
+    .values({
+      id: "station-2",
+      label: "Reader 2",
+      apiKeyHash: "b".repeat(64),
+      game: "connections",
+    });
+  await testDb().insert(passportStations).values({ stationId: "station-2", name: "Booth 2" });
+
+  const res = await handOff({
+    station_id: "station-2",
+    taps: [{ client_tap_id: "t1", user_id: userId, tapped_at: null }],
+  });
+  assert.deepEqual(await res.json(), { results: [{ client_tap_id: "t1", status: "no_game" }] });
+
+  // The participant's passport has only the station that runs it, still empty.
+  const login = await app.request("/auth/dev-login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  const cookie = (login.headers.get("Set-Cookie") ?? "").split(";")[0]!;
+  const me = (await (await app.request("/api/v1/me", { headers: { Cookie: cookie } })).json()) as {
+    points: number;
+    stamps: { name: string; earned_at: string | null }[];
+  };
+  assert.equal(me.points, 0);
+  assert.deepEqual(
+    me.stamps.map((stamp) => [stamp.name, stamp.earned_at]),
+    [["Booth 1", null]],
+  );
 });
 
 test("a body the schema rejects is a 400, and nothing is stored", async () => {

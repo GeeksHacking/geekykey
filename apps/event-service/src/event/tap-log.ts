@@ -1,6 +1,7 @@
 import { and, desc, eq, lt } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { passportStations, taps, users } from "./schema.ts";
+import { passportStations, stations, taps, users } from "./schema.ts";
+import { runsThePassport } from "./stamp-slots.ts";
 import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
 
 /** One stored tap in the organizers' scan log. No token ID: the Event side never sees one. */
@@ -8,7 +9,7 @@ export interface LoggedTap {
   id: number;
   clientTapId: string;
   stationId: string;
-  /** Its name in the passport, or null for a station outside the passport. */
+  /** Its name in the passport, or null for a station that isn't a stamp slot. */
   stationName: string | null;
   userId: string;
   /** The name the event shows, or null for someone who has never logged in to this event. */
@@ -38,27 +39,35 @@ export interface TapLogPage {
 }
 
 /**
- * Every stored tap with its station's passport name and its user's display
- * name, for the scan log and the export to narrow and order.
+ * Every stored tap with its station's passport name, while the station is a
+ * stamp slot, and its user's display name, for the scan log and the export to
+ * narrow and order.
  */
 export function selectLoggedTaps(db: Db) {
-  return db
-    .select({
-      id: taps.id,
-      clientTapId: taps.clientTapId,
-      stationId: taps.stationId,
-      stationName: passportStations.name,
-      userId: taps.userId,
-      displayName: users.displayName,
-      status: taps.status,
-      source: taps.source,
-      tappedAt: taps.tappedAt,
-      receivedAt: taps.receivedAt,
-    })
-    .from(taps)
-    .leftJoin(passportStations, eq(passportStations.stationId, taps.stationId))
-    .leftJoin(users, eq(users.id, taps.userId))
-    .$dynamic();
+  return (
+    db
+      .select({
+        id: taps.id,
+        clientTapId: taps.clientTapId,
+        stationId: taps.stationId,
+        stationName: passportStations.name,
+        userId: taps.userId,
+        displayName: users.displayName,
+        status: taps.status,
+        source: taps.source,
+        tappedAt: taps.tappedAt,
+        receivedAt: taps.receivedAt,
+      })
+      .from(taps)
+      .innerJoin(stations, eq(stations.id, taps.stationId))
+      // A name only for a stamp slot.
+      .leftJoin(
+        passportStations,
+        and(eq(passportStations.stationId, taps.stationId), runsThePassport),
+      )
+      .leftJoin(users, eq(users.id, taps.userId))
+      .$dynamic()
+  );
 }
 
 /**

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { onTestFinished, test, vi } from "vitest";
 import { fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
-import { passportStations, stations, taps, users } from "./schema.ts";
+import { PASSPORT_GAME_ID, passportStations, stations, taps, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -49,8 +49,17 @@ async function harness() {
   ]);
 
   /** Registers a station, outside the passport unless given a passport name. */
-  const addStation = async (id: string, passportName?: string) => {
-    await db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
+  const addStation = async (
+    id: string,
+    passportName?: string,
+    game: string | null = passportName ? PASSPORT_GAME_ID : null,
+  ) => {
+    await db.insert(stations).values({
+      id,
+      label: `Reader ${id}`,
+      apiKeyHash: `unused-${id}`,
+      game,
+    });
     if (passportName)
       await db.insert(passportStations).values({ stationId: id, name: passportName });
   };
@@ -157,12 +166,21 @@ test("a station's own tap puts a QR fallback tap in the cooldown, as another sta
   assert.equal((await logTap()).result.status, "cooldown");
 });
 
-test("a station without passport settings, or none of this Event Service's, is not_found, and nothing is stored", async () => {
+test("a station that isn't a stamp slot, or none of this Event Service's, is not_found, and nothing is stored", async () => {
   const { addStation, signIn, postTap, tapLog } = await harness();
   await addStation("station-plain");
+  // Its passport settings stay, but it runs another game.
+  await addStation("station-other-game", "Old Booth", "connections");
+  // It runs the passport, but has no settings yet.
+  await addStation("station-no-settings", undefined, PASSPORT_GAME_ID);
   const cookie = await signIn(ORGANIZER);
 
-  for (const stationId of ["station-plain", "station-unknown"]) {
+  for (const stationId of [
+    "station-plain",
+    "station-other-game",
+    "station-no-settings",
+    "station-unknown",
+  ]) {
     const res = await postTap(cookie, { station_id: stationId, user_id: PARTICIPANT });
     assert.equal(res.status, 404, stationId);
     assert.deepEqual(await res.json(), { error: "not_found" });

@@ -1,6 +1,7 @@
 import { and, asc, count, countDistinct, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { passportStations, taps } from "./schema.ts";
+import { passportStations, stations, taps } from "./schema.ts";
+import { runsThePassport } from "./stamp-slots.ts";
 
 /** The organizers' totals (the API agreement's 9.5). No token ID: the Event side never sees one. */
 export interface EventStats {
@@ -9,7 +10,7 @@ export interface EventStats {
   acceptedTaps: number;
   /** The users with at least one accepted tap. */
   uniqueParticipants: number;
-  /** Each passport station, in stamp-slot order. */
+  /** Each stamp slot's station, in stamp-slot order. */
   stations: StationStats[];
 }
 
@@ -31,7 +32,7 @@ const isAccepted = eq(taps.status, "accepted");
  * The next poll catches up, as on GET /api/v1/me.
  */
 export async function loadStats(db: Db): Promise<EventStats> {
-  const [[totals], stations] = await Promise.all([
+  const [[totals], slots] = await Promise.all([
     db
       .select({
         totalTaps: count(),
@@ -42,7 +43,7 @@ export async function loadStats(db: Db): Promise<EventStats> {
           ),
       })
       .from(taps),
-    // Every passport station, with or without accepted taps.
+    // Every stamp slot, with or without accepted taps.
     db
       .select({
         stationId: passportStations.stationId,
@@ -51,10 +52,11 @@ export async function loadStats(db: Db): Promise<EventStats> {
         uniqueParticipants: countDistinct(taps.userId),
       })
       .from(passportStations)
+      .innerJoin(stations, and(eq(stations.id, passportStations.stationId), runsThePassport))
       .leftJoin(taps, and(eq(taps.stationId, passportStations.stationId), isAccepted))
       .groupBy(passportStations.stationId, passportStations.name, passportStations.addedAt)
       // The order they were added, as the passport's stamp slots are.
       .orderBy(asc(passportStations.addedAt), asc(passportStations.stationId)),
   ]);
-  return { ...totals!, stations };
+  return { ...totals!, stations: slots };
 }

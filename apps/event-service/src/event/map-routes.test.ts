@@ -3,7 +3,14 @@ import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
 import { TEST_EVENT_SERVICE_KEY, testApp, testDb } from "../test-helpers.ts";
-import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
+import {
+  type NewTap,
+  PASSPORT_GAME_ID,
+  passportStations,
+  stations,
+  taps,
+  users,
+} from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -13,7 +20,8 @@ const PARTICIPANT = "user-1";
 interface MapBody {
   stations: {
     station_id: string;
-    name: string;
+    game: string | null;
+    name: string | null;
     booth: string | null;
     disabled: boolean;
     taps: number;
@@ -62,8 +70,14 @@ async function harness(settings: Record<string, string> = {}) {
   const addStation = async (
     id: string,
     passport?: Omit<typeof passportStations.$inferInsert, "stationId">,
+    game: string | null = passport ? PASSPORT_GAME_ID : null,
   ) => {
-    await db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
+    await db.insert(stations).values({
+      id,
+      label: `Reader ${id}`,
+      apiKeyHash: `unused-${id}`,
+      game,
+    });
     if (passport) await db.insert(passportStations).values({ stationId: id, ...passport });
   };
 
@@ -85,7 +99,7 @@ async function harness(settings: Record<string, string> = {}) {
   return { app, db, signIn, getMap, map, addStation, addTap };
 }
 
-test("lists each passport station in stamp-slot order, counting accepted and cooldown taps", async () => {
+test("lists each stamp slot in slot order, counting accepted and cooldown taps, then every other station", async () => {
   const { db, map, addStation, addTap } = await harness();
   // Created in one order, added to the passport in another: the slots follow the passport.
   await addStation("station-b", { name: "Booth B", addedAt: "2026-10-10T08:00:02.000Z" });
@@ -117,6 +131,7 @@ test("lists each passport station in stamp-slot order, counting accepted and coo
   assert.deepEqual((await map()).stations, [
     {
       station_id: "station-a",
+      game: "passport",
       name: "Booth A",
       booth: null,
       disabled: false,
@@ -126,6 +141,7 @@ test("lists each passport station in stamp-slot order, counting accepted and coo
     },
     {
       station_id: "station-b",
+      game: "passport",
       name: "Booth B",
       booth: null,
       disabled: true,
@@ -135,6 +151,7 @@ test("lists each passport station in stamp-slot order, counting accepted and coo
     },
     {
       station_id: "station-quiet",
+      game: "passport",
       name: "Quiet Booth",
       booth: null,
       disabled: false,
@@ -142,7 +159,40 @@ test("lists each passport station in stamp-slot order, counting accepted and coo
       unique_participants: 0,
       last_tap_at: null,
     },
+    // Its no_game tap isn't counted.
+    {
+      station_id: "station-outside",
+      game: null,
+      name: null,
+      booth: null,
+      disabled: false,
+      taps: 0,
+      unique_participants: 0,
+      last_tap_at: null,
+    },
   ]);
+});
+
+test("a station running another game is listed with its game and booth, but no passport name", async () => {
+  const { map, addStation, addTap } = await harness();
+  await addStation("station-a", { name: "Booth A" });
+  await addStation("station-other", { name: "Old Booth", booth: "C1" }, "connections");
+  // Taps its own game counted or held back.
+  await addTap("station-other", { receivedAt: "2026-10-10T09:00:01.000Z" });
+  await addTap("station-other", { status: "cooldown", receivedAt: "2026-10-10T09:00:02.000Z" });
+
+  const [slot, other] = (await map()).stations;
+  assert.equal(slot!.station_id, "station-a");
+  assert.deepEqual(other, {
+    station_id: "station-other",
+    game: "connections",
+    name: null,
+    booth: "C1",
+    disabled: false,
+    taps: 2,
+    unique_participants: 1,
+    last_tap_at: "2026-10-10T09:00:02.000Z",
+  });
 });
 
 /** The map screen these tests list in MAP_SCREENS. */

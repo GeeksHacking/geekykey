@@ -85,6 +85,13 @@
       "when": 1792987232645,
       "tag": "0011_the_passport_has_booths",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1793155678733,
+      "tag": "0012_each_station_runs_a_game",
+      "breakpoints": true
     }
   ]
 }

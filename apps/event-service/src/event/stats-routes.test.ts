@@ -3,7 +3,14 @@ import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
 import { screensSchemas, testApp, testDb } from "../test-helpers.ts";
-import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
+import {
+  type NewTap,
+  PASSPORT_GAME_ID,
+  passportStations,
+  stations,
+  taps,
+  users,
+} from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -61,8 +68,17 @@ async function harness() {
   };
 
   /** Registers a station, outside the passport unless given passport settings. */
-  const addStation = async (id: string, passport?: { name: string; addedAt?: string }) => {
-    await db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
+  const addStation = async (
+    id: string,
+    passport?: { name: string; addedAt?: string },
+    game: string | null = passport ? PASSPORT_GAME_ID : null,
+  ) => {
+    await db.insert(stations).values({
+      id,
+      label: `Reader ${id}`,
+      apiKeyHash: `unused-${id}`,
+      game,
+    });
     if (passport) await db.insert(passportStations).values({ stationId: id, ...passport });
   };
 
@@ -132,6 +148,20 @@ test("lists each passport station in stamp-slot order, with its accepted taps an
     { station_id: "station-a", name: "Booth A", accepted_taps: 3, unique_participants: 2 },
     { station_id: "station-b", name: "Booth B", accepted_taps: 1, unique_participants: 1 },
     { station_id: "station-quiet", name: "Quiet Booth", accepted_taps: 0, unique_participants: 0 },
+  ]);
+});
+
+test("a station running another game isn't listed, even with passport settings", async () => {
+  const { stats, addStation, addTap } = await harness();
+  await addStation("station-a", { name: "Booth A" });
+  await addStation("station-other", { name: "Old Booth" }, "connections");
+  // Another game counted it, so it's in the totals, but it isn't the passport's.
+  await addTap("station-other");
+
+  const body = await stats();
+  assert.equal(body.accepted_taps, 1);
+  assert.deepEqual(body.stations, [
+    { station_id: "station-a", name: "Booth A", accepted_taps: 0, unique_participants: 0 },
   ]);
 });
 

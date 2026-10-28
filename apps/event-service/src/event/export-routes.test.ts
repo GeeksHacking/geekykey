@@ -3,7 +3,14 @@ import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
 import { testApp, testDb } from "../test-helpers.ts";
-import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
+import {
+  type NewTap,
+  PASSPORT_GAME_ID,
+  passportStations,
+  stations,
+  taps,
+  users,
+} from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -64,8 +71,17 @@ async function harness() {
   };
 
   /** Registers a station, outside the passport unless given a passport name. */
-  const addStation = async (id: string, passportName?: string) => {
-    await db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
+  const addStation = async (
+    id: string,
+    passportName?: string,
+    game: string | null = passportName ? PASSPORT_GAME_ID : null,
+  ) => {
+    await db.insert(stations).values({
+      id,
+      label: `Reader ${id}`,
+      apiKeyHash: `unused-${id}`,
+      game,
+    });
     if (passportName)
       await db.insert(passportStations).values({ stationId: id, name: passportName });
   };
@@ -188,6 +204,17 @@ test("a station outside the passport, a user new to the event and a missing tapp
   assert.deepEqual((await exportLines()).slice(1), [
     `${id},tap-1,station-outside,,never-logged-in,,no_game,nfc,,2026-10-10T09:00:01.250Z`,
   ]);
+});
+
+test("a station running another game has an empty name, even with passport settings", async () => {
+  const { exportLines, addStation, addTap } = await harness();
+  await addStation("station-other", "Old Booth", "connections");
+  const id = await addTap("station-other", {
+    tappedAt: null,
+    receivedAt: "2026-10-10T09:00:01.250Z",
+  });
+
+  assert.equal((await exportLines())[1]!.split(",")[3], "", `tap ${id}`);
 });
 
 test("an event with no taps exports the header alone", async () => {

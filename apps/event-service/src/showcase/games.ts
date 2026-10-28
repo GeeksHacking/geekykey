@@ -1,8 +1,11 @@
 import type { GameOnStations } from "../event/games.ts";
 import { passport } from "../games/passport/passport.ts";
 
-/** The games the showcase runs, and on which stations. */
+/**
+ * The games the showcase runs: the ones organizers choose for each station on
+ * the day, in this order in their list (the API agreement's 9.2), and any that
+ * watch every station.
+ */
 export const showcaseGames: readonly GameOnStations[] = [
-  // Organizers choose the passport's stations on the day, in its settings.
-  { game: passport, stations: "all" },
+  { game: passport, stations: "chosen", name: "Passport" },
 ];

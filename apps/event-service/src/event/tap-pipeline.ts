@@ -8,6 +8,7 @@ import {
   type GameOnStations,
   type GameStatus,
   type GameTap,
+  runsAt,
   type Tx,
 } from "./games.ts";
 import {
@@ -93,7 +94,8 @@ export class TapPipeline {
 
     const stored: PendingTap[] = [];
     const results = await this.#db.transaction(async (tx) => {
-      if (!(await this.#lockStation(tx, stationId))) throw new UnknownStation();
+      const station = await this.#lockStation(tx, stationId);
+      if (!station) throw new UnknownStation();
       const results = Array.from<TapResult>({ length: incoming.length });
 
       // 1. Replays: client IDs already stored for this station, or repeated within this request.
@@ -139,11 +141,12 @@ export class TapPipeline {
         effectiveAt,
       }));
       const byGame: GameStatus[][] = [];
-      for (const { game, stations: runsOn } of this.#games) {
-        if (runsOn !== "all" && !runsOn.includes(stationId)) continue;
+      for (const onStations of this.#games) {
+        if (!runsAt(onStations, station.game)) continue;
+        const { game } = onStations;
         const statuses = await game.judge(gameTaps, context);
         if (statuses.length !== gameTaps.length) {
-          throw new Error(`${game.name} judged ${statuses.length} of ${gameTaps.length} taps`);
+          throw new Error(`${game.id} judged ${statuses.length} of ${gameTaps.length} taps`);
         }
         byGame.push(statuses);
       }
@@ -209,16 +212,19 @@ export class TapPipeline {
    * with a statement of its own before BEGIN, and the locking reads need
    * nothing set.)
    *
-   * Says whether there is such a station.
+   * The lock also keeps the station's game from changing mid-ingest, since
+   * changing it takes the same lock (admin-routes.ts).
+   *
+   * Gives the station's game, or null when there is no such station.
    */
-  async #lockStation(tx: Tx, stationId: string): Promise<boolean> {
+  async #lockStation(tx: Tx, stationId: string): Promise<{ game: string | null } | null> {
     const [station] = await tx
-      .select({ id: stations.id })
+      .select({ game: stations.game })
       .from(stations)
       .where(eq(stations.id, stationId))
       .limit(1)
       .for("update");
-    return station !== undefined;
+    return station ?? null;
   }
 
   /**

@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { onTestFinished, test, vi } from "vitest";
 import { TEST_EVENT_SERVICE_KEY, screensSchemas, testApp, testDb } from "../test-helpers.ts";
-import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
+import {
+  type NewTap,
+  PASSPORT_GAME_ID,
+  passportStations,
+  stations,
+  taps,
+  users,
+} from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -23,11 +30,14 @@ const {
 
 /** GET /api/v1/admin/stations, in the shape section 9.2 of API-AGREEMENT.md agrees. */
 interface BoardBody {
+  games: { id: string; name: string }[];
   stations: {
     id: string;
     label: string;
     created_at: string;
     disabled_at: string | null;
+    game: string | null;
+    game_fixed: boolean;
     passport: {
       name: string;
       location: string | null;
@@ -107,6 +117,10 @@ async function harness() {
   /** POST to an organizer endpoint, with a JSON body when there is one. */
   const post = (path: string, cookie: string, body?: unknown) => send("POST", path, cookie, body);
 
+  /** PUT a station's game (9.11). */
+  const putGame = (stationId: string, cookie: string, body: unknown) =>
+    send("PUT", `/api/v1/admin/stations/${stationId}/game`, cookie, body);
+
   /** PUT a station's passport settings (9.1). */
   const putPassport = (stationId: string, cookie: string, body: unknown) =>
     send("PUT", `/api/v1/admin/stations/${stationId}/passport`, cookie, body);
@@ -131,7 +145,19 @@ async function harness() {
     return ((await res.json()) as { stations: RegisteredStation[] }).stations;
   };
 
-  return { app, db, signIn, getBoard, board, addStation, addTap, post, putPassport, registered };
+  return {
+    app,
+    db,
+    signIn,
+    getBoard,
+    board,
+    addStation,
+    addTap,
+    post,
+    putGame,
+    putPassport,
+    registered,
+  };
 }
 
 /** Catches every log line the test's requests write, as parsed JSON. */
@@ -185,6 +211,7 @@ test("lists a station with its passport settings, its health and its last tap", 
     firmwareVersion: "0.3.1",
     bufferedTaps: 0,
     readerOk: true,
+    game: PASSPORT_GAME_ID,
   });
   await db.insert(passportStations).values({
     stationId: "station-3",
@@ -197,12 +224,15 @@ test("lists a station with its passport settings, its health and its last tap", 
   await addTap("station-3", { receivedAt: "2026-10-10T08:58:12.004Z" });
 
   assert.deepEqual(await board(), {
+    games: [{ id: "passport", name: "Passport" }],
     stations: [
       {
         id: "station-3",
         label: "Reader 3",
         created_at: "2026-10-01T02:00:00.000Z",
         disabled_at: null,
+        game: "passport",
+        game_fixed: true,
         passport: {
           name: "3D Printing Booth",
           location: "Hall A",
@@ -244,6 +274,8 @@ test("a station outside the passport and never heard from has nulls, not zeros",
     label: "Reader station-new",
     created_at: "2026-10-01T02:00:00.000Z",
     disabled_at: null,
+    game: null,
+    game_fixed: false,
     passport: null,
     last_seen_at: null,
     online: false,
@@ -251,6 +283,29 @@ test("a station outside the passport and never heard from has nulls, not zeros",
     buffered_taps: null,
     reader_ok: null,
     last_tap_at: null,
+  });
+});
+
+test("a station's game is fixed once it has a tap a game counted or held back, not a no_game one", async () => {
+  const { board, addStation, addTap } = await harness();
+  await addStation("no-taps", { game: PASSPORT_GAME_ID });
+  await addStation("no-game-taps");
+  await addTap("no-game-taps", { status: "no_game", receivedAt: "2026-10-10T08:00:00.000Z" });
+  await addStation("accepted", { game: PASSPORT_GAME_ID });
+  await addTap("accepted", { receivedAt: "2026-10-10T08:00:00.000Z" });
+  await addStation("cooldown", { game: "connections" });
+  await addTap("cooldown", { status: "cooldown", receivedAt: "2026-10-10T08:00:00.000Z" });
+  // A QR fallback tap counts as much as a station's.
+  await addStation("qr-fallback", { game: PASSPORT_GAME_ID });
+  await addTap("qr-fallback", { source: "qr_fallback", receivedAt: "2026-10-10T08:00:00.000Z" });
+
+  const fixed = Object.fromEntries((await board()).stations.map((s) => [s.id, s.game_fixed]));
+  assert.deepEqual(fixed, {
+    "no-taps": false,
+    "no-game-taps": false,
+    accepted: true,
+    cooldown: true,
+    "qr-fallback": true,
   });
 });
 
@@ -305,6 +360,9 @@ test("an organizer creates a station, sees its key once, and its key's hash is r
     label: "Reader 3",
     created_at: body.station.created_at,
     disabled_at: null,
+    // No game until an organizer chooses one.
+    game: null,
+    game_fixed: false,
     passport: null,
     last_seen_at: null,
     online: false,
@@ -705,7 +763,7 @@ test("a name, a location and a booth are trimmed, a blank location or booth is n
 test("a station added takes the last stamp slot, its next tap is accepted, and earlier no_game taps stay", async () => {
   const { app, db, signIn, putPassport, addStation } = await harness();
   // Named so the IDs, which break a tie in added_at, would put the new station first.
-  await addStation("station-b");
+  await addStation("station-b", { game: PASSPORT_GAME_ID });
   await addStation("station-a");
   await db.insert(passportStations).values({
     stationId: "station-b",
@@ -760,6 +818,22 @@ test("a station added takes the last stamp slot, its next tap is accepted, and e
       { station_id: "station-a", status: "no_game" },
     ],
   );
+});
+
+test("adding settings gives a station with no game the passport, and leaves any other game", async () => {
+  const { signIn, putPassport, addStation, addTap, board } = await harness();
+  await addStation("no-game");
+  await addStation("other-game", { game: "connections" });
+  // A game on every station counted a tap here, so its game is fixed, even as none.
+  await addStation("fixed", { createdAt: "2026-10-01T02:00:01.000Z" });
+  await addTap("fixed", { receivedAt: "2026-10-10T08:00:00.000Z" });
+  const cookie = await signIn(ORGANIZER);
+  for (const id of ["no-game", "other-game", "fixed"]) {
+    assert.equal((await putPassport(id, cookie, { name: `Booth ${id}` })).status, 201, id);
+  }
+
+  const games = Object.fromEntries((await board()).stations.map((s) => [s.id, s.game]));
+  assert.deepEqual(games, { "no-game": "passport", "other-game": "connections", fixed: null });
 });
 
 test("a participant, or nobody signed in, can't change the passport", async () => {
@@ -820,4 +894,116 @@ test("adding or changing a station's settings logs who did it, and a save that c
       station_id: "station-3",
     },
   ]);
+});
+
+test("an organizer sets a station's game, or none, and the answer is the station as the board lists it", async () => {
+  const { signIn, putGame, addStation, board } = await harness();
+  await addStation("station-3");
+  const cookie = await signIn(ORGANIZER);
+
+  const res = await putGame("station-3", cookie, { game: "passport" });
+  assert.equal(res.status, 200);
+  const body: unknown = await res.json();
+  stationResponseSchema.parse(body);
+  const { station } = body as { station: BoardBody["stations"][number] };
+  assert.deepEqual(
+    [station.id, station.game, station.game_fixed],
+    ["station-3", "passport", false],
+  );
+  assert.equal((await board()).stations[0]!.game, "passport");
+
+  const none = await putGame("station-3", cookie, { game: null });
+  assert.equal(none.status, 200);
+  assert.equal((await board()).stations[0]!.game, null);
+});
+
+test("setting a game logs who did it, and the same game again changes nothing and logs nothing", async () => {
+  const { signIn, putGame, addStation } = await harness();
+  await addStation("station-3");
+  const cookie = await signIn(ORGANIZER);
+  const logs = captureLogs();
+  assert.equal((await putGame("station-3", cookie, { game: "passport" })).status, 200);
+  assert.equal((await putGame("station-3", cookie, { game: "passport" })).status, 200);
+  assert.equal((await putGame("station-3", cookie, { game: null })).status, 200);
+  assert.deepEqual(logs(), [
+    {
+      severity: "INFO",
+      message: "station_game_changed",
+      user_id: ORGANIZER,
+      station_id: "station-3",
+      game: "passport",
+    },
+    {
+      severity: "INFO",
+      message: "station_game_changed",
+      user_id: ORGANIZER,
+      station_id: "station-3",
+      game: null,
+    },
+  ]);
+});
+
+test("a station with a tap a game counted or held back keeps its game, and answers station_has_taps", async () => {
+  const { signIn, putGame, addStation, addTap, board } = await harness();
+  await addStation("accepted", { game: PASSPORT_GAME_ID });
+  await addTap("accepted", { receivedAt: "2026-10-10T08:00:00.000Z" });
+  await addStation("cooldown", { game: PASSPORT_GAME_ID, createdAt: "2026-10-01T02:00:01.000Z" });
+  await addTap("cooldown", { status: "cooldown", receivedAt: "2026-10-10T08:00:00.000Z" });
+  const cookie = await signIn(ORGANIZER);
+  const logs = captureLogs();
+
+  for (const id of ["accepted", "cooldown"]) {
+    const res = await putGame(id, cookie, { game: null });
+    assert.equal(res.status, 409, id);
+    assert.deepEqual(await res.json(), { error: "station_has_taps" });
+    // The game it already runs is no change, so it answers 200.
+    assert.equal((await putGame(id, cookie, { game: "passport" })).status, 200, id);
+  }
+  assert.deepEqual(
+    (await board()).stations.map((s) => s.game),
+    ["passport", "passport"],
+  );
+  assert.deepEqual(logs(), []);
+});
+
+test("a station whose taps are all no_game can still change its game", async () => {
+  const { signIn, putGame, addStation, addTap } = await harness();
+  await addStation("station-3");
+  await addTap("station-3", { status: "no_game", receivedAt: "2026-10-10T08:00:00.000Z" });
+  const res = await putGame("station-3", await signIn(ORGANIZER), { game: "passport" });
+  assert.equal(res.status, 200);
+});
+
+test("a game that isn't the event's, or a body without one, answers validation_failed", async () => {
+  const { signIn, putGame, addStation, board } = await harness();
+  await addStation("station-3");
+  const cookie = await signIn(ORGANIZER);
+  for (const body of [{}, { game: "trail" }, { game: "" }, { game: 1 }]) {
+    const res = await putGame("station-3", cookie, body);
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.equal(((await res.json()) as { error: string }).error, "validation_failed");
+  }
+  assert.equal((await board()).stations[0]!.game, null);
+});
+
+test("setting the game of a station this Event Service didn't register answers not_found", async () => {
+  const { signIn, putGame } = await harness();
+  const res = await putGame("someone-elses", await signIn(ORGANIZER), { game: "passport" });
+  assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: "not_found" });
+});
+
+test("a participant, or nobody signed in, can't set a station's game", async () => {
+  const { signIn, putGame, addStation, board } = await harness();
+  await addStation("station-3");
+  const cookie = await signIn(PARTICIPANT);
+  for (const [cookieSent, status, error] of [
+    [cookie, 403, "forbidden"],
+    ["", 401, "unauthenticated"],
+  ] as const) {
+    const res = await putGame("station-3", cookieSent, { game: "passport" });
+    assert.equal(res.status, status);
+    assert.deepEqual(await res.json(), { error });
+  }
+  assert.equal((await board()).stations[0]!.game, null);
 });
