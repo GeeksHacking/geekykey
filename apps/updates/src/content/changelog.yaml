@@ -1728,3 +1728,11 @@
     draw a connection point, or a station running any other game, at its booth. Organizers can
     move a station to another booth at any time, even after its first tap, and each station keeps
     the booth it had before the change.
+
+- id: passport-booth-column-dropped
+  date: 2026-10-28
+  area: backend
+  change: >-
+    The database drops the passport's old booth column, now that each station holds its own booth.
+    Every station keeps the booth it had, and the map and the station board read it from the
+    station as before.
