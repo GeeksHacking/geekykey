@@ -11,8 +11,8 @@ Two audiences, two surfaces:
 - **Participants** on their own phones, mid-event, often under dim venue lighting. Mobile first.
 - **Organisers** on a laptop at the registration desk or a booth. Desktop first, denser.
 
-Key dates: Sprint 1 is 21 Sep to 4 Oct 2026. The Sprint 2 A/B test runs 5 to 18 Oct.
-Showcase is 17 Nov 2026. Scope down before adding features.
+Key dates: the grad tea on 12 Nov 2026 is a pilot of the showcase's games, and the showcase is on
+17 Nov 2026. Scope down before adding features.
 
 ## Sources of truth
 
@@ -137,8 +137,9 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
   `lib/constants.ts`. Example: `features/stations/use-station-board.ts`.
 - Writes are `useMutation` hooks whose `onSuccess` invalidates the keys they change, so
   screens never pass "refetch me" callbacks around. Example:
-  `features/fallback/use-log-fallback-tap.ts` invalidates `["me"]` after a successful QR
-  fallback. A write that answers with what it changed puts that into the cache instead:
+  `features/fallback/use-log-fallback-tap.ts` invalidates `["taps"]` and `queryKeys.stats`
+  after a successful QR fallback, because the tap shows up in the scan log and the totals.
+  A write that answers with what it changed puts that into the cache instead:
   `features/passport/use-set-display-name.ts` writes the `user` that `PATCH /me` answers
   into `["me"]`.
 - Screens read `isPending`, `isError`, `isFetching`, `dataUpdatedAt`, and `data`. They do
@@ -146,7 +147,9 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
 - The session is the `["me"]` query in `lib/session-provider.tsx`. A 401 is a normal
   answer, so the query function returns `null` for it instead of throwing; `undefined`
   means not fetched yet, an object means signed in. Sign-out sets it to `null` and drops
-  every other cached query so nothing leaks to the next person at a shared laptop.
+  every other cached query so nothing leaks to the next person at a shared laptop. The
+  10-second poll runs only while the cache holds a user: a 401 or a sign-out stops it, a
+  login starts it again, and the focus refetch still asks once.
 - The first `["me"]` read also sends the login link a page arrived with
   (`POST /auth/login-link`, agreement 7.4). It is a write, but it is not a mutation: the
   agreement has it sent before anything reads `/me`, and sending it inside that read is
@@ -244,6 +247,11 @@ pnpm worker:typecheck # writes the Worker's types from wrangler.jsonc, then tsc
 pnpm worker:test      # the Worker's tests; needs dist/, so build first
 pnpm worker:dry-run   # bundles the Worker and checks wrangler.jsonc, without deploying
 ```
+
+The first `pnpm test:e2e` on a machine, and the first after a Playwright version bump, both
+need `pnpm exec playwright install chromium`. Each Playwright version wants its own Chromium
+build, so without it the suite stops with "Executable doesn't exist" instead of a test
+failure.
 
 Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test:event-web`,
 `pnpm format:event-web`.
@@ -434,7 +442,7 @@ Rules:
 | `/passport` | participant | `GET /me` `stamps` | `PATCH /me` for the name | every station shown; empty slot where `earned_at` is null; the name prompt while `has_name` is false, and Change name for everyone |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
-| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `PUT /admin/stations/{id}/passport` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; Add to passport on a row with no settings, Edit on one with |
+| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `POST /admin/stations/{id}/key`, `PUT /admin/stations/{id}/passport`, `POST /admin/stations/{id}/disable`, `POST /admin/stations/{id}/enable` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; Add to passport on a row with no settings, Edit on one with; Replace key on every row, disabled rows included; Disable behind a confirmation, Enable at once |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
@@ -565,9 +573,10 @@ backend. Working agreement from the 2 September 2026 team meeting:
 7. shadcn components customised to the tokens, not default.
 8. Only endpoints and fields from the agreement are referenced.
 
-For screenshots, Playwright against the dev server with its own Chromium build works well.
-Two gotchas: Radix Select ignores a synthetic click, so dispatch a `pointerdown` on the
-trigger and then click the option; and headless Arc crashes after a few navigations.
+For screenshots, Playwright against the dev server works well once its Chromium build is
+installed; the Commands section says how. Two gotchas: Radix Select ignores a synthetic
+click, so dispatch a `pointerdown` on the trigger and then click the option; and headless
+Arc crashes after a few navigations.
 
 ## Do not
 

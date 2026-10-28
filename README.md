@@ -862,7 +862,8 @@ running meets the new tables. That's why every migration has to work with it (ru
 Production's logs are in Cloud Logging, which Adam and Ethan can read. They hold no keys or
 cookies, but they do hold every request's full address, so a secret never goes in a URL.
 
-On event days, the rehearsal (by Sat 7 Nov) and 16 to 17 Nov, one instance is kept running,
+On event days, the rehearsal (by Sat 7 Nov), the grad tea on Thu 12 Nov, and from setup on
+Mon 16 Nov to the end of the showcase on Tue 17 Nov, one instance is kept running,
 so no tap waits for one to start. Adam switches it on and off with the commands in
 `infra/README.md`, under "The warm instance", first at the rehearsal. A deploy doesn't undo
 it.
@@ -1028,11 +1029,12 @@ client secret, after the showcase. The migration spec, section 5.2, has the full
    it doesn't understand.
 3. **Staging first.** A change to how the server starts, its settings, its Google Cloud
    setup or how it reaches the database runs on `event-service-staging` before it merges.
-4. **The freeze.** From Wed 11 Nov, six days before the showcase, only fixes merge to
-   `apps/event-service`. The last merge of all is on Mon 16 Nov. From then until the
-   showcase ends on Tue 17 Nov, nothing goes onto `main` except a fix Adam approves and
-   announces in the team chat, so nothing deploys the night before. Every push migrates,
-   so the freeze stops migrations too.
+4. **The freeze.** From Wed 11 Nov, the day before the grad tea, only fixes merge to
+   `apps/event-service`, and the planned switch from the grad tea to the showcase. The last
+   merge of all is on Sun 15 Nov. From then until the showcase ends on Tue 17 Nov, nothing
+   goes onto `main` except a fix Adam approves and announces in the team chat, so nothing
+   deploys on setup day or the night before. Every push migrates, so the freeze stops
+   migrations too.
 5. **Rolling back.** The Event Service is rolled back by revision, then the bad commit is
    reverted, as in [Rolling back](#rolling-back). A Worker, from checkpoint 4 for the
    GeekyKey Service and checkpoint 5 for the screens, is rolled back by reverting the

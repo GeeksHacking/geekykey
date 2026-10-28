@@ -1665,10 +1665,39 @@
     such as 04E40000000000 from being sent as taps. Before the change, a tap's result took 0.25 to
     1.6 seconds to show, with nothing on the screen meanwhile.
 
-- id: showcase-on-17-november
+- id: geekykey-screens-report-a-failed-sign-out
+  date: 2026-10-27
+  area: frontend
+  change: >-
+    On the GeekyKey screens, a sign-out that fails now says so, with the service's message,
+    instead of returning to the login page in silence.
+
+- id: summary-keeps-its-numbers-when-rate-limited
+  date: 2026-10-27
+  area: frontend
+  change: >-
+    When the Event Service rate-limits a poll, the organiser's summary keeps its numbers on
+    screen. A note says they may be a moment old, instead of showing an error.
+
+- id: grad-tea-plan-in-the-spec
   date: 2026-10-27
   area: admin
   change: >-
-    The schedule shows the showcase on Tuesday 17 November, with setup on Monday 16 November, as
-    the Single Source of Truth says. The plan, the runbook and the API agreement use the same
-    dates, so the warm Cloud Run instance and the raised sign-up limit move a day earlier.
+    The A/B test runs at the grad tea on Thu 12 Nov, in the MPH, and the spec now has its plan.
+    It tries several games at once with a Gatsby party look: a quiz, a trail of clues across the
+    hall and, if there's time, Find Gatsby, where participants track down a hidden station. The
+    game with the most unique people becomes our booth's game at the showcase. Both events run on the same Event Service,
+    where organizers choose each station's game, and Adam clears the data in between. The showcase
+    is on Tue 17 Nov, not 18 Nov, and this site's schedule now says so. The backend still freezes
+    on 11 Nov, and the last merge is now Sun 15 Nov. Until then, the button on the token page
+    reads "Open Grad Tea" instead of "Open Capstone Showcase".
+
+- id: grad-tea-pilots-the-showcase-games
+  date: 2026-10-28
+  area: admin
+  change: >-
+    The grad tea now pilots the showcase's own games instead of choosing between new ones: the
+    passport, with the trail's clues on printed cards at each station, and connections between
+    guests. The quiz is dropped, and Find Gatsby stays a stretch game, decided on 5 Nov. At the
+    showcase, each partner station will carry an NFC sticker and a QR code that open the group's
+    own page.

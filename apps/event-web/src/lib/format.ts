@@ -57,11 +57,6 @@ export function formatTimeWithSeconds(iso: string): string {
   return date ? timeWithSecondsFormat.format(date) : EMPTY;
 }
 
-export function formatDate(iso: string): string {
-  const date = parseDate(iso);
-  return date ? fullDateFormat.format(date) : EMPTY;
-}
-
 /** "10 Oct, 09:00" */
 export function formatDateTime(iso: string): string {
   const date = parseDate(iso);
@@ -69,7 +64,7 @@ export function formatDateTime(iso: string): string {
   return `${dateFormat.format(date)}, ${timeFormat.format(date)}`;
 }
 
-export function isSameLocalDay(a: Date, b: Date): boolean {
+function isSameLocalDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -86,20 +81,6 @@ export function formatDayLabel(iso: string, now: Date = new Date()): string {
   yesterday.setDate(now.getDate() - 1);
   if (isSameLocalDay(date, yesterday)) return "Yesterday";
   return fullDateFormat.format(date);
-}
-
-/** Short relative time for status boards: "just now", "45 s ago", "3 min ago", "2 h ago". */
-export function formatRelative(iso: string, now: Date = new Date()): string {
-  const date = parseDate(iso);
-  if (!date) return "Unknown";
-  const seconds = Math.max(0, Math.round((now.getTime() - date.getTime()) / 1000));
-  if (seconds < 10) return "just now";
-  if (seconds < 60) return `${seconds} s ago`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return formatDate(iso);
 }
 
 /** "Today, 09:00" or "10 Oct, 09:00". Used on stamps and activity rows. */

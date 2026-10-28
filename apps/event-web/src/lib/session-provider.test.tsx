@@ -1,5 +1,6 @@
+import { focusManager } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
@@ -501,5 +502,115 @@ describe("SessionProvider with a login link", () => {
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(api.loginLink).not.toHaveBeenCalled();
     expect(result.current.loginLinkError).toBeUndefined();
+  });
+});
+
+describe("SessionProvider's /me poll", () => {
+  // The timer is the behaviour under test, so fake it. shouldAdvanceTime keeps waitFor's
+  // own timers moving; advanceTimersByTimeAsync jumps over the poll interval.
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    focusManager.setFocused(true);
+  });
+
+  async function advance(ms: number) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+  }
+
+  it("stops the timer when the login page's /me answers 401", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    const me = vi.spyOn(api, "me");
+
+    // Three poll intervals. Without the condition the provider asked three times here.
+    // The login test below is the control that shows this setup schedules the timer at all.
+    await advance(30_000);
+
+    expect(me).not.toHaveBeenCalled();
+  });
+
+  it("starts the 10-second poll again after a login", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    const me = vi.spyOn(api, "me");
+
+    await advance(8_000);
+    expect(me).not.toHaveBeenCalled();
+
+    await advance(3_000);
+    await waitFor(() => expect(me).toHaveBeenCalledTimes(1));
+
+    // The first poll leaves a session in the cache, so the next one follows 10 seconds later.
+    await advance(10_500);
+    await waitFor(() => expect(me).toHaveBeenCalledTimes(2));
+  });
+
+  it("starts the poll after a login link signs the person in", async () => {
+    // Agreement 7.4: the link is sent inside the first /me, so the answer is the query's
+    // own data rather than a session written by a mutation.
+    const { api, result } = setup(undefined, "mock");
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    const me = vi.spyOn(api, "me");
+
+    await advance(8_000);
+    expect(me).not.toHaveBeenCalled();
+
+    await advance(3_000);
+    await waitFor(() => expect(me).toHaveBeenCalledTimes(1));
+  });
+
+  it("stops when a poll answers 401 and the session ends", async () => {
+    const { api, result } = setup((client) => client.mock.setSession(SEEDED_PARTICIPANT_ID));
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    const me = vi.spyOn(api, "me");
+    api.mock.failNext("unauthenticated");
+
+    await advance(11_500);
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    expect(me).toHaveBeenCalledTimes(1);
+
+    await advance(30_000);
+    expect(me).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the timer when the person signs out", async () => {
+    const { api, result } = setup((client) => client.mock.setSession(SEEDED_PARTICIPANT_ID));
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+    const me = vi.spyOn(api, "me");
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+    await advance(30_000);
+    expect(me).not.toHaveBeenCalled();
+  });
+
+  it("still asks once when the tab is returned to while signed out", async () => {
+    const { api, result } = setup();
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+    const me = vi.spyOn(api, "me");
+
+    // A focus refetch only runs once the query is stale, which is after 5 seconds.
+    await advance(6_000);
+
+    act(() => focusManager.setFocused(false));
+    act(() => focusManager.setFocused(true));
+    await waitFor(() => expect(me).toHaveBeenCalledTimes(1));
+
+    // That refetch answers 401 again, so the timer stays off.
+    await advance(30_000);
+    expect(me).toHaveBeenCalledTimes(1);
   });
 });

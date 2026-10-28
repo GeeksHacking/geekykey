@@ -12,6 +12,10 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 23 Oct 2026,** after Adam met Julian ([the agenda, with the answers](../meetings/2026-10-23-julian.md), and [the notes](<../meeting-notes/[23 Oct 26] Capstone Meeting.md>)). The showcase game is a collectible rather than a competition, so there's no leaderboard. Julian intends the Event Service and the Event screens to become a GitHub template after the repo split, so checkpoint 7 now draws a line in the code between the base every event gets and the showcase's own games and settings. The map on the big screen comes first, then connections between visitors. Adam moved timed games down to Could, and the station's own text waits on a bigger station screen. Guests are agreed. "The 23 Oct answers" in section 2 lists everything, checkpoint 7 the new scope, and section 12 what's still open. Later the same day, Adam settled how the map reads its data and how two participants connect; checkpoint 7's "The map and connections, in detail" has the design.
 
+> **Updated 27 Oct 2026** (BAC-88). The A/B test runs at the grad tea on Thu 12 Nov, five days before the showcase, on the same Event Service. The grad tea tries several games at once, and the one that draws the most people becomes the game at our booth at the showcase. The showcase is on **Tue 17 Nov**, with setup on Mon 16 Nov: 18 Nov was wrong. The backend still freezes from Wed 11 Nov, and the last merge moves to Sun 15 Nov. "The 27 Oct answers" in section 2 lists the decisions, and section 6, "The grad tea", has the plan.
+
+> **Updated 28 Oct 2026** (BAC-88), after a review of the project's direction with Adam on 27 Oct. The games lock to what Julian settled on 23 Oct: the passport at the partner stations, the map, then connections, which move up to Should. The grad tea runs them as a pilot, so no game is chosen there for the showcase. The quiz is dropped, the trail becomes printed clue cards on the passport, and Find Gatsby stays the stretch game, with a go or no-go on Thu 5 Nov. Each partner station links to its group's page through an NFC sticker and a QR code. "The 27 Oct answers, later" in section 2 lists the decisions, and section 6, "The grad tea", has the plan as it now stands.
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
@@ -37,14 +41,14 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 ## 1. In short
 
-- **Three kinds of service.** The Portal, Qing Guan's, knows who every GeeksHacking user is. At the showcase, people log in through Firebase instead, with Google or with GeeksHacking's login (ADR 0004). The GeekyKey Service is what stations and tokens talk to: it checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. An Event Service runs one event's games and registers that event's stations. We build the GeekyKey Service, and one Event Service for the capstone showcase, whose first game is the passport.
+- **Three kinds of service.** The Portal, Qing Guan's, knows who every GeeksHacking user is. At the showcase, people log in through Firebase instead, with Google or with GeeksHacking's login (ADR 0004). The GeekyKey Service is what stations and tokens talk to: it checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. An Event Service runs one event's games and registers that event's stations. We build the GeekyKey Service, and one Event Service for the capstone showcase, whose first game is the passport. The same Event Service runs the grad tea first, as a pilot of the showcase's games (27 Oct, later). Adam copies its data and then clears it before the showcase (27 Oct).
 - **Two platforms.** The GeekyKey Service and both sets of screens are Cloudflare Workers in GeeksHacking's account, which Julian sets up, and the team has no access to it (1 Oct 2026). The Event Service is a Node server on Google Cloud Run, which GitHub Actions deploys on every merge to `main`, in a Google Cloud project of our own on GeeksHacking's billing account (8 Oct), which turned out to be our existing Firebase project, `geekykey-b035a` (9 Oct). Its resources are set up by hand for now, from written commands.
 - **One TiDB database,** reached only from Cloud Run through an ordinary `mysql2` connection pool. The GeekyKey Service keeps no database: it keeps a copy in memory of the registered stations, and asks for everything else.
 - **Claims stay on our side through the showcase,** in a claims stand-in on our Cloud Run server, behind one module, `Claims`, and the GeekyKey Service moves to the Portal's tag APIs after it (Julian agreed on 8 Oct). The showcase's claims are deleted with its data rather than copied, since its users are Firebase users (ADR 0004). The stand-in isn't part of the Event Service, so token IDs never reach one.
 - **Four addresses,** chosen by Julian on 1 Oct 2026. Stations call `https://key-api.geekshacking.com`. People open `https://key.geekshacking.com` for the token page and My tokens, and `https://event.geekshacking.com` for the passport and the organizers' screens. `https://event-api.geekshacking.com` is the Event Service's own, called by the GeekyKey Service and by the Event screens' Worker.
 - **Staging** is one copy of the Event Service, `event-service-staging`, beside it on Cloud Run, against its own database.
 - **Move first, split second.** Today's backend already runs on TiDB (checkpoint 1). It moves unchanged to Cloud Run and is deployed. Then the line between the two services is drawn inside it. Then the GeekyKey Service is cut out as a Worker, and stations move to it. Login, the new features and getting ready for the day come after that. The whole move is eight checkpoints (section 6).
-- **Dates.** The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov. The rehearsal on production is by Sat 7 Nov, the backend freezes from Wed 11 Nov, and the last merge is on Mon 16 Nov. GeeksHacking's Cloudflare account stays on the free plan, which Adam accepts for the showcase (7 Oct), and the rehearsal checks it (section 11.1).
+- **Dates.** The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov. The rehearsal on production is by Sat 7 Nov, the backend freezes from Wed 11 Nov, the grad tea is on Thu 12 Nov, and the last merge is on Sun 15 Nov (27 Oct). GeeksHacking's Cloudflare account stays on the free plan, which Adam accepts for the showcase (7 Oct), and the rehearsal checks it (section 11.1).
 
 ## 2. For Adam's review
 
@@ -61,7 +65,7 @@ From the meeting with Julian and Qing Guan on Thu 8 Oct, and Adam's calls on the
 7. **The showcase's claims are thrown away,** with the rest of its data. A Firebase UID isn't a Portal user, so "Copy claims to the Portal" goes, and the Portal's tag APIs start empty.
 8. **How each service checks a Firebase login is provisional:** whether a Worker can do it well enough (Adam: "it depends, see if Workers works out"). The spec's call, until the check before checkpoint 5 (BAC-20): the screens sign in with Firebase's SDK, send the ID token to their own service, which checks it against Google's public keys and sets its own cookie, so ADR 0002's rule that each service logs users in itself still holds. *Settled 10 Oct:* a Worker checks the login in about 1 ms of CPU, so this stays (BAC-20, checkpoint 5).
 9. **Housekeeping.** Julian agreed to disconnect Workers Builds from `apps/backend`, and to make the repo public and protect `main`. The first looks done, since Workers Builds hasn't built `main` since 8 Oct. The second isn't done yet. His two diagrams in `assets/` may be public. He makes sure `key.geekshacking.com/t/` keeps working, and `key.` never changes. Only he can use the TiDB console, and he'll be at the showcase. At the split, the Event Service's repo goes under the GeeksHacking organisation.
-10. **The freeze moves earlier** (Julian suggested two weeks; Adam chose one). The backend freezes from Wed 11 Nov: only fixes merge after it. The last merge of all is on Mon 16 Nov, so nothing deploys the night before the showcase.
+10. **The freeze moves earlier** (Julian suggested two weeks; Adam chose one). The backend freezes from Wed 11 Nov: only fixes merge after it. The last merge of all is on Mon 16 Nov, so nothing deploys the night before the showcase. *Changed 27 Oct (Adam, BAC-88):* the showcase is on Tue 17 Nov, so the last merge moves to Sun 15 Nov, the day before setup. The freeze still starts on Wed 11 Nov, the day before the grad tea.
 11. **A stress test before the showcase,** on staging, and rate limiting before it, which isn't built yet (checkpoint 8, BAC-21). Julian also raised a server-side queue for taps. It's in the backlog (BAC-22), and the stress test decides whether we need it (section 12).
 12. **Two ideas stay open.** The meeting suggested a 15-minute cooldown in place of 5; it stays at 5 until Adam decides (section 12). The token page sending its owner straight to the ongoing event, and later the Portal listing active events, is in the backlog (BAC-23, section 3.7).
 13. **Polling stays.** The screens keep polling every few seconds; server-sent events aren't needed at this size.
@@ -82,6 +86,53 @@ From the meeting with Julian on Fri 23 Oct, and Adam's calls on them the same da
 8. **Adam's calls on the map and connections,** after the meeting: the map reads one new endpoint, open to organizers and the map screens only, every 2 seconds, and each station's booth is a passport setting. Two participants connect by tapping at the same connection point, with no phone. Whether a connection point is one station or two goes to the group and Julian. GeeksHacking is open to paying for Workers Paid if the day won't fit. Checkpoint 7, "The map and connections, in detail", has the design.
 
 The meeting also set next steps outside checkpoint 7: the collectible token's physical design, scheduling the raise of Firebase's limit on new accounts for the showcase (checkpoint 5's runbook step 14), the team's access to Cloudflare's logs, and pinned dependency versions with a two-week lock-file window.
+
+### The 27 Oct answers
+
+Adam's calls on the grad tea, from 26 and 27 Oct (BAC-88). Section 6, "The grad tea", has the whole plan.
+
+1. **The A/B test moves to the grad tea,** on Thu 12 Nov from 3:30 to 6:30 pm in the MPH. The Sprint 2 window it was meant for closed on 18 Oct (BAC-26, cancelled).
+2. **The grad tea tries several games at once,** with a Gatsby party look. The game that draws the most people becomes the game at our booth at the showcase, which keeps its sci-fi look. *Changed 27 Oct, later:* the grad tea runs the showcase's own games as a pilot, so no game is chosen there.
+3. **Engagement is unique people per game,** counted from each game's own records, and games swap between stations partway through the evening. *Changed 27 Oct, later:* the pilot counts the people in each area, and what the taps show, and nothing swaps (section 6).
+4. **The games:** the speakeasy quiz, the green light trail on every station, and Find Gatsby as the stretch game. No passport at the grad tea. The e-paper map card is a prototype shown at the showcase, not a game. *Changed 27 Oct, later:* the passport, with the trail's clues on printed cards, and connections. The quiz is dropped, Find Gatsby stays the stretch game, and the e-paper card is an iteration in the report.
+5. **Each station's game becomes organizer data,** and a station's booth moves from its passport settings onto the station. Both change the agreement, so Ethan approves them.
+6. **One Event Service runs both events.** Each event's games and their content are in the code side by side, and organizers choose each station's game. Between the events, Adam copies the data and then clears it. The agreement's section 12 now says one event at a time.
+7. **One pull request switches from the grad tea to the showcase:** the screens' look, the event's name on the token page, and the winning game's showcase content. It merges by Sun 15 Nov. Until then, the token page's button reads "Open Grad Tea". *Changed 27 Oct, later:* the look and the event's name only.
+8. **The showcase is on Tue 17 Nov,** with setup on Mon 16 Nov. The backend freezes from Wed 11 Nov, and the last merge is on Sun 15 Nov.
+9. **Tokens go back in a collection box** at the end of the grad tea, from participants who don't want to keep them.
+
+### The spec's calls, 27 Oct
+
+No ticket settled these. Writing the grad tea's plan (BAC-88) needed them, and section 6, "The grad tea", has each in place.
+
+1. **The games swap once, around 5 pm,** halfway through the grad tea. *Dropped 27 Oct, later:* nothing swaps, since no games are compared.
+2. **Joshua and Adam choose the winning game by Fri 13 Nov,** from the copy taken at the end of the grad tea, so the switch can merge by Sun 15 Nov. *Dropped 27 Oct, later:* no game is chosen.
+3. **The grad tea's own content goes in `src/grad-tea/`,** beside `src/showcase/`. *Changed 27 Oct, later:* it holds the grad tea's settings, and Gatsby's if he goes ahead.
+4. **A grad tea game merged after the rehearsal** runs on staging first, then the group tries it on production before the clear on Wed 11 Nov.
+5. **The clear also empties every game's records,** and keeps every setting, such as each station's game.
+
+### The 27 Oct answers, later
+
+From a review of the project's direction with Adam on 27 Oct, and his calls on 27 and 28 Oct. BAC-88's note at the top has the same list, and section 6, "The grad tea", has each in place.
+
+1. **The problem, as the report now puts it:** visitors stay with what they came for. Sponsors' booths at Hackomania (Julian), parents at their own child's booth before they vote at the showcase (Mr Johari, through Ethan), and guests with their own group at the grad tea.
+2. **The games lock to what Julian settled on 23 Oct:** the passport at the partner stations, the map, then connections. All six partner groups said yes. At least one networking game is done for the showcase, so connections move up from Could to Should (BAC-83 and BAC-86, raised to High).
+3. **The quiz is dropped** (BAC-92 and FRO-86, cancelled). It needed the phone at every tap. A phone is needed once, to claim a token, and after that only to check progress.
+4. **The trail merges into the passport** as printed clue cards at each passport station (BAC-94), with no code (BAC-93 and FRO-87, cancelled). At the showcase, the route crosses all three walled areas.
+5. **Find Gatsby stays the stretch game,** with a go or no-go at the meeting on Thu 5 Nov (BAC-96). BAC-91, HAR-23 and FRO-88 follow it. The UWB boards are ordered now, and shown first as a demo of their own on a laptop. They join the map only after a go (HAR-22).
+6. **The grad tea is a pilot, and the showcase the field test.** At the grad tea, observers count the people in each area every 15 minutes, with the first half hour, before tokens go out, as the baseline, and the taps give the stations each guest reached and the connections made. At the showcase, visitors with and without a token are compared at the voting point, if the teachers allow it. No game is chosen at the grad tea, so the switch changes the look and the event's name only.
+7. **Student helpers hand tokens out at the entrance** at the showcase.
+8. **The hexagon collectible** is a token with six partner pieces, prototyped and chosen by Thu 5 Nov (HAR-25, urgent).
+9. **The e-paper map card** is an iteration in the report and an item on the prototype table at our booth, never a game (HAR-24).
+10. **A partner group's page, from its station** (28 Oct). A station can't make a phone open a page. So each partner station gets an NFC sticker and a QR code with the group's link now (HAR-26), and the passport offers the link as a button after a new stamp if it merges by Tue 10 Nov (BAC-99, FRO-89).
+11. **One more game may join** (28 Oct): the roaming station or students' picks, chosen or dropped on Thu 5 Nov (BAC-98, Adam's).
+12. **After the showcase,** the handover goes to the Hackomania 2027 team, and Julian manages it.
+
+### The spec's calls, 27 Oct, later
+
+1. **The helpers at the entrance count the visitors who decline a token,** so the showcase's comparison has a group without one.
+2. **The NFC sticker sits at least 5 cm from the station's reader,** on the opposite face, since the RC522 would read a sticker in its field as a tap, over and over (HAR-26).
+3. **Web Push stays out.** It's the only way to prompt a phone whose passport is closed, and iPhones allow it only for a site added to the home screen.
 
 ### The spec's calls, 7 Oct
 
@@ -114,8 +165,8 @@ No ticket settled these. The rewrite needed them to put the steps in order.
 
 ### Found while writing the spec, with Adam's answers (29 Sep)
 
-- **The showcase's date:** setup on Mon 16 Nov and the showcase on Tue 17 Nov, as the Single Source of Truth's roadmap says. (Adam, 27 Oct, correcting 18 Nov.)
-- **The Sprint 2 A/B test.** It isn't confirmed yet (section 12), so the checkpoints don't wait on it.
+- **The showcase's date:** setup on Tue 17 Nov and the showcase on Wed 18 Nov. The Single Source of Truth's roadmap still says 17 Nov, and needs correcting. *Changed 27 Oct:* the roadmap was right. The showcase is on Tue 17 Nov, with setup on Mon 16 Nov.
+- **The Sprint 2 A/B test.** It isn't confirmed yet (section 12), so the checkpoints don't wait on it. *Changed 27 Oct:* it runs at the grad tea on 12 Nov instead (section 6).
 - **Before the repo goes public,** Julian is asked whether his two diagrams in `assets/` can be public. `meeting-notes/` is never committed (BAC-7). *Changed 23 Oct:* the meeting notes are committed in `.scratch/meeting-notes` (PR #134).
 
 ---
@@ -165,7 +216,7 @@ Sources: [Which parts of today's backend belong to the GeekyKey Service, and whi
 - A Google Cloud project of our own, on GeeksHacking's billing account, so our roles never touch the Portal's: our existing Firebase project, `geekykey-b035a` (9 Oct). Its resources are made by hand with `gcloud`, and each command is written into `infra/README.md`, a runbook from which infrastructure as code can be written once the architecture settles (Julian, 8 Oct). Cloud Run's v1 interface and the first-generation execution environment, since v2 costs more (Julian, 8 Oct).
 - `event-api.geekshacking.com` is a Cloud Run domain mapping behind Cloudflare's proxy, unlike the Portal's `portal-api.` Julian set it up that way, and Adam kept it (12 Oct), since a request sent the way a station sends one passes the zone's checks (BAC-27). Cloudflare answers with its own certificate, from one of the authorities the stations' 14 roots already cover, and passes each request on to Google, whose own certificate sits behind it. The `run.app` address stays open, so the limits and key checks in our own code still protect both. The trade-offs we accept: Cloud Run's logs show Cloudflare's addresses instead of each caller's, and Google's certificate renews from behind the proxy, which Google's docs warn can fail, so it's checked in December (`infra/README.md`, step 9). The fallback, if domain mapping lets us down, is a Google load balancer at about US$18 a month.
 - Region `asia-southeast1`; 1 vCPU and 512 MiB; up to 80 requests at once per instance; request-based billing, with startup CPU boost on. At most 2 instances, which also caps TiDB connections at 20.
-- No warm instance, except one on event days: the rehearsal (by 7 Nov) and 16 to 17 Nov. Adam switches it on and off with the `gcloud` command in the runbook.
+- No warm instance, except one on event days: the rehearsal (by 7 Nov), the grad tea on 12 Nov, and from the morning of setup on 16 Nov to the end of the showcase on 17 Nov. Adam switches it on and off with the `gcloud` command in the runbook.
 - Logs go to Cloud Logging. Its request logs record no headers, so no keys or cookies, but they do record full URLs. Adam and Ethan can read them; Joshua and Zi Tao don't need to (9 Oct).
 - **Staging** is `event-service-staging`, in the same project, on `geekykey_staging`. It has no warm instance and only its `run.app` address. Adam deploys it by hand, from any branch, by running the deploy workflow, and nobody else does unless he asks them to. Anyone with write access to the repo can run the workflow, so this is a team rule rather than a lock: staging runs one branch at a time, and a branch's migrations stay in `geekykey_staging` (12 Oct). The GeekyKey Service gets no staging copy at checkpoint 4 (Adam, 15 Oct): local `wrangler dev` and the smoke test cover it, and the stress test decides whether it needs one. The 1 Oct staging on Adam's own Cloudflare account was dropped on 7 Oct, before it was ever deployed.
 
@@ -264,7 +315,7 @@ Sources: [Who registers stations, where is a station key checked, and how does t
 | Event | `stations` | `id`, `api_key_hash` (unique), `label`, `disabled_at`, `created_at`, `last_seen_at`, `firmware_version`, `buffered_taps`, `reader_ok` | Today's table, reshaped. `label` is the device's name, such as "Reader 3"; its passport name, location and points move to `passport_stations`. `disabled_at` is empty while the station is enabled. Each hand-off sets `last_seen_at`, and a heartbeat's hand-off also sets the last three. This is the row the cooldown locks |
 | Event | `users` | `id`, `display_name`, `created_at`, and `name_set_at` from checkpoint 5 | The per-event copy. `id` is the user ID, and the name is copied from the login. `portal_user_id` and `role` go. `name_set_at` is when the user set their own name, which a login then never replaces, and stays empty until they do (BAC-60) |
 | Event | `taps` | `id`, `station_id`, `client_tap_id`, `user_id`, `source`, `status`, `tapped_at`, `received_at` | `source` is `ENUM('nfc', 'qr_fallback')` and `status` is `ENUM('accepted', 'cooldown', 'no_game')`. `(station_id, client_tap_id)` is unique. `user_id` is never empty and has no foreign key, so a tap by someone who has never logged in is still stored. `token_uid` goes |
-| Event | `passport_stations` | `station_id`, `name`, `location`, `booth`, `points`, `added_at` | The passport's settings. Only these stations are stamp slots, in `added_at` order. `booth` says where the map draws the station, and is empty for none (checkpoint 7) |
+| Event | `passport_stations` | `station_id`, `name`, `location`, `booth`, `points`, `added_at` | The passport's settings. Only these stations are stamp slots, in `added_at` order. `booth` says where the map draws the station, and is empty for none (checkpoint 7). It moves onto `stations` for the grad tea, whose stations run other games (BAC-89) |
 | Claims stand-in | `tokens` | `uid` (primary key), `user_id`, `claimed_at` | Only current owners: releasing deletes the row, so `revoked_at` goes. `user_id` is a user ID with no foreign key. Marked "GeekyKey's stand-in, removed after the switch", and dropped then |
 
 Sources: [Does TiDB fit this backend?](issues/01-tidb-fit.md), [How is the database set up?](issues/07-database-setup.md), [How is the Event Service built, deployed and staged on Cloud Run?](issues/27-event-service-on-cloud-run.md), [Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?](issues/24-stations-without-a-database.md), [How do we notice trouble on event day, and who watches?](issues/20-event-day-monitoring.md)
@@ -275,6 +326,7 @@ Sources: [Does TiDB fit this backend?](issues/01-tidb-fit.md), [How is the datab
 - **The Portal's tag APIs.** Only the `Claims` module changes (section 4), and the claims stand-in is deleted.
 - **Other teams' Event Services** get the same three requests (the registered stations, the hand-off and the heartbeat hand-off) over HTTPS, with their own Event Service key, a section of the API agreement and a JSON Schema generated from `packages/handoff`. They register their own stations and issue their keys. Their own statuses pass through to stations, which treat any status they don't know as recorded. They log users in themselves ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), through the same login as the GeekyKey Service, so the user IDs match. Adding one is a reviewed change to the GeekyKey Service's settings and a deploy.
 - **Other events start from a template** (Julian, 23 Oct). After the repo split, the Event Service and the Event screens become a GitHub template, and each event's Event Service starts as a copy. What the copy keeps is the base, in `src/event/`, with the game interface in `src/event/games.ts`; what it replaces is `src/showcase/` (checkpoint 7). *Changed 25 Oct (BAC-72):* it put the interface in `src/games/`, but the base calls the games through it, and the lint rule stops the base importing from `src/games/`. A template copies the code once, with no link back, so a fix to the base doesn't reach events already made from it. That suits one event at a time. If many events run from it, the base could become a package they share, which the lint rule between the folders keeps possible.
+- **Two events in turn on one Event Service** (27 Oct). The grad tea and the showcase share ours: both events' games are in the code, organizers choose each station's game, and Adam clears the data between them (section 6, "The grad tea"). Two events at once on one Event Service stay out of scope (agreement section 12).
 - **Another event.** A reader moves by sending its saved taps, then taking a key from the new event's Event Service through the firmware's setup mode, which clears its saved taps (8 Oct).
 - **The token page sends its owner to the ongoing event** (backlog, BAC-23, 8 Oct). Julian's idea: the token's one URL never changes, and after login the GeekyKey screens route the owner to the event on now, or show their tokens when none is. For the showcase, assume one event at a time. Later, the Portal could list active events with their Event Service addresses. One way to build it: each `EVENT_SERVICES` entry gains optional start and end times, the GeekyKey Service's `/me` says which event is on, and the token page redirects there, keeping **Release** one tap away on My tokens. Until it's picked up, the owner's view keeps its button for each event (section 3.4).
 - **Later.** Once the stand-in is gone, the one database holds only our Event Service's data, and each Event Service can have a database of its own.
@@ -336,7 +388,7 @@ Settings for a Worker live in its `wrangler.jsonc`. Settings for the Event Servi
 | Side doors off | `workers_dev`, `preview_urls` | Both `false` |
 | Placement | `placement` | `{ "region": "gcp:asia-southeast1" }`, so the Worker runs near Cloud Run whichever data centre answered (BAC-63, section 11.3) |
 | Binding | Rate limits | See the table below |
-| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, an `https://` address, and optionally a public address, `public_url`, for the token page's and My tokens' buttons, which show its name. For the showcase, one entry: `showcase`, "Capstone Showcase", `https://event-api.geekshacking.com`, `https://event.geekshacking.com` |
+| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, an `https://` address, and optionally a public address, `public_url`, for the token page's and My tokens' buttons, which show its name. For the showcase, one entry: `showcase`, "Capstone Showcase", `https://event-api.geekshacking.com`, `https://event.geekshacking.com`. Until the grad tea, the same entry is named "Grad Tea", and the switch after it puts "Capstone Showcase" back (section 6, "The grad tea") |
 | Setting | `CLAIMS_STAND_IN_URL` | `https://event-api.geekshacking.com/claims-stand-in/v1`, until the switch |
 | Setting | `GEEKYKEY_ADMINS` | User IDs. Adam, Ethan and Zi Tao for the showcase |
 | Setting | `MAX_TOKENS_PER_USER` | `3` |
@@ -458,6 +510,7 @@ Each checkpoint is one deliverable: Adam builds it, it's reviewed, and only then
 | 5 | Login, and the screens deployed | **Done** (BAC-52 to BAC-60, FRO-56, FRO-59 to FRO-61 and FRO-31, 22 Oct). Both logins work through Firebase, the passport shows on a phone, the cookies are checked, the passport poll is measured | Qing Guan: an OIDC client for GeeksHacking's login, asked before Mr Pang (10 Oct). Julian or Qing Guan: two domains. Done: Google sign-in and the check that a Worker can verify its login (Adam, 10 Oct), and billing on the Firebase project (Julian, by 9 Oct) |
 | 6 | The GeekyKey Service's features | **Done** (BAC-66 to BAC-71, FRO-30 and FRO-70, 23 Oct). On phones, tokens are claimed and released on production, by Google users and guests, and CI shows each limit holding | Done: the `geekykey-web` screens (FRO-30 and FRO-70) |
 | 7 | The Event Service's features | **Done** (BAC-72 to BAC-81, BAC-84, BAC-85, BAC-87 and FRO-79, 26 Oct). On production, an organizer runs a station from creation to disabling, the map's data shows its taps, and the export matches the agreement. The map screens, the floor plan and connections, which are Should and Could, go on | Done: the `event-web` organizer screens (FRO-79) |
+| | The grad tea | Its backend changes merge by Tue 10 Nov, it runs on production on Thu 12 Nov as a pilot of the showcase's games, and the observers' counts and its copy give its results (below, added 27 Oct, changed 27 Oct, later) | Mr Yaseer, for the MPH (BAC-95). Ethan's approval of the agreement changes |
 | 8 | Ready for the event | The copy, restore and clear tasks work, the restore is tried, the stress test has run, the rehearsal is done by 7 Nov | The whole team |
 | | After the showcase | The GeekyKey Service uses the Portal's tag APIs | Qing Guan's tag APIs, and events logging in through the Portal |
 
@@ -477,7 +530,7 @@ Three tracks run alongside the checkpoints: going public, the screens (Ethan's t
 
 **Done on 8 Oct:** Julian makes sure `key.geekshacking.com` and its `/t/` path keep working for as long as tokens are in use.
 
-**Once the Sprint 2 A/B test is confirmed,** decide which setup runs it (section 12).
+~~**Once the Sprint 2 A/B test is confirmed,** decide which setup runs it (section 12).~~ *Changed 27 Oct:* it runs at the grad tea on production (section 6, "The grad tea").
 
 ### Checkpoint 1. Today's backend on workerd and TiDB
 
@@ -603,7 +656,7 @@ Changed on 8 Oct: the showcase logs in through Firebase, not the Portal ([ADR 00
 
 - **Each service logs users in itself** ([ADR 0002](../../docs/adr/0002-each-service-logs-in-through-the-portal.md)), like this, firm since the check passed: the screens sign in with Firebase's SDK and send the ID token to their own service, which checks its signature, issuer, audience and expiry against Google's public keys, then sets its own cookie; after login the screens go to a relative `return_to` only, the rule `isSafeReturnTo` already applies; and `POST /auth/logout`. The API agreement's login section changed with it, in version 0.4 (10 Oct). Each has its own cookie (`gk_session`, `event_session`), its own `SESSION_SECRET`, and its client ID and redirect URL from its settings. The Event Service creates or updates the user's row with their display name at login. The GeekyKey Service keeps no users, so its session holds only the user ID and, since 0.5, the login's name, which a login link carries.
 - **The GeekyKey Service's `/me`** (agreement 8.4), with the user's tokens and the events that have a public address. *Changed 21 Oct (BAC-55):* moved here from checkpoint 6, since the GeekyKey screens' "Am I logged in?" is this call, and checkpoint 5 is done only when logging in works on both hostnames. Its shape doesn't change.
-- **Guests and login links** (BAC-54). Adam turns on Firebase's Anonymous provider and the automatic deletion of anonymous accounts after 30 days, and the limit of 100 new accounts an hour from one IP address is raised for the rehearsal and for 16 to 17 Nov (runbook step 14). The login link's key is derived from the Event Service key (agreement 11.9), so there's no new secret. The Event Service keeps each used link's ID until it expires, in a new table, and `users` records whether the user set their name.
+- **Guests and login links** (BAC-54). Adam turns on Firebase's Anonymous provider and the automatic deletion of anonymous accounts after 30 days, and the limit of 100 new accounts an hour from one IP address is raised for the rehearsal and for 17 to 18 Nov (runbook step 14). *Changed 27 Oct:* Firebase holds one scheduled quota at a time. It's 800 an hour on 12 Nov for the grad tea (scheduled 21 Oct), so the rehearsal keeps the usual 100, and Adam schedules the showcase's for 17 Nov on 13 Nov or later (BAC-97). The login link's key is derived from the Event Service key (agreement 11.9), so there's no new secret. The Event Service keeps each used link's ID until it expires, in a new table, and `users` records whether the user set their name.
 - **The forwarding Workers.** A small `worker/` folder in `apps/event-web` and in `apps/geekykey-web`, with its own Wrangler config (section 5.1). Adam writes them. Afterwards Ethan owns them, and Adam reviews any change to their list of paths.
 - **`apps/geekykey-web`** exists by now, from the screens track, with at least its login and shell.
 
@@ -665,20 +718,21 @@ The organizers' screens, the rest of the passport, and the line between the base
 
 - **The map on the big screen,** in the Event screens, which are Ethan's: one screen at our booth showing the hall, each passport station at its booth, and a pulse as its taps arrive, polling every 2 seconds. A 2D map first, then a 3D model of the floor plan drawn from the same data, once the teachers give us this year's floor plan, loaded on the big screen only. Both use the same booth names, so moving from 2D to 3D changes only the screen's files. The model is a plain file, which costs no Workers requests; the screen's polls do (section 11.1).
 - **Progress toward the collectible** in the passport, such as "3 of 6", from its stamps.
+- **Connections between participants,** second after the map (Julian, 23 Oct): counts, and an anonymous web of links on the map, with no names, for PDPA. Two participants connect by tapping at the same connection point within a few seconds of each other (settled 23 Oct, "The map and connections, in detail" below). It's a second game under `src/games/`. Agreement section 12 puts dual-tap connections out of scope, so this needs a change there, made once the map is done. Whether a connection point is one station or two, and the details that follow from it, are open (section 12). *Changed 27 Oct, later:* a Should, since the showcase needs at least one networking game (BAC-83, BAC-86).
 
 **Could:**
 
 - **Timed games and timed rules** (moved down by Adam, 23 Oct). An organizer sets a schedule before the day; each line names a game, its stations, a start and an end, and the game's rules for that period. A tap is judged by the games on its station at `tapped_at`, or at its arrival when the station sent none.
 - **The station's own text after a tap,** such as the visitor's name, progress and instructions, only if the station gets an OLED or a TFT (Adam, 23 Oct). Which screen is Zi Tao's call. It's an optional field in the tap's answer (agreement 6.1) that the Event Service fills in its hand-off answer (11.2), so it needs Ethan's approval. Old stations ignore it, as the station contract already says.
-- **Connections between participants,** second after the map (Julian, 23 Oct): counts, and an anonymous web of links on the map, with no names, for PDPA. Two participants connect by tapping at the same connection point within a few seconds of each other (settled 23 Oct, "The map and connections, in detail" below). It's a second game under `src/games/`. Agreement section 12 puts dual-tap connections out of scope, so this needs a change there, made once the map is done. Whether a connection point is one station or two, and the details that follow from it, are open (section 12).
 - **Token types,** such as role or prize tokens, kept as this event's own data, since one token visits many events.
 - **A theme for the showcase's screens,** from the showcase's theme, which we ask the teachers, with partner groups' logos fitting into it. Ethan's, and the screens' share of the line between the base and the showcase's own.
-- **Other game ideas at our booth,** third after connections: custom tokens, a competitive variant, a role-playing variant, and the prototypes that led to the final design. Shown as mock-ups, unless there's time to build one.
+- **Other game ideas at our booth,** third after connections: custom tokens, a competitive variant, a role-playing variant, and the prototypes that led to the final design. Shown as mock-ups, unless there's time to build one. *28 Oct:* one more game for the showcase itself, the roaming station or students' picks, is chosen or dropped on Thu 5 Nov (BAC-98).
+- **The group's page after a stamp** (28 Oct): an optional link in passport settings, given with each stamp, which the passport offers as a button after a new stamp (BAC-99, FRO-89). Only if it merges by Tue 10 Nov. The NFC sticker and QR code on each partner station (HAR-26) cover the showcase without it.
 - **The animation pass** on the screens, proposed to Ethan (the agenda's 3.5).
 
 **Stretch:** a plugin system, with each game packaged on its own and chosen by the settings. Until then, the template does much of its job: a new event copies the base and adds a folder under `src/games/`.
 
-**Dropped on 23 Oct:** the leaderboard, the bonus that moved to the quietest area every 20 minutes, and points shown on the station. **Not before the showcase:** more than one event in one Event Service (agreement section 12).
+**Dropped on 23 Oct:** the leaderboard, the bonus that moved to the quietest area every 20 minutes, and points shown on the station. **Not before the showcase:** more than one event at once in one Event Service (agreement section 12). The grad tea and the showcase run on it in turn (section 6, "The grad tea").
 
 Done when, on production, an organizer creates a station, sets it up in the passport and watches its taps arrive, then disables it and sees its key refused within a minute, and the export's columns match the API agreement. The passport runs from `src/games/` with the existing tests passing unchanged, `areas.test.ts` fails an import of a game from `src/event/`, and the map's data, read with a map screen's login, shows the station at the booth its organizer set and a new tap within one poll.
 
@@ -694,7 +748,7 @@ Done when, on production, an organizer creates a station, sets it up in the pass
 
 #### The map and connections, in detail
 
-Settled by Adam on 23 Oct, after the meeting. Connections are a Could, built after the map, but their rule is settled now because it shapes the game interface that is a Must.
+Settled by Adam on 23 Oct, after the meeting. Connections are a Could (a Should since 27 Oct, later), built after the map, but their rule is settled now because it shapes the game interface that is a Must.
 
 ##### Problem
 
@@ -786,20 +840,99 @@ Connections, built after the map:
 ##### Further notes
 
 - The layout of a connection point is open, for the group and Julian (section 12): one station both people tap, or two linked stations side by side, one each. The rule above covers both, so the choice is about hardware and the ritual at the booth.
+- Also open (27 Oct, later, on BAC-83): a visitor and a member of the partner group tapping together at the partner's booth, after the group's challenge question. It would bring connections to the partner stations, but it breaks the rule above that a connection point is used only for connections.
 - With it, and also open: the window's length, which two stations need longer, since their clocks are each set from `server_time` with no NTP; whether a tap with no `tapped_at` can pair (suggested: no); what the second tap's answer and beep say, given that the first tap is answered before anyone knows a pair is coming, and that station text waits on an OLED or a TFT; how the web's anonymous nodes are named so the screen keeps a steady layout between polls without user IDs; and whether a participant sees their own connection count in the passport.
 - This year's floor plan is still to come from the teachers (section 12). Until then the 2D plan can use the layout we know.
+
+### The grad tea
+
+Added 27 Oct (BAC-88). *Changed 27 Oct, later:* the grad tea is a pilot of the showcase's own games, not a contest between games, so no game is chosen there for our booth (section 2, "The 27 Oct answers, later"). It runs on Thu 12 Nov, from 3:30 to 6:30 pm in the MPH, with a Gatsby party look, while the showcase keeps its sci-fi look. It's the first real event on production, five days before the showcase, and it falls the day after the backend freezes. So every backend change it needs merges by Tue 10 Nov.
+
+#### What it measures
+
+The problem both events test is that visitors stay with what they came for: guests with their own group at the grad tea, and parents at their own child's booth before they vote at the showcase (Mr Johari). A game that works moves people into areas they would otherwise skip.
+
+- **People in each area.** Observers count the people in each area of the MPH every 15 minutes. The first half hour, before tokens go out, is the baseline.
+- **From the taps:** how many passport stations each guest reached, and how many connections were made. Both come from the copy Adam takes at the end of the evening, which is the source for Joshua's analysis.
+- **The results** are shared at the meeting on Fri 13 Nov. They can change the clue cards and where the stations stand, which need no deploy, but no code after the freeze.
+- **The showcase is the field test.** Visitors with and without a token are compared at the voting point, if the teachers allow it (section 12), and each booth's tally is set beside last year's voting pattern, from Mr Johari. Student helpers hand tokens out at the entrance, and count the visitors who decline one (the spec's call), so there's a group without tokens to compare.
+
+#### The games
+
+- **The passport,** at every station except the connection points, with the trail's clues on printed cards (BAC-94). A guest taps, collects the stamp, reads the station's card, and goes to the booth it describes. The passport already records the stamps, so the trail needs no code. At the showcase, the route crosses all three walled areas.
+- **Connections** (BAC-83, BAC-86): two guests tap at the same connection point within a few seconds of each other, as checkpoint 7 settled. The map on the projector shows the count and the anonymous web.
+- **Find Gatsby** (BAC-96, HAR-23, FRO-88), the stretch game, with a go or no-go at the meeting on Thu 5 Nov. One of the group carries a hidden station. The fixed stations sense its radio signal and say hot, warm or cold on a tap, and a participant who finds the person taps their key on the hidden station. If the radio readings misbehave on the night, Gatsby checks in instead. As he moves, he taps a crew key, a token owned by an organizer, at a fixed station. The phone and the map then show where he was last seen, such as "last seen near the drinks". At the showcase the game becomes "the android among us". UWB boards are ordered (HAR-22), and are shown first as a demo of their own on a laptop. They join the map only after a go.
+- **One more game may join** (BAC-98, 28 Oct): the roaming station, which one of the group carries to the area with the fewest visitors, or students' picks, where exhibiting students tap the booths they'd recommend before the parents arrive. The meeting on Thu 5 Nov picks one or neither.
+- **Dropped on 27 Oct, later:** the speakeasy quiz (BAC-92, FRO-86), which needed the phone at every tap, and the green light trail as a game of its own (BAC-93, FRO-87), which the clue cards replace. A phone is needed once, to claim a token, and after that only to check progress.
+- **The e-paper map card** (HAR-24) is an iteration in the report and an item on the prototype table at our booth, not a game.
+
+The passport and connections are folders under `src/games/`, behind the game interface (`src/event/games.ts`). Find Gatsby would be a third, and only it needs the two calls that let the phone read a participant's state in a game and send their moves (BAC-91), so BAC-91 follows its go or no-go.
+
+#### Both events on one Event Service
+
+Settled by Adam on 27 Oct.
+
+- **One Event Service, one database.** The grad tea runs on our Event Service at `event-api.`, with the same stations and keys as the showcase.
+- **Both events' settings are in the code.** The games are shared under `src/games/`. Each event's own settings sit beside the other's: the grad tea's stations, connection points and Gatsby in `src/grad-tea/`, and the showcase's in `src/showcase/` (the folder names are the spec's call). The lint rule keeps the base from importing either.
+- **Organizers choose each station's game,** as data (BAC-90). Today it's code, in `src/showcase/games.ts`. So going from one event to the other needs no deploy.
+- **Copy, then clear, between the events.** Adam takes a copy at the end of the grad tea, which is the source for Joshua's analysis. The evening-before clear on Mon 16 Nov then empties the grad tea's taps, claims and game records (checkpoint 8).
+- **The agreement follows** (BAC-88, for Ethan's approval). Its section 12 said "One Event Service runs one event", and now says one event at a time. Its section 1 says ours runs the grad tea, then the showcase, and its scope gives the showcase as 17 November.
+
+#### The switch from the grad tea to the showcase
+
+Settled by Adam on 27 Oct. *Changed 27 Oct, later:* no game is chosen at the grad tea, so the winning game's content goes. Two things show which event is on, and neither of them is data.
+
+- **The Event screens' look:** Gatsby for the grad tea, sci-fi for the showcase (FRO-85, FRO-77). "Theme" already means light and dark in `globals.css`, so this is called the event's look. Ethan may choose another name.
+- **The event's name on the token page and My tokens,** which comes from `EVENT_SERVICES` in `geekykey-service` (section 5.1). The entry says "Grad Tea" from BAC-88's merge, so the button reads "Open Grad Tea", and takes "Capstone Showcase" back at the switch. A banner may replace the name later (Adam, 27 Oct). Its ID stays `showcase`, with the same key.
+
+One pull request after the grad tea changes both, and merges by Sun 15 Nov. It's a planned exception to the backend freeze, like a fix Adam approves. It changes content and settings only, never how a game works. Organizers then set each station's game for the showcase.
+
+#### The room and the stations
+
+- **Stations:** three on the MPH's power sockets, the portable station with its battery and 4G module, and more on power banks over Wi-Fi.
+- **The network** is our own router or hotspot on a fixed Wi-Fi channel, for the internet and for Find Gatsby's signal, since a station can't sign in through a Wi-Fi login page. Each station takes it through its setup mode.
+- **Testing** (HAR-21): Gatsby's signal through a crowd, and a full evening on a power bank. Zi Tao's hardware order is HAR-22.
+- **The booth moves onto the station** (BAC-89). The map has to draw stations that aren't in the passport, such as connection points.
+- **Which game a station runs** shows on a printed card and on the map on the MPH's projector (FRO-84). The station's 16x2 LCD shows the game's name only if there's time.
+- **Moving a station:** organizers pick a booth from a menu first, and drag stations on the map later (FRO-83).
+- **Four of the group** run the stations.
+- **The MPH.** Adam emailed Mr Ng, Subject Head of Student Leadership, and Kyle, the student council chair, on 27 Oct. Mr Ng replied and copied the student council teachers. Mr Yaseer is the teacher in charge of games, so the requests go through him (BAC-95): the floor plan, the projector, three places with power sockets, using our own network, and time to set up before 3:30 pm.
+- **Tokens.** At the end of the evening, a collection box takes back the tokens participants don't want to keep (Adam, 27 Oct). The clear releases every claim, so a returned token is claimed afresh at the showcase. Tokens that go home can't be used again, and Zi Tao's order (HAR-22) allows for them. The hexagon collectible, a token with six partner pieces, is prototyped and chosen by Thu 5 Nov (HAR-25). Its print run, up to 100 hexagons and 600 triangle pieces, is the risk.
+- **A partner group's page, from its station** (28 Oct), for the showcase. A station can't make a phone open a page, so each partner station gets an NFC sticker and a QR code with the group's link (HAR-26). The sticker sits at least 5 cm from the reader, which would otherwise read it as a tap. If BAC-99 merges by Tue 10 Nov, the passport also offers the link as a button after a new stamp (FRO-89). Web Push stays out: iPhones allow it only for a site added to the home screen.
+
+#### What it needs from each checkpoint
+
+| Checkpoint | For the grad tea |
+|---|---|
+| 1 to 4 | The tap path through `key-api.` to Cloud Run. Done |
+| 5 | Logging in, guests and login links. Done. Firebase's limit on new accounts is 800 an hour on 12 Nov (runbook step 14, scheduled 21 Oct) |
+| 6 | Claiming tokens on phones. Done |
+| 7 | Creating stations, their keys, disabling them and the station board, the map's data and the passport. Done. The map screen (FRO-78), a Should for the showcase, is a Must for the grad tea, on the projector, showing each station's game (FRO-84). Connections (BAC-83, BAC-86) are a Should since 27 Oct, later |
+| 8 | The copy and clear tasks, with the clear also emptying every game's records. The stress test and the rehearsal by Sat 7 Nov come before the grad tea. The rehearsal runs the grad tea's games that have merged by then; a game merged after it runs on staging first, then the group tries it on production before the clear on Wed 11 Nov (the spec's call). The warm instance is on for the grad tea |
+| The grad tea's own | The tickets below |
+
+#### The tickets
+
+Every backend ticket merges by Tue 10 Nov, and needs Ethan's approval of its part of the agreement.
+
+- **Backend:** BAC-89 (the booth on the station), BAC-90 (each station's game), BAC-83 and BAC-86 (connections), BAC-96 and BAC-91 (Find Gatsby, after a go), BAC-98 (one more game, chosen on Thu 5 Nov) and BAC-99 (the group's link with the stamp, if it fits). The grad tea's name in `EVENT_SERVICES`, "Grad Tea", went in with the spec (BAC-88). BAC-92 (the quiz) and BAC-93 (the trail) are cancelled.
+- **Content and the venue:** BAC-94 (the clue cards, the grad tea's printed by Wed 11 Nov and the showcase's by Sat 14 Nov) and BAC-95 (the MPH, with Mr Yaseer).
+- **Screens:** FRO-83 (moving stations and setting their games), FRO-84 (the map shows each station's game), FRO-85 (the Gatsby look), FRO-88 (Find Gatsby, after a go) and FRO-89 (the button to the group's page, if BAC-99 merges). FRO-86 (the quiz) and FRO-87 (the trail) are cancelled.
+- **Stations:** HAR-21 (the tests), HAR-22 (the hardware order, with the UWB boards), HAR-23 (Find Gatsby's firmware, after a go), HAR-24 (the e-paper map card, as a report iteration), HAR-25 (the hexagon collectible, urgent) and HAR-26 (each partner station's NFC sticker and QR code).
+
+Done when the grad tea has run on production, and the observers' counts and the copy taken at its end give its results.
 
 ### Checkpoint 8. Ready for the event
 
 - **Three tasks** in TypeScript with `mysql2`, run from Adam's laptop with the migration login, and tested in CI against the Docker TiDB:
   - `db:backup` writes every table, the stand-in's included, to a file on Adam's laptop, a few MB for the whole showcase;
   - `db:restore <file> --tables <names>` puts back chosen tables only, so restoring taps doesn't undo claims, key replacements or stations disabled since;
-  - `db:clear-test-data` takes a copy itself, prints the row counts, asks Adam to type the database name, empties `taps` and `tokens`, and prints the counts again, expecting 0 taps and 0 claims. It keeps `stations`, `users` and `passport_stations`.
+  - `db:clear-test-data` takes a copy itself, prints the row counts, asks Adam to type the database name, empties `taps` and `tokens`, and prints the counts again, expecting 0 taps and 0 claims. It keeps `stations`, `users` and `passport_stations`. *Changed 27 Oct:* it also empties every game's records, such as connections and, if it runs, Find Gatsby's finds, and keeps every setting, such as each station's game. It runs before the grad tea and again before the showcase (section 10.1).
 - **Before the clear, every station shows 0 saved taps** on the station board (the spec's call). With no links left to restart, a test tap saved before the clear and sent after it would be judged afresh, usually as `unknown_token`, since the clear empties `tokens`.
 - **The saved queries.** In Cloud Logging, for the Event Service: errors in the last 15 minutes by name, and responses of 500 or above. In Workers Observability, for the GeekyKey Service, for whoever can open it (section 12): failed hand-offs and owner lookups by Event Service, responses of 500 or above, and `stations_copy_filled`.
 - **The lists for the day:** Adam, Ethan and Zi Tao in `ORGANIZERS` and `GEEKYKEY_ADMINS`, and the showcase's other organizers in `ORGANIZERS`. The passport shows each user's user ID, so a helper can send theirs to Adam.
 - **The stress test** (8 Oct, BAC-21), on `event-service-staging` with a staging `geekykey-service` if there is one, after the rate limits of checkpoints 6 and 7 are in: many stations' taps, many passports' polls and the big screen's polls at once, more than the showcase expects. It says whether Cloud Run and TiDB keep up inside the 4-second deadline, and so whether the server-side tap queue in the backlog is needed (section 12). It draws on the same TiDB allowance as production, so it's kept short.
-- **The warm instance,** switched on by Adam with the runbook's command on the morning of the rehearsal and of 16 Nov, and off after each.
+- **The warm instance,** switched on by Adam with the runbook's command on the morning of the rehearsal, of the grad tea and of setup on 16 Nov, and off after each event.
 - **The event-day sheet** from section 10, printed for the desk.
 
 Done when the restore has been tried once on production (back up, restore, compare the counts), the stress test has run, and the rehearsal in section 10 has run by Sat 7 Nov. After it, `stations_copy_filled` decides whether the Cache API goes in for the registered stations (section 3.5), and the day's Workers requests whether the free plan holds (section 11.1).
@@ -880,7 +1013,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
   1. **Every merge to `main` deploys.** The Event Service's deploy job migrates the database first, then deploys. From checkpoint 4, Workers Builds deploys the Workers.
   2. **Every migration works with the version still running:** add first, switch the code, drop later.
   3. **Staging first.** A change to how the server starts, its config, its infrastructure or its database access runs on `event-service-staging` before it merges.
-  4. **The freeze.** From Wed 11 Nov, six days before the showcase, only fixes merge to the backend. The last merge of all is on Mon 16 Nov: from then until the showcase ends, nothing merges to `main` except a fix Adam approves, announced in the team chat, so nothing deploys the night before. Since every merge migrates, the freeze stops migrations too.
+  4. **The freeze.** From Wed 11 Nov, the day before the grad tea, only fixes merge to the backend, and the planned switch from the grad tea to the showcase (section 6, "The grad tea"). The last merge of all is on Sun 15 Nov: from then until the showcase ends on Tue 17 Nov, nothing merges to `main` except a fix Adam approves, announced in the team chat, so nothing deploys on setup day or the night before. Since every merge migrates, the freeze stops migrations too. *Changed 27 Oct:* the last merge was Mon 16 Nov, when the showcase was thought to be on 18 Nov.
   5. **Rolling back.** The Event Service: Adam sends all traffic back to the previous revision, with `gcloud run services update-traffic` or the console, and Julian as the backstop. A Worker: revert the commit on `main` and Workers Builds deploys the revert in a few minutes, or Julian rolls back one version. Either way, revert the bad commit straight after, or the next deploy brings it back. One version back is safe, because every migration works with the version before it, unless the bad deploy changed a secret's version: never roll back past a change of secret, since the older version uses the older value, which may no longer work or may be the one that leaked. A bad deploy that changed a secret is fixed forward instead, with a new pull request pinning a version that works (12 Oct). The database is never rolled back. Tried on staging on 12 Oct (BAC-13); the rehearsal tries it on production.
   6. **The hand-off.** A change to `packages/handoff` must work with the other service's previous version.
   7. **Copies.** Adam takes one with `db:backup` before merging a migration, just before the test data is cleared, and at the end of the event day. They stay on his laptop, never in GitHub or a chat.
@@ -894,9 +1027,9 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### 8.2 Other docs
 
-- **`apps/event-web/CLAUDE.md`,** for Ethan to update: the backend is Node on Cloud Run, not a Worker; the station screens (creating a station, its key, disabling it) stay on the organizers' station board; there is no status call.
+- **`apps/event-web/CLAUDE.md`,** for Ethan to update: the backend is Node on Cloud Run, not a Worker; the station screens (creating a station, its key, disabling it) stay on the organizers' station board; there is no status call. *27 Oct:* its key dates now give the grad tea and the showcase on 17 Nov (BAC-88), and FRO-85 adds how the event's look is picked.
 - **`apps/geekykey-web/CLAUDE.md`:** no GeekyKey admin screens; a GeekyKey admin releases a found token on its token page.
-- **The Single Source of Truth** still says Docker on Cloud Run with SQLite; it's the team's to correct.
+- **The Single Source of Truth** still says Docker on Cloud Run with SQLite; it's the team's to correct. Its date for the showcase, 17 Nov, was right (27 Oct).
 
 ---
 
@@ -927,6 +1060,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 - **Install Docker** to run the backend locally.
 - **The Firebase login on both sets of screens,** now that the check has passed (checkpoint 5, FRO-33).
 - **The map** (checkpoint 7): approve the agreement change that adds the map's endpoint and the passport's `booth`, then build the map with a floor plan whose booth names match.
+- **The grad tea** (section 6): approve the agreement changes in BAC-89, BAC-90 and connections (BAC-86), and in BAC-91, BAC-96 and BAC-99 if they go ahead, in time for them to merge by Tue 10 Nov; the screens in FRO-83 to FRO-85, FRO-88 after a go and FRO-89 if BAC-99 merges, with the map on the MPH's projector a Must; and the event's look, switched to sci-fi in the pull request that merges by Sun 15 Nov.
 - **On the day:** watch the screens and roll them back by reverting; a second pair of eyes on the Event Service's logs; read any query Adam runs to change data; at the desk whenever Adam isn't; an organizer who disables and enables stations, and a GeekyKey admin who releases found tokens.
 
 ### Zi Tao
@@ -939,6 +1073,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 - **At checkpoint 4:** set each station's server to `key-api.` through the setup mode, keeping its key (HAR-13). Done on 20 Oct by Adam for the main station, the only board on production, which took the BAC-11 test station's key rather than keeping a development one (checkpoint 4 in section 6). A board set up for production from now on gets `https://key-api.geekshacking.com`, which `secrets.example.h` now gives as production's address.
 - **[The token writer](assets/message-to-zi-tao-token-writer.md)** (HAR-12): every token written before the rehearsal, and Adam keeps a copy of the password.
 - **Access:** none on Cloudflare (Julian, 1 Oct 2026), and none on Google Cloud (Adam, 9 Oct).
+- **The grad tea** (section 6): the hardware order (HAR-22), counting the tokens that go home after the grad tea; the radio and power bank tests (HAR-21); Find Gatsby's firmware (HAR-23), after a go on Thu 5 Nov; the e-paper map card (HAR-24), as a report iteration; the hexagon collectible (HAR-25), with Joshua, chosen by Thu 5 Nov; and each partner station's NFC sticker and QR code (HAR-26).
 - **On the day:** watch the stations and walk to any that turns red; an organizer who disables and enables stations; enter a replaced key through the setup mode, with Adam's agreement.
 
 ### Joshua
@@ -946,22 +1081,27 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 - The game ideas from 8 Oct, and whether the showcase has a theme, which Adam asks the teachers.
 - The export keeps ten columns, as he confirmed in [Does the A/B analysis need token IDs or unclaimed-token taps?](issues/16-ab-analysis-export.md). The end-of-day copy feeds his analysis.
 - He runs the A/B study on the day, and isn't a watcher.
-- The Sprint 2 A/B test's setup, with Adam (section 12).
+- ~~The Sprint 2 A/B test's setup, with Adam (section 12).~~ *Changed 27 Oct:* the A/B test runs at the grad tea (section 6). He confirms who each game counts as engaged, writes the questions and clues with the group by Mon 9 Nov (BAC-94), and chooses the winning game with Adam from the grad tea's copy by Fri 13 Nov. *Changed 27 Oct, later:* he writes the clue cards with the group (BAC-94), runs the observers' counts at the grad tea, and shares its results at the meeting on Fri 13 Nov. No winning game is chosen.
 
 ---
 
 ## 10. Event day
 
-The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov.
+The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov. *Changed 27 Oct:* it said Wed 18 Nov, with setup on Tue 17 Nov. The grad tea on Thu 12 Nov runs the same way, with the steps below.
 
 ### 10.1 The run-up
 
 - **By Sat 7 Nov, the rehearsal on production,** with the warm instance on. It runs the evening-before steps (the freeze, the saved-taps check, a copy, the clear), the morning check, the team using passports and tapping stations for an hour, the one restore try, one rollback of the Event Service by revision and one of a screens Worker by reverting, and pulling one station's power to watch it turn red on the board. The watchers use the saved queries and the sheet as they would on the day. Then the data is cleared again, and the warm instance switched off. Its numbers decide the Cache API for the registered stations and whether the Workers free plan holds (section 11.1). It comes out of November's TiDB allowance, which the showcase also draws on.
-- **The morning of Mon 16 Nov:** Adam switches the warm instance on, before the freeze.
-- **The freeze:** only fixes merge to the backend from Wed 11 Nov, and nothing merges after Mon 16 Nov (section 8.1).
+- **The freeze:** only fixes merge to the backend from Wed 11 Nov, and nothing merges after Sun 15 Nov (section 8.1).
+- **The grad tea** (section 6, "The grad tea"):
+  - **the evening of Wed 11 Nov:** every station shows 0 saved taps on the board, and Adam runs `db:clear-test-data`, which takes its own copy first;
+  - **Thu 12 Nov:** Adam switches the warm instance on in the morning. The group sets up in the MPH before 3:30 pm and does the morning check below. The check looks at each station's game as well as its passport settings (BAC-90). The grad tea runs from 3:30 to 6:30 pm. Tokens go out after the first half hour, and observers count the people in each area every 15 minutes. Afterwards, Adam takes a copy, the source for Joshua's analysis, and switches the warm instance off;
+  - **Fri 13 Nov:** the group shares the results at its meeting;
+  - **by Sun 15 Nov:** the switch's pull request merges, and organizers set each station's game for the showcase. Adam schedules Firebase's limit on new accounts for the showcase on 13 Nov or later (runbook step 14, BAC-97).
+- **The morning of Mon 16 Nov:** Adam switches the warm instance on, before setup.
 - **The evening before, Mon 16 Nov,** after the day's setup at the venue: every station shows 0 saved taps on the board; Adam runs `db:clear-test-data`, which takes its own copy first; and from then on nobody makes a test claim or taps a claimed token. If we're still on TiDB's free allowance, Julian checks its Request Units, which only he can see: if less than twice what the rehearsal used is left, he raises TiDB's spending limit above $0.
 - **The morning,** before check-in: tap each station with an unclaimed token and expect `Not claimed yet`, which proves the station's Wi-Fi, key, certificate and registration and stores nothing. The station board shows any station missing passport settings. The organizers' stats still show 0 taps.
-- **Check-in:** tokens are handed out and claimed (provisional). Team members who play claim again like everyone else.
+- **Check-in:** tokens are handed out and claimed (provisional). *27 Oct, later:* student helpers hand them out at the entrance, and count the visitors who decline one. Team members who play claim again like everyone else.
 - **The end of the day:** Adam takes a copy, the source for Joshua's analysis. The freeze ends when the showcase does, and Adam switches the warm instance off.
 
 ### 10.2 Who watches
@@ -969,7 +1109,7 @@ The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on 
 - **Adam:** the services, through the Event Service's logs in Cloud Logging and the station board. He decides on fixes, rolls the Event Service back, and he's the only one who changes data. The GeekyKey Service's logs are Julian's to open (section 12).
 - **Zi Tao:** the stations, walking to any that turns red.
 - **Ethan:** the screens, which he can roll back, and a second pair of eyes on the Event Service's logs.
-- **Joshua:** runs the A/B study. Not a watcher.
+- **Joshua:** runs the study: the observers' counts at the grad tea, and the comparison at the showcase's voting point. Not a watcher.
 - **The desk:** one laptop keeps the station board open all day. Adam or Ethan is at the desk at every moment, and whoever leaves hands over first. Once an hour, the desk looks down the last-tap column. The rota's times stay blank until the programme is out.
 - **Organizers and GeekyKey admins on the day:** Adam, Ethan and Zi Tao. As organizers they disable and enable stations; a replaced key goes in through the station's setup mode, so it stays with Zi Tao, with Adam's agreement. As GeekyKey admins they release found tokens.
 - **If we're still on the Workers free plan:** someone checks the account's Workers requests every hour from 08:00, when they reset, and if they pass 70% before the event ends, Julian upgrades on the spot. Only Julian can see them today (section 12).
@@ -1033,7 +1173,7 @@ Sources for section 10: [How do we notice trouble on event day, and who watches?
 
 - **The first numbers** (staging, 11 Oct, BAC-12). A tap is one request, and a warm one takes 68 to 92 ms on Cloud Run (BAC-19). 60 warm taps sent 2 seconds apart billed 5.2 vCPU-seconds, about 0.09 each. They carried made-up keys, so they stopped at the station lookup and answered in a median of 17 ms. A real tap should bill about the same, a little under 0.1 vCPU-second, though that wasn't measured. Requests that overlap share their billed time, so a busy instance costs less per request. A cold start bills its start-up too, about 1 to 2 seconds. [The measurements](assets/cold-start.md).
 - **What a showcase day's requests use:** the 60,000 to 90,000 Worker requests above, nearly all of which reach Cloud Run, at about 0.1 vCPU-second each when warm, come to at most 9,000 vCPU-seconds: about 5% of the month's free CPU and 4.5% of its free requests, each day.
-- **Not yet known: the warm instance.** Kept from the morning of 16 Nov to the end of 17 Nov, about 40 hours, plus the rehearsal, it is up to about 150,000 instance-seconds. If Cloud Run bills its idle time as vCPU-seconds against the free tier, that alone is most of the month's 180,000, and the rest is paid. Google's billing page doesn't say how idle time is billed under request-based billing, so it's measured before the rehearsal: `--min=1` on staging for an hour, then `billable_instance_time` read for that hour.
+- **Not yet known: the warm instance.** Kept from the morning of 16 Nov to the end of 17 Nov, about 40 hours, plus the rehearsal and about 10 hours for the grad tea, it is up to about 190,000 instance-seconds. If Cloud Run bills its idle time as vCPU-seconds against the free tier, that alone is more than the month's 180,000, and the rest is paid. Google's billing page doesn't say how idle time is billed under request-based billing, so it's measured before the rehearsal: `--min=1` on staging for an hour, then `billable_instance_time` read for that hour.
 
 **Firebase.** Google sign-in is free for up to 50,000 users a month. GeeksHacking's login, as an OIDC provider, is free for 49 users a month, then US$0.015 each, on GeeksHacking's billing account.
 
@@ -1048,7 +1188,7 @@ What happens to the showcase's data once it ends. Julian suggested keeping a per
 
 ### 11.3 Other provisional decisions
 
-Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own Google Cloud project (agreed), Pulumi in TypeScript (no infrastructure as code for now), and moving a reader by a reflash (a setup mode instead). Settled on 10 Oct: how each service checks a Firebase login, since a Worker does it in about 1 ms of CPU (BAC-20). Settled on 11 Oct: the 4-second shared deadline, by the cold start below. Settled on 12 Oct: `event-api.` as a Cloud Run domain mapping, which works, behind Cloudflare's proxy (BAC-11).
+Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own Google Cloud project (agreed), Pulumi in TypeScript (no infrastructure as code for now), and moving a reader by a reflash (a setup mode instead). Settled on 10 Oct: how each service checks a Firebase login, since a Worker does it in about 1 ms of CPU (BAC-20). Settled on 11 Oct: the 4-second shared deadline, by the cold start below. Settled on 12 Oct: `event-api.` as a Cloud Run domain mapping, which works, behind Cloudflare's proxy (BAC-11). Dropped on 27 Oct, later, with the quiz: who the quiz counts as engaged.
 
 | Decision | Firm when | Fallback |
 |---|---|---|
@@ -1058,6 +1198,7 @@ Settled on 8 Oct, and so no longer here: the claims stand-in (agreed), our own G
 | The Cache API for the registered stations: not used | The rehearsal's `stations_copy_filled` | Added behind memory |
 | Owners cached in the Cache API after the switch, for 5 minutes to an hour | Built at the switch | No cache, if the Portal keeps up; Redis or KV, if a per-data-centre cache is too loose |
 | Tokens claimed at check-in | Adam decides ("still up to discussion") | Release only the team's own claims instead of emptying `tokens` |
+| Find Gatsby's hot, warm or cold from the hidden station's radio signal | HAR-21's test through a crowd, in a large room | The check-in by crew key, which is always there, so switching needs no deploy |
 | The clear as a laptop task | Adam decides | A manual workflow, once copies have a private home such as a Cloud Storage bucket |
 
 **The cold start, measured** on `event-service-staging` on 10 and 11 Oct (BAC-12), in 13 rounds that each woke a new instance. "Cloud Run" is the latency in its request log; "curl" is the whole request from a laptop in Singapore, with a new TLS handshake. The tap carried a made-up key, so it opened the first TiDB connection but skipped the tap's own transaction (about 0.1 s warm). [Every round](assets/cold-start.md).
@@ -1105,7 +1246,10 @@ The same 25 rounds sent straight from the server, which Cloudflare answers in Si
 - **The showcase's hours,** and whether Adam or Ethan presents at set times.
 - **What the QR fallback scans.** It takes a user ID only, and the showcase's users aren't Portal users, so the Portal's participant QR code no longer fits. Likely a QR code of the user ID on the passport, which Ethan's team would add.
 - **This year's floor plan of the showcase hall,** with where the booths stand, from the teachers. The map on the big screen is drawn from it (checkpoint 7), and the layout we know, three walled areas of about 3, 6 and 5 booths, is from an earlier year.
-- **The showcase's theme,** from the teachers, for the screens' theme (checkpoint 7).
+- **The showcase's theme,** from the teachers, for the screens' theme (checkpoint 7). *26 Oct:* the teachers have no theme for the showcase, so the group chose sci-fi, which the teachers haven't seen yet.
+- **The MPH for the grad tea** (BAC-95): its floor plan, the projector, three places with power sockets, using our own network, and time to set up before 3:30 pm, all asked of Mr Yaseer. The trail's clues, the map and the plan for the stations wait on the floor plan.
+- **The comparison at the showcase's voting point:** whether the teachers allow us to ask visitors, as they vote, whether they carried a token, and last year's voting pattern, from Mr Johari.
+- **Each partner group's link** for its station's sticker and QR code (HAR-26), by Mon 9 Nov.
 
 - ~~**Julian's and Qing Guan's agreement to guests** (ADR 0005), asked at the meeting on Fri 23 Oct, since guests add a way to sign in to what they decided on 8 Oct.~~ *Answered 23 Oct:* yes, guests are OK.
 
@@ -1113,7 +1257,9 @@ The same 25 rounds sent straight from the server, which Cloudflare answers in Si
 
 - ~~**How the big screen reads the map's data** (checkpoint 7). The station board (agreement 9.2) has each station's location and last tap, and the stats (9.5) count each passport station's taps and participants, so a first map needs no change to the agreement. But the screen at a public booth would then hold an organizer's login, which can disable stations, and each poll reads two endpoints. The other way is one read-only endpoint with counts and no names, read once per poll, which is a change to the agreement and needs Ethan's approval. The spec suggests the endpoint. Settle it before Ethan's team builds the map.~~ *Settled 23 Oct* (Adam): one read-only endpoint, read by organizers and a list of map screens only, polled every 2 seconds. Each station's booth is a new optional passport setting, and the floor plan is the screen's own. Checkpoint 7, "The map and connections, in detail", has the rest. It needs Ethan's approval of the agreement change.
 - ~~**How two tokens connect,** if connections between visitors go ahead (checkpoint 7, Could). Without a phone: two tokens tapped on one station within a few seconds become a link, though at a busy station two strangers can pair, which the station's own text could prevent ("Now tap your partner's key"). With a phone: one visitor's phone reads the other's token, which a phone can do on its own, the teacher's objection. Either way, nothing may rely on `taps.id` order to pair two taps (section 3.7). Settle it once the map is done.~~ *Settled 23 Oct* (Adam): no phone. Two users connect by tapping at the same connection point within a few seconds, a pair connects once, and every tap there is `accepted`. Checkpoint 7, "The map and connections, in detail", has the rule.
-- **How a connection point is laid out,** for the group and Julian (Adam, 23 Oct): one station both people tap, or two linked stations side by side, one each. Two stations stop two people on the same side pairing, and their layout tells people what to do without station text, but they cost a second box (or a second reader, Zi Tao's call) and need a longer window, since their two clocks differ. With it: the window's length, whether a tap with no `tapped_at` can pair, what the second tap's answer and beep say, how the web's anonymous nodes are named, and whether the passport shows a participant's own connection count. Settle it before connections are built, after the map.
+- **How a connection point is laid out,** for the group and Julian (Adam, 23 Oct): one station both people tap, or two linked stations side by side, one each. Two stations stop two people on the same side pairing, and their layout tells people what to do without station text, but they cost a second box (or a second reader, Zi Tao's call) and need a longer window, since their two clocks differ. With it: the window's length, whether a tap with no `tapped_at` can pair, what the second tap's answer and beep say, how the web's anonymous nodes are named, and whether the passport shows a participant's own connection count. Settle it before connections are built, after the map. *27 Oct, later:* connections are a Should, so this is needed sooner. A third layout is open too: a visitor and a partner group's member tapping together at the partner's booth (checkpoint 7's further notes).
+- **Find Gatsby, go or no-go** (BAC-96), at the meeting on Thu 5 Nov, from HAR-21's radio results and the UWB demo. BAC-91, HAR-23 and FRO-88 follow it.
+- **One more game for the showcase** (BAC-98, Adam's), at the same meeting: the roaming station, students' picks, or neither.
 - ~~**Running the GeekyKey Service's Worker near Cloud Run** (BAC-38, 21 Oct; tried in BAC-63).~~ *Settled 23 Oct (BAC-63), on a probe's numbers:* the Worker takes the hint, `"placement": { "region": "gcp:asia-southeast1" }` (section 5.1). Answered in Paris, a probe Worker on Adam's own account made two calls to staging's Cloud Run. Without the hint they took a median of 0.65 s together. With it they took 0.07 s, and the probe ran in Singapore on every request (section 11.3). No real tap could run with the hint before production, since nobody can read staging's keys for a copy of the Worker. So the merge deploys it to production, and then Adam times production's taps through Paris again, beside Cloud Run's latency, and checks the real station's tap and heartbeat. What was asked: a tap that Cloudflare answers in Europe took up to 3.73 s, against 0.68 s through Singapore, because the Worker's two calls to Cloud Run start from Europe. The choices were to try the hint, on Adam's own account first as BAC-44 did, then time taps again through a European data centre; or to leave it and accept that a tap through Europe plus a cold start shows `Tap saved` / `Will send later`.
 - **The cooldown.** The meeting suggested 15 minutes instead of 5. Every accepted tap after the cooldown earns the station's points again, so the cooldown sets how often one person can earn at one station: 12 times an hour at 5 minutes, 4 at 15. It's one setting, `TAP_COOLDOWN_SECONDS`, so it can change up to the freeze.
 - **A server-side tap queue** (backlog, BAC-22, Julian, 8 Oct). Taps would be put on a queue and stored a moment later, so a burst can't overwhelm TiDB. The catch: the station waits for each tap's verdict, for amber "too soon" and "claim this token" ("Does a station wait for the Event Service's verdict?"), and a queue can't give a verdict at once. The stress test decides whether we need one; if we do, the options to weigh are a queue inside the server with the verdict still worked out first, or Cloud Tasks or Pub/Sub with the station answered "recorded".
@@ -1121,7 +1267,7 @@ The same 25 rounds sent straight from the server, which Cloudflare answers in Si
 - **Seeing the GeekyKey Service without access** (Julian, 1 Oct 2026), asked again on 8 Oct with no answer. The Event Service's logs and the station board are ours, on Google Cloud. What the team still can't see is the GeekyKey Service's logs (failed key checks, owner lookups and hand-offs, `stations_copy_filled`) and the account's Workers requests. The choices: ask Julian for read-only access to Workers Observability and the account's usage; Julian, who will be at the showcase, or someone he names, watches them on the day; or rely on what the stations and the station board show. Settle it before the rehearsal. *23 Oct:* the meeting's next steps include confirming the team's access to Cloudflare's logs.
 - **Two repos at the split** (Julian, 1 Oct 2026). The Event Service's repo goes under the GeeksHacking organisation (8 Oct). At the move: how both repos get `packages/handoff`'s schemas; whether the end-to-end smoke test still runs on every pull request, and in which repo, now across two platforms; the move of `apps/event-web` for Ethan's team; and the claims stand-in, `infra/` and the deploy workflow, which go with the Event Service. The keyless sign-in trusts only this repo's ID (`1310668143`), so the new repo needs the provider's condition and both deploy accounts' bindings redone (the runbook's step 6), which takes a role that can grant (13 Oct). *Settled 16 Oct* (Julian, BAC-39): the move happens after the showcase on 17 Nov, for example during the handover on 19 and 20 Nov. Checkpoint 4 splits the folders inside this repo, and these questions wait until the move. *23 Oct:* Julian intends the Event Service and the Event screens to become a GitHub template at the move (section 3.7).
 - ~~**Whether the GeekyKey Service gets a staging copy,** decided at the split. The stress test would use it.~~ *Settled 15 Oct:* none at checkpoint 4. Local `wrangler dev` and the smoke test cover it. Whether to add one is decided with the stress test (BAC-21), the only thing that needs it.
-- **The Sprint 2 A/B test.** The roadmap runs the A/B/C test at an SSTInc or CCA event between 5 and 18 Oct, on a date Mr Pang gives. It isn't confirmed yet, so nothing waits on it until it is. Condition A needs claimed tokens, stations and the passport; Condition B needs QR scanning and the passport; both feed the export. Participants see their passports only by logging in, and dev-login only signs in seeded users. Since 8 Oct, the login no longer waits on the Portal: Firebase's Google sign-in can be set up by Adam alone. The choices, for Adam and Joshua:
+- ~~**The Sprint 2 A/B test.**~~ *Settled 27 Oct* (Adam, BAC-88): it runs at the grad tea on Thu 12 Nov, on production, and the window below closed on 18 Oct (BAC-26, cancelled). Section 6, "The grad tea", has the plan. What was asked: the roadmap runs the A/B/C test at an SSTInc or CCA event between 5 and 18 Oct, on a date Mr Pang gives. It isn't confirmed yet, so nothing waits on it until it is. Condition A needs claimed tokens, stations and the passport; Condition B needs QR scanning and the passport; both feed the export. Participants see their passports only by logging in, and dev-login only signs in seeded users. Since 8 Oct, the login no longer waits on the Portal: Firebase's Google sign-in can be set up by Adam alone. The choices, for Adam and Joshua:
   - **on production:** checkpoints 2 to 7 and the Firebase login, within one to three weeks;
   - **on a laptop at the venue,** as in the 23 Sep test: today's backend, with the stations over `http://`, and Firebase's Google sign-in added to it;
   - **later:** a date late in Sprint 2 or after it, if the course allows.
@@ -1159,7 +1305,7 @@ The map: [Move GeekyKey to TiDB and Cloudflare](map.md). Its tickets, in the ord
 - [How is the Event Service built, deployed and staged on Cloud Run?](issues/27-event-service-on-cloud-run.md)
 - [Fold the answers into the spec](issues/28-fold-into-the-spec.md)
 
-Decision records: [ADR 0001, tokens are identified by their hardware UID](../../docs/adr/0001-token-id-is-the-hardware-uid.md); [ADR 0002, each service logs users in through the Portal itself](../../docs/adr/0002-each-service-logs-in-through-the-portal.md); [ADR 0004, the showcase logs in through Firebase](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md); and [ADR 0003, the Event Service runs on Cloud Run, and the GeekyKey Service keeps no database](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md).
+Decision records: [ADR 0001, tokens are identified by their hardware UID](../../docs/adr/0001-token-id-is-the-hardware-uid.md); [ADR 0002, each service logs users in through the Portal itself](../../docs/adr/0002-each-service-logs-in-through-the-portal.md); [ADR 0004, the showcase logs in through Firebase](../../docs/adr/0004-the-showcase-logs-in-through-firebase.md); [ADR 0005, guests at the showcase reach the passport through a login link](../../docs/adr/0005-guests-reach-the-passport-through-a-login-link.md); and [ADR 0003, the Event Service runs on Cloud Run, and the GeekyKey Service keeps no database](../../docs/adr/0003-event-service-on-cloud-run-geekykey-service-without-a-database.md).
 
 Research: [Cloud Run](research/cloud-run.md), [a Worker's cache](research/worker-cache.md), [Node, Bun and Deno, and how the Portal runs](research/backend-runtimes.md), and [Hyperdrive's alternatives](research/hyperdrive-alternatives-benchmark.md).
 

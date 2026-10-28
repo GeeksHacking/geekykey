@@ -60,8 +60,10 @@ export function SessionProvider({
       }
     },
     retry: (failureCount, error) => error instanceof NetworkError && failureCount < 2,
-    // Stamps and points change while the participant walks around, so keep them fresh.
-    refetchInterval: POLL_ME_MS,
+    // Stamps and points change while the participant walks around, so keep them fresh,
+    // but only while someone is signed in. A 401 is a normal answer whose data is null,
+    // and the timer starts again when a login puts a session in the cache.
+    refetchInterval: (query) => (query.state.data ? POLL_ME_MS : false),
   });
 
   const clearIdentityQueries = useCallback(() => {

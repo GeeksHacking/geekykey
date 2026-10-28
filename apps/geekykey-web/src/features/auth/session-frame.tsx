@@ -41,7 +41,9 @@ export function SessionFrame({ children }: { children: ReactNode }) {
       await navigate({ to: "/login", replace: true });
     } catch (error) {
       // The provider has already cleared identity data; keep the failure visible without
-      // leaving an unhandled rejection from the menu callback.
+      // leaving an unhandled rejection from the menu callback. It cannot be inline, because
+      // by now the user is on /login, so it is a toast from the Toaster in routes/__root.tsx,
+      // which stays mounted across that redirect.
       toast.error(describeError(error));
     }
   }
