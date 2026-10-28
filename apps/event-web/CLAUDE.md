@@ -141,7 +141,8 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
   after a successful QR fallback, because the tap shows up in the scan log and the totals.
   A write that answers with what it changed puts that into the cache instead:
   `features/passport/use-set-display-name.ts` writes the `user` that `PATCH /me` answers
-  into `["me"]`.
+  into `["me"]`. It drops a `/me` poll in flight first, so a late answer cannot put the
+  old name back (FRO-68).
 - Screens read `isPending`, `isError`, `isFetching`, `dataUpdatedAt`, and `data`. They do
   not hold copies of server data in `useState`.
 - The session is the `["me"]` query in `lib/session-provider.tsx`. A 401 is a normal
@@ -365,6 +366,7 @@ apps/event-web/
     styles/globals.css      # Tailwind import, @theme mapping, CSS-variable tokens for both themes
     test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia stub
     test/providers.tsx      # the app's provider stack for tests
+    test/hold-next-me.ts    # holds a /me answer so a test can land it after a write
 ```
 
 Rules:
