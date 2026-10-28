@@ -95,8 +95,9 @@ can no longer tap, such as a lost token.
 
 **Station**:
 One tap point at one event, registered by that event's Event Service, with its own station key.
-Its hardware lent to another event becomes a new station there. What a tap there counts for, such as
-its station points, is set by the event's games, not by the station. An organizer can disable a
+Its hardware lent to another event becomes a new station there. It runs one of the event's games,
+or none, as an organizer chooses, and that game sets what a tap there counts for, such as its
+station points. The choice is fixed once a tap there has counted. An organizer can disable a
 station, turning away everything it sends until it is enabled again.
 _Avoid_: reader, device
 
@@ -158,8 +159,8 @@ them.
 _Avoid_: station list
 
 **Map**:
-The screen at the event's own booth that draws the floor plan, each passport station at its booth,
-and a pulse as each tap arrives there. It shows counts, never names.
+The screen at the event's own booth that draws the floor plan, each station at its booth with the
+game it runs, and a pulse as each tap arrives there. It shows counts, never names.
 _Avoid_: big screen, which is only the display it runs on; dashboard
 
 **Booth**:
