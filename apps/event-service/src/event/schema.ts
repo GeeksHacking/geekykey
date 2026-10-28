@@ -53,11 +53,27 @@ export const stations = mysqlTable("stations", {
   bufferedTaps: int("buffered_taps"),
   /** False when the NFC reader didn't answer the station's own check. */
   readerOk: boolean("reader_ok"),
+  /**
+   * The game an organizer chose for the station, by the game's ID (the API
+   * agreement's 9.11), or null for none. Only one of the event's games is
+   * meant, but the base knows none by name, so an ID no game has means none
+   * runs there. Fixed once the station has a tap a game counted or held back.
+   */
+  game: varchar("game", { length: 64 }),
 });
 
 /**
- * The passport's settings for each station it counts. Only these stations are
- * stamp slots, oldest settings first; a tap at any other station is `no_game`.
+ * The passport's ID, which a station's `game` names when the station runs it.
+ * The passport's tables are still the base's (passport_stations here, and the
+ * reads in me.ts, stats.ts, map.ts and tap-log.ts), so the base knows its ID
+ * with them, and no other game's.
+ */
+export const PASSPORT_GAME_ID = "passport";
+
+/**
+ * The passport's settings for each station it has had. Only those of these
+ * stations that run the passport (`stations.game`) are stamp slots, oldest
+ * settings first. A tap at any other station isn't the passport's.
  */
 export const passportStations = mysqlTable("passport_stations", {
   stationId: stationId("station_id")

@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { setupFixture, testApp } from "../test-helpers.ts";
-import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
+import {
+  type NewTap,
+  PASSPORT_GAME_ID,
+  passportStations,
+  stations,
+  taps,
+  users,
+} from "./schema.ts";
 
 const app = testApp();
 
@@ -51,8 +58,14 @@ async function harness() {
   const addStation = async (
     id: string,
     passport?: { name: string; addedAt: string; location?: string; points?: number },
+    game: string | null = passport ? PASSPORT_GAME_ID : null,
   ) => {
-    await fx.db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
+    await fx.db.insert(stations).values({
+      id,
+      label: `Reader ${id}`,
+      apiKeyHash: `unused-${id}`,
+      game,
+    });
     if (passport) await fx.db.insert(passportStations).values({ stationId: id, ...passport });
   };
 
@@ -234,6 +247,27 @@ test("a station outside the passport has no slot, and its taps earn nothing", as
       status,
     })),
     [{ station_id: "station-2", station_name: null, status: "no_game" }],
+  );
+});
+
+test("a station running another game has no slot, even with passport settings, and its taps no name", async () => {
+  // Another game counted Alex's tap there, so it's accepted, but it earns no stamp.
+  const { meAs, addStation, addTap, userId, stationId } = await harness();
+  await addStation(
+    "station-2",
+    { name: "Old Booth", addedAt: "2026-10-10T08:00:00.000Z", points: 5 },
+    "connections",
+  );
+  await addTap({ stationId: "station-2", receivedAt: "2026-10-10T09:00:00.000Z" });
+  const me = await meAs(userId);
+  assert.equal(me.points, 0);
+  assert.deepEqual(
+    me.stamps.map((s) => s.station_id),
+    [stationId],
+  );
+  assert.deepEqual(
+    me.recent_taps.map(({ station_id, station_name }) => ({ station_id, station_name })),
+    [{ station_id: "station-2", station_name: null }],
   );
 });
 

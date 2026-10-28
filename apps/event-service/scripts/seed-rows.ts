@@ -5,14 +5,14 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../src/db/pool.ts";
 import { tokens } from "../src/claims-stand-in/schema.ts";
-import { passportStations, stations, users } from "../src/event/schema.ts";
+import { PASSPORT_GAME_ID, passportStations, stations, users } from "../src/event/schema.ts";
 import { generateStationKey, hashStationKey } from "../src/event/station-keys.ts";
 
 /**
  * Adds a station with a new key, named `label`. The key is handed back to be
  * shown once: only its hash is stored. Unless it's `outsidePassport`, the
- * station joins the passport under the same name, worth 1 point a tap;
- * outside it, its taps are `no_game`.
+ * station runs the passport, with settings under the same name, worth 1
+ * point a tap; outside it, it runs no game, and its taps are `no_game`.
  */
 export async function addStation(
   db: Db,
@@ -20,9 +20,12 @@ export async function addStation(
 ): Promise<{ id: string; key: string }> {
   const id = crypto.randomUUID();
   const key = generateStationKey();
-  await db
-    .insert(stations)
-    .values({ id, label: station.label, apiKeyHash: await hashStationKey(key) });
+  await db.insert(stations).values({
+    id,
+    label: station.label,
+    apiKeyHash: await hashStationKey(key),
+    game: station.outsidePassport ? null : PASSPORT_GAME_ID,
+  });
   if (!station.outsidePassport) {
     await db.insert(passportStations).values({ stationId: id, name: station.label });
   }

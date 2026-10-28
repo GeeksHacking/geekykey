@@ -18,6 +18,8 @@ const LOG_LINES = {
   station_enabled: "INFO",
   station_added_to_passport: "INFO",
   station_passport_changed: "INFO",
+  // An organizer set the game a station runs: who, which station, and the game's ID, or null.
+  station_game_changed: "INFO",
   // An organizer logged a tap for a participant through the QR fallback: who, at which station,
   // and its client_tap_id, which finds the tap's own tap_stored line.
   qr_fallback_logged: "INFO",

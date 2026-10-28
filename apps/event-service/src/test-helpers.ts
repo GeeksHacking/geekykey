@@ -6,7 +6,7 @@ import { type AppDeps, createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createDbPool, type Db } from "./db/pool.ts";
 import { tokens } from "./claims-stand-in/schema.ts";
-import { passportStations, stations, users } from "./event/schema.ts";
+import { PASSPORT_GAME_ID, passportStations, stations, users } from "./event/schema.ts";
 import { generateStationKey, hashStationKey } from "./event/station-keys.ts";
 
 /** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
@@ -91,7 +91,7 @@ export function testApp(
   return createApp(config, testDb(), { googleKeys, now });
 }
 
-/** One station in the passport, and one participant holding one token. */
+/** One station running the passport, with its settings, and one participant holding one token. */
 export async function setupFixture(): Promise<TestFixture> {
   const db = testDb();
 
@@ -104,6 +104,7 @@ export async function setupFixture(): Promise<TestFixture> {
     id: stationId,
     label: "Reader 1",
     apiKeyHash: await hashStationKey(stationKey),
+    game: PASSPORT_GAME_ID,
   });
   await db.insert(passportStations).values({ stationId, name: "Booth 1" });
   await db.insert(users).values({ id: userId, displayName: "Alex" });

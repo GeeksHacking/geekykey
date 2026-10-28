@@ -1,19 +1,26 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, queryParams } from "../lib/validate.ts";
-import type { GameOnStations } from "./games.ts";
+import type { GameOnStations, Tx } from "./games.ts";
 import {
   requireRole,
   requireSession,
   type SessionEnv,
   type SessionOptions,
 } from "./session-auth.ts";
-import { passportStations, STORED_TAP_STATUSES, stations, taps } from "./schema.ts";
+import {
+  PASSPORT_GAME_ID,
+  passportStations,
+  STORED_TAP_STATUSES,
+  stations,
+  taps,
+} from "./schema.ts";
 import { exportTapsCsv } from "./export.ts";
+import { runsThePassport } from "./stamp-slots.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
 import { type EventStats, loadStats } from "./stats.ts";
@@ -69,6 +76,22 @@ const passportSchema = z.object({
   points: z.int32().min(0).default(1),
 });
 
+/**
+ * Whether the station has a stored tap that a game counted or held back, from
+ * it or the QR fallback, which fixes its game (9.11). A locking read, so it
+ * sees the latest taps once the station's row is locked (tap-pipeline.ts says
+ * why, at #lockStation).
+ */
+async function hasCountedTap(tx: Tx, stationId: string): Promise<boolean> {
+  const [tap] = await tx
+    .select({ id: taps.id })
+    .from(taps)
+    .where(and(eq(taps.stationId, stationId), inArray(taps.status, ["accepted", "cooldown"])))
+    .limit(1)
+    .for("update");
+  return tap !== undefined;
+}
+
 /** A station as the station board lists it (the API agreement's 9.2). */
 function stationBody(station: BoardStation) {
   return {
@@ -76,6 +99,8 @@ function stationBody(station: BoardStation) {
     label: station.label,
     created_at: station.createdAt,
     disabled_at: station.disabledAt,
+    game: station.game,
+    game_fixed: station.gameFixed,
     passport: station.passport && {
       name: station.passport.name,
       location: station.passport.location,
@@ -149,16 +174,31 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireRole("organizer"));
 
+  /** The games organizers choose a station's from, in the settings' order (9.2). */
+  const gameChoices = games.flatMap((onStations) =>
+    onStations.stations === "chosen" ? [{ id: onStations.game.id, name: onStations.name }] : [],
+  );
+  /** A station's game (9.11): one of gameChoices by its ID, or null for none. Never left out. */
+  const gameSchema = z.object({
+    game: z
+      .string()
+      .nullable()
+      .refine(
+        (game) => game === null || gameChoices.some((choice) => choice.id === game),
+        `game must be null or one of: ${gameChoices.map((choice) => choice.id).join(", ")}`,
+      ),
+  });
+
   /** The answer that issues a station's key (9.7, 9.8): the station as the board lists it, and the key. */
   const withKey = async (db: Db, stationId: string, key: string) => {
     const station = await loadBoardStation(db, now(), stationId);
     return { station: stationBody(station!), api_key: key };
   };
 
-  // The station board, polled every 10 to 15 seconds (9.2).
+  // The station board, polled every 10 to 15 seconds (9.2), with the games organizers choose from.
   app.get("/stations", async (c) => {
     const board = await loadStationBoard(c.var.db, now());
-    return c.json({ stations: board.map(stationBody) });
+    return c.json({ games: gameChoices, stations: board.map(stationBody) });
   });
 
   // The scan log, newest first (9.3).
@@ -176,15 +216,17 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
   // The QR fallback (9.4): an organizer logs a tap at a station for a
   // participant. It goes through the station taps' pipeline, so the cooldown
   // and the games treat it the same, with a client_tap_id of its own. Only a
-  // passport station takes one, so the passport counts it or holds it back,
-  // and it is never stored as no_game. Checking before the pipeline's
-  // transaction is enough, since passport settings are never removed.
+  // stamp slot takes one, so the passport counts it or holds it back. It is
+  // stored as no_game only if an organizer changes the station's game between
+  // this check and the pipeline's lock, which can happen only before the
+  // station's first counted tap (9.11).
   app.post("/taps", jsonBody(fallbackTapSchema), async (c) => {
     const { station_id, user_id } = c.req.valid("json");
     const { db, config } = c.var;
     const [inPassport] = await db
       .select({ stationId: passportStations.stationId })
       .from(passportStations)
+      .innerJoin(stations, and(eq(stations.id, passportStations.stationId), runsThePassport))
       .where(eq(passportStations.stationId, station_id));
     if (!inPassport) return c.json({ error: "not_found" }, 404);
     const clientTapId = crypto.randomUUID();
@@ -275,6 +317,36 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
     return c.json({ station: stationBody(station) });
   });
 
+  // Setting the game a station runs, or none (9.11). The station's row is
+  // locked, as the tap pipeline locks it, so a tap can't be judged by one game
+  // while the station changes to another. The same game again changes nothing
+  // and writes no log line, even once the game is fixed.
+  app.put("/stations/:id/game", jsonBody(gameSchema), async (c) => {
+    const id = c.req.param("id");
+    const { game } = c.req.valid("json");
+    const outcome = await c.var.db.transaction(async (tx) => {
+      const [station] = await tx
+        .select({ game: stations.game })
+        .from(stations)
+        .where(eq(stations.id, id))
+        .for("update");
+      if (!station) return "not_found";
+      if (station.game === game) return "unchanged";
+      // Another game's counted taps would count for the new one.
+      if (await hasCountedTap(tx, id)) return "fixed";
+      await tx.update(stations).set({ game }).where(eq(stations.id, id));
+      return "changed";
+    });
+    if (outcome === "not_found") return c.json({ error: "not_found" }, 404);
+    if (outcome === "fixed") return c.json({ error: "station_has_taps" }, 409);
+    // Once the transaction has committed, as 9.1's lines are.
+    if (outcome === "changed") {
+      log("station_game_changed", { user_id: c.var.user.id, station_id: id, game });
+    }
+    const station = await loadBoardStation(c.var.db, now(), id);
+    return c.json({ station: stationBody(station!) });
+  });
+
   // Adding a station to the passport, or changing its settings (9.1). A
   // station added takes the last stamp slot, since slots follow added_at, and
   // a change keeps added_at, so it never moves. A save that changes nothing
@@ -286,11 +358,17 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
       // The station's row, locked, so two organizers saving at once take turns
       // and the second changes what the first added.
       const [station] = await tx
-        .select({ id: stations.id })
+        .select({ game: stations.game })
         .from(stations)
         .where(eq(stations.id, id))
         .for("update");
       if (!station) return null;
+      // A station with no game runs the passport from now on, so its next taps
+      // count, unless its game is fixed. Any other game stays.
+      const givenThePassport = station.game === null && !(await hasCountedTap(tx, id));
+      if (givenThePassport) {
+        await tx.update(stations).set({ game: PASSPORT_GAME_ID }).where(eq(stations.id, id));
+      }
       const [current] = await tx
         .select({
           name: passportStations.name,
@@ -315,7 +393,7 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
             .set({ name, location, booth, points })
             .where(eq(passportStations.stationId, id));
         }
-        return { added: false, changed: !same, addedAt: current.addedAt };
+        return { added: false, changed: !same || givenThePassport, addedAt: current.addedAt };
       }
       const addedAt = now().toISOString();
       await tx

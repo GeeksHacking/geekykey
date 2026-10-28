@@ -4,7 +4,8 @@ import type { Db } from "../db/pool.ts";
  * The interface every game is behind. The base stores the taps, and knows no
  * game by name: src/app.ts hands the pipeline the games this event's
  * settings run (src/showcase/games.ts), and each game lives in a folder of
- * its own under src/games/.
+ * its own under src/games/. Organizers choose the game each station runs
+ * from the event's list, and the base stores the game's ID on the station.
  */
 
 /** The database inside one ingest's transaction, with the station's row locked. */
@@ -50,8 +51,8 @@ export interface GameContext {
 }
 
 export interface Game {
-  /** Names the game in errors. */
-  name: string;
+  /** A station's `game` when it runs this one (the API agreement's 9.11), and the game in errors. */
+  id: string;
   /**
    * Judges one station's taps from one request, and returns a status for
    * each, in the same order.
@@ -59,11 +60,30 @@ export interface Game {
   judge(taps: readonly GameTap[], context: GameContext): Promise<GameStatus[]>;
 }
 
-/** One game this event runs, and the stations it runs on. */
-export interface GameOnStations {
-  game: Game;
-  /** `all` lets the game decide for itself, as the passport does from its settings. */
-  stations: "all" | readonly string[];
+/**
+ * One game this event runs, and the stations it runs on: those organizers
+ * give it, one game to a station, or every station. Only a game organizers
+ * choose has a name for them.
+ */
+export type GameOnStations =
+  | {
+      game: Game;
+      stations: "chosen";
+      /** What organizers see in the list of games (9.2), such as "Passport". */
+      name: string;
+    }
+  | {
+      game: Game;
+      /**
+       * Every station, whatever game organizers gave it, for a game that
+       * watches them all, such as Find Gatsby's crew check-in would.
+       */
+      stations: "all";
+    };
+
+/** Whether `onStations` judges the taps at a station that runs `stationGame`, or no game when null. */
+export function runsAt(onStations: GameOnStations, stationGame: string | null): boolean {
+  return onStations.stations === "all" || onStations.game.id === stationGame;
 }
 
 /** The status a tap is stored with, from every game's. */

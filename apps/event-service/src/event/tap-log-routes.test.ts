@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
 import { screensSchemas, testApp, testDb } from "../test-helpers.ts";
-import { type NewTap, passportStations, stations, taps, users } from "./schema.ts";
+import {
+  type NewTap,
+  PASSPORT_GAME_ID,
+  passportStations,
+  stations,
+  taps,
+  users,
+} from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -63,8 +70,17 @@ async function harness() {
   };
 
   /** Registers a station, outside the passport unless given a passport name. */
-  const addStation = async (id: string, passportName?: string) => {
-    await db.insert(stations).values({ id, label: `Reader ${id}`, apiKeyHash: `unused-${id}` });
+  const addStation = async (
+    id: string,
+    passportName?: string,
+    game: string | null = passportName ? PASSPORT_GAME_ID : null,
+  ) => {
+    await db.insert(stations).values({
+      id,
+      label: `Reader ${id}`,
+      apiKeyHash: `unused-${id}`,
+      game,
+    });
     if (passportName)
       await db.insert(passportStations).values({ stationId: id, name: passportName });
   };
@@ -150,6 +166,15 @@ test("a station outside the passport has no name, and a user new to the event no
   const [tap] = (await tapLog()).taps;
   assert.deepEqual(tap!.station, { id: "station-outside", name: null });
   assert.deepEqual(tap!.user, { id: "never-logged-in", display_name: null });
+});
+
+test("a station running another game has no name, even with passport settings", async () => {
+  const { tapLog, addStation, addTap } = await harness();
+  await addStation("station-other", "Old Booth", "connections");
+  await addTap("station-other");
+
+  const [tap] = (await tapLog()).taps;
+  assert.deepEqual(tap!.station, { id: "station-other", name: null });
 });
 
 test("no token ID appears, even for a token the tap's user has claimed", async () => {

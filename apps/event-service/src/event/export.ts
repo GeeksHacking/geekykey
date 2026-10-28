@@ -31,7 +31,7 @@ function csvCell(value: string): string {
 /**
  * Every stored tap as CSV, oldest first by ID, for the A/B analysis (the API
  * agreement's 9.6). No token ID: the Event side never sees one. A missing
- * value, such as a station outside the passport's name, is an empty cell.
+ * value, such as the name of a station that isn't a stamp slot, is an empty cell.
  * Every line ends in CRLF, as RFC 4180 has it.
  */
 export async function exportTapsCsv(db: Db): Promise<string> {

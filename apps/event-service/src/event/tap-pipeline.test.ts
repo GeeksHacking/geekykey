@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { test } from "vitest";
 import type { Db } from "../db/pool.ts";
 import { fakeClock, setupFixture, showcaseGames, testDb } from "../test-helpers.ts";
-import { passportStations, stations, taps } from "./schema.ts";
+import { PASSPORT_GAME_ID, passportStations, stations, taps } from "./schema.ts";
 import { type IncomingTap, TapPipeline } from "./tap-pipeline.ts";
 
 async function pipeline(cooldownSeconds = 300) {
@@ -236,7 +236,9 @@ test("results come back in request order", async () => {
 
 test("cooldown is per station", async () => {
   const { p, db, stationId, userId } = await pipeline(300);
-  await db.insert(stations).values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2" });
+  await db
+    .insert(stations)
+    .values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2", game: PASSPORT_GAME_ID });
   await db.insert(passportStations).values({ stationId: "station-2", name: "Booth 2" });
   await p.ingest(stationId, [{ clientTapId: "t1", userId }]);
   const other = await p.ingest("station-2", [{ clientTapId: "t1", userId }]);
@@ -265,7 +267,10 @@ test("a station without passport settings stores its taps as no_game, with no co
 
 test("no_game taps don't hold back the first tap after the station joins the passport", async () => {
   const { p, db, userId, clock } = await pipeline(300);
-  await db.insert(stations).values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2" });
+  // It runs the passport, but has no settings yet.
+  await db
+    .insert(stations)
+    .values({ id: "station-2", label: "Reader 2", apiKeyHash: "hash-2", game: PASSPORT_GAME_ID });
   await p.ingest("station-2", [{ clientTapId: "t1", userId }]);
   await db.insert(passportStations).values({ stationId: "station-2", name: "Booth 2" });
   clock.advanceSeconds(60);

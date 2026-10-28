@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, min } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { passportStations, taps } from "./schema.ts";
+import { passportStations, stations, taps } from "./schema.ts";
+import { runsThePassport } from "./stamp-slots.ts";
 import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
 
 /** How many of their latest taps a participant sees, any status. */
@@ -20,7 +21,7 @@ export interface StampSlot {
 export interface RecentTap {
   id: number;
   stationId: string;
-  /** Its name in the passport, or null for a station outside the passport. */
+  /** Its name in the passport, or null for a station that isn't a stamp slot. */
   stationName: string | null;
   status: StoredTapStatus;
   source: TapSource;
@@ -49,7 +50,7 @@ export interface MeView {
  */
 export async function loadMe(db: Db, userId: string): Promise<MeView> {
   const [passport, visits, recentTaps] = await Promise.all([
-    // Only passport stations are stamp slots.
+    // Only the stations that run the passport, with its settings, are stamp slots.
     db
       .select({
         id: passportStations.stationId,
@@ -58,6 +59,7 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
         points: passportStations.points,
       })
       .from(passportStations)
+      .innerJoin(stations, and(eq(stations.id, passportStations.stationId), runsThePassport))
       // The order they were added keeps every slot in place when a station is added mid-event.
       .orderBy(asc(passportStations.addedAt), asc(passportStations.stationId)),
     // One row per station this participant has an accepted tap at.
@@ -82,7 +84,12 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
         receivedAt: taps.receivedAt,
       })
       .from(taps)
-      .leftJoin(passportStations, eq(taps.stationId, passportStations.stationId))
+      .innerJoin(stations, eq(stations.id, taps.stationId))
+      // A name only for a stamp slot.
+      .leftJoin(
+        passportStations,
+        and(eq(passportStations.stationId, taps.stationId), runsThePassport),
+      )
       .where(eq(taps.userId, userId))
       .orderBy(desc(taps.receivedAt), desc(taps.id))
       .limit(RECENT_TAP_LIMIT),
