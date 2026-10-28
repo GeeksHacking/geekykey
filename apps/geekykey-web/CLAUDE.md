@@ -61,7 +61,9 @@ A sign-out waits for that returning-user login to finish before it clears the co
 login already in flight cannot set the cookie again (FRO-69). A sign-in waits for a
 returning-user login already running and stops a new one from starting, so the sign-in is
 the last write to the cookie. A `/me` that answers 401 after the session has changed does
-not start a login either (FRO-91).
+not start a login either (FRO-91). `src/lib/sign-out-marker.ts` remembers a sign-out whose
+Firebase call fails in `localStorage` until the next successful sign-in, so a reload does
+not log the person back in (FRO-92).
 My tokens and the token page carry a button for each event in `/me`, which asks the
 GeekyKey Service for a login link (agreement 8.6) and opens it, so the user reaches an
 event's screens as the same user (FRO-31). The buttons are in
