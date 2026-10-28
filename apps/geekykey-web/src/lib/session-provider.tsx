@@ -35,6 +35,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // remembers the user, and logging them straight back in would undo the sign-out.
   const mayLogInAgain = useRef(true);
 
+  // A returning-user login that is still running. A sign-out waits for it, because a
+  // POST /auth/firebase that lands after POST /auth/logout would set the cookie again
+  // (FRO-69).
+  const loginAgainInFlight = useRef<Promise<MeResponse | null> | null>(null);
+
   const me = useQuery({
     queryKey: queryKeys.me,
     queryFn: async (): Promise<MeResponse | null> => {
@@ -49,18 +54,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   });
 
   // Any failure here only means the login shows, as it would have without this.
-  async function logInAgain(): Promise<MeResponse | null> {
-    if (!mayLogInAgain.current) return null;
-    try {
-      const { savedUserIdToken } = await import("@/lib/firebase");
-      const idToken = await savedUserIdToken();
-      if (!idToken) return null;
-      await api.firebaseLogin(idToken);
-      return await api.me();
-    } catch (error) {
-      console.error("Logging a returning user in again failed", error);
-      return null;
-    }
+  function logInAgain(): Promise<MeResponse | null> {
+    if (!mayLogInAgain.current) return Promise.resolve(null);
+    // One login at a time, so a sign-out has one promise to wait for and two /me reads
+    // cannot send two logins.
+    if (loginAgainInFlight.current) return loginAgainInFlight.current;
+    const login = (async (): Promise<MeResponse | null> => {
+      try {
+        const { savedUserIdToken } = await import("@/lib/firebase");
+        const idToken = await savedUserIdToken();
+        if (!idToken) return null;
+        await api.firebaseLogin(idToken);
+        return await api.me();
+      } catch (error) {
+        console.error("Logging a returning user in again failed", error);
+        return null;
+      }
+    })();
+    loginAgainInFlight.current = login;
+    void login.finally(() => {
+      if (loginAgainInFlight.current === login) loginAgainInFlight.current = null;
+    });
+    return login;
   }
 
   const clearIdentityQueries = useCallback(() => {
@@ -160,6 +175,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error("Signing out of Firebase failed", error);
       }
+      // A returning-user login that was already running may still have POST /auth/firebase
+      // to send. Let it finish, so this logout is the last write to the session cookie and
+      // the login cannot set it again afterwards (FRO-69).
+      await loginAgainInFlight.current;
       return api.logout();
     },
     onMutate: () => {
