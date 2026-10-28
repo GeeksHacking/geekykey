@@ -25,6 +25,8 @@ export interface BoardStation {
     name: string;
     location: string | null;
     points: number;
+    /** The group's page, given with the station's stamp, or null for none. */
+    link: string | null;
     addedAt: string;
   } | null;
   /** When a tap or a heartbeat last came from it. */
@@ -107,6 +109,7 @@ async function loadBoardStations(db: Db, now: Date, where?: SQL): Promise<BoardS
       name: passport.name,
       location: passport.location,
       points: passport.points,
+      link: passport.link,
       addedAt: passport.addedAt,
     },
     lastSeenAt: station.lastSeenAt,

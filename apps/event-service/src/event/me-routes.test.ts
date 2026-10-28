@@ -25,6 +25,7 @@ interface MeBody {
     name: string;
     location: string | null;
     points: number;
+    link: string | null;
     earned_at: string | null;
   }[];
   recent_taps: {
@@ -57,7 +58,13 @@ async function harness() {
    */
   const addStation = async (
     id: string,
-    passport?: { name: string; addedAt: string; location?: string; points?: number },
+    passport?: {
+      name: string;
+      addedAt: string;
+      location?: string;
+      points?: number;
+      link?: string;
+    },
     game: string | null = passport ? PASSPORT_GAME_ID : null,
   ) => {
     await fx.db.insert(stations).values({
@@ -139,6 +146,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
         name: "Booth 1",
         location: null,
         points: 1,
+        link: null,
         earned_at: null,
       },
     ],
@@ -199,6 +207,7 @@ test("points count every accepted tap, while a slot shows what its station is wo
       name: "Booth 1",
       location: null,
       points: 1,
+      link: null,
       earned_at: "2026-10-10T09:00:00.000Z",
     },
     {
@@ -206,9 +215,34 @@ test("points count every accepted tap, while a slot shows what its station is wo
       name: "Cloud Sponsor",
       location: "Hall B",
       points: 2,
+      link: null,
       earned_at: "2026-10-10T09:30:00.000Z",
     },
   ]);
+});
+
+test("each slot gives its station's link, earned or not, or null for none", async () => {
+  const { meAs, addStation, addTap, userId } = await harness();
+  await addStation("printing", {
+    name: "3D Printing",
+    link: "https://example.com/3d-printing",
+    addedAt: "2026-10-10T08:05:00.000Z",
+  });
+  await addStation("robotics", {
+    name: "Robotics",
+    link: "https://example.com/robotics",
+    addedAt: "2026-10-10T08:06:00.000Z",
+  });
+  await addTap({ stationId: "printing", receivedAt: "2026-10-10T09:00:00.000Z" });
+  const me = await meAs(userId);
+  assert.deepEqual(
+    me.stamps.map(({ name, link, earned_at }) => ({ name, link, earned: earned_at !== null })),
+    [
+      { name: "Booth 1", link: null, earned: false },
+      { name: "3D Printing", link: "https://example.com/3d-printing", earned: true },
+      { name: "Robotics", link: "https://example.com/robotics", earned: false },
+    ],
+  );
 });
 
 test("every passport station gets a slot, oldest settings first", async () => {
@@ -375,6 +409,7 @@ test("an organizer on the list gets the same view of their own account", async (
         name: "Booth 1",
         location: null,
         points: 1,
+        link: null,
         earned_at: null,
       },
     ],

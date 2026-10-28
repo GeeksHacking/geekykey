@@ -44,6 +44,7 @@ interface BoardBody {
       location: string | null;
       booth: string | null;
       points: number;
+      link: string | null;
       added_at: string;
     } | null;
     last_seen_at: string | null;
@@ -225,6 +226,7 @@ test("lists a station with its passport settings, its health and its last tap", 
     name: "3D Printing Booth",
     location: "Hall A",
     points: 2,
+    link: "https://example.com/3d-printing",
     addedAt: "2026-10-02T03:00:00.000Z",
   });
   await addTap("station-3", { receivedAt: "2026-10-10T08:58:12.004Z" });
@@ -245,6 +247,7 @@ test("lists a station with its passport settings, its health and its last tap", 
           location: "Hall A",
           booth: "A3",
           points: 2,
+          link: "https://example.com/3d-printing",
           added_at: "2026-10-02T03:00:00.000Z",
         },
         last_seen_at: "2026-10-10T09:00:01.000Z",
@@ -634,6 +637,7 @@ interface PassportBody {
     location: string | null;
     booth: string | null;
     points: number;
+    link: string | null;
     added_at: string;
   };
 }
@@ -646,6 +650,7 @@ test("an organizer adds a station to the passport, which the board then shows", 
     location: "Hall A",
     booth: "A3",
     points: 2,
+    link: "https://example.com/3d-printing",
   });
   assert.equal(res.status, 201);
   const expected = {
@@ -654,6 +659,7 @@ test("an organizer adds a station to the passport, which the board then shows", 
     location: "Hall A",
     booth: "A3",
     points: 2,
+    link: "https://example.com/3d-printing",
     added_at: NOW,
   };
   const body = (await res.json()) as PassportBody;
@@ -678,6 +684,7 @@ test("changing a station's settings answers 200, keeps when it was added, and se
     name: "3D Printing Booth",
     location: "Hall B",
     points: 3,
+    link: "https://example.com/printing",
   });
   assert.equal(res.status, 200);
   const expected = {
@@ -686,6 +693,7 @@ test("changing a station's settings answers 200, keeps when it was added, and se
     location: "Hall B",
     booth: "A3",
     points: 3,
+    link: "https://example.com/printing",
     added_at: "2026-10-02T03:00:00.000Z",
   };
   const body = (await res.json()) as PassportBody;
@@ -693,6 +701,39 @@ test("changing a station's settings answers 200, keeps when it was added, and se
   assert.deepEqual(body, { passport: expected });
   const { station_id: _, ...onBoard } = expected;
   assert.deepEqual((await board()).stations[0]!.passport, onBoard);
+});
+
+test("a save that leaves out the link clears it, and a change of link alone is a change", async () => {
+  const { db, signIn, putPassport, addStation, board } = await harness();
+  await addStation("station-3", { game: PASSPORT_GAME_ID });
+  await db.insert(passportStations).values({
+    stationId: "station-3",
+    name: "3D Printing",
+    link: "https://example.com/3d-printing",
+  });
+  const cookie = await signIn(ORGANIZER);
+  const logs = captureLogs();
+  const settings = { name: "3D Printing", points: 1 };
+  const linkAfter = async (body: unknown) => {
+    const res = await putPassport("station-3", cookie, body);
+    assert.equal(res.status, 200);
+    return ((await res.json()) as PassportBody).passport.link;
+  };
+
+  assert.equal(await linkAfter(settings), null);
+  assert.equal((await board()).stations[0]!.passport?.link, null);
+  const relinked = { ...settings, link: "https://example.com/printing" };
+  assert.equal(await linkAfter(relinked), "https://example.com/printing");
+  // The same link again changes nothing.
+  assert.equal(await linkAfter(relinked), "https://example.com/printing");
+  assert.equal((await board()).stations[0]!.passport?.link, "https://example.com/printing");
+  const changed = {
+    severity: "INFO",
+    message: "station_passport_changed",
+    user_id: ORGANIZER,
+    station_id: "station-3",
+  };
+  assert.deepEqual(logs(), [changed, changed]);
 });
 
 test("adding a station this Event Service didn't register answers not_found", async () => {
@@ -721,6 +762,11 @@ test("a bad passport body answers validation_failed and leaves the station as it
     [{ name: "Booth", points: 1.5 }, "points"],
     [{ name: "Booth", points: "1" }, "points"],
     [{ name: "Booth", points: 2 ** 31 }, "points"],
+    [{ name: "Booth", link: "http://example.com" }, "link"],
+    [{ name: "Booth", link: "javascript:alert(1)" }, "link"],
+    [{ name: "Booth", link: "example.com" }, "link"],
+    [{ name: "Booth", link: `https://example.com/${"x".repeat(281)}` }, "link"],
+    [{ name: "Booth", link: 3 }, "link"],
   ] as const) {
     const res = await putPassport("station-3", cookie, body);
     assert.equal(res.status, 400, JSON.stringify(body));
@@ -735,7 +781,7 @@ test("a bad passport body answers validation_failed and leaves the station as it
   assert.equal((await board()).stations[0]!.passport, null);
 });
 
-test("a name, a location and a booth are trimmed, a blank location or booth is none, and points default to 1", async () => {
+test("a name, a location, a booth and a link are trimmed, a blank location, booth or link is none, and points default to 1", async () => {
   const { signIn, putPassport, addStation } = await harness();
   await addStation("station-3");
   await addStation("station-4");
@@ -743,21 +789,23 @@ test("a name, a location and a booth are trimmed, a blank location or booth is n
   const cookie = await signIn(ORGANIZER);
   // 80 emoji: 80 code points, though 160 UTF-16 units.
   const longest = "🎉".repeat(80);
+  // 300 code points, though 580 UTF-16 units, kept as typed rather than percent-encoded.
+  const longestLink = `https://example.com/${"🎉".repeat(280)}`;
   for (const [stationId, body, expected] of [
     [
       "station-3",
-      { name: "  Booth  ", location: "  ", booth: " " },
-      { name: "Booth", location: null, booth: null },
+      { name: "  Booth  ", location: "  ", booth: " ", link: "  " },
+      { name: "Booth", location: null, booth: null, link: null },
     ],
     [
       "station-4",
-      { name: longest, location: ` ${longest} `, booth: ` ${longest} ` },
-      { name: longest, location: longest, booth: longest },
+      { name: longest, location: ` ${longest} `, booth: ` ${longest} `, link: ` ${longestLink} ` },
+      { name: longest, location: longest, booth: longest, link: longestLink },
     ],
     [
       "station-5",
-      { name: "Booth", location: null, booth: null },
-      { name: "Booth", location: null, booth: null },
+      { name: "Booth", location: null, booth: null, link: null },
+      { name: "Booth", location: null, booth: null, link: null },
     ],
   ] as const) {
     const res = await putPassport(stationId, cookie, body);
