@@ -1709,3 +1709,14 @@
     The station sends a tap while its click still sounds, instead of after it, and checks the
     reader every 10 ms instead of every 50. The ESP32-S3 build now has a 3 MB space for its code
     instead of 1.25 MB, of which it uses 36%, so later station features have room.
+
+- id: stations-run-a-chosen-game
+  date: 2026-10-28
+  area: backend
+  change: >-
+    Each station now runs the one game an organizer chooses for it, such as the passport, or
+    none, so a station can move between games without a deploy. The choice is fixed once a game
+    has counted a tap there, and the clear between the grad tea and the showcase frees it again.
+    Every station already in the passport runs the passport, so taps count as before. The
+    trade-offs we accept: a station can't change game mid-evening, and a station moved off the
+    passport keeps its passport settings, unused, since nothing removes them.
