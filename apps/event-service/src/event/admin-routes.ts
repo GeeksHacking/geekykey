@@ -13,6 +13,7 @@ import {
   type SessionOptions,
 } from "./session-auth.ts";
 import {
+  COUNTED_TAP_STATUSES,
   PASSPORT_GAME_ID,
   passportStations,
   STORED_TAP_STATUSES,
@@ -86,7 +87,7 @@ async function hasCountedTap(tx: Tx, stationId: string): Promise<boolean> {
   const [tap] = await tx
     .select({ id: taps.id })
     .from(taps)
-    .where(and(eq(taps.stationId, stationId), inArray(taps.status, ["accepted", "cooldown"])))
+    .where(and(eq(taps.stationId, stationId), inArray(taps.status, COUNTED_TAP_STATUSES)))
     .limit(1)
     .for("update");
   return tap !== undefined;
@@ -178,6 +179,8 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
   const gameChoices = games.flatMap((onStations) =>
     onStations.stations === "chosen" ? [{ id: onStations.game.id, name: onStations.name }] : [],
   );
+  /** Whether organizers can choose the passport, so 9.1 may give it to a station with no game. */
+  const offersThePassport = gameChoices.some((choice) => choice.id === PASSPORT_GAME_ID);
   /** A station's game (9.11): one of gameChoices by its ID, or null for none. Never left out. */
   const gameSchema = z.object({
     game: z
@@ -364,8 +367,10 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
         .for("update");
       if (!station) return null;
       // A station with no game runs the passport from now on, so its next taps
-      // count, unless its game is fixed. Any other game stays.
-      const givenThePassport = station.game === null && !(await hasCountedTap(tx, id));
+      // count, unless its game is fixed or this event doesn't run the passport.
+      // Any other game stays.
+      const givenThePassport =
+        offersThePassport && station.game === null && !(await hasCountedTap(tx, id));
       if (givenThePassport) {
         await tx.update(stations).set({ game: PASSPORT_GAME_ID }).where(eq(stations.id, id));
       }
@@ -393,13 +398,13 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
             .set({ name, location, booth, points })
             .where(eq(passportStations.stationId, id));
         }
-        return { added: false, changed: !same || givenThePassport, addedAt: current.addedAt };
+        return { added: false, changed: !same, givenThePassport, addedAt: current.addedAt };
       }
       const addedAt = now().toISOString();
       await tx
         .insert(passportStations)
         .values({ stationId: id, name, location, booth, points, addedAt });
-      return { added: true, changed: true, addedAt };
+      return { added: true, changed: true, givenThePassport, addedAt };
     });
     if (!saved) return c.json({ error: "not_found" }, 404);
     // Once the transaction has committed, so a line never names a change that was rolled back.
@@ -407,6 +412,14 @@ export function adminRoutes({ session, games, now = () => new Date() }: AdminRou
       log(saved.added ? "station_added_to_passport" : "station_passport_changed", {
         user_id: c.var.user.id,
         station_id: id,
+      });
+    }
+    // The same line 9.11 writes, so every change of game is in the logs.
+    if (saved.givenThePassport) {
+      log("station_game_changed", {
+        user_id: c.var.user.id,
+        station_id: id,
+        game: PASSPORT_GAME_ID,
       });
     }
     return c.json(

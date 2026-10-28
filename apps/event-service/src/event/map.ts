@@ -1,6 +1,6 @@
 import { and, asc, count, eq, inArray, max, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { passportStations, stations, taps } from "./schema.ts";
+import { COUNTED_TAP_STATUSES, passportStations, stations, taps } from "./schema.ts";
 import { runsThePassport } from "./stamp-slots.ts";
 
 /**
@@ -31,7 +31,7 @@ export interface MapStation {
 }
 
 /** The taps the map counts: those a game judged. */
-const isCounted = inArray(taps.status, ["accepted", "cooldown"]);
+const isCounted = inArray(taps.status, COUNTED_TAP_STATUSES);
 
 /** When a stamp slot's settings were added, which orders the slots, or null for any other station. */
 const slotAddedAt = sql`case when ${runsThePassport} then ${passportStations.addedAt} end`;

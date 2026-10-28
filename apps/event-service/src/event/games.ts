@@ -1,11 +1,13 @@
 import type { Db } from "../db/pool.ts";
 
 /**
- * The interface every game is behind. The base stores the taps, and knows no
- * game by name: src/app.ts hands the pipeline the games this event's
- * settings run (src/showcase/games.ts), and each game lives in a folder of
- * its own under src/games/. Organizers choose the game each station runs
- * from the event's list, and the base stores the game's ID on the station.
+ * The interface every game is behind. The base stores the taps, and runs no
+ * game itself: src/app.ts hands the pipeline the games this event's settings
+ * run (src/showcase/games.ts), and each game lives in a folder of its own
+ * under src/games/. Organizers choose the game each station runs from the
+ * event's list, and the base stores the game's ID on the station. The only
+ * game it knows by name is the passport, whose tables are still the base's
+ * (schema.ts, at PASSPORT_GAME_ID).
  */
 
 /** The database inside one ingest's transaction, with the station's row locked. */

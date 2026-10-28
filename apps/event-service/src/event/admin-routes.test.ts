@@ -881,6 +881,14 @@ test("adding or changing a station's settings logs who did it, and a save that c
       user_id: ORGANIZER,
       station_id: "station-3",
     },
+    // It had no game, so it now runs the passport, logged as 9.11 logs a change of game.
+    {
+      severity: "INFO",
+      message: "station_game_changed",
+      user_id: ORGANIZER,
+      station_id: "station-3",
+      game: "passport",
+    },
     {
       severity: "INFO",
       message: "station_passport_changed",
