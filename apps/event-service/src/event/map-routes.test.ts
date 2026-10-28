@@ -66,17 +66,21 @@ async function harness(settings: Record<string, string> = {}) {
     return (await res.json()) as MapBody;
   };
 
-  /** Registers a station, outside the passport unless given passport settings. */
+  /**
+   * Registers a station, outside the passport unless given passport settings,
+   * and running the passport only with them unless told otherwise.
+   */
   const addStation = async (
     id: string,
-    passport?: Omit<typeof passportStations.$inferInsert, "stationId">,
-    game: string | null = passport ? PASSPORT_GAME_ID : null,
+    passport?: Omit<typeof passportStations.$inferInsert, "stationId" | "booth">,
+    station: Partial<typeof stations.$inferInsert> = {},
   ) => {
     await db.insert(stations).values({
       id,
       label: `Reader ${id}`,
       apiKeyHash: `unused-${id}`,
-      game,
+      game: passport ? PASSPORT_GAME_ID : null,
+      ...station,
     });
     if (passport) await db.insert(passportStations).values({ stationId: id, ...passport });
   };
@@ -176,7 +180,7 @@ test("lists each stamp slot in slot order, counting accepted and cooldown taps, 
 test("a station running another game is listed with its game and booth, but no passport name", async () => {
   const { map, addStation, addTap } = await harness();
   await addStation("station-a", { name: "Booth A" });
-  await addStation("station-other", { name: "Old Booth", booth: "C1" }, "connections");
+  await addStation("station-other", { name: "Old Booth" }, { game: "connections", booth: "C1" });
   // Taps its own game counted or held back.
   await addTap("station-other", { receivedAt: "2026-10-10T09:00:01.000Z" });
   await addTap("station-other", { status: "cooldown", receivedAt: "2026-10-10T09:00:02.000Z" });
@@ -305,7 +309,7 @@ test("a booth set in the passport settings shows on the map and the station boar
 test("the body has no user ID, display name or token ID", async () => {
   const { db, getMap, signIn, addStation, addTap } = await harness();
   await db.insert(tokens).values({ uid: "04A1B2C3D4E5F6", userId: PARTICIPANT });
-  await addStation("station-3", { name: "3D Printing Booth", booth: "A3" });
+  await addStation("station-3", { name: "3D Printing Booth" }, { booth: "A3" });
   await addTap("station-3");
   await addTap("station-3", { status: "cooldown" });
 
@@ -318,7 +322,7 @@ test("the body has no user ID, display name or token ID", async () => {
 
 test("a tap handed on by the GeekyKey Service shows in the next read of the map", async () => {
   const { app, map, addStation } = await harness();
-  await addStation("station-3", { name: "3D Printing Booth", booth: "A3" });
+  await addStation("station-3", { name: "3D Printing Booth" }, { booth: "A3" });
   const handOff = (clientTapId: string) =>
     app.request("/geekykey/v1/taps", {
       method: "POST",
@@ -344,4 +348,17 @@ test("a tap handed on by the GeekyKey Service shows in the next read of the map"
   const again = (await map()).stations[0]!;
   assert.equal(again.taps, 2);
   assert.equal(again.unique_participants, 1);
+});
+
+test("a station outside the passport is drawn at the booth 9.12 set", async () => {
+  const { app, signIn, map, addStation } = await harness();
+  await addStation("station-3", undefined, { game: "connections" });
+  const res = await app.request("/api/v1/admin/stations/station-3/booth", {
+    method: "PUT",
+    headers: { Cookie: await signIn(ORGANIZER), "Content-Type": "application/json" },
+    body: JSON.stringify({ booth: "C1" }),
+  });
+  assert.equal(res.status, 200);
+  const [station] = (await map()).stations;
+  assert.deepEqual([station!.station_id, station!.name, station!.booth], ["station-3", null, "C1"]);
 });

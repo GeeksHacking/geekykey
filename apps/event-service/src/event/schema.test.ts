@@ -18,6 +18,7 @@ test("each Event table has only the columns the spec gives it", async () => {
       "buffered_taps",
       "reader_ok",
       "game",
+      "booth",
     ],
     users: ["id", "display_name", "name_set_at", "created_at"],
     taps: [
@@ -135,5 +136,32 @@ test("each station with passport settings runs the passport, and every other sta
   assert.deepEqual(stations, [
     { id: "in-passport", game: "passport" },
     { id: "not-in-passport", game: null },
+  ]);
+});
+
+test("a booth set in a station's passport settings moves onto the station", async () => {
+  const url = await scratchDatabase("geekykey_event_migration");
+  await migrate(url, await migrationsUpTo("0012_each_station_runs_a_game"));
+  const connection = await createConnection({ uri: url });
+  onTestFinished(() => connection.end());
+  await connection.query(
+    `INSERT INTO stations (id, label, api_key_hash, created_at, game) VALUES
+      ('with-booth', 'Reader 1', '${"a".repeat(64)}', '2026-10-12T05:00:00.000Z', 'passport'),
+      ('without-booth', 'Reader 2', '${"b".repeat(64)}', '2026-10-12T05:00:00.000Z', 'passport'),
+      ('not-in-passport', 'Reader 3', '${"c".repeat(64)}', '2026-10-12T05:00:00.000Z', NULL)`,
+  );
+  await connection.query(
+    `INSERT INTO passport_stations (station_id, name, booth, points, added_at) VALUES
+      ('with-booth', 'Booth 1', 'A3', 1, '2026-10-12T05:00:00.000Z'),
+      ('without-booth', 'Booth 2', NULL, 1, '2026-10-12T05:00:00.000Z')`,
+  );
+
+  await migrate(url);
+
+  const [stations] = await connection.query("SELECT id, booth FROM stations ORDER BY id");
+  assert.deepEqual(stations, [
+    { id: "not-in-passport", booth: null },
+    { id: "with-booth", booth: "A3" },
+    { id: "without-booth", booth: null },
   ]);
 });

@@ -61,6 +61,12 @@ export const stations = mysqlTable("stations", {
    * or held back.
    */
   game: varchar("game", { length: 64 }),
+  /**
+   * Which booth in the hall the station stands at, whatever game it runs, so
+   * the map draws it there (the API agreement's 9.12). Free text, which the
+   * map screen matches to a booth in its own floor plan. Null for none.
+   */
+  booth: text("booth"),
 });
 
 /**
@@ -84,9 +90,10 @@ export const passportStations = mysqlTable("passport_stations", {
   name: text("name").notNull(),
   location: text("location"),
   /**
-   * Which booth in the hall the station stands at, so the map draws it there
-   * (the API agreement's 9.10). Free text, which the map screen matches to a
-   * booth in its own floor plan. Null for none.
+   * No longer set or shown, since the booth moved onto stations (BAC-89).
+   * Dropped by a later migration. Drizzle still names it in every query on
+   * this table, so the drop breaks the version running then for the seconds
+   * before the next one serves, as 0008 did.
    */
   booth: text("booth"),
   /** Station points: what one accepted tap there is worth. */

@@ -92,6 +92,13 @@
       "when": 1793155678733,
       "tag": "0012_each_station_runs_a_game",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1793166150298,
+      "tag": "0013_the_booth_is_on_the_station",
+      "breakpoints": true
     }
   ]
 }

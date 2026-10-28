@@ -18,12 +18,12 @@ export interface BoardStation {
    * counted or held back, from the station or the QR fallback (9.11).
    */
   gameFixed: boolean;
+  /** The booth it stands at, where the map draws it (9.12), or null. */
+  booth: string | null;
   /** Its passport settings, or null for a station not in the passport, whose taps get `no_game`. */
   passport: {
     name: string;
     location: string | null;
-    /** Where the map draws it (9.10), or null. */
-    booth: string | null;
     points: number;
     addedAt: string;
   } | null;
@@ -102,10 +102,10 @@ async function loadBoardStations(db: Db, now: Date, where?: SQL): Promise<BoardS
     disabledAt: station.disabledAt,
     game: station.game,
     gameFixed,
+    booth: station.booth,
     passport: passport && {
       name: passport.name,
       location: passport.location,
-      booth: passport.booth,
       points: passport.points,
       addedAt: passport.addedAt,
     },
