@@ -1,12 +1,14 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { queryKeys } from "@/api/keys";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { PassportScreen } from "@/features/passport/passport-screen";
 import { useSession } from "@/lib/session";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { holdNextMe } from "@/test/hold-next-me";
 import { createTestProviders } from "@/test/providers";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
@@ -20,7 +22,7 @@ function SignedIn() {
 function renderPassport(userId: string) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(userId);
-  const { Providers } = createTestProviders(api, { session: true });
+  const { Providers, queryClient } = createTestProviders(api, { session: true });
   const view = render(
     <Providers>
       <ThemeProvider>
@@ -28,7 +30,7 @@ function renderPassport(userId: string) {
       </ThemeProvider>
     </Providers>,
   );
-  return { api, user: userEvent.setup(), ...view };
+  return { api, queryClient, user: userEvent.setup(), ...view };
 }
 
 const PROMPT = "What should we call you?";
@@ -65,6 +67,37 @@ describe("the name prompt (agreement 8.1, 8.7 and 13)", () => {
     await expect(api.me()).resolves.toMatchObject({
       user: { display_name: "Mei Ling", has_name: true },
     });
+  });
+
+  it("keeps the new name when a /me asked for before the change lands after it", async () => {
+    const { api, queryClient, user } = renderPassport(SEEDED_GUEST_ID);
+    await screen.findByRole("heading", { name: PROMPT });
+
+    // The 10-second poll goes out now, before the name change, and reads the guest as they
+    // were.
+    const poll = holdNextMe(api);
+    const before = await poll.realMe();
+    poll.holdTheNextOne();
+    act(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    });
+    await poll.started;
+
+    await user.type(screen.getByLabelText("Name"), "Mei Ling");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Mei Ling")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: PROMPT })).not.toBeInTheDocument();
+
+    // The poll from before the change lands now. It says nothing about the session in
+    // place, so it must not put the old name or the prompt back.
+    await act(async () => {
+      poll.answer(before);
+      // Give the query's promise chain and any render it causes time to settle, so the
+      // assertions see a late answer rather than one still in flight.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.queryByRole("heading", { name: PROMPT })).not.toBeInTheDocument();
+    expect(screen.getByText("Mei Ling")).toBeInTheDocument();
   });
 
   it("hides the prompt on Skip, keeps Guest, and doesn't ask again in that visit", async () => {

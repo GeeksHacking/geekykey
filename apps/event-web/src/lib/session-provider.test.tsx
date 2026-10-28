@@ -8,6 +8,7 @@ import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { MeResponse } from "@/api/types";
 import { useSession } from "@/lib/session";
+import { holdNextMe } from "@/test/hold-next-me";
 import { createTestProviders } from "@/test/providers";
 
 const { signOutOfFirebase } = vi.hoisted(() => ({ signOutOfFirebase: vi.fn() }));
@@ -24,27 +25,6 @@ function setup(prepare?: (api: MockApiClient) => void, loginLink?: string) {
   prepare?.(api);
   const { Providers, queryClient } = createTestProviders(api, { session: true, loginLink });
   return { api, queryClient, ...renderHook(() => useSession(), { wrapper: Providers }) };
-}
-
-/**
- * Holds the /me the provider sends after `holdTheNextOne()`, so a test can land its answer
- * after a sign-in or a sign-out has finished. Every other /me reaches the mock as usual.
- */
-function holdNextMe(api: MockApiClient) {
-  let answer!: (me: MeResponse) => void;
-  let refuse!: (reason: unknown) => void;
-  const held = new Promise<MeResponse>((resolve, reject) => {
-    answer = resolve;
-    refuse = reject;
-  });
-  const realMe = api.me.bind(api);
-  let holding = false;
-  vi.spyOn(api, "me").mockImplementation(async () => {
-    if (!holding) return realMe();
-    holding = false;
-    return held;
-  });
-  return { holdTheNextOne: () => (holding = true), answer, refuse, realMe };
 }
 
 describe("SessionProvider", () => {
