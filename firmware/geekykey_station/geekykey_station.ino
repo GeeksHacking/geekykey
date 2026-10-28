@@ -71,6 +71,7 @@
 #include "tap_timing.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <Ticker.h>
 
 // The pins for the board picked in the IDE (the wiring at the top).
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -104,7 +105,7 @@
 
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-10-27"
+#define FIRMWARE_VERSION "2026-10-28"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
@@ -122,8 +123,14 @@
 #define RESULT_SHOW_MS 2000UL
 
 // The click the moment a tag is read, before the tap is saved and sent, so the
-// person knows it was read while the server answers.
+// person knows it was read while the server answers. A timer ends it, so the
+// tap goes out while it sounds.
 #define CLICK_MS 40UL
+
+// How long loop() waits between asks of the reader when no tag is there. An
+// ask takes about 1.5 ms (measured 28 Oct 2026), so a tag waits half this, on
+// average, before the station sees it.
+#define READER_POLL_MS 10UL
 
 // How long boot waits for WiFi before carrying on without it. The ESP32 keeps
 // trying in the background, and taps are saved until it connects. The setup
@@ -210,6 +217,11 @@ bool resultShowing = false;
 unsigned long resultShownAt = 0;
 unsigned long resultEndedAt = 0;
 
+// The click's timer, and whether the click is sounding. The timer runs in its
+// own task, so a click ends on time while a request holds up loop().
+Ticker clickTimer;
+volatile bool clickOn = false;
+
 #define QUEUE_CAPACITY 100
 #define QUEUE_BATCH_MAX QUEUE_CAPACITY
 
@@ -236,6 +248,7 @@ uint8_t queueCount = 0;
 struct TapTiming {
   unsigned long readAt = 0;
   unsigned long clickedAt = 0;
+  unsigned long sendingShownAt = 0;  // "Sending..." is on the screen
   unsigned long savedAt = 0;
   unsigned long sentAt = 0;
   unsigned long answeredAt = 0;
@@ -369,8 +382,7 @@ void loop() {
   unsigned long readAt = 0;
   if (!readTokenUid(uid, readAt)) {
     // While a result shows, come straight back to play its sound on time.
-    // Asking the reader already takes about 25 ms when no tag is there.
-    if (!resultShowing) delay(50);
+    if (!resultShowing) delay(READER_POLL_MS);
     return;
   }
 
@@ -396,13 +408,14 @@ void loop() {
   }
 
   // Answer at once: a different token ends the result showing, and the click
-  // and the screen change come before the flash writes and the request.
+  // starts and the screen changes before the flash writes and the request.
   endResult();
-  beep(CLICK_MS);
-  showScreen("Sending...", "Hold on");
   tapTiming = TapTiming{};
   tapTiming.readAt = readAt;
+  startClick();
   tapTiming.clickedAt = millis();
+  showScreen("Sending...", "Hold on");
+  tapTiming.sendingShownAt = millis();
   const bool counted = handleTap(uid);
   rememberToken(lastToken, uid.c_str(), readAt, counted);
 }
@@ -763,7 +776,8 @@ void showResult(const char *line1, const char *line2, int ledPin, int sound) {
 }
 
 // Called from loop(): sets the buzzer for where the sound is, and goes back to
-// Ready once the result has shown for RESULT_SHOW_MS.
+// Ready once the result has shown for RESULT_SHOW_MS. A click still sounding
+// keeps the buzzer on, so a result that comes at once doesn't cut it short.
 void tickResult() {
   if (!resultShowing) return;
   const uint32_t elapsed = millis() - resultShownAt;
@@ -772,13 +786,13 @@ void tickResult() {
     showReady();
     return;
   }
-  digitalWrite(BUZZER_PIN, soundIsOn(lastResult.sound, elapsed) ? HIGH : LOW);
+  digitalWrite(BUZZER_PIN, soundIsOn(lastResult.sound, elapsed) || clickOn ? HIGH : LOW);
 }
 
-// Turns off the result's LED and the buzzer, and leaves the screen as it is.
+// Turns off the result's LED and its sound, and leaves the screen as it is.
 void endResult() {
   if (!resultShowing) return;
-  digitalWrite(BUZZER_PIN, LOW);
+  digitalWrite(BUZZER_PIN, clickOn ? HIGH : LOW);
   if (lastResult.ledPin != NO_LED) digitalWrite(lastResult.ledPin, LOW);
   resultShowing = false;
   resultEndedAt = millis();
@@ -788,26 +802,34 @@ void endResult() {
 // then would only cut a gap into the beep.
 void clickDuringResult() {
   if (soundIsOn(lastResult.sound, millis() - resultShownAt)) return;
-  beep(CLICK_MS);
+  startClick();
 }
 
-// Sounds the buzzer for `ms` and waits: only for the click, which is short.
-void beep(unsigned long ms) {
+// Starts the click and returns at once. The timer ends it CLICK_MS later.
+void startClick() {
+  clickOn = true;
   digitalWrite(BUZZER_PIN, HIGH);
-  delay(ms);
-  digitalWrite(BUZZER_PIN, LOW);
+  clickTimer.once_ms(CLICK_MS, endClick);
 }
 
-// One line per tap, in milliseconds after its tag was read: when it clicked,
-// was saved to flash, sent and answered, and when its result showed. "-" is a step that
-// didn't happen, such as sending with no WiFi. Then forgets the tap, so a
-// result with no tag behind it prints nothing.
+// Runs in the timer's task. A result's sound may be on by then: tickResult
+// sets the buzzer for it again on loop()'s next pass, within a few ms.
+void endClick() {
+  clickOn = false;
+  if (!resultShowing) digitalWrite(BUZZER_PIN, LOW);
+}
+
+// One line per tap, in milliseconds after its tag was read: when its click
+// started, "Sending..." showed, it was saved to flash, sent and answered, and
+// when its result showed. "-" is a step that didn't happen, such as sending
+// with no WiFi. Then forgets the tap, so a result with no tag behind it prints
+// nothing.
 void printTapTiming() {
   if (tapTiming.readAt == 0) return;
   const unsigned long shownAt = millis();
   const char *connection = tapTiming.reused ? "open connection" : "new connection";
-  Serial.println("Tap timing (ms after read): click " + msAfterRead(tapTiming.clickedAt) + ", saved " +
-                 msAfterRead(tapTiming.savedAt) + ", sent " + msAfterRead(tapTiming.sentAt) + " (" +
+  Serial.println("Tap timing (ms after read): click " + msAfterRead(tapTiming.clickedAt) + ", sending " +
+                 msAfterRead(tapTiming.sendingShownAt) + ", saved " + msAfterRead(tapTiming.savedAt) + ", sent " + msAfterRead(tapTiming.sentAt) + " (" +
                  connection + "), answered " + msAfterRead(tapTiming.answeredAt) + ", shown " +
                  msAfterRead(shownAt));
   tapTiming = TapTiming{};
