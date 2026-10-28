@@ -38,7 +38,7 @@ on 2 Oct 2026.
 **Amended 7 Oct 2026,** once the redrawn map's tickets were answered. The `tokens` table didn't move
 into the Event Service. It sits beside it on our Cloud Run server, as a claims stand-in that only the
 GeekyKey Service calls, so token IDs still never reach an Event Service, and it is deleted when the
-Portal's tag APIs take over after 18 Nov. The GeekyKey Service's only cache is a copy in memory of
+Portal's tag APIs take over after 17 Nov. The GeekyKey Service's only cache is a copy in memory of
 the stations each Event Service has registered; it keeps no cache store before that switch. What
 Julian meant by "v1" is still to be asked. The setup copies the Portal's, whose address is a Cloud Run
 domain mapping, which only Cloud Run's v1 interface offers. The details are in the migration spec,
