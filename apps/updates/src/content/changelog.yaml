@@ -1736,3 +1736,12 @@
     The database drops the passport's old booth column, now that each station holds its own booth.
     Every station keeps the booth it had, and the map and the station board read it from the
     station as before.
+
+- id: passport-station-group-link
+  date: 2026-10-28
+  area: backend
+  change: >-
+    An organizer can give a passport station a link to its group's page, and each stamp now
+    carries that link, so the passport can offer a button to the page after a new stamp. A link
+    must start with https: and be at most 300 characters. The button itself is FRO-89, and the
+    agreement change waits for Ethan's review.
