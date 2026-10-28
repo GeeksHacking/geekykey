@@ -23,7 +23,11 @@ interface AdminShellProps {
   children: ReactNode;
 }
 
-/** Laptop first: sidebar from lg up, a scrolling tab row under the header below that. */
+/**
+ * Laptop first: sidebar from lg up, the participant shell's bottom tab bar below that. The bar
+ * shows from 768 to 1023 px too, where there is no sidebar; the screens only have to stay
+ * usable at 768 px, and every tab fits at 360 px.
+ */
 export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
   useRouteHeadingFocus();
 
@@ -67,22 +71,27 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
               <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
             </div>
           </div>
-          <nav aria-label="Console" className="flex gap-1 overflow-x-auto px-2 pb-2">
-            {NAV.map((item) => (
-              <NavLink key={item.to} variant="top" {...item} />
-            ))}
-          </nav>
         </header>
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 px-4 py-6 outline-hidden lg:px-8 lg:py-8"
+          className="flex-1 px-4 pt-6 pb-28 outline-hidden lg:px-8 lg:py-8"
         >
           <div className="mx-auto w-full max-w-7xl">
             <DataSourceNotice />
             {children}
           </div>
         </main>
+        <nav
+          aria-label="Console"
+          className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm lg:hidden"
+        >
+          <div className="mx-auto flex max-w-7xl px-2">
+            {NAV.map((item) => (
+              <NavLink key={item.to} variant="bar" {...item} />
+            ))}
+          </div>
+        </nav>
       </div>
     </div>
   );
