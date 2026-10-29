@@ -1763,3 +1763,14 @@
     from a sketch, with each station at its booth and a count of the people who tapped there, and
     a station pulses when its taps go up. Stations with no booth, or a booth the plan doesn't
     name, are listed beside it. The MPH's real floor plan replaces the example once it arrives.
+
+- id: screens-sci-fi-look-and-animations
+  date: 2026-10-29
+  area: frontend
+  change: >-
+    The map and the participant screens have a sci-fi look, with thin borders, corner brackets,
+    monospace labels and a faint grid. The passport now animates only what a poll changed: on a
+    laptop or a big screen a new stamp presses into its slot and the points count up, and on a
+    phone each change plays a short fade. The trade-offs we accept: phones never download the
+    animation library, so they get the short fade only, and nothing moves on a device set to
+    reduce motion.
