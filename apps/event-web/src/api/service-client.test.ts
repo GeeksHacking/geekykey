@@ -21,6 +21,7 @@ describe("service client boundary", () => {
         "exportCsv",
         "listStationBoard",
         "listTaps",
+        "map",
         "replaceStationKey",
         "setStationPassport",
         "stats",

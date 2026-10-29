@@ -5,6 +5,7 @@ import type {
   EventStationBoardResponse,
   FallbackTapResponse,
   ListTapsResponse,
+  MapResponse,
   MeResponse,
   SetDisplayNameResponse,
   SetStationPassportResponse,
@@ -103,6 +104,22 @@ export const statsResponseSchema: z.ZodMiniType<StatsResponse> = z.object({
   ),
 });
 
+/** Agreement 9.10. Has no user ID, display name or token UID, so nothing here can carry one. */
+export const mapResponseSchema: z.ZodMiniType<MapResponse> = z.object({
+  stations: z.array(
+    z.object({
+      station_id: z.string(),
+      game: z.nullable(z.string()),
+      name: z.nullable(z.string()),
+      booth: z.nullable(z.string()),
+      disabled: z.boolean(),
+      taps: count,
+      unique_participants: count,
+      last_tap_at: z.nullable(isoTimestamp),
+    }),
+  ),
+});
+
 /** Agreement 9.3. The log holds stored taps only, so no `duplicate`, and each has a user. */
 export const listTapsResponseSchema: z.ZodMiniType<ListTapsResponse> = z.object({
   taps: z.array(
@@ -180,6 +197,9 @@ function parseOrganizerResponse<T>(schema: z.ZodMiniType<T>, input: unknown): T 
 
 export const parseStatsResponse = (input: unknown) =>
   parseOrganizerResponse(statsResponseSchema, input);
+
+export const parseMapResponse = (input: unknown) =>
+  parseOrganizerResponse(mapResponseSchema, input);
 
 export const parseListTapsResponse = (input: unknown) =>
   parseOrganizerResponse(listTapsResponseSchema, input);

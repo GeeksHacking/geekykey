@@ -5,6 +5,7 @@ import {
   parseEventStationBoardResponse,
   parseFallbackTapResponse,
   parseListTapsResponse,
+  parseMapResponse,
   parseMeResponse,
   parseSetDisplayNameResponse,
   parseSetStationPassportResponse,
@@ -170,6 +171,9 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     stats: () => sendJson("/api/v1/admin/stats").then(parseStatsResponse),
 
     exportCsv: async () => (await send("/api/v1/admin/export.csv")).blob(),
+
+    // Agreement 9.10. Not under /admin, because a map screen isn't an organizer.
+    map: () => sendJson("/api/v1/map").then(parseMapResponse),
   };
 }
 

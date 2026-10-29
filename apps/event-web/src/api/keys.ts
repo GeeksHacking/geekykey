@@ -15,4 +15,5 @@ export const queryKeys = {
   tapsOlder: (filters: TapsFilters, cursor: number | undefined) =>
     ["taps", filters, "older", cursor] as const,
   stats: ["stats"] as const,
+  map: ["map"] as const,
 };
