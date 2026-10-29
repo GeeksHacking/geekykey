@@ -44,7 +44,7 @@ type(scope): what is true after the change (TICKET)
 ```
 
 - `type` is lowercase: `feat`, `fix`, `refactor`, `docs`, `test`, `build`, `chore` or `revert`.
-- `scope` names the area: `frontend`, `geekykey-web`, `updates`, `backend`, `infra`, `firmware`, `spec`, `agents` or `report`. Two areas are joined with a comma (`frontend,geekykey-web`); a PR that spans more is split.
+- `scope` names the area: `event-web`, `geekykey-web`, `updates`, `backend`, `infra`, `firmware`, `spec`, `agents` or `report`. Two areas are joined with a comma (`event-web,geekykey-web`); a PR that spans more is split.
 - The summary starts lowercase and states the result, for example `a failed status call shows "Status unknown"`.
 - The Linear ticket goes in brackets at the end. A `chore` with no ticket leaves it out.
 - The whole title fits in about 72 characters, so GitHub's PR list shows it in full.
