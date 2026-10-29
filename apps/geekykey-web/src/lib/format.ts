@@ -4,16 +4,20 @@
  * apps/event-web/src/lib/format.ts for the Event screens.
  */
 
-const timeFormat = new Intl.DateTimeFormat(undefined, {
+const LOCALE = "en-GB";
+
+const timeFormat = new Intl.DateTimeFormat(LOCALE, {
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
 });
 
-const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
+const dateTimeFormat = new Intl.DateTimeFormat(LOCALE, {
   day: "numeric",
   month: "short",
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
 });
 
 function parseDate(iso: string): Date | null {
