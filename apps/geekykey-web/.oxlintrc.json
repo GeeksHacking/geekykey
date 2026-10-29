@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Oxlint's defaults stand in for ESLint's js and typescript-eslint recommended sets.
+  // The rules below are the ones those sets enabled that Oxlint does not enable by default,
+  // plus the React hooks rules whose severity or options differ. Files git ignores, such as
+  // the bundle in dist/, are skipped without being listed.
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react"],
+  "categories": { "correctness": "error" },
+  "env": { "browser": true, "es2022": true },
+  "ignorePatterns": [
+    // The router plugin rewrites this on every dev run, in its own style.
+    "src/routeTree.gen.ts"
+  ],
+  "rules": {
+    "no-case-declarations": "error",
+    "no-empty": "error",
+    "no-fallthrough": "error",
+    "no-prototype-builtins": "error",
+    "no-regex-spaces": "error",
+    "no-unexpected-multiline": "error",
+    "no-useless-assignment": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "prefer-spread": "error",
+    "preserve-caught-error": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-function-type": "error",
+    // eslint-plugin-react-hooks 7's recommended set. Oxlint's correctness category already
+    // enables the rest; these are the ones it does not, or whose severity or options differ.
+    // It has no equivalent of `config` and `gating`, which only validate React Compiler
+    // configuration.
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/incompatible-library": "warn",
+    "react/unsupported-syntax": "warn",
+    "react/only-export-components": [
+      "error",
+      { "allowConstantExport": true, "allowCompoundComponents": true }
+    ]
+  },
+  "overrides": [
+    {
+      // Route files export a Route object, and shadcn files export variant helpers.
+      // Neither is a component, and both are fine for Fast Refresh in practice.
+      "files": ["src/routes/**/*.tsx", "src/components/ui/*.tsx", "src/test/**/*.tsx"],
+      "rules": { "react/only-export-components": "off" }
+    },
+    {
+      // One import of classic zod puts all of it in the page's JavaScript, on top of the
+      // zod/mini every page already loads for src/api/schemas.ts (FRO-67).
+      "files": ["src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "zod", "message": "Import zod/mini, which the rest of the app uses." }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
