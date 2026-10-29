@@ -246,6 +246,39 @@ describe("HTTP client transport", () => {
     );
   });
 
+  it("sends a booth as agreement 9.12's PUT and answers the station", async () => {
+    const station = {
+      id: "s1",
+      label: "Reader 3",
+      created_at: "2026-10-01T02:00:00.000Z",
+      disabled_at: null,
+      game: "passport",
+      game_fixed: true,
+      booth: "A3",
+      passport: null,
+      last_seen_at: null,
+      online: false,
+      firmware_version: null,
+      buffered_taps: 0,
+      reader_ok: null,
+      last_tap_at: null,
+    };
+    fetchMock.mockResolvedValue(response({ station }));
+
+    const answer = await createHttpClient().setStationBooth("s1", { booth: "A3" });
+
+    expect(answer.station.booth).toBe("A3");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/admin/stations/s1/booth",
+      expect.objectContaining({
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booth: "A3" }),
+        credentials: "include",
+      }),
+    );
+  });
+
   it("turns a name answer without has_name into a NetworkError", async () => {
     // The answer goes straight into the ["me"] cache, so a user the passport cannot read
     // must not get there.
@@ -360,6 +393,7 @@ describe("HTTP client transport", () => {
       ["9.8", () => api.replaceStationKey("s1")],
       ["9.9 disable", () => api.disableStation("s1")],
       ["9.9 enable", () => api.enableStation("s1")],
+      ["9.12", () => api.setStationBooth("s1", { booth: "A3" })],
     ];
 
     for (const [section, call] of calls) {

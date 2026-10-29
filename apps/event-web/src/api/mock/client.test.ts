@@ -286,6 +286,30 @@ describe("station board", () => {
     }
   });
 
+  // Agreement 9.2 and 0.7: the board names the game each station runs, whether that game is
+  // fixed, and the booth the map draws it at (9.10, 9.11, 9.12).
+  it("gives every station its game, game_fixed and booth", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.listStationBoard();
+
+    // The mock has no game picker, so a station with passport settings runs the passport.
+    const inPassport = board.stations.filter((station) => station.passport !== null);
+    expect(inPassport.length).toBeGreaterThan(0);
+    for (const station of inPassport) expect(station.game).toBe("passport");
+    expect(board.stations.some((station) => station.game === null)).toBe(true);
+
+    // A game is fixed once it has counted or held back a tap there (9.11), and the fixtures
+    // hold both a station with counted taps and one with only a no_game tap.
+    expect(board.stations.some((station) => station.game_fixed)).toBe(true);
+    expect(board.stations.some((station) => !station.game_fixed)).toBe(true);
+
+    // The fixtures name booths from the example plan plus one it doesn't name, and leave one
+    // station without a booth.
+    expect(board.stations.some((station) => station.booth === "B1")).toBe(true);
+    expect(board.stations.some((station) => station.booth === null)).toBe(true);
+  });
+
   it("reads a station that has never handed off as offline, with no last_seen_at", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
@@ -299,6 +323,99 @@ describe("station board", () => {
     expect(fresh.online).toBe(false);
     expect(fresh.passport).toBeNull();
     expect(fresh.disabled_at).toBeNull();
+  });
+});
+
+describe("setting a station's booth (agreement 9.12)", () => {
+  async function setup() {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const stations = (await api.listStationBoard()).stations;
+    return { api, stations };
+  }
+
+  it("saves a trimmed booth, and 9.2 reads it back", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+
+    const answer = await api.setStationBooth(target.id, { booth: "  C4  " });
+
+    expect(answer.station.booth).toBe("C4");
+    const after = (await api.listStationBoard()).stations.find((one) => one.id === target.id);
+    expect(after?.booth).toBe("C4");
+  });
+
+  it("clears the booth when it is blank", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+
+    const answer = await api.setStationBooth(target.id, { booth: "   " });
+
+    expect(answer.station.booth).toBeNull();
+    const after = (await api.listStationBoard()).stations.find((one) => one.id === target.id);
+    expect(after?.booth).toBeNull();
+  });
+
+  it("refuses a booth over 80 code points, under `booth`, and saves nothing", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+    const before = target.booth;
+
+    const error = await api
+      .setStationBooth(target.id, { booth: "x".repeat(81) })
+      .catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("validation_failed");
+    expect((error as ApiError).issues).toEqual([
+      { path: ["booth"], message: "booth must be 0 to 80 characters" },
+    ]);
+
+    const after = (await api.listStationBoard()).stations.find((one) => one.id === target.id);
+    expect(after?.booth).toBe(before);
+  });
+
+  it("counts code points, so 41 emoji fit although they are 82 UTF-16 units", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+    const emoji = "🙂".repeat(41);
+
+    const answer = await api.setStationBooth(target.id, { booth: emoji });
+
+    expect(answer.station.booth).toBe(emoji);
+  });
+
+  it("sets it on a disabled station and on one whose game is fixed", async () => {
+    const { api, stations } = await setup();
+    const disabled = stations.find((one) => one.disabled_at !== null)!;
+    const tapped = stations.find((one) => one.game_fixed && one.disabled_at === null)!;
+
+    await api.setStationBooth(disabled.id, { booth: "C5" });
+    await api.setStationBooth(tapped.id, { booth: "A1" });
+
+    const after = (await api.listStationBoard()).stations;
+    expect(after.find((one) => one.id === disabled.id)?.booth).toBe("C5");
+    expect(after.find((one) => one.id === tapped.id)?.booth).toBe("A1");
+  });
+
+  it("answers not_found for a station it does not have, and forbids a participant", async () => {
+    const { api, stations } = await setup();
+
+    await expectApiError(api.setStationBooth("no-such-station", { booth: "A1" }), "not_found", 404);
+
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await expectApiError(api.setStationBooth(stations[0]!.id, { booth: "A1" }), "forbidden", 403);
+  });
+
+  it("checks the body before the station, as the service's validator does", async () => {
+    // The service runs `jsonBody(boothSchema)` before the handler that answers not_found, so
+    // an over-long booth on an unknown ID is 400 and not 404.
+    const { api } = await setup();
+
+    await expectApiError(
+      api.setStationBooth("no-such-station", { booth: "x".repeat(81) }),
+      "validation_failed",
+      400,
+    );
   });
 });
 

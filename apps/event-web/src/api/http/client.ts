@@ -156,6 +156,13 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
         method: "POST",
       }).then(parseStationResponse),
 
+    // 9.12 answers the station as 9.9 does, so it is checked the same way.
+    setStationBooth: (stationId, input) =>
+      sendJson(
+        `/api/v1/admin/stations/${encodeURIComponent(stationId)}/booth`,
+        jsonBody(input, "PUT"),
+      ).then(parseStationResponse),
+
     setStationPassport: (stationId, input) =>
       sendJson(
         `/api/v1/admin/stations/${encodeURIComponent(stationId)}/passport`,

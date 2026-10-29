@@ -15,6 +15,9 @@ function station(overrides: Partial<EventStationBoardStation> = {}): EventStatio
     label: "Station 1",
     created_at: "2026-10-01T00:00:00.000Z",
     disabled_at: null,
+    game: "passport",
+    game_fixed: true,
+    booth: "A2",
     passport: {
       name: "3D Printing Booth",
       location: "Hall A",

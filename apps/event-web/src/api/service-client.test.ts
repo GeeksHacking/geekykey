@@ -23,6 +23,7 @@ describe("service client boundary", () => {
         "listTaps",
         "map",
         "replaceStationKey",
+        "setStationBooth",
         "setStationPassport",
         "stats",
       ].sort(),

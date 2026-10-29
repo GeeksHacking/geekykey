@@ -1764,6 +1764,14 @@
     a station pulses when its taps go up. Stations with no booth, or a booth the plan doesn't
     name, are listed beside it. The MPH's real floor plan replaces the example once it arrives.
 
+- id: booth-on-the-station-board
+  date: 2026-10-29
+  area: frontend
+  change: >-
+    The station board shows each station's booth and sets it, so an organizer can move a station
+    on the day without a deploy. A booth is free text the map matches to its floor plan, and a
+    code the plan doesn't name still saves, with the map listing that station beside the plan.
+
 - id: screens-sci-fi-look-and-animations
   date: 2026-10-29
   area: frontend

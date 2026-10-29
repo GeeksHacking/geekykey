@@ -97,6 +97,9 @@ describe("createAppClient", () => {
       label: "Reader 3",
       created_at: "2026-10-01T02:00:00.000Z",
       disabled_at: null,
+      game: "passport",
+      game_fixed: true,
+      booth: "A3",
       passport: null,
       last_seen_at: null,
       online: false,
@@ -121,6 +124,7 @@ describe("createAppClient", () => {
       )
       .mockResolvedValueOnce(jsonResponse({ station }))
       .mockResolvedValueOnce(jsonResponse({ passport }, 201))
+      .mockResolvedValueOnce(jsonResponse({ station }))
       .mockResolvedValueOnce(jsonResponse({ taps: [], next_before_id: null }))
       .mockResolvedValueOnce(jsonResponse({ result: { id: 43, status: "accepted" } }, 201))
       .mockResolvedValueOnce(
@@ -145,6 +149,7 @@ describe("createAppClient", () => {
     await expect(api.setStationPassport("s1", { name: "3D Printing Booth" })).resolves.toEqual({
       passport,
     });
+    await expect(api.setStationBooth("s1", { booth: "A3" })).resolves.toEqual({ station });
     await api.listTaps({ station_id: "s1" });
     await api.createFallbackTap({ station_id: "s1", user_id: "dev-user-1" });
     await api.stats();
@@ -158,6 +163,7 @@ describe("createAppClient", () => {
       ["/api/v1/admin/stations/s1/disable", "POST"],
       ["/api/v1/admin/stations/s1/enable", "POST"],
       ["/api/v1/admin/stations/s1/passport", "PUT"],
+      ["/api/v1/admin/stations/s1/booth", "PUT"],
       ["/api/v1/admin/taps?station_id=s1", undefined],
       ["/api/v1/admin/taps", "POST"],
       ["/api/v1/admin/stats", undefined],

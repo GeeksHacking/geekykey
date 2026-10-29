@@ -11,6 +11,7 @@ import type {
   MeResponse,
   SetDisplayNameRequest,
   SetDisplayNameResponse,
+  SetStationBoothRequest,
   SetStationPassportRequest,
   SetStationPassportResponse,
   StatsResponse,
@@ -74,6 +75,13 @@ export interface ApiClient {
 
   /** POST /api/v1/admin/stations/{id}/enable (agreement 9.9). Clears `disabled_at`. */
   enableStation(stationId: string): Promise<StationResponse>;
+
+  /**
+   * PUT /api/v1/admin/stations/{id}/booth (agreement 9.12). Sets the booth the map draws
+   * the station at, on any station, whatever game it runs and however many taps it has.
+   * A blank booth clears it, and the answer is the station as the board lists it.
+   */
+  setStationBooth(stationId: string, input: SetStationBoothRequest): Promise<StationResponse>;
 
   /**
    * PUT /api/v1/admin/stations/{id}/passport. Adds the station to the passport or changes
