@@ -328,7 +328,7 @@ apps/event-web/
       passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph, the name prompt and Change name
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
-                           # passport settings form (add or edit a slot)
+                           # passport settings form (add or edit a slot), booth dialog
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
@@ -446,7 +446,7 @@ Rules:
 | `/passport` | participant | `GET /me` `stamps` | `PATCH /me` for the name | every station shown; empty slot where `earned_at` is null; the name prompt while `has_name` is false, and Change name for everyone |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
-| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `POST /admin/stations/{id}/key`, `PUT /admin/stations/{id}/passport`, `POST /admin/stations/{id}/disable`, `POST /admin/stations/{id}/enable` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; Add to passport on a row with no settings, Edit on one with; Replace key on every row, disabled rows included; Disable behind a confirmation, Enable at once |
+| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `POST /admin/stations/{id}/key`, `PUT /admin/stations/{id}/passport`, `PUT /admin/stations/{id}/booth`, `POST /admin/stations/{id}/disable`, `POST /admin/stations/{id}/enable` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; Add to passport on a row with no settings, Edit on one with; each station's booth, or "No booth", changed from the row, with the example plan's codes in the field's hint; Replace key on every row, disabled rows included; Disable behind a confirmation, Enable at once |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
