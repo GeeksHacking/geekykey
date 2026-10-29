@@ -1,10 +1,11 @@
 import { useState } from "react";
 
 /**
- * Which station's replace-key dialog is open, if any. One piece of state for the whole
- * board, so only one dialog can ever be open and closing one needs no per-row state.
+ * Which station's dialog is open, if any. Each call keeps its own state, so the board can
+ * hold one of these per dialog and only one dialog of that kind is ever open, with closing it
+ * needing no per-row state.
  */
-export function useReplaceStationKeyDialog() {
+export function useStationDialog() {
   const [stationId, setStationId] = useState<string | null>(null);
 
   return {

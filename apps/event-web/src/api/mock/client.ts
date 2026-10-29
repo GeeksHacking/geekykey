@@ -164,6 +164,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
   const userById = (id: string) => data.users.find((u) => u.id === id);
 
+  /**
+   * The taps at a station that a game judged: `accepted` or `cooldown`, never `no_game`.
+   * 9.11 fixes a station's game on one, and 9.10 counts them for the map.
+   */
+  const countedTapsAt = (station: MockStation) =>
+    data.taps.filter((tap) => tap.station_id === station.id && tap.status !== "no_game");
+
   /** Event rule mirrored for realism: stations without passport settings return no_game; repeated recent taps are cooldowns. */
   function resolveStatus(userId: string, stationId: string, atMs: number): TapStatus {
     const station = stationById(stationId);
@@ -202,11 +209,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       .filter((tap) => tap.station_id === station.id && tap.source === "nfc")
       .sort((a, b) => b.received_at.localeCompare(a.received_at))[0];
     const seen = station.last_seen_at ? new Date(station.last_seen_at).getTime() : null;
-    // 9.11 fixes a station's game once a game has counted or held back a tap there, and
-    // `no_game` is a tap no game judged.
-    const counted = data.taps.some(
-      (tap) => tap.station_id === station.id && tap.status !== "no_game",
-    );
+    // 9.11 fixes a station's game once a game has counted or held back a tap there.
+    const counted = countedTapsAt(station).length > 0;
     return {
       id: station.id,
       label: station.label,
@@ -244,9 +248,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
    * Agreement 9.10, drawing the same game 9.2 gives the board.
    */
   function toMapStation(station: MockStation): MapStation {
-    const counted = data.taps.filter(
-      (tap) => tap.station_id === station.id && tap.status !== "no_game",
-    );
+    const counted = countedTapsAt(station);
     const accepted = counted.filter((tap) => tap.status === "accepted");
     const newest = counted.map((tap) => tap.received_at).sort((a, b) => b.localeCompare(a))[0];
     return {

@@ -21,10 +21,7 @@ import { BoothDialog } from "./booth-dialog";
 import { DisableStationDialog } from "./disable-station-dialog";
 import { PassportStationDialog } from "./passport-station-dialog";
 import { ReplaceStationKeyDialog } from "./replace-station-key-dialog";
-import { useBoothDialog } from "./use-booth-dialog";
-import { useDisableStationDialog } from "./use-disable-station-dialog";
-import { usePassportStationDialog } from "./use-passport-station-dialog";
-import { useReplaceStationKeyDialog } from "./use-replace-station-key-dialog";
+import { useStationDialog } from "./use-station-dialog";
 import {
   hasStationProblem,
   sortStationsByTrouble,
@@ -35,10 +32,10 @@ import {
 export function StationBoard({ stations }: { stations: EventStationBoardStation[] }) {
   // Trouble first, so whoever is at the desk sees the rows that need them (agreement 9.2).
   const sorted = sortStationsByTrouble(stations);
-  const passport = usePassportStationDialog();
-  const booth = useBoothDialog();
-  const replaceKey = useReplaceStationKeyDialog();
-  const disableDialog = useDisableStationDialog();
+  const passport = useStationDialog();
+  const booth = useStationDialog();
+  const replaceKey = useStationDialog();
+  const disableDialog = useStationDialog();
 
   return (
     <Table>
