@@ -26,7 +26,7 @@ export function ParticipantShell({ user, onSignOut, children }: ParticipantShell
   useRouteHeadingFocus();
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className="flex min-h-[100dvh] flex-col bg-look-grid">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow-sm"
