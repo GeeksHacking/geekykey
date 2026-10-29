@@ -1,5 +1,6 @@
 import type { MapStation } from "@/api/types";
 import type { Booth, FloorPlan } from "@/features/map/floor-plan";
+import { markerWidth } from "@/features/map/marker-size";
 
 export interface PlacedStation {
   station: MapStation;
@@ -15,8 +16,8 @@ export interface Placement {
   unplaced: MapStation[];
 }
 
-/** How far apart, in plan units, the markers of two stations at the same booth sit. */
-const SHARED_BOOTH_GAP = 40;
+/** The space, in plan units, between the markers of two stations at the same booth. */
+const SHARED_BOOTH_GAP = 8;
 
 /**
  * Puts each station at its booth. A booth matches a name in the plan whatever its case, since
@@ -37,13 +38,17 @@ export function placeStations(stations: readonly MapStation[], plan: FloorPlan):
     atBooth.set(booth, [...(atBooth.get(booth) ?? []), station]);
   }
 
-  const placed = [...atBooth].flatMap(([booth, sharing]) =>
-    sharing.map((station, index) => ({
-      station,
-      booth,
-      x: booth.x + (index - (sharing.length - 1) / 2) * SHARED_BOOTH_GAP,
-      y: booth.y,
-    })),
-  );
+  // Stations sharing a booth sit in a row centred on it, each as wide as its marker, so their
+  // rings and counts never overlap.
+  const placed = [...atBooth].flatMap(([booth, sharing]) => {
+    const widths = sharing.map((station) => markerWidth(station) + SHARED_BOOTH_GAP);
+    let left = booth.x - widths.reduce((sum, width) => sum + width, 0) / 2;
+    return sharing.map((station, index) => {
+      const width = widths[index] ?? 0;
+      const x = left + width / 2;
+      left += width;
+      return { station, booth, x, y: booth.y };
+    });
+  });
   return { placed, unplaced };
 }

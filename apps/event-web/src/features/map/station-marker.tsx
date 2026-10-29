@@ -1,12 +1,6 @@
+import { PILL_FONT, pillText, pillWidth, SPOT_RADIUS } from "@/features/map/marker-size";
 import type { PlacedStation } from "@/features/map/place-stations";
 import { cn } from "@/lib/utils";
-
-/** The spot's radius in plan units. The pulse's ring starts at this size. */
-export const SPOT_RADIUS = 18;
-
-/** Geist Mono's advance is 0.6 of its size, so a label's width is known before it renders. */
-const PILL_FONT = 14;
-const pillWidth = (text: string) => text.length * PILL_FONT * 0.6 + 16;
 
 /**
  * One station on the plan: a yellow spot with its booth's code, and under it how many people
@@ -15,7 +9,7 @@ const pillWidth = (text: string) => text.length * PILL_FONT * 0.6 + 16;
  */
 export function StationMarker({ placed }: { placed: PlacedStation }) {
   const { station, booth, x, y } = placed;
-  const pill = station.disabled ? "Disabled" : String(station.unique_participants);
+  const pill = pillText(station);
   const width = pillWidth(pill);
 
   return (

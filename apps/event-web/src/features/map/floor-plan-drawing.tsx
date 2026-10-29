@@ -1,5 +1,5 @@
 import type { FloorPlan } from "@/features/map/floor-plan";
-import { SPOT_RADIUS } from "@/features/map/station-marker";
+import { SPOT_RADIUS } from "@/features/map/marker-size";
 
 /**
  * The hall itself: floor, rooms, walls and labels, drawn in the theme's colours so the map

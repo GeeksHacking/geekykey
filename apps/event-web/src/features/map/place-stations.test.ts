@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { MPH_EXAMPLE_PLAN } from "@/features/map/floor-plan";
 import { placeStations } from "@/features/map/place-stations";
+import { markerWidth } from "@/features/map/marker-size";
 import { mapStation } from "@/features/map/test-stations";
 
 describe("placeStations", () => {
@@ -41,8 +42,24 @@ describe("placeStations", () => {
       MPH_EXAMPLE_PLAN,
     );
     expect(placed.map(({ x, y }) => [x, y])).toEqual([
-      [297, 887],
-      [337, 887],
+      [288, 887],
+      [346, 887],
     ]);
+  });
+
+  it("keeps the markers at a shared booth from overlapping, a disabled one's wider pill too", () => {
+    const stations = [
+      mapStation({ station_id: "busy", booth: "C5", unique_participants: 1204 }),
+      mapStation({ station_id: "off", booth: "C5", disabled: true }),
+      mapStation({ station_id: "quiet", booth: "C5" }),
+    ];
+    const { placed } = placeStations(stations, MPH_EXAMPLE_PLAN);
+    for (let index = 1; index < placed.length; index++) {
+      const left = placed[index - 1];
+      const right = placed[index];
+      if (!left || !right) throw new Error("missing marker");
+      const room = (markerWidth(left.station) + markerWidth(right.station)) / 2;
+      expect(right.x - left.x).toBeGreaterThanOrEqual(room);
+    }
   });
 });

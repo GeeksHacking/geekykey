@@ -42,7 +42,9 @@ export function MapScreen() {
     }
   }
 
-  if (!map.data && isApiErrorCode(map.error, "forbidden")) {
+  // A forbidden answer replaces the map even after it has loaded: polling stops on it, so
+  // a frozen map with no way to log out would be all that's left.
+  if (isApiErrorCode(map.error, "forbidden")) {
     return <MapForbidden onSignOut={() => void signOut()} />;
   }
 
