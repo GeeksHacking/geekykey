@@ -84,6 +84,10 @@ describe("me response contract", () => {
           label: "Station 1",
           created_at: "2026-10-01T02:00:00.000Z",
           disabled_at: null,
+          // No game and no booth yet: 9.2 gives both as null, and game_fixed false.
+          game: null,
+          game_fixed: false,
+          booth: null,
           passport: null,
           // A station created by 9.7 and not yet heard from: no hand-off, so no
           // last_seen_at, and it reads as offline.
@@ -101,12 +105,48 @@ describe("me response contract", () => {
     expect(parseEventStationBoardResponse(board)).toEqual(board);
   });
 
+  it("keeps a station's game, game_fixed and booth, which 9.2 added in version 0.7", () => {
+    const board = {
+      stations: [
+        {
+          id: "s1",
+          label: "Station 1",
+          created_at: "2026-10-01T02:00:00.000Z",
+          disabled_at: null,
+          game: "passport",
+          game_fixed: true,
+          booth: "A3",
+          passport: {
+            name: "3D Printing Booth",
+            location: "Hall A",
+            points: 1,
+            added_at: "2026-10-01T02:00:00.000Z",
+          },
+          last_seen_at: "2026-10-10T09:00:01.250Z",
+          online: true,
+          firmware_version: "0.3.1",
+          buffered_taps: 0,
+          reader_ok: true,
+          last_tap_at: null,
+        },
+      ],
+    };
+
+    const parsed = parseEventStationBoardResponse(board);
+    expect(parsed.stations[0]?.game).toBe("passport");
+    expect(parsed.stations[0]?.game_fixed).toBe(true);
+    expect(parsed.stations[0]?.booth).toBe("A3");
+  });
+
   it("drops the fields version 0.3 removed, rather than passing them on", () => {
     const station = {
       id: "s1",
       label: "Station 1",
       created_at: "2026-10-01T02:00:00.000Z",
       disabled_at: null,
+      game: null,
+      game_fixed: false,
+      booth: null,
       passport: null,
       last_seen_at: null,
       online: false,
@@ -133,6 +173,9 @@ describe("me response contract", () => {
       label: "Station 1",
       created_at: "2026-10-01T02:00:00.000Z",
       disabled_at: null,
+      game: null,
+      game_fixed: false,
+      booth: null,
       passport: null,
       last_seen_at: null,
       online: false,
@@ -162,6 +205,23 @@ describe("me response contract", () => {
       eventStationBoardResponseSchema.safeParse({ stations: [{ ...station, online: null }] })
         .success,
     ).toBe(false);
+    // 9.2 gives each station all three since version 0.7, so a service that leaves one out is
+    // in the wrong shape rather than in an older one.
+    expect(
+      eventStationBoardResponseSchema.safeParse({
+        stations: [{ ...station, game: undefined }],
+      }).success,
+    ).toBe(false);
+    expect(
+      eventStationBoardResponseSchema.safeParse({
+        stations: [{ ...station, game_fixed: undefined }],
+      }).success,
+    ).toBe(false);
+    expect(
+      eventStationBoardResponseSchema.safeParse({
+        stations: [{ ...station, booth: undefined }],
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects a response with a missing required field", () => {
@@ -178,6 +238,9 @@ describe("organizer response contract", () => {
     label: "Reader 3",
     created_at: "2026-10-01T02:00:00.000Z",
     disabled_at: null,
+    game: null,
+    game_fixed: false,
+    booth: null,
     passport: null,
     last_seen_at: null,
     online: false,
@@ -389,6 +452,9 @@ describe("the rules each field carries", () => {
       label: "Reader 3",
       created_at: "2026-10-01T02:00:00.000Z",
       disabled_at: null,
+      game: null,
+      game_fixed: false,
+      booth: null,
       passport: null,
       last_seen_at: null,
       online: false,

@@ -184,6 +184,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   }
 
   /**
+   * The game a station runs (9.2). The mock has no game picker, so a station with passport
+   * settings runs the passport, as the migration to 0.7 gave every such station, and the
+   * rest run none.
+   */
+  const gameOf = (station: MockStation) => (station.passport ? "passport" : null);
+
+  /**
    * Agreement 9.2. Every field comes from the Event Service's own station row, since
    * version 0.3 removed the status call this board used to sit behind. `online` is
    * recomputed on each read so a poll reflects the wall clock, and a station that has
@@ -194,11 +201,19 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       .filter((tap) => tap.station_id === station.id && tap.source === "nfc")
       .sort((a, b) => b.received_at.localeCompare(a.received_at))[0];
     const seen = station.last_seen_at ? new Date(station.last_seen_at).getTime() : null;
+    // 9.11 fixes a station's game once a game has counted or held back a tap there, and
+    // `no_game` is a tap no game judged.
+    const counted = data.taps.some(
+      (tap) => tap.station_id === station.id && tap.status !== "no_game",
+    );
     return {
       id: station.id,
       label: station.label,
       created_at: station.created_at,
       disabled_at: station.disabled_at,
+      game: gameOf(station),
+      game_fixed: counted,
+      booth: station.booth,
       passport: station.passport,
       last_seen_at: station.last_seen_at,
       online: seen !== null && now() - seen < STATION_ONLINE_WINDOW_MS,
@@ -225,8 +240,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   }
 
   /**
-   * Agreement 9.10. The mock has no games, so a station with passport settings runs the
-   * passport, as the migration to 0.7 gave every such station, and the rest run none.
+   * Agreement 9.10, drawing the same game 9.2 gives the board.
    */
   function toMapStation(station: MockStation): MapStation {
     const counted = data.taps.filter(
@@ -236,7 +250,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     const newest = counted.map((tap) => tap.received_at).sort((a, b) => b.localeCompare(a))[0];
     return {
       station_id: station.id,
-      game: station.passport ? "passport" : null,
+      game: gameOf(station),
       name: station.passport?.name ?? null,
       booth: station.booth,
       disabled: station.disabled_at !== null,

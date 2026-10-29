@@ -81,9 +81,11 @@ export interface SetStationPassportResponse {
 
 /**
  * GET /api/v1/admin/stations on the Event Service (agreement 9.2): every station this
- * Event Service has registered, enabled or disabled, with its health and passport
- * settings. Version 0.3 dropped `status_known` and `linked`, because there is no
- * status call to fail and a station always feeds the Event Service that registered it.
+ * Event Service has registered, enabled or disabled, with its game, its booth, its health
+ * and passport settings. Version 0.3 dropped `status_known` and `linked`, because there is
+ * no status call to fail and a station always feeds the Event Service that registered it.
+ * Version 0.7 moved the booth onto the station (BAC-89) and gave it the game it runs
+ * (BAC-90).
  *
  * `label` and `online` are always present. `last_seen_at` is set by every hand-off, so
  * a station created by 9.7 and not yet heard from has none and reads as offline. The
@@ -94,6 +96,12 @@ export interface EventStationBoardStation {
   label: string;
   created_at: string;
   disabled_at: string | null;
+  /** The `id` of the game it runs, or null for none. With none, its taps get `no_game`. */
+  game: string | null;
+  /** True once a game has counted or held back a tap there, so its game can't change (9.11). */
+  game_fixed: boolean;
+  /** The booth the map draws it at (9.12), or null. */
+  booth: string | null;
   passport: EventStationPassport | null;
   last_seen_at: string | null;
   online: boolean;

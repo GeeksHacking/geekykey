@@ -286,6 +286,30 @@ describe("station board", () => {
     }
   });
 
+  // Agreement 9.2 and 0.7: the board names the game each station runs, whether that game is
+  // fixed, and the booth the map draws it at (9.11, 9.12).
+  it("gives every station its game, game_fixed and booth", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.listStationBoard();
+
+    // The mock has no game picker, so a station with passport settings runs the passport.
+    const inPassport = board.stations.filter((station) => station.passport !== null);
+    expect(inPassport.length).toBeGreaterThan(0);
+    for (const station of inPassport) expect(station.game).toBe("passport");
+    expect(board.stations.some((station) => station.game === null)).toBe(true);
+
+    // A game is fixed once it has counted or held back a tap there (9.11), and the fixtures
+    // hold both a station with counted taps and one with only a no_game tap.
+    expect(board.stations.some((station) => station.game_fixed)).toBe(true);
+    expect(board.stations.some((station) => !station.game_fixed)).toBe(true);
+
+    // The fixtures name booths from the example plan plus one it doesn't name, and leave one
+    // station without a booth.
+    expect(board.stations.some((station) => station.booth === "B1")).toBe(true);
+    expect(board.stations.some((station) => station.booth === null)).toBe(true);
+  });
+
   it("reads a station that has never handed off as offline, with no last_seen_at", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
