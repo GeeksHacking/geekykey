@@ -32,9 +32,9 @@ Do not copy content from the agreement or the skill into this file. Link to it.
 
 `src/api/create-client.ts` decides which client the app runs on. A live build
 (`VITE_LIVE_API=1`) sends every method to the Event Service: the session, the station board
-and its writes, the scan log, the QR fallback, the stats and the export. A mock build answers
-every method from `src/api/mock`, and the organiser console says so in section 13's "Demo
-data" notice (`src/components/layout/data-source-notice.tsx`). A live build shows no notice.
+and its writes, the scan log, the QR fallback, the stats, the export and the map. A mock build
+answers every method from `src/api/mock`, and the organiser console and the map say so in
+section 13's "Demo data" notice (`src/components/layout/data-source-notice.tsx`). A live build shows no notice.
 Token claiming lives in the separate GeekyKey app, not in these Event screens. Screens never
 need to know which client supplied a value.
 
@@ -113,7 +113,7 @@ One thing that looks like a bug and is not:
 | Tables | TanStack Table 9 | Organiser scan log only. Features are opt-in through `tableFeatures()`; row, cell, and header methods live on prototypes, so call them on the instance and never spread one |
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
 | Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
-| Motion | CSS/shadcn transitions | No motion library is currently required; do not add one without agreeing it in the stack |
+| Motion | CSS/shadcn transitions, and GSAP on the map | GSAP (`gsap` and `@gsap/react`'s `useGSAP`) was agreed with Ethan on 26 Oct 2026 for the map (FRO-78, FRO-80) and the passport at desktop widths (FRO-77). It may load only from the map's route files, and on the passport only through `import()` at 1024 px and up, so a phone never downloads it. Everywhere else, CSS and `tw-animate-css`. The map's pulse is the example: `features/map/use-map-pulses.ts`, with reduced motion read through `gsap.matchMedia()` |
 | Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport. Import `zod/mini`, here and in `src/api/schemas.ts`, and lint refuses `zod`. Every page loads the schemas, and one import of `zod` would put all of classic zod on top, about 10 KB gzipped (FRO-67). Mini writes `.nullable()` as `z.nullable(...)` and `.min(1, "...")` as `.check(z.minLength(1, "..."))` |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | ESLint flat config + typescript-eslint | |
@@ -315,6 +315,7 @@ apps/event-web/
         index.tsx           # participant dashboard
         passport.tsx
         activity.tsx
+      map.tsx               # the map on the big screen: session gate, no role gate (9.10 decides)
       admin/
         route.tsx           # session gate + organiser role gate + console shell
         index.tsx           # redirects to /admin/stations
@@ -331,6 +332,7 @@ apps/event-web/
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
+      map/                  # the big screen's map: floor plan, placing stations, pulses (GSAP)
     components/
       ui/                   # shadcn generated and customised. No app logic here.
       layout/               # shells, nav, page header, theme toggle, account menu, empty/error/loading views
@@ -400,8 +402,8 @@ Rules:
   where the agreement says so (QR fallback).
 - The Event screens never compute stamps, points, or cooldown. Display what the backend returns.
 - Poll, do not stream. Stations every 10 to 15 s. Scan log every 5 s with no cursor,
-  merged by `id`. Polling is Query's `refetchInterval`, which already pauses in hidden
-  tabs. No websockets.
+  merged by `id`. The map every 2 s. Polling is Query's `refetchInterval`, which already
+  pauses in hidden tabs. No websockets.
 - Scan log pagination is cursor-based via `before_id` and `next_before_id`.
 - Timestamps arrive as UTC ISO strings. Format for display in the user's local zone, in
   the mono font. Never parse IDs. Only `taps.id` is numeric, and only for the cursor.
@@ -448,6 +450,7 @@ Rules:
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
+| `/map` | organiser, map screen | `GET /map` polled every 2 s | | every station at its booth; one with no booth or an unknown one listed beside the map; disabled marked in words, no pulse; a pulse only when `taps` rose; `forbidden` shown in place, with Log out; no names |
 
 `/admin/stations` and `/admin/fallback` both read the Event board, from
 `listStationBoard()`, which is the only call to `GET /api/v1/admin/stations` (9.2).
@@ -533,7 +536,9 @@ the final layout. Empty states say what to do next. Errors are inline where the 
 acted; toasts only for transient success.
 
 **Motion:** 150 to 250 ms on `transform` and `opacity` only, for feedback and state
-change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`.
+change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. One exception: the
+map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it reads from
+the back of a hall. With reduced motion it only fades.
 
 ## Coding conventions
 
