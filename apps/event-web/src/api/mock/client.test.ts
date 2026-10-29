@@ -326,6 +326,87 @@ describe("station board", () => {
   });
 });
 
+describe("setting a station's booth (agreement 9.12)", () => {
+  async function setup() {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const stations = (await api.listStationBoard()).stations;
+    return { api, stations };
+  }
+
+  it("saves a trimmed booth, and 9.2 reads it back", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+
+    const answer = await api.setStationBooth(target.id, { booth: "  C4  " });
+
+    expect(answer.station.booth).toBe("C4");
+    const after = (await api.listStationBoard()).stations.find((one) => one.id === target.id);
+    expect(after?.booth).toBe("C4");
+  });
+
+  it("clears the booth when it is blank", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+
+    const answer = await api.setStationBooth(target.id, { booth: "   " });
+
+    expect(answer.station.booth).toBeNull();
+    const after = (await api.listStationBoard()).stations.find((one) => one.id === target.id);
+    expect(after?.booth).toBeNull();
+  });
+
+  it("refuses a booth over 80 code points, under `booth`, and saves nothing", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+    const before = target.booth;
+
+    const error = await api
+      .setStationBooth(target.id, { booth: "x".repeat(81) })
+      .catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("validation_failed");
+    expect((error as ApiError).issues).toEqual([
+      { path: ["booth"], message: "booth must be 0 to 80 characters" },
+    ]);
+
+    const after = (await api.listStationBoard()).stations.find((one) => one.id === target.id);
+    expect(after?.booth).toBe(before);
+  });
+
+  it("counts code points, so 41 emoji fit although they are 82 UTF-16 units", async () => {
+    const { api, stations } = await setup();
+    const target = stations[0]!;
+    const emoji = "🙂".repeat(41);
+
+    const answer = await api.setStationBooth(target.id, { booth: emoji });
+
+    expect(answer.station.booth).toBe(emoji);
+  });
+
+  it("sets it on a disabled station and on one whose game is fixed", async () => {
+    const { api, stations } = await setup();
+    const disabled = stations.find((one) => one.disabled_at !== null)!;
+    const tapped = stations.find((one) => one.game_fixed && one.disabled_at === null)!;
+
+    await api.setStationBooth(disabled.id, { booth: "C5" });
+    await api.setStationBooth(tapped.id, { booth: "A1" });
+
+    const after = (await api.listStationBoard()).stations;
+    expect(after.find((one) => one.id === disabled.id)?.booth).toBe("C5");
+    expect(after.find((one) => one.id === tapped.id)?.booth).toBe("A1");
+  });
+
+  it("answers not_found for a station it does not have, and forbids a participant", async () => {
+    const { api, stations } = await setup();
+
+    await expectApiError(api.setStationBooth("no-such-station", { booth: "A1" }), "not_found", 404);
+
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await expectApiError(api.setStationBooth(stations[0]!.id, { booth: "A1" }), "forbidden", 403);
+  });
+});
+
 describe("scan log", () => {
   it("pages newest first with a before_id cursor and no overlap", async () => {
     const api = client();

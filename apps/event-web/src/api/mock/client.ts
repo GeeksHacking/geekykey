@@ -33,6 +33,7 @@ import {
   type StatsResponse,
   type TapStatus,
 } from "@/api/types";
+import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
 
@@ -416,6 +417,23 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const station = stationById(stationId);
         if (!station) throw new ApiError(404, "not_found");
         station.disabled_at = null;
+        return { station: toStationBoardStation(station) };
+      }),
+
+    // Agreement 9.12. The booth is free text for the map's floor plan, kept as typed once
+    // trimmed, and a blank one is none. 9.12 counts it in code points, as 9.1 does, and its
+    // message is the service's own.
+    setStationBooth: (stationId, input) =>
+      call((): StationResponse => {
+        currentOrganizer();
+        const station = stationById(stationId);
+        if (!station) throw new ApiError(404, "not_found");
+        if (!isBooth(input.booth)) {
+          fail("validation_failed", [
+            { path: ["booth"], message: `booth must be 0 to ${BOOTH_MAX} characters` },
+          ]);
+        }
+        station.booth = input.booth.trim() || null;
         return { station: toStationBoardStation(station) };
       }),
 

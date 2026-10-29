@@ -139,6 +139,15 @@ export interface StationResponse {
   station: EventStationBoardStation;
 }
 
+/**
+ * PUT /api/v1/admin/stations/{id}/booth (agreement 9.12). The booth is free text the map
+ * matches to a booth in its own floor plan, and a blank one clears it. It is set on any
+ * station, whatever game it runs and however many taps it has.
+ */
+export interface SetStationBoothRequest {
+  booth: string;
+}
+
 export interface AdminTap {
   id: number;
   client_tap_id: string;
