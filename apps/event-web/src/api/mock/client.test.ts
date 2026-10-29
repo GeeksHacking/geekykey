@@ -287,7 +287,7 @@ describe("station board", () => {
   });
 
   // Agreement 9.2 and 0.7: the board names the game each station runs, whether that game is
-  // fixed, and the booth the map draws it at (9.11, 9.12).
+  // fixed, and the booth the map draws it at (9.10, 9.11, 9.12).
   it("gives every station its game, game_fixed and booth", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
@@ -404,6 +404,18 @@ describe("setting a station's booth (agreement 9.12)", () => {
 
     await api.devLogin(SEEDED_PARTICIPANT_ID);
     await expectApiError(api.setStationBooth(stations[0]!.id, { booth: "A1" }), "forbidden", 403);
+  });
+
+  it("checks the body before the station, as the service's validator does", async () => {
+    // The service runs `jsonBody(boothSchema)` before the handler that answers not_found, so
+    // an over-long booth on an unknown ID is 400 and not 404.
+    const { api } = await setup();
+
+    await expectApiError(
+      api.setStationBooth("no-such-station", { booth: "x".repeat(81) }),
+      "validation_failed",
+      400,
+    );
   });
 });
 

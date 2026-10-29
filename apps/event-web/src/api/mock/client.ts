@@ -422,17 +422,18 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
     // Agreement 9.12. The booth is free text for the map's floor plan, kept as typed once
     // trimmed, and a blank one is none. 9.12 counts it in code points, as 9.1 does, and its
-    // message is the service's own.
+    // message is the service's own. The body is checked before the station is looked up,
+    // because the service's validator runs before the handler that answers not_found.
     setStationBooth: (stationId, input) =>
       call((): StationResponse => {
         currentOrganizer();
-        const station = stationById(stationId);
-        if (!station) throw new ApiError(404, "not_found");
         if (!isBooth(input.booth)) {
           fail("validation_failed", [
             { path: ["booth"], message: `booth must be 0 to ${BOOTH_MAX} characters` },
           ]);
         }
+        const station = stationById(stationId);
+        if (!station) throw new ApiError(404, "not_found");
         station.booth = input.booth.trim() || null;
         return { station: toStationBoardStation(station) };
       }),
