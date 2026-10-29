@@ -12,6 +12,7 @@ import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { MapScreen } from "@/features/map/map-screen";
+import { mapStation } from "@/features/map/test-stations";
 import { createTestProviders } from "@/test/providers";
 
 /** Station 1 in the fixtures, the 3D Printing Booth at B1. */
@@ -77,7 +78,26 @@ describe("MapScreen", () => {
 
     const offMap = within(await screen.findByRole("region", { name: "Not on the map" }));
     expect(offMap.getByText("Careers Corner").closest("li")).toHaveTextContent("D2");
-    expect(offMap.getByText("None").closest("li")).toHaveTextContent("Unnamed station");
+    expect(offMap.getByText("No booth").closest("li")).toHaveTextContent("No game yet");
+  });
+
+  it("names a station outside the passport by its game, and keeps a long booth in its row", async () => {
+    const booth = "Registration desk by the east entrance";
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValue({
+        stations: [
+          mapStation({ station_id: "gatsby", game: "gatsby", name: null, booth: "C2" }),
+          mapStation({ station_id: "desk", game: null, name: null, booth }),
+        ],
+      });
+    });
+
+    const onMap = within(await screen.findByRole("region", { name: "On the map" }));
+    expect(onMap.getByText("Runs gatsby")).toBeInTheDocument();
+    const offMap = within(screen.getByRole("region", { name: "Not on the map" }));
+    const line = offMap.getByText(`Booth ${booth} isn't on this plan`);
+    expect(line).toHaveClass("truncate");
+    expect(line).toHaveAttribute("title", booth);
   });
 
   it("shows no participant's name", async () => {
@@ -144,6 +164,19 @@ describe("MapScreen", () => {
     });
 
     expect(await screen.findByText("Couldn't load the map")).toBeInTheDocument();
+  });
+
+  it("offers Log out when the account stops being allowed after the map has loaded", async () => {
+    const { api, poll } = setup();
+    await screen.findByRole("region", { name: "On the map" });
+
+    api.mock.failNext("forbidden");
+    await poll();
+
+    expect(
+      await screen.findByRole("heading", { name: "This account can't show the map" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
   });
 
   it("tells an account that isn't a map screen or an organiser that it can't show the map", async () => {

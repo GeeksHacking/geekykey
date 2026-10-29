@@ -68,26 +68,28 @@ export function StationList({
 function StationRow({ station, code }: { station: MapStation; code: string | null }) {
   return (
     <li className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
-      {code ? (
-        <span
-          className={cn(
-            "grid h-9 w-9 place-items-center rounded-full border font-mono text-sm font-bold",
-            station.disabled
+      <span
+        className={cn(
+          "grid h-9 w-9 place-items-center rounded-full border font-mono text-sm font-bold",
+          code === null
+            ? "border-dashed border-muted-foreground text-muted-foreground"
+            : station.disabled
               ? "border-dashed border-muted-foreground bg-muted text-muted-foreground"
               : "border-primary-edge bg-primary text-primary-foreground",
-          )}
-        >
-          {code}
-        </span>
-      ) : (
-        <span className="font-mono text-sm text-muted-foreground">
-          {station.booth ? station.booth : "None"}
-        </span>
-      )}
+        )}
+      >
+        {code ?? <MapPinSimpleArea className="h-4 w-4" aria-hidden />}
+      </span>
       <span className="min-w-0">
-        <span className="block truncate text-base font-medium">
-          {station.name ?? "Unnamed station"}
-        </span>
+        <span className="block truncate text-base font-medium">{stationTitle(station)}</span>
+        {code === null ? (
+          <span
+            className="mt-0.5 block truncate text-sm text-muted-foreground"
+            title={station.booth ?? undefined}
+          >
+            {station.booth ? `Booth ${station.booth} isn't on this plan` : "No booth"}
+          </span>
+        ) : null}
         {station.disabled ? (
           <span className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
             <Prohibit className="h-3.5 w-3.5" aria-hidden />
@@ -100,4 +102,14 @@ function StationRow({ station, code }: { station: MapStation; code: string | nul
       </span>
     </li>
   );
+}
+
+/**
+ * A stamp slot has its passport name. Any other station is named by its game. Agreement 9.10
+ * says that name comes from 9.2's `games`, but a map screen can't read 9.2, so until the
+ * agreement settles it (BAC-109) the map shows the game's `id`.
+ */
+function stationTitle(station: MapStation): string {
+  if (station.name) return station.name;
+  return station.game === null ? "No game yet" : `Runs ${station.game}`;
 }

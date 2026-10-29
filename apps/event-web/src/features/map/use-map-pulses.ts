@@ -4,7 +4,7 @@ import { useRef, type RefObject } from "react";
 
 import type { MapStation } from "@/api/types";
 import { stationsToPulse } from "@/features/map/pulses";
-import { SPOT_RADIUS } from "@/features/map/station-marker";
+import { SPOT_RADIUS } from "@/features/map/marker-size";
 
 gsap.registerPlugin(useGSAP);
 
@@ -59,6 +59,8 @@ export function useMapPulses(
         );
       }
     },
-    { dependencies: [stations], scope },
+    // Each changed poll reverts the last poll's pulses, which have finished by then (a pulse
+    // lasts under 1.5 s and polls come every 2 s), so the context never fills with old tweens.
+    { dependencies: [stations], scope, revertOnUpdate: true },
   );
 }
