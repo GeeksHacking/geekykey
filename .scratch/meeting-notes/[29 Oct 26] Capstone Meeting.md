@@ -73,31 +73,61 @@ Tickets: BAC-103 (the spec records whatever is decided here), BAC-105 (the switc
 
 Answer:
 
-**1.5 Proposed: four features, all from the same tap (BAC-112, urgent)**
+**1.5 Proposed: features that all come from the same tap (BAC-112, urgent)**
 
-Ethan's question: which games and features would people remember, rather than gimmicks that add steps? A feature earns its place only if it passes all four:
+Ethan's question: which games and features would people remember, rather than gimmicks that add steps? Every idea is now checked against three things (spec, section 2, "The checks for a new idea"):
 
-1. Tapping is the only thing the visitor does. No second person, no timing, no card to read
-2. Paper or a phone can't do it
-3. People nearby can see it
-4. It also gives the organiser something
+1. **The four checks.** It passes all four:
+   1. Tapping is the only thing the visitor does. No second person, no timing, no card to read. A phone is needed once, to claim a token, and after that only to check progress
+   2. Paper or a phone can't do it
+   3. People nearby can see it
+   4. It also gives the organiser something
+2. **Mr Pang's feedback (1.1).** It's different from pen and paper, it answers why people skip booths rather than only rewarding a visit, it doesn't end only in a personal reward, it's worth its cost and upkeep, and it works with booths side by side
+3. **No leaderboard (23 Oct).** Nothing ranks people, by points, time, wins or gear. A goal the whole room shares is fine
 
-Connections and Find Gatsby fail the first. The passport alone fails the second: it's how people take part, not the show. These four pass, and none depends on how far apart the booths are, so they work at partner groups' booths at the showcase, the grad tea's areas, and sponsors' booths at Hackomania:
+Connections and Find Gatsby fail the first check. The passport alone fails the second: it's how people take part, not the show. These pass, and none depends on how far apart the booths are, so they work at partner groups' booths at the showcase, the grad tea's areas, and sponsors' booths at Hackomania:
 
 | Feature | What happens | Tickets | Needs |
 |---|---|---|---|
-| Light the hall | On the big screen, each booth lights up once enough people have visited it, and the hall celebrates when every booth is lit. The dark booths pull people to the quiet ones | FRO-97 | Screens only |
+| Light the hall | On the big screen, each booth lights up once enough people have visited it, and the hall celebrates when every booth is lit. The dark booths pull people to the quiet ones. At the grad tea it's "the party lights up", in the Gatsby look | FRO-97 | Screens only |
 | Replay the night | At the showcase, the grad tea's real taps play on the map in about a minute: where the crowd went, and which booths stayed quiet | FRO-98 | Screens only, and the grad tea's export saved before the switch |
-| The station knows you | Tap, and the station shows "Hi Alex!" and "3 of 6 stamps", with a tune of its own on the last stamp | BAC-111, HAR-28 | Agreement change, backend by Tue 10 Nov, firmware |
+| The outfit, built from the crowd | Below | Not yet | A small agreement change, and the art for each look |
+| The station knows you | Tap, and the station shows "Hi Alex!" and "3 of 6 stamps", with a tune of its own on the last stamp | BAC-111, HAR-28 | Agreement change, backend by Tue 10 Nov, firmware. Changes a call from 23 Oct (below) |
 | The hexagon you keep | Six partner pieces on one token, taken home | HAR-25 | Zi Tao's prototype |
+
+**The station knows you changes Adam's call of 23 Oct** (spec, the 23 Oct answers, items 3 and 6): the station was to show the visitor's own text only once it had an OLED or a TFT, and points on the station went with the leaderboard. Adam proposes changing the call: the station shows the name and progress on today's 16-character LCD, and progress isn't points. Julian's view first, then the spec changes (BAC-103).
+
+**Joshua's idea: avatars, gear and battles (29 Oct)**
+
+Every participant gets an avatar. Taps at booths drop random gear (outfits, armour, weapons, pets), some with stat buffs. Participants battle one to one by scanning each other's token with a phone, in a timing-bar game, once per pair. A big screen shows a leaderboard of duellists and a world boss that every avatar fights.
+
+| Part | Against the checks |
+|---|---|
+| The world boss: one goal the room shares, on the big screen | Passes. It's the same idea as Light the hall, so it becomes that, in each event's look |
+| An avatar that changes as you collect | Passes, simplified to one set piece per booth (the outfit, below) |
+| Random drops and stat buffs | Fails Mr Pang's point about rewards, and paper can do a raffle. Buffs only matter for the battles |
+| Phone battles with a timing bar | Fails the first check: a second person, a phone and a game to learn. A phone opens a token's page from its UID, so a shared link can battle from anywhere, and the once-per-pair rule still lets five friends play ten battles among themselves |
+| Leaderboard of duellists and most-geared | Fails the third check (23 Oct) |
+| Gatsby fit, and time | Armour and battles don't fit a 1920s party. Items, inventories, battles and the boss are the most new work of anything here, with the backend due Tue 10 Nov |
+
+**The outfit, built from the crowd (proposed, from Joshua's avatar)**
+
+- Six slots, one per partner booth. Your tap at a booth gives you its piece, and the passport draws your avatar wearing what you have. Only a tap at the booth gives you its piece
+- What others give you: once a booth lights up (Light the hall), its piece turns gold for everyone who has it, and for everyone who gets it later. Other people's visits improve your outfit, so it pays to tell people about a booth you liked. Nobody has to find a second person, and there's nothing to swap or explain
+- The same six slots at both events, with each look's own art: a hat, pearls, a bow tie, a cane, a feather and a glass at the grad tea; a helmet, a visor, armour, a gauntlet, a jetpack and a drone at the showcase. The switch still changes only the look and the event's name. At the showcase, the six slots match the hexagon's six pieces
+- The big screen shows each booth's piece on the map, turning gold as the booth lights. No avatars or names on the big screen
+- Built on the stamps the passport already has. The gold needs one addition: each stamp slot's visitor count in 8.1, and the lighting target as an event setting so the phone and the big screen agree. That's an agreement change, by Tue 10 Nov
+- Against the checks: tap only; the crowd's gold needs live counts, which paper can't do; the gold shows on the big screen; organisers get the same per-booth counts; no ranking. Honestly, collecting the six pieces is still the passport with pictures; the shared gold is the new part
 
 Questions:
 
-- Which of the four do we build? Who builds each?
+- Which of these do we build? Who builds each?
 - Light the hall: how many visitors should light a booth, at the grad tea and at the showcase?
 - Replay the night: can we show the grad tea's taps at the showcase? They're anonymous on the map, but they're guests' taps
-- The station knows you: may a station show a visitor's first name, on a screen the next person in the queue can see? Or progress only?
-- The station knows you: is the agreement change worth it before the backend freeze on Wed 11 Nov?
+- The outfit: do we build it, in place of plain stamps? Who draws the twelve pieces, six for each look?
+- The outfit: is the gold from the crowd enough of a reason to tell others about a booth?
+- Joshua's idea: does Julian see a part worth keeping that the checks would cut?
+- The station knows you: Adam proposes changing the 23 Oct call so the station uses today's LCD. Does Julian agree? If it goes ahead, may it show a first name, on a screen the next person in the queue can see, or progress only?
 - The hexagon: still chosen on Thu 5 Nov, or now?
 - At Hackomania, would sponsors want any of these at their booth?
 
