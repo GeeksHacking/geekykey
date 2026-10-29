@@ -134,6 +134,18 @@ From a review of the project's direction with Adam on 27 Oct, and his calls on 2
 2. **The NFC sticker sits at least 5 cm from the station's reader,** on the opposite face, since the RC522 would read a sticker in its field as a tap, over and over (HAR-26).
 3. **Web Push stays out.** It's the only way to prompt a phone whose passport is closed, and iPhones allow it only for a site added to the home screen.
 
+### The checks for a new idea (29 Oct)
+
+Adam's call on 29 Oct, after Mr Pang's feedback that our games are gimmicks: they add steps, end in rewards and could be done on pen and paper. Every new game or feature idea is checked against these three before it gets a ticket, and the ticket or the meeting notes say how it fared. The 29 Oct meeting notes, 1.5, apply them to the ideas so far.
+
+1. **The four checks.** It passes all four:
+   1. Tapping is the only thing the visitor does. No second person, no timing, no card to read. A phone is needed once, to claim a token, and after that only to check progress (the 27 Oct answers, later, item 3).
+   2. Paper or a phone can't do it.
+   3. People nearby can see it.
+   4. It also gives the organiser something.
+2. **Mr Pang's feedback (29 Oct).** It's different from pen and paper. It answers why people skip booths, rather than only rewarding a visit. It doesn't end only in a personal reward. It's worth its cost and upkeep beside what events already do. It works with booths side by side, as sponsors' booths are at GeeksHacking's events.
+3. **No leaderboard** (the 23 Oct answers, item 3). Nothing ranks people, by points, time, wins or gear. A goal the whole room shares is fine.
+
 ### The spec's calls, 7 Oct
 
 No ticket settled these. The rewrite needed them to put the steps in order.
@@ -1078,7 +1090,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ### Joshua
 
-- The game ideas from 8 Oct, and whether the showcase has a theme, which Adam asks the teachers.
+- The game ideas from 8 Oct, and whether the showcase has a theme, which Adam asks the teachers. *Since 29 Oct:* a new idea goes through "The checks for a new idea" (section 2) before it gets a ticket.
 - The export keeps ten columns, as he confirmed in [Does the A/B analysis need token IDs or unclaimed-token taps?](issues/16-ab-analysis-export.md). The end-of-day copy feeds his analysis.
 - He runs the A/B study on the day, and isn't a watcher.
 - ~~The Sprint 2 A/B test's setup, with Adam (section 12).~~ *Changed 27 Oct:* the A/B test runs at the grad tea (section 6). He confirms who each game counts as engaged, writes the questions and clues with the group by Mon 9 Nov (BAC-94), and chooses the winning game with Adam from the grad tea's copy by Fri 13 Nov. *Changed 27 Oct, later:* he writes the clue cards with the group (BAC-94), runs the observers' counts at the grad tea, and shares its results at the meeting on Fri 13 Nov. No winning game is chosen.
