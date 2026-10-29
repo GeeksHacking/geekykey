@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 1040" width="1180" height="1040" font-family="'Open Sans Variable', 'Open Sans', sans-serif">
+  <!-- Example only: drawn from Adam's sketch on 29 Oct 2026 (BAC-95), until the MPH's real floor plan comes. -->
+  <defs>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1.2" fill="#2E2C30"/>
+    </pattern>
+    <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="10" height="10" fill="#1C1B1B"/>
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#403F41" stroke-width="3"/>
+    </pattern>
+    <clipPath id="hall"><rect width="540" height="960" rx="12"/></clipPath>
+  </defs>
+
+  <rect width="1180" height="1040" fill="#0A060F"/>
+
+  <g transform="translate(40 40)">
+    <rect width="540" height="960" rx="12" fill="#121014"/>
+    <rect width="540" height="960" rx="12" fill="url(#dots)"/>
+    <path d="M12 0 H190 V247 H0 V12 A12 12 0 0 1 12 0 Z" fill="#1C1B1B"/>
+    <path d="M190 0 H528 A12 12 0 0 1 540 12 V392 H190 Z" fill="#1C1B1B"/>
+    <rect x="135" y="630" width="83" height="330" fill="url(#hatch)" clip-path="url(#hall)"/>
+
+    <g fill="none" stroke="#A09FA0" stroke-width="6" stroke-linecap="square" clip-path="url(#hall)">
+      <path d="M190 0 V392"/>
+      <path d="M0 247 H190"/>
+      <path d="M190 392 H540"/>
+      <path d="M135 960 V630 H218 V960"/>
+    </g>
+    <rect x="1.5" y="1.5" width="537" height="957" rx="11" fill="none" stroke="#403F41" stroke-width="3"/>
+
+    <g font-size="13" font-weight="600" letter-spacing="2.5" fill="#A09FA0" text-anchor="middle">
+      <text x="95" y="232">ROOM A</text>
+      <text x="365" y="377">ROOM B</text>
+      <text x="340" y="472">HALL</text>
+    </g>
+
+    <g font-family="'Geist Mono Variable', 'Geist Mono', monospace" font-size="13" font-weight="700" text-anchor="middle">
+      <g transform="translate(107 33)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">A1</text></g>
+      <g transform="translate(46 88)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">A2</text></g>
+      <g transform="translate(46 192)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">A3</text></g>
+      <g transform="translate(254 106)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">B1</text></g>
+      <g transform="translate(254 197)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">B2</text></g>
+      <g transform="translate(386 40)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">B3</text></g>
+      <g transform="translate(418 108)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">B4</text></g>
+      <g transform="translate(429 186)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">B5</text></g>
+      <g transform="translate(448 317)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">B6</text></g>
+      <g transform="translate(486 545)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">C1</text></g>
+      <g transform="translate(486 666)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">C2</text></g>
+      <g transform="translate(486 767)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">C3</text></g>
+      <g transform="translate(486 897)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">C4</text></g>
+      <g transform="translate(317 887)"><circle r="23" fill="none" stroke="#FFF200" stroke-opacity="0.3" stroke-width="2"/><circle r="16" fill="#FFF200"/><text y="4.5" fill="#1C1B1B">C5</text></g>
+    </g>
+  </g>
+
+  <g transform="translate(640 40)" fill="#F5F5F5">
+    <text y="34" font-size="30" font-weight="700" letter-spacing="0.5">MPH station spots</text>
+    <text y="72" font-size="17" fill="#A09FA0">An example layout for the grad tea, Thu 12 Nov 2026</text>
+
+    <rect y="104" width="500" height="64" rx="12" fill="#1C1B1B" stroke="#403F41" stroke-width="1.5"/>
+    <text x="20" y="132" font-size="15" font-weight="600">Example only, not the real floor plan.</text>
+    <text x="20" y="154" font-size="14" fill="#A09FA0">Drawn from a sketch on 29 Oct, before the MPH's plan arrives.</text>
+
+    <text y="226" font-size="13" font-weight="600" letter-spacing="2.5" fill="#A09FA0">KEY</text>
+    <g transform="translate(16 262)" font-family="'Geist Mono Variable', 'Geist Mono', monospace" font-size="11" font-weight="700" text-anchor="middle">
+      <circle r="16" fill="#FFF200"/><text y="4" fill="#1C1B1B">A1</text>
+    </g>
+    <text x="48" y="268" font-size="16">A station spot and its booth code</text>
+    <line x1="2" y1="316" x2="30" y2="316" stroke="#A09FA0" stroke-width="6" stroke-linecap="square"/>
+    <text x="48" y="322" font-size="16">A wall or a divider</text>
+    <rect x="2" y="350" width="28" height="36" fill="url(#hatch)" stroke="#A09FA0" stroke-width="3"/>
+    <text x="48" y="374" font-size="16">From the sketch, still to be named</text>
+
+    <text y="446" font-size="13" font-weight="600" letter-spacing="2.5" fill="#A09FA0">14 SPOTS</text>
+    <g font-size="16">
+      <text y="482"><tspan font-weight="600">Room A</tspan><tspan x="120" fill="#A09FA0" font-family="'Geist Mono Variable', 'Geist Mono', monospace">A1  A2  A3</tspan></text>
+      <text y="516"><tspan font-weight="600">Room B</tspan><tspan x="120" fill="#A09FA0" font-family="'Geist Mono Variable', 'Geist Mono', monospace">B1  B2  B3  B4  B5  B6</tspan></text>
+      <text y="550"><tspan font-weight="600">Hall</tspan><tspan x="120" fill="#A09FA0" font-family="'Geist Mono Variable', 'Geist Mono', monospace">C1  C2  C3  C4  C5</tspan></text>
+    </g>
+
+    <text y="622" font-size="13" font-weight="600" letter-spacing="2.5" fill="#A09FA0">HOW THE CODES ARE USED</text>
+    <g font-size="16" fill="#D6D5D6">
+      <text y="658">An organiser sets each station's booth to one of</text>
+      <text y="682">these codes, and the map on the projector draws</text>
+      <text y="706">the station at that spot.</text>
+      <text y="746">When the MPH's plan comes, the spots move to</text>
+      <text y="770">where the stations can really stand: near power,</text>
+      <text y="794">and clear of the food queues.</text>
+    </g>
+  </g>
+</svg>
