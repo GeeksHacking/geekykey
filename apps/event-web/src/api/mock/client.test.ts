@@ -124,6 +124,39 @@ describe("sessions and roles", () => {
     expect(me.recent_taps.length).toBeGreaterThan(0);
   });
 
+  it("answers the map to an organizer only, stamp slots first, with counts and no names", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await expectApiError(api.map(), "forbidden", 403);
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const { stations } = await api.map();
+    expect(stations.map((s) => s.name)).toEqual([
+      "Cloud Sponsor",
+      "3D Printing Booth",
+      "Mentor Lounge",
+      "Careers Corner",
+      "Info Desk",
+      null,
+      null,
+    ]);
+    expect(stations.find((s) => s.name === "Info Desk")).toMatchObject({
+      disabled: true,
+      booth: "C1",
+    });
+    expect(stations.slice(5).every((s) => s.game === null)).toBe(true);
+  });
+
+  it("counts a cooldown tap in the map's taps, as 9.10 does", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const before = (await api.map()).stations[1]?.taps ?? 0;
+    const stationId = (await api.map()).stations[1]?.station_id ?? "";
+    await api.createFallbackTap({ station_id: stationId, user_id: "u_7f3a" });
+    await api.createFallbackTap({ station_id: stationId, user_id: "u_7f3a" });
+    expect((await api.map()).stations[1]?.taps).toBe(before + 2);
+  });
+
   it("gives a tap at a station without passport settings no_game and a null name", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);

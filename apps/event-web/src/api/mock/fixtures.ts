@@ -30,6 +30,11 @@ export interface MockStation {
     points: number;
     added_at: string;
   } | null;
+  /**
+   * The booth it stands at (agreement 9.12), free text the map matches to its floor plan. The
+   * fixtures use the example plan's codes, plus one the plan doesn't name.
+   */
+  booth: string | null;
   /** Set by every hand-off, so a station created by 9.7 and not yet heard from has none. */
   last_seen_at: string | null;
   /** Set by a heartbeat's hand-off. */
@@ -124,6 +129,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         points: 1,
         added_at: iso(eventStart - minutes(60)),
       },
+      booth: "B1",
       last_seen_at: iso(now - 4_000),
       firmware_version: "0.3.1",
       buffered_taps: 0,
@@ -141,6 +147,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         points: 2,
         added_at: iso(eventStart - minutes(70)),
       },
+      booth: "B4",
       last_seen_at: iso(now - 11_000),
       firmware_version: "0.3.1",
       buffered_taps: 0,
@@ -155,6 +162,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(85)),
       disabled_at: null,
       passport: null,
+      booth: "C3",
       last_seen_at: iso(now - minutes(14)),
       firmware_version: "0.2.9",
       buffered_taps: 0,
@@ -172,6 +180,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         points: 1,
         added_at: iso(eventStart - minutes(55)),
       },
+      booth: "A2",
       last_seen_at: iso(now - 27_000),
       firmware_version: "0.3.0",
       buffered_taps: 0,
@@ -180,7 +189,8 @@ export function createFixtures(now: number = Date.now()): MockData {
     },
     {
       // Holding saved taps. The old shape's "no longer linked" fixture is gone with
-      // `linked`: a station always feeds the Event Service that registered it.
+      // `linked`: a station always feeds the Event Service that registered it. Its booth is
+      // one the example floor plan doesn't name, so the map lists it beside the plan.
       id: "2d6b8f04-9e1a-4c3d-a7f2-5e4b0c9d1a86",
       label: "Station 5",
       created_at: iso(eventStart - minutes(70)),
@@ -191,6 +201,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         points: 2,
         added_at: iso(eventStart - minutes(45)),
       },
+      booth: "D2",
       last_seen_at: iso(now - 8_000),
       firmware_version: "0.3.1",
       buffered_taps: 3,
@@ -205,6 +216,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(30)),
       disabled_at: null,
       passport: null,
+      booth: null,
       last_seen_at: iso(now - 20_000),
       firmware_version: null,
       buffered_taps: 0,
@@ -225,6 +237,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         points: 1,
         added_at: iso(eventStart - minutes(40)),
       },
+      booth: "C1",
       last_seen_at: iso(now - minutes(6)),
       firmware_version: "0.3.1",
       buffered_taps: 0,

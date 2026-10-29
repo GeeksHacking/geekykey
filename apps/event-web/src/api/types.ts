@@ -183,6 +183,27 @@ export interface StationStats {
   unique_participants: number;
 }
 
+/** One station on the map (agreement 9.10). Counts only, never a user, a name or a token. */
+export interface MapStation {
+  station_id: string;
+  /** The `id` of the game it runs, or null (9.2). */
+  game: string | null;
+  /** Its name in the passport while it is a stamp slot, or null. */
+  name: string | null;
+  /** Free text the floor plan matches to one of its booths, or null (9.12). */
+  booth: string | null;
+  disabled: boolean;
+  /** Its `accepted` and `cooldown` taps. The map pulses a station when this goes up. */
+  taps: number;
+  unique_participants: number;
+  last_tap_at: string | null;
+}
+
+/** GET /api/v1/map: every station, stamp slots first in slot order, then the others oldest first. */
+export interface MapResponse {
+  stations: MapStation[];
+}
+
 export type ErrorCode =
   | "validation_failed"
   | "unauthenticated"

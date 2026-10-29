@@ -14,6 +14,7 @@ import {
   parseStationKeyResponse,
   parseStationResponse,
   parseStatsResponse,
+  parseMapResponse,
 } from "@/api/schemas";
 
 describe("me response contract", () => {
@@ -203,6 +204,38 @@ describe("organizer response contract", () => {
 
     expect(parseStatsResponse(stats)).toEqual(stats);
     expect(() => parseStatsResponse({ ...stats, total_taps: "412" })).toThrow(NetworkError);
+  });
+
+  it("validates the map as agreement 9.10 gives it", () => {
+    const map = {
+      stations: [
+        {
+          station_id: "s1",
+          game: "passport",
+          name: "3D Printing Booth",
+          booth: "A3",
+          disabled: false,
+          taps: 57,
+          unique_participants: 41,
+          last_tap_at: "2026-10-10T08:58:12.004Z",
+        },
+        {
+          station_id: "s2",
+          game: null,
+          name: null,
+          booth: null,
+          disabled: false,
+          taps: 0,
+          unique_participants: 0,
+          last_tap_at: null,
+        },
+      ],
+    };
+
+    expect(parseMapResponse(map)).toEqual(map);
+    expect(() => parseMapResponse({ stations: [{ ...map.stations[0], taps: -1 }] })).toThrow(
+      NetworkError,
+    );
   });
 
   it("validates a page of the tap log as agreement 9.3 gives it", () => {

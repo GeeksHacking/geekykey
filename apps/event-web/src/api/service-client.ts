@@ -8,7 +8,7 @@ export type SessionApi = Pick<
 
 /**
  * The Event Service owns every station call, 9.2 and 9.7 to 9.9, plus the tap log, stats,
- * the export and the fallback. Version 0.3 left the GeekyKey Service with token claims and
+ * the export, the fallback and the map. Version 0.3 left the GeekyKey Service with token claims and
  * releases, which the Event screens never call, so there is no GeekyKey slice here.
  */
 export type EventApi = Pick<
@@ -23,6 +23,7 @@ export type EventApi = Pick<
   | "createFallbackTap"
   | "stats"
   | "exportCsv"
+  | "map"
 >;
 
 export interface ServiceClientBundle {
@@ -54,6 +55,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       createFallbackTap: api.createFallbackTap.bind(api),
       stats: api.stats.bind(api),
       exportCsv: api.exportCsv.bind(api),
+      map: api.map.bind(api),
     },
   };
 }

@@ -7,6 +7,7 @@ import type {
   FallbackTapResponse,
   ListTapsQuery,
   ListTapsResponse,
+  MapResponse,
   MeResponse,
   SetDisplayNameRequest,
   SetDisplayNameResponse,
@@ -94,4 +95,10 @@ export interface ApiClient {
 
   /** GET /api/v1/admin/export.csv as a file the browser can save. */
   exportCsv(): Promise<Blob>;
+
+  /**
+   * GET /api/v1/map (agreement 9.10), for the map on the big screen. An organizer or a user
+   * on the map screen list may read it, and anyone else gets `forbidden`.
+   */
+  map(): Promise<MapResponse>;
 }

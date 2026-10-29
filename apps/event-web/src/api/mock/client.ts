@@ -23,6 +23,8 @@ import {
   type FallbackTapStatus,
   type ListTapsQuery,
   type ListTapsResponse,
+  type MapResponse,
+  type MapStation,
   type MeResponse,
   type SetDisplayNameRequest,
   type SetDisplayNameResponse,
@@ -222,6 +224,28 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     };
   }
 
+  /**
+   * Agreement 9.10. The mock has no games, so a station with passport settings runs the
+   * passport, as the migration to 0.7 gave every such station, and the rest run none.
+   */
+  function toMapStation(station: MockStation): MapStation {
+    const counted = data.taps.filter(
+      (tap) => tap.station_id === station.id && tap.status !== "no_game",
+    );
+    const accepted = counted.filter((tap) => tap.status === "accepted");
+    const newest = counted.map((tap) => tap.received_at).sort((a, b) => b.localeCompare(a))[0];
+    return {
+      station_id: station.id,
+      game: station.passport ? "passport" : null,
+      name: station.passport?.name ?? null,
+      booth: station.booth,
+      disabled: station.disabled_at !== null,
+      taps: counted.length,
+      unique_participants: new Set(accepted.map((tap) => tap.user_id)).size,
+      last_tap_at: newest ?? null,
+    };
+  }
+
   const client: ApiClient = {
     me: () =>
       call((): MeResponse => {
@@ -332,6 +356,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           created_at: iso(now()),
           disabled_at: null,
           passport: null,
+          booth: null,
           last_seen_at: null,
           simulate_online: false,
           firmware_version: null,
@@ -506,6 +531,20 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           ...rows.map((row) => row.map(csvCell).join(",")),
         ];
         return new Blob([lines.join("\n") + "\n"], { type: "text/csv;charset=utf-8" });
+      }),
+
+    // Agreement 9.10. The mock keeps no map screen list, so only an organizer may read it.
+    // Stamp slots come first in slot order, then the other stations, oldest first.
+    map: () =>
+      call((): MapResponse => {
+        currentOrganizer();
+        const slots = data.stations
+          .filter((station) => station.passport)
+          .sort((a, b) => (a.passport?.added_at ?? "").localeCompare(b.passport?.added_at ?? ""));
+        const others = data.stations
+          .filter((station) => !station.passport)
+          .sort((a, b) => a.created_at.localeCompare(b.created_at));
+        return { stations: [...slots, ...others].map(toMapStation) };
       }),
   };
 
