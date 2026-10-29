@@ -360,6 +360,7 @@ apps/event-web/
       query-client.ts       # TanStack Query cache and retry policy
       form-errors.ts        # maps validation_failed issues onto react-hook-form fields
       display-name.ts       # agreement 8.7's rule for a name, shared by the form and the mock
+      booth.ts              # agreement 9.12's rule for a station's booth, shared the same way
       format.ts             # dates, points, counts
       constants.ts          # poll intervals, seeded user IDs, GEEKYKEY_SCREENS_URL
       csv.ts                # the export's column order and cell escaping
