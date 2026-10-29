@@ -1645,6 +1645,15 @@
     sign-in, the header with a long name at four widths in both themes, and the focus after a page
     change.
 
+- id: screens-animate-with-gsap
+  date: 2026-10-26
+  area: frontend
+  change: >-
+    The Event screens animate with GSAP, which Ethan approved for the map's pulses and, later, the
+    3D map. It loads only with the map's page, and on the passport only at desktop widths, so a
+    phone downloads none of it and keeps its short CSS transitions. The trade-offs we accept: one
+    more library in the screens, about 28 KB compressed on the pages that use it.
+
 - id: export-escapes-any-value
   date: 2026-10-27
   area: frontend
@@ -1745,3 +1754,12 @@
     stamp its station's link, so the passport can offer a button to the page after a new stamp. A
     link must be a web address that starts with https:// and be at most 300 characters. The button itself is FRO-89, and the
     agreement change waits for Ethan's review.
+
+- id: map-on-the-big-screen
+  date: 2026-10-29
+  area: frontend
+  change: >-
+    The Event screens have a map page for the big screen. It draws an example layout of the MPH,
+    from a sketch, with each station at its booth and a count of the people who tapped there, and
+    a station pulses when its taps go up. Stations with no booth, or a booth the plan doesn't
+    name, are listed beside it. The MPH's real floor plan replaces the example once it arrives.
