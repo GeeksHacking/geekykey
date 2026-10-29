@@ -116,7 +116,7 @@ One thing that looks like a bug and is not:
 | Motion | CSS/shadcn transitions | No motion library is currently required; do not add one without agreeing it in the stack |
 | Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport. Import `zod/mini`, here and in `src/api/schemas.ts`, and lint refuses `zod`. Every page loads the schemas, and one import of `zod` would put all of classic zod on top, about 10 KB gzipped (FRO-67). Mini writes `.nullable()` as `z.nullable(...)` and `.min(1, "...")` as `.check(z.minLength(1, "..."))` |
 | Tests | Vitest + React Testing Library + jsdom | |
-| Lint | ESLint flat config + typescript-eslint | |
+| Lint | Oxlint | Rules in `.oxlintrc.json`, with the React hooks rules native |
 | Format | oxfmt | Prettier-compatible and fast. Settings in `.oxfmtrc.jsonc`; Markdown and `routeTree.gen.ts` are skipped. Pinned to an exact version, because a new release can change the output and everyone must format the same way |
 
 ### Why TanStack Router
@@ -166,11 +166,11 @@ The mock client needs nothing special: Query only wants async functions.
 
 ### TypeScript version
 
-TypeScript 6.0 is the target. Vite 8 transpiles with oxc and ignores the TS version, and
-typescript-eslint 8 supports `<6.1.0`. **npm's `latest` tag is TypeScript 7**, the Go
-port, which typescript-eslint does not support yet. Always install with an explicit
-`typescript@~6.0.3`; never a bare `pnpm add -D typescript`. If any tool rejects 6.0 at
-scaffold time, fall back to `typescript@~5.9` and record why in this section.
+TypeScript 6.0 is the target. Vite 8 transpiles with oxc and ignores the TS version.
+**npm's `latest` tag is TypeScript 7**, the Go port, and the repo stays on 6.0 for now.
+Always install with an explicit `typescript@~6.0.3`; never a bare `pnpm add -D typescript`.
+If any tool rejects 6.0 at scaffold time, fall back to `typescript@~5.9` and record why in
+this section.
 
 ### Scaffold notes (18 September 2026)
 
@@ -184,9 +184,9 @@ Verified when the app was scaffolded:
 - pnpm 11 refuses to run esbuild's install script unless `allowBuilds` lists it in
   `pnpm-workspace.yaml`. Done at the repo root.
 - shadcn's `sonner` component imports `next-themes`. Ours reads `lib/theme` instead.
-- The `react-hooks` lint plugin (v7) flags components looked up during render and
-  react-hook-form's `watch()`. Use `useWatch` and render looked-up icons through a small
-  component (see `features/passport/station-glyph.tsx`).
+- The `react/static-components` and `react/incompatible-library` rules flag components
+  looked up during render and react-hook-form's `watch()`. Use `useWatch` and render
+  looked-up icons through a small component (see `features/passport/station-glyph.tsx`).
 - TanStack Table moved from v8 to v9 on 18 Sep 2026 while the scan log was the only table.
   v9 is `useTable({ features, columns, data })` with `tableFeatures({})`; there is no
   `getCoreRowModel`, and `<table.FlexRender cell={cell} />` replaces `flexRender`. Most
@@ -236,7 +236,7 @@ pnpm dev:live     # same, but every call goes to the Event Service on :8001
 pnpm build        # typecheck, then production build to dist/
 pnpm preview      # serve dist/ locally
 pnpm typecheck    # tsc --noEmit
-pnpm lint         # eslint .
+pnpm lint         # oxlint
 pnpm format       # oxfmt, rewrites files in place
 pnpm format:check # oxfmt --check, lists files that are not formatted
 pnpm test         # vitest run
@@ -593,4 +593,4 @@ Arc crashes after a few navigations.
 - Do not commit `.env` files or any station key. Station keys are shown once in the UI
   and never stored. The one exception is each app's `.env.development`, which holds only
   Firebase's web config from agreement 7.2. None of it is secret.
-- Do not upgrade to TypeScript 7 until typescript-eslint supports it.
+- Do not upgrade to TypeScript 7 yet. The repo stays on 6.0.

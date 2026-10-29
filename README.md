@@ -308,7 +308,7 @@ For the rest, `cd apps/event-web` first. If your shell is activated, you can lea
 
 ```bash
 mise exec -- pnpm typecheck        # tsc, no emit
-mise exec -- pnpm lint             # eslint
+mise exec -- pnpm lint             # oxlint
 mise exec -- pnpm format:check     # list files that are not formatted, without changing them
 mise exec -- pnpm test:watch       # tests in watch mode
 mise exec -- pnpm preview          # serve the production build locally
@@ -326,8 +326,8 @@ mise exec -- pnpm dlx shadcn@latest add <component>   # add a shadcn/ui componen
   not activated, which is fine as long as you use `mise run` or `mise exec --`. If you want
   the plain commands to match, do the `mise activate` step above and open a new terminal.
 - **`pnpm add -D typescript` installed TypeScript 7.** Do not do that. The project pins
-  `typescript@~6.0.3` because the lint toolchain does not support 7 yet. Run
-  `mise run install` to restore the pinned version.
+  `typescript@~6.0.3`. npm's `latest` tag is TypeScript 7, the Go port, and the repo stays
+  on 6.0 for now. Run `mise run install` to restore the pinned version.
 - **The shadcn CLI wrote files into a folder literally called `@`.** The solution
   `apps/event-web/tsconfig.json` must keep its `paths` entry; the CLI reads the alias from
   there. Delete the stray folder and rerun the command.
@@ -427,7 +427,7 @@ a block to `.mise.toml` that calls it:
 
 ```toml
 [tasks."lint:event-web"]
-description = "Event web lint (eslint)"
+description = "Event web lint (oxlint)"
 run = "pnpm --filter @geekykey/event-web lint"
 ```
 
