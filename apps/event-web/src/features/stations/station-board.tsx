@@ -17,9 +17,11 @@ import {
 import { useEnableStation } from "@/features/stations/use-enable-station";
 import { EMPTY_CELL, formatDateTime, formatWhen } from "@/lib/format";
 
+import { BoothDialog } from "./booth-dialog";
 import { DisableStationDialog } from "./disable-station-dialog";
 import { PassportStationDialog } from "./passport-station-dialog";
 import { ReplaceStationKeyDialog } from "./replace-station-key-dialog";
+import { useBoothDialog } from "./use-booth-dialog";
 import { useDisableStationDialog } from "./use-disable-station-dialog";
 import { usePassportStationDialog } from "./use-passport-station-dialog";
 import { useReplaceStationKeyDialog } from "./use-replace-station-key-dialog";
@@ -34,6 +36,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
   // Trouble first, so whoever is at the desk sees the rows that need them (agreement 9.2).
   const sorted = sortStationsByTrouble(stations);
   const passport = usePassportStationDialog();
+  const booth = useBoothDialog();
   const replaceKey = useReplaceStationKeyDialog();
   const disableDialog = useDisableStationDialog();
 
@@ -42,6 +45,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
       <TableHeader>
         <TableRow>
           <TableHead>Station</TableHead>
+          <TableHead className="w-24">Booth</TableHead>
           <TableHead className="w-20 text-right">Points</TableHead>
           <TableHead className="w-40">Status</TableHead>
           <TableHead className="w-40">Last tap here</TableHead>
@@ -92,11 +96,19 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                     ))}
                   </ul>
                 ) : null}
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <PassportButton
                     station={station}
                     onOpen={() => passport.openFor(station.id)}
                     editing={station.passport !== null}
+                  />
+                  {/* Agreement 9.12. On every row, disabled stations included, because the
+                      map draws a station at its booth whatever game it runs and however many
+                      taps it has. */}
+                  <BoothButton
+                    station={station}
+                    onOpen={() => booth.openFor(station.id)}
+                    editing={station.booth !== null}
                   />
                   {/* FRO-28 says each station has this, with no word about enabled ones, and
                       spec section 10 has an organizer disable a station that has gone missing
@@ -124,6 +136,13 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                     if (!open) passport.close();
                   }}
                 />
+                <BoothDialog
+                  station={station}
+                  open={booth.isOpenFor(station.id)}
+                  onOpenChange={(open) => {
+                    if (!open) booth.close();
+                  }}
+                />
                 <ReplaceStationKeyDialog
                   station={station}
                   open={replaceKey.isOpenFor(station.id)}
@@ -138,6 +157,13 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                     if (!open) disableDialog.close();
                   }}
                 />
+              </TableCell>
+              <TableCell className="w-24 break-words">
+                {station.booth ? (
+                  <span className="font-mono text-xs">{station.booth}</span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No booth</span>
+                )}
               </TableCell>
               <TableCell className="text-right font-mono">
                 {station.passport?.points ?? EMPTY_CELL}
@@ -184,6 +210,32 @@ function PassportButton({
       }`}
     >
       {editing ? "Edit passport settings" : "Add to passport"}
+    </Button>
+  );
+}
+
+/** Agreement 9.12. The booth action, named for its row like the passport and key ones. */
+function BoothButton({
+  station,
+  editing,
+  onOpen,
+}: {
+  station: EventStationBoardStation;
+  editing: boolean;
+  onOpen: () => void;
+}) {
+  const name = station.passport?.name ?? station.label;
+
+  return (
+    <Button
+      type="button"
+      variant="link"
+      size="sm"
+      className="h-auto px-0 text-xs"
+      onClick={onOpen}
+      aria-label={`${editing ? "Change" : "Set"} booth for ${name}`}
+    >
+      {editing ? "Change booth" : "Set booth"}
     </Button>
   );
 }

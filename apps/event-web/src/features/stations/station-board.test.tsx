@@ -156,6 +156,24 @@ describe("StationBoard", () => {
     expect(screen.getAllByText("Not in the passport")).toHaveLength(1);
   });
 
+  // Agreement 9.2 and 9.12: the row shows the booth the map draws it at, or says there is
+  // none, and the action that changes it is named for the row like every other one.
+  it("shows each station's booth, or No booth when it has none", () => {
+    const noBooth = station({ id: "no-booth", label: "Station 6", passport: null, booth: null });
+    renderBoard([station(), noBooth]);
+
+    expect(screen.getByText("B2")).toBeInTheDocument();
+    expect(screen.getByText("No booth")).toBeInTheDocument();
+  });
+
+  it("names the booth action for its row, and says Set or Change by its state", () => {
+    const noBooth = station({ id: "no-booth", label: "Station 6", passport: null, booth: null });
+    renderBoard([station(), noBooth]);
+
+    expect(screen.getByRole("button", { name: "Change booth for Careers Corner" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Set booth for Station 6" })).toBeEnabled();
+  });
+
   it("puts problem stations above healthy ones, keeping arrival order within each group", () => {
     renderBoard([healthyStation, quietStation, deadReader]);
 
