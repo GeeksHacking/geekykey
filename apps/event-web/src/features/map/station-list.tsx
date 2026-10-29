@@ -1,6 +1,7 @@
 import { MapPinSimpleArea, Prohibit } from "@phosphor-icons/react";
 
 import type { MapStation } from "@/api/types";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import type { PlacedStation } from "@/features/map/place-stations";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,7 @@ export function StationList({
           <h2 id="map-stations-heading" className="text-lg font-semibold tracking-heading">
             On the map
           </h2>
-          <span className="text-sm text-muted-foreground">People who tapped</span>
+          <span className="look-label text-muted-foreground">People who tapped</span>
         </div>
         {placed.length === 0 ? (
           <p className="text-muted-foreground">
@@ -32,11 +33,14 @@ export function StationList({
             here.
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border bg-card">
-            {placed.map(({ station, booth }) => (
-              <StationRow key={station.station_id} station={station} code={booth.name} />
-            ))}
-          </ul>
+          <div className="relative">
+            <CornerBrackets />
+            <ul className="divide-y divide-border rounded-lg border border-border bg-card">
+              {placed.map(({ station, booth }) => (
+                <StationRow key={station.station_id} station={station} code={booth.name} />
+              ))}
+            </ul>
+          </div>
         )}
       </section>
 

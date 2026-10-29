@@ -74,7 +74,7 @@ export function MapScreen() {
     body = (
       <div className={LAYOUT}>
         <MapPlan plan={plan} placed={placed} stations={map.data.stations} />
-        <div className="space-y-6 lg:h-full lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-6 lg:h-full lg:overflow-y-auto lg:px-1.5">
           {showStaleNote(map.error, true) ? (
             <StaleDataNote onRetry={() => void map.refetch()} />
           ) : map.isError ? (
@@ -98,15 +98,15 @@ export function MapScreen() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-[120rem] flex-col px-6 py-5 lg:h-[100dvh] lg:px-10">
+    <main className="mx-auto flex min-h-[100dvh] max-w-[120rem] flex-col bg-look-grid px-6 py-5 lg:h-[100dvh] lg:px-10">
       <header className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Wordmark />
           <h1 className="text-xl font-semibold whitespace-nowrap tracking-heading">Station map</h1>
-          <span className="text-sm text-muted-foreground">{plan.name}</span>
+          <span className="look-label text-muted-foreground">{plan.name}</span>
         </div>
         {map.data ? (
-          <span className="font-mono text-sm text-muted-foreground">
+          <span className="look-label text-muted-foreground">
             Updated {formatTimeWithSeconds(new Date(map.dataUpdatedAt).toISOString())}
           </span>
         ) : null}

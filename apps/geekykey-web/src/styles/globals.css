@@ -175,6 +175,44 @@
   }
 }
 
+/*
+  The showcase's sci-fi look (FRO-77): thin borders, corner brackets, monospace labels and a
+  faint grid. The look supplies colour, type and decoration only, and no animation moves any
+  of it, so another look (the grad tea's, FRO-85) can replace these utilities and the Event
+  screens' CornerBrackets without changing an animation.
+*/
+
+/* A faint square grid behind a page, in the border colour, so it follows the theme. */
+@utility bg-look-grid {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+  background-size: 2rem 2rem;
+  background-position: -1px -1px;
+}
+
+/* A small label in capitals and mono, for captions such as "Points" or "Updated". */
+@utility look-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/*
+  What a poll changed, on a phone. A screen marks the element with data-changed, and
+  phone-change:animate-in plays tw-animate-css's short enter animation on it, under 1024 px
+  and only when the device hasn't asked for reduced motion. Wider screens play GSAP instead.
+*/
+@custom-variant phone-change {
+  @media (width < 64rem) and (prefers-reduced-motion: no-preference) {
+    &[data-changed] {
+      @slot;
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

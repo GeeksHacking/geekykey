@@ -113,7 +113,7 @@ One thing that looks like a bug and is not:
 | Tables | TanStack Table 9 | Organiser scan log only. Features are opt-in through `tableFeatures()`; row, cell, and header methods live on prototypes, so call them on the instance and never spread one |
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
 | Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
-| Motion | CSS/shadcn transitions, and GSAP on the map | GSAP (`gsap` and `@gsap/react`'s `useGSAP`) was agreed with Ethan on 26 Oct 2026 for the map (FRO-78, FRO-80) and the passport at desktop widths (FRO-77). It may load only from the map's route files, and on the passport only through `import()` at 1024 px and up, so a phone never downloads it. Everywhere else, CSS and `tw-animate-css`. The map's pulse is the example: `features/map/use-map-pulses.ts`, with reduced motion read through `gsap.matchMedia()` |
+| Motion | CSS/shadcn transitions, and GSAP on the map and the desktop passport | GSAP (`gsap` and `@gsap/react`'s `useGSAP`) was agreed with Ethan on 26 Oct 2026 for the map (FRO-78, FRO-80) and the passport at desktop widths (FRO-77). It may load only from the map's route files, and on the passport only through `import()` at 1024 px and up, so a phone never downloads it. The organiser screens never load it. Everywhere else, CSS and `tw-animate-css`. Two examples: the map's pulse, `features/map/use-map-pulses.ts`, and the passport's `features/passport/desktop-motion.ts`, which imports `passport-motion.ts` only when `matchMedia` matches. The passport can't use `useGSAP`, because a static import of `@gsap/react` brings GSAP with it. Both read reduced motion through `gsap.matchMedia()` |
 | Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport. Import `zod/mini`, here and in `src/api/schemas.ts`, and lint refuses `zod`. Every page loads the schemas, and one import of `zod` would put all of classic zod on top, about 10 KB gzipped (FRO-67). Mini writes `.nullable()` as `z.nullable(...)` and `.min(1, "...")` as `.check(z.minLength(1, "..."))` |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | Oxlint | Rules in `.oxlintrc.json`, with the React hooks rules native |
@@ -325,7 +325,8 @@ apps/event-web/
         summary.tsx
     features/               # one folder per domain; the real UI lives here
       auth/                 # login screen, Firebase sign-in buttons, dev-login form, expired-link notice, RequireSession, RequireRole, 403 view, shell wiring
-      passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph, the name prompt and Change name
+      passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph, the name prompt and Change name,
+                           # what a poll changed (passport-changes.ts) and its animations (desktop-motion.ts, passport-motion.ts)
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
                            # passport settings form (add or edit a slot), booth dialog
@@ -336,6 +337,7 @@ apps/event-web/
     components/
       ui/                   # shadcn generated and customised. No app logic here.
       layout/               # shells, nav, page header, theme toggle, account menu, empty/error/loading views
+      look/                 # the sci-fi look's corner brackets; its grid and labels are utilities in globals.css
       tap-status.tsx        # shared by several features, alongside online-status and participant-tap-list
       online-status.tsx     # online, offline, or never connected (agreement 9.2)
     api/
@@ -481,8 +483,9 @@ console for organisers, with a dark-capable, high-contrast tech-event language, 
 shadcn/ui customised.
 
 **Dials:** `DESIGN_VARIANCE 4`, `MOTION_INTENSITY 3`, `VISUAL_DENSITY 5` on participant
-screens and `7` on organiser screens. Symmetric grids, no scroll choreography, no
-decorative motion.
+screens and `7` on organiser screens. `MOTION_INTENSITY` is `6` on the map and on the
+passport at 1024 px and up, the two screens a crowd watches (FRO-77). Symmetric grids, no
+scroll choreography, no decorative motion.
 
 **Theme:** follow `prefers-color-scheme`. When the browser reports no preference, use
 dark. Both token sets live in `globals.css` as CSS variables in the shadcn convention.
@@ -502,6 +505,17 @@ no dark theme, and its secondary grey fails on light; `globals.css` says what wa
 for each and the contrast it reaches. The ghost button is the app's own: the kit's
 half-transparent one looks disabled and fails contrast. No pure `#000` or `#fff`. No
 gradients, no glows.
+
+**Look:** the showcase's sci-fi look (FRO-77), after games such as Wuthering Waves and
+Arknights: Endfield, whose black and yellow is close to the kit's. Thin borders, corner
+brackets, monospace labels and a faint grid, and nothing that's only decoration moves. It
+lives in three places: `bg-look-grid` and `look-label` in `globals.css`, and
+`components/look/corner-brackets.tsx`. The grid is drawn with `linear-gradient`, but as hard
+1px lines, so "no gradients" still holds. The map and the participant screens use it; the
+organiser screens stay a plain console. The look supplies colour, type and decoration only,
+and no animation moves any of it, so the grad tea's look (FRO-85) replaces those three and
+every animation plays the same. The brackets sit just outside their box, so a scrolling parent
+needs a little padding or it cuts them off.
 
 **Status is never colour alone.** Every `tap_status` and every online/offline indicator
 renders icon plus text plus colour. Accepted green, cooldown orange, no_game red. The kit
@@ -537,9 +551,24 @@ the final layout. Empty states say what to do next. Errors are inline where the 
 acted; toasts only for transient success.
 
 **Motion:** 150 to 250 ms on `transform` and `opacity` only, for feedback and state
-change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. One exception: the
-map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it reads from
-the back of a hall. With reduced motion it only fades.
+change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. That is the rule on
+phones and on the organiser screens. The exceptions, all on the big screens:
+
+- The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
+  reads from the back of a hall. With reduced motion it only fades.
+- On the passport at 1024 px and up, a stamp earned is the one long animation (about a second:
+  the seal presses in, then the note comes in), points count up over 0.9 s,
+  and a slot in the dashboard's row fills over 0.5 s. With reduced motion none of them play.
+
+Animate only a change, and never a poll that changed nothing. A plain, tested function
+decides what changed between two polls (`features/map/pulses.ts`,
+`features/passport/passport-changes.ts`), and the animation only plays what it returns. On
+the passport, the screen marks each change with `data-changed` and clears the marks 2 s
+later. Under 1024 px, a mark plays a 200 ms `tw-animate-css` enter animation through the
+`phone-change:` variant in `globals.css`, unless reduced motion is asked for. At 1024 px and
+up, GSAP plays the same marks instead, once each. `features/passport/use-passport-changes.ts`
+keeps the last `/me` it saw in state to compare with, React's pattern for the previous render.
+It is the one exception to "never a `useState` copy of something the cache holds".
 
 ## Coding conventions
 
