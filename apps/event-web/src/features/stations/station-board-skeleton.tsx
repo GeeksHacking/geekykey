@@ -7,15 +7,17 @@ export function StationBoardSkeleton() {
       {Array.from({ length: 5 }, (_, index) => (
         <div
           key={index}
-          className="grid grid-cols-[1fr_5rem_10rem_9rem] items-center gap-4 px-2 py-3"
+          className="grid grid-cols-[1fr_6rem_5rem_10rem_9rem_2.5rem] lg:grid-cols-[1fr_6rem_5rem_10rem_9rem_10rem] items-center gap-4 px-2 py-3"
         >
           <div className="space-y-2">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-3 w-16" />
           </div>
+          <Skeleton className="h-4 w-8" />
           <Skeleton className="ml-auto h-4 w-6" />
           <Skeleton className="h-4 w-20" />
           <Skeleton className="h-4 w-16" />
+          <Skeleton className="ml-auto h-8 w-10 lg:w-36" />
         </div>
       ))}
     </div>

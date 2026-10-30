@@ -5,6 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { StationBoard } from "@/features/stations/station-board";
+import {
+  openStationSettings,
+  pickStationAction,
+} from "@/features/stations/station-settings-test-helpers";
 import { createTestProviders } from "@/test/providers";
 
 /** FRO-28's sentence, from the 8 Oct decision. Used as written, so it is asserted whole. */
@@ -40,9 +44,9 @@ async function setup() {
   };
 }
 
-/** Opens the replace dialog on the given row. */
+/** Opens the replace dialog from the given row's menu. */
 async function openDialog(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.click(screen.getByRole("button", { name: `Replace key for ${name}` }));
+  await pickStationAction(user, name, "Replace key");
   return screen.findByRole("alertdialog");
 }
 
@@ -100,12 +104,14 @@ describe("replacing a station's key", () => {
   });
 
   // Spec section 10 has an organizer disable a station that has gone missing and then replace
-  // its key, and FRO-28 says each station has the button with no word about enabled ones. The
-  // fixture's own disabled station is the case, so the button cannot quietly be hidden from it.
+  // its key, and FRO-28 says each station has the action with no word about enabled ones. The
+  // fixture's own disabled station is the case, so the action cannot quietly be hidden from it.
   it("offers it on the disabled station as well as an enabled one", async () => {
-    const { disabledName } = await setup();
+    const { user, disabledName } = await setup();
 
-    expect(screen.getByRole("button", { name: `Replace key for ${disabledName}` })).toBeEnabled();
+    await openStationSettings(user, disabledName);
+
+    expect(screen.getByRole("menuitem", { name: "Replace key" })).toBeEnabled();
   });
 
   // Spec section 10's answer to a station that has gone missing is to disable it and then
@@ -168,8 +174,11 @@ describe("replacing a station's key", () => {
   // is open, and the second dialog is opened after cancelling the first.
   it("names the station of the row that asked, after cancelling", async () => {
     const { user, firstName } = await setup();
-    const second = screen.getAllByRole("button", { name: /^Replace key for / })[1]!;
-    const secondName = (second.getAttribute("aria-label") ?? "").replace("Replace key for ", "");
+    const second = screen.getAllByRole("button", { name: /^Station settings for / })[1]!;
+    const secondName = (second.getAttribute("aria-label") ?? "").replace(
+      "Station settings for ",
+      "",
+    );
 
     await openDialog(user, firstName);
     expect(screen.getByRole("alertdialog")).toHaveTextContent(`Replace ${firstName}'s key?`);

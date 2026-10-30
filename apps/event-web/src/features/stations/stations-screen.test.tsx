@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { queryKeys } from "@/api/keys";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
+import { openStationSettings } from "@/features/stations/station-settings-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
@@ -33,9 +34,9 @@ describe("StationsScreen", () => {
   });
 
   // FRO-24's first acceptance criterion: a new station joins the board as "Not in the
-  // passport", with the button that adds its settings. The test above creates one and stops
-  // at the dialog, so nothing had proved the board picks it up. use-create-station.ts
-  // invalidates stationBoard, and this is what pins that.
+  // passport", with the action that adds its settings (in its menu since FRO-100). The test
+  // above creates one and stops at the dialog, so nothing had proved the board picks it up.
+  // use-create-station.ts invalidates stationBoard, and this is what pins that.
   it("puts a station added through the dialog on the board, not in the passport", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);
@@ -64,7 +65,8 @@ describe("StationsScreen", () => {
     });
 
     expect(row).toHaveTextContent("Not in the passport");
-    expect(screen.getByRole("button", { name: "Add to passport Reader 9" })).toBeInTheDocument();
+    await openStationSettings(user, "Reader 9");
+    expect(screen.getByRole("menuitem", { name: "Add to passport" })).toBeInTheDocument();
   });
 
   it("puts the mock's problem stations first, so trouble is at the top", async () => {

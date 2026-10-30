@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { StationBoard } from "@/features/stations/station-board";
+import { pickStationAction } from "@/features/stations/station-settings-test-helpers";
 import { createTestProviders } from "@/test/providers";
 
 /** FRO-26's sentence, from the ticket. Used as written, so it is asserted whole. */
@@ -37,9 +38,9 @@ async function setup() {
   };
 }
 
-/** Opens the disable dialog on the given row. */
+/** Opens the disable dialog from the given row's menu. */
 async function openDialog(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.click(screen.getByRole("button", { name: `Disable ${name}` }));
+  await pickStationAction(user, name, "Disable");
   return screen.findByRole("alertdialog");
 }
 
@@ -121,8 +122,12 @@ describe("disabling a station", () => {
   // the second one is opened after cancelling the first.
   it("names the station of the row that asked, after cancelling", async () => {
     const { user, firstName } = await setup();
-    const second = screen.getAllByRole("button", { name: /^Disable / })[1]!;
-    const secondName = (second.getAttribute("aria-label") ?? "").replace("Disable ", "");
+    // The board puts disabled stations last, so the second row is one that has Disable.
+    const second = screen.getAllByRole("button", { name: /^Station settings for / })[1]!;
+    const secondName = (second.getAttribute("aria-label") ?? "").replace(
+      "Station settings for ",
+      "",
+    );
 
     await openDialog(user, firstName);
     expect(screen.getByRole("alertdialog")).toHaveTextContent(`Disable ${firstName}?`);
