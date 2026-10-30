@@ -1884,9 +1884,9 @@
   date: 2026-10-30
   area: backend
   change: >-
-    After a passport tap, the station's second line names the visitor's next stop, such as
-    "Next: B3": the booth they haven't stamped that had the fewest taps in the last 10 minutes,
-    skipping disabled stations and stations with no booth. The Event Service gives the passport
-    the same booth in /me, in the API agreement's version 0.11, a draft for Ethan. The trade-offs
-    we accept: while there is a next stop, the screen no longer says "Tap counted!", so the
-    station's sound and light are what tell a counted tap from one in the cooldown.
+    After a passport tap, the station's second line names the participant's next stop, such as
+    "Next: B3". It is the booth they haven't stamped with the fewest taps in the last 10 minutes,
+    and never a disabled station or one with no booth. The passport gets the same booth from /me,
+    in the API agreement's version 0.11, a draft for Ethan. The trade-offs we accept: while there
+    is a next stop, the screen no longer says "Tap counted!", so the station's sound and light are
+    what tell a counted tap from one in the cooldown.

@@ -53,7 +53,7 @@ export interface MeView {
  * stored mid-request can appear in recentTaps a poll before its stamp does.
  * The next poll catches up.
  */
-export async function loadMe(db: Db, userId: string, now = new Date()): Promise<MeView> {
+export async function loadMe(db: Db, userId: string): Promise<MeView> {
   const [passport, visits, recentTaps, quietest] = await Promise.all([
     // Only the stations that run the passport, with its settings, are stamp slots.
     db
@@ -99,7 +99,7 @@ export async function loadMe(db: Db, userId: string, now = new Date()): Promise<
       .where(eq(taps.userId, userId))
       .orderBy(desc(taps.receivedAt), desc(taps.id))
       .limit(RECENT_TAP_LIMIT),
-    quietestFirst(db, now),
+    quietestFirst(db, new Date()),
   ]);
   const visitsByStation = new Map(visits.map((visit) => [visit.stationId, visit]));
 

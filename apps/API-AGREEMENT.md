@@ -826,13 +826,14 @@ Everything the participant dashboard and passport view need in one call.
 - `recent_taps` is the user's last 50 stored taps, newest first by when the Event Service
   received them. Statuses other than `accepted` are included so a participant can see "that tap
   didn't count". `station_name` is `null` for a station that isn't a stamp slot.
-- `next_stop` is the stamp slot the participant's next passport tap would send them to, the one
-  the station names (6.1), or `null` when there is none. It is the slot they don't have the stamp
-  of with the fewest stored taps, of any status, received in the last 10 minutes, and between
-  slots with as many, the one listed first in `stamps`. A disabled station, and one with no booth
-  (9.12), is never the next stop, so a participant whose only empty slots are there gets `null`.
-  `name` is its name in the passport and `booth` its booth. It changes with the crowd from one
-  poll to the next, so two participants at one station can get different ones.
+- `next_stop` is where a station sends the participant next (6.1), worked out again at each poll,
+  or `null` when there is nowhere. It is the empty slot whose station received the fewest taps in
+  the last 10 minutes, counting stored taps of any status. Between slots with as many, it is the
+  one listed first in `stamps`. A disabled station, and one with no booth (9.12), is never the
+  next stop, so a participant whose only empty slots are there gets `null`. `name` is its name in
+  the passport and `booth` its booth. It follows the crowd, so it can change between polls, and
+  two participants at one station can get different ones. A booth the station's screen can't
+  show still comes here, though the station then says what happened instead (6.1).
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).

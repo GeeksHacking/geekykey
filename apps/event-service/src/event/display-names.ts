@@ -59,10 +59,21 @@ export async function greetingNames(
   for (const user of rows) {
     if (!hasName(user)) continue;
     const [firstWord = ""] = user.displayName.trim().split(/\s+/u);
-    const plain = firstWord.normalize("NFD").replace(/\p{M}/gu, "");
-    if (/^[\x21-\x7E]+$/.test(plain)) names.set(user.id, plain);
+    const plain = forTheScreen(firstWord);
+    // The first word has no spaces, so it's one the screen shows whole or not at all.
+    if (plain !== null) names.set(user.id, plain);
   }
   return names;
+}
+
+/**
+ * `text` with its accents taken off, as a station's screen can show it (the
+ * API agreement's 6.1), or null when it still has a character the screen
+ * can't show, such as a Chinese character or an emoji, or is empty.
+ */
+export function forTheScreen(text: string): string | null {
+  const plain = text.normalize("NFD").replace(/\p{M}/gu, "");
+  return /^[\x20-\x7E]+$/.test(plain) ? plain : null;
 }
 
 /**
