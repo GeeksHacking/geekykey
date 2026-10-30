@@ -36,6 +36,8 @@ Rule numbers are stable ids that other skills cite. A removed rule leaves a gap.
     ```bash
     python3 -c "s=open('FILE',encoding='utf-8').read(); print(s.count(chr(0x2014)), s.count(chr(0x2013)))"
     ```
+
+    The updates site's build already fails on either dash in an entry or a changelog line (`apps/updates/src/lib/checks.ts`), so skip the check there. Run it on text no build checks: PR descriptions, Linear tickets and comments, reports, docs, and visible strings in the apps. The apps' tests catch a dash only in the error messages and the demo-data notice.
 14. **Colon overuse.** Colons are fine before a list, an example, or an explanation of what came before them, and as the replacement for a dash under rule 13. The tell is a colon used as framing filler. "If you're coming from traditional automation: instead of registering event handlers, you describe conditions" adds nothing with the colon. Rewrite to let the point stand on its own without comparison framing. "Describing when the scheduler should fire works best as plain English." Same meaning, no crutch punctuation.
 15. **Boldface overuse.** Don't bold every proper noun or acronym.
 16. **Inline-header lists.** The tell is a bold label and colon that restates the line: "**Performance:** Performance improved...". Convert those to prose. A bold lead-in that ends in a period, names the item, and is followed by genuinely new detail ("**Schema in TypeScript.** Tables live in one file.") is fine, not a tell.
