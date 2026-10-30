@@ -1854,10 +1854,10 @@
   date: 2026-10-30
   area: backend
   change: >-
-    Each tap now tells the Event Service its token's kind, read from a list of every token's kind
-    that sits beside the claims stand-in. A laptop task loads that list from the token writer's
-    log, and the list never reaches an Event Service, which still sees no token's UID. The login
+    Each tap now tells the Event Service its token's kind, read from a new table of every token's
+    kind next to the claims stand-in. Adam fills that table from the token writer's log with
+    `pnpm db:token-kinds`, and an Event Service never reads it, so it still sees no token's UID. The login
     link from a token's page carries the same kind, but only while the user owns that token. The
     Event Service keeps the first kind it sees for each user and gives it to the passport in /me.
     Every new field is optional, so the screens and any other Event Service keep working, and the
-    API agreement's version 0.10 waits for Ethan's review.
+    API agreement's version 0.10 is a draft until Ethan approves it.
