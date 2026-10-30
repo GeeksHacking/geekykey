@@ -53,7 +53,8 @@
     },
     {
       // One import of classic zod puts all of it in the page's JavaScript, on top of the
-      // zod/mini every page already loads for src/api/schemas.ts (FRO-67).
+      // zod/mini every page already loads for src/api/schemas.ts (FRO-67). Code in src/ imports
+      // other code in src/ through the @/ alias, so a file that moves keeps its imports.
       "files": ["src/**/*.{ts,tsx}"],
       "rules": {
         "no-restricted-imports": [
@@ -61,6 +62,9 @@
           {
             "paths": [
               { "name": "zod", "message": "Import zod/mini, which the rest of the app uses." }
+            ],
+            "patterns": [
+              { "regex": "^\\.\\.?/", "message": "Import from src/ through the @/ alias." }
             ]
           }
         ]

@@ -12,20 +12,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EMPTY_CELL, formatDateTime, formatWhen } from "@/lib/format";
-
-import { BoothDialog } from "./booth-dialog";
-import { DisableStationDialog } from "./disable-station-dialog";
-import { PassportStationDialog } from "./passport-station-dialog";
-import { ReplaceStationKeyDialog } from "./replace-station-key-dialog";
-import { StationActionsMenu } from "./station-actions-menu";
-import { useStationDialog } from "./use-station-dialog";
+import { BoothDialog } from "@/features/stations/booth-dialog";
+import { DisableStationDialog } from "@/features/stations/disable-station-dialog";
+import { PassportStationDialog } from "@/features/stations/passport-station-dialog";
+import { ReplaceStationKeyDialog } from "@/features/stations/replace-station-key-dialog";
+import { StationActionsMenu } from "@/features/stations/station-actions-menu";
 import {
   hasStationProblem,
   sortStationsByTrouble,
   stationProblems,
   STATION_PROBLEMS,
-} from "./station-problems";
+} from "@/features/stations/station-problems";
+import { useStationDialog } from "@/features/stations/use-station-dialog";
+import { EMPTY_CELL, formatDateTime, formatWhen } from "@/lib/format";
 
 export function StationBoard({ stations }: { stations: EventStationBoardStation[] }) {
   // The row order the organiser was looking at when they opened a row's menu, or null with no
