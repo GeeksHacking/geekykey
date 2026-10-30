@@ -22,8 +22,8 @@ Key dates: the grad tea on 12 Nov 2026 is a pilot of the showcase's games, and t
 2. The taste skill, `.agents/skills/design-taste-frontend-v2-experimental/SKILL.md` at the
    repo root, is the design authority. It is the single-file, dial-driven version from
    `Leonxlnx/taste-skill`. The package's newer default, `design-taste-frontend`, is for public
-   pages only, so do not swap it in. See "Design direction" below for how the skill applies
-   to a product UI rather than a landing page.
+   pages only, so do not swap it in. See [docs/design-direction.md](docs/design-direction.md)
+   for how the skill applies to a product UI rather than a landing page.
 3. This file covers what neither of those does: stack, layout, conventions, workflow.
 
 Do not copy content from the agreement or the skill into this file. Link to it.
@@ -103,9 +103,9 @@ One thing that looks like a bug and is not:
 |---|---|---|
 | Runtime, package manager | Node 24, pnpm 12 | Workspace package `@geekykey/event-web`. Exact versions are pinned in the root `.mise.toml` |
 | Framework | React 19 | Function components only |
-| Language | TypeScript 6.0, strict | Pin `typescript@~6.0.3`. See "TypeScript version" |
+| Language | TypeScript 6.0, strict | Pin `typescript@~6.0.3`. npm's `latest` tag is TypeScript 7, so never a bare `pnpm add -D typescript` |
 | Build | Vite 8 + `@vitejs/plugin-react` | |
-| Styling | Tailwind CSS 4 | The `@tailwindcss/vite` plugin, no config file and no PostCSS. The theme is the `@theme inline` block in `src/styles/globals.css`. Animations come from `tw-animate-css`. See "Tailwind 4 notes" |
+| Styling | Tailwind CSS 4 | The `@tailwindcss/vite` plugin, no config file and no PostCSS. The theme is the `@theme inline` block in `src/styles/globals.css`. Animations come from `tw-animate-css`. See [docs/tailwind-4.md](docs/tailwind-4.md) |
 | Components | shadcn/ui, CSS-variable theme | Generated into `src/components/ui`. We own and customise the code. Never left in default state |
 | Routing | TanStack Router, file-based | Typed links, params, and search. `routeTree.gen.ts` is generated and committed; never hand-edit it |
 | Server state | TanStack Query 5 | Queries and mutations live in feature hooks; keys in `src/api/keys.ts`; the session is the `["me"]` query. See "Server state" |
@@ -164,67 +164,14 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
 
 The mock client needs nothing special: Query only wants async functions.
 
-### TypeScript version
+### Gotchas
 
-TypeScript 6.0 is the target. Vite 8 transpiles with oxc and ignores the TS version.
-**npm's `latest` tag is TypeScript 7**, the Go port, and the repo stays on 6.0 for now.
-Always install with an explicit `typescript@~6.0.3`; never a bare `pnpm add -D typescript`.
-If any tool rejects 6.0 at scaffold time, fall back to `typescript@~5.9` and record why in
-this section.
-
-### Scaffold notes (18 September 2026)
-
-Verified when the app was scaffolded:
-
-- TypeScript 6.0.3 works with Vite 8.3, `@vitejs/plugin-react` 6.1, `@tanstack/router-plugin`
-  1.168, typescript-eslint 8.70, and Vitest 5.
-- The shadcn CLI resolves the `@/` alias from `tsconfig.json`, so the solution tsconfig
-  must keep `compilerOptions.paths`. Without it the CLI writes into a literal `@/` folder.
-  (The app started on Tailwind 3.4; see "Tailwind 4 notes" for the move.)
-- pnpm 11 refuses to run esbuild's install script unless `allowBuilds` lists it in
-  `pnpm-workspace.yaml`. Done at the repo root.
-- shadcn's `sonner` component imports `next-themes`. Ours reads `lib/theme` instead.
-- The `react/static-components` and `react/incompatible-library` rules flag components
-  looked up during render and react-hook-form's `watch()`. Use `useWatch` and render
-  looked-up icons through a small component (see `features/passport/station-glyph.tsx`).
-- TanStack Table moved from v8 to v9 on 18 Sep 2026 while the scan log was the only table.
-  v9 is `useTable({ features, columns, data })` with `tableFeatures({})`; there is no
-  `getCoreRowModel`, and `<table.FlexRender cell={cell} />` replaces `flexRender`. Most
-  tutorials and the shadcn data-table recipe still show v8; the package ships its own
-  migration notes under `node_modules/@tanstack/react-table/skills`.
-- Never redirect with a `<Navigate />` element from a component that re-renders. It
-  navigates again whenever its props object changes, which is every render, and the router
-  never commits, so the page freezes on the loading view. Redirect from a `useEffect` with
-  stable dependencies instead (see `features/auth/require-session.tsx`).
-
-### Tailwind 4 notes (6 October 2026)
-
-The app moved from Tailwind 3.4 to 4 because Tailwind 3 depends on `braces`, which has a
-security advisory with no fixed version, and the CI dependency audit fails on it. Every
-screen was compared with the Tailwind 3 build, pixel by pixel, in both themes at 1280 and
-390 px. Two small differences were kept: a table header that wraps is 2px shorter, and
-the summary tiles' text moves 1px. What to know:
-
-- There is no `tailwind.config.ts`. A token lives in `src/styles/globals.css` twice: as HSL
-  channels in `:root` and `.dark`, and in the `@theme inline` block, which turns
-  `--color-primary-text` into `text-primary-text` and so on. `globals.css` is identical in
-  `apps/geekykey-web`, so change both together.
-- Wrap a label and its field in `grid gap-2`, not `space-y-2`. Tailwind 4's `space-y` puts
-  the margin on every child except the last, and an inline `<label>` ignores a vertical
-  margin. `FormItem` already does this. `Label` uses `leading-6` so fields sit where they
-  did on Tailwind 3.
-- Tailwind 4 sets `scale-*` and `translate-*` through their own CSS properties, not
-  `transform`. In a `transition-[...]` list, write `scale` (see `components/ui/button.tsx`).
-  Do not copy shadcn's Tailwind 3 dialog classes `slide-in-from-left-1/2` or
-  `slide-in-from-top-[48%]`: on Tailwind 4 they push the dialog off-centre.
-- Some class names changed meaning. When copying an older snippet, use `outline-hidden`
-  for `outline-none`, `shadow-xs` for `shadow-sm`, `shadow-sm` for `shadow`, `blur-xs` for
-  `blur-sm`, `blur-sm` for a bare `blur`, `ring-3` for a bare `ring`, and
-  `origin-(--radix-...)` for `origin-[--radix-...]`. `npx @tailwindcss/upgrade` does these
-  renames, but not the three fixes above.
-- `components.json` has an empty `tailwind.config`, so `pnpm dlx shadcn@latest add` writes
-  Tailwind 4 components. The existing ones started as Tailwind 3 components, so check a new
-  one's spacing against them.
+- Before using TanStack Table, react-hook-form's `watch`, a redirect, or a shadcn component that
+  imports `next-themes`, read [docs/scaffold-notes.md](docs/scaffold-notes.md). It also says why
+  the repo stays on TypeScript 6.0.
+- Before writing Tailwind classes copied from a snippet, or changing `globals.css`, read
+  [docs/tailwind-4.md](docs/tailwind-4.md): the class names that changed meaning, `space-y`, and
+  why a token lives in two places.
 
 ## Commands
 
@@ -443,113 +390,23 @@ Rules:
   key back, Web Serial or USB device configuration. Replacing a station's key is **not** out
   of scope: agreement 9.8 does it on the station board and FRO-28 builds it.
 
-## Screens (MVP)
+## Screens
 
-| Route | Role | Reads | Writes | Must handle |
-|---|---|---|---|---|
-| `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed |
-| `/#login=<link>` | anyone | `GET /me` | `POST /auth/login-link`, before the first `/me` | the fragment gone at once; an expired link leaves the old session and says so |
-| `/` dashboard | participant, organiser | `GET /me` | | Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
-| `/passport` | participant | `GET /me` `stamps` | `PATCH /me` for the name | every station shown; empty slot where `earned_at` is null; the name prompt while `has_name` is false, and Change name for everyone; a new stamp with a link offers "Open their page?" in a new tab, until it is pressed, dismissed or replaced by the next stamp, and a stamp with no link shows nothing |
-| `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
-| `/admin` | organiser | | | participant sees the 403 view |
-| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `POST /admin/stations/{id}/key`, `PUT /admin/stations/{id}/passport`, `PUT /admin/stations/{id}/booth`, `POST /admin/stations/{id}/disable`, `POST /admin/stations/{id}/enable` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; one Actions menu per row, named for its station, holding every row action, and the rows' order held while it is open; Add to passport on a row with no settings, Edit on one with, including the group link it can save or clear; each station's booth, or "No booth", changed from the menu, with the example plan's codes in the field's hint; Replace key on every row, disabled rows included; Disable behind a confirmation, Enable at once; a closed dialog puts the keyboard back on its row's Actions button |
-| `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
-| `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
-| `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
-| `/map` | organiser, map screen | `GET /map` polled every 2 s | | every station at its booth; one with no booth or an unknown one listed beside the map; disabled marked in words, no pulse; a pulse only when `taps` rose; `forbidden` shown in place, with Log out; no names |
+Before building or changing a screen, read its row in [docs/screens.md](docs/screens.md): the
+route, the role, what it reads and writes, and every case it must handle.
 
-`/admin/stations` and `/admin/fallback` both read the Event board, from
-`listStationBoard()`, which is the only call to `GET /api/v1/admin/stations` (9.2).
-The export is not a link: `features/stats/export-button.tsx`
-fetches it and hands the browser a Blob.
+## Design rules
 
-Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens
-against `MVP` endpoints are still built now, against mocks.
-
-## Design direction
-
-The skill is written for landing pages and says dashboards and data tables are outside
-its scope. GeekyKey is a product UI. Resolution:
-
-**Apply everywhere:** Section 0 brief inference and anti-default discipline, 3.C icons,
-3.E responsiveness, 4.1 typography, 4.2 one accent and the colour lock, 4.4 shape lock,
-4.5 interactive states and contrast checks, 4.6 form rules, 6 performance and
-accessibility, 8 dark mode protocol, 9 AI tells including the em-dash ban, and the
-pre-flight check as adapted in "Definition of done".
-
-**Do not apply:** hero rules, eyebrows, bento, marquee, GSAP scroll patterns, image
-generation requirements, and the Next.js and RSC defaults in 3.A. This is a Vite SPA on
-Tailwind 4.
-
-**Design read:** mobile-first product UI for hackathon participants plus a denser desktop
-console for organisers, with a dark-capable, high-contrast tech-event language, leaning
-shadcn/ui customised.
-
-**Dials:** `DESIGN_VARIANCE 4`, `MOTION_INTENSITY 3`, `VISUAL_DENSITY 5` on participant
-screens and `7` on organiser screens. `MOTION_INTENSITY` is `6` on the map and on the
-passport at 1024 px and up, the two screens a crowd watches (FRO-77). Symmetric grids, no
-scroll choreography, no decorative motion.
-
-**Theme:** follow `prefers-color-scheme`. When the browser reports no preference, use
-dark. Both token sets live in `globals.css` as CSS variables in the shadcn convention.
-A manual toggle in the app shell overrides the system setting and persists in
-`localStorage`. Never flip theme per section. Check every screen in both.
-
-**Palette:** the GeeksHacking branding kit (its Figma file), adopted on 14 Oct 2026 after
-Julian approved the prototype. The kit's greys and one accent, its yellow `#FFF200`. The
-yellow is the brand's own colour, so it stays at full saturation although the skill's 4.2
-asks for less (8.B keeps the brand colour recognisable). It is a fill colour with `#1C1B1B`
-text on it, and it needs two helpers on the light theme because yellow on the `#F5F5F5`
-page is 1.07:1. `border-primary-edge` puts a `#1C1B1B` 1px edge on every yellow fill, as
-the kit outlines its own components, and `text-primary-text` is what links, icons, and
-active labels use: yellow on dark, `#706B00` on light. Never `text-primary` for text. The
-current nav item is a solid yellow segment (`components/layout/nav-link.tsx`). The kit has
-no dark theme, and its secondary grey fails on light; `globals.css` says what was derived
-for each and the contrast it reaches. The ghost button is the app's own: the kit's
-half-transparent one looks disabled and fails contrast. No pure `#000` or `#fff`. No
-gradients, no glows.
-
-**Look:** the showcase's sci-fi look (FRO-77), after games such as Wuthering Waves and
-Arknights: Endfield, whose black and yellow is close to the kit's. Thin borders, corner
-brackets, monospace labels and a faint grid, and nothing that's only decoration moves. It
-lives in three places: `bg-look-grid` and `look-label` in `globals.css`, and
-`components/look/corner-brackets.tsx`. The grid is drawn with `linear-gradient`, but as hard
-1px lines, so "no gradients" still holds. The map, the participant screens and the organiser
-console use it. On the console, the grid sits behind the content column and the sidebar stays
-plain. `look-label` marks captions, column headings and field labels, never body text or the
-tap log's values. Brackets frame the station board, the scan log, the summary's figures and
-by-station table, the QR fallback's card and result, and each station dialog, never a table
-row or a form field. The console keeps `VISUAL_DENSITY 7`, so the look adds no padding between
-rows. The look supplies colour, type and decoration only, and no animation moves any of it, so
-the grad tea's look (FRO-85) replaces those three and every animation plays the same. The
-brackets sit just outside their box, and a table's scroll region sits inside them, so a
-scrolling table never cuts a bracket off.
+Before a change to colour, type, shape, layout, the sci-fi look or motion, read
+[docs/design-direction.md](docs/design-direction.md): how the taste skill applies to a product
+UI, the dials, the palette and its helpers, the look, and the motion exceptions on the big screens.
+These three rules apply to every change:
 
 **Status is never colour alone.** Every `tap_status` and every online/offline indicator
 renders icon plus text plus colour. Accepted green, cooldown orange, no_game red. The kit
 has no status colours, so these are the app's own.
 Cooldown is orange on screen rather than the agreement's amber so it never reads as the
 brand yellow. Station LEDs stay amber.
-
-**Type:** Open Sans for UI, as the kit's typography page says. Its components page shows
-Figtree, and the typography page wins. Geist Mono for points, station IDs, timestamps, and
-counts, which the kit does not cover. Body text at normal weight, not the kit's 300,
-because participants read in dim venues. The app's own text sizes, because the kit's 45px
-heading is too big for a phone. `tracking-heading` (the kit's 0.5px) on headings and the
-large figures. No oversized display type. The wordmark is the kit's logo, unrecoloured:
-the secondary logo beside "GeekyKey" in the shells, and the primary logo over it on the
-login and loading pages (`components/layout/wordmark.tsx`, files in `public/brand/`). Do
-not add a display face to the app; spend that on the showcase poster if wanted.
-
-**Shape:** one radius scale, from the kit's 12px corner. `rounded-lg` (12px) for cards,
-dialogs, and inputs; `rounded-md` (10px) for buttons and badges. Document any exception in
-this file.
-
-**Layout:** participant screens designed at 360 to 430 px first, single column, one-line
-bottom or top nav, `min-h-[100dvh]` never `h-screen`. Organiser screens designed at
-1024 px and up with a sidebar and still usable at 768 px. `max-w-7xl mx-auto` containers.
-CSS grid, never flex percentage math.
 
 **Copy:** plain language. British spelling in visible text ("organiser", "colour"). API
 spelling in code (`organizer`). No emoji. No em-dash or en-dash anywhere visible. No
@@ -558,27 +415,6 @@ placeholder-as-label. Buttons are verbs, one label per intent across the app.
 **States:** every data view ships loading, empty, error, and populated. Skeletons match
 the final layout. Empty states say what to do next. Errors are inline where the user
 acted; toasts only for transient success.
-
-**Motion:** 150 to 250 ms on `transform` and `opacity` only, for feedback and state
-change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. That is the rule on
-phones and on the organiser screens. The exceptions, all on the big screens:
-
-- The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
-  reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back
-  to back and shortened to end before the next poll (FRO-102). With reduced motion it only fades.
-- On the passport at 1024 px and up, a stamp earned is the one long animation (about a second:
-  the seal presses in, then the note comes in), points count up over 0.9 s,
-  and a slot in the dashboard's row fills over 0.5 s. With reduced motion none of them play.
-
-Animate only a change, and never a poll that changed nothing. A plain, tested function
-decides what changed between two polls (`features/map/pulses.ts`,
-`features/passport/passport-changes.ts`), and the animation only plays what it returns. On
-the passport, the screen marks each change with `data-changed` and clears the marks 2 s
-later. Under 1024 px, a mark plays a 200 ms `tw-animate-css` enter animation through the
-`phone-change:` variant in `globals.css`, unless reduced motion is asked for. At 1024 px and
-up, GSAP plays the same marks instead, once each. `features/passport/use-passport-changes.ts`
-keeps the last `/me` it saw in state to compare with, React's pattern for the previous render.
-It is the one exception to "never a `useState` copy of something the cache holds".
 
 ## Coding conventions
 

@@ -23,7 +23,7 @@ Read those files before adding screens. They are references, not documents to co
   (see the Forms row of the stack table in `apps/event-web/CLAUDE.md`).
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
-- `src/styles/globals.css` is identical to the Event screens'. Change both together (see "Tailwind 4 notes" in `apps/event-web/CLAUDE.md`).
+- `src/styles/globals.css` is identical to the Event screens'. Change both together (see `apps/event-web/docs/tailwind-4.md`).
 - `worker/firebase.ts` and `authDomain()` in `src/lib/firebase.ts` are copies of the Event
   screens', and `worker/config.ts` checks its address the way theirs does. Change them
   together.
