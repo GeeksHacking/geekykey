@@ -5,6 +5,7 @@ import * as z from "zod/mini";
 
 import { describeError, isApiError, isApiErrorCode } from "@/api/errors";
 import type { FallbackTapRequest, FallbackTapResponse } from "@/api/types";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -96,7 +97,12 @@ export function FallbackForm({ stations }: { stations: StationOption[] }) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="relative grid gap-5 rounded-lg border bg-card p-5"
+        noValidate
+      >
+        <CornerBrackets />
         <FormField
           control={form.control}
           name="station_id"
@@ -151,7 +157,7 @@ export function FallbackForm({ stations }: { stations: StationOption[] }) {
             {formError}
           </p>
         ) : null}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" className="justify-self-start" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Logging" : "Log tap"}
         </Button>
       </form>
