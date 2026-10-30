@@ -18,11 +18,11 @@ export interface ScreensSchema {
 }
 
 /**
- * The Event screens' own checks of the organizer answers, so the service and the
- * screens can't drift apart: a route test that parses its answer with one fails
- * when the service sends what the screens would refuse. Imported by a path tsc
- * doesn't follow, since the screens' code is checked with their settings, not
- * the service's.
+ * The Event screens' own checks of the organizer answers and of /me, so the
+ * service and the screens can't drift apart: a route test that parses its answer
+ * with one fails when the service sends what the screens would refuse. Imported
+ * by a path tsc doesn't follow, since the screens' code is checked with their
+ * settings, not the service's.
  */
 export const screensSchemas = (await import(
   /* @vite-ignore */ fileURLToPath(new URL("../../event-web/src/api/schemas.ts", import.meta.url))
@@ -33,7 +33,8 @@ export const screensSchemas = (await import(
   | "setStationPassportResponseSchema"
   | "listTapsResponseSchema"
   | "fallbackTapResponseSchema"
-  | "statsResponseSchema",
+  | "statsResponseSchema"
+  | "meResponseSchema",
   ScreensSchema
 >;
 
