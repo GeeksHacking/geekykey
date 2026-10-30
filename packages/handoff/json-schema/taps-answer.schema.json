@@ -19,6 +19,21 @@
             "type": "string",
             "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
             "description": "accepted, cooldown, no_game or duplicate from ours. Another team's statuses pass to the station unchanged"
+          },
+          "lines": {
+            "description": "What the station's game has the station show, one row each. Ours gives them with accepted and cooldown only. They pass to the station unchanged",
+            "minItems": 1,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[\\x20-\\x7E]{0,16}$",
+              "description": "One row of the station's 16x2 screen"
+            }
+          },
+          "complete": {
+            "description": "True on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune",
+            "type": "boolean"
           }
         },
         "required": [

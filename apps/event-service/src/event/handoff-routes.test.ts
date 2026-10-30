@@ -64,10 +64,24 @@ test("a tap is accepted, a resend duplicate, and a second tap cooldown", async (
     assert.equal(res.status, 200);
     answers.push(await res.json());
   }
+  // With the passport's lines for the station, apart from the duplicate.
   assert.deepEqual(answers, [
-    { results: [{ client_tap_id: "t1", status: "accepted" }] },
+    {
+      results: [
+        {
+          client_tap_id: "t1",
+          status: "accepted",
+          lines: ["Alex: 1 of 1", "All 1 done!"],
+          complete: true,
+        },
+      ],
+    },
     { results: [{ client_tap_id: "t1", status: "duplicate" }] },
-    { results: [{ client_tap_id: "t2", status: "cooldown" }] },
+    {
+      results: [
+        { client_tap_id: "t2", status: "cooldown", lines: ["Alex: 1 of 1", "Already counted"] },
+      ],
+    },
   ]);
   // With its user ID: the Event side never sees a token.
   assert.deepEqual(await storedTaps(), [
@@ -82,7 +96,16 @@ test("a tap by someone who has never logged in is still stored", async () => {
     station_id: stationId,
     taps: [{ client_tap_id: "t1", user_id: "never-logged-in", tapped_at: null }],
   });
-  assert.deepEqual(await res.json(), { results: [{ client_tap_id: "t1", status: "accepted" }] });
+  assert.deepEqual(await res.json(), {
+    results: [
+      {
+        client_tap_id: "t1",
+        status: "accepted",
+        lines: ["1 of 1 stamps", "All 1 done!"],
+        complete: true,
+      },
+    ],
+  });
   assert.deepEqual(
     (await storedTaps()).map((t) => t.user),
     ["never-logged-in"],

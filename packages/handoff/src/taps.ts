@@ -3,6 +3,15 @@ import { z } from "zod";
 /** The most taps one hand-off carries: a station's largest batch. */
 export const MAX_HANDOFF_TAPS = 500;
 
+/** The most lines a result carries: the rows of the station's screen. */
+export const MAX_LINES = 2;
+
+/**
+ * One line of a result: up to 16 printable ASCII characters, space to `~`,
+ * which is what a row of the station's 16x2 LCD can show.
+ */
+export const LINE_PATTERN = /^[\x20-\x7E]{0,16}$/;
+
 /** A tap's own ID, the same in the request and in its result. */
 const clientTapId = z
   .string()
@@ -43,6 +52,27 @@ export const tapsAnswer = z.object({
           .describe(
             "accepted, cooldown, no_game or duplicate from ours. Another team's statuses " +
               "pass to the station unchanged",
+          ),
+        lines: z
+          .array(
+            z
+              .string()
+              .regex(LINE_PATTERN, "each line must be up to 16 printable ASCII characters")
+              .describe("One row of the station's 16x2 screen"),
+          )
+          .min(1)
+          .max(MAX_LINES)
+          .optional()
+          .describe(
+            "What the station's game has the station show, one row each. Ours gives them " +
+              "with accepted and cooldown only. They pass to the station unchanged",
+          ),
+        complete: z
+          .boolean()
+          .optional()
+          .describe(
+            "True on the tap that finishes the station's game, such as the passport's last " +
+              "stamp, so the station plays its own tune",
           ),
       }),
     )

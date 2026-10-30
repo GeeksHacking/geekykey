@@ -34,6 +34,11 @@ test("the answer's JSON Schema keeps the agreement's rules", () => {
   assert.equal(result.properties.client_tap_id.minLength, 1);
   assert.equal(result.properties.client_tap_id.maxLength, 128);
   assert.deepEqual(result.required, ["client_tap_id", "status"]);
+  // The station's two rows, each as much as a row of its screen shows.
+  assert.equal(result.properties.lines.minItems, 1);
+  assert.equal(result.properties.lines.maxItems, 2);
+  assert.equal(result.properties.lines.items.pattern, "^[\\x20-\\x7E]{0,16}$");
+  assert.equal(result.properties.complete.type, "boolean");
 });
 
 test("the heartbeat hand-off's JSON Schema keeps the agreement's rules", () => {

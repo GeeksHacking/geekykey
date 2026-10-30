@@ -56,8 +56,16 @@ export function handoffRoutes({ key, games }: { key: string; games: readonly Gam
         .set({ lastSeenAt: new Date().toISOString() })
         .where(eq(stations.id, station_id));
 
+      // With what each tap's game has the station show, if anything (6.1).
       return c.json({
-        results: results.map((r) => ({ client_tap_id: r.clientTapId, status: r.status })),
+        results: results.map(({ clientTapId, status, stationText }) => ({
+          client_tap_id: clientTapId,
+          status,
+          ...(stationText !== null && {
+            lines: stationText.lines,
+            ...(stationText.complete && { complete: true }),
+          }),
+        })),
       });
     })
     .post("/heartbeats", jsonBody(heartbeatsRequest), async (c) => {

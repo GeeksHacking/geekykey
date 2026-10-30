@@ -8,7 +8,9 @@ import {
   type GameOnStations,
   type GameStatus,
   type GameTap,
+  type JudgedTap,
   runsAt,
+  type StationText,
   type Tx,
 } from "./games.ts";
 import {
@@ -37,6 +39,8 @@ export interface TapResult {
   clientTapId: string;
   status: TapResultStatus;
   userId: string | null;
+  /** What the station shows for the tap, from its game, or null for its own text for the status. */
+  stationText: StationText | null;
 }
 
 export interface TapPipelineOptions {
@@ -54,6 +58,7 @@ export class UnknownStation extends Error {
 interface PendingTap extends GameTap {
   index: number;
   status: StoredTapStatus;
+  stationText: StationText | null;
 }
 
 /**
@@ -66,7 +71,8 @@ interface PendingTap extends GameTap {
  * the station judge each tap, and it's stored with their combined status:
  * `no_game` when none runs there, or none counts it. Each stored tap gets a
  * `tap_stored` log line once the transaction commits, so taps lost to a
- * restore can be rebuilt from the logs.
+ * restore can be rebuilt from the logs. A station's taps also get what the
+ * station's game has it show, which no log line prints.
  *
  * It sees only users, never a token.
  */
@@ -112,6 +118,7 @@ export class TapPipeline {
             clientTapId: tap.clientTapId,
             status: "duplicate",
             userId: null,
+            stationText: null,
           };
           return;
         }
@@ -124,6 +131,7 @@ export class TapPipeline {
           effectiveAt: tappedAt ?? receivedAt,
           userId: tap.userId,
           status: "no_game",
+          stationText: null,
         });
       });
       if (pending.length === 0) return results;
@@ -173,11 +181,16 @@ export class TapPipeline {
           set: { id: sql`id` },
         });
 
+      // 4. For a station's taps, its own game words what the station shows. Not for the QR
+      //    fallback's, which no station shows.
+      if (source === "nfc") await this.#stationText(station.game, pending, context);
+
       for (const p of pending) {
         results[p.index] = {
           clientTapId: p.clientTapId,
           status: p.status,
           userId: p.userId,
+          stationText: p.stationText,
         };
       }
       stored.push(...pending);
@@ -195,6 +208,40 @@ export class TapPipeline {
       });
     }
     return results;
+  }
+
+  /**
+   * Sets what the station shows for each of `pending` that a game counted or
+   * held back, from the station's own game, if it gives any. After the
+   * write, so a game's reads count each tap.
+   */
+  async #stationText(
+    stationGame: string | null,
+    pending: PendingTap[],
+    context: GameContext,
+  ): Promise<void> {
+    const own = this.#games.find(
+      (onStations) => onStations.stations === "chosen" && onStations.game.id === stationGame,
+    )?.game;
+    if (own?.lines === undefined) return;
+    const judged = pending.filter(
+      (p): p is PendingTap & JudgedTap => p.status === "accepted" || p.status === "cooldown",
+    );
+    if (judged.length === 0) return;
+    const texts = await own.lines(
+      judged.map(({ clientTapId, userId, tappedAt, effectiveAt, status }) => ({
+        clientTapId,
+        userId,
+        tappedAt,
+        effectiveAt,
+        status,
+      })),
+      context,
+    );
+    if (texts.length !== judged.length) {
+      throw new Error(`${own.id} gave lines for ${texts.length} of ${judged.length} taps`);
+    }
+    judged.forEach((p, i) => (p.stationText = texts[i]!));
   }
 
   /**
