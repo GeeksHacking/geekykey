@@ -27,6 +27,8 @@ Every triaged issue also carries exactly one state role.
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
+An agent asked to implement a ticket labelled `ready-for-human`, through `/implement` or any other way, stops before changing code. It says the label is there, gives the reason the ticket's brief gives for keeping the work with a person, and asks whether to go ahead. A yes covers that ticket in that session only.
+
 `Feature` is also a workspace label. Triage does not apply it; people use it by hand for new work.
 
 Edit the right-hand column to match whatever vocabulary you actually use.

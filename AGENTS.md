@@ -8,7 +8,7 @@ Tickets live in Linear (workspace `geekykey`, through the Linear MCP). Specs and
 
 ### Triage labels
 
-Five state labels, each named after its role, plus two category labels (`Bug` and `Improvement`). See `docs/agents/triage-labels.md`.
+Five state labels, each named after its role, plus two category labels (`Bug` and `Improvement`). A ticket labelled `ready-for-human` is not implemented without asking first. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
