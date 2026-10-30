@@ -93,7 +93,7 @@ describe("passport settings on the station board", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     const link = await screen.findByLabelText("Group link");
     expect(link).toHaveValue("https://example.com/3d-printing");
 
@@ -101,13 +101,13 @@ describe("passport settings on the station board", () => {
     await user.type(link, "https://example.com/careers");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
-    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     expect(await screen.findByLabelText("Group link")).toHaveValue("https://example.com/careers");
 
     await user.clear(screen.getByLabelText("Group link"));
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
-    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     expect(await screen.findByLabelText("Group link")).toHaveValue("");
   });
 
@@ -115,7 +115,7 @@ describe("passport settings on the station board", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     const link = await screen.findByLabelText("Group link");
     await user.clear(link);
     await user.type(link, "http://example.com/careers");
