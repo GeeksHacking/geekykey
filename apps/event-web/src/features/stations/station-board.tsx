@@ -58,6 +58,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
           return (
             <TableRow
               key={station.id}
+              data-station-id={station.id}
               className={hasStationProblem(station) ? "bg-destructive/5" : undefined}
             >
               <TableCell>
@@ -96,7 +97,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 <div className="flex flex-wrap items-center gap-3">
                   <PassportButton
                     station={station}
-                    onOpen={() => passport.openFor(station.id)}
+                    onOpen={(opener) => passport.openFor(station.id, opener)}
                     editing={station.passport !== null}
                   />
                   {/* Agreement 9.12. On every row, disabled stations included, because the
@@ -104,7 +105,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                       taps it has. */}
                   <BoothButton
                     station={station}
-                    onOpen={() => booth.openFor(station.id)}
+                    onOpen={(opener) => booth.openFor(station.id, opener)}
                     editing={station.booth !== null}
                   />
                   {/* FRO-28 says each station has this, with no word about enabled ones, and
@@ -112,7 +113,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                       and then replace its key. So it is on every row, disabled included. */}
                   <ReplaceKeyButton
                     station={station}
-                    onOpen={() => replaceKey.openFor(station.id)}
+                    onOpen={(opener) => replaceKey.openFor(station.id, opener)}
                   />
                   {/* FRO-26. One switch per row, by its state: an enabled station has
                       Disable, whose ask lives behind the confirmation alert; a disabled one
@@ -120,7 +121,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                   {station.disabled_at === null ? (
                     <DisableStationButton
                       station={station}
-                      onOpen={() => disableDialog.openFor(station.id)}
+                      onOpen={(opener) => disableDialog.openFor(station.id, opener)}
                     />
                   ) : (
                     <EnableStationButton station={station} />
@@ -129,6 +130,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 <PassportStationDialog
                   station={station}
                   open={passport.isOpenFor(station.id)}
+                  returnFocusTo={passport.opener}
                   onOpenChange={(open) => {
                     if (!open) passport.close();
                   }}
@@ -136,6 +138,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 <BoothDialog
                   station={station}
                   open={booth.isOpenFor(station.id)}
+                  returnFocusTo={booth.opener}
                   onOpenChange={(open) => {
                     if (!open) booth.close();
                   }}
@@ -143,6 +146,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 <ReplaceStationKeyDialog
                   station={station}
                   open={replaceKey.isOpenFor(station.id)}
+                  returnFocusTo={replaceKey.opener}
                   onOpenChange={(open) => {
                     if (!open) replaceKey.close();
                   }}
@@ -150,6 +154,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 <DisableStationDialog
                   station={station}
                   open={disableDialog.isOpenFor(station.id)}
+                  returnFocusTo={disableDialog.opener}
                   onOpenChange={(open) => {
                     if (!open) disableDialog.close();
                   }}
@@ -193,7 +198,7 @@ function PassportButton({
 }: {
   station: EventStationBoardStation;
   editing: boolean;
-  onOpen: () => void;
+  onOpen: (opener: HTMLElement) => void;
 }) {
   return (
     <Button
@@ -201,7 +206,7 @@ function PassportButton({
       variant="link"
       size="sm"
       className="h-auto px-0 text-xs"
-      onClick={onOpen}
+      onClick={(event) => onOpen(event.currentTarget)}
       aria-label={`${editing ? "Change passport settings for" : "Add to passport"} ${
         station.passport?.name ?? station.label
       }`}
@@ -219,7 +224,7 @@ function BoothButton({
 }: {
   station: EventStationBoardStation;
   editing: boolean;
-  onOpen: () => void;
+  onOpen: (opener: HTMLElement) => void;
 }) {
   const name = station.passport?.name ?? station.label;
 
@@ -229,7 +234,7 @@ function BoothButton({
       variant="link"
       size="sm"
       className="h-auto px-0 text-xs"
-      onClick={onOpen}
+      onClick={(event) => onOpen(event.currentTarget)}
       aria-label={`${editing ? "Change" : "Set"} booth for ${name}`}
     >
       {editing ? "Change booth" : "Set booth"}
@@ -243,7 +248,7 @@ function ReplaceKeyButton({
   onOpen,
 }: {
   station: EventStationBoardStation;
-  onOpen: () => void;
+  onOpen: (opener: HTMLElement) => void;
 }) {
   const name = station.passport?.name ?? station.label;
 
@@ -253,7 +258,7 @@ function ReplaceKeyButton({
       variant="link"
       size="sm"
       className="h-auto px-0 text-xs"
-      onClick={onOpen}
+      onClick={(event) => onOpen(event.currentTarget)}
       aria-label={`Replace key for ${name}`}
     >
       Replace key
@@ -271,12 +276,18 @@ function DisableStationButton({
   onOpen,
 }: {
   station: EventStationBoardStation;
-  onOpen: () => void;
+  onOpen: (opener: HTMLElement) => void;
 }) {
   const name = station.passport?.name ?? station.label;
 
   return (
-    <Button type="button" size="sm" onClick={onOpen} aria-label={`Disable ${name}`}>
+    <Button
+      type="button"
+      size="sm"
+      data-station-power
+      onClick={(event) => onOpen(event.currentTarget)}
+      aria-label={`Disable ${name}`}
+    >
       Disable
     </Button>
   );
@@ -308,6 +319,7 @@ function EnableStationButton({ station }: { station: EventStationBoardStation })
       <Button
         type="button"
         size="sm"
+        data-station-power
         onClick={() => void handleEnable()}
         disabled={enable.isPending}
         aria-label={`Enable ${name}`}

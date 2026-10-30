@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { returnFocusOnClose } from "@/features/stations/dialog-focus";
 import { useDisableStation } from "@/features/stations/use-disable-station";
 
 /** FRO-26's sentence, from the ticket. Used as written, so it is asserted whole. */
@@ -24,19 +25,26 @@ const CONFIRMATION =
  *
  * As with the replace-key alert, Radix mounts the content only once it opens, which is
  * what holds the useDisableStation call here rather than in the board's row.
+ *
+ * `returnFocusTo` is the row's Disable button. A successful disable replaces it with Enable,
+ * so the row's new power button takes the keyboard back instead (FRO-99).
  */
 export function DisableStationDialog({
   station,
   open,
   onOpenChange,
+  returnFocusTo,
 }: {
   station: EventStationBoardStation;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnFocusTo: HTMLElement | null;
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
+      >
         <DisableStationConfirm station={station} onDisabled={() => onOpenChange(false)} />
       </AlertDialogContent>
     </AlertDialog>
