@@ -87,7 +87,7 @@ export function BoothForm({
           name="booth"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Booth</FormLabel>
+              <FormLabel className="look-label">Booth</FormLabel>
               <FormControl>
                 <Input {...field} autoComplete="off" placeholder="A3" className="w-32 font-mono" />
               </FormControl>

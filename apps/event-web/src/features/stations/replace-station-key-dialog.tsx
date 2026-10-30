@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 import { describeError } from "@/api/errors";
 import type { EventStationBoardStation, StationKeyResponse } from "@/api/types";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,6 +70,7 @@ export function ReplaceStationKeyDialog({
             returnFocusOnClose(event, returnFocusTo, station.id);
           }}
         >
+          <CornerBrackets />
           <ReplaceStationKeyConfirm
             station={station}
             onReplaced={(next) => {
@@ -92,6 +94,7 @@ export function ReplaceStationKeyDialog({
         <DialogContent
           onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
         >
+          <CornerBrackets />
           {result ? (
             <StationKeyReveal kind="replace" result={result} onDone={() => setResult(null)} />
           ) : null}

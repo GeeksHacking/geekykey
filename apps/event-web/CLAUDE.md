@@ -511,11 +511,16 @@ Arknights: Endfield, whose black and yellow is close to the kit's. Thin borders,
 brackets, monospace labels and a faint grid, and nothing that's only decoration moves. It
 lives in three places: `bg-look-grid` and `look-label` in `globals.css`, and
 `components/look/corner-brackets.tsx`. The grid is drawn with `linear-gradient`, but as hard
-1px lines, so "no gradients" still holds. The map and the participant screens use it; the
-organiser screens stay a plain console. The look supplies colour, type and decoration only,
-and no animation moves any of it, so the grad tea's look (FRO-85) replaces those three and
-every animation plays the same. The brackets sit just outside their box, so a scrolling parent
-needs a little padding or it cuts them off.
+1px lines, so "no gradients" still holds. The map, the participant screens and the organiser
+console use it. On the console, the grid sits behind the content column and the sidebar stays
+plain. `look-label` marks captions, column headings and field labels, never body text or the
+tap log's values. Brackets frame the station board, the scan log, the summary's figures and
+by-station table, the QR fallback's card and result, and each station dialog, never a table
+row or a form field. The console keeps `VISUAL_DENSITY 7`, so the look adds no padding between
+rows. The look supplies colour, type and decoration only, and no animation moves any of it, so
+the grad tea's look (FRO-85) replaces those three and every animation plays the same. The
+brackets sit just outside their box, and a table's scroll region sits inside them, so a
+scrolling table never cuts a bracket off.
 
 **Status is never colour alone.** Every `tap_status` and every online/offline indicator
 renders icon plus text plus colour. Accepted green, cooldown orange, no_game red. The kit

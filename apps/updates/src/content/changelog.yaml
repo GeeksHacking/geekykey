@@ -1823,6 +1823,13 @@
     one in Chinese characters, is left out, a long one is cut to fit, and whoever is next in the
     queue sees the name.
 
+- id: organiser-console-look
+  date: 2026-10-30
+  area: frontend
+  change: >-
+    The organiser console shares the showcase's look: a faint grid behind its screens, mono
+    labels on its captions, headings and fields, and corner brackets around the station board,
+    the scan log, the summary, the QR fallback and the station dialogs.
 - id: mock-stats-and-export-match-agreement
   date: 2026-10-30
   area: frontend

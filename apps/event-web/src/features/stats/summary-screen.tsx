@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { PageHeader } from "@/components/layout/page-header";
 import { StaleDataNote } from "@/components/layout/stale-data-note";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/features/stats/export-button";
 import { StatTile } from "@/features/stats/stat-tile";
@@ -45,22 +46,25 @@ export function SummaryScreen() {
             title="Summary updates are delayed."
           />
         ) : null}
-        <div className="grid gap-4 sm:grid-cols-3 sm:gap-0 sm:divide-x">
-          <StatTile
-            label="Total taps"
-            value={data.total_taps}
-            hint="Every status, including ones that did not count"
-          />
-          <StatTile
-            label="Accepted taps"
-            value={data.accepted_taps}
-            hint="Counted for stamps and points"
-          />
-          <StatTile
-            label="Unique participants"
-            value={data.unique_participants}
-            hint="With at least one accepted tap"
-          />
+        <div className="relative">
+          <CornerBrackets />
+          <div className="grid gap-4 sm:grid-cols-3 sm:gap-0 sm:divide-x">
+            <StatTile
+              label="Total taps"
+              value={data.total_taps}
+              hint="Every status, including ones that did not count"
+            />
+            <StatTile
+              label="Accepted taps"
+              value={data.accepted_taps}
+              hint="Counted for stamps and points"
+            />
+            <StatTile
+              label="Unique participants"
+              value={data.unique_participants}
+              hint="With at least one accepted tap"
+            />
+          </div>
         </div>
         <section className="space-y-3">
           <h2 className="text-base font-semibold">By station</h2>
@@ -71,7 +75,10 @@ export function SummaryScreen() {
               description="Totals fill in once the first station comes online and someone taps."
             />
           ) : (
-            <StationBreakdown stations={data.stations} />
+            <div className="relative">
+              <CornerBrackets />
+              <StationBreakdown stations={data.stations} />
+            </div>
           )}
         </section>
       </div>

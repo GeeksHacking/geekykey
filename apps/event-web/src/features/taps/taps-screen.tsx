@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { LiveStamp } from "@/components/layout/live-stamp";
 import { PageHeader } from "@/components/layout/page-header";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { ScanLogFilters } from "@/features/taps/scan-log-filters";
 import { ScanLogSkeleton } from "@/features/taps/scan-log-skeleton";
@@ -50,13 +51,17 @@ export function TapsScreen() {
             title="Live updates are delayed."
           />
         ) : null}
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="look-label flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-muted-foreground">
           <span>
             Showing <span className="font-mono text-foreground">{log.taps.length}</span> taps
           </span>
           <LiveStamp updatedAt={log.dataUpdatedAt} refreshing={log.isFetching} />
         </div>
-        <ScanLogTable taps={log.taps} />
+        {/* The brackets sit outside the table's own scroll region, so scrolling never clips them. */}
+        <div className="relative">
+          <CornerBrackets />
+          <ScanLogTable taps={log.taps} />
+        </div>
         {log.loadMoreError ? (
           <InlineQueryError
             error={log.loadMoreError}
