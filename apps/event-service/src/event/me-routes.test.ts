@@ -43,6 +43,7 @@ interface MeBody {
     tapped_at: string | null;
     received_at: string;
   }[];
+  next_stop: { station_id: string; name: string; booth: string } | null;
 }
 
 /**
@@ -157,6 +158,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
       },
     ],
     recent_taps: [],
+    next_stop: null,
   });
 });
 
@@ -178,6 +180,41 @@ test("a stamp is dated when its tap reached the backend, not when the station re
   });
   const me = await meAs(userId);
   assert.equal(me.stamps[0].earned_at, "2026-10-10T09:20:00.000Z");
+});
+
+test("the passport names the next stop: the quietest booth the participant hasn't stamped", async () => {
+  const { meAs, addStation, addTap, db, userId, stationId } = await harness();
+  await addStation("b2", { name: "Robotics", addedAt: "2026-10-10T08:01:00.000Z" });
+  await addStation("c3", { name: "Cloud Sponsor", addedAt: "2026-10-10T08:02:00.000Z" });
+  // The quietest of all, but with no booth to send anyone to.
+  await addStation("no-booth", { name: "Hidden", addedAt: "2026-10-10T08:03:00.000Z" });
+  for (const [id, booth] of [
+    [stationId, "A1"],
+    ["b2", "B2"],
+    ["c3", "C3"],
+  ] as const) {
+    await db.update(stations).set({ booth }).where(eq(stations.id, id));
+  }
+  const now = Date.now();
+  const minutesAgo = (minutes: number) => new Date(now - minutes * 60_000).toISOString();
+  await addTap({ receivedAt: minutesAgo(1) });
+  await addTap({ stationId: "b2", userId: "someone", receivedAt: minutesAgo(2) });
+  await addTap({ stationId: "b2", userId: "someone-else", receivedAt: minutesAgo(3) });
+  await addTap({ stationId: "c3", userId: "someone", receivedAt: minutesAgo(4) });
+  // Too long ago to count.
+  await addTap({ stationId: "c3", userId: "someone-else", receivedAt: minutesAgo(11) });
+  await addTap({ stationId: "c3", userId: "a-third", receivedAt: minutesAgo(12) });
+
+  assert.deepEqual((await meAs(userId)).next_stop, {
+    station_id: "c3",
+    name: "Cloud Sponsor",
+    booth: "C3",
+  });
+
+  // With every stamp there is to send them to, none.
+  await addTap({ stationId: "b2", receivedAt: minutesAgo(0) });
+  await addTap({ stationId: "c3", receivedAt: minutesAgo(0) });
+  assert.equal((await meAs(userId)).next_stop, null);
 });
 
 test("a cooldown tap is listed but earns nothing", async () => {
@@ -426,6 +463,7 @@ test("an organizer on the list gets the same view of their own account", async (
       },
     ],
     recent_taps: [],
+    next_stop: null,
   });
   assert.equal((await meAs("dev-user-1")).user.role, "participant");
 });

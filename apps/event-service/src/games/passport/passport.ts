@@ -2,6 +2,7 @@ import { LINE_LENGTH } from "@geekykey/handoff";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { greetingNames } from "../../event/display-names.ts";
 import type { Game, JudgedTap, StationText, Tx } from "../../event/games.ts";
+import { type NextStop, nextStop, quietestFirst } from "../../event/next-stop.ts";
 import { PASSPORT_GAME_ID, passportStations, stations, taps } from "../../event/schema.ts";
 import { runsThePassport } from "../../event/stamp-slots.ts";
 
@@ -19,9 +20,10 @@ import { runsThePassport } from "../../event/stamp-slots.ts";
  * isn't one of its stamp slots, so it checks them itself.
  *
  * After each tap it counted or held back, the station shows the participant's
- * progress, by name when they have one, and what happened, such as
- * `Alex: 3 of 6` and `Tap counted!`. The tap that earns the last stamp says
- * `All 6 done!`, and finishes the game.
+ * progress, by name when they have one, and their next stop, such as
+ * `Alex: 3 of 6` and `Next: B3`. With no next stop it says what happened
+ * instead, `Tap counted!` or `Already counted`. The tap that earns the last
+ * stamp says `All 6 done!`, and finishes the game.
  */
 export const passport: Game = {
   id: PASSPORT_GAME_ID,
@@ -38,25 +40,25 @@ export const passport: Game = {
     return heldBack.map((held) => (held ? "cooldown" : "accepted"));
   },
 
-  async lines(judged, { stationId, tx }) {
+  async lines(judged, { stationId, now, tx }) {
     // A tap judged here means the station is a stamp slot, and the participant has its stamp:
     // one they had, which held the tap back or which it counted again, or one it just earned.
     const userIds = [...new Set(judged.map((tap) => tap.userId))];
     const { slots, elsewhere } = await stampsElsewhere(tx, stationId, userIds);
     const finishing = await newStamps(tx, stationId, judged);
     const names = await greetingNames(tx, userIds);
+    const quietest = await quietestFirst(tx, now);
 
     return judged.map((tap): StationText => {
-      const stamps = 1 + (elsewhere.get(tap.userId) ?? 0);
-      const complete = finishing.has(tap.clientTapId) && stamps === slots;
+      const stamped = new Set([stationId, ...(elsewhere.get(tap.userId) ?? [])]);
+      const complete = finishing.has(tap.clientTapId) && stamped.size === slots;
       return {
         lines: [
-          progressLine(names.get(tap.userId), stamps, slots),
+          progressLine(names.get(tap.userId), stamped.size, slots),
           complete
             ? `All ${slots} done!`
-            : tap.status === "accepted"
-              ? "Tap counted!"
-              : "Already counted",
+            : (nextStopLine(nextStop(quietest, stamped)) ??
+              (tap.status === "accepted" ? "Tap counted!" : "Already counted")),
         ],
         complete,
       };
@@ -65,8 +67,8 @@ export const passport: Game = {
 };
 
 /**
- * How many stamp slots there are, and each of `userIds`' stamps at the ones
- * other than `stationId`, in one read.
+ * How many stamp slots there are, and the ones other than `stationId` that
+ * each of `userIds` has the stamp of, in one read.
  *
  * Not a locking read, unlike the pipeline's: it would lock every stamp slot's
  * station row, so each passport station's taps would wait for every other's.
@@ -89,9 +91,9 @@ async function stampsElsewhere(tx: Tx, stationId: string, userIds: readonly stri
         inArray(taps.userId, userIds),
       ),
     );
-  const elsewhere = new Map<string, number>();
-  for (const { userId } of rows) {
-    if (userId !== null) elsewhere.set(userId, (elsewhere.get(userId) ?? 0) + 1);
+  const elsewhere = new Map<string, string[]>();
+  for (const { slot, userId } of rows) {
+    if (userId !== null) elsewhere.set(userId, [...(elsewhere.get(userId) ?? []), slot]);
   }
   return { slots: new Set(rows.map((row) => row.slot)).size, elsewhere };
 }
@@ -145,4 +147,16 @@ function progressLine(name: string | undefined, stamps: number, slots: number): 
   if (name !== undefined && room > 0) return `${name.slice(0, room)}: ${progress}`;
   const withWord = `${progress} stamps`;
   return withWord.length <= LINE_LENGTH ? withWord : progress;
+}
+
+/**
+ * The next stop in one row of the screen, `Next: B3`, with as much of the
+ * booth as fits and its accents taken off, or null without one, or for a
+ * booth the screen can't show, such as one in Chinese characters.
+ */
+function nextStopLine(stop: NextStop | null): string | null {
+  if (stop === null) return null;
+  const booth = stop.booth.normalize("NFD").replace(/\p{M}/gu, "");
+  if (!/^[\x20-\x7E]+$/.test(booth)) return null;
+  return `Next: ${booth}`.slice(0, LINE_LENGTH);
 }

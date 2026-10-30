@@ -63,6 +63,14 @@ export function meRoutes({ session }: MeRouteDeps) {
         tapped_at: t.tappedAt,
         received_at: t.receivedAt,
       })),
+      next_stop:
+        me.nextStop === null
+          ? null
+          : {
+              station_id: me.nextStop.stationId,
+              name: me.nextStop.name,
+              booth: me.nextStop.booth,
+            },
     });
   });
 

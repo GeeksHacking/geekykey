@@ -33,6 +33,8 @@ export interface GameTap {
 
 export interface GameContext {
   stationId: string;
+  /** When the ingest began, which every tap it stores is received at. */
+  now: Date;
   /**
    * The ingest's transaction. The station's row is locked, so the station's
    * ingests take turns, and the taps are written in it after every game has
