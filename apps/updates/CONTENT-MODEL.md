@@ -103,6 +103,9 @@ counts as PII (house rule 1).
 5. **No en or em dashes.** The design rules the site follows ban them anywhere a reader
    can see. Use a comma, a colon, brackets or a full stop, and a plain hyphen for date
    ranges (`5-18 Oct`). The build stops and prints the line if one slips in.
+6. **Use the project's words.** Write "participant", not "visitor", and the other terms in
+   the repo's `CONTEXT.md`. The build stops on the avoided words that can't mean anything
+   else, listed in `src/lib/checks.ts` with the word to use instead.
 
 The build also checks the things that are easy to get wrong when copying the last entry:
 the file name starts with `date`, `date` is the same day as `window.to`, and `authors` and

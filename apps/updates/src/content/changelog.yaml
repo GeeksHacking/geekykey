@@ -699,7 +699,7 @@
   change: >-
     The hosting plan now says people log in at the showcase through Firebase, with Google or with
     their GeeksHacking account, instead of through the GeeksHacking Portal, so the showcase's
-    visitors never end up in GeeksHacking's user list, and the login no longer waits on the
+    participants never end up in GeeksHacking's user list, and the login no longer waits on the
     Portal's team. The trade-offs we accept: claims made at the showcase are deleted with its data
     rather than moved to the Portal afterwards, and whether the GeekyKey Service can check a login
     within the free plan is still to be tried.
@@ -769,7 +769,8 @@
   change: >-
     After the showcase, both services log people in through the GeeksHacking Portal, and the
     showcase's Firebase login is turned off once its users are deleted. Firebase is for the
-    showcase's visitors only, because the Portal's tag APIs know Portal users, not Firebase ones.
+    showcase's users only, because the Portal's tag APIs know the Portal's own users, not
+    Firebase ones.
     The trade-offs we accept: each service's login is built twice, once for Firebase now and once
     for the Portal after the showcase, though only the sign-in step changes.
 
@@ -780,7 +781,7 @@
     Google sign-in works against our Firebase project, and a Cloudflare Worker checks the login it
     gives in about 1 ms of computing time, well inside the free plan's 10 ms, so both services
     keep the planned login: the screens sign in with Firebase and send the result to their own
-    service, which checks it and sets its own cookie. The trade-offs we accept: every visitor
+    service, which checks it and sets its own cookie. The trade-offs we accept: everyone
     signs in with a Google account for now, and GeeksHacking's own login waits on Mr Pang.
 
 - id: geekshacking-login-first
@@ -1447,7 +1448,7 @@
   change: >-
     Checkpoint 7, the Event Service's features, now has a plan, and it's one of the biggest
     checkpoints in the series. Besides the organizer screens in the spec, each station can run a
-    different game at set times, a station can show the visitor's name and progress after a tap,
+    different game at set times, a station can show the participant's name and progress after a tap,
     and a big screen shows a live map of the hall with a leaderboard. In the code, the base that
     every event gets stays apart from one event's own games and settings. The trade-offs we
     accept: changes to the API agreement for the station's text and the leaderboard, more requests
@@ -1460,7 +1461,7 @@
   change: >-
     After meeting Julian, checkpoint 7 changed. The showcase game is a collectible rather than a
     competition, so the big screen shows a live map of the hall and no leaderboard. The map comes
-    first, then connections between visitors, shown as counts and a web of tokens with no names.
+    first, then connections between participants, shown as counts and a web of tokens with no names.
     Julian plans to turn the Event Service and its screens into a GitHub template after the
     showcase, so checkpoint 7 keeps the base that every event gets apart from the showcase's own
     games. Timed games move to "if time allows", and so does the station's own text, which now
@@ -1601,7 +1602,7 @@
   area: backend
   change: >-
     The Event Service now gives the map its data: each passport station's booth, taps and
-    visitors, with no names, user IDs or token IDs, readable by organizers and by the map screens
+    participants, with no names, user IDs or token IDs, readable by organizers and by the map screens
     a new setting lists. Organizers set each station's booth in its passport settings.
 
 - id: disabled-station-refused-in-a-minute
@@ -1799,7 +1800,7 @@
     GeeksHacking judges an event by whether participants and sponsors come back. Each token now has
     a kind, written onto it when it's made, so tapping it with a phone opens a different screen for
     each kind, and people find out why by comparing screens. After a passport tap, the station names
-    the visitor's next stop: the quietest booth they haven't visited yet. Connections stay, counted
+    the participant's next stop: the quietest booth they haven't visited yet. Connections stay, counted
     only between two different kinds, and Find Gatsby is dropped. The trade-offs we accept: changes
     to the API agreement for the station's text and the token's kind before the backend freezes on
     11 Nov, and each token's kind kept twice, on the token and in a list on our server, which the
