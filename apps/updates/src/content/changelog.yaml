@@ -1822,3 +1822,12 @@
     The station's side is HAR-28. The trade-offs we accept: a name the screen can't show, such as
     one in Chinese characters, is left out, a long one is cut to fit, and whoever is next in the
     queue sees the name.
+
+- id: mock-stats-and-export-match-agreement
+  date: 2026-10-30
+  area: frontend
+  change: >-
+    On the demo data, the summary now lists only the stations in the passport, in the order they
+    were added, as the Event Service does, so the summary shows the same rows on both. The demo
+    export now ends its lines the way the Event Service's file does, and quotes a name that holds a
+    line break.
