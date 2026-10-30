@@ -3,14 +3,17 @@ import { z } from "zod";
 /** The most taps one hand-off carries: a station's largest batch. */
 export const MAX_HANDOFF_TAPS = 500;
 
-/** The most lines a result carries: the rows of the station's screen. */
+/** The most lines a result carries: the rows of the station's 16x2 screen. */
 export const MAX_LINES = 2;
 
+/** The most characters in one line of a result: a row of the station's screen. */
+export const LINE_LENGTH = 16;
+
 /**
- * One line of a result: up to 16 printable ASCII characters, space to `~`,
- * which is what a row of the station's 16x2 LCD can show.
+ * One line of a result: up to LINE_LENGTH printable ASCII characters, space
+ * to `~`, which is what a row of the station's LCD can show.
  */
-export const LINE_PATTERN = /^[\x20-\x7E]{0,16}$/;
+export const LINE_PATTERN = new RegExp(`^[\\x20-\\x7E]{0,${LINE_LENGTH}}$`);
 
 /** A tap's own ID, the same in the request and in its result. */
 const clientTapId = z

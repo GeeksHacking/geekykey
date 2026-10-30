@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { tapsAnswer } from "@geekykey/handoff";
 import { test } from "vitest";
 import { passportStations, stations, users } from "../../event/schema.ts";
 import { setupFixture, testApp, testDb, TEST_EVENT_SERVICE_KEY } from "../../test-helpers.ts";
@@ -32,11 +33,10 @@ async function handOff(
     }),
   });
   assert.equal(res.status, 200);
-  const { results } = (await res.json()) as { results: Result[] };
-  for (const { lines = [] } of results) {
-    for (const line of lines) assert.match(line, /^[\x20-\x7E]{0,16}$/, line);
-  }
-  return results;
+  const answer = await res.json();
+  // As the GeekyKey Service checks it, so every line fits the station's screen.
+  assert.ok(tapsAnswer.safeParse(answer).success, JSON.stringify(answer));
+  return (answer as { results: Result[] }).results;
 }
 
 /**
@@ -60,7 +60,7 @@ async function passportOf(more: number) {
   return { ...fixture, ids };
 }
 
-test("an accepted passport tap gives the visitor's name and progress, and that it counted", async () => {
+test("an accepted passport tap gives the participant's name and progress, and that it counted", async () => {
   const { ids, userId } = await passportOf(2);
   assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
     { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 3", "Tap counted!"] },
@@ -144,7 +144,7 @@ test("a stamp at a station that doesn't run the passport isn't counted, and nor 
   ]);
 });
 
-test("unknown taps carry neither field: no_game, and a duplicate of a counted tap", async () => {
+test("no_game and a duplicate of a counted tap carry neither field", async () => {
   const { ids, userId } = await passportOf(0);
   await testDb()
     .insert(stations)
@@ -158,7 +158,7 @@ test("unknown taps carry neither field: no_game, and a duplicate of a counted ta
   ]);
 });
 
-test("the station greets a visitor by the first word of their own name, as much as fits", async () => {
+test("the station greets a participant by the first word of their own name, as much as fits", async () => {
   const { ids } = await passportOf(1);
   const setAt = "2026-10-30T01:00:00.000Z";
   await testDb()
@@ -173,7 +173,7 @@ test("the station greets a visitor by the first word of their own name, as much 
       { id: "chinese", displayName: "李明" },
       { id: "emoji", displayName: "Sam🙂 Tan" },
     ]);
-  const visitors = [
+  const participants = [
     "never-logged-in",
     "guest",
     "chose-guest",
@@ -184,7 +184,7 @@ test("the station greets a visitor by the first word of their own name, as much 
   ];
   const results = await handOff(
     ids[0]!,
-    visitors.map((user_id) => ({ client_tap_id: user_id, user_id })),
+    participants.map((user_id) => ({ client_tap_id: user_id, user_id })),
   );
   assert.deepEqual(
     results.map((result) => [result.client_tap_id, result.lines?.[0]]),

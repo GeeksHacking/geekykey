@@ -46,7 +46,7 @@ export function hasName(user: { displayName: string; nameSetAt: string | null })
  * user who has never logged in to this Event Service. `db` may be an
  * ingest's transaction.
  */
-export async function stationNames(
+export async function greetingNames(
   db: Db | Tx,
   userIds: readonly string[],
 ): Promise<Map<string, string>> {

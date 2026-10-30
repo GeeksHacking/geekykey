@@ -373,7 +373,7 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 
 - Only the station's own game judges its taps. A tap at a station with no game gets `no_game`.
 - The station's own game can also give what the station shows after an `accepted` or `cooldown`
-  tap, as `lines` and `complete` (6.1). The passport's are the visitor's progress, by name.
+  tap, as `lines` and `complete` (6.1). The passport's are the participant's progress, by name.
 - A station's game is **fixed** once the station has a tap that a game counted or held back, an
   `accepted` or `cooldown` tap, from the station or the QR fallback (9.4). After that, a change
   answers `409 station_has_taps`. The passport's record is the accepted taps at its stations,
@@ -499,15 +499,15 @@ item has a [`tap_status`](#tap_status).
 | `results[].lines` | array of strings, optional | 1 or 2 lines for the station's screen, written by the station's game. Each is 0 to 16 printable ASCII characters, space to `~`. Ours gives them with `accepted` and `cooldown` only |
 | `results[].complete` | boolean, optional | `true` on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune. Ours gives it only when `true`, with `lines` |
 
-- The passport's lines are the visitor's progress, and what happened: `Alex: 3 of 6` and
+- The passport's lines are the participant's progress, and what happened: `Alex: 3 of 6` and
   `Tap counted!`, or `Already counted` in the cooldown. The tap that earns the last stamp says
   `Alex: 6 of 6` and `All 6 done!`, with `complete`. The wording can change.
-- The name is the first word of the name the event shows, only while the visitor has a name of
-  their own (`user.has_name` in 8.1), with accents taken off and cut to fit. A visitor with no
-  name, one the screen can't show, such as one in Chinese characters, or one who has never logged
-  in to the event, gets `3 of 6 stamps` instead.
+- The name is the first word of the name the event shows, only while the participant has a name of
+  their own (`user.has_name` in 8.1), with accents taken off and cut to fit. Without one, the line
+  is `3 of 6 stamps`. That includes a name the screen can't show, such as one in Chinese
+  characters, and a participant who has never logged in to the event.
 - No token UID or user ID is ever in a line, and no log line prints them.
-- A saved tap sent later gets them too, but the station doesn't show them, since the visitor has
+- A saved tap sent later gets them too, but the station doesn't show them, since the participant has
   gone.
 
 **How a tap is answered, from checkpoint 3**
@@ -1933,4 +1933,4 @@ Closed on 2026-10-10:
 | 2026-10-28 | Version 0.8, a draft for Ethan's review: a passport station can give the group's page with its stamp (BAC-99). 9.1 takes an optional `link`, trimmed, which must be a URL that starts with `https://`, at most 300 code points. Any other link gets `validation_failed`. A blank or `null` link is none, and a request that leaves it out clears it, as `location` does. 9.2 gives it as `passport.link`, and 8.1 gives it with each stamp as `stamps[].link`, or `null`. Section 13 has the button the passport shows after a new stamp with a link, "Open their page?". A new nullable column holds it, so the version still running keeps working while it deploys. No field is removed. |
 | 2026-10-28 | Ethan, the screens owner, approved versions 0.7 and 0.8, so neither is a draft any more. No endpoint or shape changes (BAC-90, BAC-99). |
 | 2026-10-30 | 9.10 says the screen may pulse a station once for each new tap rather than once a poll, and that ours plays up to 3 a poll. No endpoint or shape changes (FRO-102). |
-| 2026-10-30 | Version 0.9, a draft for Ethan's review: a tap's result can carry what the station's game has the station show (BAC-111). Each item in 6.1's and 11.2's `results` can carry two optional fields: `lines`, one or two lines of 0 to 16 printable ASCII characters, and `complete`, `true` on the tap that finishes the game. Ours gives them with `accepted` and `cooldown` only. The passport's lines are the visitor's progress, by the first word of their name while they have one of their own, and the tap that earns the last stamp has `complete`. The GeekyKey Service passes them on unchanged, and a line that breaks the rules fails the request with `503 event_service_unavailable`, as a bad status does. The firmware contract says how the station shows them, and a station that ignores them keeps working. Their JSON Schema is in `packages/handoff/json-schema/taps-answer.schema.json` (11.7). No field is removed. |
+| 2026-10-30 | Version 0.9, a draft for Ethan's review: a tap's result can carry what the station's game has the station show (BAC-111). Each item in 6.1's and 11.2's `results` can carry two optional fields: `lines`, one or two lines of 0 to 16 printable ASCII characters, and `complete`, `true` on the tap that finishes the game. Ours gives them with `accepted` and `cooldown` only. The passport's lines are the participant's progress, by the first word of their name while they have one of their own, and the tap that earns the last stamp has `complete`. The GeekyKey Service passes them on unchanged, and a line that breaks the rules fails the request with `503 event_service_unavailable`, as a bad status does. The firmware contract says how the station shows them, and a station that ignores them keeps working. Their JSON Schema is in `packages/handoff/json-schema/taps-answer.schema.json` (11.7). No field is removed. |
