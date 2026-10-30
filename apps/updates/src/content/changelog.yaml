@@ -1879,3 +1879,14 @@
     A new stamp on the passport offers the group's page as "Open their page?" in a new tab.
     Organisers set the link in the station's passport settings, and a station without one
     shows no button.
+
+- id: station-names-next-stop
+  date: 2026-10-30
+  area: backend
+  change: >-
+    After a passport tap, the station's second line names the visitor's next stop, such as
+    "Next: B3": the booth they haven't stamped that had the fewest taps in the last 10 minutes,
+    skipping disabled stations and stations with no booth. The Event Service gives the passport
+    the same booth in /me, in the API agreement's version 0.11, a draft for Ethan. The trade-offs
+    we accept: while there is a next stop, the screen no longer says "Tap counted!", so the
+    station's sound and light are what tell a counted tap from one in the cooldown.

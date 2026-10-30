@@ -13,7 +13,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.10 |
+| Version | 0.11 (draft) |
 | Date | 30 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
@@ -373,7 +373,8 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 
 - Only the station's own game judges its taps. A tap at a station with no game gets `no_game`.
 - The station's own game can also give what the station shows after an `accepted` or `cooldown`
-  tap, as `lines` and `complete` (6.1). The passport's are the participant's progress, by name.
+  tap, as `lines` and `complete` (6.1). The passport's are the participant's progress, by name,
+  and their next stop.
 - A station's game is **fixed** once the station has a tap that a game counted or held back, an
   `accepted` or `cooldown` tap, from the station or the QR fallback (9.4). After that, a change
   answers `409 station_has_taps`. The passport's record is the accepted taps at its stations,
@@ -483,7 +484,7 @@ call; the only difference is the array length.
 {
   "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
   "results": [
-    { "client_tap_id": "tap-000123", "status": "accepted", "lines": ["Alex: 3 of 6", "Tap counted!"] },
+    { "client_tap_id": "tap-000123", "status": "accepted", "lines": ["Alex: 3 of 6", "Next: B3"] },
     { "client_tap_id": "tap-000124", "status": "unknown_token" }
   ]
 }
@@ -499,9 +500,11 @@ item has a [`tap_status`](#tap_status).
 | `results[].lines` | array of strings, optional | 1 or 2 lines for the station's screen, written by the station's game. Each is 0 to 16 printable ASCII characters, space to `~`. Only with `accepted` and `cooldown` |
 | `results[].complete` | boolean, optional | `true` on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune. Only with `accepted` and `cooldown`. Ours gives it only when `true`, with `lines` |
 
-- The passport's lines are the participant's progress, and what happened: `Alex: 3 of 6` and
-  `Tap counted!`, or `Already counted` in the cooldown. The tap that earns the last stamp says
-  `Alex: 6 of 6` and `All 6 done!`, with `complete`. The wording can change.
+- The passport's lines are the participant's progress, and their next stop (8.1): `Alex: 3 of 6`
+  and `Next: B3`, with the booth's accents taken off and as much of it as fits. Without a next
+  stop, or with a booth the screen can't show, such as one in Chinese characters, the second line
+  says what happened: `Tap counted!`, or `Already counted` in the cooldown. The tap that earns the
+  last stamp says `Alex: 6 of 6` and `All 6 done!`, with `complete`. The wording can change.
 - The name is the first word of the name the event shows, only while the participant has a name of
   their own (`user.has_name` in 8.1), with accents taken off and cut to fit. Without one, the line
   is `3 of 6 stamps`. That includes a name the screen can't show, such as one in Chinese
@@ -795,7 +798,8 @@ Everything the participant dashboard and passport view need in one call.
   ],
   "recent_taps": [
     { "id": 42, "station_id": "…", "station_name": "3D Printing Booth", "status": "accepted", "source": "nfc", "tapped_at": "2026-10-10T09:00:00.000Z", "received_at": "2026-10-10T09:00:01.250Z" }
-  ]
+  ],
+  "next_stop": { "station_id": "…", "name": "Cloud Sponsor", "booth": "B3" }
 }
 ```
 
@@ -822,6 +826,13 @@ Everything the participant dashboard and passport view need in one call.
 - `recent_taps` is the user's last 50 stored taps, newest first by when the Event Service
   received them. Statuses other than `accepted` are included so a participant can see "that tap
   didn't count". `station_name` is `null` for a station that isn't a stamp slot.
+- `next_stop` is the stamp slot the participant's next passport tap would send them to, the one
+  the station names (6.1), or `null` when there is none. It is the slot they don't have the stamp
+  of with the fewest stored taps, of any status, received in the last 10 minutes, and between
+  slots with as many, the one listed first in `stamps`. A disabled station, and one with no booth
+  (9.12), is never the next stop, so a participant whose only empty slots are there gets `null`.
+  `name` is its name in the passport and `booth` its booth. It changes with the crowd from one
+  poll to the next, so two participants at one station can get different ones.
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
@@ -1609,8 +1620,8 @@ it that passed the GeekyKey Service's own checks.
 ```json
 {
   "results": [
-    { "client_tap_id": "tap-000123", "status": "accepted", "lines": ["Alex: 3 of 6", "Tap counted!"] },
-    { "client_tap_id": "tap-000124", "status": "cooldown", "lines": ["Alex: 3 of 6", "Already counted"] }
+    { "client_tap_id": "tap-000123", "status": "accepted", "lines": ["Alex: 3 of 6", "Next: B3"] },
+    { "client_tap_id": "tap-000124", "status": "cooldown", "lines": ["Alex: 3 of 6", "Next: B3"] }
   ]
 }
 ```
@@ -1955,3 +1966,4 @@ Closed on 2026-10-10:
 | 2026-10-30 | 6.1 and 11.2 say the GeekyKey Service passes `lines` and `complete` to the station only with `accepted` and `cooldown`, and leaves them out with any other status, even another team's own. Before, it passed them with any status, and only our Event Service kept to the two. No shape changes (BAC-111). |
 | 2026-10-30 | Version 0.10: each token has a kind (ADR 0006, BAC-113). The token writer writes it into the token's address, and GeekyKey keeps a list of them beside the claims stand-in, which games trust instead of the address. **New, all optional:** `kind` on each tap in the hand-off (11.2), the kind of the token tapped, or `null` for a token with none; `kind` in the login link's payload (11.9); `uid` in the request for a login link (8.6), so the token page's link carries its token's kind while the user owns it; and `user.kind` on the Event Service's `GET /api/v1/me` (8.1), the first kind either one gave, which `PATCH /api/v1/me` (8.7) answers with too. 8.6 answers `claims_unavailable` when it names a token and the claims stand-in doesn't answer, as section 8's opening now says. 7.4 says a link's kind becomes the user's, and 11.8 that an Event Service sees a token's kind but never its UID. Section 12 drops "archetype quests". A service from before kinds leaves the new fields out, and the other reads that as no kind, so either service can be rolled back alone. The hand-off's JSON Schema is in `packages/handoff/json-schema/taps-request.schema.json` (11.7). |
 | 2026-10-30 | Ethan, the screens owner, approved version 0.10, so it is no longer a draft. No endpoint or shape changes (BAC-113). |
+| 2026-10-30 | Version 0.11, a draft for Ethan's review: after a passport tap, the station names the participant's next stop, and the passport gives the same one (BAC-98). **New, optional:** `next_stop` on the Event Service's `GET /api/v1/me` (8.1), the stamp slot without the participant's stamp that had the fewest taps in the last 10 minutes, with its `station_id`, `name` and `booth`, or `null`. A disabled station and one with no booth are never the next stop, and a tie goes to the earlier slot. The passport's second line for the station (6.1) is now `Next: B3` while there is a next stop, in place of `Tap counted!` or `Already counted`, which it still says without one. The shape of `lines` is unchanged. Nothing is removed. |
