@@ -5,7 +5,7 @@ The code that runs on the GeekyKey stations and the tools around them.
 | Folder | What it is |
 |---|---|
 | `geekykey_station/` | The station: reads a token's UID and sends the tap to the server |
-| `token_writer/` | Writes the token page's address onto new tokens, on a spare station before an event |
+| `token_writer/` | Writes the token page's address and the token's kind onto new tokens, on a spare station before an event |
 | `setup_page/` | The setup page: a browser page that sets up a station over USB, without a terminal |
 | `NFC_test/`, `LCD_test/` | Small sketches for checking the RC522 and the screen |
 
@@ -44,6 +44,48 @@ c++ -std=c++17 -Wall -Wextra -o /tmp/tap_timing_test firmware/geekykey_station/t
 
 It prints `All passed`, or each check that failed. The Arduino IDE never builds the `test/` folder,
 so nothing in it reaches a station.
+
+## Writing tokens
+
+`token_writer/` turns a spare ESP32-S3 station into a token writer. It writes each NTAG213 token's
+address, `https://key.geekshacking.com/t/<UID>?k=<kind>`, and protects it with a password. The
+chip fills in its own UID each time a phone reads it, so every token in a batch gets the same
+bytes. The kind is one letter, such as `E`, and a phone that opens the address shows that kind's
+token page ([ADR 0006](../docs/adr/0006-a-token-carries-its-kind.md)).
+
+1. Copy `token_writer/secrets.example.h` to `token_writer/secrets.h` and put in the write password.
+   Every token written with one password can only be rewritten with that password, so keep a copy
+   with Adam outside the repo.
+2. Flash `token_writer/` to the station with the same board settings as the station itself.
+   Flashing the station again later brings it back, with its setup-mode settings kept.
+3. Open the Serial Monitor at 115200 baud. Opening it restarts the S3, so open it before you start.
+   Keep it open for the whole batch, because the log in step 5 comes only through it.
+4. Type `kind E`, with the batch's letter in place of `E`. The letter can be upper or lower case,
+   and the writer always writes a capital. The screen shows `to write kind E`. The writer writes
+   nothing until a kind is set, and forgets it at every restart, so it never reuses an earlier
+   batch's kind. Type `kind` again with another letter to start the next batch.
+5. Tap a token, take it away when the screen says so, and tap it again to check it. The screen
+   shows `OK kind E` or `FAIL` with the reason. Each token written prints a line such as
+   `04E45150324189,E`, its UID and its kind, before the check. Those lines are the list the
+   server loads (BAC-113), so copy every one of them out of the Serial Monitor and send them to
+   Adam. Every one of them has this shape: 14 capital hex digits, a comma and one capital letter.
+   Anything else the writer prints isn't part of the list.
+
+After a `FAIL` other than `AUTH` or `PASSWORD`, tap the same token again until it shows `OK`. A
+failed check can leave the token written, and writing it again prints its line again.
+
+The writer rewrites a token that was written before in the same way, with the new kind. Its new
+line comes later in the log than the old one, so where a UID shows up twice, the later line is the
+kind it carries. The writer tries the password once per tap, and every wrong try counts towards
+the chip's limit of 7. After a `FAIL AUTH` or `FAIL PASSWORD`, check `secrets.h` before tapping
+again.
+
+`token_writer/token_address.h` builds the address and the log line, and touches no pins. Its tests
+run on a laptop, from the repo root:
+
+```sh
+c++ -std=c++17 -Wall -Wextra -o /tmp/token_address_test firmware/token_writer/test/token_address_test.cpp && /tmp/token_address_test
+```
 
 ## The setup mode
 
