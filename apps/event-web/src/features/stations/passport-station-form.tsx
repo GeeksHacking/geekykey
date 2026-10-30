@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useSetStationPassport } from "@/features/stations/use-set-station-passport";
 import { applyApiIssues } from "@/lib/form-errors";
+import { isGroupLink } from "@/lib/group-link";
 
 const schema = z.object({
   name: z
@@ -31,6 +32,13 @@ const schema = z.object({
   location: z.string().check(z.trim(), z.maxLength(80, "Keep it under 80 characters.")),
   // Kept as text so the input stays controlled; converted on submit.
   points: z.string().check(z.trim(), z.regex(/^\d+$/, "Whole numbers only, 0 or more.")),
+  link: z.string().check(
+    z.trim(),
+    z.refine(
+      (value) => value === "" || isGroupLink(value),
+      "Use a link that starts with https:// and is at most 300 characters.",
+    ),
+  ),
 });
 
 type StationValues = z.infer<typeof schema>;
@@ -57,6 +65,7 @@ export function PassportStationForm({
       name: station.passport?.name ?? "",
       location: station.passport?.location ?? "",
       points: String(station.passport?.points ?? 1),
+      link: station.passport?.link ?? "",
     },
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -70,6 +79,7 @@ export function PassportStationForm({
           name: values.name,
           location: values.location || undefined,
           points: Number(values.points),
+          link: values.link.trim() || undefined,
         },
       });
       onSaved();
@@ -133,6 +143,30 @@ export function PassportStationForm({
                 <Input {...field} inputMode="numeric" className="w-24 font-mono" />
               </FormControl>
               <FormDescription>Optional. Whole number, 0 or more.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="link"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="look-label">Group link</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  type="url"
+                  inputMode="url"
+                  autoComplete="url"
+                  spellCheck={false}
+                  placeholder="https://example.com/group"
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. Opens after a participant&apos;s new stamp here. Use a link that starts
+                with https://.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

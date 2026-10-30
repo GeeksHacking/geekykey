@@ -28,11 +28,13 @@ export function PassportStationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo)}>
         <CornerBrackets />
-        <PassportStationForm
-          station={station}
-          stationLabel={label}
-          onSaved={() => onOpenChange(false)}
-        />
+        <div className="max-h-[calc(100dvh-8rem)] overflow-y-auto">
+          <PassportStationForm
+            station={station}
+            stationLabel={label}
+            onSaved={() => onOpenChange(false)}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );
