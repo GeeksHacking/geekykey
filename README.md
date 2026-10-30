@@ -495,10 +495,10 @@ Event Service uses locally. Leave `mise run dev` running: each service reloads w
 file under its `src`. To stop all four, press Ctrl-C. pnpm may print an error as it stops;
 that is normal.
 
-The Firebase sign-in needs the four `VITE_FIREBASE_*` variables, whose values are in
+The Firebase sign-in needs the three `VITE_FIREBASE_*` variables, whose values are in
 agreement 7.2. Each set of screens has a committed `.env.development` with them, so a fresh
 clone can sign in with Google as soon as the stack is up. A variable in your shell wins over
-the file, and so does your own `.env.local`. Without the four values the sign-in buttons are
+the file, and so does your own `.env.local`. Without the three values the sign-in buttons are
 disabled and the page says so, and the local development form signs in instead.
 
 To start only one, use its own task in a terminal of its own: `mise run dev:event-service`,
