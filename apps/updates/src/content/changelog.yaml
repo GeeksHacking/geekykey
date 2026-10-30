@@ -1871,3 +1871,11 @@
     action that was there. Disable station is set apart in red and still asks first, and the
     rows keep their order while a menu is open. The trade-offs we accept: disabling a station
     takes one more click.
+
+- id: new-stamp-group-page
+  date: 2026-10-30
+  area: frontend
+  change: >-
+    A new stamp on the passport offers the group's page as "Open their page?" in a new tab.
+    Organisers set the link in the station's passport settings, and a station without one
+    shows no button.
