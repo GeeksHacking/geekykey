@@ -60,7 +60,7 @@ Ethan's reading: it's closer to a set of gimmicks than one thing people look at 
 
 Tickets: BAC-102 (the problem statement, Joshua, by Thu 5 Nov), FRO-78 (the map, PR #192), BAC-107 (the report catches up)
 
-Answer:
+Answer: Julian measures GeekyKey by engagement, not cost. A community that takes no money from its events depends on sponsors keen to sponsor again and participants keen to come again, and "the key term here is experience". He called "it can be done on a phone" reductive: the same game on a phone, a PC or a Switch is a different experience, and a token in the hand feels different from another app. The map is "a really interesting idea to use for analytics", depending on the event. At the showcase not every booth has a station, so he suggested a station per room, to show each room's engagement.
 
 **1.4 Proposed: what stops, so the headline stays clear**
 
@@ -72,6 +72,10 @@ Answer:
 Tickets: BAC-103 (the spec records whatever is decided here), BAC-105 (the switch timed)
 
 Answer:
+
+- Find Gatsby wasn't discussed. Julian said whether booths sit side by side depends on the venue, and some sponsors come on one day only
+- Connections are possible (3.1). Adam's notes: interesting, but we need to find what a connection unlocks that makes people want to do it. Julian doubted networking at a showcase. With two tokens registered as a pair, people may give up before finding each other. He couldn't think of a reason, at a showcase, to tap a token on someone else's phone, though in a game he could think of many
+- The roaming station and the claim about waste weren't discussed
 
 **1.5 Proposed: features that all come from the same tap (BAC-112, urgent)**
 
@@ -133,15 +137,28 @@ Questions:
 
 Answer:
 
+- Which to build is ours to choose. We should be able to tell the teachers why each one makes the showcase better for organizers and for participants
+- Light the hall has "very little to do with the NFC". The key doesn't have to be part of the interaction
+- Replay the night wasn't discussed as such. The analytics Julian wants are each person's path through the rooms (first, second, third), the most popular room, and the route most people took: clockwise, anticlockwise, at random, or to the food and back. Recording taps between people would make them more interesting
+- The outfit, Joshua's idea and the station knows you weren't discussed, and nor was a name on the station's screen
+- The hexagon: the physical design is "probably the most compelling part" of the showcase, because people can touch it, take it home and collect things on it. On Mr Pang's points, don't make it spiky, and put magnets in. A coin is the easiest. Julian's has a 0.4 mm base, a 2 mm layer with a 6.2 mm hole for a 6 mm magnet, and a 4 mm design layer
+- Give one piece away free at registration, which hints that there are more. Visitors could collect the other pieces at our booth, since the system knows which booths a token has visited
+- Choose the showcase's ideas and the token first, as soon as possible, and start producing the tokens
+- At Hackomania, sponsors could hold different tokens from organizers, which unlock different interactions. Organizers could also work with sponsors so that every booth has an attractive item
+
 **1.6 For Julian**
 
 - At Hackomania and other GeeksHacking events, why do attendees skip sponsors' booths? What have you seen, or heard from sponsors?
+  - Julian: sponsors and participants want different things. Sponsors come so that participants know them, but participants don't come to know sponsors. Sponsors know they aren't the main activity. If nobody interacts with them, they find the event not worth the budget, so part of the answer is channelling people to their booths
+  - When a sponsor comes matters. During the hacking there's nothing for them to do; during registration people are waiting anyway, so there's much more
 - What do sponsors ask organisers for after an event? Would a count of visitors at their booth, or of people who opened their link, be worth something to them? (BAC-106)
+  - Julian: yes. "This many people visited your booth" helps GeeksHacking when it goes to sponsors: "we helped drive this many engagements". It's only fair if every booth has a station
 - Does the headline in 1.3 match what GeeksHacking wants from GeekyKey? On 23 Oct (4.1) the answer was "a system that enhances GeeksHacking events with physical-digital interaction"
+  - Julian: see 1.3. Engagement and experience come first, and the map is for analytics
 - Is pausing connections all right, given the 23 Oct call to do the sponsor side first?
+  - See 1.4 and 3.1. Julian didn't say whether to pause them
 - Could we ask a few past attendees why they skipped booths, before Thu 12 Nov? For example, a short form in a GeeksHacking chat
-
-Answer:
+  - Not discussed
 
 ---
 
@@ -189,13 +206,13 @@ What it needs:
 - Zi Tao wires the second reader (own SS and RST pins, same SPI bus) and the firmware reads both, tested before the rehearsal on Sat 7 Nov
 - Two friends in a queue can still pair by chance, as with one station; a printed card asks people to tap together
 
-Answer:
+Answer: the layout wasn't discussed. Julian: from a gameplay view, why put the point right in front? Hide it, or disguise it as part of a sponsor's booth, so that people have to go to the sponsor even if they don't want to talk to them. "These are possible ideas."
 
 **3.2 The window**
 
 About 10 seconds. The station reads no tap while it sends the first (usually under 1 s, at most 5 s).
 
-Answer:
+Answer: nil
 
 **3.3 What the second tap's station says**
 
@@ -206,31 +223,31 @@ Today the station shows "ACCEPTED / Points added" for every accepted tap, which 
 
 Proposed: (b) if Ethan approves by Mon 2 Nov, otherwise (a).
 
-Answer:
+Answer: nil
 
 **3.4 A tap with no time from the station**
 
 A tap sent before the station's clock is set has no `tapped_at`. Proposed: it never pairs, since its time isn't on the station's clock.
 
-Answer:
+Answer: nil
 
 **3.5 The map's web**
 
 Each user gets a number in the order they first connected, so the screen keeps its layout between polls without user IDs. Question for Ethan's team: does that work for drawing it?
 
-Answer:
+Answer: nil
 
 **3.6 Showing a participant's own count on the passport**
 
 Proposed: after the map screens (FRO-78, FRO-84), not now.
 
-Answer:
+Answer: nil
 
 **3.7 Connections at the partner booths (showcase only)**
 
 A middle way: a one-box point beside a partner's booth, with the group's challenge question on its card. No member list and no new code; it costs a box per booth and tokens for the members. Proposed: decide on 5 Nov, once we know how many boxes there are.
 
-Answer:
+Answer: nil
 
 ---
 
@@ -241,7 +258,7 @@ The organizer form says "Scan the QR code on the participant's profile, or type 
 - Typing the ID only: the form's wording changes, nothing else
 - The passport shows a QR code of the user's ID: a screen change for Ethan's team
 
-Answer:
+Answer: nil
 
 ---
 
@@ -251,7 +268,7 @@ Answer:
 
 Mr Yaseer's Games Subcommittee students are on OLE this week, so Adam meets him next week. Five requests: the floor plan, the projector, three spots with power sockets, permission for our own router, and setup time before 3:30 PM. Also: a visit to the MPH before the day for the radio test. Anything to add?
 
-Answer:
+Answer: nil
 
 **5.2 Each group's page link**
 
@@ -266,11 +283,13 @@ Who collects them:
 - Proposed go: two fixed stations reliably say hot, warm or cold through a crowd, and the backend can merge by Tue 10 Nov
 - If go, the backend has four days, so it can't hold up connections
 
-Answer:
+Answer: nil
 
 **5.4 The showcase's next game (BAC-98, heads-up for 5 Nov)**
 
 Candidates: the roaming station ("the android among us"), and students' picks (students tap the booths they'd recommend in the morning, and parents see "students' favourites" in the afternoon). Please bring other ideas on 5 Nov.
+
+Answer: Julian's ideas are under Next Steps: hidden stations, different routes for different tokens, and finding the person with a special token.
 
 **5.5 One question at the exit (from 1.2)**
 
@@ -278,7 +297,7 @@ Observers already count each area every 15 minutes, with a baseline before token
 
 Ticket: BAC-104
 
-Answer:
+Answer: nil
 
 ---
 
@@ -288,21 +307,37 @@ Answer:
 
 Staging and production share TiDB's 50 million Request Units a month. How many have we used this month, so the test can be sized?
 
-Answer:
+Answer: nil
 
 **6.2 A run with real stations**
 
 On 8 Oct you suggested a classroom run with other groups. Still wanted, beside the scripted test?
 
-Answer:
+Answer: nil
 
 ---
 
 ## Next Meetings
 
-- **Thu 5 Nov, 12 PM:** in person or online
+- **Thu 5 Nov, 12 PM:** in person or online (Julian confirmed; he's out of the office that Friday). By then the showcase's idea should be more or less final
 - **Fri 13 Nov, 12 PM:** after the grad tea; share results
+
+## Julian's Ideas from This Call
+
+- **Choose first, then produce.** Settle the showcase's ideas and the token, then start producing the tokens. Other ideas can come while they print
+- **The token.** Something to play with and easy to carry. Nothing spiky; magnets instead. A coin is the simplest (1.5)
+- **Different tokens, different experiences.** When a token is written, include an identifier for its type, such as a warrior token, or hand types out at random. Only the token opens its owner's page, so the next instruction can differ by token. Two examples: a bingo whose items appear one at a time (do the thing, tap again, get the next), or a route through the stations in a different order for each group. People only find out when they see someone else's token. Paper can't do this. Julian called it complex
+- **Sponsor, organizer and teacher tokens.** Different tokens unlock different interactions, openly rather than as a surprise
+- **Mock returning participants.** Nobody has a token from an earlier event, so give tokens to friends or other IDP groups before the showcase. A guest has to find them and ask to tap. We choose how visible their tokens are
+- **Geocaching.** Hide stations around the venue, some near sponsors. Anyone who taps every one collects a reward
+- **A station per room** where not every booth has one, and paths through the rooms as analytics (1.5)
+- **Tap in and tap out.** Checking in and out was never practical before; with a token it may be (Julian's hypothesis)
+- **From Adam's notes.** GeekyKey is a long-running system: swag collected online is very possible, such as limited pieces for one year's event only. GeeksHacking already uses QR codes for attendance and food, and GeekyKey should add to the experience
 
 ## Next Steps
 
--
+- **Choose the showcase's features and the token, then start production (BAC-112, HAR-25)**
+- **Redraft the problem statement around engagement (Joshua, BAC-102)**
+- **Build the map screen with a mock layout (FRO-78, PR #192)**
+- **Meet Mr Yaseer about the MPH (Adam)**
+- **Collect each partner group's page link**

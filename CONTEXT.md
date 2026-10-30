@@ -66,6 +66,13 @@ A physical NFC tag claimed by one user and identified by its hardware UID. It st
 events, and a user may hold a few, up to a set number.
 _Avoid_: tag, card
 
+**Token kind**:
+What sort of token a token is, written onto it with its address when it's made, such as one of
+the showcase's houses or a veteran token. GeekyKey keeps it with the token across events, and each
+event decides what a kind does there. All tokens look the same, so a kind shows only on screens
+and stations (ADR 0006).
+_Avoid_: class, type; "house" is the showcase's name for four of its kinds
+
 **Claim**:
 Binding an unclaimed token to yourself by tapping it with your phone, or typing its UID, and logging
 in.
@@ -173,7 +180,8 @@ _Avoid_: location, which is the text a participant reads in the passport; spot
 **Connection**:
 A link between two participants, made when both tap at the same connection point within a few
 seconds of each other. It joins two users, never two tokens, so nobody connects to themselves, and
-a pair connects once however often they tap together.
+a pair connects once however often they tap together. Since 30 Oct, the two tokens must be of
+different kinds.
 _Avoid_: dual tap, link between tags
 
 **Connection point**:
@@ -195,6 +203,12 @@ _Avoid_: empty stamp
 
 **Stamp**:
 What fills a stamp slot, earned by the participant's first accepted tap at that station.
+
+**Next stop**:
+The passport station a station names after a passport tap: the quietest one the participant
+hasn't stamped yet, from the last few minutes' taps. It changes with the crowd, so two people at
+the same station can be sent to different booths.
+_Avoid_: route, which suggests a fixed order
 
 **Station points**:
 What one accepted tap at a station is worth in the passport. The passport sets it per station, so
