@@ -10,6 +10,7 @@ import {
   pickStationAction,
 } from "@/features/stations/station-actions-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
+import { GROUP_LINK_MAX } from "@/lib/group-link";
 import { createTestProviders } from "@/test/providers";
 
 function renderBoard() {
@@ -70,6 +71,7 @@ describe("passport settings on the station board", () => {
     expect(name).toHaveValue(IN_PASSPORT);
     expect(screen.getByLabelText("Location")).toHaveValue("Hall A");
     expect(screen.getByLabelText("Points per accepted tap")).toHaveValue("1");
+    expect(screen.getByLabelText("Group link")).toHaveValue("https://example.com/3d-printing");
   });
 
   it("changes a station's settings and shows the new points on the board", async () => {
@@ -85,6 +87,65 @@ describe("passport settings on the station board", () => {
 
     const row = (await screen.findByText(IN_PASSPORT)).closest("tr");
     expect(row).toHaveTextContent("4");
+  });
+
+  it("saves and clears the group link", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    const link = await screen.findByLabelText("Group link");
+    expect(link).toHaveValue("https://example.com/3d-printing");
+
+    await user.clear(link);
+    await user.type(link, "https://example.com/careers");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    expect(await screen.findByLabelText("Group link")).toHaveValue("https://example.com/careers");
+
+    await user.clear(screen.getByLabelText("Group link"));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    expect(await screen.findByLabelText("Group link")).toHaveValue("");
+  });
+
+  it("shows a field error for a link that is not https", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    await button(user, `Change passport settings for ${IN_PASSPORT}`);
+    const link = await screen.findByLabelText("Group link");
+    await user.clear(link);
+    await user.type(link, "http://example.com/careers");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(
+      await screen.findByText(
+        "Use a link that starts with https:// and is at most 300 characters.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("rejects a bad link in the mock, as 9.1 does", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    const station = (await api.listStationBoard()).stations.find(
+      (s) => s.passport?.name === IN_PASSPORT,
+    );
+    if (!station) throw new Error("the fixtures need the passport station");
+
+    await expect(
+      api.setStationPassport(station.id, { name: IN_PASSPORT, link: "http://example.com" }),
+    ).rejects.toMatchObject({ code: "validation_failed" });
+    await expect(
+      api.setStationPassport(station.id, {
+        name: IN_PASSPORT,
+        link: `https://${"a".repeat(GROUP_LINK_MAX - "https://".length + 1)}`,
+      }),
+    ).rejects.toMatchObject({ code: "validation_failed" });
   });
 
   it("puts a server validation issue on the field it names", async () => {

@@ -36,6 +36,7 @@ import {
 import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
+import { isGroupLink } from "@/lib/group-link";
 
 /*
   In-memory stand-in for apps/event-service. Same interface as the future HTTP
@@ -464,6 +465,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           issues.push({ path: ["location"], message: "location must be 80 characters or fewer" });
         }
         const link = input.link?.trim();
+        if (link && !isGroupLink(link)) {
+          issues.push({
+            path: ["link"],
+            message: "link must start with https:// and be at most 300 characters",
+          });
+        }
         if (issues.length) fail("validation_failed", issues);
 
         // added_at decides the passport's slot order (agreement 8.1), so changing settings
