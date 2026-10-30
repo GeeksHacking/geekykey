@@ -326,7 +326,9 @@ apps/event-web/
     features/               # one folder per domain; the real UI lives here
       auth/                 # login screen, Firebase sign-in buttons, dev-login form, expired-link notice, RequireSession, RequireRole, 403 view, shell wiring
       passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph, the name prompt and Change name,
-                           # what a poll changed (passport-changes.ts) and its animations (desktop-motion.ts, passport-motion.ts)
+                           # what a poll changed (passport-changes.ts), the new stamp's group link offer
+                           # (new-stamp-banner.tsx, use-new-stamp-link.ts), and its animations
+                           # (desktop-motion.ts, passport-motion.ts)
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
                            # passport settings form (add or edit a slot), booth dialog,
@@ -364,6 +366,7 @@ apps/event-web/
       form-errors.ts        # maps validation_failed issues onto react-hook-form fields
       display-name.ts       # agreement 8.7's rule for a name, shared by the form and the mock
       booth.ts              # agreement 9.12's rule for a station's booth, shared the same way
+      group-link.ts         # agreement 9.1's rule for a group link, shared the same way
       format.ts             # dates, points, counts
       constants.ts          # poll intervals, seeded user IDs, GEEKYKEY_SCREENS_URL
       csv.ts                # the export's column order and cell escaping
@@ -447,10 +450,10 @@ Rules:
 | `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed |
 | `/#login=<link>` | anyone | `GET /me` | `POST /auth/login-link`, before the first `/me` | the fragment gone at once; an expired link leaves the old session and says so |
 | `/` dashboard | participant, organiser | `GET /me` | | Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
-| `/passport` | participant | `GET /me` `stamps` | `PATCH /me` for the name | every station shown; empty slot where `earned_at` is null; the name prompt while `has_name` is false, and Change name for everyone |
+| `/passport` | participant | `GET /me` `stamps` | `PATCH /me` for the name | every station shown; empty slot where `earned_at` is null; the name prompt while `has_name` is false, and Change name for everyone; a new stamp with a link offers "Open their page?" in a new tab, until it is pressed, dismissed or replaced by the next stamp, and a stamp with no link shows nothing |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
-| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `POST /admin/stations/{id}/key`, `PUT /admin/stations/{id}/passport`, `PUT /admin/stations/{id}/booth`, `POST /admin/stations/{id}/disable`, `POST /admin/stations/{id}/enable` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; one Actions menu per row, named for its station, holding every row action, and the rows' order held while it is open; Add to passport on a row with no settings, Edit on one with; each station's booth, or "No booth", changed from the menu, with the example plan's codes in the field's hint; Replace key on every row, disabled rows included; Disable behind a confirmation, Enable at once; a closed dialog puts the keyboard back on its row's Actions button |
+| `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `POST /admin/stations/{id}/key`, `PUT /admin/stations/{id}/passport`, `PUT /admin/stations/{id}/booth`, `POST /admin/stations/{id}/disable`, `POST /admin/stations/{id}/enable` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; one Actions menu per row, named for its station, holding every row action, and the rows' order held while it is open; Add to passport on a row with no settings, Edit on one with, including the group link it can save or clear; each station's booth, or "No booth", changed from the menu, with the example plan's codes in the field's hint; Replace key on every row, disabled rows included; Disable behind a confirmation, Enable at once; a closed dialog puts the keyboard back on its row's Actions button |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
