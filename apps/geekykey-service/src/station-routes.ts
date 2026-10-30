@@ -101,6 +101,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * answered properly in time, with `503 event_service_unavailable`. Either
  * way, the station keeps its taps to resend. Neither is retried.
  */
+/** One tap's result, as the hand-off's answer and the station's have it. */
+type TapResult = TapsAnswer["results"][number];
+
 export function tapsRoutes({
   claims,
   stationsCopy,
@@ -131,8 +134,8 @@ export function tapsRoutes({
     }
 
     // What an Event Service answers is passed on unchanged: its status, even one of its own,
-    // and the lines and complete its game gives.
-    const results = Array.from<TapsAnswer["results"][number]>({ length: taps.length });
+    // and with accepted or cooldown, the lines and complete its game gives (6.1).
+    const results = Array.from<TapResult>({ length: taps.length });
     const claimed = taps.flatMap((tap, index) => {
       const userId = owners.get(tap.uid);
       if (userId !== undefined) return [{ index, tap, userId }];
@@ -171,13 +174,27 @@ export function tapsRoutes({
         return c.json({ error: "event_service_unavailable" }, 503);
       }
       // One for one with `claimed`, in order, as handOffTaps checks.
-      handedOff.forEach((result, i) => (results[claimed[i]!.index] = result));
+      handedOff.forEach((result, i) => (results[claimed[i]!.index] = shownResult(result)));
     }
 
     // Deliberately no user IDs: readers must not hold PII (see RAMS, data privacy row). A
     // game's lines may name the participant, for the station's screen only (the agreement's 6.1).
     return c.json({ station_id: station.id, results });
   });
+}
+
+/** The statuses a station shows a game's lines with (the agreement's 6.1). */
+const STATUSES_WITH_LINES = new Set(["accepted", "cooldown"]);
+
+/**
+ * A hand-off's result as the station gets it: as the Event Service gave it,
+ * but with lines and complete only on accepted and cooldown. Any other
+ * status, even another team's own, reaches the station without them.
+ */
+function shownResult(result: TapResult): TapResult {
+  if (STATUSES_WITH_LINES.has(result.status)) return result;
+  const { client_tap_id, status } = result;
+  return { client_tap_id, status };
 }
 
 /**

@@ -388,38 +388,40 @@ test("another team's own status passes to the station unchanged", async () => {
   ]);
 });
 
-test("a tap's lines and complete from the Event Service pass to the station unchanged", async () => {
+test("a tap's lines and complete pass to the station with accepted and cooldown only", async () => {
   const { fake, post } = await harness();
+  const statuses: Record<string, string> = {
+    t1: "accepted",
+    t2: "cooldown",
+    t4: "duplicate",
+    t5: "no_game",
+    t6: "bingo_line",
+  };
   fake.answers.taps = async ({ body }) =>
     Response.json({
-      results: (body as { taps: HandedOffTap[] }).taps.map((t) =>
-        t.client_tap_id === "t1"
-          ? {
-              client_tap_id: "t1",
-              status: "accepted",
-              lines: ["Alex: 6 of 6", "All 6 done!"],
-              complete: true,
-            }
-          : { client_tap_id: t.client_tap_id, status: "bingo_line", lines: ["Line!"] },
-      ),
+      results: (body as { taps: HandedOffTap[] }).taps.map((t) => ({
+        client_tap_id: t.client_tap_id,
+        status: statuses[t.client_tap_id],
+        lines: ["Alex: 6 of 6", "All 6 done!"],
+        complete: true,
+      })),
     });
   const res = await post({
-    taps: [
-      { client_tap_id: "t1", uid: UID },
-      { client_tap_id: "t2", uid: "DE:AD:BE:EF" },
-      { client_tap_id: "t3", uid: UID },
-    ],
+    taps: ["t1", "t2", "t3", "t4", "t5", "t6"].map((id) => ({
+      client_tap_id: id,
+      uid: id === "t3" ? "DE:AD:BE:EF" : UID,
+    })),
   });
+  const shown = { lines: ["Alex: 6 of 6", "All 6 done!"], complete: true };
   assert.deepEqual(((await res.json()) as TapsAnswer).results, [
-    {
-      client_tap_id: "t1",
-      status: "accepted",
-      lines: ["Alex: 6 of 6", "All 6 done!"],
-      complete: true,
-    },
+    { client_tap_id: "t1", status: "accepted", ...shown },
+    { client_tap_id: "t2", status: "cooldown", ...shown },
     // Not handed off, so nothing to show but the status.
-    { client_tap_id: "t2", status: "unknown_token" },
-    { client_tap_id: "t3", status: "bingo_line", lines: ["Line!"] },
+    { client_tap_id: "t3", status: "unknown_token" },
+    // Any other status, even another team's own, reaches the station without them.
+    { client_tap_id: "t4", status: "duplicate" },
+    { client_tap_id: "t5", status: "no_game" },
+    { client_tap_id: "t6", status: "bingo_line" },
   ]);
 });
 
