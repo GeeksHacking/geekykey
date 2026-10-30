@@ -1,6 +1,6 @@
 import { LINE_LENGTH } from "@geekykey/handoff";
 import { and, eq, inArray, ne } from "drizzle-orm";
-import { greetingNames } from "../../event/display-names.ts";
+import { forTheScreen, greetingNames } from "../../event/display-names.ts";
 import type { Game, JudgedTap, StationText, Tx } from "../../event/games.ts";
 import { type NextStop, nextStop, quietestFirst } from "../../event/next-stop.ts";
 import { PASSPORT_GAME_ID, passportStations, stations, taps } from "../../event/schema.ts";
@@ -156,7 +156,6 @@ function progressLine(name: string | undefined, stamps: number, slots: number): 
  */
 function nextStopLine(stop: NextStop | null): string | null {
   if (stop === null) return null;
-  const booth = stop.booth.normalize("NFD").replace(/\p{M}/gu, "");
-  if (!/^[\x20-\x7E]+$/.test(booth)) return null;
-  return `Next: ${booth}`.slice(0, LINE_LENGTH);
+  const booth = forTheScreen(stop.booth);
+  return booth === null ? null : `Next: ${booth}`.slice(0, LINE_LENGTH);
 }
