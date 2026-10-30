@@ -242,6 +242,7 @@ pnpm format:check # oxfmt --check, lists files that are not formatted
 pnpm test         # vitest run
 pnpm test:watch   # vitest
 pnpm test:e2e     # playwright Chromium smoke suite against the mock dev server
+pnpm shot <route> --as organiser   # 360 and 1280 px, light and dark, into test-results/shots/
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
 pnpm worker:dev       # live build, then the production Worker in wrangler dev on :8173
 pnpm worker:typecheck # writes the Worker's types from wrangler.jsonc, then tsc
@@ -249,8 +250,8 @@ pnpm worker:test      # the Worker's tests; needs dist/, so build first
 pnpm worker:dry-run   # bundles the Worker and checks wrangler.jsonc, without deploying
 ```
 
-The first `pnpm test:e2e` on a machine, and the first after a Playwright version bump, both
-need `pnpm exec playwright install chromium`. Each Playwright version wants its own Chromium
+The first `pnpm test:e2e` or `pnpm shot` on a machine, and the first after a Playwright version
+bump, need `pnpm exec playwright install chromium`. Each Playwright version wants its own Chromium
 build, so without it the suite stops with "Executable doesn't exist" instead of a test
 failure.
 
@@ -299,6 +300,7 @@ apps/event-web/
     config.ts               # checks EVENT_API_URL and FIREBASE_AUTH_URL at start-up
     worker.test.ts          # runs the Worker in wrangler dev against a fake Event Service and a fake Firebase
   vitest.config.ts
+  scripts/shot.ts           # pnpm shot: the definition of done's four screenshots of a route
   components.json           # shadcn config
   tsconfig.json             # solution file; also carries the @/ alias for the shadcn CLI
   tsconfig.app.json         # src
@@ -620,10 +622,12 @@ backend. Working agreement from the 2 September 2026 team meeting:
 7. shadcn components customised to the tokens, not default.
 8. Only endpoints and fields from the agreement are referenced.
 
-For screenshots, Playwright against the dev server works well once its Chromium build is
-installed; the Commands section says how. Two gotchas: Radix Select ignores a synthetic
-click, so dispatch a `pointerdown` on the trigger and then click the option; and headless
-Arc crashes after a few navigations.
+For step 3, `pnpm shot <route>` takes the four screenshots, with `--as participant` or
+`--as organiser` to sign in first (`scripts/shot.ts`). It uses the dev server on :5173 if one is
+up and starts the mock one if not. For anything it doesn't do, such as opening a menu first,
+drive Playwright yourself. Two gotchas: Radix Select ignores a synthetic click, so dispatch a
+`pointerdown` on the trigger and then click the option; and headless Arc crashes after a few
+navigations.
 
 ## Do not
 
