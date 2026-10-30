@@ -7,15 +7,6 @@ import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
-Object.defineProperty(globalThis, "ResizeObserver", {
-  configurable: true,
-  value: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-});
-
 function renderBoard() {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_ORGANIZER_ID);
@@ -28,10 +19,9 @@ function renderBoard() {
   return api;
 }
 
-/** The station the fixtures give passport settings and a booth (agreement 9.1, 9.12). */
-const NAMED = "3D Printing Booth";
-/** A fixture station with no passport settings and no booth. */
-const BARE = "Station 6";
+/** Two fixture stations: one with passport settings and a booth, one with neither. */
+const IN_PASSPORT = "3D Printing Booth";
+const NOT_IN_PASSPORT = "Station 6";
 
 async function open(user: UserEvent, name: string) {
   const button = await screen.findByRole("button", { name });
@@ -56,7 +46,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Change passport settings for ${NAMED}`);
+    const button = await open(user, `Change passport settings for ${IN_PASSPORT}`);
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
 
@@ -67,7 +57,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Add to passport ${BARE}`);
+    const button = await open(user, `Add to passport ${NOT_IN_PASSPORT}`);
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
 
@@ -93,7 +83,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await screen.findByRole("button", { name: `Change booth for ${NAMED}` });
+    const button = await screen.findByRole("button", { name: `Change booth for ${IN_PASSPORT}` });
     button.focus();
     await user.keyboard("{Enter}");
     await screen.findByRole("dialog");
@@ -106,7 +96,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Change booth for ${NAMED}`);
+    const button = await open(user, `Change booth for ${IN_PASSPORT}`);
     await user.click(await screen.findByRole("button", { name: "Close" }));
 
     await expectFocusBack(button);
@@ -116,13 +106,15 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await open(user, `Set booth for ${BARE}`);
+    await open(user, `Set booth for ${NOT_IN_PASSPORT}`);
     const field = await screen.findByLabelText("Booth");
     await user.type(field, "A1");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     // The save renames the row's button from Set booth to Change booth.
-    const renamed = await screen.findByRole("button", { name: `Change booth for ${BARE}` });
+    const renamed = await screen.findByRole("button", {
+      name: `Change booth for ${NOT_IN_PASSPORT}`,
+    });
     await expectFocusBack(renamed);
   });
 
@@ -130,7 +122,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Replace key for ${NAMED}`);
+    const button = await open(user, `Replace key for ${IN_PASSPORT}`);
     await screen.findByRole("alertdialog");
     await user.keyboard("{Escape}");
 
@@ -141,7 +133,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Replace key for ${NAMED}`);
+    const button = await open(user, `Replace key for ${IN_PASSPORT}`);
     await user.click(await screen.findByRole("button", { name: /^Replace key$/ }));
     // The alert steps aside for the key reveal, which then closes the flow.
     await user.click(await screen.findByRole("button", { name: "Done" }));
@@ -153,7 +145,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Disable ${NAMED}`);
+    const button = await open(user, `Disable ${IN_PASSPORT}`);
     await screen.findByRole("alertdialog");
     await user.keyboard("{Escape}");
 
@@ -164,12 +156,12 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await open(user, `Disable ${NAMED}`);
+    await open(user, `Disable ${IN_PASSPORT}`);
     await user.click(await screen.findByRole("button", { name: /^Disable$/ }));
 
     // Disabling swaps the row's Disable for an Enable, a different element, so the focus
     // goes to the row's new power button rather than the one that opened the alert.
-    const enable = await screen.findByRole("button", { name: `Enable ${NAMED}` });
+    const enable = await screen.findByRole("button", { name: `Enable ${IN_PASSPORT}` });
     await expectFocusBack(enable);
   });
 });

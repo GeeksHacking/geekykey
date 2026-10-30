@@ -8,15 +8,6 @@ import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { TapsScreen } from "@/features/taps/taps-screen";
 import { createTestProviders } from "@/test/providers";
 
-Object.defineProperty(globalThis, "ResizeObserver", {
-  configurable: true,
-  value: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-});
-
 function setup() {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_ORGANIZER_ID);

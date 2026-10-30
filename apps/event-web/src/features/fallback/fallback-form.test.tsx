@@ -8,15 +8,6 @@ import { FallbackForm } from "@/features/fallback/fallback-form";
 import type { StationOption } from "@/features/stations/station-options";
 import { createTestProviders } from "@/test/providers";
 
-Object.defineProperty(globalThis, "ResizeObserver", {
-  configurable: true,
-  value: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-});
-
 const station: StationOption = {
   id: "ca939e19-8216-4b95-8375-5b54e543c5f6",
   name: "Print Lab",
