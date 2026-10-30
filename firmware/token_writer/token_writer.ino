@@ -2,9 +2,12 @@
   GeekyKey token writer  (NTAG213 only)
   Board: ESP32S3 Dev Module + RC522.   Run on a spare station before the event.
 
-  Every token is written identically with:
-    https://key.geekshacking.com/t/<14 placeholder zeros>
+  Every token of a batch is written identically with:
+    https://key.geekshacking.com/t/<14 placeholder zeros>?k=<kind>
   and the chip's UID mirror swaps in the token's own UID each time it is read.
+  The kind is one letter, set for the batch over serial with "kind E" (ADR 0006).
+  Each token written prints "<UID>,<kind>" on its own line: keep those lines,
+  they're the list the server loads (BAC-113).
   Writes are protected by one password (secrets.h). Reads are open.
 
   NEVER set CFGLCK (ACCESS bit 6) and never touch the lock bytes on pages 02h/28h.
@@ -18,7 +21,8 @@
 #include <Wire.h>
 #include <MFRC522.h>
 #include <LiquidCrystal_I2C.h>
-#include "secrets.h"   // NTAG_PASSWORD[4], NTAG_PACK[2]  (gitignored, see secrets.h.example)
+#include "secrets.h"   // NTAG_PASSWORD[4], NTAG_PACK[2]  (gitignored, see secrets.example.h)
+#include "token_address.h"
 
 // ---- Wiring: change these to match the station ------------------------------
 constexpr int     PIN_SCK  = 12;   // ESP32-S3 default FSPI pins
@@ -36,32 +40,7 @@ constexpr uint8_t LCD_ROWS = 2;
 MFRC522 mfrc522(PIN_SS, PIN_RST);
 LiquidCrystal_I2C lcd(LCD_ADDR, LCD_COLS, LCD_ROWS);
 
-// ---- What goes on the token --------------------------------------------------
-constexpr uint8_t FIRST_PAGE = 0x04;
-constexpr uint8_t LAST_PAGE  = 0x11;
-constexpr size_t  AREA_LEN   = (LAST_PAGE - FIRST_PAGE + 1) * 4;   // 56 bytes
-
-// bytes 0-11: lock control TLV (as delivered), NDEF TLV, record header, "https://"
-static const uint8_t NDEF_HEAD[] = {
-  0x01, 0x03, 0xA0, 0x0C, 0x34,   // lock control TLV, kept as delivered
-  0x03, 0x2A,                     // NDEF message, 42 bytes
-  0xD1, 0x01, 0x26, 0x55,         // one record, type "U", payload 38 bytes
-  0x04                            // "https://"
-};
-static const char URL_TAIL[] = "key.geekshacking.com/t/";   // 23 characters
-constexpr size_t  UID_CHARS  = 14;
-constexpr size_t  MIRROR_OFFSET = sizeof(NDEF_HEAD) + (sizeof(URL_TAIL) - 1);   // 35
-
-static_assert(sizeof(NDEF_HEAD) == 12, "head must be 12 bytes");
-static_assert(sizeof(URL_TAIL) - 1 == 23, "URL tail must be 23 characters");
-static_assert(0x26 == 1 + (sizeof(URL_TAIL) - 1) + UID_CHARS, "record payload length");
-static_assert(0x2A == 4 + 0x26, "NDEF message length");
-static_assert(MIRROR_OFFSET == 35, "mirror starts at byte 3 of page 0Ch");
-// The rest of page 11h stays 00, which also clears what an older, longer address left behind.
-static_assert(MIRROR_OFFSET + UID_CHARS + 1 <= AREA_LEN, "FE must fit before page 12h");
-
-constexpr uint8_t MIRROR_PAGE = FIRST_PAGE + MIRROR_OFFSET / 4;   // 0Ch
-constexpr uint8_t MIRROR_BYTE = MIRROR_OFFSET % 4;                // 3
+// What goes on the token, pages 04h-11h, is in token_address.h.
 
 // ---- NTAG213 configuration pages ---------------------------------------------
 constexpr uint8_t PAGE_CC     = 0x03;
@@ -73,11 +52,16 @@ constexpr uint8_t AUTH0_FRESH = 0xFF;
 constexpr uint8_t AUTH0_ON    = 0x04;   // protect writes from page 04h onwards
 constexpr uint8_t ACCESS_VAL  = 0x07;   // write-protect only, CFGLCK off, counter off, 7 tries
 // UID ASCII mirror (bits 7-6 = 01), starting at MIRROR_BYTE (bits 5-4), strong modulation on (bit 2).
-constexpr uint8_t MIRROR_UID_STRONG = 0x40 | (MIRROR_BYTE << 4) | 0x04;   // 74h
+constexpr uint8_t MIRROR_UID_STRONG = 0x40 | (UID_MIRROR_BYTE << 4) | 0x04;   // 74h
 
 // -----------------------------------------------------------------------------
 
 static char errBuf[17];
+
+// The batch's kind, one letter. 0 until "kind E" is typed, and nothing is
+// written until then. It isn't kept across a restart, so a batch never picks
+// up an earlier batch's kind by mistake.
+static char kind = 0;
 
 static void showLines(const char* l1, const char* l2 = "") {
   lcd.clear();
@@ -95,15 +79,6 @@ String uidToHex(const MFRC522::Uid &uid) {
   }
   s.toUpperCase();
   return s;
-}
-
-static void buildNdef(uint8_t out[AREA_LEN]) {
-  memset(out, 0, AREA_LEN);
-  memcpy(out, NDEF_HEAD, sizeof(NDEF_HEAD));
-  memcpy(out + sizeof(NDEF_HEAD), URL_TAIL, sizeof(URL_TAIL) - 1);
-  memset(out + MIRROR_OFFSET, '0', UID_CHARS);
-  out[MIRROR_OFFSET + UID_CHARS]     = 0xFE;   // end
-  out[MIRROR_OFFSET + UID_CHARS + 1] = 0x00;   // padding
 }
 
 // Reads 4 pages (16 bytes) starting at firstPage.
@@ -132,6 +107,70 @@ static bool authenticate() {
 static const char* failPage(const char* what, uint8_t page) {
   snprintf(errBuf, sizeof(errBuf), "%s %02X", what, page);
   return errBuf;
+}
+
+static void showReady() {
+  if (kind) {
+    char line2[17];
+    snprintf(line2, sizeof(line2), "to write kind %c", kind);
+    showLines("Tap a token", line2);
+  } else {
+    showLines("Set the kind:", "type kind <A-Z>");
+  }
+}
+
+static void printHelp() {
+  Serial.println("Type \"kind <letter>\" to set the kind of this batch, for example: kind E");
+}
+
+// Handles one line typed on the serial port.
+static void handleLine(const char* line) {
+  char newKind = kind;
+  switch (readKindCommand(line, &newKind)) {
+    case KIND_SET:
+      kind = newKind;
+      Serial.print("Kind set to "); Serial.println(kind);
+      showReady();
+      break;
+    case KIND_BAD:
+      Serial.println("A kind is one letter, A to Z. The kind is unchanged.");
+      break;
+    case NOT_KIND_COMMAND:
+      if (line[0] != '\0') printHelp();
+      break;
+  }
+}
+
+// Reads what has arrived on the serial port, a line at a time.
+static void pollSerial() {
+  static char line[33];
+  static size_t len = 0;
+  static bool tooLong = false;   // a cut-off line could read as a different kind
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      line[len] = '\0';
+      if (tooLong) Serial.println("That line was too long. The kind is unchanged.");
+      else handleLine(line);
+      len = 0;
+      tooLong = false;
+    } else if (len < sizeof(line) - 1) {
+      line[len++] = c;
+    } else {
+      tooLong = true;
+    }
+  }
+}
+
+// Waits for a token while listening for a new kind. Taps are ignored until a
+// kind is set.
+static void waitForTokenToWrite() {
+  showReady();
+  while (true) {
+    pollSerial();
+    if (kind && mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) return;
+    delay(30);
+  }
 }
 
 static bool waitForToken(uint32_t timeoutMs) {
@@ -178,10 +217,10 @@ static const char* writeToken() {
   }
 
   // Step 2: the address, pages 04h-11h.
-  uint8_t area[AREA_LEN];
-  buildNdef(area);
-  for (uint8_t p = FIRST_PAGE; p <= LAST_PAGE; p++) {
-    if (!writePage(p, &area[(p - FIRST_PAGE) * 4])) return failPage("WRITE", p);
+  uint8_t area[TOKEN_AREA_LEN];
+  buildTokenAddress(area, kind);
+  for (uint8_t p = TOKEN_FIRST_PAGE; p <= TOKEN_LAST_PAGE; p++) {
+    if (!writePage(p, &area[(p - TOKEN_FIRST_PAGE) * 4])) return failPage("WRITE", p);
   }
 
   // Step 3: password first, before protection is switched on.
@@ -199,7 +238,7 @@ static const char* writeToken() {
   const uint8_t cfg[4] = {
     (uint8_t)((page[0] & 0x0B) | MIRROR_UID_STRONG),   // keep RFUI bits 3,1,0
     page[1],
-    MIRROR_PAGE,
+    UID_MIRROR_PAGE,
     AUTH0_ON
   };
   if (!writePage(PAGE_CONFIG, cfg)) return failPage("WRITE", PAGE_CONFIG);
@@ -215,20 +254,22 @@ static const char* verifyToken(const String &expectedUid) {
   if (!waitForToken(30000)) return "NO RETAP";
   if (uidToHex(mfrc522.uid) != expectedUid) return "OTHER TOKEN";
 
-  // The address must be the template, ending in this token's own UID.
-  uint8_t expected[AREA_LEN], got[64];
-  buildNdef(expected);
+  // The address must be the template, with this token's own UID and the batch's kind.
+  uint8_t expected[TOKEN_AREA_LEN], got[64];
+  buildTokenAddress(expected, kind);
   for (uint8_t i = 0; i < 4; i++) {
-    if (!readPages(FIRST_PAGE + i * 4, &got[i * 16])) return "READ";
+    if (!readPages(TOKEN_FIRST_PAGE + i * 4, &got[i * 16])) return "READ";
   }
-  if (memcmp(got, expected, MIRROR_OFFSET) != 0) return "ADDRESS";
-  if (memcmp(got + MIRROR_OFFSET, expectedUid.c_str(), UID_CHARS) != 0) return "UID MIRROR";
-  if (got[MIRROR_OFFSET + UID_CHARS] != 0xFE) return "ADDRESS END";
+  if (memcmp(got, expected, UID_MIRROR_OFFSET) != 0) return "ADDRESS";
+  if (memcmp(got + UID_MIRROR_OFFSET, expectedUid.c_str(), UID_CHARS) != 0) return "UID MIRROR";
+  const size_t afterUid = UID_MIRROR_OFFSET + UID_CHARS;
+  if (memcmp(got + afterUid, expected + afterUid, KIND_OFFSET + 1 - afterUid) != 0) return "KIND";
+  if (got[ADDRESS_END] != 0xFE) return "ADDRESS END";
 
   // The protection settings.
   uint8_t cfg[16];
   if (!readPages(PAGE_CONFIG, cfg)) return "READ CONFIG";
-  if (cfg[3] != AUTH0_ON || cfg[2] != MIRROR_PAGE || (cfg[0] & 0xF4) != MIRROR_UID_STRONG) return "CONFIG";
+  if (cfg[3] != AUTH0_ON || cfg[2] != UID_MIRROR_PAGE || (cfg[0] & 0xF4) != MIRROR_UID_STRONG) return "CONFIG";
   if (cfg[4] != ACCESS_VAL) return "ACCESS";
 
   // Prove the password really works, so the token can be rewritten later.
@@ -261,18 +302,28 @@ void setup() {
   SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_SS);
   mfrc522.PCD_Init();
   Serial.println("GeekyKey token writer ready");
+  printHelp();
 }
 
 void loop() {
-  showLines("Tap a token", "to write it");
-  waitForToken(0);
+  waitForTokenToWrite();
 
   String uid = uidToHex(mfrc522.uid);
   Serial.print("Token UID: "); Serial.println(uid);
-  showLines("Writing...", uid.c_str());
+  char writing[17];
+  snprintf(writing, sizeof(writing), "Writing kind %c", kind);
+  showLines(writing, uid.c_str());
 
   const char* err = writeToken();
-  if (!err) err = verifyToken(uid);
+  bool written = !err;
+  if (written) {
+    // The token carries the new address from here on, so its line goes in the
+    // log now, even if the check below fails.
+    char logLine[KIND_LOG_LEN];
+    formatKindLog(logLine, uid.c_str(), kind);
+    Serial.println(logLine);
+    err = verifyToken(uid);
+  }
 
   char line1[17];
   if (err) {
@@ -280,10 +331,14 @@ void loop() {
     Serial.print("FAIL: "); Serial.println(err);
     if (!strcmp(err, "AUTH") || !strcmp(err, "PASSWORD")) {
       Serial.println("Don't keep re-tapping: every wrong password counts towards the chip's limit of 7.");
+    } else if (written) {
+      Serial.print("The token was written with kind "); Serial.print(kind);
+      Serial.println(" but its check failed. Tap it again to write and check it again.");
     }
   } else {
-    snprintf(line1, sizeof(line1), "OK");
-    Serial.print("OK  https://key.geekshacking.com/t/"); Serial.println(uid);
+    snprintf(line1, sizeof(line1), "OK kind %c", kind);
+    Serial.print("OK  https://"); Serial.print(URL_TAIL); Serial.print(uid);
+    Serial.print(KIND_QUERY); Serial.println(kind);
   }
   showLines(line1, uid.c_str());
 
