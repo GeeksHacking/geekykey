@@ -314,3 +314,18 @@ test("the next stop's booth is cut to fit, without accents, or left off when the
     ["1 of 2 stamps", "Tap counted!"],
   );
 });
+
+test("a station's saved taps count by when they were made, not when they arrived", async () => {
+  const { ids, userId } = await passportOf(2);
+  await setBooths(ids, ["A1", "B2", "C3"]);
+  // B2 was offline for a while, and sends its saved taps from 15 minutes ago now.
+  const madeAt = new Date(Date.now() - 15 * 60_000).toISOString();
+  await handOff(
+    ids[1]!,
+    ["p1", "p2", "p3"].map((user_id) => ({ client_tap_id: user_id, user_id, tapped_at: madeAt })),
+  );
+  await addCrowdTaps(ids[2]!, 1);
+  assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
+    { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 3", "Next: B2"] },
+  ]);
+});
