@@ -69,7 +69,9 @@ token page ([ADR 0006](../docs/adr/0006-a-token-carries-its-kind.md)).
    `04E45150324189,E`, its UID and its kind, before the check. Those lines are the list the
    server loads (BAC-113), so copy every one of them out of the Serial Monitor and send them to
    Adam. Every one of them has this shape: 14 capital hex digits, a comma and one capital letter.
-   Anything else the writer prints isn't part of the list.
+   Anything else the writer prints isn't part of the list. Adam loads them with
+   `pnpm db:token-kinds` in `apps/event-service`, which reads only those lines, so the Serial
+   Monitor's text can be pasted into a file as it is.
 
 After a `FAIL` other than `AUTH` or `PASSWORD`, tap the same token again until it shows `OK`. A
 failed check can leave the token written, and writing it again prints its line again.
