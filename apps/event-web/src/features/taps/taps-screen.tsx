@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { LiveStamp } from "@/components/layout/live-stamp";
 import { PageHeader } from "@/components/layout/page-header";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { ScanLogFilters } from "@/features/taps/scan-log-filters";
 import { ScanLogSkeleton } from "@/features/taps/scan-log-skeleton";
@@ -56,7 +57,11 @@ export function TapsScreen() {
           </span>
           <LiveStamp updatedAt={log.dataUpdatedAt} refreshing={log.isFetching} />
         </div>
-        <ScanLogTable taps={log.taps} />
+        {/* The brackets sit outside the table's own scroll region, so scrolling never clips them. */}
+        <div className="relative">
+          <CornerBrackets />
+          <ScanLogTable taps={log.taps} />
+        </div>
         {log.loadMoreError ? (
           <InlineQueryError
             error={log.loadMoreError}
