@@ -8,6 +8,7 @@ const printing: Stamp = {
   name: "3D Printing Booth",
   location: "Hall A",
   points: 3,
+  link: "https://example.com/3d-printing",
   earned_at: null,
 };
 const lounge: Stamp = {
@@ -15,6 +16,7 @@ const lounge: Stamp = {
   name: "Hardware Lounge",
   location: null,
   points: 2,
+  link: null,
   earned_at: "2026-11-17T02:14:09.000Z",
 };
 

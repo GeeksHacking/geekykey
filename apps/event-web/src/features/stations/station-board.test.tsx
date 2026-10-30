@@ -57,6 +57,7 @@ function station(overrides: Partial<EventStationBoardStation> = {}): EventStatio
       name: "Careers Corner",
       location: "Hall B",
       points: 2,
+      link: null,
       added_at: "2026-10-01T00:00:00.000Z",
     },
     last_seen_at: "2026-10-10T09:00:00.000Z",
@@ -101,6 +102,7 @@ const quietStation = station({
     name: "Quiet Booth",
     location: "Hall C",
     points: 1,
+    link: null,
     added_at: "2026-10-01T00:00:00.000Z",
   },
   last_tap_at: null,
@@ -113,6 +115,7 @@ const healthyStation = station({
     name: "Healthy Booth",
     location: "Hall D",
     points: 1,
+    link: null,
     added_at: "2026-10-01T00:00:00.000Z",
   },
 });

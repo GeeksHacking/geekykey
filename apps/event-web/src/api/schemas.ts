@@ -38,6 +38,7 @@ const stampSchema = z.object({
   name: z.string(),
   location: z.nullable(z.string()),
   points: z.int().check(z.nonnegative()),
+  link: z.nullable(z.string()),
   earned_at: z.nullable(isoTimestamp),
 });
 
@@ -55,6 +56,7 @@ const eventPassportSchema = z.object({
   name: z.string(),
   location: z.nullable(z.string()),
   points: z.int().check(z.nonnegative()),
+  link: z.nullable(z.string()),
   added_at: isoTimestamp,
 });
 

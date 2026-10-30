@@ -113,6 +113,7 @@ describe("createAppClient", () => {
       name: "3D Printing Booth",
       location: null,
       points: 1,
+      link: "https://example.com/3d-printing",
       added_at: "2026-10-10T09:00:00.000Z",
     };
     fetchMock
