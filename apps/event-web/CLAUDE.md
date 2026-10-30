@@ -555,7 +555,8 @@ change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. That is
 phones and on the organiser screens. The exceptions, all on the big screens:
 
 - The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
-  reads from the back of a hall. With reduced motion it only fades.
+  reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back
+  to back and shortened to end before the next poll (FRO-102). With reduced motion it only fades.
 - On the passport at 1024 px and up, a stamp earned is the one long animation (about a second:
   the seal presses in, then the note comes in), points count up over 0.9 s,
   and a slot in the dashboard's row fills over 0.5 s. With reduced motion none of them play.

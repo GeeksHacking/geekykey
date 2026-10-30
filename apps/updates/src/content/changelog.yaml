@@ -1782,3 +1782,11 @@
     phone each change plays a short fade. The trade-offs we accept: phones never download the
     animation library, so they get the short fade only, and nothing moves on a device set to
     reduce motion.
+
+- id: map-pulses-once-per-tap
+  date: 2026-10-30
+  area: frontend
+  change: >-
+    The map pulses a station once for each new tap, so three quick taps show as three pulses
+    and not one. It plays at most 3 for each 2-second update, each shorter than a single
+    pulse, so they finish before the next update.
