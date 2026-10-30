@@ -67,8 +67,9 @@ export const tapsAnswer = z.object({
           .max(MAX_LINES)
           .optional()
           .describe(
-            "What the station's game has the station show, one row each. Ours gives them " +
-              "with accepted and cooldown only. They pass to the station unchanged",
+            "What the station's game has the station show, one row each. The GeekyKey " +
+              "Service passes them, and complete, to the station with accepted and cooldown " +
+              "only",
           ),
         complete: z
           .boolean()

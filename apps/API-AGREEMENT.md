@@ -496,8 +496,8 @@ item has a [`tap_status`](#tap_status).
 |---|---|---|
 | `results[].client_tap_id` | string | The tap's, from the request |
 | `results[].status` | string | A [`tap_status`](#tap_status), or another team's own |
-| `results[].lines` | array of strings, optional | 1 or 2 lines for the station's screen, written by the station's game. Each is 0 to 16 printable ASCII characters, space to `~`. Ours gives them with `accepted` and `cooldown` only |
-| `results[].complete` | boolean, optional | `true` on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune. Ours gives it only when `true`, with `lines` |
+| `results[].lines` | array of strings, optional | 1 or 2 lines for the station's screen, written by the station's game. Each is 0 to 16 printable ASCII characters, space to `~`. Only with `accepted` and `cooldown` |
+| `results[].complete` | boolean, optional | `true` on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune. Only with `accepted` and `cooldown`. Ours gives it only when `true`, with `lines` |
 
 - The passport's lines are the participant's progress, and what happened: `Alex: 3 of 6` and
   `Tap counted!`, or `Already counted` in the cooldown. The tap that earns the last stamp says
@@ -1605,10 +1605,11 @@ it that passed the GeekyKey Service's own checks.
 ```
 
 - One result per tap, in request order, with the same `client_tap_id`s.
-- `lines` and `complete` are optional, with 6.1's rules, and the GeekyKey Service passes them to
-  the station unchanged, as it does the status. A line that breaks 6.1's rules fails the whole
-  request, as a status that isn't snake_case does (11.5). An Event Service that sends neither
-  gets the station's own screen for the status.
+- `lines` and `complete` are optional, with 6.1's rules. The GeekyKey Service passes them to the
+  station unchanged with `accepted` and `cooldown`, and leaves them out with any other status,
+  even one of your own. A line that breaks 6.1's rules fails the whole request, as a status that
+  isn't snake_case does (11.5). An Event Service that sends neither gets the station's own screen
+  for the status.
 - `status` is a snake_case string. Ours answers `accepted`, `cooldown`, `no_game` or
   `duplicate`. Another team's may answer statuses of its own, which the GeekyKey Service passes to
   the station unchanged.
@@ -1935,3 +1936,4 @@ Closed on 2026-10-10:
 | 2026-10-30 | 9.10 says the screen may pulse a station once for each new tap rather than once a poll, and that ours plays up to 3 a poll. No endpoint or shape changes (FRO-102). |
 | 2026-10-30 | Version 0.9, a draft for Ethan's review: a tap's result can carry what the station's game has the station show (BAC-111). Each item in 6.1's and 11.2's `results` can carry two optional fields: `lines`, one or two lines of 0 to 16 printable ASCII characters, and `complete`, `true` on the tap that finishes the game. Ours gives them with `accepted` and `cooldown` only. The passport's lines are the participant's progress, by the first word of their name while they have one of their own, and the tap that earns the last stamp has `complete`. The GeekyKey Service passes them on unchanged, and a line that breaks the rules fails the request with `503 event_service_unavailable`, as a bad status does. The firmware contract says how the station shows them, and a station that ignores them keeps working. Their JSON Schema is in `packages/handoff/json-schema/taps-answer.schema.json` (11.7). No field is removed. |
 | 2026-10-30 | Ethan, the screens owner, approved version 0.9, so it is no longer a draft. No endpoint or shape changes (BAC-111). |
+| 2026-10-30 | 6.1 and 11.2 say the GeekyKey Service passes `lines` and `complete` to the station only with `accepted` and `cooldown`, and leaves them out with any other status, even another team's own. Before, it passed them with any status, and only our Event Service kept to the two. No shape changes (BAC-111). |
