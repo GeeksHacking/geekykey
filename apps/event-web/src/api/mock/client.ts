@@ -198,6 +198,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
    */
   const gameOf = (station: MockStation) => (station.passport ? "passport" : null);
 
+  // The stamp slots (section 4): stations with passport settings, oldest settings first, so
+  // adding one never moves the others. The passport (8.1) and the stats (9.5) list these.
+  const stampSlots = () =>
+    data.stations
+      .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
+      .sort((a, b) => a.added_at.localeCompare(b.added_at));
+
   /**
    * Agreement 9.2. Every field comes from the Event Service's own station row, since
    * version 0.3 removed the status call this board used to sit behind. `online` is
@@ -269,22 +276,18 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const user = currentUser();
         const mine = data.taps.filter((t) => t.user_id === user.id);
         const accepted = mine.filter((t) => t.status === "accepted");
-        // Only stations with passport settings are slots, oldest settings first (agreement 8.1).
-        const stamps = data.stations
-          .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
-          .sort((a, b) => a.added_at.localeCompare(b.added_at))
-          .map((passport) => {
-            const first = accepted
-              .filter((t) => t.station_id === passport.id)
-              .sort((a, b) => a.received_at.localeCompare(b.received_at))[0];
-            return {
-              station_id: passport.id,
-              name: passport.name,
-              location: passport.location,
-              points: passport.points,
-              earned_at: first?.received_at ?? null,
-            };
-          });
+        const stamps = stampSlots().map((passport) => {
+          const first = accepted
+            .filter((t) => t.station_id === passport.id)
+            .sort((a, b) => a.received_at.localeCompare(b.received_at))[0];
+          return {
+            station_id: passport.id,
+            name: passport.name,
+            location: passport.location,
+            points: passport.points,
+            earned_at: first?.received_at ?? null,
+          };
+        });
         const points = accepted.reduce(
           (sum, t) => sum + (stationById(t.station_id)?.passport?.points ?? 0),
           0,
@@ -525,16 +528,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const accepted = data.taps.filter((t) => t.status === "accepted");
         const unique = (taps: MockTap[]) =>
           new Set(taps.map((t) => t.user_id).filter(Boolean)).size;
-        // Only the stamp slots, oldest settings first (agreement 9.5). Taps elsewhere still
-        // count in the totals.
-        const slots = data.stations
-          .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
-          .sort((a, b) => a.added_at.localeCompare(b.added_at));
         return {
           total_taps: data.taps.length,
           accepted_taps: accepted.length,
           unique_participants: unique(accepted),
-          stations: slots.map((slot) => {
+          // Taps at a station outside the passport still count in the totals (agreement 9.5).
+          stations: stampSlots().map((slot) => {
             const here = accepted.filter((t) => t.station_id === slot.id);
             return {
               station_id: slot.id,

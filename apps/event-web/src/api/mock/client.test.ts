@@ -540,7 +540,7 @@ describe("stats", () => {
   it("counts the taps at a station outside the passport in the totals", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const outside = "e0f3a9b2-6c4d-4a1e-8f5b-7d2c9e1a0b63"; // Station 3, no passport settings
+    const outside = api.mock.data.stations.find((station) => !station.passport)!.id;
     const before = await api.stats();
     api.mock.data.taps.push({
       ...api.mock.data.taps[0]!,
