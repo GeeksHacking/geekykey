@@ -22,3 +22,16 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
     })),
   });
 }
+
+// jsdom has no ResizeObserver, which Radix's dialogs and the table ask for.
+if (typeof globalThis.ResizeObserver !== "function") {
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    writable: true,
+    value: class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  });
+}

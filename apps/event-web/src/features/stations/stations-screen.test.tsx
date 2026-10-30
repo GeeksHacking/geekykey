@@ -8,15 +8,6 @@ import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
-Object.defineProperty(globalThis, "ResizeObserver", {
-  configurable: true,
-  value: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-});
-
 describe("StationsScreen", () => {
   it("renders the board and keeps the mock add-station dialog working", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
