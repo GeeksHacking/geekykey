@@ -1804,3 +1804,10 @@
     to the API agreement for the station's text and the token's kind before the backend freezes on
     11 Nov, and each token's kind kept twice, on the token and in a list on our server, which the
     token writer fills in the same step.
+
+- id: station-dialog-focus-returns
+  date: 2026-10-30
+  area: frontend
+  change: >-
+    Closing a dialog on the station board returns the keyboard to the button that opened it, or
+    to the row's Enable when a save swapped that button out.
