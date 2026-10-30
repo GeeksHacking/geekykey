@@ -771,9 +771,9 @@ way a guest reaches the Event screens. The link's format is in 11.9.
 ## 8. User endpoints
 
 8.1 and 8.7 are on the Event Service, for participants and organizers. 8.2 to 8.6 are on the
-GeekyKey Service, for any logged-in user, and are what the token page and My tokens call. Each of 8.2 to
-8.5, and 8.6 when it names a token, answers `503 claims_unavailable` when the claims stand-in, or
-after the switch the Portal, doesn't answer properly within 4 seconds. The screens say "Couldn't reach GeeksHacking. Try
+GeekyKey Service, for any logged-in user, and are what the token page and My tokens call. Each of
+8.2 to 8.5, and 8.6 when it names a token, answers `503 claims_unavailable` when the claims
+stand-in, or after the switch the Portal, doesn't answer properly within 4 seconds. The screens say "Couldn't reach GeeksHacking. Try
 again." Nothing changes, with one exception each in 8.2 and 8.3: the claim or the release may
 already have been made.
 
@@ -1001,7 +1001,7 @@ path `["display_name"]`, and leaves the name as it was.
 **Response `200`**, with the `user` object from 8.1:
 
 ```json
-{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true } }
+{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E" } }
 ```
 
 - From now on, logging in (7.2) and login links (7.4) no longer change the name.
@@ -1953,4 +1953,4 @@ Closed on 2026-10-10:
 | 2026-10-30 | Version 0.9, a draft for Ethan's review: a tap's result can carry what the station's game has the station show (BAC-111). Each item in 6.1's and 11.2's `results` can carry two optional fields: `lines`, one or two lines of 0 to 16 printable ASCII characters, and `complete`, `true` on the tap that finishes the game. Ours gives them with `accepted` and `cooldown` only. The passport's lines are the participant's progress, by the first word of their name while they have one of their own, and the tap that earns the last stamp has `complete`. The GeekyKey Service passes them on unchanged, and a line that breaks the rules fails the request with `503 event_service_unavailable`, as a bad status does. The firmware contract says how the station shows them, and a station that ignores them keeps working. Their JSON Schema is in `packages/handoff/json-schema/taps-answer.schema.json` (11.7). No field is removed. |
 | 2026-10-30 | Ethan, the screens owner, approved version 0.9, so it is no longer a draft. No endpoint or shape changes (BAC-111). |
 | 2026-10-30 | 6.1 and 11.2 say the GeekyKey Service passes `lines` and `complete` to the station only with `accepted` and `cooldown`, and leaves them out with any other status, even another team's own. Before, it passed them with any status, and only our Event Service kept to the two. No shape changes (BAC-111). |
-| 2026-10-30 | Version 0.10, a draft for Ethan's review: each token has a kind (ADR 0006, BAC-113). The token writer writes it into the token's address, and GeekyKey keeps a list of them beside the claims stand-in, which games trust instead of the address. **New, all optional:** `kind` on each tap in the hand-off (11.2), the kind of the token tapped, or `null` for a token with none; `kind` in the login link's payload (11.9); `uid` in the request for a login link (8.6), so the token page's link carries its token's kind while the user owns it; and `user.kind` on the Event Service's `GET /api/v1/me` (8.1), the first kind either one gave. 8.6 answers `claims_unavailable` when it names a token and the claims stand-in doesn't answer, as section 8's opening now says. 7.4 says a link's kind becomes the user's, and 11.8 that an Event Service sees a token's kind but never its UID. Section 12 drops "archetype quests". A service from before kinds leaves the new fields out, and the other reads that as no kind, so either service can be rolled back alone. The hand-off's JSON Schema is in `packages/handoff/json-schema/taps-request.schema.json` (11.7). |
+| 2026-10-30 | Version 0.10, a draft for Ethan's review: each token has a kind (ADR 0006, BAC-113). The token writer writes it into the token's address, and GeekyKey keeps a list of them beside the claims stand-in, which games trust instead of the address. **New, all optional:** `kind` on each tap in the hand-off (11.2), the kind of the token tapped, or `null` for a token with none; `kind` in the login link's payload (11.9); `uid` in the request for a login link (8.6), so the token page's link carries its token's kind while the user owns it; and `user.kind` on the Event Service's `GET /api/v1/me` (8.1), the first kind either one gave, which `PATCH /api/v1/me` (8.7) answers with too. 8.6 answers `claims_unavailable` when it names a token and the claims stand-in doesn't answer, as section 8's opening now says. 7.4 says a link's kind becomes the user's, and 11.8 that an Event Service sees a token's kind but never its UID. Section 12 drops "archetype quests". A service from before kinds leaves the new fields out, and the other reads that as no kind, so either service can be rolled back alone. The hand-off's JSON Schema is in `packages/handoff/json-schema/taps-request.schema.json` (11.7). |

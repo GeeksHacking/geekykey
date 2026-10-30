@@ -656,8 +656,8 @@ Commit it, and run `mise run db:migrate` to apply it to both local databases. CI
 the image and runs `check:migrations` on every pull request.
 
 Four more set up GeeksHacking's production database: `db:logins`, `db:test-station`,
-`db:token-kinds`, which loads each token's kind from the token writer's log, and
-`db:migrate --production`. `db:logins --staging` does the same for staging's,
+`db:token-kinds` and `db:migrate --production`. `db:token-kinds` loads each token's kind from the
+token writer's log. `db:logins --staging` does the same for staging's,
 `geekykey_staging`. Only Adam runs them, since they need logins kept on his laptop.
 The comment at the top of each script in `scripts/` says what it does.
 
