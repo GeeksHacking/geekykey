@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
@@ -50,6 +50,36 @@ const afterPrinting: MeResponse = {
   ...before,
   points: 5,
   stamps: [{ ...printing, earned_at: "2026-11-17T02:31:47.000Z" }, lounge],
+};
+
+const earnedPrinting: Stamp = {
+  ...printing,
+  earned_at: "2026-11-17T02:31:47.000Z",
+};
+const careers: Stamp = {
+  station_id: "careers",
+  name: "Careers Corner",
+  location: "Hall B",
+  points: 2,
+  link: "https://example.com/careers",
+  earned_at: null,
+};
+const withCareers: MeResponse = {
+  ...afterPrinting,
+  points: 7,
+  stamps: [earnedPrinting, careers, lounge],
+};
+const afterCareers: MeResponse = {
+  ...withCareers,
+  stamps: [earnedPrinting, { ...careers, earned_at: "2026-11-17T02:33:00.000Z" }, lounge],
+};
+const afterCareersNoLink: MeResponse = {
+  ...withCareers,
+  stamps: [
+    earnedPrinting,
+    { ...careers, link: null, earned_at: "2026-11-17T02:33:00.000Z" },
+    lounge,
+  ],
 };
 
 function renderScreen(Screen: () => React.ReactNode) {
@@ -122,6 +152,99 @@ describe("the passport marks what a poll changed", () => {
     poll(structuredClone(afterPrinting));
 
     expect(changed()).toEqual([]);
+  });
+});
+
+describe("the passport offers the new stamp's group page", () => {
+  function banner(name: string) {
+    return screen.getByRole("status", { name: `New stamp at ${name}` });
+  }
+
+  it("offers nothing on the first poll", () => {
+    renderScreen(PassportScreen);
+
+    expect(screen.queryByText("New stamp")).toBeNull();
+  });
+
+  it("offers nothing for a stamp that was already there", () => {
+    state.me = afterPrinting;
+    renderScreen(PassportScreen);
+
+    expect(screen.queryByText("New stamp")).toBeNull();
+  });
+
+  it("offers the new stamp's name and page", () => {
+    const { poll } = renderScreen(PassportScreen);
+    poll(afterPrinting);
+
+    const card = banner("3D Printing Booth");
+    expect(within(card).getByText("3D Printing Booth")).toBeInTheDocument();
+    const link = within(card).getByRole("link", { name: "Open their page?" });
+    expect(link).toHaveAttribute("href", "https://example.com/3d-printing");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("keeps the offer through a poll that changed nothing", () => {
+    const { poll } = renderScreen(PassportScreen);
+    poll(afterPrinting);
+
+    poll(structuredClone(afterPrinting));
+
+    expect(banner("3D Printing Booth")).toBeInTheDocument();
+  });
+
+  it("dismisses the offer", () => {
+    const { poll } = renderScreen(PassportScreen);
+    poll(afterPrinting);
+
+    fireEvent.click(within(banner("3D Printing Booth")).getByRole("button", { name: "Dismiss" }));
+
+    expect(screen.queryByText("New stamp")).toBeNull();
+  });
+
+  it("goes away when the page is pressed", () => {
+    const { poll } = renderScreen(PassportScreen);
+    poll(afterPrinting);
+
+    fireEvent.click(
+      within(banner("3D Printing Booth")).getByRole("link", { name: "Open their page?" }),
+    );
+
+    expect(screen.queryByText("New stamp")).toBeNull();
+  });
+
+  it("replaces the offer at the next new stamp", () => {
+    const { poll } = renderScreen(PassportScreen);
+    poll(afterPrinting);
+    poll(withCareers);
+
+    poll(afterCareers);
+
+    const card = banner("Careers Corner");
+    expect(within(card).getByRole("link", { name: "Open their page?" })).toHaveAttribute(
+      "href",
+      "https://example.com/careers",
+    );
+  });
+
+  it("clears the offer when the next new stamp has no link", () => {
+    const { poll } = renderScreen(PassportScreen);
+    poll(afterPrinting);
+    poll(withCareers);
+
+    poll(afterCareersNoLink);
+
+    expect(screen.queryByText("New stamp")).toBeNull();
+  });
+
+  it("clears the offer when someone else signs in", () => {
+    const { poll } = renderScreen(PassportScreen);
+    poll(afterPrinting);
+
+    poll({ ...afterPrinting, user: { ...afterPrinting.user, id: "dev-user-2" } });
+
+    expect(screen.queryByText("New stamp")).toBeNull();
   });
 });
 
