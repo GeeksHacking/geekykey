@@ -13,7 +13,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.9 (draft) |
+| Version | 0.9 |
 | Date | 30 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
@@ -1934,3 +1934,4 @@ Closed on 2026-10-10:
 | 2026-10-28 | Ethan, the screens owner, approved versions 0.7 and 0.8, so neither is a draft any more. No endpoint or shape changes (BAC-90, BAC-99). |
 | 2026-10-30 | 9.10 says the screen may pulse a station once for each new tap rather than once a poll, and that ours plays up to 3 a poll. No endpoint or shape changes (FRO-102). |
 | 2026-10-30 | Version 0.9, a draft for Ethan's review: a tap's result can carry what the station's game has the station show (BAC-111). Each item in 6.1's and 11.2's `results` can carry two optional fields: `lines`, one or two lines of 0 to 16 printable ASCII characters, and `complete`, `true` on the tap that finishes the game. Ours gives them with `accepted` and `cooldown` only. The passport's lines are the participant's progress, by the first word of their name while they have one of their own, and the tap that earns the last stamp has `complete`. The GeekyKey Service passes them on unchanged, and a line that breaks the rules fails the request with `503 event_service_unavailable`, as a bad status does. The firmware contract says how the station shows them, and a station that ignores them keeps working. Their JSON Schema is in `packages/handoff/json-schema/taps-answer.schema.json` (11.7). No field is removed. |
+| 2026-10-30 | Ethan, the screens owner, approved version 0.9, so it is no longer a draft. No endpoint or shape changes (BAC-111). |
