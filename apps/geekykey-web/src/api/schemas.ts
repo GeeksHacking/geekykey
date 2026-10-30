@@ -25,18 +25,18 @@ const tokenLookupSchema: z.ZodMiniType<TokenLookup> = z.object({
 });
 
 /** The GeekyKey Service's /me (agreement 8.4). Note: no display name and no points. */
-export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
+const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   user: z.object({ id: z.string(), is_geekykey_admin: z.boolean() }),
   tokens: z.array(tokenSchema),
   events: z.array(eventServiceLinkSchema),
 });
 
-export const tokenLookupResponseSchema = z.object({ token: tokenLookupSchema });
+const tokenLookupResponseSchema = z.object({ token: tokenLookupSchema });
 
-export const claimResponseSchema = z.object({ token: tokenSchema });
+const claimResponseSchema = z.object({ token: tokenSchema });
 
 /** Agreement 8.6: the answer is the link itself, with no wrapper. */
-export const loginLinkResponseSchema: z.ZodMiniType<LoginLink> = z.object({
+const loginLinkResponseSchema: z.ZodMiniType<LoginLink> = z.object({
   url: z.string(),
   expires_at: isoTimestamp,
 });

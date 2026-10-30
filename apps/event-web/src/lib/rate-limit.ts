@@ -13,7 +13,7 @@ import { isApiErrorCode } from "@/api/errors";
 */
 
 /** True for the agreement's rate_limited answer, whatever transport produced it. */
-export function isRateLimited(error: unknown): boolean {
+function isRateLimited(error: unknown): boolean {
   return isApiErrorCode(error, "rate_limited");
 }
 

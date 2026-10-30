@@ -14,6 +14,13 @@ import type {
   StatsResponse,
 } from "@/api/types";
 
+/*
+  Seven of the response schemas below are exported for the Event Service's route tests,
+  which import this file by path and parse their answers with them
+  (apps/event-service/src/test-helpers.ts). TypeScript cannot see that caller, so a
+  dead-export sweep must leave those seven alone.
+*/
+
 const isoTimestamp = z.iso.datetime({ offset: true });
 const role = z.enum(["participant", "organizer"]);
 const tapStatus = z.enum(["accepted", "cooldown", "no_game"]);
@@ -108,7 +115,7 @@ export const statsResponseSchema: z.ZodMiniType<StatsResponse> = z.object({
 });
 
 /** Agreement 9.10. Has no user ID, display name or token UID, so nothing here can carry one. */
-export const mapResponseSchema: z.ZodMiniType<MapResponse> = z.object({
+const mapResponseSchema: z.ZodMiniType<MapResponse> = z.object({
   stations: z.array(
     z.object({
       station_id: z.string(),
@@ -161,7 +168,7 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
 });
 
 /** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
-export const setDisplayNameResponseSchema: z.ZodMiniType<SetDisplayNameResponse> = z.object({
+const setDisplayNameResponseSchema: z.ZodMiniType<SetDisplayNameResponse> = z.object({
   user: userSchema,
 });
 

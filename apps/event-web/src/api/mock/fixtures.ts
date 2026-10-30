@@ -63,7 +63,7 @@ export interface MockData {
 }
 
 /** Small deterministic PRNG (mulberry32). */
-export function createRandom(seed: number): () => number {
+function createRandom(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
