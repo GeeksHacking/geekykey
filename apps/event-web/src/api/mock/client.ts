@@ -198,6 +198,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
    */
   const gameOf = (station: MockStation) => (station.passport ? "passport" : null);
 
+  // The stamp slots (section 4): stations with passport settings, oldest settings first, so
+  // adding one never moves the others. The passport (8.1) and the stats (9.5) list these.
+  const stampSlots = () =>
+    data.stations
+      .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
+      .sort((a, b) => a.added_at.localeCompare(b.added_at));
+
   /**
    * Agreement 9.2. Every field comes from the Event Service's own station row, since
    * version 0.3 removed the status call this board used to sit behind. `online` is
@@ -269,22 +276,18 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const user = currentUser();
         const mine = data.taps.filter((t) => t.user_id === user.id);
         const accepted = mine.filter((t) => t.status === "accepted");
-        // Only stations with passport settings are slots, oldest settings first (agreement 8.1).
-        const stamps = data.stations
-          .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
-          .sort((a, b) => a.added_at.localeCompare(b.added_at))
-          .map((passport) => {
-            const first = accepted
-              .filter((t) => t.station_id === passport.id)
-              .sort((a, b) => a.received_at.localeCompare(b.received_at))[0];
-            return {
-              station_id: passport.id,
-              name: passport.name,
-              location: passport.location,
-              points: passport.points,
-              earned_at: first?.received_at ?? null,
-            };
-          });
+        const stamps = stampSlots().map((passport) => {
+          const first = accepted
+            .filter((t) => t.station_id === passport.id)
+            .sort((a, b) => a.received_at.localeCompare(b.received_at))[0];
+          return {
+            station_id: passport.id,
+            name: passport.name,
+            location: passport.location,
+            points: passport.points,
+            earned_at: first?.received_at ?? null,
+          };
+        });
         const points = accepted.reduce(
           (sum, t) => sum + (stationById(t.station_id)?.passport?.points ?? 0),
           0,
@@ -529,11 +532,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           total_taps: data.taps.length,
           accepted_taps: accepted.length,
           unique_participants: unique(accepted),
-          stations: data.stations.map((station) => {
-            const here = accepted.filter((t) => t.station_id === station.id);
+          // Taps at a station outside the passport still count in the totals (agreement 9.5).
+          stations: stampSlots().map((slot) => {
+            const here = accepted.filter((t) => t.station_id === slot.id);
             return {
-              station_id: station.id,
-              name: station.passport?.name ?? station.label,
+              station_id: slot.id,
+              name: slot.name,
               accepted_taps: here.length,
               unique_participants: unique(here),
             };
@@ -565,7 +569,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           EXPORT_CSV_COLUMNS.join(","),
           ...rows.map((row) => row.map(csvCell).join(",")),
         ];
-        return new Blob([lines.join("\n") + "\n"], { type: "text/csv;charset=utf-8" });
+        // RFC 4180, as agreement 9.6 has it: every line ends in CRLF, the last one too.
+        return new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
       }),
 
     // Agreement 9.10. The mock keeps no map screen list, so only an organizer may read it.
@@ -627,7 +632,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 }
 
 function csvCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 function randomBase62(length: number): string {

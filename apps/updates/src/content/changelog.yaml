@@ -1830,3 +1830,11 @@
     The organiser console shares the showcase's look: a faint grid behind its screens, mono
     labels on its captions, headings and fields, and corner brackets around the station board,
     the scan log, the summary, the QR fallback and the station dialogs.
+- id: mock-stats-and-export-match-agreement
+  date: 2026-10-30
+  area: frontend
+  change: >-
+    The summary on the demo data now lists only the stations in the passport, oldest first, as the
+    Event Service does. Until now it also listed stations outside the passport. The demo export now
+    ends every line in CRLF, as the Event Service's file does, and quotes a value that holds a
+    carriage return.
