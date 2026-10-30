@@ -1811,3 +1811,14 @@
   change: >-
     Closing a dialog on the station board returns the keyboard to the button that opened it, or
     to the row's Enable when a save swapped that button out.
+
+- id: station-shows-its-games-lines
+  date: 2026-10-30
+  area: backend
+  change: >-
+    A tap's answer can now carry two short lines from the station's game, and a sign that the tap
+    finished the game. The passport sends the visitor's first name and progress, such as "3 of 6",
+    and the tap that earns the last stamp says "All 6 done!". The station's side is HAR-28, and the
+    agreement change waits for Ethan's review. The trade-offs we accept: a name the station's
+    screen can't show, such as one in Chinese characters, is left out, a long one is cut to fit,
+    and the screen shows the name to whoever is next in the queue.
