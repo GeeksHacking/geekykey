@@ -28,6 +28,8 @@ export interface Stamp {
   name: string;
   location: string | null;
   points: number;
+  /** The group's page from the station's settings (agreement 8.1), or null. */
+  link: string | null;
   earned_at: string | null;
 }
 
@@ -64,14 +66,20 @@ export interface EventStationPassport {
   name: string;
   location: string | null;
   points: number;
+  /** The group's page the passport offers after a stamp here (agreement 9.1), or null. */
+  link: string | null;
   added_at: string;
 }
 
-/** PUT /api/v1/admin/stations/{id}/passport. `location` and `points` may be left out. */
+/**
+ * PUT /api/v1/admin/stations/{id}/passport. `location`, `points` and `link` may be left
+ * out; a missing `link` clears it, as 9.1 says.
+ */
 export interface SetStationPassportRequest {
   name: string;
   location?: string;
   points?: number;
+  link?: string;
 }
 
 /** Agreement 9.1. `station_id` is at the top level here, unlike the board's nested passport. */

@@ -120,6 +120,7 @@ describe("me response contract", () => {
             name: "3D Printing Booth",
             location: "Hall A",
             points: 1,
+            link: "https://example.com/3d-printing",
             added_at: "2026-10-01T02:00:00.000Z",
           },
           last_seen_at: "2026-10-10T09:00:01.250Z",
@@ -384,6 +385,7 @@ describe("organizer response contract", () => {
         name: "3D Printing Booth",
         location: null,
         points: 1,
+        link: "https://example.com/3d-printing",
         added_at: "2026-10-10T09:00:00.000Z",
       },
     };
@@ -410,6 +412,7 @@ describe("the rules each field carries", () => {
         name: "3D Printing Booth",
         location: null,
         points: 3,
+        link: "https://example.com/3d-printing",
         earned_at: "2026-10-10T17:04:00+08:00",
       },
     ],

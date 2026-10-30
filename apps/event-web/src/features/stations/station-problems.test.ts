@@ -22,6 +22,7 @@ function station(overrides: Partial<EventStationBoardStation> = {}): EventStatio
       name: "3D Printing Booth",
       location: "Hall A",
       points: 1,
+      link: null,
       added_at: "2026-10-01T00:00:00.000Z",
     },
     last_seen_at: "2026-10-10T09:00:01.250Z",

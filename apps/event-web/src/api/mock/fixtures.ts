@@ -28,6 +28,7 @@ export interface MockStation {
     name: string;
     location: string | null;
     points: number;
+    link: string | null;
     added_at: string;
   } | null;
   /**
@@ -127,6 +128,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         name: "3D Printing Booth",
         location: "Hall A",
         points: 1,
+        link: "https://example.com/3d-printing",
         added_at: iso(eventStart - minutes(60)),
       },
       booth: "B1",
@@ -145,6 +147,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         name: "Cloud Sponsor",
         location: "Hall B",
         points: 2,
+        link: null,
         added_at: iso(eventStart - minutes(70)),
       },
       booth: "B4",
@@ -178,6 +181,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         name: "Mentor Lounge",
         location: "Level 2",
         points: 1,
+        link: null,
         added_at: iso(eventStart - minutes(55)),
       },
       booth: "A2",
@@ -199,6 +203,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         name: "Careers Corner",
         location: "Hall B",
         points: 2,
+        link: null,
         added_at: iso(eventStart - minutes(45)),
       },
       booth: "D2",
@@ -235,6 +240,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         name: "Info Desk",
         location: "Foyer",
         points: 1,
+        link: null,
         added_at: iso(eventStart - minutes(40)),
       },
       booth: "C1",

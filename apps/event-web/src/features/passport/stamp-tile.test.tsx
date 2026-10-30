@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { StampTile } from "@/features/passport/stamp-tile";
 
-const base = { station_id: "s1", name: "3D Printing Booth", location: "Hall A", points: 2 };
+const base = {
+  station_id: "s1",
+  name: "3D Printing Booth",
+  location: "Hall A",
+  points: 2,
+  link: "https://example.com/3d-printing",
+};
 
 describe("StampTile", () => {
   it("marks an earned stamp with the word Stamped and its time", () => {

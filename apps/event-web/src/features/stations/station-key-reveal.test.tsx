@@ -43,6 +43,7 @@ const withPassport: StationKeyResponse = {
       name: "3D Printing Booth",
       location: "Hall A",
       points: 1,
+      link: null,
       added_at: "2026-10-10T00:00:00.000Z",
     },
   },

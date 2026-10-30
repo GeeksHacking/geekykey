@@ -285,6 +285,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             name: passport.name,
             location: passport.location,
             points: passport.points,
+            link: passport.link,
             earned_at: first?.received_at ?? null,
           };
         });
@@ -462,6 +463,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         if (location !== undefined && location.length > 80) {
           issues.push({ path: ["location"], message: "location must be 80 characters or fewer" });
         }
+        const link = input.link?.trim();
         if (issues.length) fail("validation_failed", issues);
 
         // added_at decides the passport's slot order (agreement 8.1), so changing settings
@@ -472,6 +474,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           name,
           location: location || null,
           points,
+          link: link || null,
           added_at: addedAt,
         };
         return { passport: { station_id: station.id, ...station.passport } };
