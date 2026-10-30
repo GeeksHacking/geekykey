@@ -525,15 +525,20 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const accepted = data.taps.filter((t) => t.status === "accepted");
         const unique = (taps: MockTap[]) =>
           new Set(taps.map((t) => t.user_id).filter(Boolean)).size;
+        // Only the stamp slots, oldest settings first (agreement 9.5). Taps elsewhere still
+        // count in the totals.
+        const slots = data.stations
+          .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
+          .sort((a, b) => a.added_at.localeCompare(b.added_at));
         return {
           total_taps: data.taps.length,
           accepted_taps: accepted.length,
           unique_participants: unique(accepted),
-          stations: data.stations.map((station) => {
-            const here = accepted.filter((t) => t.station_id === station.id);
+          stations: slots.map((slot) => {
+            const here = accepted.filter((t) => t.station_id === slot.id);
             return {
-              station_id: station.id,
-              name: station.passport?.name ?? station.label,
+              station_id: slot.id,
+              name: slot.name,
               accepted_taps: here.length,
               unique_participants: unique(here),
             };
@@ -565,7 +570,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           EXPORT_CSV_COLUMNS.join(","),
           ...rows.map((row) => row.map(csvCell).join(",")),
         ];
-        return new Blob([lines.join("\n") + "\n"], { type: "text/csv;charset=utf-8" });
+        // RFC 4180, as agreement 9.6 has it: every line ends in CRLF, the last one too.
+        return new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
       }),
 
     // Agreement 9.10. The mock keeps no map screen list, so only an organizer may read it.
@@ -627,7 +633,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 }
 
 function csvCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 function randomBase62(length: number): string {

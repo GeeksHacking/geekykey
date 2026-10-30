@@ -9,6 +9,13 @@ function client() {
   return createMockClient({ latencyMs: [0, 0], storage: null });
 }
 
+/** The export's lines, split on the CRLF that ends each one (agreement 9.6). */
+async function exportLines(api: ReturnType<typeof client>) {
+  const text = await (await api.exportCsv()).text();
+  expect(text.endsWith("\r\n")).toBe(true);
+  return text.slice(0, -2).split("\r\n");
+}
+
 async function expectApiError(promise: Promise<unknown>, code: string, status: number) {
   const error = await promise.catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
@@ -494,6 +501,62 @@ describe("QR fallback", () => {
   });
 });
 
+// Agreement 9.5: the stats list the stamp slots (section 4) only, in the order their passport
+// settings were added, each named by its passport name.
+describe("stats", () => {
+  it("lists the stamp slots only, oldest settings first, by their passport names", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const stats = await api.stats();
+
+    // Stations 3 and 6 have no passport settings, so they aren't listed. Info Desk is
+    // disabled and keeps its slot (9.9).
+    expect(stats.stations.map((station) => station.name)).toEqual([
+      "Cloud Sponsor",
+      "3D Printing Booth",
+      "Mentor Lounge",
+      "Careers Corner",
+      "Info Desk",
+    ]);
+  });
+
+  it("lists a new stamp slot last, with zeros, and its label never stands in", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const { station } = await api.createStation({ label: "Robotics Corner" });
+    expect((await api.stats()).stations.map((s) => s.station_id)).not.toContain(station.id);
+
+    await api.setStationPassport(station.id, { name: "Robot Arena" });
+    const last = (await api.stats()).stations.at(-1);
+
+    expect(last).toEqual({
+      station_id: station.id,
+      name: "Robot Arena",
+      accepted_taps: 0,
+      unique_participants: 0,
+    });
+  });
+
+  it("counts the taps at a station outside the passport in the totals", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const outside = "e0f3a9b2-6c4d-4a1e-8f5b-7d2c9e1a0b63"; // Station 3, no passport settings
+    const before = await api.stats();
+    api.mock.data.taps.push({
+      ...api.mock.data.taps[0]!,
+      id: 999_999,
+      client_tap_id: "tap-fro-81",
+      station_id: outside,
+      status: "accepted",
+    });
+
+    const after = await api.stats();
+    expect(after.total_taps).toBe(before.total_taps + 1);
+    expect(after.accepted_taps).toBe(before.accepted_taps + 1);
+    expect(after.stations).toEqual(before.stations);
+  });
+});
+
 describe("station keys and export", () => {
   it("returns the key once, prefixed, and never in the board", async () => {
     const api = client();
@@ -572,8 +635,7 @@ describe("station keys and export", () => {
   it("exports the agreed ten CSV columns, in order", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    const text = await (await api.exportCsv()).text();
-    const [header, ...rows] = text.trim().split("\n");
+    const [header, ...rows] = await exportLines(api);
 
     expect(header).toBe(EXPORT_CSV_COLUMNS.join(","));
     expect(EXPORT_CSV_COLUMNS).toHaveLength(10);
@@ -598,26 +660,47 @@ describe("station keys and export", () => {
     ]);
   });
 
-  it("leaves station_name and display_name empty when the tap has neither", async () => {
+  it("ends every line in CRLF, the last one too", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const text = await (await api.exportCsv()).text();
-    const header = text.trim().split("\n")[0]!.split(",");
+
+    expect(text.endsWith("\r\n")).toBe(true);
+    // No fixture value holds a line break, so every CR and LF is a line end.
+    expect(text.match(/\r\n/g)).toHaveLength(api.mock.data.taps.length + 1);
+    expect(text.replace(/\r\n/g, "")).not.toMatch(/[\r\n]/);
+  });
+
+  it.each([
+    ["a carriage return", "Wei\rLin", '"Wei\rLin"'],
+    ["a line feed", "Wei\nLin", '"Wei\nLin"'],
+    ["a comma", "Chong, Wei Lin", '"Chong, Wei Lin"'],
+    ["a double quote", 'Wei "WL" Lin', '"Wei ""WL"" Lin"'],
+  ])("quotes a value holding %s", async (_, name, cell) => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    api.mock.data.users.find((user) => user.id === "u_7f3a")!.display_name = name;
+    const text = await (await api.exportCsv()).text();
+
+    expect(text).toContain(`,u_7f3a,${cell},`);
+  });
+
+  it("leaves station_name and display_name empty when the tap has neither", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const lines = await exportLines(api);
+    const header = lines[0]!.split(",");
     const stationNameAt = header.indexOf("station_name");
     const displayNameAt = header.indexOf("display_name");
 
-    const guestRow = text
-      .trim()
-      .split("\n")
+    const guestRow = lines
       .slice(1)
       .find((line) =>
         line.startsWith(`${api.mock.data.taps.find((t) => t.user_id === "u_9d4f")!.id},`),
       );
     expect(guestRow?.split(",")[displayNameAt]).toBe("");
 
-    const noGameRow = text
-      .trim()
-      .split("\n")
+    const noGameRow = lines
       .slice(1)
       .find((line) => line.split(",")[header.indexOf("status")] === "no_game");
     expect(noGameRow?.split(",")[stationNameAt]).toBe("");
