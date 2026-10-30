@@ -23,7 +23,7 @@ asks:
       either read-only access or someone who watches them on the day (asked 1 and 8 Oct).
   - who: Qing Guan
     what: >-
-      An OIDC client for our Firebase project, so visitors with a GeeksHacking account can
+      An OIDC client for our Firebase project, so participants with a GeeksHacking account can
       log in with it at the showcase.
 ---
 
@@ -193,8 +193,8 @@ saves the tap and shows "Will send later". Rejected: answering every tap at once
 would lose both messages.
 
 **The showcase logs in through Firebase.** Settled on 8 Oct with Julian and Qing Guan. Why:
-the showcase's visitors never end up in GeeksHacking's user list, and the login no longer
-waits on the Portal's team. Visitors sign in with Google, or with their GeeksHacking
+the showcase's participants never end up in GeeksHacking's user list, and the login no longer
+waits on the Portal's team. Participants sign in with Google, or with their GeeksHacking
 account if Mr Pang agrees to offer it. Rejected: the Portal's own login, which comes after
 the showcase.
 

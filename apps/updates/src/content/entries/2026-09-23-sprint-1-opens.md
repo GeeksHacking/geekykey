@@ -15,7 +15,7 @@ areas: [backend, frontend, hardware, design, tooling, admin]
 asks:
   - who: Qing Guan
     what: >-
-      30 minutes on the portal user schema and the OIDC callback shape. Everything
+      30 minutes on the Portal's user schema and the OIDC callback shape. Everything
       auth-related past dev login is blocked on this.
   - who: Mr Pang
     what: >-
