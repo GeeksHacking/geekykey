@@ -44,7 +44,7 @@ export function StationsScreen() {
             title="Station updates are delayed."
           />
         ) : null}
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="look-label flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-muted-foreground">
           <span>
             <span className="font-mono text-foreground">{list.length}</span> stations,{" "}
             <span className="font-mono text-foreground">{online}</span> online

@@ -100,7 +100,7 @@ export function PassportStationForm({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel className="look-label">Name</FormLabel>
               <FormControl>
                 <Input {...field} autoComplete="off" placeholder="3D Printing Booth" />
               </FormControl>
@@ -114,7 +114,7 @@ export function PassportStationForm({
           name="location"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Location</FormLabel>
+              <FormLabel className="look-label">Location</FormLabel>
               <FormControl>
                 <Input {...field} autoComplete="off" placeholder="Hall A" />
               </FormControl>
@@ -128,7 +128,7 @@ export function PassportStationForm({
           name="points"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Points per accepted tap</FormLabel>
+              <FormLabel className="look-label">Points per accepted tap</FormLabel>
               <FormControl>
                 <Input {...field} inputMode="numeric" className="w-24 font-mono" />
               </FormControl>

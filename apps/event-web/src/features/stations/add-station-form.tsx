@@ -70,7 +70,7 @@ export function AddStationForm({ onCreated }: { onCreated: (result: StationKeyRe
           name="label"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Label</FormLabel>
+              <FormLabel className="look-label">Label</FormLabel>
               <FormControl>
                 <Input {...field} autoComplete="off" placeholder="Reader 3" />
               </FormControl>

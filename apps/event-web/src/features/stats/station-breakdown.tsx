@@ -22,7 +22,7 @@ export function StationBreakdown({ stations }: { stations: StationStats[] }) {
         <TableRow>
           <TableHead>Station</TableHead>
           <TableHead className="w-1/2">Accepted taps</TableHead>
-          <TableHead className="w-40 text-right">Unique participants</TableHead>
+          <TableHead className="w-48 text-right">Unique participants</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

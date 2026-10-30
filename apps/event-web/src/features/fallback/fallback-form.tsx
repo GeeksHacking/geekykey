@@ -102,7 +102,7 @@ export function FallbackForm({ stations }: { stations: StationOption[] }) {
           name="station_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Station</FormLabel>
+              <FormLabel className="look-label">Station</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -127,7 +127,7 @@ export function FallbackForm({ stations }: { stations: StationOption[] }) {
           name="user_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>User ID</FormLabel>
+              <FormLabel className="look-label">User ID</FormLabel>
               <FormControl>
                 <Input
                   {...field}

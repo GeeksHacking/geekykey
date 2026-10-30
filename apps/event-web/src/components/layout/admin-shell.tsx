@@ -46,7 +46,7 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
           <Link to="/admin/stations" aria-label="Organiser console home" className="shrink-0">
             <Wordmark />
           </Link>
-          <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-secondary-foreground">
+          <span className="look-label rounded-md bg-secondary px-1 py-0.5 text-[10px] font-medium tracking-normal text-secondary-foreground">
             Organiser
           </span>
         </div>
@@ -60,7 +60,8 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
           <ThemeToggle />
         </div>
       </aside>
-      <div className="flex min-h-[100dvh] min-w-0 flex-col">
+      {/* The look's grid sits behind the workspace only, so the sidebar stays plain. */}
+      <div className="flex min-h-[100dvh] min-w-0 flex-col bg-look-grid">
         <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-sm lg:hidden">
           <div className="flex h-14 items-center justify-between px-4">
             <Link to="/admin/stations" aria-label="Organiser console home" className="shrink-0">

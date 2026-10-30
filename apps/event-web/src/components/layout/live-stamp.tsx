@@ -11,7 +11,7 @@ export function LiveStamp({ updatedAt, refreshing }: LiveStampProps) {
   if (!updatedAt) return null;
   const iso = new Date(updatedAt).toISOString();
   return (
-    <span className="text-xs text-muted-foreground">
+    <span className="look-label text-muted-foreground">
       {refreshing ? "Updating" : "Updated"}{" "}
       <time dateTime={iso} className="font-mono">
         {formatTimeWithSeconds(iso)}

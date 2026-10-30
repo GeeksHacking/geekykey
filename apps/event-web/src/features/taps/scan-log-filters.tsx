@@ -23,7 +23,9 @@ export function ScanLogFilters({ filters, onChange, stations }: ScanLogFiltersPr
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:max-w-xl">
       <div className="grid gap-1.5">
-        <Label htmlFor="filter-station">Station</Label>
+        <Label htmlFor="filter-station" className="look-label">
+          Station
+        </Label>
         <Select
           value={filters.station_id ?? ALL}
           onValueChange={(value) =>
@@ -44,7 +46,9 @@ export function ScanLogFilters({ filters, onChange, stations }: ScanLogFiltersPr
         </Select>
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="filter-status">Status</Label>
+        <Label htmlFor="filter-status" className="look-label">
+          Status
+        </Label>
         <Select
           value={filters.status ?? ALL}
           onValueChange={(value) =>

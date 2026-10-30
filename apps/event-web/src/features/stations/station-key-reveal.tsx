@@ -70,7 +70,9 @@ export function StationKeyReveal({ kind, result, onDone }: StationKeyRevealProps
         <p>Copy it now. It is shown once, and closing this dialog hides it for good.</p>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="station-key">Station key</Label>
+        <Label htmlFor="station-key" className="look-label">
+          Station key
+        </Label>
         <Input
           id="station-key"
           readOnly
