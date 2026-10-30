@@ -8,8 +8,8 @@ import { PassportStationForm } from "@/features/stations/passport-station-form";
  * Wraps PassportStationForm in a dialog. The board renders one of these per station and
  * keeps it closed until the organiser asks for it, so no station holds open dialog state.
  *
- * `returnFocusTo` is the row's passport button, which takes the keyboard back on close
- * (FRO-99).
+ * `returnFocusTo` is the row's Station settings button, which takes the keyboard back on
+ * close (FRO-99, FRO-100).
  */
 export function PassportStationDialog({
   station,
@@ -26,9 +26,7 @@ export function PassportStationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
-      >
+      <DialogContent onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo)}>
         <CornerBrackets />
         <PassportStationForm
           station={station}

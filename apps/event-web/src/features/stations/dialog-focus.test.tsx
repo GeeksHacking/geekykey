@@ -1,9 +1,13 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent, { type UserEvent } from "@testing-library/user-event";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
+import {
+  openStationSettings,
+  pickStationAction,
+} from "@/features/stations/station-settings-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
@@ -23,12 +27,6 @@ function renderBoard() {
 const IN_PASSPORT = "3D Printing Booth";
 const NOT_IN_PASSPORT = "Station 6";
 
-async function open(user: UserEvent, name: string) {
-  const button = await screen.findByRole("button", { name });
-  await user.click(button);
-  return button;
-}
-
 /**
  * The dialog is gone and the keyboard is back where it was. Radix moves focus on close in a
  * timeout, so this waits rather than reading once (FRO-99).
@@ -37,131 +35,139 @@ async function expectFocusBack(button: HTMLElement) {
   await waitFor(() => expect(document.activeElement).toBe(button));
 }
 
+// Since FRO-100 every row dialog opens from the row's Station settings menu, so the menu's
+// button is where the keyboard goes back to. It stays in the row through every save, renamed
+// at most, so the same element takes the focus whatever the dialog changed.
 describe("a station board dialog returns focus to its row (FRO-99)", () => {
   beforeEach(() => {
     sessionStorage.clear();
   });
 
-  it("puts it back on the passport settings button after Escape", async () => {
+  it("puts it back on the row's settings button after Escape on passport settings", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Change passport settings for ${IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
 
-    await expectFocusBack(button);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it back on the Add to passport button, which has no settings yet", async () => {
+  it("puts it back after Add to passport, on a station with no settings yet", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Add to passport ${NOT_IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport");
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
 
-    await expectFocusBack(button);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it on the renamed passport button after a save", async () => {
+  it("puts it on the same button, renamed, after a passport save", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await open(user, `Add to passport ${NOT_IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport");
     await user.type(await screen.findByLabelText("Name"), "Photo Wall");
     await user.click(screen.getByRole("button", { name: "Add to passport" }));
 
-    // The save renames the row's button, as it gains passport settings.
-    const renamed = await screen.findByRole("button", {
-      name: "Change passport settings for Photo Wall",
-    });
-    await expectFocusBack(renamed);
+    // The save renames the row's button, as the station gains a passport name.
+    await screen.findByRole("button", { name: "Station settings for Photo Wall" });
+    expect(trigger).toHaveAccessibleName("Station settings for Photo Wall");
+    await expectFocusBack(trigger);
   });
 
-  it("puts it back on the booth button after Enter and Escape, the keyboard path", async () => {
+  it("goes into the dialog and back out by keyboard alone", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await screen.findByRole("button", { name: `Change booth for ${IN_PASSPORT}` });
-    button.focus();
+    const trigger = await screen.findByRole("button", {
+      name: `Station settings for ${IN_PASSPORT}`,
+    });
+    trigger.focus();
     await user.keyboard("{Enter}");
-    await screen.findByRole("dialog");
+    await screen.findByRole("menu");
+    // The first item takes the focus, and Change booth is the next one down.
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    // The menu closing must not pull the keyboard back out of the dialog it opened.
+    const field = await screen.findByLabelText("Booth");
+    await waitFor(() =>
+      expect(screen.getByRole("dialog")).toContainElement(document.activeElement as HTMLElement),
+    );
+    expect(field).toBeInTheDocument();
+
     await user.keyboard("{Escape}");
 
-    await expectFocusBack(button);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it back on the button when the dialog's Close is clicked", async () => {
+  it("puts it back when the dialog's Close is clicked", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Change booth for ${IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Change booth");
     await user.click(await screen.findByRole("button", { name: "Close" }));
 
-    await expectFocusBack(button);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it on the renamed booth button after a save, not on the page", async () => {
+  it("puts it back after a booth save, not on the page", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await open(user, `Set booth for ${NOT_IN_PASSPORT}`);
-    const field = await screen.findByLabelText("Booth");
-    await user.type(field, "A1");
+    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Set booth");
+    await user.type(await screen.findByLabelText("Booth"), "A1");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    // The save renames the row's button from Set booth to Change booth.
-    const renamed = await screen.findByRole("button", {
-      name: `Change booth for ${NOT_IN_PASSPORT}`,
-    });
-    await expectFocusBack(renamed);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it back on the replace-key button after the confirmation is cancelled", async () => {
+  it("puts it back after the replace-key confirmation is cancelled", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Replace key for ${IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Replace key");
     await screen.findByRole("alertdialog");
     await user.keyboard("{Escape}");
 
-    await expectFocusBack(button);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it back on the replace-key button once the new key is done", async () => {
+  it("puts it back once the new key is done", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Replace key for ${IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Replace key");
     await user.click(await screen.findByRole("button", { name: /^Replace key$/ }));
     // The alert steps aside for the key reveal, which then closes the flow.
     await user.click(await screen.findByRole("button", { name: "Done" }));
 
-    await expectFocusBack(button);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it back on the disable button when the confirmation is cancelled", async () => {
+  it("puts it back when the disable confirmation is cancelled", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const button = await open(user, `Disable ${IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Disable");
     await screen.findByRole("alertdialog");
     await user.keyboard("{Escape}");
 
-    await expectFocusBack(button);
+    await expectFocusBack(trigger);
   });
 
-  it("puts it on the row's Enable after a disable replaces the button", async () => {
+  it("puts it back after a disable, on the button whose menu now offers Enable", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await open(user, `Disable ${IN_PASSPORT}`);
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Disable");
     await user.click(await screen.findByRole("button", { name: /^Disable$/ }));
 
-    // Disabling swaps the row's Disable for an Enable, a different element, so the focus
-    // goes to the row's new power button rather than the one that opened the alert.
-    const enable = await screen.findByRole("button", { name: `Enable ${IN_PASSPORT}` });
-    await expectFocusBack(enable);
+    await expectFocusBack(trigger);
+    await openStationSettings(user, IN_PASSPORT);
+    expect(screen.getByRole("menuitem", { name: "Enable" })).toBeInTheDocument();
   });
 });

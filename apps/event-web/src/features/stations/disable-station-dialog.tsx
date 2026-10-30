@@ -27,8 +27,8 @@ const CONFIRMATION =
  * As with the replace-key alert, Radix mounts the content only once it opens, which is
  * what holds the useDisableStation call here rather than in the board's row.
  *
- * `returnFocusTo` is the row's Disable button. A successful disable replaces it with Enable,
- * so the row's new power button takes the keyboard back instead (FRO-99).
+ * `returnFocusTo` is the row's Station settings button (FRO-99, FRO-100). A successful disable
+ * leaves it in place, its menu now offering Enable, so it takes the keyboard back either way.
  */
 export function DisableStationDialog({
   station,
@@ -43,9 +43,7 @@ export function DisableStationDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
-        onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
-      >
+      <AlertDialogContent onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo)}>
         <CornerBrackets />
         <DisableStationConfirm station={station} onDisabled={() => onOpenChange(false)} />
       </AlertDialogContent>
@@ -73,7 +71,7 @@ function DisableStationConfirm({
     } catch (caught) {
       // 9.9 answers not_found for a station this Event Service does not have. Nothing was
       // disabled, so the alert stays open and says so in the same plain words as the
-      // replace-key alert beside it in the row.
+      // replace-key alert beside it in the row's menu.
       setError(describeError(caught));
     }
   }

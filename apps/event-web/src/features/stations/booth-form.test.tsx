@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
-import userEvent, { type UserEvent } from "@testing-library/user-event";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
+import { pickStationAction } from "@/features/stations/station-settings-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
@@ -25,13 +26,6 @@ const WITH_BOOTH = "3D Printing Booth";
 /** A fixture station with no passport settings and no booth. */
 const NO_BOOTH = "Station 6";
 
-async function button(user: UserEvent, name: string) {
-  const matches = await screen.findAllByRole("button", { name });
-  const first = matches[0];
-  if (!first) throw new Error(`no button named ${name}`);
-  await user.click(first);
-}
-
 /** The row a station's name sits in, so a test reads the whole row rather than loose text. */
 async function row(name: string) {
   return (await screen.findByText(name)).closest("tr");
@@ -46,7 +40,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await button(user, `Change booth for ${WITH_BOOTH}`);
+    await pickStationAction(user, WITH_BOOTH, "Change booth");
 
     expect(await screen.findByLabelText("Booth")).toHaveValue("B1");
   });
@@ -55,7 +49,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await button(user, `Change booth for ${WITH_BOOTH}`);
+    await pickStationAction(user, WITH_BOOTH, "Change booth");
 
     const hint = await screen.findByText(/The example plan names/);
     expect(hint).toHaveTextContent("A1 to A3");
@@ -67,7 +61,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await button(user, `Change booth for ${WITH_BOOTH}`);
+    await pickStationAction(user, WITH_BOOTH, "Change booth");
 
     const booth = await screen.findByLabelText("Booth");
     await user.clear(booth);
@@ -82,7 +76,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     renderBoard();
 
     expect(await row(NO_BOOTH)).toHaveTextContent("No booth");
-    await button(user, `Set booth for ${NO_BOOTH}`);
+    await pickStationAction(user, NO_BOOTH, "Set booth");
 
     await user.type(await screen.findByLabelText("Booth"), "A1");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -94,7 +88,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await button(user, `Change booth for ${WITH_BOOTH}`);
+    await pickStationAction(user, WITH_BOOTH, "Change booth");
 
     await user.clear(await screen.findByLabelText("Booth"));
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -108,7 +102,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await button(user, `Set booth for ${NO_BOOTH}`);
+    await pickStationAction(user, NO_BOOTH, "Set booth");
 
     await user.type(await screen.findByLabelText("Booth"), "Z9");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -123,7 +117,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
       (station) => station.passport?.name === WITH_BOOTH,
     )?.booth;
 
-    await button(user, `Change booth for ${WITH_BOOTH}`);
+    await pickStationAction(user, WITH_BOOTH, "Change booth");
 
     const booth = await screen.findByLabelText("Booth");
     await user.clear(booth);
@@ -149,7 +143,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
       ]);
     };
 
-    await button(user, `Change booth for ${WITH_BOOTH}`);
+    await pickStationAction(user, WITH_BOOTH, "Change booth");
     await user.click(await screen.findByRole("button", { name: "Save" }));
 
     const message = await screen.findByText("booth must be 0 to 80 characters");

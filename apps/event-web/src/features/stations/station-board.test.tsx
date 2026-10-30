@@ -2,6 +2,10 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventStationBoardStation, StationResponse } from "@/api/types";
 import { StationBoard } from "@/features/stations/station-board";
+import {
+  openStationSettings,
+  pickStationAction,
+} from "@/features/stations/station-settings-test-helpers";
 import { describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
@@ -26,6 +30,10 @@ function renderBoard(
       </Providers>,
     ),
   };
+}
+
+function menuItemNames() {
+  return screen.getAllByRole("menuitem").map((item) => item.textContent);
 }
 
 function station(overrides: Partial<EventStationBoardStation> = {}): EventStationBoardStation {
@@ -111,13 +119,65 @@ describe("StationBoard", () => {
     expect(screen.getByText("Never")).toBeInTheDocument();
   });
 
+  // FRO-100. One control per row, named for its station, in place of the four actions that
+  // used to sit under the name.
+  it("gives each row one Station settings control, named for its station", () => {
+    renderBoard([healthyStation, deadReader]);
+
+    expect(
+      screen.getByRole("button", { name: "Station settings for Healthy Booth" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Station settings for Station 3" })).toBeEnabled();
+    expect(screen.getAllByRole("button")).toHaveLength(2);
+  });
+
   // FRO-26. The switch follows the row's state, in both directions at once: the same row
-  // cannot hold both, and the named labels are how a row's action stays addressable.
-  it("gives an enabled station Disable, and no Enable, named for its row", () => {
+  // cannot hold both.
+  it("gives an enabled station Disable, and no Enable", async () => {
+    const user = userEvent.setup();
     renderBoard([healthyStation]);
 
-    expect(screen.getByRole("button", { name: "Disable Healthy Booth" })).toBeEnabled();
-    expect(screen.queryByRole("button", { name: /^Enable / })).not.toBeInTheDocument();
+    await openStationSettings(user, "Healthy Booth");
+
+    expect(screen.getByRole("menuitem", { name: "Disable" })).toBeEnabled();
+    expect(screen.queryByRole("menuitem", { name: /^Enable/ })).not.toBeInTheDocument();
+  });
+
+  // FRO-100. Every action that was on the row is still there, with the same wording, and
+  // the wording still follows the station's state.
+  it("lists the passport, booth and key actions, worded by the station's state", async () => {
+    const user = userEvent.setup();
+    const noBooth = station({ id: "no-booth", label: "Station 6", passport: null, booth: null });
+    renderBoard([station(), noBooth]);
+
+    await openStationSettings(user, "Careers Corner");
+    expect(menuItemNames()).toEqual([
+      "Edit passport settings",
+      "Change booth",
+      "Replace key",
+      "Disable",
+    ]);
+    await user.keyboard("{Escape}");
+
+    await openStationSettings(user, "Station 6");
+    expect(menuItemNames()).toEqual(["Add to passport", "Set booth", "Replace key", "Disable"]);
+  });
+
+  // The ticket: the menu works by keyboard. Enter on the trigger opens it, the arrows move
+  // through it, and Enter on an item opens that item's dialog.
+  it("opens by keyboard, and an item opens its dialog", async () => {
+    const user = userEvent.setup();
+    renderBoard([healthyStation]);
+
+    screen.getByRole("button", { name: "Station settings for Healthy Booth" }).focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit passport settings" })).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Booth");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("no longer says 'No longer linked', which cannot happen any more", () => {
@@ -157,21 +217,13 @@ describe("StationBoard", () => {
   });
 
   // Agreement 9.2 and 9.12: the row shows the booth the map draws it at, or says there is
-  // none, and the action that changes it is named for the row like every other one.
+  // none.
   it("shows each station's booth, or No booth when it has none", () => {
     const noBooth = station({ id: "no-booth", label: "Station 6", passport: null, booth: null });
     renderBoard([station(), noBooth]);
 
     expect(screen.getByText("B2")).toBeInTheDocument();
     expect(screen.getByText("No booth")).toBeInTheDocument();
-  });
-
-  it("names the booth action for its row, and says Set or Change by its state", () => {
-    const noBooth = station({ id: "no-booth", label: "Station 6", passport: null, booth: null });
-    renderBoard([station(), noBooth]);
-
-    expect(screen.getByRole("button", { name: "Change booth for Careers Corner" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Set booth for Station 6" })).toBeEnabled();
   });
 
   it("puts problem stations above healthy ones, keeping arrival order within each group", () => {
@@ -194,11 +246,14 @@ describe("StationBoard", () => {
       expect(screen.getByText("Disabled")).toBeInTheDocument();
     });
 
-    it("has an Enable action, and no Disable one, named for its row", () => {
+    it("has an Enable action, and no Disable one", async () => {
+      const user = userEvent.setup();
       renderBoard([disabledStation]);
 
-      expect(screen.getByRole("button", { name: "Enable Careers Corner" })).toBeEnabled();
-      expect(screen.queryByRole("button", { name: /^Disable / })).not.toBeInTheDocument();
+      await openStationSettings(user, "Careers Corner");
+
+      expect(screen.getByRole("menuitem", { name: "Enable" })).toBeEnabled();
+      expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
     });
 
     it("leaves an enabled station without the badge", () => {
@@ -297,7 +352,7 @@ describe("StationBoard", () => {
       const { api, user, name, id } = await setup();
       const sent = vi.spyOn(api, "enableStation");
 
-      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+      await pickStationAction(user, name, "Enable");
 
       expect(sent).toHaveBeenCalledTimes(1);
       expect(sent).toHaveBeenCalledWith(id);
@@ -308,7 +363,7 @@ describe("StationBoard", () => {
     it("reads the station back as enabled through 9.2", async () => {
       const { api, user, name, id } = await setup();
 
-      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+      await pickStationAction(user, name, "Enable");
 
       const after = (await api.listStationBoard()).stations.find((one) => one.id === id);
       expect(after?.disabled_at).toBeNull();
@@ -320,31 +375,36 @@ describe("StationBoard", () => {
       const { api, user, name } = await setup();
       api.mock.failNext("not_found");
 
-      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+      await pickStationAction(user, name, "Enable");
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "That was not found. It may have been removed.",
       );
       // The row is still the prop's station, so the action comes back with it.
-      expect(screen.getByRole("button", { name: `Enable ${name}` })).toBeEnabled();
+      await openStationSettings(user, name);
+      expect(screen.getByRole("menuitem", { name: "Enable" })).toBeEnabled();
     });
 
-    // The ticket: disable the button while the request is in flight. The spy never
-    // resolves, which is the in-flight case with no timing guess, and a click on the held
-    // button must not send a second enable either. While it runs the label swaps to
-    // "Enabling", but the aria-label stays the row's.
+    // The ticket: disable the action while the request is in flight. The spy never
+    // resolves, which is the in-flight case with no timing guess. Picking Enable closes the
+    // menu, so the row says it is enabling, and the held item is checked by opening the
+    // menu again. A click on it must not send a second enable either.
     it("waits while one enable is in the air, and one click is one call", async () => {
       const { api, user, name } = await setup();
       vi.spyOn(api, "enableStation").mockImplementationOnce(
         () => new Promise<StationResponse>(() => {}),
       );
 
-      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+      await pickStationAction(user, name, "Enable");
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Enabling");
 
-      expect(screen.getByRole("button", { name: `Enable ${name}` })).toBeDisabled();
-      expect(screen.getByRole("button", { name: `Enable ${name}` })).toHaveTextContent("Enabling");
+      await openStationSettings(user, name);
 
-      await user.click(screen.getByRole("button", { name: `Enable ${name}` }));
+      const held = screen.getByRole("menuitem", { name: "Enabling" });
+      expect(held).toHaveAttribute("aria-disabled", "true");
+
+      await user.click(held);
       expect(api.enableStation).toHaveBeenCalledTimes(1);
     });
   });

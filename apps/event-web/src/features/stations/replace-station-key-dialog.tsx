@@ -34,13 +34,13 @@ const CONFIRMATION =
  * mutation sits in the content below rather than in this wrapper, the way
  * PassportStationDialog already does it.
  *
- * Since FRO-26 the board's rows hold an API client too: EnableStationButton mounts the enable
- * mutation directly in the row, and StationBoard therefore renders inside its providers in
- * tests, as its own test file's renderBoard already shows.
+ * Since FRO-26 the board's rows hold an API client too: each row's StationSettingsMenu mounts
+ * the enable mutation, and StationBoard therefore renders inside its providers in tests, as its
+ * own test file's renderBoard already shows.
  *
- * `returnFocusTo` is the row's Replace key button (FRO-99). The alert steps aside for the key
- * reveal, so it only takes the keyboard back when the flow ends there, and the reveal takes it
- * back when the flow ends with the key shown.
+ * `returnFocusTo` is the row's Station settings button (FRO-99, FRO-100). The alert steps aside
+ * for the key reveal, so it only takes the keyboard back when the flow ends there, and the
+ * reveal takes it back when the flow ends with the key shown.
  */
 export function ReplaceStationKeyDialog({
   station,
@@ -67,7 +67,7 @@ export function ReplaceStationKeyDialog({
               handingOver.current = false;
               return;
             }
-            returnFocusOnClose(event, returnFocusTo, station.id);
+            returnFocusOnClose(event, returnFocusTo);
           }}
         >
           <CornerBrackets />
@@ -91,9 +91,7 @@ export function ReplaceStationKeyDialog({
           if (!next) setResult(null);
         }}
       >
-        <DialogContent
-          onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
-        >
+        <DialogContent onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo)}>
           <CornerBrackets />
           {result ? (
             <StationKeyReveal kind="replace" result={result} onDone={() => setResult(null)} />
