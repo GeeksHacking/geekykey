@@ -1838,3 +1838,13 @@
     Event Service does. Until now it also listed stations outside the passport. The demo export now
     ends every line in CRLF, as the Event Service's file does, and quotes a value that holds a
     carriage return.
+
+- id: token-writer-writes-kinds
+  date: 2026-10-30
+  area: firmware
+  change: >-
+    The token writer writes each token's kind into its address, as a letter after the UID such as
+    /t/04E45150324189?k=E, and a token written before can be rewritten with another kind. The
+    kind is set once for a batch by typing "kind E" on the serial port, the writer's screen shows
+    it, and nothing is written until it's set. Each token written prints its UID and kind on one
+    line, and those lines are the list the server loads in BAC-113.
