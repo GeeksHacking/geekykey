@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "shot": "node scripts/shot.ts",
     "worker:dev": "VITE_LIVE_API=1 vite build && wrangler dev --var EVENT_API_URL:http://localhost:8001",
     "worker:typecheck": "wrangler types worker/worker-configuration.d.ts && tsc -p worker && tsc -p worker/tsconfig.test.json",
     "worker:test": "vitest run --config worker/vitest.config.ts",
