@@ -1860,4 +1860,4 @@
     link from a token's page carries the same kind, but only while the user owns that token. The
     Event Service keeps the first kind it sees for each user and gives it to the passport in /me.
     Every new field is optional, so the screens and any other Event Service keep working, and the
-    API agreement's version 0.10 is a draft until Ethan approves it.
+    API agreement's version 0.10, which Ethan approved the same day.
