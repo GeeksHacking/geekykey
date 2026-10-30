@@ -1790,3 +1790,17 @@
     The map pulses a station once for each new tap, so three quick taps show as three pulses
     and not one. It plays at most 3 for each 2-second update, each shorter than a single
     pulse, so they finish before the next update.
+
+- id: showcase-plan-after-29-oct
+  date: 2026-10-30
+  area: research
+  change: >-
+    After meeting GeeksHacking on 29 Oct, the showcase puts the token people keep first, since
+    GeeksHacking judges an event by whether participants and sponsors come back. Each token now has
+    a kind, written onto it when it's made, so tapping it with a phone opens a different screen for
+    each kind, and people find out why by comparing screens. After a passport tap, the station names
+    the visitor's next stop: the quietest booth they haven't visited yet. Connections stay, counted
+    only between two different kinds, and Find Gatsby is dropped. The trade-offs we accept: changes
+    to the API agreement for the station's text and the token's kind before the backend freezes on
+    11 Nov, and each token's kind kept twice, on the token and in a list on our server, which the
+    token writer fills in the same step.
