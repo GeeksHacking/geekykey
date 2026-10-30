@@ -1866,7 +1866,8 @@
   date: 2026-10-30
   area: frontend
   change: >-
-    Each station on the organiser's board has one Station settings button in place of the three
-    links and the button under its name, so the rows are shorter. Its menu holds every action
-    that was there, with the same words, and Disable still asks first. The trade-offs we accept:
-    disabling a station takes one more click.
+    Each station on the organiser's board has one grey outlined Actions button in place of the
+    three links and the button under its name, so the rows are shorter. Its menu holds every
+    action that was there. Disable station is set apart in red and still asks first, and the
+    rows keep their order while a menu is open. The trade-offs we accept: disabling a station
+    takes one more click.
