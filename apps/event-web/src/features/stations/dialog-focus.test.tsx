@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import {
-  openStationSettings,
+  openStationActions,
   pickStationAction,
-} from "@/features/stations/station-settings-test-helpers";
+} from "@/features/stations/station-actions-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
@@ -35,7 +35,7 @@ async function expectFocusBack(button: HTMLElement) {
   await waitFor(() => expect(document.activeElement).toBe(button));
 }
 
-// Since FRO-100 every row dialog opens from the row's Station settings menu, so the menu's
+// Since FRO-100 every row dialog opens from the row's Actions menu, so the menu's
 // button is where the keyboard goes back to. It stays in the row through every save, renamed
 // at most, so the same element takes the focus whatever the dialog changed.
 describe("a station board dialog returns focus to its row (FRO-99)", () => {
@@ -47,7 +47,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
 
@@ -58,7 +58,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport");
+    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport…");
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
 
@@ -69,13 +69,13 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport");
+    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport…");
     await user.type(await screen.findByLabelText("Name"), "Photo Wall");
     await user.click(screen.getByRole("button", { name: "Add to passport" }));
 
     // The save renames the row's button, as the station gains a passport name.
-    await screen.findByRole("button", { name: "Station settings for Photo Wall" });
-    expect(trigger).toHaveAccessibleName("Station settings for Photo Wall");
+    await screen.findByRole("button", { name: "Actions for Photo Wall" });
+    expect(trigger).toHaveAccessibleName("Actions for Photo Wall");
     await expectFocusBack(trigger);
   });
 
@@ -84,7 +84,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     renderBoard();
 
     const trigger = await screen.findByRole("button", {
-      name: `Station settings for ${IN_PASSPORT}`,
+      name: `Actions for ${IN_PASSPORT}`,
     });
     trigger.focus();
     await user.keyboard("{Enter}");
@@ -108,7 +108,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, IN_PASSPORT, "Change booth");
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Change booth…");
     await user.click(await screen.findByRole("button", { name: "Close" }));
 
     await expectFocusBack(trigger);
@@ -118,7 +118,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Set booth");
+    const trigger = await pickStationAction(user, NOT_IN_PASSPORT, "Set booth…");
     await user.type(await screen.findByLabelText("Booth"), "A1");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -129,7 +129,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, IN_PASSPORT, "Replace key");
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Replace key…");
     await screen.findByRole("alertdialog");
     await user.keyboard("{Escape}");
 
@@ -140,7 +140,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, IN_PASSPORT, "Replace key");
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Replace key…");
     await user.click(await screen.findByRole("button", { name: /^Replace key$/ }));
     // The alert steps aside for the key reveal, which then closes the flow.
     await user.click(await screen.findByRole("button", { name: "Done" }));
@@ -152,7 +152,7 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, IN_PASSPORT, "Disable");
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Disable station…");
     await screen.findByRole("alertdialog");
     await user.keyboard("{Escape}");
 
@@ -163,11 +163,11 @@ describe("a station board dialog returns focus to its row (FRO-99)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const trigger = await pickStationAction(user, IN_PASSPORT, "Disable");
+    const trigger = await pickStationAction(user, IN_PASSPORT, "Disable station…");
     await user.click(await screen.findByRole("button", { name: /^Disable$/ }));
 
     await expectFocusBack(trigger);
-    await openStationSettings(user, IN_PASSPORT);
-    expect(screen.getByRole("menuitem", { name: "Enable" })).toBeInTheDocument();
+    await openStationActions(user, IN_PASSPORT);
+    expect(screen.getByRole("menuitem", { name: "Enable station" })).toBeInTheDocument();
   });
 });

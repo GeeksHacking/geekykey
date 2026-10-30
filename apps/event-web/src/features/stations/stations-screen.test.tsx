@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { queryKeys } from "@/api/keys";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
-import { openStationSettings } from "@/features/stations/station-settings-test-helpers";
+import { openStationActions } from "@/features/stations/station-actions-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
@@ -65,8 +65,8 @@ describe("StationsScreen", () => {
     });
 
     expect(row).toHaveTextContent("Not in the passport");
-    await openStationSettings(user, "Reader 9");
-    expect(screen.getByRole("menuitem", { name: "Add to passport" })).toBeInTheDocument();
+    await openStationActions(user, "Reader 9");
+    expect(screen.getByRole("menuitem", { name: "Add to passport…" })).toBeInTheDocument();
   });
 
   it("puts the mock's problem stations first, so trouble is at the top", async () => {

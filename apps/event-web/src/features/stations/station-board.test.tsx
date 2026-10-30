@@ -1,11 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventStationBoardStation, StationResponse } from "@/api/types";
 import { StationBoard } from "@/features/stations/station-board";
 import {
-  openStationSettings,
+  openStationActions,
   pickStationAction,
-} from "@/features/stations/station-settings-test-helpers";
+} from "@/features/stations/station-actions-test-helpers";
 import { describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
@@ -22,13 +22,21 @@ function renderBoard(
   api = createMockClient({ latencyMs: [0, 0], storage: null }),
 ) {
   const { Providers } = createTestProviders(api);
+  const result = render(
+    <Providers>
+      <StationBoard stations={stations} />
+    </Providers>,
+  );
   return {
     api,
-    ...render(
-      <Providers>
-        <StationBoard stations={stations} />
-      </Providers>,
-    ),
+    ...result,
+    /** What the board's 12-second poll does: the same board, given the stations again. */
+    poll: (next: EventStationBoardStation[]) =>
+      result.rerender(
+        <Providers>
+          <StationBoard stations={next} />
+        </Providers>,
+      ),
   };
 }
 
@@ -121,14 +129,16 @@ describe("StationBoard", () => {
 
   // FRO-100. One control per row, named for its station, in place of the four actions that
   // used to sit under the name.
-  it("gives each row one Station settings control, named for its station", () => {
+  it("gives each row one Actions control, named for its station", () => {
     renderBoard([healthyStation, deadReader]);
 
-    expect(
-      screen.getByRole("button", { name: "Station settings for Healthy Booth" }),
-    ).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Station settings for Station 3" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Actions for Healthy Booth" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Actions for Station 3" })).toBeEnabled();
     expect(screen.getAllByRole("button")).toHaveLength(2);
+    // The name carries the station for a screen reader; the row shows only the word.
+    expect(screen.getByRole("button", { name: "Actions for Station 3" })).toHaveTextContent(
+      /^Actions$/,
+    );
   });
 
   // FRO-26. The switch follows the row's state, in both directions at once: the same row
@@ -137,30 +147,35 @@ describe("StationBoard", () => {
     const user = userEvent.setup();
     renderBoard([healthyStation]);
 
-    await openStationSettings(user, "Healthy Booth");
+    await openStationActions(user, "Healthy Booth");
 
-    expect(screen.getByRole("menuitem", { name: "Disable" })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: "Disable station…" })).toBeEnabled();
     expect(screen.queryByRole("menuitem", { name: /^Enable/ })).not.toBeInTheDocument();
   });
 
-  // FRO-100. Every action that was on the row is still there, with the same wording, and
-  // the wording still follows the station's state.
+  // FRO-100. Every action that was on the row is still there, and the wording still follows
+  // the station's state. An ellipsis marks each one that opens a dialog before it acts.
   it("lists the passport, booth and key actions, worded by the station's state", async () => {
     const user = userEvent.setup();
     const noBooth = station({ id: "no-booth", label: "Station 6", passport: null, booth: null });
     renderBoard([station(), noBooth]);
 
-    await openStationSettings(user, "Careers Corner");
+    await openStationActions(user, "Careers Corner");
     expect(menuItemNames()).toEqual([
-      "Edit passport settings",
-      "Change booth",
-      "Replace key",
-      "Disable",
+      "Edit passport settings…",
+      "Change booth…",
+      "Replace key…",
+      "Disable station…",
     ]);
     await user.keyboard("{Escape}");
 
-    await openStationSettings(user, "Station 6");
-    expect(menuItemNames()).toEqual(["Add to passport", "Set booth", "Replace key", "Disable"]);
+    await openStationActions(user, "Station 6");
+    expect(menuItemNames()).toEqual([
+      "Add to passport…",
+      "Set booth…",
+      "Replace key…",
+      "Disable station…",
+    ]);
   });
 
   // The ticket: the menu works by keyboard. Enter on the trigger opens it, the arrows move
@@ -169,10 +184,10 @@ describe("StationBoard", () => {
     const user = userEvent.setup();
     renderBoard([healthyStation]);
 
-    screen.getByRole("button", { name: "Station settings for Healthy Booth" }).focus();
+    screen.getByRole("button", { name: "Actions for Healthy Booth" }).focus();
     await user.keyboard("{Enter}");
     expect(await screen.findByRole("menu")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Edit passport settings" })).toHaveFocus();
+    expect(screen.getByRole("menuitem", { name: "Edit passport settings…" })).toHaveFocus();
 
     await user.keyboard("{ArrowDown}{Enter}");
 
@@ -226,6 +241,69 @@ describe("StationBoard", () => {
     expect(screen.getByText("No booth")).toBeInTheDocument();
   });
 
+  // The board polls every 12 seconds. A poll that sorts the stations again must not close a
+  // menu the organiser has open, or move its row out from under them, so the order holds
+  // while a menu is open and catches up once it closes.
+  describe("a poll while a row's menu is open", () => {
+    const wentOffline = { ...quietStation, online: false };
+
+    /** The rows in order. An open menu is modal and hides them from the tree, hence hidden. */
+    function names() {
+      return screen
+        .getAllByRole("row", { hidden: true })
+        .slice(1)
+        .map((row) => row.textContent ?? "");
+    }
+
+    it("keeps the menu open and the rows where they were", async () => {
+      const user = userEvent.setup();
+      const { poll } = renderBoard([healthyStation, quietStation]);
+
+      await openStationActions(user, "Quiet Booth");
+      poll([healthyStation, wentOffline]);
+
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      expect(names()[0]).toContain("Healthy Booth");
+      expect(names()[1]).toContain("Quiet Booth");
+      // The row itself is up to date, only its place is held.
+      expect(names()[1]).toContain("Not responding");
+    });
+
+    it("acts on the station whose menu it is", async () => {
+      const user = userEvent.setup();
+      const { poll } = renderBoard([healthyStation, quietStation]);
+
+      await openStationActions(user, "Quiet Booth");
+      poll([healthyStation, wentOffline]);
+      await user.click(screen.getByRole("menuitem", { name: "Disable station…" }));
+
+      expect(await screen.findByRole("alertdialog")).toHaveTextContent("Disable Quiet Booth?");
+    });
+
+    it("sorts the rows again once the menu closes", async () => {
+      const user = userEvent.setup();
+      const { poll } = renderBoard([healthyStation, quietStation]);
+
+      await openStationActions(user, "Quiet Booth");
+      poll([healthyStation, wentOffline]);
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => expect(names()[0]).toContain("Quiet Booth"));
+    });
+
+    it("still shows a station that arrives while the menu is open, below the rest", async () => {
+      const user = userEvent.setup();
+      const { poll } = renderBoard([healthyStation, quietStation]);
+      const added = station({ id: "added", label: "Station 8", passport: null });
+
+      await openStationActions(user, "Quiet Booth");
+      poll([healthyStation, quietStation, added]);
+
+      expect(names()).toHaveLength(3);
+      expect(names()[2]).toContain("Station 8");
+    });
+  });
+
   it("puts problem stations above healthy ones, keeping arrival order within each group", () => {
     renderBoard([healthyStation, quietStation, deadReader]);
 
@@ -250,10 +328,10 @@ describe("StationBoard", () => {
       const user = userEvent.setup();
       renderBoard([disabledStation]);
 
-      await openStationSettings(user, "Careers Corner");
+      await openStationActions(user, "Careers Corner");
 
-      expect(screen.getByRole("menuitem", { name: "Enable" })).toBeEnabled();
-      expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Enable station" })).toBeEnabled();
+      expect(screen.queryByRole("menuitem", { name: "Disable station…" })).not.toBeInTheDocument();
     });
 
     it("leaves an enabled station without the badge", () => {
@@ -352,7 +430,7 @@ describe("StationBoard", () => {
       const { api, user, name, id } = await setup();
       const sent = vi.spyOn(api, "enableStation");
 
-      await pickStationAction(user, name, "Enable");
+      await pickStationAction(user, name, "Enable station");
 
       expect(sent).toHaveBeenCalledTimes(1);
       expect(sent).toHaveBeenCalledWith(id);
@@ -363,7 +441,7 @@ describe("StationBoard", () => {
     it("reads the station back as enabled through 9.2", async () => {
       const { api, user, name, id } = await setup();
 
-      await pickStationAction(user, name, "Enable");
+      await pickStationAction(user, name, "Enable station");
 
       const after = (await api.listStationBoard()).stations.find((one) => one.id === id);
       expect(after?.disabled_at).toBeNull();
@@ -375,14 +453,14 @@ describe("StationBoard", () => {
       const { api, user, name } = await setup();
       api.mock.failNext("not_found");
 
-      await pickStationAction(user, name, "Enable");
+      await pickStationAction(user, name, "Enable station");
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "That was not found. It may have been removed.",
       );
       // The row is still the prop's station, so the action comes back with it.
-      await openStationSettings(user, name);
-      expect(screen.getByRole("menuitem", { name: "Enable" })).toBeEnabled();
+      await openStationActions(user, name);
+      expect(screen.getByRole("menuitem", { name: "Enable station" })).toBeEnabled();
     });
 
     // The ticket: disable the action while the request is in flight. The spy never
@@ -395,11 +473,11 @@ describe("StationBoard", () => {
         () => new Promise<StationResponse>(() => {}),
       );
 
-      await pickStationAction(user, name, "Enable");
+      await pickStationAction(user, name, "Enable station");
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent("Enabling");
 
-      await openStationSettings(user, name);
+      await openStationActions(user, name);
 
       const held = screen.getByRole("menuitem", { name: "Enabling" });
       expect(held).toHaveAttribute("aria-disabled", "true");

@@ -1,4 +1,4 @@
-import { CaretDown, GearSix } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 
 import { describeError } from "@/api/errors";
@@ -18,24 +18,27 @@ type OpenDialog = (opener: HTMLElement) => void;
 
 /**
  * FRO-100. A row's one control, holding every action that used to sit under the station's
- * name, with the same wording. Each item opens the dialog it opened before, except Enable,
+ * name. Each item opens the dialog it opened before, and an ellipsis says so, except Enable,
  * which acts at once because FRO-26 gives it no confirmation.
  *
  * The trigger is every dialog's opener. It stays in the row whatever a save changes, so
  * the keyboard comes back to it even after Disable has turned into Enable (FRO-99).
  */
-export function StationSettingsMenu({
+export function StationActionsMenu({
   station,
   onPassport,
   onBooth,
   onReplaceKey,
   onDisable,
+  onOpenChange,
 }: {
   station: EventStationBoardStation;
   onPassport: OpenDialog;
   onBooth: OpenDialog;
   onReplaceKey: OpenDialog;
   onDisable: OpenDialog;
+  /** The board holds its row order while a menu is open, so a poll can't move the row. */
+  onOpenChange: (open: boolean) => void;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const enable = useEnableStation();
@@ -59,43 +62,51 @@ export function StationSettingsMenu({
 
   return (
     <div className="grid justify-items-end gap-1">
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={onOpenChange}>
         <DropdownMenuTrigger asChild>
+          {/* Low-key on purpose: every row has one, and yellow is for Create station. The
+              open state keeps the hover look, so it is clear which row the menu is for. */}
           <Button
             ref={trigger}
             type="button"
             variant="outline"
             size="sm"
-            aria-label={`Station settings for ${name}`}
+            className="border-border bg-transparent hover:border-input hover:bg-secondary hover:text-foreground data-[state=open]:border-input data-[state=open]:bg-secondary pointer-coarse:h-11"
+            aria-label={`Actions for ${name}`}
           >
-            <GearSix aria-hidden />
-            {/* The organiser screens must still work at 768 px, where the station's name
-                needs the room more. The aria-label names it at every width. */}
-            <span className="hidden lg:inline">Station settings</span>
-            <CaretDown aria-hidden className="hidden lg:inline" />
+            Actions
+            <CaretDown aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
           {/* Agreement 9.1. A station with no settings can be added; one with settings changed. */}
           <DropdownMenuItem onSelect={() => openDialog(onPassport)}>
-            {station.passport ? "Edit passport settings" : "Add to passport"}
+            {station.passport ? "Edit passport settings…" : "Add to passport…"}
           </DropdownMenuItem>
           {/* Agreement 9.12. On every station, disabled ones included, because the map
               draws a station at its booth whatever game it runs and however many taps it has. */}
           <DropdownMenuItem onSelect={() => openDialog(onBooth)}>
-            {station.booth ? "Change booth" : "Set booth"}
+            {station.booth ? "Change booth…" : "Set booth…"}
           </DropdownMenuItem>
           {/* FRO-28, on 9.8. On every station too: spec section 10 has an organiser disable
               a station that has gone missing and then replace its key. */}
-          <DropdownMenuItem onSelect={() => openDialog(onReplaceKey)}>Replace key</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openDialog(onReplaceKey)}>
+            Replace key…
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           {/* FRO-26, on 9.9. One switch by the station's state: Disable asks first, in its
-              alert, and Enable acts at once. */}
+              alert, and Enable acts at once. Disable stops a station's taps, so it is set
+              apart and in the error colour. */}
           {station.disabled_at === null ? (
-            <DropdownMenuItem onSelect={() => openDialog(onDisable)}>Disable</DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              onSelect={() => openDialog(onDisable)}
+            >
+              Disable station…
+            </DropdownMenuItem>
           ) : (
             <DropdownMenuItem disabled={enable.isPending} onSelect={() => void handleEnable()}>
-              {enable.isPending ? "Enabling" : "Enable"}
+              {enable.isPending ? "Enabling" : "Enable station"}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

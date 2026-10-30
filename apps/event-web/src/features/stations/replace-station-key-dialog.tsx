@@ -34,11 +34,11 @@ const CONFIRMATION =
  * mutation sits in the content below rather than in this wrapper, the way
  * PassportStationDialog already does it.
  *
- * Since FRO-26 the board's rows hold an API client too: each row's StationSettingsMenu mounts
+ * Since FRO-26 the board's rows hold an API client too: each row's StationActionsMenu mounts
  * the enable mutation, and StationBoard therefore renders inside its providers in tests, as its
  * own test file's renderBoard already shows.
  *
- * `returnFocusTo` is the row's Station settings button (FRO-99, FRO-100). The alert steps aside
+ * `returnFocusTo` is the row's Actions button (FRO-99, FRO-100). The alert steps aside
  * for the key reveal, so it only takes the keyboard back when the flow ends there, and the
  * reveal takes it back when the flow ends with the key shown.
  */

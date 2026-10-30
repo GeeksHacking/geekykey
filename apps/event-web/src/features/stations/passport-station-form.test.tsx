@@ -6,9 +6,9 @@ import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import {
-  openStationSettings,
+  openStationActions,
   pickStationAction,
-} from "@/features/stations/station-settings-test-helpers";
+} from "@/features/stations/station-actions-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
@@ -47,7 +47,7 @@ describe("passport settings on the station board", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport");
+    await pickStationAction(user, NOT_IN_PASSPORT, "Add to passport…");
 
     const name = await screen.findByLabelText("Name");
     await user.clear(name);
@@ -55,16 +55,16 @@ describe("passport settings on the station board", () => {
     await user.click(screen.getByRole("button", { name: "Add to passport" }));
 
     // The row is now named for the passport name it just gained, and its menu offers Edit.
-    await openStationSettings(user, "Photo Wall");
-    expect(screen.getByRole("menuitem", { name: "Edit passport settings" })).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Add to passport" })).toBeNull();
+    await openStationActions(user, "Photo Wall");
+    expect(screen.getByRole("menuitem", { name: "Edit passport settings…" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Add to passport…" })).toBeNull();
   });
 
   it("fills the form with the current settings when editing", async () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
 
     const name = await screen.findByLabelText("Name");
     expect(name).toHaveValue(IN_PASSPORT);
@@ -76,7 +76,7 @@ describe("passport settings on the station board", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
 
     const points = await screen.findByLabelText("Points per accepted tap");
     await user.clear(points);
@@ -98,7 +98,7 @@ describe("passport settings on the station board", () => {
       </Providers>,
     );
 
-    await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
 
     const name = await screen.findByLabelText("Name");
     await user.clear(name);
@@ -122,7 +122,7 @@ describe("passport settings on the station board", () => {
       { path: ["name"], message: "name is already used by another station" },
     ]);
 
-    await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     await user.click(await screen.findByRole("button", { name: "Save changes" }));
 
     // The service's wording, wired to the Name input by aria-describedby, so it is read as
@@ -148,7 +148,7 @@ describe("passport settings on the station board", () => {
       { path: ["uid"], message: "uid must be 4 to 10 hex bytes" },
     ]);
 
-    await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     await user.click(await screen.findByRole("button", { name: "Save changes" }));
 
     expect(await screen.findByText("points must be an integer of 0 or more")).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe("passport settings on the station board", () => {
       </Providers>,
     );
 
-    await pickStationAction(user, IN_PASSPORT, "Edit passport settings");
+    await pickStationAction(user, IN_PASSPORT, "Edit passport settings…");
     const points = await screen.findByLabelText("Points per accepted tap");
     await user.clear(points);
     await user.type(points, "-1");

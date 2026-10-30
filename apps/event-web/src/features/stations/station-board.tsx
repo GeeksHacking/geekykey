@@ -1,4 +1,5 @@
 import { WarningCircle } from "@phosphor-icons/react";
+import { useState } from "react";
 
 import type { EventStationBoardStation } from "@/api/types";
 import { OnlineStatus } from "@/components/online-status";
@@ -17,7 +18,7 @@ import { BoothDialog } from "./booth-dialog";
 import { DisableStationDialog } from "./disable-station-dialog";
 import { PassportStationDialog } from "./passport-station-dialog";
 import { ReplaceStationKeyDialog } from "./replace-station-key-dialog";
-import { StationSettingsMenu } from "./station-settings-menu";
+import { StationActionsMenu } from "./station-actions-menu";
 import { useStationDialog } from "./use-station-dialog";
 import {
   hasStationProblem,
@@ -27,8 +28,12 @@ import {
 } from "./station-problems";
 
 export function StationBoard({ stations }: { stations: EventStationBoardStation[] }) {
+  // The row order the organiser was looking at when they opened a row's menu, or null with no
+  // menu open. A poll that sorts the stations again would otherwise move the row out from
+  // under the open menu. Each row still shows the poll's data; only the order waits.
+  const [heldOrder, setHeldOrder] = useState<string[] | null>(null);
   // Trouble first, so whoever is at the desk sees the rows that need them (agreement 9.2).
-  const sorted = sortStationsByTrouble(stations);
+  const sorted = inHeldOrder(sortStationsByTrouble(stations), heldOrder);
   const passport = useStationDialog();
   const booth = useStationDialog();
   const replaceKey = useStationDialog();
@@ -43,9 +48,7 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
           <TableHead className="w-20 text-right">Points</TableHead>
           <TableHead className="w-40">Status</TableHead>
           <TableHead className="w-40">Last tap here</TableHead>
-          <TableHead>
-            <span className="sr-only">Station settings</span>
-          </TableHead>
+          <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -117,8 +120,9 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <StationSettingsMenu
+                <StationActionsMenu
                   station={station}
+                  onOpenChange={(open) => setHeldOrder(open ? sorted.map((one) => one.id) : null)}
                   onPassport={(opener) => passport.openFor(station.id, opener)}
                   onBooth={(opener) => booth.openFor(station.id, opener)}
                   onReplaceKey={(opener) => replaceKey.openFor(station.id, opener)}
@@ -163,4 +167,18 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
       </TableBody>
     </Table>
   );
+}
+
+/**
+ * `stations` in the order of `ids`, when there is one. A station `ids` doesn't have arrived
+ * after the order was taken, so it goes below the rest, in the order it came.
+ */
+function inHeldOrder(
+  stations: EventStationBoardStation[],
+  ids: string[] | null,
+): EventStationBoardStation[] {
+  if (!ids) return stations;
+  const place = new Map(ids.map((id, index) => [id, index]));
+  const placeOf = (station: EventStationBoardStation) => place.get(station.id) ?? ids.length;
+  return stations.toSorted((a, b) => placeOf(a) - placeOf(b));
 }

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
-import { pickStationAction } from "@/features/stations/station-settings-test-helpers";
+import { pickStationAction } from "@/features/stations/station-actions-test-helpers";
 import { StationsScreen } from "@/features/stations/stations-screen";
 import { createTestProviders } from "@/test/providers";
 
@@ -40,7 +40,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, WITH_BOOTH, "Change booth");
+    await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
     expect(await screen.findByLabelText("Booth")).toHaveValue("B1");
   });
@@ -49,7 +49,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, WITH_BOOTH, "Change booth");
+    await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
     const hint = await screen.findByText(/The example plan names/);
     expect(hint).toHaveTextContent("A1 to A3");
@@ -61,7 +61,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, WITH_BOOTH, "Change booth");
+    await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
     const booth = await screen.findByLabelText("Booth");
     await user.clear(booth);
@@ -76,7 +76,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     renderBoard();
 
     expect(await row(NO_BOOTH)).toHaveTextContent("No booth");
-    await pickStationAction(user, NO_BOOTH, "Set booth");
+    await pickStationAction(user, NO_BOOTH, "Set booth…");
 
     await user.type(await screen.findByLabelText("Booth"), "A1");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -88,7 +88,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, WITH_BOOTH, "Change booth");
+    await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
     await user.clear(await screen.findByLabelText("Booth"));
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -102,7 +102,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    await pickStationAction(user, NO_BOOTH, "Set booth");
+    await pickStationAction(user, NO_BOOTH, "Set booth…");
 
     await user.type(await screen.findByLabelText("Booth"), "Z9");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -117,7 +117,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
       (station) => station.passport?.name === WITH_BOOTH,
     )?.booth;
 
-    await pickStationAction(user, WITH_BOOTH, "Change booth");
+    await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
     const booth = await screen.findByLabelText("Booth");
     await user.clear(booth);
@@ -143,7 +143,7 @@ describe("the booth on the station board (agreement 9.12)", () => {
       ]);
     };
 
-    await pickStationAction(user, WITH_BOOTH, "Change booth");
+    await pickStationAction(user, WITH_BOOTH, "Change booth…");
     await user.click(await screen.findByRole("button", { name: "Save" }));
 
     const message = await screen.findByText("booth must be 0 to 80 characters");

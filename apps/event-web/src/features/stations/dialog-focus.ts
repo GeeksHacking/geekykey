@@ -3,7 +3,7 @@
  * `DialogTrigger`, and the board opens its row dialogs from state instead, so without this a
  * keyboard or screen reader user lands on `<body>` and starts again at the top of the page.
  *
- * The opener is the row's Station settings button (FRO-100). A save can rename it, as adding
+ * The opener is the row's Actions button (FRO-100). A save can rename it, as adding
  * passport settings renames the station, but never replaces it, so it can always take the
  * keyboard back while its row is on the board.
  */
