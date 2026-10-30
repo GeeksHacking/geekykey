@@ -1,7 +1,6 @@
 import { and, between, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
-import { keepKinds } from "./user-kinds.ts";
 import { trustedTappedAt } from "../lib/tapped-at.ts";
 import {
   combinedStatus,
@@ -21,6 +20,7 @@ import {
   type TAP_SOURCES,
   taps,
 } from "./schema.ts";
+import { keepKinds } from "./user-kinds.ts";
 
 export type TapSource = (typeof TAP_SOURCES)[number];
 export type StoredTapStatus = (typeof STORED_TAP_STATUSES)[number];
@@ -143,8 +143,8 @@ export class TapPipeline {
       await keepKinds(
         tx,
         pending.flatMap(({ index, userId }) => {
-          const kind = incoming[index]!.kind;
-          return kind == null ? [] : [{ userId, kind }];
+          const kind = incoming[index]!.kind ?? null;
+          return kind === null ? [] : [{ userId, kind }];
         }),
       );
 

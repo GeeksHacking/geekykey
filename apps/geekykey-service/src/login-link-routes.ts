@@ -36,9 +36,9 @@ export interface LoginLinkRouteDeps {
  * From a token's page, the request names the token, and the link carries its
  * kind from the list beside the claims stand-in (ADR 0006), but only while
  * the session's user owns it, so nobody takes on a kind by naming someone
- * else's token. Otherwise, and from My tokens, the link has no kind. Only
- * then are the claims asked, within 4 seconds, and when they don't answer,
- * the request answers `503 claims_unavailable`.
+ * else's token. Otherwise, and from My tokens, the link has no kind. The
+ * claims are asked only when the request names a token, within `deadlineMs`,
+ * and when they don't answer, the request answers `503 claims_unavailable`.
  *
  * It travels in the address's fragment, `#login=`, which a browser never
  * sends to a server, so it reaches no request log. Nothing here logs it.
