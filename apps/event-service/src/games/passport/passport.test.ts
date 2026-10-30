@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { tapsAnswer } from "@geekykey/handoff";
+import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { passportStations, stations, users } from "../../event/schema.ts";
+import { passportStations, stations, taps, users } from "../../event/schema.ts";
 import { setupFixture, testApp, testDb, TEST_EVENT_SERVICE_KEY } from "../../test-helpers.ts";
 
 // The passport's lines on the station's screen, through the hand-off the
@@ -197,5 +198,119 @@ test("the station greets a participant by the first word of their own name, as m
       ["chinese", "1 of 2 stamps"],
       ["emoji", "1 of 2 stamps"],
     ],
+  );
+});
+
+// The next stop (BAC-98): the quietest stamp slot the participant hasn't stamped.
+
+/** Sets each station's booth, in the order of `ids`; null for none. */
+async function standAt(ids: readonly string[], booths: readonly (string | null)[]) {
+  for (const [i, booth] of booths.entries()) {
+    await testDb().update(stations).set({ booth }).where(eq(stations.id, ids[i]!));
+  }
+}
+
+/** `count` taps by other participants at `stationId`, received `minutesAgo` before now. */
+async function crowd(stationId: string, count: number, minutesAgo = 0) {
+  const receivedAt = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+  await testDb()
+    .insert(taps)
+    .values(
+      Array.from({ length: count }, (_, n) => ({
+        stationId,
+        clientTapId: `crowd-${stationId}-${minutesAgo}-${n}`,
+        userId: `crowd-${n}`,
+        status: "accepted" as const,
+        receivedAt,
+      })),
+    );
+}
+
+test("a passport tap names the quietest booth the participant hasn't stamped as the next stop", async () => {
+  const { ids, userId } = await passportOf(3);
+  await standAt(ids, ["A1", "B2", "C3", "D4"]);
+  await crowd(ids[1]!, 1);
+  await crowd(ids[2]!, 3);
+  await crowd(ids[3]!, 2);
+
+  assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
+    { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 4", "Next: B2"] },
+  ]);
+  // The cooldown names it too.
+  assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t2", user_id: userId }]), [
+    { client_tap_id: "t2", status: "cooldown", lines: ["Alex: 1 of 4", "Next: B2"] },
+  ]);
+  // Once B2 is stamped, the quietest of the rest.
+  assert.deepEqual(await handOff(ids[1]!, [{ client_tap_id: "t3", user_id: userId }]), [
+    { client_tap_id: "t3", status: "accepted", lines: ["Alex: 2 of 4", "Next: D4"] },
+  ]);
+});
+
+test("a participant with every stamp has no next stop", async () => {
+  const { ids, userId } = await passportOf(1);
+  await standAt(ids, ["A1", "B2"]);
+  await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]);
+  assert.deepEqual(await handOff(ids[1]!, [{ client_tap_id: "t2", user_id: userId }]), [
+    {
+      client_tap_id: "t2",
+      status: "accepted",
+      lines: ["Alex: 2 of 2", "All 2 done!"],
+      complete: true,
+    },
+  ]);
+  assert.deepEqual(await handOff(ids[1]!, [{ client_tap_id: "t3", user_id: userId }]), [
+    { client_tap_id: "t3", status: "cooldown", lines: ["Alex: 2 of 2", "Already counted"] },
+  ]);
+});
+
+test("the next stop skips a disabled station and one with no booth, however quiet", async () => {
+  const { ids, userId } = await passportOf(3);
+  await standAt(ids, ["A1", null, "C3", "D4"]);
+  await testDb()
+    .update(stations)
+    .set({ disabledAt: "2026-10-30T01:00:00.000Z" })
+    .where(eq(stations.id, ids[3]!));
+  await crowd(ids[2]!, 5);
+  assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
+    { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 4", "Next: C3"] },
+  ]);
+});
+
+test("between booths as quiet, the next stop is the earlier stamp slot", async () => {
+  const { ids, userId } = await passportOf(2);
+  await standAt(ids, ["A1", "B2", "C3"]);
+  // C3 was added to the passport before B2, so its slot comes first.
+  await testDb()
+    .update(passportStations)
+    .set({ addedAt: "2026-10-01T00:00:00.000Z" })
+    .where(eq(passportStations.stationId, ids[2]!));
+  await crowd(ids[1]!, 1);
+  await crowd(ids[2]!, 1);
+  assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
+    { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 3", "Next: C3"] },
+  ]);
+});
+
+test("only the last 10 minutes' taps tell how quiet a booth is", async () => {
+  const { ids, userId } = await passportOf(2);
+  await standAt(ids, ["A1", "B2", "C3"]);
+  await crowd(ids[1]!, 5, 11);
+  await crowd(ids[2]!, 1, 9);
+  assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
+    { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 3", "Next: B2"] },
+  ]);
+});
+
+test("the next stop's booth is cut to fit, without accents, or left off when the screen can't show it", async () => {
+  const { ids } = await passportOf(1);
+  await standAt(ids, ["A1", "Café Corner Booth"]);
+  assert.deepEqual(
+    (await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: "user-1" }]))[0]!.lines,
+    ["Alex: 1 of 2", "Next: Cafe Corne"],
+  );
+  await standAt(ids, ["A1", "咖啡"]);
+  assert.deepEqual(
+    (await handOff(ids[0]!, [{ client_tap_id: "t2", user_id: "user-2" }]))[0]!.lines,
+    ["1 of 2 stamps", "Tap counted!"],
   );
 });

@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, min } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
+import { type NextStop, nextStop, quietestFirst } from "./next-stop.ts";
 import { passportStations, stations, taps } from "./schema.ts";
 import { runsThePassport } from "./stamp-slots.ts";
 import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
@@ -39,19 +40,21 @@ export interface MeView {
   points: number;
   passport: StampSlot[];
   recentTaps: RecentTap[];
+  /** The stamp slot the station would send them to next, as their next tap there would say. */
+  nextStop: NextStop | null;
 }
 
 /**
  * Reads everything /me shows, for one user. Stamps and points are derived from
  * accepted taps here, never stored, so they cannot drift from the tap log.
  *
- * The three reads are independent and sent together. Not with db.batch(): that
+ * The four reads are independent and sent together. Not with db.batch(): that
  * is libSQL-only. The cost is that each read sees its own moment, so a tap
  * stored mid-request can appear in recentTaps a poll before its stamp does.
  * The next poll catches up.
  */
-export async function loadMe(db: Db, userId: string): Promise<MeView> {
-  const [passport, visits, recentTaps] = await Promise.all([
+export async function loadMe(db: Db, userId: string, now = new Date()): Promise<MeView> {
+  const [passport, visits, recentTaps, quietest] = await Promise.all([
     // Only the stations that run the passport, with its settings, are stamp slots.
     db
       .select({
@@ -96,6 +99,7 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
       .where(eq(taps.userId, userId))
       .orderBy(desc(taps.receivedAt), desc(taps.id))
       .limit(RECENT_TAP_LIMIT),
+    quietestFirst(db, now),
   ]);
   const visitsByStation = new Map(visits.map((visit) => [visit.stationId, visit]));
 
@@ -116,5 +120,6 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
       earnedAt: visitsByStation.get(station.id)?.firstAt ?? null,
     })),
     recentTaps,
+    nextStop: nextStop(quietest, new Set(visitsByStation.keys())),
   };
 }

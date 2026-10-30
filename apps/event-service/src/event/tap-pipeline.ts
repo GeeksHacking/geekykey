@@ -151,6 +151,7 @@ export class TapPipeline {
       // 2. The games at this station judge the rest, one after another on the one connection.
       const context: GameContext = {
         stationId,
+        now,
         tx,
         cooldown: (toJudge) => this.#cooldown(tx, stationId, toJudge),
       };
