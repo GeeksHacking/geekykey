@@ -2,9 +2,11 @@ import { useRef } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { DisplayNameRow } from "@/features/passport/display-name-row";
-import { useNamePromptSkip } from "@/features/passport/use-name-prompt-skip";
 import { NamePrompt } from "@/features/passport/name-prompt";
+import { NewStampBanner } from "@/features/passport/new-stamp-banner";
 import { StampGrid } from "@/features/passport/stamp-grid";
+import { useNamePromptSkip } from "@/features/passport/use-name-prompt-skip";
+import { useNewStampLink } from "@/features/passport/use-new-stamp-link";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
 import { useMe } from "@/lib/session";
 
@@ -13,6 +15,7 @@ export function PassportScreen() {
   const namePrompt = useNamePromptSkip(me.user.id);
   const scope = useRef<HTMLDivElement>(null);
   const changes = usePassportChanges(scope, me);
+  const newStamp = useNewStampLink(me);
   const earned = me.stamps.filter((stamp) => stamp.earned_at !== null).length;
   const description =
     me.stamps.length === 0
@@ -25,6 +28,13 @@ export function PassportScreen() {
         <DisplayNameRow displayName={me.user.display_name} />
       </div>
       {!me.user.has_name && !namePrompt.skipped ? <NamePrompt onSkip={namePrompt.skip} /> : null}
+      {newStamp.offer ? (
+        <NewStampBanner
+          offer={newStamp.offer}
+          onDismiss={newStamp.dismiss}
+          onPress={newStamp.press}
+        />
+      ) : null}
       <StampGrid stamps={me.stamps} stamped={changes.stamped} />
     </div>
   );
