@@ -54,7 +54,10 @@ inline void buildTokenAddress(uint8_t out[TOKEN_AREA_LEN], char kind) {
 
 inline bool isLineSpace(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 
-enum KindCommand { KIND_SET, KIND_BAD, NOT_KIND_COMMAND };
+// No kind set yet. Every kind is a letter, so 0 is never one.
+constexpr char NO_KIND = 0;
+
+enum KindCommand { KIND_SET, KIND_NOT_A_LETTER, NOT_KIND_COMMAND };
 
 // Reads one line typed on the serial port. "kind E" sets the kind to E: any
 // letter, upper or lower case, kept as upper case. On anything else, *kind
@@ -67,19 +70,19 @@ inline KindCommand readKindCommand(const char* line, char* kind) {
   while (isLineSpace(*line)) line++;
   char letter = *line;
   if (letter >= 'a' && letter <= 'z') letter -= 'a' - 'A';
-  if (letter < 'A' || letter > 'Z') return KIND_BAD;
+  if (letter < 'A' || letter > 'Z') return KIND_NOT_A_LETTER;
   line++;
   while (isLineSpace(*line)) line++;
-  if (*line != '\0') return KIND_BAD;
+  if (*line != '\0') return KIND_NOT_A_LETTER;
   *kind = letter;
   return KIND_SET;
 }
 
-constexpr size_t KIND_LOG_LEN = UID_CHARS + 3;   // UID, comma, kind, end
+constexpr size_t UID_KIND_LINE_LEN = UID_CHARS + 3;   // UID, comma, kind, end
 
 // The line printed for each token written: "<UID>,<kind>". Those lines are the
 // list the server loads (BAC-113), so they keep this shape.
-inline void formatKindLog(char out[KIND_LOG_LEN], const char* uid, char kind) {
+inline void formatUidKindLine(char out[UID_KIND_LINE_LEN], const char* uid, char kind) {
   memcpy(out, uid, UID_CHARS);
   out[UID_CHARS] = ',';
   out[UID_CHARS + 1] = kind;
