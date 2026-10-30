@@ -1827,7 +1827,7 @@
   date: 2026-10-30
   area: frontend
   change: >-
-    On the demo data, the summary now lists only the stations in the passport, in the order they
-    were added, as the Event Service does, so the summary shows the same rows on both. The demo
-    export now ends its lines the way the Event Service's file does, and quotes a name that holds a
-    line break.
+    The summary on the demo data now lists only the stations in the passport, oldest first, as the
+    Event Service does. Until now it also listed stations outside the passport. The demo export now
+    ends every line in CRLF, as the Event Service's file does, and quotes a value that holds a
+    carriage return.
