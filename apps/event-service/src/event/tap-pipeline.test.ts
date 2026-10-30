@@ -33,6 +33,7 @@ test("accepts a tap by a token's owner and stores it", async () => {
       clientTapId: "t1",
       status: "accepted",
       userId,
+      stationText: { lines: ["Alex: 1 of 1", "All 1 done!"], complete: true },
     },
   ]);
   assert.deepEqual(await statuses(db), [

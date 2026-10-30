@@ -388,6 +388,41 @@ test("another team's own status passes to the station unchanged", async () => {
   ]);
 });
 
+test("a tap's lines and complete from the Event Service pass to the station unchanged", async () => {
+  const { fake, post } = await harness();
+  fake.answers.taps = async ({ body }) =>
+    Response.json({
+      results: (body as { taps: HandedOffTap[] }).taps.map((t) =>
+        t.client_tap_id === "t1"
+          ? {
+              client_tap_id: "t1",
+              status: "accepted",
+              lines: ["Alex: 6 of 6", "All 6 done!"],
+              complete: true,
+            }
+          : { client_tap_id: t.client_tap_id, status: "bingo_line", lines: ["Line!"] },
+      ),
+    });
+  const res = await post({
+    taps: [
+      { client_tap_id: "t1", uid: UID },
+      { client_tap_id: "t2", uid: "DE:AD:BE:EF" },
+      { client_tap_id: "t3", uid: UID },
+    ],
+  });
+  assert.deepEqual(((await res.json()) as TapsAnswer).results, [
+    {
+      client_tap_id: "t1",
+      status: "accepted",
+      lines: ["Alex: 6 of 6", "All 6 done!"],
+      complete: true,
+    },
+    // Not handed off, so nothing to show but the status.
+    { client_tap_id: "t2", status: "unknown_token" },
+    { client_tap_id: "t3", status: "bingo_line", lines: ["Line!"] },
+  ]);
+});
+
 test("the registered stations are asked for once, with the Event Service key, and kept", async () => {
   const { config, post, sentTo } = await harness();
   loggedLines();
@@ -453,6 +488,17 @@ for (const [what, answer] of [
         results: (body as { taps: HandedOffTap[] }).taps.map((t) => ({
           client_tap_id: t.client_tap_id,
           status: "Accepted",
+        })),
+      }),
+  ],
+  [
+    "a line longer than the station's screen",
+    async ({ body }: SentRequest) =>
+      Response.json({
+        results: (body as { taps: HandedOffTap[] }).taps.map((t) => ({
+          client_tap_id: t.client_tap_id,
+          status: "accepted",
+          lines: ["x".repeat(17)],
         })),
       }),
   ],

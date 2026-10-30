@@ -1,7 +1,8 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { isoNow } from "../db/columns.ts";
 import type { Db } from "../db/pool.ts";
+import type { Tx } from "./games.ts";
 import { users } from "./schema.ts";
 
 /*
@@ -34,6 +35,34 @@ export const displayNameSchema = z
  */
 export function hasName(user: { displayName: string; nameSetAt: string | null }): boolean {
   return user.nameSetAt !== null || user.displayName !== DEFAULT_DISPLAY_NAME;
+}
+
+/**
+ * The name a station's screen greets each of `userIds` by (the API
+ * agreement's 6.1), for those it has one for: the first word of the name the
+ * event shows, with accents taken off, and only while they have a name of
+ * their own (hasName). The screen shows only printable ASCII, so a name it
+ * can't show, such as one in Chinese characters, is left out, and so is a
+ * user who has never logged in to this Event Service. `db` may be an
+ * ingest's transaction.
+ */
+export async function stationNames(
+  db: Db | Tx,
+  userIds: readonly string[],
+): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: users.id, displayName: users.displayName, nameSetAt: users.nameSetAt })
+    .from(users)
+    .where(inArray(users.id, [...new Set(userIds)]));
+  const names = new Map<string, string>();
+  for (const user of rows) {
+    if (!hasName(user)) continue;
+    const [firstWord = ""] = user.displayName.trim().split(/\s+/u);
+    const plain = firstWord.normalize("NFD").replace(/\p{M}/gu, "");
+    if (/^[\x21-\x7E]+$/.test(plain)) names.set(user.id, plain);
+  }
+  return names;
 }
 
 /**

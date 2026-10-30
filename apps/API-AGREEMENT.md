@@ -13,8 +13,8 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.8 |
-| Date | 28 October 2026 |
+| Version | 0.9 (draft) |
+| Date | 30 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -372,6 +372,8 @@ is what a station's `game` holds, and a `name` organizers see, such as "Passport
 list of games is in the Event Service's code, so it changes only with a deploy.
 
 - Only the station's own game judges its taps. A tap at a station with no game gets `no_game`.
+- The station's own game can also give what the station shows after an `accepted` or `cooldown`
+  tap, as `lines` and `complete` (6.1). The passport's are the visitor's progress, by name.
 - A station's game is **fixed** once the station has a tap that a game counted or held back, an
   `accepted` or `cooldown` tap, from the station or the QR fallback (9.4). After that, a change
   answers `409 station_has_taps`. The passport's record is the accepted taps at its stations,
@@ -481,7 +483,7 @@ call; the only difference is the array length.
 {
   "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
   "results": [
-    { "client_tap_id": "tap-000123", "status": "accepted" },
+    { "client_tap_id": "tap-000123", "status": "accepted", "lines": ["Alex: 3 of 6", "Tap counted!"] },
     { "client_tap_id": "tap-000124", "status": "unknown_token" }
   ]
 }
@@ -489,6 +491,24 @@ call; the only difference is the array length.
 
 `results` is in the same order as the request, one per tap, with the same `client_tap_id`s. Every
 item has a [`tap_status`](#tap_status).
+
+| Field | Type | Rules |
+|---|---|---|
+| `results[].client_tap_id` | string | The tap's, from the request |
+| `results[].status` | string | A [`tap_status`](#tap_status), or another team's own |
+| `results[].lines` | array of strings, optional | 1 or 2 lines for the station's screen, written by the station's game. Each is 0 to 16 printable ASCII characters, space to `~`. Ours gives them with `accepted` and `cooldown` only |
+| `results[].complete` | boolean, optional | `true` on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune. Ours gives it only when `true`, with `lines` |
+
+- The passport's lines are the visitor's progress, and what happened: `Alex: 3 of 6` and
+  `Tap counted!`, or `Already counted` in the cooldown. The tap that earns the last stamp says
+  `Alex: 6 of 6` and `All 6 done!`, with `complete`. The wording can change.
+- The name is the first word of the name the event shows, only while the visitor has a name of
+  their own (`user.has_name` in 8.1), with accents taken off and cut to fit. A visitor with no
+  name, one the screen can't show, such as one in Chinese characters, or one who has never logged
+  in to the event, gets `3 of 6 stamps` instead.
+- No token UID or user ID is ever in a line, and no log line prints them.
+- A saved tap sent later gets them too, but the station doesn't show them, since the visitor has
+  gone.
 
 **How a tap is answered, from checkpoint 3**
 
@@ -524,6 +544,11 @@ item has a [`tap_status`](#tap_status).
 - Resend saved taps at most once a minute, alongside the heartbeat, never in a loop. A new tap
   is still sent at once, with any saved taps in the same request, up to 500.
 - Ignore response fields you don't know, and treat a status you don't know as recorded.
+- For a live tap with `lines`, show `lines[0]` and `lines[1]`, or a blank second line, in place
+  of the screen in the table below, cutting each to 16 characters in case. Keep the status's LED
+  and sound, except with `complete: true`: play a tune of your own instead of the accepted beep,
+  and light the LED in a way of its own. An answer without `lines` shows the table's screen, as
+  today.
 - The cooldown for saved taps is judged by `tapped_at` when present, so saved taps can be sent
   in any order, and a tap is compared with the accepted taps nearest it in time on either side,
   including ones already stored. Without `tapped_at` the receipt time is used, which means every
@@ -535,6 +560,7 @@ change. Show each result for about 2 seconds with its LED on, then go back to "R
 
 | Result | Screen | LED |
 |---|---|---|
+| any result with `lines`, for a live tap | `lines[0]` / `lines[1]` | the status's, or its own with `complete` |
 | `accepted` | `Tap counted!` / `Check your phone` | blue |
 | `cooldown` | `Already counted` / `Try again later` | amber |
 | `unknown_token` | `Not claimed yet` / `Claim on phone` | red |
@@ -1572,13 +1598,17 @@ it that passed the GeekyKey Service's own checks.
 ```json
 {
   "results": [
-    { "client_tap_id": "tap-000123", "status": "accepted" },
-    { "client_tap_id": "tap-000124", "status": "cooldown" }
+    { "client_tap_id": "tap-000123", "status": "accepted", "lines": ["Alex: 3 of 6", "Tap counted!"] },
+    { "client_tap_id": "tap-000124", "status": "cooldown", "lines": ["Alex: 3 of 6", "Already counted"] }
   ]
 }
 ```
 
 - One result per tap, in request order, with the same `client_tap_id`s.
+- `lines` and `complete` are optional, with 6.1's rules, and the GeekyKey Service passes them to
+  the station unchanged, as it does the status. A line that breaks 6.1's rules fails the whole
+  request, as a status that isn't snake_case does (11.5). An Event Service that sends neither
+  gets the station's own screen for the status.
 - `status` is a snake_case string. Ours answers `accepted`, `cooldown`, `no_game` or
   `duplicate`. Another team's may answer statuses of its own, which the GeekyKey Service passes to
   the station unchanged.
@@ -1903,3 +1933,4 @@ Closed on 2026-10-10:
 | 2026-10-28 | Version 0.8, a draft for Ethan's review: a passport station can give the group's page with its stamp (BAC-99). 9.1 takes an optional `link`, trimmed, which must be a URL that starts with `https://`, at most 300 code points. Any other link gets `validation_failed`. A blank or `null` link is none, and a request that leaves it out clears it, as `location` does. 9.2 gives it as `passport.link`, and 8.1 gives it with each stamp as `stamps[].link`, or `null`. Section 13 has the button the passport shows after a new stamp with a link, "Open their page?". A new nullable column holds it, so the version still running keeps working while it deploys. No field is removed. |
 | 2026-10-28 | Ethan, the screens owner, approved versions 0.7 and 0.8, so neither is a draft any more. No endpoint or shape changes (BAC-90, BAC-99). |
 | 2026-10-30 | 9.10 says the screen may pulse a station once for each new tap rather than once a poll, and that ours plays up to 3 a poll. No endpoint or shape changes (FRO-102). |
+| 2026-10-30 | Version 0.9, a draft for Ethan's review: a tap's result can carry what the station's game has the station show (BAC-111). Each item in 6.1's and 11.2's `results` can carry two optional fields: `lines`, one or two lines of 0 to 16 printable ASCII characters, and `complete`, `true` on the tap that finishes the game. Ours gives them with `accepted` and `cooldown` only. The passport's lines are the visitor's progress, by the first word of their name while they have one of their own, and the tap that earns the last stamp has `complete`. The GeekyKey Service passes them on unchanged, and a line that breaks the rules fails the request with `503 event_service_unavailable`, as a bad status does. The firmware contract says how the station shows them, and a station that ignores them keeps working. Their JSON Schema is in `packages/handoff/json-schema/taps-answer.schema.json` (11.7). No field is removed. |

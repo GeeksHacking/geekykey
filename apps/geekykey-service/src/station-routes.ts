@@ -1,4 +1,4 @@
-import { type HeartbeatsRequest, heartbeatsRequest } from "@geekykey/handoff";
+import { type HeartbeatsRequest, heartbeatsRequest, type TapsAnswer } from "@geekykey/handoff";
 import { Hono } from "hono";
 import { z } from "zod";
 import { regexes } from "zod/v4/core";
@@ -130,12 +130,13 @@ export function tapsRoutes({
       return c.json({ error: "claims_unavailable" }, 503);
     }
 
-    // A status an Event Service gives is passed on unchanged, even one of its own.
-    const statuses = Array.from<string>({ length: taps.length });
+    // What an Event Service answers is passed on unchanged: its status, even one of its own,
+    // and the lines and complete its game gives.
+    const results = Array.from<TapsAnswer["results"][number]>({ length: taps.length });
     const claimed = taps.flatMap((tap, index) => {
       const userId = owners.get(tap.uid);
       if (userId !== undefined) return [{ index, tap, userId }];
-      statuses[index] = "unknown_token";
+      results[index] = { client_tap_id: tap.client_tap_id, status: "unknown_token" };
       log("unknown_token", {
         station_id: station.id,
         client_tap_id: tap.client_tap_id,
@@ -146,9 +147,9 @@ export function tapsRoutes({
 
     if (claimed.length > 0) {
       const now = new Date();
-      let results;
+      let handedOff;
       try {
-        results = await eventService.handOffTaps(
+        handedOff = await eventService.handOffTaps(
           {
             station_id: station.id,
             taps: claimed.map(({ tap, userId }) => ({
@@ -169,17 +170,13 @@ export function tapsRoutes({
         });
         return c.json({ error: "event_service_unavailable" }, 503);
       }
-      results.forEach((result, i) => (statuses[claimed[i]!.index] = result.status));
+      // One for one with `claimed`, in order, as handOffTaps checks.
+      handedOff.forEach((result, i) => (results[claimed[i]!.index] = result));
     }
 
-    // Deliberately no user details: readers must not hold PII (see RAMS, data privacy row).
-    return c.json({
-      station_id: station.id,
-      results: taps.map((tap, index) => ({
-        client_tap_id: tap.client_tap_id,
-        status: statuses[index],
-      })),
-    });
+    // Deliberately no user IDs: readers must not hold PII (see RAMS, data privacy row). A
+    // game's lines may name the visitor, for the station's screen only (the agreement's 6.1).
+    return c.json({ station_id: station.id, results });
   });
 }
 

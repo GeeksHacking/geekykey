@@ -1,5 +1,7 @@
 import {
   type HeartbeatsRequest,
+  LINE_PATTERN,
+  MAX_LINES,
   type RegisteredStation,
   stationsAnswer,
   type TapsAnswer,
@@ -98,6 +100,16 @@ export class EventService {
 /** The pattern tapsAnswer checks each status with, in @geekykey/handoff. */
 const STATUS_PATTERN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
 
+/** Whether `lines` are a result's lines as tapsAnswer takes them. */
+function isLines(lines: unknown): lines is string[] {
+  return (
+    Array.isArray(lines) &&
+    lines.length >= 1 &&
+    lines.length <= MAX_LINES &&
+    lines.every((line) => typeof line === "string" && LINE_PATTERN.test(line))
+  );
+}
+
 /**
  * A plain check of the hand-off's answer, tried before tapsAnswerMatching
  * (service-request.ts). It returns what the schema would, or undefined for
@@ -119,10 +131,19 @@ export function quickTapsAnswer(request: TapsRequest) {
     const results: TapsAnswer["results"] = [];
     for (const [i, result] of raw.entries()) {
       if (typeof result !== "object" || result === null || Array.isArray(result)) return undefined;
-      const { client_tap_id, status } = result as Record<string, unknown>;
+      const { client_tap_id, status, lines, complete } = result as Record<string, unknown>;
       if (client_tap_id !== request.taps[i]!.client_tap_id) return undefined;
       if (typeof status !== "string" || !STATUS_PATTERN.test(status)) return undefined;
-      results.push({ client_tap_id, status });
+      const checked: TapsAnswer["results"][number] = { client_tap_id, status };
+      if (lines !== undefined) {
+        if (!isLines(lines)) return undefined;
+        checked.lines = lines;
+      }
+      if (complete !== undefined) {
+        if (typeof complete !== "boolean") return undefined;
+        checked.complete = complete;
+      }
+      results.push(checked);
     }
     return { results };
   };

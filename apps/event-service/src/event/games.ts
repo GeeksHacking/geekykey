@@ -52,6 +52,22 @@ export interface GameContext {
   cooldown(taps: readonly GameTap[]): Promise<boolean[]>;
 }
 
+/** A tap a game counted or held back, with the status it was stored with. */
+export interface JudgedTap extends GameTap {
+  status: "accepted" | "cooldown";
+}
+
+/**
+ * What a station shows after one tap, from its game (the API agreement's
+ * 6.1): one or two lines, each a row of its 16x2 screen, so up to 16
+ * printable ASCII characters, and whether the tap finished the game, which
+ * the station plays its own tune for.
+ */
+export interface StationText {
+  lines: string[];
+  complete: boolean;
+}
+
 export interface Game {
   /** A station's `game` when it runs this one (the API agreement's 9.11), and the game in errors. */
   id: string;
@@ -60,6 +76,15 @@ export interface Game {
    * each, in the same order.
    */
   judge(taps: readonly GameTap[], context: GameContext): Promise<GameStatus[]>;
+  /**
+   * What the station shows for each of `taps`, in the same order, or null
+   * for a tap it shows nothing for. Optional: a game without it gives the
+   * station none, which then shows its own text for the status. Called only
+   * on a station's own game, for the taps from a station that a game counted
+   * or held back, once they're written in the same transaction, so a tap's
+   * lines can count the tap itself.
+   */
+  lines?(taps: readonly JudgedTap[], context: GameContext): Promise<(StationText | null)[]>;
 }
 
 /**

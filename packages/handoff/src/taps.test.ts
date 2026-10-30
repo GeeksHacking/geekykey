@@ -93,3 +93,30 @@ test("an answer whose results don't match the taps one for one is rejected", () 
     assert.equal(tapsAnswerMatching(request).safeParse({ results }).success, false, what);
   }
 });
+
+test("a result's lines and complete pass: up to two lines of up to 16 printable ASCII characters", () => {
+  const withLines = (extra: Record<string, unknown>) => ({
+    results: [{ client_tap_id: "t1", status: "accepted", ...extra }],
+  });
+  for (const extra of [
+    { lines: ["Alex: 3 of 6", "Tap counted!"] },
+    { lines: ["3 of 6 stamps"] },
+    { lines: ["Alex: 6 of 6", "All 6 done!"], complete: true },
+    { lines: ["~ Every char! ~ ", ""] },
+    { complete: false },
+  ]) {
+    assert.deepEqual(tapsAnswer.parse(withLines(extra)), withLines(extra), JSON.stringify(extra));
+  }
+  for (const [what, extra] of [
+    ["no lines", { lines: [] }],
+    ["three lines", { lines: ["a", "b", "c"] }],
+    ["a line of 17 characters", { lines: ["x".repeat(17)] }],
+    ["a line that isn't ASCII", { lines: ["José: 3 of 6"] }],
+    ["a line with a control character", { lines: ["3 of 6\n"] }],
+    ["a line that isn't a string", { lines: [3] }],
+    ["lines as one string", { lines: "Tap counted!" }],
+    ["complete as a string", { complete: "true" }],
+  ] as const) {
+    assert.equal(tapsAnswer.safeParse(withLines(extra)).success, false, what);
+  }
+});
