@@ -8,7 +8,7 @@ import { returnFocusOnClose } from "@/features/stations/dialog-focus";
  * Wraps BoothForm in a dialog. The board renders one of these per station and keeps it
  * closed until the organiser asks for it, so no station holds open dialog state.
  *
- * `returnFocusTo` is the row's Station settings button, which takes the keyboard back on
+ * `returnFocusTo` is the row's Actions button, which takes the keyboard back on
  * close (FRO-99, FRO-100).
  */
 export function BoothDialog({

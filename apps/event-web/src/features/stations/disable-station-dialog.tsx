@@ -27,7 +27,7 @@ const CONFIRMATION =
  * As with the replace-key alert, Radix mounts the content only once it opens, which is
  * what holds the useDisableStation call here rather than in the board's row.
  *
- * `returnFocusTo` is the row's Station settings button (FRO-99, FRO-100). A successful disable
+ * `returnFocusTo` is the row's Actions button (FRO-99, FRO-100). A successful disable
  * leaves it in place, its menu now offering Enable, so it takes the keyboard back either way.
  */
 export function DisableStationDialog({

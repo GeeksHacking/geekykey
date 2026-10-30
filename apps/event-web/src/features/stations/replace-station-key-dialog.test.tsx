@@ -6,9 +6,9 @@ import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { StationBoard } from "@/features/stations/station-board";
 import {
-  openStationSettings,
+  openStationActions,
   pickStationAction,
-} from "@/features/stations/station-settings-test-helpers";
+} from "@/features/stations/station-actions-test-helpers";
 import { createTestProviders } from "@/test/providers";
 
 /** FRO-28's sentence, from the 8 Oct decision. Used as written, so it is asserted whole. */
@@ -46,7 +46,7 @@ async function setup() {
 
 /** Opens the replace dialog from the given row's menu. */
 async function openDialog(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await pickStationAction(user, name, "Replace key");
+  await pickStationAction(user, name, "Replace key…");
   return screen.findByRole("alertdialog");
 }
 
@@ -109,9 +109,9 @@ describe("replacing a station's key", () => {
   it("offers it on the disabled station as well as an enabled one", async () => {
     const { user, disabledName } = await setup();
 
-    await openStationSettings(user, disabledName);
+    await openStationActions(user, disabledName);
 
-    expect(screen.getByRole("menuitem", { name: "Replace key" })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: "Replace key…" })).toBeEnabled();
   });
 
   // Spec section 10's answer to a station that has gone missing is to disable it and then
@@ -174,11 +174,8 @@ describe("replacing a station's key", () => {
   // is open, and the second dialog is opened after cancelling the first.
   it("names the station of the row that asked, after cancelling", async () => {
     const { user, firstName } = await setup();
-    const second = screen.getAllByRole("button", { name: /^Station settings for / })[1]!;
-    const secondName = (second.getAttribute("aria-label") ?? "").replace(
-      "Station settings for ",
-      "",
-    );
+    const second = screen.getAllByRole("button", { name: /^Actions for / })[1]!;
+    const secondName = (second.getAttribute("aria-label") ?? "").replace("Actions for ", "");
 
     await openDialog(user, firstName);
     expect(screen.getByRole("alertdialog")).toHaveTextContent(`Replace ${firstName}'s key?`);
