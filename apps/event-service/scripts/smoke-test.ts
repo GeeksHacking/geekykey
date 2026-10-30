@@ -155,10 +155,20 @@ test("a tap by a claimed token is stored with its owner's user ID", async () => 
   const answer = await postAsStation("/api/v1/taps", {
     taps: [{ client_tap_id: clientTapId, uid: claimedUid, tapped_at: tappedAt }],
   });
-  assert.deepEqual(answer, {
-    station_id: station.id,
-    results: [{ client_tap_id: clientTapId, status: "accepted" }],
-  });
+  // With the passport's lines for the station, through both services (6.1). How many stamp
+  // slots there are depends on what else geekykey_test holds, so only their shape is checked.
+  const { results, ...rest } = answer as {
+    station_id: string;
+    results: { lines?: string[]; complete?: boolean }[];
+  };
+  const [{ lines, complete, ...result } = {}] = results;
+  assert.deepEqual(
+    { ...rest, results: [result] },
+    { station_id: station.id, results: [{ client_tap_id: clientTapId, status: "accepted" }] },
+  );
+  assert.match(lines?.[0] ?? "", /^Smoke: \d+ of \d+$/);
+  assert.equal(lines?.length, 2);
+  assert.ok(complete === undefined || complete === true);
 
   const stored = await storedTaps(clientTapId);
   assert.deepEqual(stored, [{ userId: participantId, status: "accepted", tappedAt }]);
