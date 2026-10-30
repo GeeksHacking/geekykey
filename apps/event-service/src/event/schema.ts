@@ -1,3 +1,4 @@
+import { TOKEN_KIND_MAX } from "@geekykey/handoff";
 import {
   boolean,
   index,
@@ -159,6 +160,20 @@ export const usedLoginLinks = mysqlTable(
   },
   (t) => [index("used_login_links_expires_at_idx").on(t.expiresAt)],
 );
+
+/**
+ * Each user's kind (ADR 0006), as the GeekyKey Service gave it: in a tap's
+ * hand-off or in a login link, from the kind of their token. The first kind
+ * seen stays, so a user holding tokens of two kinds keeps the one they came
+ * with. Apart from `users`, since a tap's user may never have logged in here.
+ * The event's own data, cleared with its users.
+ */
+export const userKinds = mysqlTable("user_kinds", {
+  userId: userId("user_id").primaryKey(),
+  kind: varchar("kind", { length: TOKEN_KIND_MAX }).notNull(),
+  /** When the kind was first seen. */
+  createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
+});
 
 export type User = typeof users.$inferSelect;
 export type Station = typeof stations.$inferSelect;

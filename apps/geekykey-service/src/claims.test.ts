@@ -34,10 +34,10 @@ const signal = () => AbortSignal.timeout(4000);
 
 test("the owners of the tokens someone owns, and none for the rest", async () => {
   const { claims, sent } = standIn(
-    Response.json({ owners: [{ uid: "04A1B2C3D4E5F6", user_id: "user-1" }] }),
+    Response.json({ owners: [{ uid: "04A1B2C3D4E5F6", user_id: "user-1", kind: "E" }] }),
   );
   const owners = await claims.ownersOf(["04A1B2C3D4E5F6", "DEADBEEF"], signal());
-  assert.deepEqual(owners, new Map([["04A1B2C3D4E5F6", "user-1"]]));
+  assert.deepEqual(owners, new Map([["04A1B2C3D4E5F6", { userId: "user-1", kind: "E" }]]));
   assert.deepEqual(sent, [
     {
       method: "POST",

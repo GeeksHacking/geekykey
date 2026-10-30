@@ -1,3 +1,4 @@
+import { tokenKind } from "@geekykey/handoff";
 import { z, type ZodType } from "zod";
 import { askService, type Send, Unanswered } from "./service-request.ts";
 
@@ -10,8 +11,11 @@ import { askService, type Send, Unanswered } from "./service-request.ts";
  * deadline, or a screen's own. There's no retry. UIDs arrive normalised.
  */
 export interface Claims {
-  /** The owners of up to 500 tokens, by UID. A UID missing from the map is unclaimed. */
-  ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, string>>;
+  /**
+   * The owners of up to 500 tokens, by UID, each with the token's kind. A UID
+   * missing from the map is unclaimed.
+   */
+  ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, TokenOwner>>;
   /**
    * Claims the token for the user. The first claim wins, and `claimedAt` is
    * when the user's claim was made, for the claim route's answer.
@@ -25,6 +29,12 @@ export interface Claims {
   release(uid: string, ownerId: string, signal: AbortSignal): Promise<"released" | "not_owner">;
   /** The user's tokens, oldest claim first. */
   tokensOf(userId: string, signal: AbortSignal): Promise<ClaimedToken[]>;
+}
+
+/** Who owns a token, and the token's kind (ADR 0006): null for a token with none. */
+export interface TokenOwner {
+  userId: string;
+  kind: string | null;
 }
 
 /** One of a user's tokens, and when they claimed it. */
@@ -43,7 +53,16 @@ export class ClaimsUnavailable extends Unanswered {
 }
 
 const ownersAnswer = z.object({
-  owners: z.array(z.object({ uid: z.string(), user_id: z.string() })),
+  owners: z.array(
+    z.object({
+      uid: z.string(),
+      user_id: z.string(),
+      // A stand-in from before kinds gives none, which reads as none, so either side can be
+      // rolled back alone. Held to the hand-off's rule, so a kind that can't be handed off
+      // fails here, as the stand-in's fault, and not at the Event Service.
+      kind: tokenKind.optional().transform((kind) => kind ?? null),
+    }),
+  ),
 });
 const claimAnswer = z.union([
   z.object({ result: z.enum(["claimed", "already_yours"]), claimed_at: z.string() }),
@@ -73,10 +92,10 @@ export class StandInClaims implements Claims {
     this.#send = send;
   }
 
-  async ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, string>> {
+  async ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, TokenOwner>> {
     if (uids.length === 0) return new Map();
     const { owners } = await this.#call("POST", "/owners", { uids }, ownersAnswer, signal);
-    return new Map(owners.map((owner) => [owner.uid, owner.user_id]));
+    return new Map(owners.map((owner) => [owner.uid, { userId: owner.user_id, kind: owner.kind }]));
   }
 
   async claim(uid: string, userId: string, signal: AbortSignal) {

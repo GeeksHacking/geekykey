@@ -18,7 +18,13 @@ const BOOTH_ADDED_AT = "2026-10-10T08:00:00.000Z";
 
 /** GET /api/v1/me, in the shape section 8.1 of API-AGREEMENT.md agrees. */
 interface MeBody {
-  user: { id: string; display_name: string; role: string; has_name: boolean };
+  user: {
+    id: string;
+    display_name: string;
+    role: string;
+    has_name: boolean;
+    kind: string | null;
+  };
   points: number;
   stamps: {
     station_id: string;
@@ -138,7 +144,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
   // A user's tokens are on the GeekyKey Service's /me, not this one.
   const { meAs, userId, stationId } = await harness();
   assert.deepEqual(await meAs(userId), {
-    user: { id: userId, display_name: "Alex", role: "participant", has_name: true },
+    user: { id: userId, display_name: "Alex", role: "participant", has_name: true, kind: null },
     points: 0,
     stamps: [
       {
@@ -401,7 +407,13 @@ test("an organizer on the list gets the same view of their own account", async (
     { id: "dev-user-1", displayName: "Wei Lin" },
   ]);
   assert.deepEqual(await meAs("dev-organizer-1"), {
-    user: { id: "dev-organizer-1", display_name: "Priya", role: "organizer", has_name: true },
+    user: {
+      id: "dev-organizer-1",
+      display_name: "Priya",
+      role: "organizer",
+      has_name: true,
+      kind: null,
+    },
     points: 0,
     stamps: [
       {
@@ -437,7 +449,7 @@ test("a participant sets the name the event shows, and /me shows it", async () =
   const res = await patchMe({ display_name: "Ally" }, await signIn(userId));
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), {
-    user: { id: userId, display_name: "Ally", role: "participant", has_name: true },
+    user: { id: userId, display_name: "Ally", role: "participant", has_name: true, kind: null },
   });
   assert.equal((await meAs(userId)).user.display_name, "Ally");
 });

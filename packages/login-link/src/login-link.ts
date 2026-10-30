@@ -9,6 +9,9 @@ const KEY_INFO = "geekykey login link";
 /** The longest name a link carries, in Unicode code points (the API agreement's 11.9). */
 export const LOGIN_LINK_NAME_MAX = 100;
 
+/** The most characters in a token's kind, as in the hand-off (the API agreement's 11.2 and 11.9). */
+export const LOGIN_LINK_KIND_MAX = 32;
+
 /** The payload's rules (the API agreement's 11.9). */
 const payloadSchema = z.object({
   v: z.literal(1),
@@ -21,6 +24,8 @@ const payloadSchema = z.object({
     .nullable(),
   exp: z.int(),
   jti: z.string().regex(/^[0-9a-f]{32}$/),
+  // Left out by a GeekyKey Service from before kinds, which reads as none.
+  kind: z.string().min(1).max(LOGIN_LINK_KIND_MAX).nullable().optional(),
 });
 
 /** base64url without padding: what each part of a link is written in. */
@@ -32,6 +37,11 @@ export interface LoginLink {
   userId: string;
   /** `name`: the name from the user's login, or null when it had none, as a guest's has none. */
   name: string | null;
+  /**
+   * `kind`: the kind of the token whose page made the link (ADR 0006), or null
+   * when it has none, the user doesn't own it, or the link came from no token's page.
+   */
+  kind: string | null;
   /** `jti`: 32 lower-case hex characters, which the Event Service keeps so the link works once. */
   jti: string;
   /** `exp`: when it stops working. */
@@ -45,8 +55,16 @@ export interface MadeLoginLink {
 }
 
 export interface LoginLinks {
-  /** A new link for `userId`, which works once, for 60 seconds from `now`. */
-  make(user: { userId: string; name: string | null; now?: Date }): Promise<MadeLoginLink>;
+  /**
+   * A new link for `userId`, which works once, for 60 seconds from `now`.
+   * `kind` is null unless given.
+   */
+  make(user: {
+    userId: string;
+    name: string | null;
+    kind?: string | null;
+    now?: Date;
+  }): Promise<MadeLoginLink>;
   /**
    * What `link` says, or null when it can't be trusted: not signed with this
    * key, changed, expired, or not in the agreement's shape. Whether it has
@@ -65,11 +83,11 @@ export function loginLinks(eventServiceKey: string): LoginLinks {
   const key = loginLinkKey(eventServiceKey);
 
   return {
-    async make({ userId, name, now = new Date() }) {
+    async make({ userId, name, kind = null, now = new Date() }) {
       const exp = Math.floor(now.getTime() / 1000) + LIFETIME_SECONDS;
       // Cut by code points, so a name is never cut through the middle of one.
       const cutName = name === null ? null : [...name].slice(0, LOGIN_LINK_NAME_MAX).join("");
-      const payload = { v: 1, sub: userId, name: cutName, exp, jti: randomJti() };
+      const payload = { v: 1, sub: userId, name: cutName, exp, jti: randomJti(), kind };
       const body = toBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
       const signature = await crypto.subtle.sign("HMAC", await key, new TextEncoder().encode(body));
       return {
@@ -107,9 +125,9 @@ export function loginLinks(eventServiceKey: string): LoginLinks {
       }
       const payload = payloadSchema.safeParse(json);
       if (!payload.success) return null;
-      const { sub, name, exp, jti } = payload.data;
+      const { sub, name, exp, jti, kind = null } = payload.data;
       if (exp * 1000 <= now.getTime()) return null;
-      return { userId: sub, name, jti, expiresAt: new Date(exp * 1000) };
+      return { userId: sub, name, kind, jti, expiresAt: new Date(exp * 1000) };
     },
   };
 }

@@ -1,4 +1,5 @@
-import { index, mysqlTable } from "drizzle-orm/mysql-core";
+import { TOKEN_KIND_MAX } from "@geekykey/handoff";
+import { index, mysqlTable, varchar } from "drizzle-orm/mysql-core";
 import { isoNow, isoTimestamp, tokenUid, userId } from "../db/columns.ts";
 
 /**
@@ -21,3 +22,21 @@ export const tokens = mysqlTable(
 );
 
 export type Token = typeof tokens.$inferSelect;
+
+/**
+ * Each token's kind (ADR 0006), from the token writer's log: `pnpm
+ * db:token-kinds` loads it. The kind is the one letter the writer wrote into
+ * the token's address, such as `E`. Each event decides what a kind means; this
+ * list only says which token carries which. A token not in it has no kind.
+ *
+ * The kind belongs to the token, not to one event, so clearing an event's data
+ * keeps it. It isn't the Event Service's either: an Event Service sees a
+ * user's kind in the hand-off and the login link, never a UID. No foreign key
+ * to `tokens`, since a token has its kind before anyone claims it.
+ *
+ * GeekyKey's stand-in, removed or kept as GeekyKey's own at the switch.
+ */
+export const tokenKinds = mysqlTable("token_kinds", {
+  uid: tokenUid("uid").primaryKey(),
+  kind: varchar("kind", { length: TOKEN_KIND_MAX }).notNull(),
+});

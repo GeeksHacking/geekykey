@@ -38,6 +38,19 @@
               }
             ],
             "description": "The station's time for the tap, in UTC with milliseconds. Null when the station sent none, or it was more than 5 minutes ahead or 7 days behind"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The kind of the token tapped, from GeekyKey's list, such as E. Null for a token with none. Each event decides what a kind means"
           }
         },
         "required": [

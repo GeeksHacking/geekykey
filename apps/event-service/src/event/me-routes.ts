@@ -24,6 +24,7 @@ function userBody(user: SessionUser) {
     display_name: user.displayName,
     role: user.role,
     has_name: user.hasName,
+    kind: user.kind,
   };
 }
 
