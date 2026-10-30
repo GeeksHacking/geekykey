@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { describeError } from "@/api/errors";
 import type { EventStationBoardStation, StationKeyResponse } from "@/api/types";
@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { returnFocusOnClose } from "@/features/stations/dialog-focus";
 import { StationKeyReveal } from "@/features/stations/station-key-reveal";
 import { useReplaceStationKey } from "@/features/stations/use-replace-station-key";
 
@@ -35,25 +36,43 @@ const CONFIRMATION =
  * Since FRO-26 the board's rows hold an API client too: EnableStationButton mounts the enable
  * mutation directly in the row, and StationBoard therefore renders inside its providers in
  * tests, as its own test file's renderBoard already shows.
+ *
+ * `returnFocusTo` is the row's Replace key button (FRO-99). The alert steps aside for the key
+ * reveal, so it only takes the keyboard back when the flow ends there, and the reveal takes it
+ * back when the flow ends with the key shown.
  */
 export function ReplaceStationKeyDialog({
   station,
   open,
   onOpenChange,
+  returnFocusTo,
 }: {
   station: EventStationBoardStation;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnFocusTo: HTMLElement | null;
 }) {
   const [result, setResult] = useState<StationKeyResponse | null>(null);
+  // True while the alert hands over to the key reveal. The reveal's own open pulls focus into
+  // it, so the alert must not take it back to the row on its way out (FRO-99).
+  const handingOver = useRef(false);
 
   return (
     <>
       <AlertDialog open={open && result === null} onOpenChange={onOpenChange}>
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            if (handingOver.current) {
+              handingOver.current = false;
+              return;
+            }
+            returnFocusOnClose(event, returnFocusTo, station.id);
+          }}
+        >
           <ReplaceStationKeyConfirm
             station={station}
             onReplaced={(next) => {
+              handingOver.current = true;
               // The alert is asked once per replacement and 9.8 returns the key once, so
               // there is nothing left to ask. Closing it frees the screen for the key.
               onOpenChange(false);
@@ -70,7 +89,9 @@ export function ReplaceStationKeyDialog({
           if (!next) setResult(null);
         }}
       >
-        <DialogContent>
+        <DialogContent
+          onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
+        >
           {result ? (
             <StationKeyReveal kind="replace" result={result} onDone={() => setResult(null)} />
           ) : null}
