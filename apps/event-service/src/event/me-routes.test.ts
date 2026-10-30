@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { setupFixture, testApp } from "../test-helpers.ts";
+import { screensSchemas, setupFixture, testApp } from "../test-helpers.ts";
 import {
   type NewTap,
   PASSPORT_GAME_ID,
@@ -116,11 +116,16 @@ function meClient(target: ReturnType<typeof testApp>) {
     return (login.headers.get("Set-Cookie") ?? "").split(";")[0]!;
   };
 
-  /** Signs in through dev-login and returns the /me body, which must be a 200. */
+  /**
+   * Signs in through dev-login and returns the /me body, which must be a 200
+   * that the Event screens accept.
+   */
   const meAs = async (userId: string): Promise<MeBody> => {
     const res = await getMe(await signIn(userId));
     assert.equal(res.status, 200);
-    return (await res.json()) as MeBody;
+    const body = await res.json();
+    screensSchemas.meResponseSchema.parse(body);
+    return body as MeBody;
   };
 
   /** PATCH /api/v1/me with `body` as JSON, as nobody or with `cookie`. */
