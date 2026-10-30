@@ -2,6 +2,7 @@ import { Plus } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { StationKeyResponse } from "@/api/types";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { AddStationForm } from "@/features/stations/add-station-form";
@@ -26,6 +27,7 @@ export function AddStationDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent>
+        <CornerBrackets />
         {created ? (
           <StationKeyReveal kind="create" result={created} onDone={() => handleOpenChange(false)} />
         ) : (

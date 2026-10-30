@@ -1,4 +1,5 @@
 import type { EventStationBoardStation } from "@/api/types";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { returnFocusOnClose } from "@/features/stations/dialog-focus";
 import { PassportStationForm } from "@/features/stations/passport-station-form";
@@ -28,6 +29,7 @@ export function PassportStationDialog({
       <DialogContent
         onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
       >
+        <CornerBrackets />
         <PassportStationForm
           station={station}
           stationLabel={label}

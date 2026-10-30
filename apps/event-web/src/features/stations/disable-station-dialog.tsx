@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { describeError } from "@/api/errors";
 import type { EventStationBoardStation } from "@/api/types";
+import { CornerBrackets } from "@/components/look/corner-brackets";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ export function DisableStationDialog({
       <AlertDialogContent
         onCloseAutoFocus={(event) => returnFocusOnClose(event, returnFocusTo, station.id)}
       >
+        <CornerBrackets />
         <DisableStationConfirm station={station} onDisabled={() => onOpenChange(false)} />
       </AlertDialogContent>
     </AlertDialog>
