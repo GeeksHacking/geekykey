@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stationsToPulse } from "@/features/map/pulses";
+import { MAX_PULSES_PER_POLL, stationsToPulse } from "@/features/map/pulses";
 import { mapStation } from "@/features/map/test-stations";
 
 describe("stationsToPulse", () => {
@@ -15,12 +15,21 @@ describe("stationsToPulse", () => {
     expect(stationsToPulse([printing, lounge], [{ ...printing }, { ...lounge }])).toEqual([]);
   });
 
-  it("pulses each station whose taps went up, a cooldown tap included", () => {
+  it("pulses each station whose taps went up once per new tap, a cooldown tap included", () => {
     const next = [
       { ...printing, taps: 58 },
       { ...lounge, taps: 14 },
     ];
-    expect(stationsToPulse([printing, lounge], next)).toEqual(["printing", "lounge"]);
+    expect(stationsToPulse([printing, lounge], next)).toEqual([
+      { stationId: "printing", count: 1 },
+      { stationId: "lounge", count: 2 },
+    ]);
+  });
+
+  it("caps the pulses for a burst of taps in one poll", () => {
+    expect(stationsToPulse([printing], [{ ...printing, taps: 70 }])).toEqual([
+      { stationId: "printing", count: MAX_PULSES_PER_POLL },
+    ]);
   });
 
   it("does not pulse a station whose count went down", () => {
