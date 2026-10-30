@@ -1861,3 +1861,12 @@
     Event Service keeps the first kind it sees for each user and gives it to the passport in /me.
     Every new field is optional, so the screens and any other Event Service keep working, and the
     API agreement's version 0.10, which Ethan approved the same day.
+
+- id: station-settings-menu
+  date: 2026-10-30
+  area: frontend
+  change: >-
+    Each station on the organiser's board has one Station settings button in place of the three
+    links and the button under its name, so the rows are shorter. Its menu holds every action
+    that was there, with the same words, and Disable still asks first. The trade-offs we accept:
+    disabling a station takes one more click.
