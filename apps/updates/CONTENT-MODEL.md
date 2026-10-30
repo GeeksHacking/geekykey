@@ -145,9 +145,13 @@ onto real data, the reader doing something new, a prototype printed, a test sess
 Hardware and design count as much as code. Chores that change nothing visible (formatting,
 lockfile bumps, renames) do not get a line.
 
-Write it as one or two plain sentences in the present tense, saying what is now true. The site
-shows a line as plain text, so no Markdown and no links, and the house rules above still
-apply: no PII, no en or em dashes.
+Write it as one or two plain sentences in the present tense, saying what is now true. A line
+for a decision may end with one more sentence that starts "The trade-offs we accept:" and names
+what the decision gives up. Keep that phrase word for word, so a reader can find every
+trade-off by searching for it. Unslop's rule 14 counts a framing colon as filler, but this one
+stays, because it is the site's fixed marker for a trade-off. The site shows a line as plain
+text, so no Markdown and no links, and the house rules above still apply: no PII, no en or em
+dashes.
 
 ## Which entry a line belongs to
 
