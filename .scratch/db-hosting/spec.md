@@ -372,8 +372,8 @@ Claiming a token and finding who owns it go through one module in the GeekyKey S
 ```ts
 /** Who owns each token: the claims stand-in until the switch, then the Portal's tag APIs. */
 export interface Claims {
-  /** The owners of up to 500 tokens, by UID. A UID missing from the map is unclaimed. */
-  ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, string>>;
+  /** The owners of up to 500 tokens, by UID, each with the token's kind. A UID missing from the map is unclaimed. */
+  ownersOf(uids: string[], signal: AbortSignal): Promise<Map<string, { userId: string; kind: string | null }>>;
   /** Claims the token for the user. The first claim wins, and `claimedAt` is when the user's claim was made, for the claim route's answer. */
   claim(uid: string, userId: string, signal: AbortSignal): Promise<{ result: "claimed" | "already_yours"; claimedAt: string } | { result: "taken" }>;
   /** Releases the token, but only if `ownerId` still owns it. */
@@ -395,12 +395,14 @@ export interface Claims {
 
 | Method | Path | Body or answer |
 |---|---|---|
-| POST | `/claims-stand-in/v1/owners` | `{ "uids": [...] }`, up to 500. Answers `{ "owners": [{ "uid", "user_id" }] }`, leaving unclaimed UIDs out |
+| POST | `/claims-stand-in/v1/owners` | `{ "uids": [...] }`, up to 500. Answers `{ "owners": [{ "uid", "user_id", "kind" }] }`, leaving unclaimed UIDs out, with `kind` `null` for a token not in `token_kinds` |
 | POST | `/claims-stand-in/v1/tokens/{uid}/claim` | `{ "user_id" }`. Answers `{ "result": "claimed" \| "already_yours" \| "taken", "claimed_at" }`, with `claimed_at` `null` when taken |
 | POST | `/claims-stand-in/v1/tokens/{uid}/release` | `{ "owner_id" }`. Answers `{ "result": "released" \| "not_owner" }` |
 | GET | `/claims-stand-in/v1/users/{user_id}/tokens` | Answers `{ "tokens": [{ "uid", "claimed_at" }] }`, oldest claim first |
 
-They aren't in the API agreement: nothing but the GeekyKey Service calls them, and they go after the switch. The switch is in section 6, "After the showcase".
+They aren't in the API agreement: nothing but the GeekyKey Service calls them, and they go after the switch.
+
+**The token kinds** (ADR 0006, BAC-113) are a second table beside the stand-in, `token_kinds` (`uid`, `kind`), which `pnpm db:token-kinds` fills from the token writer's log on Adam's laptop. `/owners` reads it with each owner, in the same query, so a tap makes no extra request. The clear between the grad tea and the showcase keeps it, since a kind belongs to the token. The Event Service keeps each user's first kind in its own `user_kinds`, which the clear empties with the users. At the switch, the list moves to the Portal or stays as GeekyKey's own. The switch is in section 6, "After the showcase".
 
 Sources: [What does the GeekyKey Service need from the Portal's tag APIs?](issues/17-portal-tag-apis.md), [How do we protect our public addresses without blocking the stations?](issues/18-protecting-public-addresses.md), [Where do token owners live until the Portal's tag APIs exist, and what does the token page do?](issues/23-token-owners-before-portal.md), [Does a station wait for the Event Service's verdict?](issues/25-wait-for-the-verdict.md), [What does the GeekyKey Service cache, and in which store?](issues/26-what-to-cache.md)
 

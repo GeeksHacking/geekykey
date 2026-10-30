@@ -13,7 +13,7 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.9 |
+| Version | 0.10 (draft) |
 | Date | 30 October 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
@@ -759,6 +759,7 @@ way a guest reaches the Event screens. The link's format is in 11.9.
   second time.
 - Its `sub` becomes the user ID. The user's row takes its `name` as 7.2 takes a token's `name`:
   never over a name the user set, and `Guest` for a new user without one.
+- Its `kind`, when it has one, becomes the user's kind as 8.1 says: only if they have none yet.
 - It replaces any `event_session` the browser already has, so the link's user wins. On a phone a
   family shares, the token tapped last is the one being looked at.
 - A link that fails leaves the existing session as it was.
@@ -771,8 +772,8 @@ way a guest reaches the Event screens. The link's format is in 11.9.
 
 8.1 and 8.7 are on the Event Service, for participants and organizers. 8.2 to 8.6 are on the
 GeekyKey Service, for any logged-in user, and are what the token page and My tokens call. Each of 8.2 to
-8.5 answers `503 claims_unavailable` when the claims stand-in, or after the switch the Portal,
-doesn't answer properly within 4 seconds. The screens say "Couldn't reach GeeksHacking. Try
+8.5, and 8.6 when it names a token, answers `503 claims_unavailable` when the claims stand-in, or
+after the switch the Portal, doesn't answer properly within 4 seconds. The screens say "Couldn't reach GeeksHacking. Try
 again." Nothing changes, with one exception each in 8.2 and 8.3: the claim or the release may
 already have been made.
 
@@ -786,7 +787,7 @@ Everything the participant dashboard and passport view need in one call.
 
 ```json
 {
-  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true },
+  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E" },
   "points": 3,
   "stamps": [
     { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "link": "https://example.com/3d-printing", "earned_at": "2026-10-10T09:00:01.250Z" },
@@ -803,6 +804,10 @@ Everything the participant dashboard and passport view need in one call.
 - `user.has_name` is `false` while `display_name` is the default, `Guest`, because neither a
   login nor the user has given a name. Then the passport asks "What should we call you?" (8.7).
   A name the user sets counts, even `Guest`.
+- `user.kind` is the user's kind (ADR 0006), the first one the GeekyKey Service gave: in a tap's
+  hand-off (11.2) or in a login link (11.9), from the kind of the user's token. A later one, from
+  another token, doesn't change it. `null` until one comes. Ours are one capital letter, which the
+  token writer wrote into the token's address, and the screens decide what each one shows.
 - `stamps` lists **every** stamp slot (section 4), so the passport can render empty slots. They
   come in the order their settings were added, oldest first. A station that isn't a stamp slot
   never appears here, even if it has passport settings or the user has tapped it.
@@ -947,10 +952,11 @@ users alike.
 **Request**
 
 ```json
-{ "event_id": "showcase" }
+{ "event_id": "showcase", "uid": "04A1B2C3D4E5F6" }
 ```
 
-`event_id` is an `id` from `events` in `/me` (8.4).
+`event_id` is an `id` from `events` in `/me` (8.4). `uid` is optional: the token page sends its
+token's UID, in any separator style ([Token UID](#token-uid)), and My tokens sends none.
 
 **Response `201`**
 
@@ -960,6 +966,10 @@ users alike.
 
 - The link names only the session's own user ID, and the name the session holds, if any. A
   request can't choose either.
+- With a `uid`, the link also carries that token's kind (11.9), but only while the session's user
+  owns the token, so nobody takes on a kind by naming someone else's token. A token with no kind,
+  someone else's, nobody's, or no `uid` at all gives a link with no kind. Only a request with a
+  `uid` asks the claims stand-in, so only it can get `claims_unavailable`.
 - It expires 60 seconds after it's made, and works once (7.4). The screens open it straight away
   and don't keep it.
 - The screens open `url` as it is. They never build it, so the event's address and the
@@ -967,7 +977,7 @@ users alike.
 - It counts toward the user's 60 requests a minute ([Rate limits](#rate-limits)).
 
 **Errors:** `unauthenticated`, `validation_failed`, `not_found` for an `event_id` that isn't in
-`events`, and `rate_limited`.
+`events`, `rate_limited`, and `claims_unavailable` (503) for a request with a `uid`.
 
 ### 8.7 `PATCH /api/v1/me` on the Event Service (`Implemented`)
 
@@ -1579,8 +1589,8 @@ it that passed the GeekyKey Service's own checks.
 {
   "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
   "taps": [
-    { "client_tap_id": "tap-000123", "user_id": "<user ID>", "tapped_at": "2026-10-10T01:00:00.000Z" },
-    { "client_tap_id": "tap-000124", "user_id": "<user ID>", "tapped_at": null }
+    { "client_tap_id": "tap-000123", "user_id": "<user ID>", "tapped_at": "2026-10-10T01:00:00.000Z", "kind": "E" },
+    { "client_tap_id": "tap-000124", "user_id": "<user ID>", "tapped_at": null, "kind": null }
   ]
 }
 ```
@@ -1592,6 +1602,7 @@ it that passed the GeekyKey Service's own checks.
 | `taps[].client_tap_id` | string | 1 to 128 chars. Unique per station forever |
 | `taps[].user_id` | string | 1 to 128 chars, as a Firebase user ID is. The token owner's user ID |
 | `taps[].tapped_at` | string or `null` | The station's time for the tap, in UTC with milliseconds. `null` when the station sent none, or it was more than 5 minutes ahead or 7 days behind |
+| `taps[].kind` | string or `null`, optional | The tapped token's kind, 1 to 32 characters, from GeekyKey's list of token kinds (ADR 0006). `null` for a token with none. Ours sends it on every tap, and a GeekyKey Service from before kinds leaves it out |
 
 **Response `200`**
 
@@ -1613,6 +1624,9 @@ it that passed the GeekyKey Service's own checks.
 - `status` is a snake_case string. Ours answers `accepted`, `cooldown`, `no_game` or
   `duplicate`. Another team's may answer statuses of its own, which the GeekyKey Service passes to
   the station unchanged.
+- `kind` belongs to the token, and the user can hold tokens of more than one kind. Ours keeps the
+  first kind it sees for each user, and gives it in 8.1. Another Event Service can use it as it
+  likes, or ignore it.
 - With several games in one Event Service, a tap gets one status: `accepted` if any game counted
   it, otherwise `cooldown` if a game held it back, otherwise `no_game`.
 
@@ -1693,7 +1707,8 @@ hand-off's two are there, and so is the heartbeat hand-off's request. Its answer
 
 ### 11.8 What the hand-off leaves out
 
-- The token's UID. An Event Service sees only users.
+- The token's UID. An Event Service sees only users, and the token's kind (11.2), never which token
+  it came from.
 - Who owns which token. The GeekyKey Service finds owners itself: from a claims stand-in on our
   own server until the switch after the showcase, then from the Portal. An Event Service never
   builds or calls either.
@@ -1719,7 +1734,7 @@ cancels every link not yet used.
 UTF-8, then the HMAC-SHA256 of that first part's characters with the login link key.
 
 ```json
-{ "v": 1, "sub": "Xb3…", "name": "Alex", "exp": 1795006860, "jti": "9f2c4e…" }
+{ "v": 1, "sub": "Xb3…", "name": "Alex", "exp": 1795006860, "jti": "9f2c4e…", "kind": "E" }
 ```
 
 | Field | Meaning |
@@ -1729,6 +1744,7 @@ UTF-8, then the HMAC-SHA256 of that first part's characters with the login link 
 | `name` | The name from the user's login, at most 100 characters, cut there if longer. `null` when the login had none, as a guest's has none |
 | `exp` | When it expires, in seconds since 1970 (UTC), 60 seconds after it was made |
 | `jti` | 16 random bytes as 32 lower-case hex characters, so each link can be used once |
+| `kind` | The kind of the token whose page made the link, with 11.2's rules, while the user owns that token (8.6). `null` otherwise. Optional: a link from a GeekyKey Service before kinds leaves it out, which means `null` |
 
 The Event Service compares the HMAC in constant time, then checks `v`, `exp` and `jti`, and
 answers `invalid_login_link` (401) if any check fails. It never logs a link.
@@ -1744,7 +1760,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
   showcase, with its data cleared between them.
 - Moving a station between Event Services. A reader moved to another event becomes a new station
   there.
-- Dual-tap connections, leaderboards, or archetype quests.
+- Dual-tap connections, or leaderboards.
 - WebSocket or server-sent events. Poll the endpoints above.
 - Reading a station key back. Replacing one is in scope, for organizers.
 - Removing a station's passport settings. Before the station's game is fixed, an organizer can
@@ -1765,7 +1781,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | Screen | Calls |
 |---|---|
 | Login | Firebase's web SDK, with Google, GeeksHacking's login or as a guest, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
-| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token; `POST /api/v1/login-links` for the event buttons |
+| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token; `POST /api/v1/login-links` with the token's `uid` for the event buttons |
 | My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form; `POST /api/v1/login-links` for the event buttons |
 
 There are no GeekyKey admin screens.
@@ -1937,3 +1953,4 @@ Closed on 2026-10-10:
 | 2026-10-30 | Version 0.9, a draft for Ethan's review: a tap's result can carry what the station's game has the station show (BAC-111). Each item in 6.1's and 11.2's `results` can carry two optional fields: `lines`, one or two lines of 0 to 16 printable ASCII characters, and `complete`, `true` on the tap that finishes the game. Ours gives them with `accepted` and `cooldown` only. The passport's lines are the participant's progress, by the first word of their name while they have one of their own, and the tap that earns the last stamp has `complete`. The GeekyKey Service passes them on unchanged, and a line that breaks the rules fails the request with `503 event_service_unavailable`, as a bad status does. The firmware contract says how the station shows them, and a station that ignores them keeps working. Their JSON Schema is in `packages/handoff/json-schema/taps-answer.schema.json` (11.7). No field is removed. |
 | 2026-10-30 | Ethan, the screens owner, approved version 0.9, so it is no longer a draft. No endpoint or shape changes (BAC-111). |
 | 2026-10-30 | 6.1 and 11.2 say the GeekyKey Service passes `lines` and `complete` to the station only with `accepted` and `cooldown`, and leaves them out with any other status, even another team's own. Before, it passed them with any status, and only our Event Service kept to the two. No shape changes (BAC-111). |
+| 2026-10-30 | Version 0.10, a draft for Ethan's review: each token has a kind (ADR 0006, BAC-113). The token writer writes it into the token's address, and GeekyKey keeps a list of them beside the claims stand-in, which games trust instead of the address. **New, all optional:** `kind` on each tap in the hand-off (11.2), the kind of the token tapped, or `null` for a token with none; `kind` in the login link's payload (11.9); `uid` in the request for a login link (8.6), so the token page's link carries its token's kind while the user owns it; and `user.kind` on the Event Service's `GET /api/v1/me` (8.1), the first kind either one gave. 8.6 answers `claims_unavailable` when it names a token and the claims stand-in doesn't answer, as section 8's opening now says. 7.4 says a link's kind becomes the user's, and 11.8 that an Event Service sees a token's kind but never its UID. Section 12 drops "archetype quests". A service from before kinds leaves the new fields out, and the other reads that as no kind, so either service can be rolled back alone. The hand-off's JSON Schema is in `packages/handoff/json-schema/taps-request.schema.json` (11.7). |

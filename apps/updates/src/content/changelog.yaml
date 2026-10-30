@@ -1849,3 +1849,15 @@
     it, and nothing is written until it's set. Each token written prints its UID and kind on one
     line. Those lines become the server's own list of each token's kind, which games trust because
     nobody can edit it from a browser.
+
+- id: taps-carry-token-kinds
+  date: 2026-10-30
+  area: backend
+  change: >-
+    Each tap now tells the Event Service its token's kind, read from a list of every token's kind
+    that sits beside the claims stand-in. A laptop task loads that list from the token writer's
+    log, and the list never reaches an Event Service, which still sees no token's UID. The login
+    link from a token's page carries the same kind, but only while the user owns that token. The
+    Event Service keeps the first kind it sees for each user and gives it to the passport in /me.
+    Every new field is optional, so the screens and any other Event Service keep working, and the
+    API agreement's version 0.10 waits for Ethan's review.
