@@ -183,7 +183,7 @@ export class TapPipeline {
 
       // 4. For a station's taps, its own game words what the station shows. Not for the QR
       //    fallback's, which no station shows.
-      if (source === "nfc") await this.#stationText(station.game, pending, context);
+      if (source === "nfc") await this.#setStationText(station.game, pending, context);
 
       for (const p of pending) {
         results[p.index] = {
@@ -215,7 +215,7 @@ export class TapPipeline {
    * held back, from the station's own game, if it gives any. After the
    * write, so a game's reads count each tap.
    */
-  async #stationText(
+  async #setStationText(
     stationGame: string | null,
     pending: PendingTap[],
     context: GameContext,

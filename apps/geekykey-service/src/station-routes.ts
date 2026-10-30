@@ -175,7 +175,7 @@ export function tapsRoutes({
     }
 
     // Deliberately no user IDs: readers must not hold PII (see RAMS, data privacy row). A
-    // game's lines may name the visitor, for the station's screen only (the agreement's 6.1).
+    // game's lines may name the participant, for the station's screen only (the agreement's 6.1).
     return c.json({ station_id: station.id, results });
   });
 }
