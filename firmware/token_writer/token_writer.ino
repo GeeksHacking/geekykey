@@ -58,10 +58,10 @@ constexpr uint8_t MIRROR_UID_STRONG = 0x40 | (UID_MIRROR_BYTE << 4) | 0x04;   //
 
 static char errBuf[17];
 
-// The batch's kind, one letter. 0 until "kind E" is typed, and nothing is
-// written until then. It isn't kept across a restart, so a batch never picks
+// The batch's kind, one letter. NO_KIND until "kind E" is typed, and nothing
+// is written until then. It isn't kept across a restart, so a batch never picks
 // up an earlier batch's kind by mistake.
-static char kind = 0;
+static char kind = NO_KIND;
 
 static void showLines(const char* l1, const char* l2 = "") {
   lcd.clear();
@@ -110,7 +110,7 @@ static const char* failPage(const char* what, uint8_t page) {
 }
 
 static void showReady() {
-  if (kind) {
+  if (kind != NO_KIND) {
     char line2[17];
     snprintf(line2, sizeof(line2), "to write kind %c", kind);
     showLines("Tap a token", line2);
@@ -132,7 +132,7 @@ static void handleLine(const char* line) {
       Serial.print("Kind set to "); Serial.println(kind);
       showReady();
       break;
-    case KIND_BAD:
+    case KIND_NOT_A_LETTER:
       Serial.println("A kind is one letter, A to Z. The kind is unchanged.");
       break;
     case NOT_KIND_COMMAND:
@@ -168,7 +168,7 @@ static void waitForTokenToWrite() {
   showReady();
   while (true) {
     pollSerial();
-    if (kind && mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) return;
+    if (kind != NO_KIND && mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) return;
     delay(30);
   }
 }
@@ -319,9 +319,9 @@ void loop() {
   if (written) {
     // The token carries the new address from here on, so its line goes in the
     // log now, even if the check below fails.
-    char logLine[KIND_LOG_LEN];
-    formatKindLog(logLine, uid.c_str(), kind);
-    Serial.println(logLine);
+    char uidKindLine[UID_KIND_LINE_LEN];
+    formatUidKindLine(uidKindLine, uid.c_str(), kind);
+    Serial.println(uidKindLine);
     err = verifyToken(uid);
   }
 

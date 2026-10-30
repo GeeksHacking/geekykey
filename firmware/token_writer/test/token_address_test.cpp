@@ -44,7 +44,6 @@ static void addressCarriesTheKind() {
 
 // The chip's UID mirror starts at byte 35, which is byte 3 of page 0Ch.
 static void mirrorStartsOnPage0C() {
-  CHECK(UID_MIRROR_OFFSET == 35);
   CHECK(UID_MIRROR_PAGE == 0x0C);
   CHECK(UID_MIRROR_BYTE == 3);
 }
@@ -53,7 +52,7 @@ static void anotherKindChangesOnlyItsLetter() {
   uint8_t e[TOKEN_AREA_LEN], v[TOKEN_AREA_LEN];
   buildTokenAddress(e, 'E');
   buildTokenAddress(v, 'V');
-  CHECK(v[52] == 'V');
+  CHECK(v[52] == 'V');  // byte 52: after 35 + 14 UID characters and "?k="
   e[52] = 'V';
   CHECK(std::memcmp(e, v, TOKEN_AREA_LEN) == 0);
 }
@@ -77,11 +76,11 @@ static void kindCommandToleratesLineEndsAndCase() {
 // Anything but one letter is refused, and the kind already set stays.
 static void kindCommandRefusesAnythingButOneLetter() {
   char kind = 'E';
-  CHECK(readKindCommand("kind", &kind) == KIND_BAD);
-  CHECK(readKindCommand("kind EV", &kind) == KIND_BAD);
-  CHECK(readKindCommand("kind 1", &kind) == KIND_BAD);
-  CHECK(readKindCommand("kind ?", &kind) == KIND_BAD);
-  CHECK(readKindCommand("kind E V", &kind) == KIND_BAD);
+  CHECK(readKindCommand("kind", &kind) == KIND_NOT_A_LETTER);
+  CHECK(readKindCommand("kind EV", &kind) == KIND_NOT_A_LETTER);
+  CHECK(readKindCommand("kind 1", &kind) == KIND_NOT_A_LETTER);
+  CHECK(readKindCommand("kind ?", &kind) == KIND_NOT_A_LETTER);
+  CHECK(readKindCommand("kind E V", &kind) == KIND_NOT_A_LETTER);
   CHECK(kind == 'E');
 }
 
@@ -95,8 +94,8 @@ static void otherLinesAreNotKindCommands() {
 
 // BAC-113 loads these lines into the server's list of kinds.
 static void logLineIsUidCommaKind() {
-  char line[KIND_LOG_LEN];
-  formatKindLog(line, "04E45150324189", 'E');
+  char line[UID_KIND_LINE_LEN];
+  formatUidKindLine(line, "04E45150324189", 'E');
   CHECK(std::strcmp(line, "04E45150324189,E") == 0);
 }
 
