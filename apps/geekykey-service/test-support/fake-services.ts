@@ -16,6 +16,7 @@ export interface HandedOffTap {
   client_tap_id: string;
   user_id: string;
   tapped_at: string | null;
+  kind?: string | null;
 }
 
 /** Answers one kind of request in place of the fake's own answer, as a service might fail. */
@@ -31,6 +32,8 @@ type Answer = (request: SentRequest) => Promise<Response>;
  *
  * - `stations`, each Event Service's registered stations, by its ID;
  * - `owners`, who owns each token, by its normalised UID;
+ * - `kinds`, each token's kind in the list beside the stand-in, by its
+ *   normalised UID. The owners' answer gives it, or null;
  * - `tokens`, each user's tokens, by user ID, in the order the stand-in
  *   gives them: oldest claim first;
  * - `now`, when a claim the fake takes is made. A claim of a token nobody
@@ -47,6 +50,7 @@ export function fakeServices(config: Config) {
   const fake = {
     stations: new Map<string, RegisteredStation[]>(),
     owners: new Map<string, string>(),
+    kinds: new Map<string, string>(),
     tokens: new Map<string, { uid: string; claimed_at: string }[]>(),
     now: "2026-11-18T06:00:00.000Z",
     statusOf: (_tap: HandedOffTap, _stationId: string): string => "accepted",
@@ -120,7 +124,8 @@ export function fakeServices(config: Config) {
       return Response.json({
         owners: uids.flatMap((uid) => {
           const userId = fake.owners.get(uid);
-          return userId === undefined ? [] : [{ uid, user_id: userId }];
+          if (userId === undefined) return [];
+          return [{ uid, user_id: userId, kind: fake.kinds.get(uid) ?? null }];
         }),
       });
     }

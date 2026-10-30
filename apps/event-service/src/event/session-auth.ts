@@ -4,7 +4,7 @@ import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { hasName } from "./display-names.ts";
-import { users } from "./schema.ts";
+import { userKinds, users } from "./schema.ts";
 import type { UserLimit } from "./user-limit.ts";
 
 export const SESSION_COOKIE = "event_session";
@@ -23,6 +23,8 @@ export interface SessionUser {
   /** False while the user has the default name (display-names.ts). */
   hasName: boolean;
   role: Role;
+  /** The first kind the GeekyKey Service gave with them (user-kinds.ts), or null for none yet. */
+  kind: string | null;
 }
 
 /** Reads the request's `db`, and sets `user` for the handlers after it. */
@@ -114,8 +116,15 @@ async function loadSessionUser(
   options: SessionOptions,
 ): Promise<SessionUser | null> {
   const [user] = await c.var.db
-    .select({ id: users.id, displayName: users.displayName, nameSetAt: users.nameSetAt })
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      nameSetAt: users.nameSetAt,
+      kind: userKinds.kind,
+    })
     .from(users)
+    // In the same read, so /me costs no more.
+    .leftJoin(userKinds, eq(userKinds.userId, users.id))
     .where(eq(users.id, userId))
     .limit(1);
   if (!user) return null;
@@ -124,6 +133,7 @@ async function loadSessionUser(
     displayName: user.displayName,
     hasName: hasName(user),
     role: options.organizers.has(user.id) ? "organizer" : "participant",
+    kind: user.kind,
   };
 }
 

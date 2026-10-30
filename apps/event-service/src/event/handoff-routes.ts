@@ -39,6 +39,7 @@ export function handoffRoutes({ key, games }: { key: string; games: readonly Gam
             clientTapId: tap.client_tap_id,
             userId: tap.user_id,
             tappedAt: tap.tapped_at,
+            kind: tap.kind,
           })),
         );
       } catch (err) {

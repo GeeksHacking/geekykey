@@ -14,6 +14,7 @@ import { saveLogin } from "./display-names.ts";
 import { users } from "./schema.ts";
 import { clearSession, issueSession, type SessionOptions } from "./session-auth.ts";
 import { useLoginLink } from "./used-login-links.ts";
+import { keepKinds } from "./user-kinds.ts";
 
 const devLoginSchema = z.object({
   user_id: z.string().min(1).max(128),
@@ -84,6 +85,8 @@ export function authRoutes({ session, devAuthEnabled, firebase, loginLinks }: Au
     }
 
     await saveLogin(c.var.db, link.userId, link.name);
+    // The kind of the token whose page made the link, if the user owns it (ADR 0006).
+    if (link.kind !== null) await keepKinds(c.var.db, [{ userId: link.userId, kind: link.kind }]);
     // Over any session already there: the link's user wins.
     await issueSession(c, link.userId, session);
     return c.body(null, 204);

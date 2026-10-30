@@ -24,8 +24,9 @@ const showcaseLinks = loginLinks(env.EVENT_SERVICE_KEY_SHOWCASE);
  */
 function harness(changes: Record<string, unknown> = {}) {
   const config = loadConfig({ ...env, ...changes });
+  const fake = fakeServices(config);
   const app = createApp(config, {
-    send: fakeServices(config).send,
+    send: fake.send,
     googleKeys: google.keys,
     stationLimit: env.STATION_LIMIT,
     userLimit: fakeLimiter(60),
@@ -51,7 +52,7 @@ function harness(changes: Record<string, unknown> = {}) {
       body: JSON.stringify(body),
     });
 
-  return { app, logIn, askForLink };
+  return { app, fake, logIn, askForLink };
 }
 
 /** The link in a 201's `url`, from its `#login=` fragment. */
@@ -108,6 +109,72 @@ test("the link carries only the session's user ID and name, whatever the request
   const link = await showcaseLinks.read(await linkIn(res));
   assert.equal(link?.userId, "firebase-uid-1");
   assert.equal(link?.name, "Ada Lim");
+});
+
+// The token's kind (ADR 0006).
+
+/** Normalised, and in the list as kind E. */
+const UID = "04A1B2C3D4E5F6";
+
+test("a link from a token's page carries the token's kind, when the user owns it", async () => {
+  const { fake, logIn, askForLink } = harness();
+  fake.owners.set(UID, "firebase-uid-1");
+  fake.kinds.set(UID, "E");
+  const cookie = await logIn(google.signIdToken({ sub: "firebase-uid-1" }));
+  // In any separator style, as the token page's address may have it.
+  for (const uid of [UID, "04:a1:b2:c3:d4:e5:f6"]) {
+    const res = await askForLink(cookie, { event_id: "showcase", uid });
+    assert.equal(res.status, 201, uid);
+    assert.equal((await showcaseLinks.read(await linkIn(res)))?.kind, "E", uid);
+  }
+});
+
+test("a link carries no kind for a token with none, someone else's, or nobody's, or with no uid", async () => {
+  const { fake, logIn, askForLink } = harness();
+  fake.owners.set(UID, "firebase-uid-1");
+  fake.owners.set("04C9E1A27B3080", "someone-else");
+  fake.kinds.set("04C9E1A27B3080", "V");
+  fake.kinds.set("04D00D00D00D00", "V");
+  const cookie = await logIn(google.signIdToken({ sub: "firebase-uid-1" }));
+  for (const body of [
+    { event_id: "showcase", uid: UID },
+    { event_id: "showcase", uid: "04C9E1A27B3080" },
+    { event_id: "showcase", uid: "04D00D00D00D00" },
+    { event_id: "showcase" },
+  ]) {
+    const res = await askForLink(cookie, body);
+    assert.equal(res.status, 201, JSON.stringify(body));
+    const link = await showcaseLinks.read(await linkIn(res));
+    assert.equal(link?.userId, "firebase-uid-1", JSON.stringify(body));
+    assert.equal(link?.kind, null, JSON.stringify(body));
+  }
+});
+
+test("a link with no uid doesn't ask the claims stand-in", async () => {
+  const { fake, logIn, askForLink } = harness();
+  const cookie = await logIn(google.signIdToken({ sub: "firebase-uid-1" }));
+  assert.equal((await askForLink(cookie)).status, 201);
+  assert.deepEqual(fake.sent, []);
+});
+
+test("with a uid, a claims stand-in that doesn't answer properly gets 503 claims_unavailable", async () => {
+  const { fake, logIn, askForLink } = harness();
+  const cookie = await logIn(google.signIdToken({ sub: "firebase-uid-1" }));
+  const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+  onTestFinished(() => logged.mockRestore());
+  fake.answers.owners = async () => new Response(null, { status: 500 });
+  const res = await askForLink(cookie, { event_id: "showcase", uid: UID });
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), { error: "claims_unavailable" });
+});
+
+test("a uid that isn't one fails validation", async () => {
+  const { logIn, askForLink } = harness();
+  const cookie = await logIn(google.signIdToken({ sub: "firebase-uid-1" }));
+  for (const uid of ["zz", "", 7, null]) {
+    const res = await askForLink(cookie, { event_id: "showcase", uid });
+    assert.equal(res.status, 400, JSON.stringify(uid));
+  }
 });
 
 test("each link is new, so each works once on its own", async () => {

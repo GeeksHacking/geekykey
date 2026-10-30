@@ -6,7 +6,7 @@ import { requireBearerKey } from "../lib/bearer-key.ts";
 import { errorCode } from "../lib/log.ts";
 import { UID_PATTERN } from "../lib/token-uid.ts";
 import { jsonBody, pathParams } from "../lib/validate.ts";
-import { tokens } from "./schema.ts";
+import { tokenKinds, tokens } from "./schema.ts";
 
 /** The most UIDs one request may ask about: a station's largest batch. */
 const MAX_UIDS = 500;
@@ -34,11 +34,15 @@ export function claimsStandInRoutes({ key }: { key: string }) {
         uids.length === 0
           ? []
           : await c.var.db
-              .select({ uid: tokens.uid, userId: tokens.userId })
+              .select({ uid: tokens.uid, userId: tokens.userId, kind: tokenKinds.kind })
               .from(tokens)
+              .leftJoin(tokenKinds, eq(tokenKinds.uid, tokens.uid))
               .where(inArray(tokens.uid, uids));
-      // A token nobody owns is left out.
-      return c.json({ owners: owners.map((o) => ({ uid: o.uid, user_id: o.userId })) });
+      // A token nobody owns is left out. Each owner comes with the token's kind, in the same
+      // read, so a tap costs no extra request (ADR 0006). Null for a token not in the list.
+      return c.json({
+        owners: owners.map((o) => ({ uid: o.uid, user_id: o.userId, kind: o.kind })),
+      });
     })
     .post("/tokens/:uid/claim", tokenPath, jsonBody(z.object({ user_id: userId })), async (c) => {
       const { uid } = c.req.valid("param");

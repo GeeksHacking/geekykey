@@ -85,7 +85,7 @@ export function tokenRoutes({
         ) => c.json({ token: { uid, owner, claimed_at: null, owner_id: null, ...extra } });
 
         return await withClaimsDeadline(c, deadlineMs, async (signal) => {
-          const ownerId = (await claims.ownersOf([uid], signal)).get(uid);
+          const ownerId = (await claims.ownersOf([uid], signal)).get(uid)?.userId;
           if (ownerId === undefined) return view("nobody");
           if (ownerId !== userId) {
             return view("someone_else", geekykeyAdmins.has(userId) ? { owner_id: ownerId } : {});

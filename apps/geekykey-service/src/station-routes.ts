@@ -6,7 +6,7 @@ import { errorFields, log } from "./lib/log.ts";
 import { trustedTappedAt } from "./lib/tapped-at.ts";
 import { normaliseUid, tokenUid, UID_PATTERN } from "./lib/token-uid.ts";
 import { jsonBody } from "./lib/validate.ts";
-import { type Claims, ClaimsUnavailable } from "./claims.ts";
+import { type Claims, ClaimsUnavailable, type TokenOwner } from "./claims.ts";
 import { type EventService, EventServiceUnavailable } from "./event-service.ts";
 import { Unanswered } from "./service-request.ts";
 import { stationAuth, type StationEnv } from "./station-auth.ts";
@@ -124,7 +124,7 @@ export function tapsRoutes({
     const { eventService } = station;
     const { taps } = c.req.valid("json");
 
-    let owners: Map<string, string>;
+    let owners: Map<string, TokenOwner>;
     try {
       owners = await claims.ownersOf([...new Set(taps.map((t) => t.uid))], deadline);
     } catch (err) {
@@ -137,8 +137,8 @@ export function tapsRoutes({
     // and with accepted or cooldown, the lines and complete its game gives (6.1).
     const results = Array.from<TapResult>({ length: taps.length });
     const claimed = taps.flatMap((tap, index) => {
-      const userId = owners.get(tap.uid);
-      if (userId !== undefined) return [{ index, tap, userId }];
+      const owner = owners.get(tap.uid);
+      if (owner !== undefined) return [{ index, tap, owner }];
       results[index] = { client_tap_id: tap.client_tap_id, status: "unknown_token" };
       log("unknown_token", {
         station_id: station.id,
@@ -155,10 +155,12 @@ export function tapsRoutes({
         handedOff = await eventService.handOffTaps(
           {
             station_id: station.id,
-            taps: claimed.map(({ tap, userId }) => ({
+            // The token's kind, never its UID (the agreement's 11.8).
+            taps: claimed.map(({ tap, owner }) => ({
               client_tap_id: tap.client_tap_id,
-              user_id: userId,
+              user_id: owner.userId,
               tapped_at: trustedTappedAt(tap.tapped_at, now),
+              kind: owner.kind,
             })),
           },
           deadline,

@@ -19,6 +19,7 @@ test("a link reads back as the user and name it was made for, for 60 seconds", a
   assert.deepEqual(rest, {
     userId: "firebase-uid-1",
     name: "Ada Lim",
+    kind: null,
     expiresAt: new Date("2026-11-18T13:01:00.000Z"),
   });
   assert.match(jti, /^[0-9a-f]{32}$/);
@@ -35,9 +36,11 @@ const LINK_BUILT_BY_HAND =
   ".4HBn61x82PBJn0UlI7aYrTEUcwTb0mairt2f0CPHpGI";
 
 test("a link built by hand from the agreement's recipe reads as its payload says", async () => {
+  // Built before kinds, so it has none, and reads as none.
   assert.deepEqual(await loginLinks(KEY).read(LINK_BUILT_BY_HAND, NOW), {
     userId: "firebase-uid-1",
     name: "Ada Lim",
+    kind: null,
     jti: "9f2c4e00000000000000000000000000",
     expiresAt: new Date("2026-11-18T13:01:00.000Z"),
   });

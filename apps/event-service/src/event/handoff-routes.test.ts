@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { onTestFinished, test, vi } from "vitest";
 import { setupFixture, testApp, testDb, TEST_EVENT_SERVICE_KEY } from "../test-helpers.ts";
-import { passportStations, stations, taps } from "./schema.ts";
+import { passportStations, stations, taps, users } from "./schema.ts";
 
 // The Event side's hand-off, as the GeekyKey Service sends it: the API
 // agreement's 11.2.
@@ -257,6 +257,85 @@ test("each stored tap gets a tap_stored line, and a duplicate none", async () =>
       source: "nfc",
     },
   ]);
+});
+
+// Each tap's kind (ADR 0006): the user's kind, which /me gives (8.1).
+
+/** The kind GET /api/v1/me gives `userId`, signed in through dev-login. */
+async function kindOf(userId: string) {
+  const login = await app.request("/auth/dev-login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId }),
+  });
+  assert.equal(login.status, 204);
+  const res = await app.request("/api/v1/me", {
+    headers: { Cookie: (login.headers.get("Set-Cookie") ?? "").split(";")[0]! },
+  });
+  assert.equal(res.status, 200);
+  return ((await res.json()) as { user: { kind: string | null } }).user.kind;
+}
+
+test("a tap's kind becomes its user's kind, and the first kind seen stays", async () => {
+  const { stationId, userId } = await setupFixture();
+  await testDb().insert(users).values({ id: "user-2", displayName: "Bea" });
+  const tap = (id: string, user: string, kind?: string | null) => ({
+    client_tap_id: id,
+    user_id: user,
+    tapped_at: null,
+    ...(kind !== undefined && { kind }),
+  });
+
+  assert.equal(await kindOf(userId), null);
+  const first = await handOff({
+    station_id: stationId,
+    // Two kinds for user-2 in one hand-off: the first in request order stays.
+    taps: [tap("t1", userId, "E"), tap("t2", "user-2", "V"), tap("t3", "user-2", "E")],
+  });
+  assert.equal(first.status, 200);
+  assert.equal(await kindOf(userId), "E");
+  assert.equal(await kindOf("user-2"), "V");
+
+  // A later tap of another kind, or of none, changes nothing.
+  for (const [id, kind] of [
+    ["t4", "V"],
+    ["t5", null],
+    ["t6", undefined],
+  ] as const) {
+    assert.equal(
+      (await handOff({ station_id: stationId, taps: [tap(id, userId, kind)] })).status,
+      200,
+    );
+  }
+  assert.equal(await kindOf(userId), "E");
+});
+
+test("a tap with kind null, or none, as before kinds, gives its user no kind", async () => {
+  const { stationId, userId } = await setupFixture();
+  await testDb().insert(users).values({ id: "user-2", displayName: "Bea" });
+  const res = await handOff({
+    station_id: stationId,
+    taps: [
+      { client_tap_id: "t1", user_id: userId, tapped_at: null, kind: null },
+      { client_tap_id: "t2", user_id: "user-2", tapped_at: null },
+    ],
+  });
+  assert.equal(res.status, 200);
+  assert.equal(await kindOf(userId), null);
+  assert.equal(await kindOf("user-2"), null);
+});
+
+test("a hand-off that's refused keeps no kind", async () => {
+  const { stationId, userId } = await setupFixture();
+  const tap = { client_tap_id: "t1", user_id: userId, tapped_at: null, kind: "E" };
+  for (const body of [
+    { station_id: "not-ours", taps: [tap] },
+    { station_id: stationId, taps: [{ ...tap, kind: "" }] },
+    { station_id: stationId, taps: [{ ...tap, kind: "E".repeat(33) }] },
+  ]) {
+    assert.equal((await handOff(body)).status, 400, JSON.stringify(body));
+  }
+  assert.equal(await kindOf(userId), null);
 });
 
 // The registered stations, as the GeekyKey Service asks for them: the API

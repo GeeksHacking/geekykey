@@ -1,6 +1,7 @@
 import { and, between, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
+import { keepKinds } from "./user-kinds.ts";
 import { trustedTappedAt } from "../lib/tapped-at.ts";
 import {
   combinedStatus,
@@ -33,6 +34,8 @@ export interface IncomingTap {
   userId: string;
   /** Device clock time of the tap, ISO 8601. Optional because ESP32 clocks are unreliable. */
   tappedAt?: string | null;
+  /** The token's kind, from the hand-off (ADR 0006). None for a token without one, or a QR tap. */
+  kind?: string | null;
 }
 
 export interface TapResult {
@@ -135,6 +138,15 @@ export class TapPipeline {
         });
       });
       if (pending.length === 0) return results;
+
+      // Each user's kind, kept before the games judge, so a game can read it.
+      await keepKinds(
+        tx,
+        pending.flatMap(({ index, userId }) => {
+          const kind = incoming[index]!.kind;
+          return kind == null ? [] : [{ userId, kind }];
+        }),
+      );
 
       // 2. The games at this station judge the rest, one after another on the one connection.
       const context: GameContext = {

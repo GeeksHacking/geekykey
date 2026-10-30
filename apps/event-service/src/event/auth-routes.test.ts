@@ -138,8 +138,11 @@ async function me(login: Response) {
     headers: { Cookie: sessionCookie(login) },
   });
   assert.equal(res.status, 200);
-  return ((await res.json()) as { user: { id: string; display_name: string; has_name: boolean } })
-    .user;
+  return (
+    (await res.json()) as {
+      user: { id: string; display_name: string; has_name: boolean; kind: string | null };
+    }
+  ).user;
 }
 
 test("a new user's good token logs them in as its sub, with the token's name", async () => {
@@ -156,6 +159,7 @@ test("a new user's good token logs them in as its sub, with the token's name", a
     display_name: "Ada Lim",
     role: "participant",
     has_name: true,
+    kind: null,
   });
 });
 
@@ -192,6 +196,7 @@ test("a token with no name gives a new user the name Guest, and no name of their
     display_name: "Guest",
     role: "participant",
     has_name: false,
+    kind: null,
   });
 });
 
@@ -203,6 +208,7 @@ test("a later login with a name replaces the default name", async () => {
     display_name: "Ada Lim",
     role: "participant",
     has_name: true,
+    kind: null,
   });
 });
 
@@ -215,6 +221,7 @@ test("a guest who sets their name has one", async () => {
     display_name: "Ally",
     role: "participant",
     has_name: true,
+    kind: null,
   });
 });
 
@@ -233,6 +240,7 @@ test("a guest's token logs them in as its sub, like any other with no name", asy
     display_name: "Guest",
     role: "participant",
     has_name: false,
+    kind: null,
   });
 });
 
@@ -307,9 +315,12 @@ test("a body that isn't JSON with an id_token fails validation, so a form elsewh
 /** Login links as the GeekyKey Service makes them for this Event Service. */
 const links = loginLinks(TEST_EVENT_SERVICE_KEY);
 
-/** A fresh link for `userId`, with the name their login on the GeekyKey screens had. */
-async function linkFor(userId: string, name: string | null = null) {
-  return (await links.make({ userId, name })).link;
+/**
+ * A fresh link for `userId`, with the name their login on the GeekyKey screens
+ * had, and the kind of the token whose page made it.
+ */
+async function linkFor(userId: string, name: string | null = null, kind: string | null = null) {
+  return (await links.make({ userId, name, kind })).link;
 }
 
 /** POST /auth/login-link, as the Event screens send the link from their address's fragment. */
@@ -335,6 +346,7 @@ test("a login link logs its user in, with the name their login had", async () =>
     display_name: "Ada Lim",
     role: "participant",
     has_name: true,
+    kind: null,
   });
 });
 
@@ -346,6 +358,7 @@ test("a guest's login link logs them in as Guest, with no name of their own", as
     display_name: "Guest",
     role: "participant",
     has_name: false,
+    kind: null,
   });
 });
 
@@ -361,6 +374,18 @@ test("a login link takes a name as a login does: never over one the user set", a
   const again = await useLink(await linkFor("firebase-uid-1", "Ada Tan"));
   assert.equal(again.status, 204);
   assert.equal((await me(again)).display_name, "Ally");
+});
+
+test("a login link's kind becomes its user's kind, and the first kind seen stays", async () => {
+  const kindAfter = async (link: string) => {
+    const res = await useLink(link);
+    assert.equal(res.status, 204);
+    return (await me(res)).kind;
+  };
+  assert.equal(await kindAfter(await linkFor("firebase-uid-1")), null);
+  assert.equal(await kindAfter(await linkFor("firebase-uid-1", null, "E")), "E");
+  assert.equal(await kindAfter(await linkFor("firebase-uid-1", null, "V")), "E");
+  assert.equal(await kindAfter(await linkFor("firebase-uid-1")), "E");
 });
 
 test("a login link works once", async () => {

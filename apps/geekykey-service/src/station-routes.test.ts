@@ -315,11 +315,46 @@ test("the hand-off goes to the Event Service with its key, the station and each 
         station_id: STATION_ID,
         // Not the token nobody owns, and never a UID.
         taps: [
-          { client_tap_id: "t1", user_id: USER_ID, tapped_at: tappedAt.toISOString() },
-          { client_tap_id: "t3", user_id: USER_ID, tapped_at: null },
+          { client_tap_id: "t1", user_id: USER_ID, tapped_at: tappedAt.toISOString(), kind: null },
+          { client_tap_id: "t3", user_id: USER_ID, tapped_at: null, kind: null },
         ],
       },
     },
+  ]);
+});
+
+test("each tap hands off its token's kind from the list, and null for a token not in it", async () => {
+  const { fake, post, sentTo } = await harness();
+  loggedLines();
+  const OTHER_UID = "04C9E1A27B3080";
+  fake.owners.set(OTHER_UID, "user-2");
+  fake.kinds.set(UID, "E");
+  const res = await post({
+    taps: [
+      { client_tap_id: "t1", uid: UID },
+      { client_tap_id: "t2", uid: OTHER_UID },
+    ],
+  });
+  assert.equal(res.status, 200);
+  const [handOff] = sentTo("/geekykey/v1/taps");
+  assert.deepEqual((handOff!.body as { taps: unknown }).taps, [
+    { client_tap_id: "t1", user_id: USER_ID, tapped_at: null, kind: "E" },
+    { client_tap_id: "t2", user_id: "user-2", tapped_at: null, kind: null },
+  ]);
+  // The kind, never the token it came from (the agreement's 11.8).
+  const sent = JSON.stringify(handOff!.body);
+  assert.ok(!sent.includes(UID) && !sent.includes(OTHER_UID), sent);
+});
+
+test("a claims stand-in that gives no kinds, as before them, hands off kind null", async () => {
+  const { fake, post, sentTo } = await harness();
+  loggedLines();
+  fake.answers.owners = async () => Response.json({ owners: [{ uid: UID, user_id: USER_ID }] });
+  const res = await post({ taps: [{ client_tap_id: "t1", uid: UID }] });
+  assert.equal(res.status, 200);
+  const [handOff] = sentTo("/geekykey/v1/taps");
+  assert.deepEqual((handOff!.body as { taps: unknown }).taps, [
+    { client_tap_id: "t1", user_id: USER_ID, tapped_at: null, kind: null },
   ]);
 });
 

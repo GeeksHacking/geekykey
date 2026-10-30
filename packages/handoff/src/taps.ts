@@ -15,6 +15,24 @@ export const LINE_LENGTH = 16;
  */
 export const LINE_PATTERN = new RegExp(`^[\\x20-\\x7E]{0,${LINE_LENGTH}}$`);
 
+/** The most characters in a token's kind. Ours are one letter, the token writer's code. */
+export const TOKEN_KIND_MAX = 32;
+
+/**
+ * A token's kind (ADR 0006), from GeekyKey's list of them: 1 to TOKEN_KIND_MAX
+ * characters, or null for a token with none. Each event decides what a kind
+ * means.
+ */
+export const tokenKind = z
+  .string()
+  .min(1)
+  .max(TOKEN_KIND_MAX)
+  .nullable()
+  .describe(
+    "The kind of the token tapped, from GeekyKey's list, such as E. Null for a token with " +
+      "none. Each event decides what a kind means",
+  );
+
 /** A tap's own ID, the same in the request and in its result. */
 const clientTapId = z
   .string()
@@ -37,6 +55,8 @@ export const tapsRequest = z.object({
             "The station's time for the tap, in UTC with milliseconds. Null when the station " +
               "sent none, or it was more than 5 minutes ahead or 7 days behind",
           ),
+        // Optional, so a GeekyKey Service from before kinds can still hand off (section 1).
+        kind: tokenKind.optional(),
       }),
     )
     .min(1)

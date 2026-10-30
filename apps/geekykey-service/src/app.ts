@@ -164,7 +164,12 @@ export function createApp(
   );
   app.route(
     "/api/v1/login-links",
-    loginLinkRoutes({ session: sessionCheck, eventServices: config.eventServices }),
+    loginLinkRoutes({
+      session: sessionCheck,
+      eventServices: config.eventServices,
+      claims,
+      deadlineMs: claimsDeadlineMs,
+    }),
   );
 
   return app;

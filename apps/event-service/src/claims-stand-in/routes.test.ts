@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { claimToken, testApp, testDb, TEST_CLAIMS_STAND_IN_KEY } from "../test-helpers.ts";
-import { tokens } from "./schema.ts";
+import { tokenKinds, tokens } from "./schema.ts";
 
 const app = testApp();
 
@@ -34,8 +34,33 @@ test("the owners of some tokens leave out the ones nobody owns", async () => {
   assert.deepEqual(
     owners.sort((a, b) => a.uid.localeCompare(b.uid)),
     [
-      { uid: "04A1B2C3D4E5F6", user_id: "user-1" },
-      { uid: "04C9E1A27B3080", user_id: "user-2" },
+      { uid: "04A1B2C3D4E5F6", user_id: "user-1", kind: null },
+      { uid: "04C9E1A27B3080", user_id: "user-2", kind: null },
+    ],
+  );
+});
+
+test("each owner comes with the token's kind from the list, or null for a token not in it", async () => {
+  await claimToken("04A1B2C3D4E5F6", "user-1");
+  await claimToken("04C9E1A27B3080", "user-2");
+  await testDb()
+    .insert(tokenKinds)
+    .values([
+      { uid: "04A1B2C3D4E5F6", kind: "E" },
+      // In the list but nobody's, so still left out.
+      { uid: "04D00D00D00D00", kind: "V" },
+    ]);
+
+  const res = await standIn("POST", "/owners", {
+    uids: ["04A1B2C3D4E5F6", "04C9E1A27B3080", "04D00D00D00D00"],
+  });
+  assert.equal(res.status, 200);
+  const { owners } = (await res.json()) as { owners: { uid: string }[] };
+  assert.deepEqual(
+    owners.sort((a, b) => a.uid.localeCompare(b.uid)),
+    [
+      { uid: "04A1B2C3D4E5F6", user_id: "user-1", kind: "E" },
+      { uid: "04C9E1A27B3080", user_id: "user-2", kind: null },
     ],
   );
 });
