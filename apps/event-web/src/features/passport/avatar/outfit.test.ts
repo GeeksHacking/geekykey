@@ -50,6 +50,17 @@ describe("outfitFrom", () => {
     expect(outfit.complete).toBe(true);
   });
 
+  it("dresses the character in a dress in her own pieces", () => {
+    const stamps = ["A", "B", "C", "D"].map((name) => stamp(name));
+
+    expect(outfitFrom(stamps, "dress").slots.map((slot) => slot.piece.key)).toEqual([
+      "feather",
+      "pearls",
+      "cane",
+      "glass",
+    ]);
+  });
+
   it("is not complete with no slots at all", () => {
     expect(outfitFrom([]).complete).toBe(false);
   });

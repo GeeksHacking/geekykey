@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { BASE, BODY, type Cell } from "@/features/passport/avatar/art";
+import { CHARACTERS, type Cell } from "@/features/passport/avatar/art";
 import {
+  coloursFor,
   DEFAULT_COLOURS,
   HAIR_COLOURS,
   parseColours,
@@ -15,9 +16,15 @@ const lightness = (hex: string) => {
   return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255);
 };
 
+const { suit: man, dress: woman } = CHARACTERS;
+
 describe("recolour", () => {
-  it("keeps the art as drawn for the default colours", () => {
-    expect(recolour(BODY, DEFAULT_COLOURS)).toEqual(BODY.map((cell) => cell?.colour ?? null));
+  it("keeps each character as drawn in their own colours", () => {
+    for (const who of [man, woman]) {
+      expect(recolour(who.body, coloursFor(who.key))).toEqual(
+        who.body.map((cell) => cell?.colour ?? null),
+      );
+    }
   });
 
   it("gives the art's own skin, hair and suit colour the guest's choice", () => {
@@ -25,20 +32,25 @@ describe("recolour", () => {
     const blonde = HAIR_COLOURS.find((hair) => hair.key === "blonde")!;
     const navy = SUIT_COLOURS.find((suit) => suit.key === "navy")!;
     const cells: Cell[] = [
-      { colour: BASE.skin, tag: "skin" },
-      { colour: BASE.hair, tag: "hair" },
-      { colour: BASE.suit, tag: "suit" },
+      { colour: man.base.skin, tag: "skin" },
+      { colour: man.base.hair, tag: "hair" },
+      { colour: man.base.suit, tag: "suit" },
     ];
 
-    expect(recolour(cells, { skin: "deep", hair: "blonde", suit: "navy" })).toEqual([
-      deep.main,
-      blonde.main,
-      navy.main,
-    ]);
+    expect(
+      recolour(cells, { character: "suit", skin: "deep", hair: "blonde", suit: "navy" }),
+    ).toEqual([deep.main, blonde.main, navy.main]);
+  });
+
+  it("gives the dress the guest's choice, measured from her own green", () => {
+    const navy = SUIT_COLOURS.find((suit) => suit.key === "navy")!;
+    const dress: Cell = { colour: woman.base.suit, tag: "suit" };
+
+    expect(recolour([dress], { ...coloursFor("dress"), suit: "navy" })).toEqual([navy.main]);
   });
 
   it("keeps the art's shading, so a lapel still shows on a dark suit and on a light one", () => {
-    const suit: Cell = { colour: BASE.suit, tag: "suit" };
+    const suit: Cell = { colour: man.base.suit, tag: "suit" };
     const lapel: Cell = { colour: "#3e3f3f", tag: "suit" };
     const shadow: Cell = { colour: "#c49273", tag: "skin" };
 
@@ -46,7 +58,7 @@ describe("recolour", () => {
       const [main, edge] = recolour([suit, lapel], { ...DEFAULT_COLOURS, suit: choice });
       expect(edge).not.toBe(main);
     }
-    const [skin, shade] = recolour([{ colour: BASE.skin, tag: "skin" }, shadow], {
+    const [skin, shade] = recolour([{ colour: man.base.skin, tag: "skin" }, shadow], {
       ...DEFAULT_COLOURS,
       skin: "light",
     });
@@ -60,27 +72,28 @@ describe("recolour", () => {
       null,
     ] satisfies (Cell | null)[];
 
-    expect(recolour(cells, { skin: "deep", hair: "grey", suit: "ivory" })).toEqual([
-      "#010001",
-      "#fbfdf7",
-      null,
-    ]);
+    expect(
+      recolour(cells, { character: "suit", skin: "deep", hair: "grey", suit: "ivory" }),
+    ).toEqual(["#010001", "#fbfdf7", null]);
   });
 });
 
 describe("parseColours", () => {
   it("reads back a saved choice", () => {
-    const saved = JSON.stringify({ skin: "medium", hair: "auburn", suit: "emerald" });
+    const saved = { character: "dress", skin: "medium", hair: "auburn", suit: "navy" } as const;
 
-    expect(parseColours(saved)).toEqual({ skin: "medium", hair: "auburn", suit: "emerald" });
+    expect(parseColours(JSON.stringify(saved))).toEqual(saved);
   });
 
-  it("falls back to the default for nothing saved, broken JSON or an unknown key", () => {
+  it("falls back to the character in a suit, as drawn, for nothing saved or broken JSON", () => {
     expect(parseColours(null)).toEqual(DEFAULT_COLOURS);
     expect(parseColours("{not json")).toEqual(DEFAULT_COLOURS);
-    expect(parseColours(JSON.stringify({ skin: "medium", hair: "green", suit: 4 }))).toEqual({
-      ...DEFAULT_COLOURS,
-      skin: "medium",
-    });
+    expect(DEFAULT_COLOURS).toEqual(coloursFor("suit"));
+  });
+
+  it("falls back to the character's own colour for an unknown one", () => {
+    const saved = JSON.stringify({ character: "dress", skin: "medium", hair: "green", suit: 4 });
+
+    expect(parseColours(saved)).toEqual({ ...coloursFor("dress"), skin: "medium" });
   });
 });

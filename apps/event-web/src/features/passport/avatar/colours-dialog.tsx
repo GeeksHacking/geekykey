@@ -9,16 +9,19 @@ import {
 } from "@/components/ui/dialog";
 import { AvatarColourPicker } from "@/features/passport/avatar/avatar-colour-picker";
 
-/** The colour choice again, for a guest who skipped it at the name prompt or wants a change. */
+/**
+ * The character and colours again, for a guest who skipped them at the name prompt or wants a
+ * change.
+ */
 export function ColoursDialog({ userId }: { userId: string }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline">Change colours</Button>
+        <Button variant="outline">Change look</Button>
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Your colours</DialogTitle>
+          <DialogTitle>Your look</DialogTitle>
           <DialogDescription>
             Your avatar changes as you pick. Only this device remembers it.
           </DialogDescription>

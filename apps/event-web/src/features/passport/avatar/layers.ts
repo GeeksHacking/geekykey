@@ -1,6 +1,12 @@
 import { useMemo } from "react";
 
-import { BODY, composite, SIZE, type Layer, type Pixels } from "@/features/passport/avatar/art";
+import {
+  CHARACTERS,
+  composite,
+  SIZE,
+  type Layer,
+  type Pixels,
+} from "@/features/passport/avatar/art";
 import { recolour, type AvatarColours } from "@/features/passport/avatar/avatar-colours";
 import type { Slot } from "@/features/passport/avatar/outfit";
 
@@ -10,7 +16,7 @@ const worn = (slots: readonly Slot[]) => slots.filter((slot) => slot.worn);
 export function dressedPixels(slots: readonly Slot[], colours: AvatarColours): Pixels {
   return recolour(
     composite(
-      BODY,
+      CHARACTERS[colours.character].body,
       worn(slots).map((slot) => slot.piece.layer),
     ),
     colours,
@@ -25,7 +31,7 @@ export function bodyPixels(slots: readonly Slot[], colours: AvatarColours): Pixe
   const moves = worn(slots).map((slot) =>
     slot.piece.layer.map((cell) => (cell === "erase" || cell?.tag !== "item" ? cell : null)),
   );
-  return recolour(composite(BODY, moves), colours);
+  return recolour(composite(CHARACTERS[colours.character].body, moves), colours);
 }
 
 /** Only the piece itself, in its own colours. */

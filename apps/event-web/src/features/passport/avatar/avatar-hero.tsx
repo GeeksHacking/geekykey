@@ -22,8 +22,11 @@ interface AvatarHeroProps {
  * then the pieces and a caption with the counts the points summary used to show.
  */
 export function AvatarHero({ me, changes }: AvatarHeroProps) {
-  const outfit = useMemo(() => outfitFrom(me.stamps), [me.stamps]);
   const { colours } = useAvatarColours(me.user.id);
+  const outfit = useMemo(
+    () => outfitFrom(me.stamps, colours.character),
+    [me.stamps, colours.character],
+  );
   const flatUrl = useDressedUrl(outfit.slots, colours);
   const arriving = useMemo(
     () =>

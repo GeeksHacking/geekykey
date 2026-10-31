@@ -1,24 +1,23 @@
 import {
-  ART_BODY,
+  ART_CHARACTERS,
   ART_CHARS,
   ART_PALETTE,
-  ART_PIECES,
   ART_SIZE,
 } from "@/features/passport/avatar/art-data";
 
 /*
-  The grad tea's avatar art (FRO-105): Joshua's character and one piece per stamp slot. The
-  PNGs are in art/avatar/, and scripts/avatar-art.ts turns them into art-data.ts. Everything
-  that draws the avatar reads this file, so the flat avatar, the cubes and the saved card all
-  change with the art.
+  The grad tea's avatar art (FRO-105): Joshua's two characters, one in a suit and one in a
+  dress, and each one's pieces, one per stamp slot. The PNGs are in art/avatar/, and
+  scripts/avatar-art.ts turns them into art-data.ts. Everything that draws the avatar reads
+  this file, so the flat avatar, the cubes and the saved card all change with the art.
 */
 
 export const SIZE = ART_SIZE;
 
 /**
- * Whom a pixel belongs to. The guest's colour choice reaches skin, hair and suit. "item" is
- * a piece itself, and it and an untagged pixel (the shirt, the shoes, the outline) keep their
- * colour.
+ * Whom a pixel belongs to. The guest's colour choice reaches skin, hair and suit (the dress,
+ * on the character in a dress). "item" is a piece itself, and it and an untagged pixel (the
+ * shirt, the outline) keep their colour.
  */
 export type Tag = (typeof ART_PALETTE)[number][1];
 
@@ -39,13 +38,15 @@ export type Pixels = (string | null)[];
  */
 export type Layer = (Cell | "erase" | null)[];
 
-export type PieceKey = (typeof ART_PIECES)[number]["key"];
+type CharacterData = (typeof ART_CHARACTERS)[number];
+export type CharacterKey = CharacterData["key"];
+export type PieceKey = CharacterData["pieces"][number]["key"];
 
 /**
- * How a piece's own pixels sit on the body in 3D: `solid` is as thick as the body (a hat over
- * hair), `front` is one cube in front of it (a monocle), `thin` is one cube thick (a cane).
+ * How a piece's own pixels sit on the body in 3D: `solid` takes its own rounded shape, like
+ * the body (a hat, a cane), and `front` lies on the body's surface (a monocle, pearls).
  */
-export type Shape = "solid" | "front" | "thin";
+export type Shape = "solid" | "front";
 
 export interface Piece {
   key: PieceKey;
@@ -54,8 +55,18 @@ export interface Piece {
   layer: Layer;
 }
 
-/** Rows of the grid where the character's parts start, for the back of the 3D figure. */
-export const ROWS = { chin: 20, shoes: 56 } as const;
+export interface Character {
+  key: CharacterKey;
+  /** What the picker calls the suit colour on this character. */
+  outfit: "Suit" | "Dress";
+  body: Art;
+  /** In slot order: the first stamp slot gives the first piece. */
+  pieces: readonly Piece[];
+  /** The art's own skin, hair and suit colours, which the guest's choice replaces. */
+  base: { skin: string; hair: string; suit: string };
+  /** Rows where the parts start, for the back of the 3D figure. */
+  rows: { chin: number; shoes: number };
+}
 
 const CELLS: Cell[] = ART_PALETTE.map(([colour, tag]) => ({ colour, tag }));
 
@@ -69,37 +80,43 @@ function decode(rows: readonly string[]): Layer {
   );
 }
 
-export const BODY: Art = decode(ART_BODY).map((cell) => (cell === "erase" ? null : cell));
-
-/** The colour most of the body's pixels with this tag have, which the guest's choice replaces. */
-function mostCommon(tag: Tag): string {
+/** The colour most of the body's pixels with this tag have. */
+function mostCommon(body: Art, tag: Tag): string {
   const counts = new Map<string, number>();
-  for (const cell of BODY) {
+  for (const cell of body) {
     if (cell?.tag === tag) counts.set(cell.colour, (counts.get(cell.colour) ?? 0) + 1);
   }
   return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "#000000";
 }
 
-/** The art's own skin, hair and suit colours. */
-export const BASE = {
-  skin: mostCommon("skin"),
-  hair: mostCommon("hair"),
-  suit: mostCommon("suit"),
-} as const;
-
 const LOOK: Record<PieceKey, { label: string; shape: Shape }> = {
   hat: { label: "Hat", shape: "solid" },
   monocle: { label: "Monocle", shape: "front" },
-  cane: { label: "Cane", shape: "thin" },
-  glass: { label: "Glass", shape: "thin" },
+  feather: { label: "Feather", shape: "solid" },
+  pearls: { label: "Pearls", shape: "front" },
+  cane: { label: "Cane", shape: "solid" },
+  glass: { label: "Glass", shape: "solid" },
 };
 
-/** Slot order: the first stamp slot gives the hat, and so on. */
-export const PIECES: readonly Piece[] = ART_PIECES.map(({ key, rows }) => ({
-  key,
-  ...LOOK[key],
-  layer: decode(rows),
-}));
+function character(data: CharacterData): Character {
+  const body = decode(data.body).map((cell) => (cell === "erase" ? null : cell));
+  return {
+    key: data.key,
+    outfit: data.key === "dress" ? "Dress" : "Suit",
+    body,
+    pieces: data.pieces.map(({ key, rows }) => ({ key, ...LOOK[key], layer: decode(rows) })),
+    base: {
+      skin: mostCommon(body, "skin"),
+      hair: mostCommon(body, "hair"),
+      suit: mostCommon(body, "suit"),
+    },
+    rows: data.rows,
+  };
+}
+
+export const CHARACTERS = Object.fromEntries(
+  ART_CHARACTERS.map((data) => [data.key, character(data)]),
+) as Record<CharacterKey, Character>;
 
 /** The body with each layer over it in turn, as a stack of PNGs would be. */
 export function composite(body: Art, layers: readonly Layer[]): Art {

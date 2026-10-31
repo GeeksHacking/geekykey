@@ -1906,8 +1906,10 @@
   date: 2026-11-01
   area: frontend
   change: >-
-    Joshua's drawings replace the avatar's placeholder art: a man in a tuxedo, and a hat, a
-    monocle, a cane and a glass of champagne, one per stamp. A script turns his Sprite Fusion
-    pictures into the avatar's data. It lines each piece up with the character, ignores the
-    small colour differences the export adds, and keeps only what the piece changed, so the arm
-    that lifts the glass takes the guest's suit colour while the glass keeps its own.
+    Joshua's drawings replace the avatar's placeholder art. Guests pick a character: a man in a
+    tuxedo, who collects a hat, a monocle, a cane and a glass of champagne, or a woman in a
+    flapper dress, who collects a feather, pearls, a cane and a glass. A script turns his Sprite
+    Fusion pictures into the avatar's data. It lines each piece up with the character, ignores
+    the small colour differences the export adds, and keeps only what the piece changed, so the
+    arm that lifts the glass takes the guest's suit colour while the glass keeps its own. The 3D
+    figure is now rounded, with round arms and legs, rather than the flat picture made thick.

@@ -104,21 +104,39 @@ describe("DashboardScreen's avatar", () => {
     state.me = dressing;
     const { unmount } = renderDashboard();
 
-    await user.click(screen.getByRole("button", { name: "Change colours" }));
+    await user.click(screen.getByRole("button", { name: "Change look" }));
     await user.click(screen.getByRole("radio", { name: "Deep" }));
     await user.keyboard("{Escape}");
     unmount();
 
     const again = renderDashboard();
-    await user.click(screen.getByRole("button", { name: "Change colours" }));
+    await user.click(screen.getByRole("button", { name: "Change look" }));
     expect(screen.getByRole("radio", { name: "Deep" })).toBeChecked();
     await user.keyboard("{Escape}");
     again.unmount();
 
     state.me = { ...dressing, user: { ...dressing.user, id: "user-2" } };
     renderDashboard();
-    await user.click(screen.getByRole("button", { name: "Change colours" }));
+    await user.click(screen.getByRole("button", { name: "Change look" }));
     expect(screen.getByRole("radio", { name: "Warm" })).toBeChecked();
+  });
+
+  it("dresses the character the guest picks in that character's own pieces", async () => {
+    const user = userEvent.setup();
+    state.me = dressing;
+    renderDashboard();
+
+    await user.click(screen.getByRole("button", { name: "Change look" }));
+    const look = screen.getByRole("dialog", { name: "Your look" });
+    await user.click(within(look).getByRole("radio", { name: "In a dress" }));
+
+    expect(within(look).getByRole("radio", { name: "In a dress" })).toBeChecked();
+    expect(within(look).getByRole("radiogroup", { name: "Dress" })).toBeInTheDocument();
+    expect(within(look).getByRole("radio", { name: "Emerald" })).toBeChecked();
+    await user.keyboard("{Escape}");
+    const pieces = screen.getByRole("list", { name: "Your outfit" });
+    expect(within(pieces).getByText("Feather, from Cloud Sponsor: wearing")).toBeInTheDocument();
+    expect(within(pieces).getByText("Pearls, from Robotics Club: not yet")).toBeInTheDocument();
   });
 
   it("shows the memory card with the guest's name, and says so when the picture can't be made", async () => {

@@ -1,12 +1,12 @@
 /**
  * Turns Joshua's avatar PNGs (FRO-105) into src/features/passport/avatar/art-data.ts.
- * Run from apps/event-web after changing a file in art/avatar/:
+ * Run from apps/event-web after changing a file in art/avatar/<character>/:
  *
  *   pnpm avatar-art
  *   pnpm avatar-art --preview /tmp/avatar   # also draws every piece worn, 8x, to look at
  *
- * The art is a 64x64 base character and one Sprite Fusion edit of that same character per
- * piece. An edit comes cropped to the character and with a few colours off by one or two, so
+ * Each character (one in a suit, one in a dress) is a 64x64 base and one Sprite Fusion edit
+ * of that same base per piece. An edit comes cropped to the character and with a few colours off by one or two, so
  * the script:
  *
  * 1. lines each edit up with the base, at the offset where most of their pixels agree;
@@ -16,7 +16,7 @@
  * 3. puts every file on one palette of a few dozen colours;
  * 4. tags each pixel skin, hair or suit, so the guest's colour choice reaches it, or item, the
  *    piece itself, or leaves it untagged. Item and untagged pixels keep their colour (the hat,
- *    the shirt, the shoes, the outline).
+ *    the shirt, the outline).
  *
  * The PNGs must be 8-bit RGBA, which is what Sprite Fusion exports.
  */
@@ -38,7 +38,6 @@ interface Box {
 
 interface PieceSource {
   key: string;
-  file: string;
   /**
    * In the 64x64 grid, where the piece may change the base. A change anywhere else is export
    * noise and is dropped.
@@ -57,49 +56,93 @@ interface PieceSource {
   covers?: Box[];
 }
 
-const box = (x0: number, y0: number, x1: number, y1: number): Box => ({ x0, y0, x1, y1 });
+interface CharacterSource {
+  key: string;
+  /** Where the parts are, in rows of the 64x64 grid. */
+  rows: {
+    /** Dark pixels above this row are hair, eyebrows included. */
+    hairBelow: number;
+    /** The back of the head ends here, for the 3D figure. */
+    chin: number;
+    /** The shoes start here, and look the same from behind. */
+    shoes: number;
+  };
+  /** The eyes, which are dark but aren't hair. */
+  eyes: Box;
+  /** Which pixels the suit (or dress) colour reaches. */
+  isSuit: (c: Rgb, y: number) => boolean;
+  /** In slot order: the first stamp slot gives the first piece. Each is <key>.png. */
+  pieces: PieceSource[];
+}
 
-/** Slot order: the first stamp slot gives the first piece. */
-const PIECES: PieceSource[] = [
+const box = (x0: number, y0: number, x1: number, y1: number): Box => ({ x0, y0, x1, y1 });
+const neutral = (c: Rgb) => Math.max(...c) - Math.min(...c) <= 10;
+
+const CHARACTERS: CharacterSource[] = [
   {
-    key: "hat",
-    file: "hat.png",
-    area: [box(19, 0, 44, 13)],
-    item: [box(19, 0, 44, 13)],
-    // The crown and the brim, down to the brim's lowest row across the forehead.
-    covers: [box(19, 0, 44, 10)],
+    key: "suit",
+    rows: { hairBelow: 15, chin: 20, shoes: 56 },
+    eyes: box(27, 13, 36, 14),
+    // Black and the greys of the lapels, below the head and above the shoes. The outline is a
+    // very dark red, so it isn't a neutral dark and keeps its colour.
+    isSuit: (c, y) => neutral(c) && hsl(c).l < 0.35 && y >= 15 && y < 56,
+    pieces: [
+      {
+        key: "hat",
+        area: [box(19, 0, 44, 13)],
+        item: [box(19, 0, 44, 13)],
+        // The crown and the brim, down to the brim's lowest row across the forehead.
+        covers: [box(19, 0, 44, 10)],
+      },
+      { key: "monocle", area: [box(31, 10, 37, 18)], item: [box(31, 10, 37, 18)] },
+      {
+        key: "cane",
+        // The hand moves out to hold the cane. The stick shows above and below the hand.
+        area: [box(14, 30, 24, 58)],
+        item: [box(17, 31, 21, 35), box(19, 40, 21, 58)],
+      },
+      {
+        key: "glass",
+        // The arm lifts from the side (where the edit erases it) to hold the glass out.
+        area: [box(44, 14, 57, 35), box(39, 33, 45, 44)],
+        item: [box(45, 14, 56, 24)],
+      },
+    ],
   },
   {
-    key: "monocle",
-    file: "monocle.png",
-    area: [box(31, 10, 37, 18)],
-    item: [box(31, 10, 37, 18)],
-  },
-  {
-    key: "cane",
-    file: "cane.png",
-    // The hand moves out to hold the cane. The stick shows above and below the hand.
-    area: [box(14, 30, 24, 58)],
-    item: [box(17, 31, 21, 35), box(19, 40, 21, 58)],
-  },
-  {
-    key: "glass",
-    file: "glass.png",
-    // The arm lifts from the side (where the edit erases it) to hold the glass out.
-    area: [box(44, 14, 57, 35), box(39, 33, 45, 44)],
-    item: [box(45, 14, 56, 24)],
+    key: "dress",
+    rows: { hairBelow: 16, chin: 16, shoes: 63 },
+    eyes: box(28, 10, 36, 12),
+    // The dress's greens, and the shoes, which match it. Its dark edges are the outline, and
+    // the export tints a few near-black hair pixels green, so those stay hair.
+    isSuit: (c, y) => {
+      const { h, s, l } = hsl(c);
+      return y >= 16 && h >= 70 && h <= 180 && s >= 0.2 && l >= 0.1;
+    },
+    pieces: [
+      {
+        key: "feather",
+        area: [box(24, 0, 46, 9)],
+        item: [box(24, 0, 46, 9)],
+        // The headband is dark over dark hair, so it covers the hair whatever its colour.
+        covers: [box(25, 7, 40, 8)],
+      },
+      { key: "pearls", area: [box(26, 16, 38, 24)], item: [box(26, 16, 38, 24)] },
+      {
+        key: "cane",
+        // The arm swings out to hold the cane, which shows below the hand.
+        area: [box(16, 30, 25, 62)],
+        item: [box(18, 38, 20, 62)],
+      },
+      {
+        key: "glass",
+        // The forearm lifts from the side (where the edit erases it) to hold the glass up.
+        area: [box(38, 19, 48, 42)],
+        item: [box(41, 19, 47, 23)],
+      },
+    ],
   },
 ];
-
-/** Where the base character's parts are, in the 64x64 grid, for tagging hair and suit. */
-const BODY_PARTS = {
-  /** Dark pixels above this row are hair, eyebrows included. */
-  hairBelow: 15,
-  /** The eyes, which are dark but aren't hair. */
-  eyes: { x0: 27, y0: 13, x1: 36, y1: 14 },
-  /** The shoes, which stay black on any suit. */
-  shoesFrom: 56,
-};
 
 /** Two colours closer than this (RGB distance) are the same colour with export noise. */
 const NOISE = 48;
@@ -227,16 +270,13 @@ function hsl([r, g, b]: Rgb) {
 const inBox = (b: Box, x: number, y: number) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
 const inAny = (boxes: Box[], x: number, y: number) => boxes.some((b) => inBox(b, x, y));
 
-function roleOf(c: Rgb, x: number, y: number, inItem: boolean): Role {
+function roleOf(c: Rgb, x: number, y: number, inItem: boolean, who: CharacterSource): Role {
   if (inItem) return "item";
   const { h, s, l } = hsl(c);
   if (h >= 5 && h <= 42 && s >= 0.25 && l >= 0.3 && l <= 0.92) return "skin";
-  // The outline is a very dark red, so it isn't a neutral dark and keeps its colour.
-  const neutral = Math.max(...c) - Math.min(...c) <= 10;
-  if (!neutral || l >= 0.35) return null;
-  if (y >= BODY_PARTS.shoesFrom) return null;
-  if (y < BODY_PARTS.hairBelow) return inBox(BODY_PARTS.eyes, x, y) ? null : "hair";
-  return "suit";
+  if (who.isSuit(c, y)) return "suit";
+  if (neutral(c) && l < 0.35 && y < who.rows.hairBelow && !inBox(who.eyes, x, y)) return "hair";
+  return null;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -327,35 +367,44 @@ function buildPalette(colours: Rgb[]) {
 
 // ---------------------------------------------------------------------------------------
 
-const CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#%&*+-/:;<=>?@^|~";
+/** One character per palette entry, never "." or "_", which a row uses for nothing and erase. */
+const CHARS =
+  "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#%&*+-/:;<=>?@^|~" +
+  String.fromCharCode(...Array.from({ length: 64 }, (_, k) => 0xc0 + k));
 
 function main() {
   const { values } = parseArgs({ options: { preview: { type: "string" } } });
 
-  const baseFile = decodePng(join(ART_DIR, "base.png"));
-  if (baseFile.width !== SIZE || baseFile.height !== SIZE) {
-    throw new Error(
-      `base.png: it should be ${SIZE}x${SIZE}, not ${baseFile.width}x${baseFile.height}`,
-    );
-  }
-  const base = baseFile.grid;
-
-  const pieces = PIECES.map((piece) => {
-    const lined = lineUp(base, decodePng(join(ART_DIR, piece.file)), piece.file);
-    const { changes: diff, dropped } = changes(base, lined.placed, piece);
-    console.log(
-      `${piece.file}: at ${lined.ox},${lined.oy}, ${Math.round(lined.share * 100)}% matches the base, ` +
-        `${diff.size} pixels changed, ${dropped} dropped as outside its area`,
-    );
-    return { piece, diff };
+  const characters = CHARACTERS.map((who) => {
+    const dir = join(ART_DIR, who.key);
+    const baseFile = decodePng(join(dir, "base.png"));
+    if (baseFile.width !== SIZE || baseFile.height !== SIZE) {
+      throw new Error(
+        `${who.key}/base.png: it should be ${SIZE}x${SIZE}, not ${baseFile.width}x${baseFile.height}`,
+      );
+    }
+    const base = baseFile.grid;
+    const pieces = who.pieces.map((piece) => {
+      const file = `${who.key}/${piece.key}.png`;
+      const lined = lineUp(base, decodePng(join(ART_DIR, file)), file);
+      const { changes: diff, dropped } = changes(base, lined.placed, piece);
+      console.log(
+        `${file}: at ${lined.ox},${lined.oy}, ${Math.round(lined.share * 100)}% matches the base, ` +
+          `${diff.size} pixels changed, ${dropped} dropped as outside its area`,
+      );
+      return { piece, diff };
+    });
+    return { who, base, pieces };
   });
 
-  const snap = buildPalette([
-    ...base.filter((c): c is Rgb => c !== null),
-    ...pieces.flatMap(({ diff }) =>
-      [...diff.values()].flatMap((ch) => (ch.kind === "paint" ? [ch.colour] : [])),
-    ),
-  ]);
+  const snap = buildPalette(
+    characters.flatMap(({ base, pieces }) => [
+      ...base.filter((c): c is Rgb => c !== null),
+      ...pieces.flatMap(({ diff }) =>
+        [...diff.values()].flatMap((ch) => (ch.kind === "paint" ? [ch.colour] : [])),
+      ),
+    ]),
+  );
 
   const entries: string[] = [];
   const charFor = (c: Rgb, role: Role) => {
@@ -370,25 +419,28 @@ function main() {
       Array.from({ length: SIZE }, (_, x) => cell(y * SIZE + x)).join(""),
     );
 
-  const bodyRows = rows((i) => {
-    const c = base[i];
-    return c ? charFor(c, roleOf(c, i % SIZE, Math.floor(i / SIZE), false)) : ".";
-  });
-  const pieceRows = pieces.map(({ piece, diff }) => ({
-    key: piece.key,
-    rows: rows((i) => {
-      const ch = diff.get(i);
-      if (!ch) return ".";
-      if (ch.kind === "erase") return "_";
-      const x = i % SIZE;
-      const y = Math.floor(i / SIZE);
-      return charFor(ch.colour, roleOf(ch.colour, x, y, inAny(piece.item, x, y)));
+  const out = characters.map(({ who, base, pieces }) => ({
+    who,
+    body: rows((i) => {
+      const c = base[i];
+      return c ? charFor(c, roleOf(c, i % SIZE, Math.floor(i / SIZE), false, who)) : ".";
     }),
+    pieces: pieces.map(({ piece, diff }) => ({
+      key: piece.key,
+      rows: rows((i) => {
+        const ch = diff.get(i);
+        if (!ch) return ".";
+        if (ch.kind === "erase") return "_";
+        const x = i % SIZE;
+        const y = Math.floor(i / SIZE);
+        return charFor(ch.colour, roleOf(ch.colour, x, y, inAny(piece.item, x, y), who));
+      }),
+    })),
   }));
 
-  const quote = (s: string) => `    "${s}",`;
+  const quote = (indent: string) => (s: string) => `${indent}"${s}",`;
   const file = [
-    "// Generated by scripts/avatar-art.ts from art/avatar/*.png. Don't edit it by hand: change",
+    "// Generated by scripts/avatar-art.ts from art/avatar/*/*.png. Don't edit it by hand: change",
     "// the art or the script, then run `pnpm avatar-art` in apps/event-web.",
     "",
     `export const ART_SIZE = ${SIZE};`,
@@ -400,20 +452,29 @@ function main() {
     "",
     `export const ART_CHARS = ${JSON.stringify(CHARS)};`,
     "",
-    '/** One string per row. "." is transparent. */',
-    "export const ART_BODY = [",
-    ...bodyRows.map((r) => `  "${r}",`),
-    "];",
-    "",
-    '/** In slot order. "." leaves the body as it is and "_" erases it. */',
-    "export const ART_PIECES = [",
-    ...pieceRows.flatMap((p) => [
-      `  {`,
-      `    key: "${p.key}",`,
-      `    rows: [`,
-      ...p.rows.map(quote),
-      `    ],`,
-      `  },`,
+    "/**",
+    ' * Each character\'s body, one string per row with "." transparent, and its pieces in slot',
+    ' * order, where "." leaves the body as it is and "_" erases it.',
+    " */",
+    "export const ART_CHARACTERS = [",
+    ...out.flatMap(({ who, body, pieces }) => [
+      "  {",
+      `    key: "${who.key}",`,
+      `    rows: { chin: ${who.rows.chin}, shoes: ${who.rows.shoes} },`,
+      "    body: [",
+      ...body.map(quote("      ")),
+      "    ],",
+      "    pieces: [",
+      ...pieces.flatMap((p) => [
+        "      {",
+        `        key: "${p.key}",`,
+        "        rows: [",
+        ...p.rows.map(quote("          ")),
+        "        ],",
+        "      },",
+      ]),
+      "    ],",
+      "  },",
     ]),
     "] as const;",
     "",
@@ -426,52 +487,49 @@ function main() {
     const palette = entries.map((e) => JSON.parse(e) as [string, Role]);
     const toRgb = (h: string): Rgb => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)) as Rgb;
     const layer = (stack: string[][]) => {
-      const out: (Rgb | null)[] = Array.from({ length: SIZE * SIZE }, () => null);
+      const grid: (Rgb | null)[] = Array.from({ length: SIZE * SIZE }, () => null);
       for (const r of stack) {
-        r.join("")
-          .split("")
-          .forEach((ch, i) => {
-            if (ch === ".") return;
-            out[i] = ch === "_" ? null : toRgb(palette[CHARS.indexOf(ch)]![0]);
-          });
+        [...r.join("")].forEach((ch, i) => {
+          if (ch === ".") return;
+          grid[i] = ch === "_" ? null : toRgb(palette[CHARS.indexOf(ch)]![0]);
+        });
       }
-      return out;
+      return grid;
     };
-    const views = [
-      layer([bodyRows]),
-      ...pieceRows.map((p) => layer([bodyRows, p.rows])),
-      layer([bodyRows, ...pieceRows.map((p) => p.rows)]),
-      // Tags: skin orange, hair blue, suit green, the rest grey. Pieces aren't shown here.
-      bodyRows
-        .join("")
-        .split("")
-        .map((ch): Rgb | null => {
-          if (ch === ".") return null;
-          const role = palette[CHARS.indexOf(ch)]![1];
-          return role === "skin"
-            ? [240, 140, 40]
-            : role === "hair"
-              ? [60, 110, 240]
-              : role === "suit"
-                ? [40, 170, 90]
-                : [150, 150, 150];
-        }),
-    ];
+    // Tags: skin orange, hair blue, suit green, the rest grey. Pieces aren't shown here.
+    const TAG: Record<string, Rgb> = {
+      skin: [240, 140, 40],
+      hair: [60, 110, 240],
+      suit: [40, 170, 90],
+    };
+    const strips = out.map(({ body, pieces }) => [
+      layer([body]),
+      ...pieces.map((p) => layer([body, p.rows])),
+      layer([body, ...pieces.map((p) => p.rows)]),
+      [...body.join("")].map((ch): Rgb | null =>
+        ch === "." ? null : (TAG[palette[CHARS.indexOf(ch)]![1] ?? ""] ?? [150, 150, 150]),
+      ),
+    ]);
     const scale = 8;
-    const w = views.length * SIZE * scale;
-    const h = SIZE * scale;
+    const across = Math.max(...strips.map((views) => views.length));
+    const w = across * SIZE * scale;
+    const h = strips.length * SIZE * scale;
     const rgba = Buffer.alloc(w * h * 4);
-    views.forEach((view, v) => {
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < SIZE * scale; x++) {
-          const c = view[Math.floor(y / scale) * SIZE + Math.floor(x / scale)] ?? [120, 140, 160];
-          rgba.set([...c, 255], (y * w + v * SIZE * scale + x) * 4);
+    strips.forEach((views, row) => {
+      views.forEach((view, v) => {
+        for (let y = 0; y < SIZE * scale; y++) {
+          for (let x = 0; x < SIZE * scale; x++) {
+            const c = view[Math.floor(y / scale) * SIZE + Math.floor(x / scale)] ?? [120, 140, 160];
+            rgba.set([...c, 255], ((row * SIZE * scale + y) * w + v * SIZE * scale + x) * 4);
+          }
         }
-      }
+      });
     });
     const path = join(values.preview, "avatar-art.png");
     writeFileSync(path, encodePng(w, h, rgba));
-    console.log(`${path}: the base, each piece on it, every piece at once, and the colour tags`);
+    console.log(
+      `${path}: per character, the base, each piece on it, every piece at once, and the colour tags`,
+    );
   }
 }
 

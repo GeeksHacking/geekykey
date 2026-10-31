@@ -1,5 +1,5 @@
 import type { Stamp } from "@/api/types";
-import { PIECES, type Piece } from "@/features/passport/avatar/art";
+import { CHARACTERS, type CharacterKey, type Piece } from "@/features/passport/avatar/art";
 
 export interface Slot {
   piece: Piece;
@@ -17,12 +17,12 @@ export interface Outfit {
 }
 
 /**
- * Which pieces the guest wears, from 8.1's stamps. The slots come oldest first and keep
+ * Which of their character's pieces the guest wears, from 8.1's stamps. The slots come oldest first and keep
  * their order, so slot i always gives piece i and a guest's pieces never swap places.
  * The passport decides nothing else: a stamp is worn when 8.1 says it is earned.
  */
-export function outfitFrom(stamps: readonly Stamp[]): Outfit {
-  const slots = PIECES.slice(0, stamps.length).map((piece, i) => {
+export function outfitFrom(stamps: readonly Stamp[], character: CharacterKey = "suit"): Outfit {
+  const slots = CHARACTERS[character].pieces.slice(0, stamps.length).map((piece, i) => {
     const stamp = stamps[i]!;
     return { piece, stamp, worn: stamp.earned_at !== null };
   });

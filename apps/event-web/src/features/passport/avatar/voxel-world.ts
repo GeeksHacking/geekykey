@@ -1,22 +1,20 @@
 import * as THREE from "three";
 
 import {
-  BASE,
-  BODY,
+  CHARACTERS,
   composite,
-  ROWS,
   SIZE,
+  type Art,
   type Cell,
   type PieceKey,
-  type Shape,
 } from "@/features/passport/avatar/art";
 import { recolour, type AvatarColours } from "@/features/passport/avatar/avatar-colours";
 import type { Slot } from "@/features/passport/avatar/outfit";
 
 /*
-  The avatar as cubes (FRO-105): every solid pixel of a layer becomes a cube, so the same art
-  as the flat avatar turns into a figure the guest can turn. Only voxel-stage.tsx imports
-  this, through import(), so three.js is its own file that loads after the dashboard.
+  The avatar as cubes (FRO-105): every solid pixel of the art becomes a column of cubes, so the
+  same art as the flat avatar turns into a figure the guest can turn. Only voxel-stage.tsx
+  imports this, through import(), so three.js is its own file that loads after the dashboard.
 */
 
 interface Cube {
@@ -26,104 +24,156 @@ interface Cube {
   color: string;
 }
 
-/** The body runs from -DEPTH to DEPTH cubes front to back. */
-const DEPTH = 4;
-const BODY_Z = Array.from({ length: 2 * DEPTH + 1 }, (_, k) => DEPTH - k);
+/** The most cubes either side of the middle: a round head, and a body with a flat front. */
+const HEAD_HALF = 6;
+const BODY_HALF = 5;
 
 function at(i: number) {
   const row = Math.floor(i / SIZE);
   return { row, x: (i % SIZE) - (SIZE - 1) / 2, y: SIZE - 1 - row - SIZE / 2 };
 }
 
-/** The lowest row with a pixel, where the feet stand. */
-const FEET_Y = at(BODY.findLastIndex((cell) => cell !== null)).y;
+/**
+ * Half the figure's thickness at each pixel, or -1 where there's no pixel. Each run of pixels
+ * across a row is cut as a circle, capped so the torso has a flat front, and each run down a
+ * column rounds off the top of the head and the shoulders. Arms, legs and a cane come out
+ * round, and a hat's brim comes out thin.
+ */
+function halfDepths(art: Art, chin: number): number[] {
+  const across = Array.from({ length: SIZE * SIZE }, () => -1);
+  const down = Array.from({ length: SIZE * SIZE }, () => -1);
+  const solid = (x: number, y: number) => art[y * SIZE + x] != null;
+  for (let line = 0; line < SIZE; line++) {
+    for (const [isRow, out] of [
+      [true, across],
+      [false, down],
+    ] as const) {
+      let k = 0;
+      while (k < SIZE) {
+        if (!(isRow ? solid(k, line) : solid(line, k))) {
+          k++;
+          continue;
+        }
+        let end = k;
+        while (end + 1 < SIZE && (isRow ? solid(end + 1, line) : solid(line, end + 1))) end++;
+        const r = (end - k + 1) / 2;
+        const middle = (k + end) / 2;
+        for (let j = k; j <= end; j++) {
+          const round = Math.sqrt(Math.max(r * r - (j - middle) ** 2, 0));
+          const cap = isRow ? (line < chin ? HEAD_HALF : BODY_HALF) : Infinity;
+          out[isRow ? line * SIZE + j : j * SIZE + line] = Math.min(round, cap);
+        }
+        k = end + 1;
+      }
+    }
+  }
+  return across.map((a, i) => (a < 0 ? -1 : Math.floor(Math.min(a, down[i]!))));
+}
+
+const luma = (hex: string) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+};
 
 /** The cubes the guest wears: the body and, for each worn piece, the cubes it adds. */
 function cubesFor(slots: readonly Slot[], colours: AvatarColours) {
+  const who = CHARACTERS[colours.character];
   const worn = slots.filter((slot) => slot.worn);
   const dressed = composite(
-    BODY,
+    who.body,
     worn.map((slot) => slot.piece.layer),
   );
+  const half = halfDepths(dressed, who.rows.chin);
+  const coloured = recolour(dressed, colours);
   const [hair, suit] = recolour(
     [
-      { colour: BASE.hair, tag: "hair" },
-      { colour: BASE.suit, tag: "suit" },
+      { colour: who.base.hair, tag: "hair" },
+      { colour: who.base.suit, tag: "suit" },
     ],
     colours,
   ) as [string, string];
 
-  // A pixel on the figure's outline is a full column of cubes; inside, only the front and
-  // the back, which is all anyone sees and a third of the cubes.
-  const solid = (x: number, y: number) =>
-    x >= 0 && y >= 0 && x < SIZE && y < SIZE && dressed[y * SIZE + x] != null;
-  const edge = (i: number) => {
+  const depthAt = (x: number, y: number) =>
+    x < 0 || y < 0 || x >= SIZE || y >= SIZE ? -1 : half[y * SIZE + x]!;
+  const neighbours = (i: number) => {
     const x = i % SIZE;
     const y = Math.floor(i / SIZE);
-    return !solid(x - 1, y) || !solid(x + 1, y) || !solid(x, y - 1) || !solid(x, y + 1);
+    return [
+      [x - 1, y],
+      [x + 1, y],
+      [x, y - 1],
+      [x, y + 1],
+    ].filter(([nx, ny]) => depthAt(nx!, ny!) >= 0);
+  };
+  // Inside the figure, cubes nobody can see are left out: a cube shows on the front or back
+  // face, or where a neighbouring column is thinner.
+  const shows = (i: number, z: number) =>
+    Math.abs(z) === half[i] ||
+    neighbours(i).length < 4 ||
+    neighbours(i).some(([nx, ny]) => depthAt(nx!, ny!) < Math.abs(z));
+  // The dark outline is drawn on the front. Round the side, the column takes the colour of
+  // the pixel inside it instead, so the outline doesn't run round the figure as a stripe.
+  const sideColour = (i: number, cell: Cell, color: string) => {
+    if (cell.tag !== null || luma(cell.colour) >= 30) return color;
+    const inside = neighbours(i)
+      .map(([nx, ny]) => ny! * SIZE + nx!)
+      .sort((a, b) => half[b]! - half[a]!)[0];
+    return inside === undefined ? color : (coloured[inside] ?? color);
   };
 
-  function bodyColumn(i: number, cell: Cell, color: string, out: Cube[]) {
+  function column(i: number, cell: Cell, color: string, out: Cube[]) {
     const { row, x, y } = at(i);
-    // The back of the head is hair, and the back of the jacket is plain suit, with no shirt
-    // or lapels. Hands and shoes look the same from behind.
+    const side = sideColour(i, cell, color);
+    // The back of the head is hair, and the back of the jacket or dress is plain, with no
+    // shirt or lapels. Hands, shoes and the pieces look the same from behind.
     const back =
-      row < ROWS.chin
-        ? hair
-        : row < ROWS.shoes && cell.tag !== "skin" && cell.tag !== "item"
-          ? suit
-          : color;
-    for (const z of edge(i) ? BODY_Z : [DEPTH, -DEPTH]) {
-      out.push({ x, y, z, color: z === -DEPTH ? back : color });
+      cell.tag === "item"
+        ? side
+        : row < who.rows.chin
+          ? hair
+          : cell.tag === "skin" || row >= who.rows.shoes
+            ? side
+            : suit;
+    const h = half[i]!;
+    for (let z = -h; z <= h; z++) {
+      if (shows(i, z)) out.push({ x, y, z, color: z === h ? color : z >= 0 ? side : back });
     }
-  }
-
-  function pieceColumn(i: number, shape: Shape, color: string, out: Cube[]) {
-    const { x, y } = at(i);
-    const onBody = BODY[i] != null;
-    if (shape === "solid") for (const z of BODY_Z) out.push({ x, y, z, color });
-    // A thin piece over the body sits in front of it rather than cutting through it.
-    else if (shape === "front" || onBody) out.push({ x, y, z: DEPTH + 1, color });
-    else out.push({ x, y, z: 0, color });
   }
 
   // Each pixel belongs to the last worn layer that changed it.
   const owner = new Map<number, number>();
   worn.forEach((slot, w) => slot.piece.layer.forEach((cell, i) => cell && owner.set(i, w)));
 
-  const coloured = recolour(dressed, colours);
   const body: Cube[] = [];
   dressed.forEach((cell, i) => {
-    if (cell && !owner.has(i)) bodyColumn(i, cell, coloured[i]!, body);
+    if (cell && !owner.has(i)) column(i, cell, coloured[i]!, body);
   });
 
-  // A piece that isn't solid sits on the body, so the body stays under it: a monocle
-  // mustn't leave a hole through the head.
+  // A piece that lies on the body, like a monocle, sits one cube in front of the body's
+  // surface, and the body stays whole under it.
   const under = composite(
-    BODY,
+    who.body,
     worn.map((slot) =>
       slot.piece.layer.map((cell) => (cell === "erase" || cell?.tag !== "item" ? cell : null)),
     ),
   );
   const underColours = recolour(under, colours);
-  const keepUnder = (i: number, shape: Shape) => {
-    const cell = under[i];
-    if (cell && shape !== "solid") bodyColumn(i, cell, underColours[i]!, body);
-  };
 
   const pieces = worn.map((slot, w) => {
     const cubes: Cube[] = [];
     slot.piece.layer.forEach((cell, i) => {
       if (!cell || cell === "erase" || owner.get(i) !== w) return;
-      if (cell.tag === "item") {
-        pieceColumn(i, slot.piece.shape, cell.colour, cubes);
-        keepUnder(i, slot.piece.shape);
-      } else bodyColumn(i, cell, coloured[i]!, cubes);
+      const below = under[i];
+      if (cell.tag === "item" && slot.piece.shape === "front" && below) {
+        const { x, y } = at(i);
+        cubes.push({ x, y, z: half[i]! + 1, color: cell.colour });
+        column(i, below, underColours[i]!, body);
+      } else column(i, cell, coloured[i]!, cubes);
     });
     return { key: slot.piece.key, cubes };
   });
 
-  return { body, pieces };
+  return { body, pieces, feet: at(who.body.findLastIndex((cell) => cell !== null)).y };
 }
 
 const easeOutBack = (t: number) => 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;
@@ -160,7 +210,6 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
     new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }),
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = FEET_Y - 0.4;
   scene.add(floor);
 
   const figure = new THREE.Group();
@@ -196,7 +245,8 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
     }
     meshes = [];
     arrivals = [];
-    const { body, pieces } = cubesFor(slots, colours);
+    const { body, pieces, feet } = cubesFor(slots, colours);
+    floor.position.y = feet - 0.4;
     meshes.push(build(body));
     for (const { key, cubes } of pieces) {
       const mesh = build(cubes);
@@ -253,11 +303,12 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
     if (!width || !height) return;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
-    // Fit about 92 cubes of height and 68 of width, and look above the figure's middle, so
-    // the name over the top of the stage stays clear of the hat at any width.
-    const dist = Math.max(92, 68 / camera.aspect) / (2 * Math.tan((14 * Math.PI) / 180));
-    camera.position.set(0, 14, dist);
-    camera.lookAt(0, 10, 0);
+    // Fit about 100 cubes of height and 72 of width, and look above the figure's middle, so
+    // the name over the top of the stage stays clear of a hat or a feather, and "Drag to
+    // turn" under it clear of the shoes, at any width.
+    const dist = Math.max(100, 72 / camera.aspect) / (2 * Math.tan((14 * Math.PI) / 180));
+    camera.position.set(0, 11, dist);
+    camera.lookAt(0, 7, 0);
     camera.updateProjectionMatrix();
   });
   resize.observe(host);
