@@ -43,6 +43,11 @@ const ACTIVE =
 const ACTIVE_BAR =
   "group-data-[status=active]:bg-primary group-data-[status=active]:text-primary-foreground group-data-[status=active]:inset-ring group-data-[status=active]:inset-ring-primary-edge";
 
+/*
+  No colour transition: the old item fading out while the new one fades in left both half-lit
+  for 150 ms, which read as the tabs flickering. The design rules animate transform and opacity
+  only.
+*/
 /** TanStack Router marks the current link with data-status="active"; the styles key off that. */
 export function NavLink({ to, icon: IconComponent, label, variant, exact = false }: NavLinkProps) {
   const isBar = variant === "bar";
@@ -51,7 +56,7 @@ export function NavLink({ to, icon: IconComponent, label, variant, exact = false
       to={to}
       activeOptions={{ exact }}
       className={cn(
-        "transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         VARIANTS[variant],
         isBar ? undefined : ACTIVE,
       )}
