@@ -83,8 +83,13 @@ bottom or top nav, `min-h-[100dvh]` never `h-screen`. Organiser screens designed
 CSS grid, never flex percentage math.
 
 **Motion:** 150 to 250 ms on `transform` and `opacity` only, for feedback and state
-change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. That is the rule on
-phones and on the organiser screens. The exceptions, all on the big screens:
+change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. Colour may ease on
+hover and focus, as the buttons and inputs do. A current or selected highlight (the nav's
+yellow segment, an active tab, a selected row) changes in one frame: with a colour transition
+on it, the old item fades out while the new one fades in, and both show half lit.
+`src/test/highlight-motion.test.ts` fails on a file that has both, and
+`e2e/tab-highlight.spec.ts` checks the nav frame by frame. That is the rule on phones and on
+the organiser screens. The exceptions, all on the big screens:
 
 - The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
   reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back
@@ -102,3 +107,12 @@ later. Under 1024 px, a mark plays a 200 ms `tw-animate-css` enter animation thr
 up, GSAP plays the same marks instead, once each. `features/passport/use-passport-changes.ts`
 keeps the last `/me` it saw in state to compare with, React's pattern for the previous render.
 It is the one exception to "never a `useState` copy of something the cache holds".
+
+**Where GSAP may load.** GSAP (`gsap` and `@gsap/react`'s `useGSAP`) was agreed with Ethan on
+26 Oct 2026 for the map (FRO-78, FRO-80) and the passport at desktop widths (FRO-77). It may load
+only from the map's route files, and on the passport only through `import()` at 1024 px and up,
+so a phone never downloads it. The organiser screens never load it. Everywhere else, CSS and
+`tw-animate-css`. Two examples: the map's pulse, `features/map/use-map-pulses.ts`, and the
+passport's `features/passport/desktop-motion.ts`, which imports `passport-motion.ts` only when
+`matchMedia` matches. The passport can't use `useGSAP`, because a static import of
+`@gsap/react` brings GSAP with it. Both read reduced motion through `gsap.matchMedia()`.
