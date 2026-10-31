@@ -9,7 +9,7 @@ Each row says what a screen reads and writes, and the cases it must handle.
 |---|---|---|---|---|
 | `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed |
 | `/#login=<link>` | anyone | `GET /me` | `POST /auth/login-link`, before the first `/me` | the fragment gone at once; an expired link leaves the old session and says so |
-| `/` dashboard | participant, organiser | `GET /me` | | Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
+| `/` dashboard | participant, organiser | `GET /me` | | The grad tea's avatar leads, wearing one piece per stamp slot stamped, with the pieces and points under it, a memory card to save as a picture, and the colours to change (FRO-105); Portal user ID with a copy button; claim help before the first tap; Event content only afterwards |
 | `/passport` | participant | `GET /me` `stamps` | `PATCH /me` for the name | every station shown; empty slot where `earned_at` is null; the name prompt while `has_name` is false, and Change name for everyone; a new stamp with a link offers "Open their page?" in a new tab, until it is pressed, dismissed or replaced by the next stamp, and a stamp with no link shows nothing |
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |

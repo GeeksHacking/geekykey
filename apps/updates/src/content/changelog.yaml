@@ -1891,3 +1891,13 @@
     in the API agreement's version 0.11, a draft for Ethan. The trade-offs we accept: while there
     is a next stop, the screen no longer says "Tap counted!", so the station's sound and light are
     what tell a counted tap from one in the cooldown.
+
+- id: grad-tea-avatar
+  date: 2026-10-31
+  area: frontend
+  change: >-
+    At the grad tea, the dashboard leads with the guest's avatar, built from cubes the guest can
+    drag to turn. Each stamp adds a piece, such as a hat or pearls, and at 6 of 6 the avatar
+    turns round once under gold confetti. Guests pick a skin tone, hair colour and suit colour,
+    and can save their avatar as a card with their name and "The Grad Tea" on it. The art is a
+    placeholder until Joshua's drawings are ready.
