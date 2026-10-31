@@ -24,13 +24,13 @@ describe("outfitFrom", () => {
 
     expect(outfit.slots.map((slot) => [slot.piece.key, slot.stamp.name, slot.worn])).toEqual([
       ["hat", "Cloud Sponsor", true],
-      ["pearls", "Robotics Club", false],
-      ["bowtie", "Art Room", true],
+      ["monocle", "Robotics Club", false],
+      ["cane", "Art Room", true],
     ]);
     expect(outfit.worn).toBe(2);
   });
 
-  it("counts an event with fewer than six slots as complete once every slot is stamped", () => {
+  it("counts an event with fewer slots than pieces as complete once every slot is stamped", () => {
     const outfit = outfitFrom([
       stamp("Cloud Sponsor", "2026-11-12T08:01:00.000Z"),
       stamp("Robotics Club", "2026-11-12T08:03:00.000Z"),
@@ -40,22 +40,13 @@ describe("outfitFrom", () => {
     expect(outfit.complete).toBe(true);
   });
 
-  it("gives no piece to a seventh slot", () => {
-    const stamps = ["A", "B", "C", "D", "E", "F", "G"].map((name) =>
-      stamp(name, "2026-11-12T08:00:00.000Z"),
-    );
+  it("gives no piece to a slot past the last piece", () => {
+    const stamps = ["A", "B", "C", "D", "E"].map((name) => stamp(name, "2026-11-12T08:00:00.000Z"));
 
     const outfit = outfitFrom(stamps);
 
-    expect(outfit.slots.map((slot) => slot.piece.key)).toEqual([
-      "hat",
-      "pearls",
-      "bowtie",
-      "cane",
-      "feather",
-      "glass",
-    ]);
-    expect(outfit.worn).toBe(6);
+    expect(outfit.slots.map((slot) => slot.piece.key)).toEqual(["hat", "monocle", "cane", "glass"]);
+    expect(outfit.worn).toBe(4);
     expect(outfit.complete).toBe(true);
   });
 

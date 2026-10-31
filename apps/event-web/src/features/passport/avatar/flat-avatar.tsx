@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * The avatar as one flat picture: the first paint, and all a phone without WebGL shows. At
- * 6 of 6 it turns round once, as the cubes do. Reduced motion stops it (globals.css).
+ * The avatar as one flat picture: the first paint, and all a phone without WebGL shows. With
+ * every piece on, it turns round once, as the cubes do. Reduced motion stops it (globals.css).
  */
 export function FlatAvatar({ url, spinning }: { url: string; spinning: boolean }) {
   return (

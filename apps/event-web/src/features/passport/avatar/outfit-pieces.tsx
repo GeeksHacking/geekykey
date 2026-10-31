@@ -7,7 +7,7 @@ import { formatCount, pointsUnit } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 function PieceIcon({ slot }: { slot: Slot }) {
-  const url = useMemo(() => pieceIconUrl(slot.piece.pixels), [slot.piece.pixels]);
+  const url = useMemo(() => pieceIconUrl(slot.piece.layer), [slot.piece.layer]);
   return (
     <img
       src={url}

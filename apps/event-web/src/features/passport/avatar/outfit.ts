@@ -9,10 +9,10 @@ export interface Slot {
 }
 
 export interface Outfit {
-  /** One per stamp slot, up to the six pieces there are. */
+  /** One per stamp slot, up to the number of pieces there are. */
   slots: Slot[];
   worn: number;
-  /** Every slot stamped. An event with fewer than six slots completes with fewer pieces. */
+  /** Every slot stamped. An event with fewer slots than pieces completes with fewer. */
   complete: boolean;
 }
 

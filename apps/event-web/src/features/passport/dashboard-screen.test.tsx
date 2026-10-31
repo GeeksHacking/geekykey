@@ -95,7 +95,7 @@ describe("DashboardScreen's avatar", () => {
     expect(within(avatar).getByRole("heading", { level: 1, name: "Alex Tan" })).toBeInTheDocument();
     const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
     expect(within(pieces).getByText("Hat, from Cloud Sponsor: wearing")).toBeInTheDocument();
-    expect(within(pieces).getByText("Pearls, from Robotics Club: not yet")).toBeInTheDocument();
+    expect(within(pieces).getByText("Monocle, from Robotics Club: not yet")).toBeInTheDocument();
     expect(avatar).toHaveTextContent("1 of 2 pieces · 5 points");
   });
 

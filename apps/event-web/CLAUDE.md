@@ -191,6 +191,7 @@ pnpm test         # vitest run
 pnpm test:watch   # vitest
 pnpm test:e2e     # playwright Chromium smoke suite against the mock dev server
 pnpm shot <route> --as organiser   # 360 and 1280 px, light and dark, into test-results/shots/
+pnpm avatar-art   # Joshua's PNGs in art/avatar/ into the avatar's data; --preview <dir> draws them
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
 pnpm worker:dev       # live build, then the production Worker in wrangler dev on :8173
 pnpm worker:typecheck # writes the Worker's types from wrangler.jsonc, then tsc

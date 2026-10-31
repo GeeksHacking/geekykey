@@ -52,7 +52,7 @@ function drawCard(ctx: CanvasRenderingContext2D, avatar: Pixels, name: string) {
   ctx.font = `600 34px ${FONT}`;
   spaced(ctx, "THE GRAD TEA", 160, 14);
 
-  const cell = 26;
+  const cell = 14;
   paintPixels(ctx, avatar, (WIDTH - SIZE * cell) / 2, 200, cell);
 
   ctx.fillStyle = IVORY;

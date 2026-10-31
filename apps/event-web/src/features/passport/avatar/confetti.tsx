@@ -22,7 +22,7 @@ function scatter(): Bit[] {
 }
 
 /**
- * Gold confetti falling over the stage at 6 of 6 (FRO-105). CSS only, so a phone without
+ * Gold confetti falling over the stage once every piece is on (FRO-105). CSS only, so a phone without
  * WebGL gets it too, and a device that asked for reduced motion gets none.
  */
 export function Confetti() {

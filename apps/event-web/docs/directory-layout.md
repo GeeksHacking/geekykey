@@ -17,6 +17,8 @@ apps/event-web/
     worker.test.ts          # runs the Worker in wrangler dev against a fake Event Service and a fake Firebase
   vitest.config.ts
   scripts/shot.ts           # pnpm shot: the definition of done's four screenshots of a route
+  scripts/avatar-art.ts     # pnpm avatar-art: the grad tea avatar's PNGs into avatar/art-data.ts
+  art/avatar/               # Joshua's avatar PNGs (FRO-105): the base character and one edit per piece
   e2e/                      # Playwright specs against the mock dev server (pnpm test:e2e)
   components.json           # shadcn config
   tsconfig.json             # solution file; also carries the @/ alias for the shadcn CLI

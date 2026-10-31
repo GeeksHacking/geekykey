@@ -1,15 +1,38 @@
 import { useMemo } from "react";
 
-import { BODY, composite, SIZE, type Pixels } from "@/features/passport/avatar/art";
+import { BODY, composite, SIZE, type Layer, type Pixels } from "@/features/passport/avatar/art";
 import { recolour, type AvatarColours } from "@/features/passport/avatar/avatar-colours";
 import type { Slot } from "@/features/passport/avatar/outfit";
 
-/** The body in the guest's colours, with every worn piece on top in slot order. */
+const worn = (slots: readonly Slot[]) => slots.filter((slot) => slot.worn);
+
+/** The body in the guest's colours, wearing every worn piece in slot order. */
 export function dressedPixels(slots: readonly Slot[], colours: AvatarColours): Pixels {
-  return composite([
-    recolour(BODY, colours),
-    ...slots.filter((slot) => slot.worn).map((slot) => slot.piece.pixels),
-  ]);
+  return recolour(
+    composite(
+      BODY,
+      worn(slots).map((slot) => slot.piece.layer),
+    ),
+    colours,
+  );
+}
+
+/**
+ * The dressed body without the pieces themselves: the arm is raised, but the glass isn't in
+ * it. The memory card floats each piece in front of this.
+ */
+export function bodyPixels(slots: readonly Slot[], colours: AvatarColours): Pixels {
+  const moves = worn(slots).map((slot) =>
+    slot.piece.layer.map((cell) => (cell === "erase" || cell?.tag !== "item" ? cell : null)),
+  );
+  return recolour(composite(BODY, moves), colours);
+}
+
+/** Only the piece itself, in its own colours. */
+export function itemPixels(layer: Layer): Pixels {
+  return layer.map((cell) =>
+    cell && cell !== "erase" && cell.tag === "item" ? cell.colour : null,
+  );
 }
 
 /** Paints pixels one cell per pixel. CSS scales the image up with `image-rendering: pixelated`. */
@@ -42,7 +65,8 @@ export function useDressedUrl(slots: readonly Slot[], colours: AvatarColours): s
 }
 
 /** A piece cropped to its own pixels and centred in a square, for the slot icons. */
-export function pieceIconUrl(pixels: Pixels): string {
+export function pieceIconUrl(layer: Layer): string {
+  const pixels = itemPixels(layer);
   let x0 = SIZE;
   let y0 = SIZE;
   let x1 = 0;

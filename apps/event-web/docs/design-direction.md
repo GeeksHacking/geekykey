@@ -100,8 +100,8 @@ avatar:
   motion none of them play.
 - The grad tea's avatar on the dashboard (FRO-105), at every width, phones included. A new
   piece's cubes fly in over about a second, the figure bobs and sways while nobody turns it, and
-  at 6 of 6 it turns round once while gold confetti falls for 1.5 s. The memory card sways in its
-  dialog. With reduced motion the figure stands still and none of them play.
+  with every piece on it turns round once while gold confetti falls for 1.5 s. The memory card
+  sways in its dialog. With reduced motion the figure stands still and none of them play.
 
 Animate only a change, and never a poll that changed nothing. A plain, tested function
 decides what changed between two polls (`features/map/pulses.ts`,

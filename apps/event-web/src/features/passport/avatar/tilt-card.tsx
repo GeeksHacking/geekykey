@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 
-import { BODY } from "@/features/passport/avatar/art";
-import { recolour, type AvatarColours } from "@/features/passport/avatar/avatar-colours";
-import { toDataUrl } from "@/features/passport/avatar/layers";
+import type { AvatarColours } from "@/features/passport/avatar/avatar-colours";
+import { bodyPixels, itemPixels, toDataUrl } from "@/features/passport/avatar/layers";
 import type { Slot } from "@/features/passport/avatar/outfit";
 
 /*
@@ -19,12 +18,12 @@ export function TiltCard({
   colours: AvatarColours;
   name: string;
 }) {
-  const body = useMemo(() => toDataUrl(recolour(BODY, colours)), [colours]);
+  const body = useMemo(() => toDataUrl(bodyPixels(slots, colours)), [slots, colours]);
   const pieces = useMemo(
     () =>
       slots
         .filter((slot) => slot.worn)
-        .map((slot) => ({ key: slot.piece.key, url: toDataUrl(slot.piece.pixels) })),
+        .map((slot) => ({ key: slot.piece.key, url: toDataUrl(itemPixels(slot.piece.layer)) })),
     [slots],
   );
   const [tilt, setTilt] = useState<{ x: number; y: number } | null>(null);

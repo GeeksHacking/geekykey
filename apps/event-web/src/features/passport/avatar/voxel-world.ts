@@ -1,6 +1,15 @@
 import * as THREE from "three";
 
-import { BASE, BODY, SIZE, type PieceKey } from "@/features/passport/avatar/art";
+import {
+  BASE,
+  BODY,
+  composite,
+  ROWS,
+  SIZE,
+  type Cell,
+  type PieceKey,
+  type Shape,
+} from "@/features/passport/avatar/art";
 import { recolour, type AvatarColours } from "@/features/passport/avatar/avatar-colours";
 import type { Slot } from "@/features/passport/avatar/outfit";
 
@@ -17,50 +26,101 @@ interface Cube {
   color: string;
 }
 
-const FACE = new Set<string>([BASE.skin, BASE.skinShade, BASE.eyes, BASE.mouth]);
-/** The rows of the base art that are the head, so the back of the head is hair, not a face. */
-const HEAD_ROWS = 12;
+/** The body runs from -DEPTH to DEPTH cubes front to back. */
+const DEPTH = 4;
+const BODY_Z = Array.from({ length: 2 * DEPTH + 1 }, (_, k) => DEPTH - k);
 
 function at(i: number) {
   const row = Math.floor(i / SIZE);
   return { row, x: (i % SIZE) - (SIZE - 1) / 2, y: SIZE - 1 - row - SIZE / 2 };
 }
 
-/** The body's cubes, minus what worn "cover" pieces replace, then each worn piece's cubes. */
+/** The lowest row with a pixel, where the feet stand. */
+const FEET_Y = at(BODY.findLastIndex((cell) => cell !== null)).y;
+
+/** The cubes the guest wears: the body and, for each worn piece, the cubes it adds. */
 function cubesFor(slots: readonly Slot[], colours: AvatarColours) {
-  const covered = new Set<number>();
-  for (const slot of slots) {
-    if (!slot.worn || slot.piece.fit !== "cover" || slot.piece.depth !== 3) continue;
-    slot.piece.pixels.forEach((pixel, i) => pixel && covered.add(i));
+  const worn = slots.filter((slot) => slot.worn);
+  const dressed = composite(
+    BODY,
+    worn.map((slot) => slot.piece.layer),
+  );
+  const [hair, suit] = recolour(
+    [
+      { colour: BASE.hair, tag: "hair" },
+      { colour: BASE.suit, tag: "suit" },
+    ],
+    colours,
+  ) as [string, string];
+
+  // A pixel on the figure's outline is a full column of cubes; inside, only the front and
+  // the back, which is all anyone sees and a third of the cubes.
+  const solid = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < SIZE && y < SIZE && dressed[y * SIZE + x] != null;
+  const edge = (i: number) => {
+    const x = i % SIZE;
+    const y = Math.floor(i / SIZE);
+    return !solid(x - 1, y) || !solid(x + 1, y) || !solid(x, y - 1) || !solid(x, y + 1);
+  };
+
+  function bodyColumn(i: number, cell: Cell, color: string, out: Cube[]) {
+    const { row, x, y } = at(i);
+    // The back of the head is hair, and the back of the jacket is plain suit, with no shirt
+    // or lapels. Hands and shoes look the same from behind.
+    const back =
+      row < ROWS.chin
+        ? hair
+        : row < ROWS.shoes && cell.tag !== "skin" && cell.tag !== "item"
+          ? suit
+          : color;
+    for (const z of edge(i) ? BODY_Z : [DEPTH, -DEPTH]) {
+      out.push({ x, y, z, color: z === -DEPTH ? back : color });
+    }
   }
 
-  const coloured = recolour(BODY, colours);
-  const [hair, suit] = recolour([BASE.hair, BASE.suit], colours) as [string, string];
+  function pieceColumn(i: number, shape: Shape, color: string, out: Cube[]) {
+    const { x, y } = at(i);
+    const onBody = BODY[i] != null;
+    if (shape === "solid") for (const z of BODY_Z) out.push({ x, y, z, color });
+    // A thin piece over the body sits in front of it rather than cutting through it.
+    else if (shape === "front" || onBody) out.push({ x, y, z: DEPTH + 1, color });
+    else out.push({ x, y, z: 0, color });
+  }
+
+  // Each pixel belongs to the last worn layer that changed it.
+  const owner = new Map<number, number>();
+  worn.forEach((slot, w) => slot.piece.layer.forEach((cell, i) => cell && owner.set(i, w)));
+
+  const coloured = recolour(dressed, colours);
   const body: Cube[] = [];
-  BODY.forEach((base, i) => {
-    const color = coloured[i];
-    if (!base || !color || covered.has(i)) return;
-    const { row, x, y } = at(i);
-    const back = row <= HEAD_ROWS && FACE.has(base) ? hair : base === BASE.shirt ? suit : color;
-    for (const z of [2, 1, 0, -1]) body.push({ x, y, z, color });
-    body.push({ x, y, z: -2, color: back });
+  dressed.forEach((cell, i) => {
+    if (cell && !owner.has(i)) bodyColumn(i, cell, coloured[i]!, body);
   });
 
-  const pieces = slots.flatMap((slot) => {
-    if (!slot.worn) return [];
+  // A piece that isn't solid sits on the body, so the body stays under it: a monocle
+  // mustn't leave a hole through the head.
+  const under = composite(
+    BODY,
+    worn.map((slot) =>
+      slot.piece.layer.map((cell) => (cell === "erase" || cell?.tag !== "item" ? cell : null)),
+    ),
+  );
+  const underColours = recolour(under, colours);
+  const keepUnder = (i: number, shape: Shape) => {
+    const cell = under[i];
+    if (cell && shape !== "solid") bodyColumn(i, cell, underColours[i]!, body);
+  };
+
+  const pieces = worn.map((slot, w) => {
     const cubes: Cube[] = [];
-    slot.piece.pixels.forEach((color, i) => {
-      if (!color) return;
-      const { x, y } = at(i);
-      const onBody = BODY[i] !== null;
-      // A thin piece over the body sits in front of it rather than cutting through it.
-      if (onBody && (slot.piece.fit === "front" || slot.piece.depth === 1)) {
-        cubes.push({ x, y, z: 3, color });
-      } else if (onBody || slot.piece.depth === 3) {
-        for (const z of [2, 1, 0, -1, -2]) cubes.push({ x, y, z, color });
-      } else cubes.push({ x, y, z: 0, color });
+    slot.piece.layer.forEach((cell, i) => {
+      if (!cell || cell === "erase" || owner.get(i) !== w) return;
+      if (cell.tag === "item") {
+        pieceColumn(i, slot.piece.shape, cell.colour, cubes);
+        keepUnder(i, slot.piece.shape);
+      } else bodyColumn(i, cell, coloured[i]!, cubes);
     });
-    return [{ key: slot.piece.key, cubes }];
+    return { key: slot.piece.key, cubes };
   });
 
   return { body, pieces };
@@ -86,7 +146,7 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(28, 1, 1, 500);
+  const camera = new THREE.PerspectiveCamera(28, 1, 1, 1000);
   scene.add(new THREE.HemisphereLight(0xfff4e0, 0x202030, 1.8));
   const key = new THREE.DirectionalLight(0xffffff, 2.4);
   key.position.set(20, 30, 40);
@@ -96,11 +156,11 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
   scene.add(rim);
 
   const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(9, 40),
+    new THREE.CircleGeometry(18, 48),
     new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }),
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -14.1;
+  floor.position.y = FEET_Y - 0.4;
   scene.add(floor);
 
   const figure = new THREE.Group();
@@ -146,7 +206,7 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
         mesh,
         cubes,
         from: cubes.map(() =>
-          new THREE.Vector3().randomDirection().multiplyScalar(30 + Math.random() * 25),
+          new THREE.Vector3().randomDirection().multiplyScalar(60 + Math.random() * 50),
         ),
         spin: cubes.map(
           () => new THREE.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6),
@@ -193,11 +253,11 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
     if (!width || !height) return;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
-    // Fit about 46 cubes of height and 34 of width, and look above the figure's middle, so
+    // Fit about 92 cubes of height and 68 of width, and look above the figure's middle, so
     // the name over the top of the stage stays clear of the hat at any width.
-    const dist = Math.max(46, 34 / camera.aspect) / (2 * Math.tan((14 * Math.PI) / 180));
-    camera.position.set(0, 7, dist);
-    camera.lookAt(0, 5, 0);
+    const dist = Math.max(92, 68 / camera.aspect) / (2 * Math.tan((14 * Math.PI) / 180));
+    camera.position.set(0, 14, dist);
+    camera.lookAt(0, 10, 0);
     camera.updateProjectionMatrix();
   });
   resize.observe(host);
@@ -252,7 +312,7 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
       if (t === 1) spinStart = null;
     }
     figure.rotation.y = angle + spin + Math.sin(swayT * 0.7) * 0.45;
-    figure.position.y = still ? 0 : Math.abs(Math.sin(now / 420)) * 0.5;
+    figure.position.y = still ? 0 : Math.abs(Math.sin(now / 420)) * 1;
     if (arrivals.length > 0) playArrivals(now);
     renderer.render(scene, camera);
   }
