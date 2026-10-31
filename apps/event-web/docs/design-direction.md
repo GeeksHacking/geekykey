@@ -84,7 +84,8 @@ CSS grid, never flex percentage math.
 
 **Motion:** 150 to 250 ms on `transform` and `opacity` only, for feedback and state
 change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. That is the rule on
-phones and on the organiser screens. The exceptions, all on the big screens:
+phones and on the organiser screens. The exceptions are on the big screens, apart from the
+grad tea's avatar:
 
 - The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
   reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back

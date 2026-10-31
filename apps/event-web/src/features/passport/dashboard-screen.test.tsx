@@ -128,7 +128,7 @@ describe("DashboardScreen's avatar", () => {
 
     await user.click(screen.getByRole("button", { name: "Show my card" }));
 
-    const card = screen.getByRole("dialog", { name: "Your Grad Tea card" });
+    const card = screen.getByRole("dialog", { name: "Your card from the grad tea" });
     expect(within(card).getByText("THE GRAD TEA")).toBeInTheDocument();
     expect(within(card).getByText("Alex Tan")).toBeInTheDocument();
     // jsdom has no canvas, so drawing the picture fails as it would on a broken browser.

@@ -57,8 +57,8 @@ export function MemoryCardDialog({ slots, colours, name }: MemoryCardDialogProps
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Your Grad Tea card</DialogTitle>
-          <DialogDescription>Save it as a picture to remember the grad tea.</DialogDescription>
+          <DialogTitle>Your card from the grad tea</DialogTitle>
+          <DialogDescription>Save it as a picture to remember the evening.</DialogDescription>
         </DialogHeader>
         <TiltCard slots={slots} colours={colours} name={name} />
         {picture.state === "failed" ? (

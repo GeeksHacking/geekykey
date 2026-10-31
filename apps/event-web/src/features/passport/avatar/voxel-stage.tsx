@@ -16,8 +16,8 @@ export interface VoxelStageProps {
   fallback: ReactNode;
 }
 
-/** The default export, so avatar-stage.tsx can load it with React.lazy. */
-export default function VoxelStage({ slots, colours, arriving, completing }: VoxelStageProps) {
+/** Loaded only through React.lazy in avatar-stage.tsx, so three.js stays in its own file. */
+export function VoxelStage({ slots, colours, arriving, completing }: VoxelStageProps) {
   const host = useRef<HTMLDivElement>(null);
   const world = useRef<World | null>(null);
 

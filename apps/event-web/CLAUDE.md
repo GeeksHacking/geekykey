@@ -329,7 +329,7 @@ apps/event-web/
       use-route-heading-focus.ts
       utils.ts              # cn()
     styles/globals.css      # Tailwind import, @theme mapping, CSS-variable tokens for both themes
-    test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia and ResizeObserver stubs
+    test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia, ResizeObserver and canvas stubs
     test/providers.tsx      # the app's provider stack for tests
     test/hold-next-me.ts    # holds a /me answer so a test can land it after a write
 ```
