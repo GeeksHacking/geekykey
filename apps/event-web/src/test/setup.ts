@@ -35,3 +35,10 @@ if (typeof globalThis.ResizeObserver !== "function") {
     },
   });
 }
+
+// jsdom has no canvas and warns on every getContext. With none, the avatar takes the path a
+// phone without WebGL takes: the flat picture, never three.js (FRO-105).
+if (typeof HTMLCanvasElement !== "undefined") {
+  HTMLCanvasElement.prototype.getContext = (() =>
+    null) as typeof HTMLCanvasElement.prototype.getContext;
+}

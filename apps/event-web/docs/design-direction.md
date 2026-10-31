@@ -90,8 +90,12 @@ phones and on the organiser screens. The exceptions, all on the big screens:
   reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back
   to back and shortened to end before the next poll (FRO-102). With reduced motion it only fades.
 - On the passport at 1024 px and up, a stamp earned is the one long animation (about a second:
-  the seal presses in, then the note comes in), points count up over 0.9 s,
-  and a slot in the dashboard's row fills over 0.5 s. With reduced motion none of them play.
+  the seal presses in, then the note comes in), and points count up over 0.9 s. With reduced
+  motion none of them play.
+- The grad tea's avatar on the dashboard (FRO-105), at every width, phones included. A new
+  piece's cubes fly in over about a second, the figure bobs and sways while nobody turns it, and
+  at 6 of 6 it turns round once while gold confetti falls for 1.5 s. The memory card sways in its
+  dialog. With reduced motion the figure stands still and none of them play.
 
 Animate only a change, and never a poll that changed nothing. A plain, tested function
 decides what changed between two polls (`features/map/pulses.ts`,

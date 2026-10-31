@@ -27,7 +27,9 @@ export function PassportScreen() {
         <PageHeader title="Passport" description={description} />
         <DisplayNameRow displayName={me.user.display_name} />
       </div>
-      {!me.user.has_name && !namePrompt.skipped ? <NamePrompt onSkip={namePrompt.skip} /> : null}
+      {!me.user.has_name && !namePrompt.skipped ? (
+        <NamePrompt userId={me.user.id} onSkip={namePrompt.skip} />
+      ) : null}
       {newStamp.offer ? (
         <NewStampBanner
           offer={newStamp.offer}

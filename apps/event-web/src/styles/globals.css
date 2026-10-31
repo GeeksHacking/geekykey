@@ -213,6 +213,31 @@
   }
 }
 
+/*
+  The grad tea's avatar (FRO-105): confetti at 6 of 6 (features/passport/avatar/confetti.tsx,
+  which sets --drift on each bit), and the memory card's sway while nobody tilts it.
+*/
+@keyframes avatar-confetti {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(var(--drift, 0), 28rem, 0) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+@keyframes avatar-sway {
+  0%,
+  100% {
+    transform: rotateX(4deg) rotateY(-14deg);
+  }
+  50% {
+    transform: rotateX(-2deg) rotateY(14deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
