@@ -114,6 +114,7 @@ One thing that looks like a bug and is not:
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
 | Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
 | Motion | CSS/shadcn transitions, and GSAP on the map and the desktop passport | GSAP (`gsap` and `@gsap/react`'s `useGSAP`) was agreed with Ethan on 26 Oct 2026 for the map (FRO-78, FRO-80) and the passport at desktop widths (FRO-77). It may load only from the map's route files, and on the passport only through `import()` at 1024 px and up, so a phone never downloads it. The organiser screens never load it. Everywhere else, CSS and `tw-animate-css`. Two examples: the map's pulse, `features/map/use-map-pulses.ts`, and the passport's `features/passport/desktop-motion.ts`, which imports `passport-motion.ts` only when `matchMedia` matches. The passport can't use `useGSAP`, because a static import of `@gsap/react` brings GSAP with it. Both read reduced motion through `gsap.matchMedia()` |
+| 3D | three.js | The grad tea's avatar only (FRO-105): `features/passport/avatar/voxel-world.ts` turns each pixel of the art into a cube. It loads through `React.lazy` from `avatar-stage.tsx`, so the dashboard paints the flat avatar first, and a phone without WebGL, or a failed download, keeps it. Its file is about 130 KB gzipped. three.js on phones goes past the 26 Oct rule above, and FRO-105 waits on Ethan's yes before it merges |
 | Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport. Import `zod/mini`, here and in `src/api/schemas.ts`, and lint refuses `zod`. Every page loads the schemas, and one import of `zod` would put all of classic zod on top, about 10 KB gzipped (FRO-67). Mini writes `.nullable()` as `z.nullable(...)` and `.min(1, "...")` as `.check(z.minLength(1, "..."))` |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | Oxlint | Rules in `.oxlintrc.json`, with the React hooks rules native |
@@ -279,7 +280,8 @@ apps/event-web/
         summary.tsx
     features/               # one folder per domain; the real UI lives here
       auth/                 # login screen, Firebase sign-in buttons, dev-login form, expired-link notice, RequireSession, RequireRole, 403 view, shell wiring
-      passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph, the name prompt and Change name,
+      passport/             # dashboard, stamp grid, stamp tile, station glyph, the name prompt and Change name,
+                           # the grad tea's avatar, its colours and memory card (avatar/, FRO-105),
                            # what a poll changed (passport-changes.ts), the new stamp's group link offer
                            # (new-stamp-banner.tsx, use-new-stamp-link.ts), and its animations
                            # (desktop-motion.ts, passport-motion.ts)
@@ -327,7 +329,7 @@ apps/event-web/
       use-route-heading-focus.ts
       utils.ts              # cn()
     styles/globals.css      # Tailwind import, @theme mapping, CSS-variable tokens for both themes
-    test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia and ResizeObserver stubs
+    test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia, ResizeObserver and canvas stubs
     test/providers.tsx      # the app's provider stack for tests
     test/hold-next-me.ts    # holds a /me answer so a test can land it after a write
 ```

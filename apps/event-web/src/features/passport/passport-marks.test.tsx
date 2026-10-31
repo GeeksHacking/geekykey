@@ -249,23 +249,23 @@ describe("the passport offers the new stamp's group page", () => {
 });
 
 describe("the dashboard marks what a poll changed", () => {
-  it("marks the points and the slot that filled", () => {
+  it("marks the points and the piece the new stamp gave", () => {
     const { poll } = renderScreen(DashboardScreen);
     expect(changed()).toEqual([]);
 
     poll(afterPrinting);
 
-    const summary = screen.getByRole("region", { name: "Points and stamps" });
-    expect(within(summary).getByText("5")).toHaveAttribute("data-changed", "points");
-    const slots = within(summary).getByRole("list", { name: "Stamp slots" });
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(within(avatar).getByText("5")).toHaveAttribute("data-changed", "points");
+    const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
     expect(
-      within(slots)
-        .getByText(/3D Printing Booth/)
+      within(pieces)
+        .getByText(/from 3D Printing Booth/)
         .closest("li"),
-    ).toHaveAttribute("data-changed", "slot");
+    ).toHaveAttribute("data-changed", "piece");
     expect(
-      within(slots)
-        .getByText(/Hardware Lounge/)
+      within(pieces)
+        .getByText(/from Hardware Lounge/)
         .closest("li"),
     ).not.toHaveAttribute("data-changed");
   });
