@@ -202,6 +202,11 @@ bump, need `pnpm exec playwright install chromium`. Each Playwright version want
 build, so without it the suite stops with "Executable doesn't exist" instead of a test
 failure.
 
+To try a screen on a phone on your Tailscale network, run `pnpm dev --host 127.0.0.1` (plain
+`pnpm dev` can listen on IPv6 only), then once `tailscale serve --bg --https=<free port>
+http://127.0.0.1:5173`. `tailscale serve status` lists the ports already taken. The phone opens
+`https://<machine>.<tailnet>.ts.net:<port>`.
+
 Root-level equivalents: `pnpm dev:event-web`, `pnpm build:event-web`, `pnpm test:event-web`,
 `pnpm format:event-web`.
 
