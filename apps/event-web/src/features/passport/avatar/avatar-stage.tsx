@@ -50,7 +50,8 @@ export function AvatarStage({
   const [webgl] = useState(hasWebGL);
   const flat = <FlatAvatar url={flatUrl} spinning={completing} />;
   return (
-    <div className="relative -mx-4 h-[26rem] overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#3a2f12_0%,#121016_55%,#07060a_100%)] text-[#f4f1e8] sm:mx-0 sm:h-[28rem] sm:rounded-lg">
+    // No background of its own: the figure stands on the page, in either theme.
+    <div className="relative h-[26rem] overflow-hidden sm:h-[28rem]">
       <div className="pointer-events-none absolute inset-x-0 top-4 z-10 px-4 text-center">
         {title}
       </div>
@@ -69,7 +70,7 @@ export function AvatarStage({
       )}
       {completing ? <Confetti /> : null}
       {webgl ? (
-        <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-[#f4f1e8]/70">
+        <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-muted-foreground">
           Drag to turn
         </p>
       ) : null}

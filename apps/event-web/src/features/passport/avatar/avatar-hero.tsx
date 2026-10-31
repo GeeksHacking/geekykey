@@ -47,8 +47,8 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
         flatUrl={flatUrl}
         title={
           <>
-            <p className="text-[10px] tracking-[0.4em] text-[#d4af37]">THE GRAD TEA</p>
-            <div className="mt-1 text-[#f4f1e8]">
+            <p className="look-label text-primary-text">The grad tea</p>
+            <div className="mt-1">
               <PageHeading>{name}</PageHeading>
             </div>
           </>

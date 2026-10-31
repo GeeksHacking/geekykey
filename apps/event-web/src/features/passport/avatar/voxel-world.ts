@@ -70,10 +70,15 @@ function halfDepths(art: Art, chin: number): number[] {
   return across.map((a, i) => (a < 0 ? -1 : Math.floor(Math.min(a, down[i]!))));
 }
 
-const luma = (hex: string) => {
+const channels = (hex: string) => {
   const n = Number.parseInt(hex.slice(1), 16);
-  return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255] as const;
 };
+const luma = (hex: string) => {
+  const [r, g, b] = channels(hex);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+};
+const chroma = (hex: string) => Math.max(...channels(hex)) - Math.min(...channels(hex));
 
 /** The cubes the guest wears: the body and, for each worn piece, the cubes it adds. */
 function cubesFor(slots: readonly Slot[], colours: AvatarColours) {
@@ -111,32 +116,49 @@ function cubesFor(slots: readonly Slot[], colours: AvatarColours) {
     Math.abs(z) === half[i] ||
     neighbours(i).length < 4 ||
     neighbours(i).some(([nx, ny]) => depthAt(nx!, ny!) < Math.abs(z));
-  // The dark outline is drawn on the front. Round the side, the column takes the colour of
-  // the pixel inside it instead, so the outline doesn't run round the figure as a stripe.
-  const sideColour = (i: number, cell: Cell, color: string) => {
-    if (cell.tag !== null || luma(cell.colour) >= 30) return color;
-    const inside = neighbours(i)
-      .map(([nx, ny]) => ny! * SIZE + nx!)
-      .sort((a, b) => half[b]! - half[a]!)[0];
-    return inside === undefined ? color : (coloured[inside] ?? color);
+  // The flat art draws its edges with a very dark outline, red round the head and red or
+  // black on the body. The cubes have real edges, so the outline takes the colour of the
+  // pixel inside it, or it would show as lines down the arms and round the face. The eyes
+  // (black, on the head), the lips (not dark enough) and the shoes stay as drawn.
+  const isOutline = (cell: Cell | null | undefined, row: number) =>
+    cell?.tag === null &&
+    luma(cell.colour) < 16 &&
+    (chroma(cell.colour) > 8 || (row >= who.rows.chin && row < who.rows.shoes));
+  const fillColour = (i: number, color: string) => {
+    const x = i % SIZE;
+    const y = Math.floor(i / SIZE);
+    if (!isOutline(dressed[i], y)) return color;
+    for (const reach of [1, 2]) {
+      let best: number | undefined;
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (let dx = -reach; dx <= reach; dx++) {
+          if (depthAt(x + dx, y + dy) < 0) continue;
+          const j = (y + dy) * SIZE + x + dx;
+          if (isOutline(dressed[j], y + dy)) continue;
+          if (best === undefined || half[j]! > half[best]!) best = j;
+        }
+      }
+      if (best !== undefined) return coloured[best] ?? color;
+    }
+    return color;
   };
 
   function column(i: number, cell: Cell, color: string, out: Cube[]) {
     const { row, x, y } = at(i);
-    const side = sideColour(i, cell, color);
+    const fill = fillColour(i, color);
     // The back of the head is hair, and the back of the jacket or dress is plain, with no
     // shirt or lapels. Hands, shoes and the pieces look the same from behind.
     const back =
       cell.tag === "item"
-        ? side
+        ? fill
         : row < who.rows.chin
           ? hair
           : cell.tag === "skin" || row >= who.rows.shoes
-            ? side
+            ? fill
             : suit;
     const h = half[i]!;
     for (let z = -h; z <= h; z++) {
-      if (shows(i, z)) out.push({ x, y, z, color: z === h ? color : z >= 0 ? side : back });
+      if (shows(i, z)) out.push({ x, y, z, color: z >= 0 ? fill : back });
     }
   }
 
@@ -207,14 +229,17 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
 
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(18, 48),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }),
+    // Faint, as it's drawn on the page in either theme.
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 }),
   );
   floor.rotation.x = -Math.PI / 2;
   scene.add(floor);
 
   const figure = new THREE.Group();
   scene.add(figure);
-  const geo = new THREE.BoxGeometry(0.98, 0.98, 0.98);
+  // Whole cubes, with no gap between them: the figure is hollow, so a gap would show its
+  // inside as dark lines across the face.
+  const geo = new THREE.BoxGeometry(1, 1, 1);
   const mat = new THREE.MeshLambertMaterial();
   let meshes: THREE.InstancedMesh[] = [];
   let arrivals: Arrival[] = [];
