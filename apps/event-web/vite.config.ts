@@ -41,6 +41,8 @@ export default defineConfig(({ command, mode }) => {
     },
     server: {
       port: 5173,
+      // A phone on your Tailscale network can open the dev server through `tailscale serve`.
+      allowedHosts: [".ts.net"],
       // Same-origin in dev so the HttpOnly session cookie needs no CORS setup.
       proxy: {
         "/api": { target: backend, changeOrigin: false },
