@@ -43,7 +43,7 @@ export function OutfitPieces({ outfit, points, arriving, pointsRose }: OutfitPie
             key={slot.piece.key}
             title={`${slot.piece.label}, from ${slot.stamp.name}`}
             data-changed={arriving.includes(slot.piece.key) ? "piece" : undefined}
-            className="flex flex-col items-center gap-1.5 phone-change:animate-in phone-change:zoom-in-50 phone-change:duration-300"
+            className="flex flex-col items-center gap-1.5 phone-change:animate-in phone-change:zoom-in-50 phone-change:duration-200"
           >
             <PieceIcon slot={slot} />
             <span
@@ -60,7 +60,7 @@ export function OutfitPieces({ outfit, points, arriving, pointsRose }: OutfitPie
         ))}
       </ul>
       <p className="mt-3 text-sm text-muted-foreground">
-        {outfit.worn} of {outfit.slots.length} pieces ·{" "}
+        {outfit.worn} of {outfit.slots.length} {outfit.slots.length === 1 ? "piece" : "pieces"} ·{" "}
         <span
           key={points}
           data-changed={pointsRose ? "points" : undefined}

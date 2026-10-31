@@ -52,13 +52,13 @@ export function TiltCard({
           tilt
             ? {
                 transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-                transition: "transform 120ms",
+                transition: "transform 150ms",
               }
             : { animation: "avatar-sway 6s ease-in-out infinite" }
         }
       >
         <div
-          className="absolute inset-0 rounded-xl border-2 border-[#d4af37] bg-[linear-gradient(160deg,#1b1a22,#0c0b10)] shadow-2xl"
+          className="absolute inset-0 rounded-lg border-2 border-[#d4af37] bg-[linear-gradient(160deg,#1b1a22,#0c0b10)] shadow-2xl"
           style={{ transform: "translateZ(-40px)" }}
         >
           <div className="absolute inset-3 rounded-lg border border-[#d4af37]/40" />

@@ -14,9 +14,10 @@ import type { Slot } from "@/features/passport/avatar/outfit";
   that fails, keeps the flat avatar.
 */
 const VoxelStage = lazy((): Promise<{ default: ComponentType<VoxelStageProps> }> =>
-  import("@/features/passport/avatar/voxel-stage").catch(() => ({
-    default: ({ fallback }: VoxelStageProps) => fallback,
-  })),
+  import("@/features/passport/avatar/voxel-stage").then(
+    (module) => ({ default: module.VoxelStage }),
+    () => ({ default: ({ fallback }: VoxelStageProps) => fallback }),
+  ),
 );
 
 function hasWebGL(): boolean {
@@ -47,9 +48,9 @@ export function AvatarStage({
   title,
 }: AvatarStageProps) {
   const [webgl] = useState(hasWebGL);
-  const flat = <FlatAvatar url={flatUrl} />;
+  const flat = <FlatAvatar url={flatUrl} spinning={completing} />;
   return (
-    <div className="relative -mx-4 h-[26rem] overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#3a2f12_0%,#121016_55%,#07060a_100%)] text-[#f4f1e8] sm:mx-0 sm:h-[28rem] sm:rounded-xl">
+    <div className="relative -mx-4 h-[26rem] overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#3a2f12_0%,#121016_55%,#07060a_100%)] text-[#f4f1e8] sm:mx-0 sm:h-[28rem] sm:rounded-lg">
       <div className="pointer-events-none absolute inset-x-0 top-4 z-10 px-4 text-center">
         {title}
       </div>

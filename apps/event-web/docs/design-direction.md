@@ -89,7 +89,8 @@ yellow segment, an active tab, a selected row) changes in one frame: with a colo
 on it, the old item fades out while the new one fades in, and both show half lit.
 `src/test/highlight-motion.test.ts` fails on a file that has both, and
 `e2e/tab-highlight.spec.ts` checks the nav frame by frame. That is the rule on phones and on
-the organiser screens. The exceptions, all on the big screens:
+the organiser screens. The exceptions are on the big screens, apart from the grad tea's
+avatar:
 
 - The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
   reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back

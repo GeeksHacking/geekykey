@@ -214,8 +214,9 @@
 }
 
 /*
-  The grad tea's avatar (FRO-105): confetti at 6 of 6 (features/passport/avatar/confetti.tsx,
-  which sets --drift on each bit), and the memory card's sway while nobody tilts it.
+  The grad tea's avatar in the Event screens (FRO-105): confetti at 6 of 6, which sets --drift
+  on each bit, the flat avatar's one turn at 6 of 6, and the memory card's sway while nobody
+  tilts it. Here too because this file is the same in both apps.
 */
 @keyframes avatar-confetti {
   from {
@@ -225,6 +226,12 @@
   to {
     transform: translate3d(var(--drift, 0), 28rem, 0) rotate(540deg);
     opacity: 0;
+  }
+}
+
+@keyframes avatar-spin {
+  to {
+    transform: rotateY(360deg);
   }
 }
 
