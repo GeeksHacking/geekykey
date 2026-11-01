@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Avatar lab</title>
+    <link rel="icon" type="image/svg+xml" href="/brand/gh-logo-secondary.svg" />
+    <script>
+      // The dev server serves this page and the build leaves it out (FRO-105).
+      document.documentElement.classList.toggle(
+        "dark",
+        !window.matchMedia("(prefers-color-scheme: light)").matches,
+      );
+    </script>
+  </head>
+  <body class="min-h-[100dvh] bg-background font-sans text-foreground antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/features/passport/avatar/lab/main.tsx"></script>
+  </body>
+</html>

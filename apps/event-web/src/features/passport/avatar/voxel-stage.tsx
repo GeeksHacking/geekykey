@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
 import type { PieceKey } from "@/features/passport/avatar/art";
 import type { AvatarColours } from "@/features/passport/avatar/avatar-colours";
@@ -32,9 +32,13 @@ export function VoxelStage({ slots, colours, arriving, completing }: VoxelStageP
     };
   }, []);
 
+  const worn = useMemo(
+    () => slots.filter((slot) => slot.worn).map((slot) => slot.piece.key),
+    [slots],
+  );
   useEffect(() => {
-    world.current?.setOutfit(slots, colours, arriving);
-  }, [slots, colours, arriving]);
+    world.current?.setOutfit(worn, colours, arriving);
+  }, [worn, colours, arriving]);
 
   useEffect(() => {
     if (completing) world.current?.spinOnce();

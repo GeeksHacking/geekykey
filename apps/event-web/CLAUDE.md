@@ -114,7 +114,7 @@ One thing that looks like a bug and is not:
 | Icons | `@phosphor-icons/react` | One family for the whole app. Replace the `lucide-react` imports shadcn generates. Default weight `fill`, set once by `IconContext` in `app.tsx`, because the branding kit draws its icons filled |
 | Fonts | Open Sans, Geist Mono via `@fontsource-variable/open-sans` and `@fontsource-variable/geist-mono` | Self-hosted. No Google Fonts `<link>` |
 | Motion | CSS/shadcn transitions, and GSAP on the map and the desktop passport | Before importing GSAP, read "Where GSAP may load" in [docs/design-direction.md](docs/design-direction.md): a phone and the organiser screens never download it |
-| 3D | three.js | The grad tea's avatar only (FRO-105): `features/passport/avatar/voxel-world.ts` turns each pixel of the art into a column of cubes, rounded like the body it draws. It loads through `React.lazy` from `avatar-stage.tsx`, so the dashboard paints the flat avatar first, and a phone without WebGL, or a failed download, keeps it. Its file is about 130 KB gzipped. three.js on phones goes past the 26 Oct rule above, and FRO-105 waits on Ethan's yes before it merges |
+| 3D | three.js | The grad tea's avatar only (FRO-105): `features/passport/avatar/voxel-world.ts` draws each character's figure from `art/avatar/<character>/model.vox`. That is a MagicaVoxel file, which `pnpm avatar-art` first builds from the art by rounding each pixel into a column of cubes, and which anyone can then edit by hand ([art/avatar/README.md](art/avatar/README.md)). It loads through `React.lazy` from `avatar-stage.tsx`, so the dashboard paints the flat avatar first, and a phone without WebGL, or a failed download, keeps it. Its file is about 150 KB gzipped. three.js on phones goes past the 26 Oct rule in "Where GSAP may load", and FRO-105 waits on Ethan's yes before it merges |
 | Forms | react-hook-form + zod through shadcn `Form` | Add station, passport settings, QR fallback, and the name on the passport. Import `zod/mini`, here and in `src/api/schemas.ts`, and lint refuses `zod`. Every page loads the schemas, and one import of `zod` would put all of classic zod on top, about 10 KB gzipped (FRO-67). Mini writes `.nullable()` as `z.nullable(...)` and `.min(1, "...")` as `.check(z.minLength(1, "..."))` |
 | Tests | Vitest + React Testing Library + jsdom | |
 | Lint | Oxlint | Rules in `.oxlintrc.json`, with the React hooks rules native |
@@ -191,7 +191,7 @@ pnpm test         # vitest run
 pnpm test:watch   # vitest
 pnpm test:e2e     # playwright Chromium smoke suite against the mock dev server
 pnpm shot <route> --as organiser   # 360 and 1280 px, light and dark, into test-results/shots/
-pnpm avatar-art   # Joshua's PNGs in art/avatar/ into the avatar's data; --preview <dir> draws them
+pnpm avatar-art   # the avatar's PNGs and 3D figures in art/avatar/ into its data; art/avatar/README.md has the options
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
 pnpm worker:dev       # live build, then the production Worker in wrangler dev on :8173
 pnpm worker:typecheck # writes the Worker's types from wrangler.jsonc, then tsc

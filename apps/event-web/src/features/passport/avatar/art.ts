@@ -8,8 +8,9 @@ import {
 /*
   The grad tea's avatar art (FRO-105): Joshua's two characters, one in a suit and one in a
   dress, and each one's pieces, one per stamp slot. The PNGs are in art/avatar/, and
-  scripts/avatar-art.ts turns them into art-data.ts. Everything that draws the avatar reads
-  this file, so the flat avatar, the cubes and the saved card all change with the art.
+  scripts/avatar-art.ts turns them into art-data.ts. The flat avatar, the slot icons and the
+  saved card read this file. The cubes come from each character's model.vox (voxel-model.ts),
+  which the script first builds from the same art.
 */
 
 export const SIZE = ART_SIZE;
@@ -42,16 +43,9 @@ type CharacterData = (typeof ART_CHARACTERS)[number];
 export type CharacterKey = CharacterData["key"];
 export type PieceKey = CharacterData["pieces"][number]["key"];
 
-/**
- * How a piece's own pixels sit on the body in 3D: `solid` takes its own rounded shape, like
- * the body (a hat, a cane), and `front` lies on the body's surface (a monocle, pearls).
- */
-export type Shape = "solid" | "front";
-
 export interface Piece {
   key: PieceKey;
   label: string;
-  shape: Shape;
   layer: Layer;
 }
 
@@ -64,8 +58,6 @@ export interface Character {
   pieces: readonly Piece[];
   /** The art's own skin, hair and suit colours, which the guest's choice replaces. */
   base: { skin: string; hair: string; suit: string };
-  /** Rows where the parts start, for the back of the 3D figure. */
-  rows: { chin: number; shoes: number };
 }
 
 const CELLS: Cell[] = ART_PALETTE.map(([colour, tag]) => ({ colour, tag }));
@@ -89,13 +81,13 @@ function mostCommon(body: Art, tag: Tag): string {
   return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "#000000";
 }
 
-const LOOK: Record<PieceKey, { label: string; shape: Shape }> = {
-  hat: { label: "Hat", shape: "solid" },
-  monocle: { label: "Monocle", shape: "front" },
-  feather: { label: "Feather", shape: "solid" },
-  pearls: { label: "Pearls", shape: "front" },
-  cane: { label: "Cane", shape: "solid" },
-  glass: { label: "Glass", shape: "solid" },
+const LABELS: Record<PieceKey, string> = {
+  hat: "Hat",
+  monocle: "Monocle",
+  feather: "Feather",
+  pearls: "Pearls",
+  cane: "Cane",
+  glass: "Glass",
 };
 
 function character(data: CharacterData): Character {
@@ -104,13 +96,12 @@ function character(data: CharacterData): Character {
     key: data.key,
     outfit: data.key === "dress" ? "Dress" : "Suit",
     body,
-    pieces: data.pieces.map(({ key, rows }) => ({ key, ...LOOK[key], layer: decode(rows) })),
+    pieces: data.pieces.map(({ key, rows }) => ({ key, label: LABELS[key], layer: decode(rows) })),
     base: {
       skin: mostCommon(body, "skin"),
       hair: mostCommon(body, "hair"),
       suit: mostCommon(body, "suit"),
     },
-    rows: data.rows,
   };
 }
 

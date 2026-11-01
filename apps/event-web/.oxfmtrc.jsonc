@@ -5,8 +5,9 @@
   "ignorePatterns": [
     // The router plugin rewrites this on every dev run, in its own style.
     "src/routeTree.gen.ts",
-    // scripts/avatar-art.ts writes this from Joshua's PNGs.
+    // scripts/avatar-art.ts writes these from Joshua's PNGs and the figures in art/avatar/.
     "src/features/passport/avatar/art-data.ts",
+    "src/features/passport/avatar/voxel-data.ts",
     // Docs are wrapped by hand, and the formatter would pad every table cell to line up.
     "*.md",
   ],

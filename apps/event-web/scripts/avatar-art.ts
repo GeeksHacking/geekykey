@@ -1,9 +1,16 @@
 /**
- * Turns Joshua's avatar PNGs (FRO-105) into src/features/passport/avatar/art-data.ts.
- * Run from apps/event-web after changing a file in art/avatar/<character>/:
+ * Turns Joshua's avatar PNGs (FRO-105) into src/features/passport/avatar/art-data.ts, and
+ * each character's 3D figure, art/avatar/<character>/model.vox, into voxel-data.ts. Run from
+ * apps/event-web after changing a file in art/avatar/<character>/:
  *
  *   pnpm avatar-art
- *   pnpm avatar-art --preview /tmp/avatar   # also draws every piece worn, 8x, to look at
+ *   pnpm avatar-art --watch                  # again on every save, for the avatar lab
+ *   pnpm avatar-art --preview /tmp/avatar    # also draws every piece worn, 8x, to look at
+ *   pnpm avatar-art --glb /tmp/avatar        # also writes each figure as .glb, for Blender
+ *   pnpm avatar-art --shape suit=clean.glb   # a cleaned-up body shape into suit/model.vox
+ *   pnpm avatar-art --fresh suit             # suit/model.vox again from the PNGs
+ *
+ * art/avatar/README.md says how to edit the figures. scripts/avatar-3d.ts does the 3D.
  *
  * Each character (one in a suit, one in a dress) is a 64x64 base and one Sprite Fusion edit
  * of that same base per piece. An edit comes cropped to the character and with a few colours off by one or two, so
@@ -20,13 +27,27 @@
  *
  * The PNGs must be 8-bit RGBA, which is what Sprite Fusion exports.
  */
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { deflateSync, inflateSync } from "node:zlib";
 
+import {
+  columnsOff,
+  generate,
+  readMesh,
+  readVox,
+  voxelDataFile,
+  withShape,
+  writeGlb,
+  writeVox,
+  type Drawing,
+  type Entry,
+} from "./avatar-3d.ts";
+
 const ART_DIR = "art/avatar";
 const OUT_FILE = "src/features/passport/avatar/art-data.ts";
+const VOXEL_FILE = "src/features/passport/avatar/voxel-data.ts";
 const SIZE = 64;
 
 interface Box {
@@ -54,6 +75,8 @@ interface PieceSource {
    * through it.
    */
   covers?: Box[];
+  /** In 3D it lies on the body's surface (a monocle, pearls) rather than taking a shape. */
+  front?: boolean;
 }
 
 interface CharacterSource {
@@ -94,12 +117,16 @@ const CHARACTERS: CharacterSource[] = [
         // The crown and the brim, down to the brim's lowest row across the forehead.
         covers: [box(19, 0, 44, 10)],
       },
-      { key: "monocle", area: [box(31, 10, 37, 18)], item: [box(31, 10, 37, 18)] },
+      { key: "monocle", area: [box(31, 10, 37, 18)], item: [box(31, 10, 37, 18)], front: true },
       {
         key: "cane",
         // The hand moves out to hold the cane. The stick shows above and below the hand.
         area: [box(14, 30, 24, 58)],
         item: [box(17, 31, 21, 35), box(19, 40, 21, 58)],
+        // The hand and the stick are drawn partly in the suit's black, which looks unchanged
+        // from the base. They're still the cane's, or in 3D they'd keep the body's thickness:
+        // a black bar through the hand, and the old hand's skin beside the stick.
+        covers: [box(16, 35, 23, 40), box(19, 41, 21, 58)],
       },
       {
         key: "glass",
@@ -127,7 +154,12 @@ const CHARACTERS: CharacterSource[] = [
         // The headband is dark over dark hair, so it covers the hair whatever its colour.
         covers: [box(25, 7, 40, 8)],
       },
-      { key: "pearls", area: [box(26, 16, 38, 24)], item: [box(26, 16, 38, 24)] },
+      {
+        key: "pearls",
+        area: [box(26, 16, 38, 24)],
+        item: [box(26, 16, 38, 24)],
+        front: true,
+      },
       {
         key: "cane",
         // The arm swings out to hold the cane, which shows below the hand.
@@ -372,9 +404,20 @@ const CHARS =
   "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#%&*+-/:;<=>?@^|~" +
   String.fromCharCode(...Array.from({ length: 64 }, (_, k) => 0xc0 + k));
 
-function main() {
-  const { values } = parseArgs({ options: { preview: { type: "string" } } });
+interface Options {
+  preview?: string;
+  glb?: string;
+  fresh: string[];
+  shape: string[];
+}
 
+/** Leaves a file alone when it wouldn't change, so the dev server doesn't reload for nothing. */
+function writeIfChanged(path: string, content: string) {
+  if (existsSync(path) && readFileSync(path, "utf8") === content) return;
+  writeFileSync(path, content);
+}
+
+function run(values: Options) {
   const characters = CHARACTERS.map((who) => {
     const dir = join(ART_DIR, who.key);
     const baseFile = decodePng(join(dir, "base.png"));
@@ -460,7 +503,6 @@ function main() {
     ...out.flatMap(({ who, body, pieces }) => [
       "  {",
       `    key: "${who.key}",`,
-      `    rows: { chin: ${who.rows.chin}, shoes: ${who.rows.shoes} },`,
       "    body: [",
       ...body.map(quote("      ")),
       "    ],",
@@ -479,12 +521,63 @@ function main() {
     "] as const;",
     "",
   ].join("\n");
-  writeFileSync(OUT_FILE, file);
+  writeIfChanged(OUT_FILE, file);
   console.log(`${OUT_FILE}: ${entries.length} colours`);
+
+  const palette = entries.map((e) => JSON.parse(e) as Entry);
+  const figures = out.map(({ who, body, pieces }) => {
+    const index = (ch: string) => (ch === "." ? null : CHARS.indexOf(ch));
+    const drawing: Drawing = {
+      key: who.key,
+      rows: who.rows,
+      entries: palette,
+      body: [...body.join("")].map(index),
+      pieces: pieces.map((p, n) => ({
+        key: p.key,
+        front: who.pieces[n]!.front ?? false,
+        layer: [...p.rows.join("")].map((ch) => (ch === "_" ? "erase" : index(ch))),
+      })),
+    };
+    const path = join(ART_DIR, who.key, "model.vox");
+    const pieceKeys = who.pieces.map((p) => p.key);
+    if (!existsSync(path) || values.fresh.includes(who.key)) {
+      writeFileSync(path, writeVox(generate(drawing)));
+      console.log(`${path}: drawn from the PNGs`);
+    }
+    let model = readVox(readFileSync(path), path, pieceKeys);
+    for (const shape of values.shape) {
+      const [target, mesh] = shape.split("=");
+      if (target !== who.key || !mesh) continue;
+      model = withShape(model, drawing, readMesh(mesh), mesh);
+      writeFileSync(path, writeVox(model));
+      console.log(`${path}: the body is now the shape in ${mesh}`);
+    }
+    const cubes = model.parts.map((p) => `${p.key} ${p.cubes.size}`).join(", ");
+    const off = columnsOff(model, drawing);
+    console.log(
+      `${path}: ${cubes} cubes` +
+        (off > 0 ? `; ${off} body columns differ from base.png (--fresh redraws it)` : ""),
+    );
+    if (values.glb) {
+      mkdirSync(values.glb, { recursive: true });
+      for (const [name, worn] of [
+        [`${who.key}-body`, []],
+        [who.key, pieceKeys],
+      ] as const) {
+        const glb = join(values.glb, `${name}.glb`);
+        writeFileSync(glb, writeGlb(model, worn));
+        console.log(
+          `${glb}: ${worn.length > 0 ? "every piece on, a mesh per part" : "the body alone"}`,
+        );
+      }
+    }
+    return { key: who.key, model };
+  });
+  writeIfChanged(VOXEL_FILE, voxelDataFile(figures));
+  console.log(`${VOXEL_FILE}: ${figures.length} figures`);
 
   if (values.preview) {
     mkdirSync(values.preview, { recursive: true });
-    const palette = entries.map((e) => JSON.parse(e) as [string, Role]);
     const toRgb = (h: string): Rgb => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16)) as Rgb;
     const layer = (stack: string[][]) => {
       const grid: (Rgb | null)[] = Array.from({ length: SIZE * SIZE }, () => null);
@@ -531,6 +624,36 @@ function main() {
       `${path}: per character, the base, each piece on it, every piece at once, and the colour tags`,
     );
   }
+}
+
+function main() {
+  const { values } = parseArgs({
+    options: {
+      preview: { type: "string" },
+      glb: { type: "string" },
+      fresh: { type: "string", multiple: true, default: [] },
+      shape: { type: "string", multiple: true, default: [] },
+      watch: { type: "boolean", default: false },
+    },
+  });
+  const options: Options = { ...values, fresh: values.fresh, shape: values.shape };
+  run(options);
+  if (!values.watch) return;
+  // Once only: a later save shouldn't redraw a model or put a shape back.
+  const again: Options = { ...options, fresh: [], shape: [] };
+  let timer: NodeJS.Timeout | undefined;
+  console.log(`Watching ${ART_DIR}. Save a PNG or a model.vox to rebuild, Ctrl+C to stop.`);
+  watch(ART_DIR, { recursive: true }, (_, name) => {
+    if (!name || !/\.(png|vox)$/.test(name)) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      try {
+        run(again);
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : error);
+      }
+    }, 300);
+  });
 }
 
 main();
