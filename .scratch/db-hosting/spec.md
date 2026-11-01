@@ -18,6 +18,8 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 30 Oct 2026** (BAC-103, BAC-112), after Adam met Julian on 29 Oct ([the notes](<../meeting-notes/[29 Oct 26] Capstone Meeting.md>)). Julian measures GeekyKey by engagement, whether participants and sponsors come back, and the token people keep is the showcase's centrepiece. Each token now has a kind, written onto it with its address, so a phone tapped on it opens a different screen for each kind ([ADR 0006](../../docs/adr/0006-a-token-carries-its-kind.md)). After a passport tap, the station names the visitor's next stop: the quietest booth they haven't stamped. Connections stay, hidden or at partner booths, and count only between two kinds. Find Gatsby is dropped, Light the hall becomes a very low Could, and the first of "The checks for a new idea" changes. "The 29 Oct answers" in section 2 lists everything.
 
+> **Updated 1 Nov 2026** (BAC-114). Mr Pang and Ms Teo withdrew the capstone showcase as GeekyKey's testing ground, so no partner group's booth has a station there, and the grad tea on Thu 12 Nov is the only live test. The plan to put sponsors' booths first rested on the showcase's booths (the 23 Oct answers), so the group chooses its focus again by Tue 3 Nov. Adam proposes people meeting people, through the answers game, with sponsors' booths as the second case. Until the group chooses, nothing is dropped, and nothing new is built. "The 1 Nov changes" in section 2 has the choice and what each side changes.
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
@@ -165,6 +167,34 @@ From the meeting with Julian on Thu 29 Oct, and Adam's calls on them on 29 and 3
 11. **Sponsors' counts** (BAC-106): yes. "This many people visited your booth" is what GeeksHacking takes to sponsors.
 
 Not discussed, and still open: what the QR fallback scans (BAC-28), Replay the night (FRO-98), the TiDB usage that sizes the stress test, the classroom run, the exit question and the MPH.
+
+### The 1 Nov changes
+
+What Mr Pang and Ms Teo told the group around 1 Nov, and what Joshua and Adam made of it the same evening. The group's choice is BAC-114, due Tue 3 Nov, and Julian hears it before the meeting on Thu 5 Nov.
+
+**What changed**
+
+1. **The showcase isn't GeekyKey's test any more.** Mr Pang and Ms Teo withdrew it, because what GeekyKey does and what the showcase is didn't match. No partner group's booth has a station, so the partner stations, their stickers and QR codes (HAR-26), and the comparison at the voting point (section 6, "What it measures") go. Whether our own booth at the showcase still shows GeekyKey is in section 12. The grad tea on Thu 12 Nov is the only live test.
+2. **Mr Pang's points.** The map and the next stop only pay off at venues the size of an expo, such as the Singapore Expo. Bringing people to a booth is traffic, not engagement, which he called "more shallow". And the games look goofy to the showcase's VIP guests.
+3. **Julian's point about venues** stands with them. Hackathons are held in tight spaces, the recent one was "the biggest space we've had in 5 years", and participants leave their laptops at their desks. So sponsors' booths sit side by side, and the next stop has little to choose between.
+
+**Why the focus is open again.** On 23 Oct Julian said the showcase's fixed booths made it a fair test of the sponsor side, and not yet of people meeting people, so the sponsor side went first. That was an order of work, not a finding that people meeting people mattered less. The 29 Oct notes proposed pausing connections, and the 29 Oct answers (item 6) dropped that proposal. With the showcase gone, the reason for the order is gone too.
+
+**The choice (BAC-114)**
+
+1. **People meeting people.** Proposed by Joshua on 1 Nov, and Adam agrees: sponsors become the second case, because it's easier to get people interested in each other than in a product. The game is the answers game (BAC-116): each person answers one short question when they claim their token; others hunt down whoever gave an answer by asking around; a tap between two tokens of different kinds shows both people the question and each other's answer. To Mr Pang's question of what this does that paper can't:
+   - The answers stay hidden until two people meet, as the mentor suggested on 2 Oct. Paper shows everything at once, so nobody has to talk.
+   - The tap proves the two met. Paper bingo is signed by friends for each other.
+   - The server knows every answer in the room, so it can point a person at an answer several people share, and nobody hits a dead end (Julian's worry on 29 Oct).
+
+   A sponsor's representative holds a token of a `sponsor` kind and plays too, so a participant has something real to ask them about (Julian, 29 Oct: sponsors could hold different tokens that unlock different interactions). The grad tea suits it, since its problem is guests staying with their own group.
+2. **People visiting booths.** Keep the passport, the next stop and the map, tested at the grad tea's areas only, with expo-sized venues named as where they pay off.
+
+**What each side changes**
+
+- **Either way:** the voting-point comparison and the showcase's partner stations go, results come from the grad tea only, and tokens, stations, the tap path, token kinds, the map and the export carry over.
+- **If people meeting people:** connections become the grad tea's Must, with the answers game on top (BAC-116, design by Wed 4 Nov, build by Tue 10 Nov). The next stop (BAC-98, HAR-28) stops. The map shows the anonymous web of connections. A token's kind at the grad tea may be the guest's class or group, so a connection between two kinds is a connection across groups. The avatar on the dashboard (FRO-105, PR #223) takes its pieces from connections, which needs connections in /me (agreement 8.1). In "The checks for a new idea", Mr Pang's check changes from "it answers why people skip booths" to "it answers why people stay with their own group", and "it works with booths side by side" stays for the sponsor case.
+- **Both:** the problem statement follows the choice (BAC-115), then the report (BAC-118), and a new entry on the updates site explains the change to the mentors (BAC-117).
 
 ### The spec's calls, 7 Oct
 
@@ -884,12 +914,14 @@ Added 27 Oct (BAC-88). *Changed 27 Oct, later:* the grad tea is a pilot of the s
 
 #### What it measures
 
+*1 Nov:* what the grad tea measures follows the group's choice in BAC-114. If it picks people meeting people, the measures become connections between groups, the exit question, and how many guests drop off between taking a token and their first connection (BAC-116).
+
 The problem both events test is that visitors stay with what they came for: guests with their own group at the grad tea, and parents at their own child's booth before they vote at the showcase (Mr Johari). A game that works moves people into areas they would otherwise skip.
 
 - **People in each area.** Observers count the people in each area of the MPH every 15 minutes. The first half hour, before tokens go out, is the baseline.
 - **From the taps:** how many passport stations each guest reached, how many connections were made, and, from 30 Oct, whether guests went to the next stop the station named. Both come from the copy Adam takes at the end of the evening, which is the source for Joshua's analysis.
 - **The results** are shared at the meeting on Fri 13 Nov. They can change the clue cards and where the stations stand, which need no deploy, but no code after the freeze.
-- **The showcase is the field test.** Visitors with and without a token are compared at the voting point, if the teachers allow it (section 12), and each booth's tally is set beside last year's voting pattern, from Mr Johari. Student helpers hand tokens out at the entrance, and count the visitors who decline one (the spec's call), so there's a group without tokens to compare.
+- ~~**The showcase is the field test.**~~ *Withdrawn 1 Nov* (the 1 Nov changes): Mr Pang and Ms Teo withdrew the showcase as GeekyKey's test, so the grad tea is the only one. What was planned: visitors with and without a token compared at the voting point, if the teachers allowed it, each booth's tally set beside last year's voting pattern, from Mr Johari, and student helpers handing tokens out at the entrance and counting the visitors who declined one.
 
 #### The games
 
@@ -1283,13 +1315,15 @@ The same 25 rounds sent straight from the server, which Cloudflare answers in Si
 - **This year's floor plan of the showcase hall,** with where the booths stand, from the teachers. The map on the big screen is drawn from it (checkpoint 7), and the layout we know, three walled areas of about 3, 6 and 5 booths, is from an earlier year.
 - **The showcase's theme,** from the teachers, for the screens' theme (checkpoint 7). *26 Oct:* the teachers have no theme for the showcase, so the group chose sci-fi, which the teachers haven't seen yet.
 - **The MPH for the grad tea** (BAC-95): its floor plan, the projector, three places with power sockets, using our own network, and time to set up before 3:30 pm, all asked of Mr Yaseer. The trail's clues, the map and the plan for the stations wait on the floor plan.
-- **The comparison at the showcase's voting point:** whether the teachers allow us to ask visitors, as they vote, whether they carried a token, and last year's voting pattern, from Mr Johari.
-- **Each partner group's link** for its station's sticker and QR code (HAR-26), by Mon 9 Nov.
+- ~~**The comparison at the showcase's voting point:** whether the teachers allow us to ask visitors, as they vote, whether they carried a token, and last year's voting pattern, from Mr Johari.~~ *Withdrawn 1 Nov:* the showcase isn't GeekyKey's test any more (the 1 Nov changes).
+- ~~**Each partner group's link** for its station's sticker and QR code (HAR-26), by Mon 9 Nov.~~ *Withdrawn 1 Nov:* no partner group's booth has a station.
+- **What our own booth at the showcase shows** (1 Nov). Whether it still shows GeekyKey to visitors and VIP guests, and if so which part, from Mr Pang and Ms Teo.
 
 - ~~**Julian's and Qing Guan's agreement to guests** (ADR 0005), asked at the meeting on Fri 23 Oct, since guests add a way to sign in to what they decided on 8 Oct.~~ *Answered 23 Oct:* yes, guests are OK.
 
 **Open, for Adam:**
 
+- **GeekyKey's focus after the showcase was withdrawn** (BAC-114, by Tue 3 Nov): people meeting people, through the answers game, or people visiting booths. Section 2, "The 1 Nov changes", has both.
 - ~~**How the big screen reads the map's data** (checkpoint 7). The station board (agreement 9.2) has each station's location and last tap, and the stats (9.5) count each passport station's taps and participants, so a first map needs no change to the agreement. But the screen at a public booth would then hold an organizer's login, which can disable stations, and each poll reads two endpoints. The other way is one read-only endpoint with counts and no names, read once per poll, which is a change to the agreement and needs Ethan's approval. The spec suggests the endpoint. Settle it before Ethan's team builds the map.~~ *Settled 23 Oct* (Adam): one read-only endpoint, read by organizers and a list of map screens only, polled every 2 seconds. Each station's booth is a new optional passport setting, and the floor plan is the screen's own. Checkpoint 7, "The map and connections, in detail", has the rest. It needs Ethan's approval of the agreement change.
 - ~~**How two tokens connect,** if connections between visitors go ahead (checkpoint 7, Could). Without a phone: two tokens tapped on one station within a few seconds become a link, though at a busy station two strangers can pair, which the station's own text could prevent ("Now tap your partner's key"). With a phone: one visitor's phone reads the other's token, which a phone can do on its own, the teacher's objection. Either way, nothing may rely on `taps.id` order to pair two taps (section 3.7). Settle it once the map is done.~~ *Settled 23 Oct* (Adam): no phone. Two users connect by tapping at the same connection point within a few seconds, a pair connects once, and every tap there is `accepted`. Checkpoint 7, "The map and connections, in detail", has the rule.
 - **How a connection point is laid out,** for the group and Julian (Adam, 23 Oct): one station both people tap, or two linked stations side by side, one each. Two stations stop two people on the same side pairing, and their layout tells people what to do without station text, but they cost a second box (or a second reader, Zi Tao's call) and need a longer window, since their two clocks differ. With it: the window's length, whether a tap with no `tapped_at` can pair, what the second tap's answer and beep say, how the web's anonymous nodes are named, and whether the passport shows a participant's own connection count. Settle it before connections are built, after the map. *27 Oct, later:* connections are a Should, so this is needed sooner. A third layout is open too: a visitor and a partner group's member tapping together at the partner's booth (checkpoint 7's further notes).
