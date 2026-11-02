@@ -10,7 +10,7 @@ const MIGRATIONS_FOLDER = join(import.meta.dirname, "../../drizzle");
  * Applies pending migrations from the drizzle/ folder, or another folder of
  * them for a test, to the database at a
  * `mysql://` URL, or the one in mysql2's connection options. Edit a schema
- * file, src/event/schema.ts or src/claims-stand-in/schema.ts, then run
+ * file, one that drizzle.config.ts lists, then run
  * `pnpm db:generate` to write the next migration.
  *
  * Runs on Node, from `mise run db:migrate` and the tests' global setup, with

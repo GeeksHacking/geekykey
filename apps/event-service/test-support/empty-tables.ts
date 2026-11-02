@@ -4,8 +4,8 @@
  */
 import { beforeEach } from "vitest";
 import { tokenKinds, tokens } from "../src/claims-stand-in/schema.ts";
+import { answers } from "../src/games/connections/schema.ts";
 import {
-  answers,
   passportStations,
   stations,
   taps,

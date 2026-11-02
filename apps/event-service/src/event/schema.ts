@@ -3,7 +3,6 @@ import {
   boolean,
   index,
   int,
-  json,
   mysqlEnum,
   mysqlTable,
   text,
@@ -174,28 +173,6 @@ export const userKinds = mysqlTable("user_kinds", {
   kind: varchar("kind", { length: TOKEN_KIND_MAX }).notNull(),
   /** When the kind was first seen. */
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
-});
-
-/**
- * Each participant's answers in the answers game (spec section 6, "The answers
- * game"), one row each, made by their first answer, or by their first
- * connection if that comes first. The event's questions are code, each with
- * a stable ID, as is each choice, so rewording one later changes nobody's
- * answers. The event's own data: the evening-before clear empties it (spec,
- * checkpoint 8).
- */
-export const answers = mysqlTable("answers", {
-  userId: userId("user_id").primaryKey(),
-  /**
-   * The answered questions, from question ID to choice ID. An ID the event's
-   * list no longer has stays here, and /me leaves it out.
-   */
-  choices: json("choices").$type<Record<string, string>>().notNull(),
-  /**
-   * When their first connection fixed the answers, or null while they can
-   * still change them. Fixed answers keep a match already shown true.
-   */
-  fixedAt: isoTimestamp("fixed_at"),
 });
 
 export type User = typeof users.$inferSelect;

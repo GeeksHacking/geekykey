@@ -3,9 +3,8 @@ import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
-import type { Answers } from "./answers.ts";
 import { hasName } from "./display-names.ts";
-import { answers, userKinds, users } from "./schema.ts";
+import { userKinds, users } from "./schema.ts";
 import type { UserLimit } from "./user-limit.ts";
 
 export const SESSION_COOKIE = "event_session";
@@ -26,11 +25,6 @@ export interface SessionUser {
   role: Role;
   /** The first kind the GeekyKey Service gave with them (user-kinds.ts), or null for none yet. */
   kind: string | null;
-  /**
-   * Their answers in the answers game, as stored (answers.ts), or none yet.
-   * shownAnswers() leaves out any to a question or choice the event dropped.
-   */
-  answers: Answers;
 }
 
 /** Reads the request's `db`, and sets `user` for the handlers after it. */
@@ -127,12 +121,10 @@ async function loadSessionUser(
       displayName: users.displayName,
       nameSetAt: users.nameSetAt,
       kind: userKinds.kind,
-      answers: answers.choices,
     })
     .from(users)
     // In the same read, so /me costs no more.
     .leftJoin(userKinds, eq(userKinds.userId, users.id))
-    .leftJoin(answers, eq(answers.userId, users.id))
     .where(eq(users.id, userId))
     .limit(1);
   if (!user) return null;
@@ -142,7 +134,6 @@ async function loadSessionUser(
     hasName: hasName(user),
     role: options.organizers.has(user.id) ? "organizer" : "participant",
     kind: user.kind,
-    answers: user.answers ?? {},
   };
 }
 
