@@ -75,11 +75,13 @@ export function testDb(): Db {
  *
  * It never fetches Google's keys: a test that logs in with Firebase passes
  * `googleKeys` from fakeGoogle() (@geekykey/firebase-login/testing). A test
- * of the station board's online light pins the clock with `now`.
+ * of the station board's online light pins the clock with `now`. It runs no
+ * answers game, so `user.question` is null, unless a test of the game gives
+ * its own `questions`.
  */
 export function testApp(
   settings: Record<string, string> = {},
-  { googleKeys = unreachableGoogleKeys, now }: Partial<AppDeps> = {},
+  { googleKeys = unreachableGoogleKeys, now, questions = [] }: Partial<AppDeps> = {},
 ) {
   const config = loadConfig({
     DATABASE_URL: localDatabaseUrl("geekykey_test"),
@@ -89,7 +91,7 @@ export function testApp(
     FIREBASE_PROJECT_ID: TEST_FIREBASE_PROJECT_ID,
     ...settings,
   });
-  return createApp(config, testDb(), { googleKeys, now });
+  return createApp(config, testDb(), { googleKeys, now, questions });
 }
 
 /** One station running the passport, with its settings, and one participant holding one token. */

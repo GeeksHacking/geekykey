@@ -5,6 +5,7 @@
 import { beforeEach } from "vitest";
 import { tokenKinds, tokens } from "../src/claims-stand-in/schema.ts";
 import {
+  answers,
   passportStations,
   stations,
   taps,
@@ -25,6 +26,7 @@ beforeEach(async () => {
     users,
     usedLoginLinks,
     userKinds,
+    answers,
   ]) {
     await testDb().delete(table);
   }

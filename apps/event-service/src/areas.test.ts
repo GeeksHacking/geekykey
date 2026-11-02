@@ -84,29 +84,39 @@ test("an area may import itself and the shared code", async () => {
   ]);
 });
 
-test("the base imports no game, and not the showcase's settings", async () => {
+test("the base imports no game, and neither event's settings", async () => {
   // The base is what the GitHub template copies, so it works with whatever games an event adds.
   await assertLints([
     ["event/tap-pipeline.ts", from("../games/passport/passport.ts"), false],
     ["event/handoff-routes.ts", from("../showcase/games.ts"), false],
+    ["event/me-routes.ts", from("../grad-tea/questions.ts"), false],
     ["event/tap-pipeline.test.ts", from("../games/passport/passport.ts"), false],
     ["event/tap-pipeline.test.ts", from("../showcase/games.ts"), false],
+    ["event/me-routes.test.ts", from("../grad-tea/questions.ts"), false],
   ]);
 });
 
-test("a game may import the base, and the showcase's settings may import the games", async () => {
+test("a game may import the base, and each event's settings may import the games", async () => {
   await assertLints([
     ["games/passport/passport.ts", from("../../event/games.ts"), true],
     ["games/passport/passport.ts", from("../../event/schema.ts"), true],
     ["showcase/games.ts", from("../games/passport/passport.ts"), true],
     ["showcase/games.ts", from("../event/games.ts"), true],
+    ["grad-tea/questions.ts", from("../games/passport/passport.ts"), true],
+    ["grad-tea/questions.ts", from("../event/games.ts"), true],
   ]);
 });
 
-test("the games and the showcase's settings are the Event side, apart from the claims stand-in", async () => {
+test("the games and each event's settings are the Event side, apart from the claims stand-in", async () => {
   await assertLints([
     ["games/passport/passport.ts", from("../../claims-stand-in/schema.ts"), false],
     ["showcase/games.ts", from("../claims-stand-in/routes.ts"), false],
+    ["grad-tea/questions.ts", from("../claims-stand-in/routes.ts"), false],
+    [
+      "grad-tea/questions.ts",
+      'import { createApp } from "../app.ts"; export const a = createApp;',
+      false,
+    ],
     [
       "games/passport/passport.ts",
       'import { createApp } from "../../app.ts"; export const a = createApp;',
@@ -114,6 +124,7 @@ test("the games and the showcase's settings are the Event side, apart from the c
     ],
     ["claims-stand-in/routes.ts", from("../games/passport/passport.ts"), false],
     ["claims-stand-in/routes.ts", from("../showcase/games.ts"), false],
+    ["claims-stand-in/routes.ts", from("../grad-tea/questions.ts"), false],
   ]);
 });
 
@@ -131,5 +142,6 @@ test("a test may use the whole server and read the other area's tables, and noth
     ["claims-stand-in/routes.test.ts", from("../event/tap-pipeline.ts"), false],
     ["claims-stand-in/routes.test.ts", from("../games/passport/passport.ts"), false],
     ["claims-stand-in/routes.test.ts", from("../showcase/games.ts"), false],
+    ["claims-stand-in/routes.test.ts", from("../grad-tea/questions.ts"), false],
   ]);
 });
