@@ -4,11 +4,13 @@ import type { MeResponse } from "@/api/types";
 import { PageHeading } from "@/components/layout/page-heading";
 import { AvatarStage } from "@/features/passport/avatar/avatar-stage";
 import { ColoursDialog } from "@/features/passport/avatar/colours-dialog";
+import { DemoPieces } from "@/features/passport/avatar/demo-pieces";
 import { useDressedUrl } from "@/features/passport/avatar/layers";
 import { MemoryCardDialog } from "@/features/passport/avatar/memory-card-dialog";
-import { outfitFrom } from "@/features/passport/avatar/outfit";
+import { demoOutfitFrom, outfitFrom } from "@/features/passport/avatar/outfit";
 import { OutfitPieces } from "@/features/passport/avatar/outfit-pieces";
 import { useAvatarColours } from "@/features/passport/avatar/use-avatar-colours";
+import { useDemoOutfit } from "@/features/passport/avatar/use-demo-outfit";
 import type { PassportChanges } from "@/features/passport/passport-changes";
 
 interface AvatarHeroProps {
@@ -23,18 +25,25 @@ interface AvatarHeroProps {
  */
 export function AvatarHero({ me, changes }: AvatarHeroProps) {
   const { colours } = useAvatarColours(me.user.id);
+  const isOrganizer = me.user.role === "organizer";
+  const demo = useDemoOutfit();
+  const demoOn = isOrganizer ? demo.on : null;
   const outfit = useMemo(
-    () => outfitFrom(me.stamps, colours.character),
-    [me.stamps, colours.character],
+    () =>
+      demoOn === null
+        ? outfitFrom(me.stamps, colours.character)
+        : demoOutfitFrom(me.stamps, colours.character, demoOn),
+    [me.stamps, colours.character, demoOn],
   );
   const flatUrl = useDressedUrl(outfit.slots, colours);
-  const arriving = useMemo(
+  const stamped = useMemo(
     () =>
       outfit.slots
         .filter((slot) => changes.stamped.includes(slot.stamp.station_id))
         .map((slot) => slot.piece.key),
     [outfit.slots, changes.stamped],
   );
+  const arriving = demoOn === null ? stamped : demo.arriving;
   const name = me.user.display_name ?? "Guest";
 
   return (
@@ -64,6 +73,7 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
         <MemoryCardDialog slots={outfit.slots} colours={colours} name={name} />
         <ColoursDialog userId={me.user.id} />
       </div>
+      {isOrganizer ? <DemoPieces character={colours.character} demo={demo} /> : null}
     </section>
   );
 }

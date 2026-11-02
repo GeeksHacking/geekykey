@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Stamp } from "@/api/types";
-import { outfitFrom } from "@/features/passport/avatar/outfit";
+import { demoOutfitFrom, outfitFrom } from "@/features/passport/avatar/outfit";
 
 function stamp(name: string, earned_at: string | null = null): Stamp {
   return {
@@ -69,5 +69,28 @@ describe("outfitFrom", () => {
     const outfit = outfitFrom([stamp("A", "2026-11-12T08:00:00.000Z"), stamp("B")]);
 
     expect(outfit.complete).toBe(false);
+  });
+});
+
+describe("demoOutfitFrom", () => {
+  it("gives every piece, worn only when the demo put it on, whatever the stamps say", () => {
+    const outfit = demoOutfitFrom([stamp("Cloud Sponsor", "2026-11-12T08:01:00.000Z")], "suit", [
+      "cane",
+    ]);
+
+    expect(outfit.slots.map((slot) => [slot.piece.key, slot.stamp.name, slot.worn])).toEqual([
+      ["hat", "Cloud Sponsor", false],
+      ["monocle", "the demo", false],
+      ["cane", "the demo", true],
+      ["glass", "the demo", false],
+    ]);
+    expect(outfit.complete).toBe(false);
+  });
+
+  it("is complete once every piece is on", () => {
+    const outfit = demoOutfitFrom([], "suit", ["hat", "monocle", "cane", "glass"]);
+
+    expect(outfit.worn).toBe(4);
+    expect(outfit.complete).toBe(true);
   });
 });

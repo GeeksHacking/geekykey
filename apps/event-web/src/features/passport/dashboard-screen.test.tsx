@@ -139,6 +139,40 @@ describe("DashboardScreen's avatar", () => {
     expect(within(pieces).getByText("Pearls, from Robotics Club: not yet")).toBeInTheDocument();
   });
 
+  it("doesn't offer the demo toggle to a participant", () => {
+    state.me = dressing;
+    renderDashboard();
+
+    expect(screen.queryByRole("region", { name: "Demo" })).not.toBeInTheDocument();
+  });
+
+  it("lets an organizer put every piece on and take it off, then go back to the stamps", async () => {
+    const user = userEvent.setup();
+    state.me = { ...dressing, user: { ...dressing.user, role: "organizer" } };
+    renderDashboard();
+
+    const demo = screen.getByRole("region", { name: "Demo" });
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    await user.click(within(demo).getByRole("button", { name: "Monocle" }));
+
+    expect(within(demo).getByRole("button", { name: "Monocle" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
+    expect(within(pieces).getByText("Monocle, from Robotics Club: wearing")).toBeInTheDocument();
+    // The demo shows every piece, even past the event's two stamp slots, and ignores the stamps.
+    expect(within(pieces).getByText("Hat, from Cloud Sponsor: not yet")).toBeInTheDocument();
+    expect(within(pieces).getByText("Glass, from the demo: not yet")).toBeInTheDocument();
+    expect(avatar).toHaveTextContent("1 of 4 pieces");
+
+    await user.click(within(demo).getByRole("button", { name: "Monocle" }));
+    expect(avatar).toHaveTextContent("0 of 4 pieces");
+
+    await user.click(within(demo).getByRole("button", { name: "Back to my stamps" }));
+    expect(avatar).toHaveTextContent("1 of 2 pieces · 5 points");
+  });
+
   it("shows the memory card with the guest's name, and says so when the picture can't be made", async () => {
     const user = userEvent.setup();
     state.me = dressing;
