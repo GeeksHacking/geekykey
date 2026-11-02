@@ -1,0 +1,68 @@
+import type { EventServiceLink, Meeting, MeetingStatus } from "@/api/types";
+import { EventButtons } from "@/components/event-buttons";
+
+/*
+  What came of the half a tap sent (agreement 8.8), under the sentence that says the token
+  belongs to someone else. Section 13 fixes the wording for all five answers, so the
+  sentences are here as the agreement writes them; a status added to the union fails the
+  type check until it has one.
+*/
+
+/** Section 13's words, one per status an Event Service can answer with (11.10). */
+const SENTENCE: Record<MeetingStatus, string> = {
+  waiting: "Now ask them to tap your token with their phone.",
+  connected: "You're connected!",
+  already_connected: "You're already connected.",
+  same_kind: "You're in the same group. Find someone from another group.",
+  unavailable: "Couldn't connect. Tap their token again.",
+};
+
+/**
+ * One line per Event Service that took the half. 8.4 says the showcase has exactly one,
+ * so this shows once in practice and stays right if a second appears.
+ */
+export function MeetingNotice({
+  meetings,
+  events,
+  uid,
+}: {
+  meetings: Meeting[];
+  events: EventServiceLink[];
+  /** The token page's token, which its buttons name so the link carries its kind (11.9). */
+  uid: string;
+}) {
+  if (meetings.length === 0) return null;
+
+  return (
+    <div className="flex flex-col items-start gap-4">
+      {meetings.map((meeting) => (
+        <MeetingLine key={meeting.event_id} meeting={meeting} events={events} uid={uid} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Section 13 gives the pair's own event button to `connected` and `already_connected`,
+ * because that button opens the passport through a login link (8.6) and the reveal is
+ * there. Every other answer has nothing to open yet.
+ */
+function MeetingLine({
+  meeting,
+  events,
+  uid,
+}: {
+  meeting: Meeting;
+  events: EventServiceLink[];
+  uid: string;
+}) {
+  const connected = meeting.status === "connected" || meeting.status === "already_connected";
+  const event = events.find((item) => item.id === meeting.event_id);
+
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p className="text-base">{SENTENCE[meeting.status]}</p>
+      {connected && event ? <EventButtons events={[event]} uid={uid} /> : null}
+    </div>
+  );
+}

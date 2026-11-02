@@ -14,6 +14,8 @@ import { useSession } from "@/lib/session";
 import { useClaimToken } from "@/lib/use-claim-token";
 import { useReleaseToken } from "@/lib/use-release-token";
 import type { EventServiceLink, TokenLookup } from "@/api/types";
+import { MeetingNotice } from "@/features/token/meeting-notice";
+import { useMeeting } from "@/features/token/use-meeting";
 import { useToken } from "@/features/token/use-token";
 
 /**
@@ -28,7 +30,8 @@ import { useToken } from "@/features/token/use-token";
  * mock enforces that, so there is no name or ID on this screen to leak.
  *
  * Your own token carries a button for each event in /me as well, which opens that
- * event's screens as the same user through a login link (8.6).
+ * event's screens as the same user through a login link (8.6). A token someone else holds
+ * also sends the half of a connection (8.8) and says what the event answered.
  */
 export function TokenPage({ uid }: { uid: string }) {
   const query = useToken(uid);
@@ -47,7 +50,11 @@ export function TokenPage({ uid }: { uid: string }) {
       <DataSourceNotice />
 
       <div className="mt-8" aria-live="polite">
-        {query.isPending ? (
+        {/* The page needs /me as much as the token: an admin's page must never send a
+            half (8.8), so nothing here renders before the session says who the user is.
+            In the app RequireSession has loaded it before this page; this branch covers a
+            page mounted without that gate. */}
+        {query.isPending || me === null ? (
           <div role="status" className="flex flex-col gap-2">
             <Skeleton className="h-5 w-48" />
             <Skeleton className="h-4 w-32" />
@@ -60,8 +67,8 @@ export function TokenPage({ uid }: { uid: string }) {
             lookup={query.data}
             claim={claim}
             release={release}
-            isAdmin={me?.user.is_geekykey_admin ?? false}
-            events={me?.events ?? []}
+            isAdmin={me.user.is_geekykey_admin}
+            events={me.events}
           />
         )}
       </div>
@@ -115,7 +122,13 @@ function OwnerView({
     ) : owner === "you" ? (
       <YouOwnIt claimedAt={claimedAt} release={release} events={events} uid={lookup.uid} />
     ) : (
-      <SomeoneElseHasIt release={release} ownerId={ownerId} isAdmin={isAdmin} />
+      <SomeoneElseHasIt
+        release={release}
+        ownerId={ownerId}
+        isAdmin={isAdmin}
+        events={events}
+        uid={lookup.uid}
+      />
     );
 
   if (isApiErrorCode(failure, "token_taken")) {
@@ -176,21 +189,34 @@ function YouOwnIt({
 
 /**
  * Agreement 8.5's table: "someone_else" reads "This token belongs to someone else", and
- * "A GeekyKey admin also sees Release". An ordinary user gets the sentence alone.
+ * "A GeekyKey admin also sees Release". An ordinary user gets the sentence and, under it,
+ * what the half (8.8) answered. An admin gets Release instead: they may be holding a lost
+ * token, so their arrival is not a tap between two people, and the page sends no half.
  */
 function SomeoneElseHasIt({
   release,
   ownerId,
   isAdmin,
+  events,
+  uid,
 }: {
   release: ReturnType<typeof useReleaseToken>;
   ownerId: string | null;
   isAdmin: boolean;
+  events: EventServiceLink[];
+  uid: string;
 }) {
+  // 8.8: no button. The page sends the half by itself, and skips it for an admin.
+  const meeting = useMeeting(uid, !isAdmin);
+
   return (
     <div className="flex flex-col items-start gap-4">
       <p className="text-base">This token belongs to someone else.</p>
-      {isAdmin ? <ReleaseTokenBlock release={release} ownerId={ownerId} mine={false} /> : null}
+      {isAdmin ? (
+        <ReleaseTokenBlock release={release} ownerId={ownerId} mine={false} />
+      ) : (
+        <MeetingNotice meetings={meeting.data ?? []} events={events} uid={uid} />
+      )}
     </div>
   );
 }
