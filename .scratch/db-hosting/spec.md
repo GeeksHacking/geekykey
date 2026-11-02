@@ -22,6 +22,8 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 2 Nov 2026** (BAC-114). The group chose people meeting people. Connections become the grad tea's Must, with the answers game on top, and sponsors join as a second case through a token kind of their own. The next stop stops. How the game works is still to be written (BAC-116, by Wed 4 Nov), and nothing for it is built until then. "The 1 Nov changes" in section 2 has what changes.
 
+> **Updated 2 Nov 2026, later** (BAC-116). The answers game is written down. Answers are free text for now. Each guest hunts one person at a time, picked by the server, and changes target only by pressing Skip. Two guests connect by each tapping their phone on the other's token, so the phone path comes first and a connection point is added only if there's time. "The 2 Nov answers" in section 2 lists the calls, and section 6, "The answers game", has the design.
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
@@ -145,7 +147,7 @@ From a review of the project's direction with Adam on 27 Oct, and his calls on 2
 Adam's call on 29 Oct, after Mr Pang's feedback that our games are gimmicks: they add steps, end in rewards and could be done on pen and paper. Every new game or feature idea is checked against these three before it gets a ticket, and the ticket or the meeting notes say how it fared. The 29 Oct meeting notes, 1.5, apply them to the ideas so far.
 
 1. **The four checks.** It passes all four:
-   1. Tapping is the only thing the visitor does at a station. No timing, no card to read. A phone is needed once, to claim a token, and after that only to check progress (the 27 Oct answers, later, item 3). A second person takes part only where meeting them is the point, as at a connection point. *Changed 30 Oct:* it said "no second person" until connections stayed in (the 29 Oct answers, item 6).
+   1. Tapping is the only thing the visitor does at a station. No timing, no card to read. A phone is needed once, to claim a token, and after that only to check progress (the 27 Oct answers, later, item 3). A second person takes part only where meeting them is the point, as at a connection point. *Changed 30 Oct:* it said "no second person" until connections stayed in (the 29 Oct answers, item 6). *Changed 2 Nov* (BAC-116): the phone part of this check was written for the booth idea, where a phone at every booth was a step too many. In the answers game the phone is how people hunt, tap and see the reveal, so the check now reads: the phone is used only where the game needs it, and never to stand in for meeting someone.
    2. Paper or a phone can't do it.
    3. People nearby can see it.
    4. It also gives the organiser something.
@@ -161,7 +163,7 @@ From the meeting with Julian on Thu 29 Oct, and Adam's calls on them on 29 and 3
 3. **Each token has a kind** (Adam, 30 Oct; [ADR 0006](../../docs/adr/0006-a-token-carries-its-kind.md); BAC-113, HAR-29, FRO-103). The token writer writes a one-letter kind into the token's address, `/t/<UID>?k=E`, under the write password, and logs each UID with its kind. A phone tapped on the token opens the token page for that kind, so people see different screens and work out why by comparing them, as Julian described. The log goes into a list beside the claims stand-in, and the GeekyKey Service passes each tap's kind in the hand-off, and the login link carries it. So games use the server's list, never the address. At the showcase there are four kinds, the houses, and a fifth, `veteran` (item 8). All coins look the same, so a kind shows only on screens and stations. It changes agreement 8.1, 11.2 and 11.9, and drops section 12's "archetype quests", all for Ethan's approval. It replaces checkpoint 7's Could "token types, kept as this event's own data".
 4. **The station names the visitor's next stop** (BAC-98). After a passport tap, the station's 16x2 LCD names the quietest passport booth the visitor hasn't stamped, from the last few minutes' taps. Paper can't know where the crowd is. This changes Adam's 23 Oct call (item 6 there): a station shows up to two lines from its game on today's LCD, without waiting for an OLED or a TFT (BAC-111, HAR-28). *Settled 30 Oct (Adam, BAC-111):* the station shows the participant's name, the first word of it, only while they have a name of their own. The roaming station and students' picks are dropped, and the clue cards (BAC-94) no longer point to a fixed next booth. *Stopped 2 Nov* (BAC-114): the group chose people meeting people, so the next stop isn't built further. What BAC-98 merged on 30 Oct is still deployed.
 5. **No door or room stations** for tapping in and out. Julian suggested a station per room where not every booth has one, and paths through the rooms as analytics: which room first, second and third, the most popular, and the commonest route. Each person's path through the booths comes from the export instead.
-6. **Connections stay a Should** (BAC-83, BAC-86). Julian called a connection point possible, and asked why we'd put one in plain sight: hide it, or make it part of a sponsor's booth, so people have to go there. His doubts were about networking that needs a phone, or a stranger whose token was paired with yours in advance. A connection now counts only between two people whose tokens are of different kinds, which gives people a reason to find someone from another house (BAC-113). The notes' proposal to pause connections is dropped. BAC-83's questions on the layout are still open, and its 3.3 is answered by BAC-111's lines.
+6. **Connections stay a Should** (BAC-83, BAC-86). Julian called a connection point possible, and asked why we'd put one in plain sight: hide it, or make it part of a sponsor's booth, so people have to go there. His doubts were about networking that needs a phone, or a stranger whose token was paired with yours in advance. *Read again 2 Nov* (Adam, BAC-116): the doubt was about the showcase. He could see reasons to tap tokens with each other inside a game, but no compelling reason at the showcase, and he worried that people asked to find and pair with someone "may just like give up upfront". With the showcase withdrawn, the phone isn't ruled out. The give-up worry still applies, and the hunt's design answers it. A connection now counts only between two people whose tokens are of different kinds, which gives people a reason to find someone from another house (BAC-113). The notes' proposal to pause connections is dropped. BAC-83's questions on the layout are still open, and its 3.3 is answered by BAC-111's lines.
 7. **Find Gatsby is dropped** (BAC-96, BAC-91, HAR-23 and FRO-88, cancelled). Booths can sit side by side, and 5 m and 10 m already blur (HAR-21), which keeps only its power bank run. Whether HAR-22 still buys the UWB boards, as a demo only, is Zi Tao's and Adam's call there.
 8. **Veteran tokens** (HAR-29). About ten tokens of the `veteran` kind go to friends, other IDP groups and teachers before the showcase. They're Julian's mock returning participants: people a visitor has to find and ask to tap with. The clear still releases every claim, so nobody is carried over from the grad tea.
 9. **A spaceship at the showcase** (Adam, 30 Oct, proposed; FRO-104). Each participant starts with a base ship, drawn by their token's kind, which assembles in an animation at the first login. Each stamp and each connection adds a part, with an animation of it joining. At the grad tea, Joshua's outfit does the same job in the Gatsby look (FRO-105). Who builds the ship and who draws it are open. It needs the user's kind and connection count in 8.1, and Ethan's call on animating it on phones. Nothing ranks ships.
@@ -197,6 +199,18 @@ What Mr Pang and Ms Teo told the group around 1 Nov, and what Joshua and Adam ma
 - **Either way:** the voting-point comparison and the showcase's partner stations go, results come from the grad tea only, and tokens, stations, the tap path, token kinds, the map and the export carry over.
 - **People meeting people, chosen 2 Nov:** connections become the grad tea's Must, with the answers game on top (BAC-116, design by Wed 4 Nov, build by Tue 10 Nov). The next stop (BAC-98, HAR-28) stops. The map shows the anonymous web of connections. A token's kind at the grad tea may be the guest's class or group, so a connection between two kinds is a connection across groups. The avatar on the dashboard (FRO-105, PR #223) takes its pieces from connections (FRO-109), which needs connections in /me (agreement 8.1). In "The checks for a new idea", Mr Pang's check changes from "it answers why people skip booths" to "it answers why people stay with their own group", and "it works with booths side by side" stays for the sponsor case.
 - **Both:** the problem statement follows the choice (BAC-115), then the report (BAC-118), and a new entry on the updates site explains the change to the mentors (BAC-117).
+
+### The 2 Nov answers
+
+Adam's calls on the answers game on 2 Nov (BAC-116). Section 6, "The answers game", has the design, and what's still proposed.
+
+1. **Answers are free text, for now.** Free text against a short list of choices is discussed again at the meeting on Thu 5 Nov.
+2. **The hunt gives each guest one person to find,** not an answer several people share. With free text most answers are unique, so "an answer that several people gave" (the 1 Nov changes) would rarely exist. A unique answer points at exactly one person instead. The server picks the target, so nobody is sent after someone who has left.
+3. **A target changes only when the hunter asks,** by pressing Skip, and Skip unlocks 10 minutes after the target was given. A find gives a new target at once.
+4. **The tap is the phone,** each person tapping the other's token. The connection point (BAC-83, BAC-86) is added as well if there's time before Tue 10 Nov, writing the same connection.
+5. **Julian's 29 Oct doubt** was about the showcase, so it doesn't rule out the phone at the grad tea (the 29 Oct answers, item 6).
+6. **The first of "The checks for a new idea" changes,** since its phone rule was written for the booth idea.
+7. **The agreement change** goes to Ethan for approval, as BAC-116 planned.
 
 ### The spec's calls, 7 Oct
 
@@ -916,7 +930,7 @@ Added 27 Oct (BAC-88). *Changed 27 Oct, later:* the grad tea is a pilot of the s
 
 #### What it measures
 
-*1 Nov:* what the grad tea measures follows the group's choice in BAC-114. *2 Nov:* the group chose people meeting people, so the measures become connections between groups, the exit question, and how many guests drop off between taking a token and their first connection (BAC-116).
+*1 Nov:* what the grad tea measures follows the group's choice in BAC-114. *2 Nov:* the group chose people meeting people, so the measures become connections between groups, the exit question, and how many guests drop off between taking a token and their first connection (BAC-116). "The answers game", below, adds the hunt's own counts.
 
 The problem both events test is that visitors stay with what they came for: guests with their own group at the grad tea, and parents at their own child's booth before they vote at the showcase (Mr Johari). A game that works moves people into areas they would otherwise skip.
 
@@ -928,7 +942,7 @@ The problem both events test is that visitors stay with what they came for: gues
 #### The games
 
 - **The passport,** at every station except the connection points, with the trail's clues on printed cards (BAC-94). A guest taps, collects the stamp, reads the station's card, and goes to the booth it describes. The passport already records the stamps, so the trail needs no code. At the showcase, the route crosses all three walled areas.
-- **Connections** (BAC-83, BAC-86): two guests tap at the same connection point within a few seconds of each other, as checkpoint 7 settled. The map on the projector shows the count and the anonymous web. *30 Oct:* the point is hidden, or part of a partner's booth, and the two guests' tokens must be of different kinds.
+- **Connections** (BAC-83, BAC-86): two guests tap at the same connection point within a few seconds of each other, as checkpoint 7 settled. The map on the projector shows the count and the anonymous web. *30 Oct:* the point is hidden, or part of a partner's booth, and the two guests' tokens must be of different kinds. *Changed 2 Nov* (BAC-116): connections are the grad tea's Must, made first by two phones and each other's tokens, with the answers game on top ("The answers game", below). The connection point is added only if there's time.
 - *Dropped 30 Oct* (the 29 Oct answers, item 7): **Find Gatsby** (BAC-96, HAR-23, FRO-88), the stretch game, with a go or no-go at the meeting on Thu 5 Nov. One of the group carries a hidden station. The fixed stations sense its radio signal and say hot, warm or cold on a tap, and a participant who finds the person taps their key on the hidden station. If the radio readings misbehave on the night, Gatsby checks in instead. As he moves, he taps a crew key, a token owned by an organizer, at a fixed station. The phone and the map then show where he was last seen, such as "last seen near the drinks". At the showcase the game becomes "the android among us". UWB boards are ordered (HAR-22), and are shown first as a demo of their own on a laptop. They join the map only after a go.
 - **One more game may join** (BAC-98, 28 Oct): the roaming station, which one of the group carries to the area with the fewest visitors, or students' picks, where exhibiting students tap the booths they'd recommend before the parents arrive. The meeting on Thu 5 Nov picks one or neither. *Changed 30 Oct:* neither. After a passport tap, the station names the visitor's next stop, the quietest booth they haven't stamped (BAC-98, BAC-111, HAR-28).
 - **Token kinds** (30 Oct; BAC-113, HAR-29, FRO-103): each token's kind opens its own screen on the phone, and a connection counts only between two kinds. Joshua's outfit dresses each guest's avatar from their stamps (FRO-105); the showcase has the spaceship instead (FRO-104).
@@ -936,6 +950,44 @@ The problem both events test is that visitors stay with what they came for: gues
 - **The e-paper map card** (HAR-24) is an iteration in the report and an item on the prototype table at our booth, not a game.
 
 The passport and connections are folders under `src/games/`, behind the game interface (`src/event/games.ts`). Find Gatsby would be a third, and only it needs the two calls that let the phone read a participant's state in a game and send their moves (BAC-91), so BAC-91 follows its go or no-go. *30 Oct:* Find Gatsby is dropped, and BAC-91 with it. The next stop is the passport's own, given in its lines for the station (BAC-111).
+
+#### The answers game
+
+Written 2 Nov (BAC-116), from Adam's calls that day ("The 2 Nov answers" in section 2). The parts marked *proposed* haven't been discussed yet, and go to the meeting on Thu 5 Nov. The shapes go into the agreement, for Ethan's approval. The game lives in the connections folder under `src/games/`, behind the game interface. The backend merges by Tue 10 Nov.
+
+**The question.** Each guest answers one short question in free text, from a list the group writes, the first time they open the passport. The passport already asks a guest with no name what to call them at that point (agreement 8.7), so the answer goes in the same step. The answer belongs to the event, and the Event Service keeps it, not the GeekyKey Service. *Proposed:* at most 60 characters, and the same question for every guest, or at most three. With one question, two guests who meet compare answers to the same thing, which gives them something to talk about. With a different question each, the reveal shows two questions side by side. Answers appear only on phones, in the hunt and the reveal, never on the projector. A unique answer can identify a person as well as a name can, so the PDPA rule that keeps names off the big screen covers answers too.
+
+**The hunt.** Each guest has one target at a time: one person to find, shown by the question and that person's answer, such as "Find the person whose answer to 'best snack' was *kaya toast*". The guest finds them by asking around. When a guest needs a target, the Event Service picks one:
+
+1. The candidates are the guests who have answered, whose token is of a different kind from the hunter's, who are active, who aren't connected with the hunter yet, and whom the hunter hasn't skipped.
+2. Of those, it picks the one the fewest guests are hunting now, at random among equals, so nobody is mobbed and nobody is left out.
+3. With no candidate, it shows "Find someone from another group" instead. That's likely early on, while tokens are still going out.
+
+*Proposed:* a guest is active if they tapped, or their phone asked for their hunt, in the last 20 minutes. The rule is a pure function of the guests and the time, with the clock passed in, so tests can cover each case. Its answer stays the same for the same data, apart from the random choice among equals, which the tests can fix.
+
+**Changing target.** A target changes only when the hunter asks:
+
+- **A find,** a connection with the current target, gives a new target at once.
+- **Skip** unlocks 10 minutes after the current target was given, and the phone shows how long is left, such as "Skip in 6 min". A skipped target isn't offered to that hunter again.
+- **A target who stops being active** unlocks Skip at once. Without this, a hunter whose target went home waits out the 10 minutes, which is the give-up Julian worried about.
+
+A connection with someone who isn't the hunter's target still counts as a connection, and the target stays.
+
+**The tap.** Two guests connect by each tapping their phone on the other's token. The token page already shows "This token belongs to someone else" when a logged-in user opens another person's token (agreement 8.5). For the game, the GeekyKey Service, which knows both owners and both kinds, passes "this user tapped that token" on to the Event Service, as it passes taps on. The connection exists once both halves are in, within 2 minutes of each other (*proposed*). Both must tap because the address on a token never changes: one half could come from a photo of a token or a link sent in a chat, but both halves need both people. While only one half is in, the other person's phone can say that someone tapped their token. The 23 Oct rules still hold: a connection joins two users, never two tokens, a pair connects once, and the two tokens must be of different kinds.
+
+The connection point (BAC-83, BAC-86, layout 1 in the 28 Oct brief) is added only if there's time before Tue 10 Nov. It writes the same connection, so the hunt, the reveal and the map don't change.
+
+**The reveal** (*proposed*). Once a pair connects, both phones show the question and each other's answer. Each person sees it in the passport, which reads it from the Event Service. The token page's own answer says the pair is complete and opens the passport through a login link, as its event buttons do today (agreement 8.6).
+
+**The kinds at the grad tea** (*proposed*). A token's kind is the guest's class or group, so a connection between two kinds is a connection across groups. The token writer writes kinds in advance (HAR-29), so tokens are sorted into a box for each class, and helpers hand them out from the right box. A `sponsor` kind is for the showcase case. Whether anyone holds one at the grad tea, such as teachers, is open.
+
+**The avatar** (*proposed*, FRO-109). Its pieces come from connections, not stamps, which needs the user's connections in agreement 8.1, as FRO-104 already asks.
+
+**What it measures,** adding to "What it measures" above: connections between groups, the exit question, how many guests drop off between taking a token and their first connection, and, from the hunt, the targets each guest was given, how many they found, how many they skipped, and the time to each find. Each comes from the copy Adam takes at the end of the evening.
+
+**The agreement change,** for Ethan's approval: the answer in 8.7 and 8.1, the hunt, Skip and the reveal on the Event Service, the user's connections in 8.1, the half-connection from the token page through the GeekyKey Service, and section 12 no longer listing connections as out of scope. The connection count and the anonymous web in 9.10 follow from checkpoint 7, as before. CONTEXT.md's **Connection** says both people tap at a connection point, and changes in the same pull request as the agreement.
+
+**Still open, for the meeting on Thu 5 Nov:** free text or choices; the question or questions; the 60 characters, 2 minutes and 20 minutes above; whether an organizer can hide an answer that shouldn't be shown; and who holds a `sponsor` token at the grad tea.
 
 #### Both events on one Event Service
 
