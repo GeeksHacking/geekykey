@@ -1,9 +1,8 @@
 import { varchar } from "drizzle-orm/mysql-core";
 
 /**
- * The column types for the schema files, src/event/schema.ts and
- * src/claims-stand-in/schema.ts, so a user ID or a timestamp is stored the
- * same way in both.
+ * The column types for the schema files that drizzle.config.ts lists, so a
+ * user ID or a timestamp is stored the same way in each.
  */
 
 /**

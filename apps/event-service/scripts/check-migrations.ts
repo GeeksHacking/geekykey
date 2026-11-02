@@ -1,7 +1,7 @@
 /**
- * Fails when a schema file (src/event/schema.ts or
- * src/claims-stand-in/schema.ts) has a change that no migration in drizzle/
- * covers. CI runs it on every pull request, and anyone can run it with
+ * Fails when a schema file (those drizzle.config.ts lists, such as
+ * src/event/schema.ts) has a change that no migration in drizzle/ covers.
+ * CI runs it on every pull request, and anyone can run it with
  * `pnpm --filter @geekykey/event-service check:migrations`.
  *
  * It runs `drizzle-kit generate` and passes only when that says there is

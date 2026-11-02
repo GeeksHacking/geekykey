@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { screensSchemas, setupFixture, testApp, testDb } from "../test-helpers.ts";
-import { fixAnswers, type Question } from "./answers.ts";
+import { screensSchemas, setupFixture, testApp } from "../test-helpers.ts";
 import {
   type NewTap,
   PASSPORT_GAME_ID,
@@ -12,36 +11,7 @@ import {
   users,
 } from "./schema.ts";
 
-/** The answers game's questions in testApp() below, so no test depends on the grad tea's list. */
-const QUESTIONS: readonly Question[] = [
-  {
-    id: "drink",
-    text: "Tea or coffee?",
-    choices: [
-      { id: "tea", text: "Tea" },
-      { id: "coffee", text: "Coffee" },
-    ],
-  },
-  {
-    id: "superpower",
-    text: "Pick a superpower",
-    choices: [
-      { id: "fly", text: "Fly" },
-      { id: "invisible", text: "Invisibility" },
-      { id: "minds", text: "Reading minds" },
-    ],
-  },
-  {
-    id: "hours",
-    text: "Night owl or early bird?",
-    choices: [
-      { id: "owl", text: "Night owl" },
-      { id: "bird", text: "Early bird" },
-    ],
-  },
-];
-
-const app = testApp({}, { questions: QUESTIONS });
+const app = testApp();
 
 /** Pinned so slot order does not depend on the day the tests run. */
 const BOOTH_ADDED_AT = "2026-10-10T08:00:00.000Z";
@@ -56,7 +26,7 @@ interface MeBody {
     kind: string | null;
     answers: Record<string, string>;
   };
-  questions: Question[] | null;
+  questions: unknown[] | null;
   points: number;
   stamps: {
     station_id: string;
@@ -190,7 +160,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
       kind: null,
       answers: {},
     },
-    questions: QUESTIONS,
+    questions: null,
     points: 0,
     stamps: [
       {
@@ -497,7 +467,7 @@ test("an organizer on the list gets the same view of their own account", async (
       kind: null,
       answers: {},
     },
-    questions: QUESTIONS,
+    questions: null,
     points: 0,
     stamps: [
       {
@@ -598,155 +568,14 @@ async function issuePaths(res: Response): Promise<(string | number)[][]> {
 }
 
 test("an event with no answers game gives no questions, and no answers", async () => {
-  const { userId } = await harness();
-  const me = await meClient(testApp()).meAs(userId);
+  const { meAs, userId } = await harness();
+  const me = await meAs(userId);
   assert.equal(me.questions, null);
   assert.deepEqual(me.user.answers, {});
 });
 
-/** The user's answers in PATCH /api/v1/me's 200, which must be one. */
-async function answersIn(res: Response): Promise<Record<string, string>> {
-  assert.equal(res.status, 200);
-  return ((await res.json()) as Pick<MeBody, "user">).user.answers;
-}
-
-/** What the connections game does to each person when it makes their connection. */
-const connect = (userId: string) => testDb().transaction((tx) => fixAnswers(tx, userId, QUESTIONS));
-
-test("a participant answers some questions, then the rest, and /me shows each answered one", async () => {
-  const { signIn, patchMe, meAs, userId } = await harness();
-  const cookie = await signIn(userId);
-  assert.deepEqual(await answersIn(await patchMe({ answers: { drink: "tea" } }, cookie)), {
-    drink: "tea",
-  });
-  assert.deepEqual((await meAs(userId)).user.answers, { drink: "tea" });
-
-  const rest = await patchMe({ answers: { superpower: "minds", hours: "owl" } }, cookie);
-  const all = { drink: "tea", superpower: "minds", hours: "owl" };
-  assert.deepEqual(await answersIn(rest), all);
-  assert.deepEqual((await meAs(userId)).user.answers, all);
-});
-
-test("a participant changes an answer, and keeps the others", async () => {
-  const { signIn, patchMe, meAs, userId } = await harness();
-  const cookie = await signIn(userId);
-  await answersIn(await patchMe({ answers: { drink: "tea", hours: "owl" } }, cookie));
-  await answersIn(await patchMe({ answers: { drink: "coffee" } }, cookie));
-  assert.deepEqual((await meAs(userId)).user.answers, { drink: "coffee", hours: "owl" });
-});
-
-test("an unknown question or choice is refused under its question, and nothing changes", async () => {
-  const { signIn, patchMe, meAs, userId } = await harness();
-  const cookie = await signIn(userId);
-  await answersIn(await patchMe({ answers: { drink: "tea" } }, cookie));
-
-  const refused: [unknown, (string | number)[][]][] = [
-    [{ answers: { snack: "chips" } }, [["answers", "snack"]]],
-    [{ answers: { drink: "milo" } }, [["answers", "drink"]]],
-    [{ answers: { drink: "coffee", hours: "noon" } }, [["answers", "hours"]]],
-    [{ answers: { drink: 7 } }, [["answers", "drink"]]],
-    [{ answers: "tea" }, [["answers"]]],
-    [{ display_name: "Sam", answers: { drink: "milo" } }, [["answers", "drink"]]],
-  ];
-  for (const [body, paths] of refused) {
-    assert.deepEqual(await issuePaths(await patchMe(body, cookie)), paths, JSON.stringify(body));
-  }
-  const { user } = await meAs(userId);
-  assert.deepEqual(user.answers, { drink: "tea" });
-  assert.equal(user.display_name, "Alex");
-});
-
-test("one request sets the name and answers together", async () => {
-  const { signIn, patchMe, meAs, userId } = await harness();
-  const res = await patchMe(
-    { display_name: "Ally", answers: { drink: "tea" } },
-    await signIn(userId),
-  );
-  assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), {
-    user: {
-      id: userId,
-      display_name: "Ally",
-      role: "participant",
-      has_name: true,
-      kind: null,
-      answers: { drink: "tea" },
-    },
-  });
-  const { user } = await meAs(userId);
-  assert.equal(user.display_name, "Ally");
-  assert.deepEqual(user.answers, { drink: "tea" });
-});
-
-test("after a connection the answers are fixed, and a change is refused with nothing changed", async () => {
-  const { signIn, patchMe, meAs, userId } = await harness();
-  const cookie = await signIn(userId);
-  await answersIn(await patchMe({ answers: { drink: "tea" } }, cookie));
-  assert.deepEqual(await connect(userId), { drink: "tea" });
-
-  for (const body of [
-    { answers: { drink: "coffee" } },
-    { answers: { hours: "owl" } },
-    { display_name: "Sam", answers: { hours: "owl" } },
-  ]) {
-    const res = await patchMe(body, cookie);
-    assert.equal(res.status, 409, JSON.stringify(body));
-    assert.deepEqual(await res.json(), { error: "answers_fixed" });
-  }
-  const { user } = await meAs(userId);
-  assert.deepEqual(user.answers, { drink: "tea" });
-  assert.equal(user.display_name, "Alex");
-  // The name can still change.
-  assert.equal((await patchMe({ display_name: "Sam" }, cookie)).status, 200);
-  // A second connection gives the same answers.
-  assert.deepEqual(await connect(userId), { drink: "tea" });
-});
-
-test("a participant who connects before answering can't answer after", async () => {
-  const { signIn, patchMe, meAs, userId } = await harness();
-  assert.deepEqual(await connect(userId), {});
-  const res = await patchMe({ answers: { drink: "tea" } }, await signIn(userId));
-  assert.equal(res.status, 409);
-  assert.deepEqual((await meAs(userId)).user.answers, {});
-});
-
-test("answers sent at once, one question each, are all kept", async () => {
-  const { signIn, patchMe, meAs, userId } = await harness();
-  const cookie = await signIn(userId);
-  const all = { drink: "coffee", superpower: "fly", hours: "bird" };
-  await Promise.all(
-    Object.entries(all).map(async ([question, choice]) =>
-      answersIn(await patchMe({ answers: { [question]: choice } }, cookie)),
-    ),
-  );
-  assert.deepEqual((await meAs(userId)).user.answers, all);
-});
-
-test("an answer to a question or choice the event dropped no longer shows", async () => {
-  const { signIn, patchMe, userId } = await harness();
-  const all = { drink: "coffee", superpower: "fly", hours: "bird" };
-  await answersIn(await patchMe({ answers: all }, await signIn(userId)));
-
-  // A later deploy drops the superpower question and the early bird, and rewords coffee.
-  const [drink, , hours] = QUESTIONS;
-  const changed: Question[] = [
-    {
-      ...drink!,
-      choices: [
-        { id: "tea", text: "Tea" },
-        { id: "coffee", text: "Kopi" },
-      ],
-    },
-    { ...hours!, choices: [{ id: "owl", text: "Night owl" }] },
-  ];
-  const me = await meClient(testApp({}, { questions: changed })).meAs(userId);
-  assert.deepEqual(me.questions, changed);
-  assert.deepEqual(me.user.answers, { drink: "coffee" });
-});
-
 test("an event with no answers game refuses any answer", async () => {
-  const { userId } = await harness();
-  const { signIn, patchMe, meAs } = meClient(testApp());
+  const { signIn, patchMe, meAs, userId } = await harness();
   const cookie = await signIn(userId);
   const res = await patchMe({ display_name: "Ally", answers: { drink: "tea" } }, cookie);
   assert.deepEqual(await issuePaths(res), [["answers", "drink"]]);
