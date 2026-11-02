@@ -132,6 +132,17 @@ describe("My tokens", () => {
     );
   });
 
+  it("asks for the link without a token, since it shows several", async () => {
+    // Agreement 8.6: My tokens sends no uid, because no single token made the link.
+    const create = vi.spyOn(api, "createLoginLink");
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Open Capstone Showcase" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("showcase", undefined));
+  });
+
   it("lists the signed-in user's tokens oldest claim first, as on the token page", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderHome();

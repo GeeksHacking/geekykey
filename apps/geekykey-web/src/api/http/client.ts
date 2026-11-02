@@ -125,12 +125,14 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       await sendNoContent(`${tokenPath(uid)}${query}`, { method: "DELETE" });
     },
 
-    // Agreement 8.6. The request carries only the event's id, and the answer carries
-    // the link. The screens open the url as it is.
-    createLoginLink: (eventId) =>
-      sendJson<unknown>("/api/v1/login-links", postJson({ event_id: eventId })).then(
-        parseLoginLinkResponse,
-      ),
+    // Agreement 8.6. The request carries the event's id, and the token page also names
+    // its token so the link can carry its kind (11.9). My tokens sends no uid. The
+    // answer carries the link, and the screens open the url as it is.
+    createLoginLink: (eventId, uid) =>
+      sendJson<unknown>(
+        "/api/v1/login-links",
+        postJson(uid === undefined ? { event_id: eventId } : { event_id: eventId, uid }),
+      ).then(parseLoginLinkResponse),
   };
 }
 

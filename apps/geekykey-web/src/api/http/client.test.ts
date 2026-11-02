@@ -218,8 +218,8 @@ describe("geekykey-web http client", () => {
   });
 
   it("posts the event id for a login link, and returns the answer", async () => {
-    // Agreement 8.6: the request carries the event's id and nothing else, and the
-    // answer carries the link.
+    // Agreement 8.6: My tokens sends the event's id and nothing else, because it
+    // shows several tokens and no single one made the link.
     const { calls } = stubFetch(() =>
       json({
         url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln",
@@ -234,6 +234,24 @@ describe("geekykey-web http client", () => {
     expect(calls[0]?.init?.method).toBe("POST");
     expect(calls[0]?.init?.body).toBe(JSON.stringify({ event_id: "showcase" }));
     expect(link.url).toBe("https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln");
+  });
+
+  it("sends the token's uid when the token page names it, so the link carries its kind", async () => {
+    // Agreement 8.6: the token page sends its token's uid, and the link carries that
+    // token's kind (11.9), while the user owns it.
+    const { calls } = stubFetch(() =>
+      json({
+        url: "https://event.geekshacking.com/#login=eyJ2IjoxfQ.c2ln",
+        expires_at: "2026-10-10T08:31:00.000Z",
+      }),
+    );
+    const api = createHttpClient();
+
+    await api.createLoginLink("showcase", "04A1B2C3D4E5F6");
+
+    expect(calls[0]?.init?.body).toBe(
+      JSON.stringify({ event_id: "showcase", uid: "04A1B2C3D4E5F6" }),
+    );
   });
 
   it("turns an answer that is not a login link into a NetworkError", async () => {

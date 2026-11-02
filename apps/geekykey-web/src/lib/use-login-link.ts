@@ -20,16 +20,20 @@ import { queryKeys } from "@/api/keys";
  * Back (the back/forward cache) comes back with that state, so the hook clears it then
  * and the buttons work again.
  *
+ * `uid` is the token page's token, in any separator style: with it the link carries
+ * that token's kind (11.9), while the user owns the token. My tokens sends none,
+ * because it shows several tokens and no single one made the link.
+ *
  * Lives in lib/ so two features can share it, the token page's owner view and My
  * tokens, the way use-release-token.ts does.
  */
-export function useLoginLink() {
+export function useLoginLink(uid?: string) {
   const api = useApi();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: async (eventId: string) => {
-      const { url } = await api.createLoginLink(eventId);
+      const { url } = await api.createLoginLink(eventId, uid);
       window.location.assign(url);
     },
 

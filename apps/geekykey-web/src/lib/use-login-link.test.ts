@@ -46,8 +46,24 @@ describe("useLoginLink", () => {
     });
     await settled(result);
 
-    expect(create).toHaveBeenCalledWith("showcase");
+    // My tokens shows several tokens, so no single one made the link.
+    expect(create).toHaveBeenCalledWith("showcase", undefined);
     expect(location.assign).toHaveBeenCalledWith(MOCK_LINK_URL);
+  });
+
+  it("names the token the page belongs to, so the link carries its kind", async () => {
+    // Agreement 8.6: the token page sends its token's UID, and 11.9 has the link
+    // carry that token's kind while the user owns it.
+    const create = vi.spyOn(api, "createLoginLink");
+    const { Providers } = createTestProviders(api);
+    const { result } = renderHook(() => useLoginLink("04A1B2C3D4E5F6"), { wrapper: Providers });
+
+    await act(async () => {
+      await result.current.mutateAsync("showcase");
+    });
+    await settled(result);
+
+    expect(create).toHaveBeenCalledWith("showcase", "04A1B2C3D4E5F6");
   });
 
   it("keeps nothing of the link, which works once and expires in a minute", async () => {
