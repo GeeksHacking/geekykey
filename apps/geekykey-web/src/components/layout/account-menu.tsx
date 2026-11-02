@@ -1,4 +1,4 @@
-import { CaretDown, SignOut, Stamp } from "@phosphor-icons/react";
+import { CaretDown, SignOut, Stamp, UserCircle } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,9 @@ export function AccountMenu({ userId, isGeekyKeyAdmin, onSignOut }: AccountMenuP
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="gap-2 px-2" aria-label="Account menu">
+          {/* The user ID and caret are hidden below `sm`, so the icon is the whole
+              button on a phone. */}
+          <UserCircle aria-hidden />
           <span className="hidden font-mono text-sm sm:inline">{userId}</span>
           <CaretDown className="hidden sm:inline" aria-hidden />
         </Button>
