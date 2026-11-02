@@ -11,6 +11,7 @@ import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
 import { userLimit } from "./event/user-limit.ts";
+import { gradTeaQuestions } from "./grad-tea/questions.ts";
 import { showcaseGames } from "./showcase/games.ts";
 
 export type AppEnv = {
@@ -26,6 +27,11 @@ export interface AppDeps {
    * counts minutes by. Tests pin it.
    */
   now?: () => Date;
+  /**
+   * The questions in the event's answers game, the grad tea's unless given.
+   * Tests replace them, and give none for an event without the game.
+   */
+  questions?: readonly string[];
 }
 
 /**
@@ -39,7 +45,8 @@ export interface AppDeps {
  * both through their routes.
  *
  * The Event side's base takes the games this event runs from here, as its
- * settings name them (src/showcase/), since it imports no game itself.
+ * settings name them (src/showcase/), since it imports no game itself, and
+ * the questions in its answers game (src/grad-tea/).
  *
  * The settings are read once, before this runs, so that which routes exist
  * can depend on them: POST /auth/dev-login is only there when
@@ -49,7 +56,7 @@ export function createApp(
   config: Config,
   db: Db,
   // One set of keys for the server's life, so Google's keys are cached between logins.
-  { googleKeys, now }: AppDeps = { googleKeys: googleSigningKeys() },
+  { googleKeys, now, questions = gradTeaQuestions }: AppDeps = { googleKeys: googleSigningKeys() },
 ) {
   // Built once and shared, so every route that reads or writes a session agrees on it,
   // and every request with a session counts toward the one limit on its user.
@@ -82,7 +89,7 @@ export function createApp(
       loginLinks: loginLinks(config.eventServiceKey),
     }),
   );
-  app.route("/api/v1/me", meRoutes({ session }));
+  app.route("/api/v1/me", meRoutes({ session, questions }));
   app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now }));
   app.route("/api/v1/map", mapRoutes({ session }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.

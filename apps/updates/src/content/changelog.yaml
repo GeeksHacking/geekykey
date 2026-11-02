@@ -1960,3 +1960,11 @@
     phone gives them one other guest to find, shown only by that guest's answer. They connect by each
     tapping their phone on the other's token, and then both see each other's answer. A guest can ask
     for someone else to find after 10 minutes, or at once if the person they're looking for has left.
+
+- id: participants-answer-the-question
+  date: 2026-11-02
+  area: backend
+  change: >-
+    The Event Service gives each participant the grad tea's question the first time their passport
+    loads, and the question stays the same after that. A participant can save an answer of up to 60
+    characters, and the passport can read both the question and the answer.

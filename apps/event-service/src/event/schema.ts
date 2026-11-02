@@ -175,6 +175,25 @@ export const userKinds = mysqlTable("user_kinds", {
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
 });
 
+/**
+ * Each participant's question in the answers game, and their answer (the API
+ * agreement's 8.1 and 8.7). A row is made the first time their /me is asked
+ * for while the event has an answers game, with one of the event's questions,
+ * which never changes after. The text is kept, not its place in the list, so
+ * a later deploy that changes the list leaves it as it was. The event's own
+ * data: the evening-before clear empties it (spec, checkpoint 8).
+ */
+export const answers = mysqlTable("answers", {
+  userId: userId("user_id").primaryKey(),
+  question: text("question").notNull(),
+  /** Their latest answer, trimmed, 1 to 60 code points, or null until they give one. */
+  answer: text("answer"),
+  /** When they were given the question. */
+  givenAt: isoTimestamp("given_at").notNull().$defaultFn(isoNow),
+  /** When they last set their answer, or null until they give one. */
+  answeredAt: isoTimestamp("answered_at"),
+});
+
 export type User = typeof users.$inferSelect;
 export type Station = typeof stations.$inferSelect;
 export type PassportStation = typeof passportStations.$inferSelect;

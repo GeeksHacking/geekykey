@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { screensSchemas, setupFixture, testApp } from "../test-helpers.ts";
+import { screensSchemas, setupFixture, testApp, testDb } from "../test-helpers.ts";
 import {
   type NewTap,
   PASSPORT_GAME_ID,
@@ -11,7 +11,10 @@ import {
   users,
 } from "./schema.ts";
 
-const app = testApp();
+/** The answers game's questions in testApp() below, so no test depends on the grad tea's list. */
+const QUESTION = "What's the best snack at a party?";
+
+const app = testApp({}, { questions: [QUESTION] });
 
 /** Pinned so slot order does not depend on the day the tests run. */
 const BOOTH_ADDED_AT = "2026-10-10T08:00:00.000Z";
@@ -24,6 +27,8 @@ interface MeBody {
     role: string;
     has_name: boolean;
     kind: string | null;
+    question: string | null;
+    answer: string | null;
   };
   points: number;
   stamps: {
@@ -150,7 +155,15 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
   // A user's tokens are on the GeekyKey Service's /me, not this one.
   const { meAs, userId, stationId } = await harness();
   assert.deepEqual(await meAs(userId), {
-    user: { id: userId, display_name: "Alex", role: "participant", has_name: true, kind: null },
+    user: {
+      id: userId,
+      display_name: "Alex",
+      role: "participant",
+      has_name: true,
+      kind: null,
+      question: QUESTION,
+      answer: null,
+    },
     points: 0,
     stamps: [
       {
@@ -455,6 +468,8 @@ test("an organizer on the list gets the same view of their own account", async (
       role: "organizer",
       has_name: true,
       kind: null,
+      question: QUESTION,
+      answer: null,
     },
     points: 0,
     stamps: [
@@ -492,7 +507,15 @@ test("a participant sets the name the event shows, and /me shows it", async () =
   const res = await patchMe({ display_name: "Ally" }, await signIn(userId));
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), {
-    user: { id: userId, display_name: "Ally", role: "participant", has_name: true, kind: null },
+    user: {
+      id: userId,
+      display_name: "Ally",
+      role: "participant",
+      has_name: true,
+      kind: null,
+      question: QUESTION,
+      answer: null,
+    },
   });
   assert.equal((await meAs(userId)).user.display_name, "Ally");
 });
@@ -521,7 +544,6 @@ test("a name is trimmed, then must be 1 to 30 code points, in any script", async
     { display_name: "😀".repeat(31) },
     { display_name: "x".repeat(31) },
     { display_name: 7 },
-    {},
   ]) {
     const res = await patchMe(body, cookie);
     const what = JSON.stringify(body);
@@ -539,4 +561,138 @@ test("setting a name needs a session", async () => {
   const res = await patchMe({ display_name: "Ally" });
   assert.equal(res.status, 401);
   assert.deepEqual(await res.json(), { error: "unauthenticated" });
+});
+
+test("a participant's first /me gives them the event's question, with no answer yet", async () => {
+  const { meAs, userId } = await harness();
+  const { user } = await meAs(userId);
+  assert.equal(user.question, QUESTION);
+  assert.equal(user.answer, null);
+});
+
+test("a participant keeps the question they were given, even after the event's list changes", async () => {
+  const { meAs, userId } = await harness();
+  assert.equal((await meAs(userId)).user.question, QUESTION);
+  const changed = meClient(testApp({}, { questions: ["Which song gets you dancing?"] }));
+  assert.equal((await changed.meAs(userId)).user.question, QUESTION);
+  // Someone new gets one from the list as it is now.
+  await testDb().insert(users).values({ id: "user-2", displayName: "Sam" });
+  assert.equal((await changed.meAs("user-2")).user.question, "Which song gets you dancing?");
+});
+
+test("first requests at once all give the participant the same question", async () => {
+  const { userId } = await harness();
+  const many = Array.from({ length: 20 }, (_, i) => `Question ${i}?`);
+  const { signIn, getMe } = meClient(testApp({}, { questions: many }));
+  const cookie = await signIn(userId);
+  const bodies = await Promise.all(
+    Array.from({ length: 8 }, async () => ((await (await getMe(cookie)).json()) as MeBody).user),
+  );
+  const given = new Set(bodies.map((user) => user.question));
+  assert.equal(given.size, 1);
+  assert.ok(many.includes([...given][0]!));
+});
+
+test("an event with no answers game gives no question", async () => {
+  const { userId } = await harness();
+  const { user } = await meClient(testApp()).meAs(userId);
+  assert.equal(user.question, null);
+  assert.equal(user.answer, null);
+});
+
+/** PATCH /api/v1/me's 400, with the path of each issue. */
+async function issuePaths(res: Response): Promise<string[][]> {
+  assert.equal(res.status, 400);
+  const json = (await res.json()) as { error: string; issues: { path: string[] }[] };
+  assert.equal(json.error, "validation_failed");
+  return json.issues.map((issue) => issue.path);
+}
+
+test("a participant answers their question, and /me shows the answer", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const res = await patchMe({ answer: "Kaya toast" }, await signIn(userId));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(body, {
+    user: {
+      id: userId,
+      display_name: "Alex",
+      role: "participant",
+      has_name: true,
+      kind: null,
+      question: QUESTION,
+      answer: "Kaya toast",
+    },
+  });
+  assert.equal((await meAs(userId)).user.answer, "Kaya toast");
+});
+
+test("an answer is trimmed, then must be 1 to 60 code points, in any script", async () => {
+  const { signIn, patchMe, getMe, userId } = await harness();
+  const cookie = await signIn(userId);
+  const accepted: [string, string][] = [
+    ["A", "A"],
+    ["  Kaya toast  ", "Kaya toast"],
+    ["😀".repeat(60), "😀".repeat(60)],
+    [`  ${"x".repeat(60)}  `, "x".repeat(60)],
+    ["咖椰吐司", "咖椰吐司"],
+  ];
+  for (const [sent, saved] of accepted) {
+    const res = await patchMe({ answer: sent }, cookie);
+    assert.equal(res.status, 200, sent);
+    const { user } = (await res.json()) as MeBody;
+    assert.equal(user.answer, saved, sent);
+  }
+
+  for (const answer of ["", "   ", "😀".repeat(61), "x".repeat(61), 7, null]) {
+    const paths = await issuePaths(await patchMe({ answer }, cookie));
+    assert.deepEqual(paths, [["answer"]], JSON.stringify(answer));
+  }
+  // A refused answer leaves the last good one.
+  assert.equal(((await (await getMe(cookie)).json()) as MeBody).user.answer, "咖椰吐司");
+});
+
+test("one request sets both the name and the answer", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const res = await patchMe({ display_name: "Ally", answer: "Chips" }, await signIn(userId));
+  assert.equal(res.status, 200);
+  const { user } = (await res.json()) as MeBody;
+  assert.equal(user.display_name, "Ally");
+  assert.equal(user.answer, "Chips");
+  const me = await meAs(userId);
+  assert.equal(me.user.display_name, "Ally");
+  assert.equal(me.user.answer, "Chips");
+});
+
+test("a request where either field breaks its rule changes neither", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const cookie = await signIn(userId);
+  assert.equal((await patchMe({ display_name: "Ally", answer: "Chips" }, cookie)).status, 200);
+
+  const badAnswer = await patchMe({ display_name: "Sam", answer: "x".repeat(61) }, cookie);
+  assert.deepEqual(await issuePaths(badAnswer), [["answer"]]);
+  const badName = await patchMe({ display_name: "", answer: "Kaya toast" }, cookie);
+  assert.deepEqual(await issuePaths(badName), [["display_name"]]);
+
+  const { user } = await meAs(userId);
+  assert.equal(user.display_name, "Ally");
+  assert.equal(user.answer, "Chips");
+});
+
+test("an answer is refused when the event has no answers game, and the name with it", async () => {
+  const { userId } = await harness();
+  const { signIn, patchMe, meAs } = meClient(testApp());
+  const cookie = await signIn(userId);
+  assert.deepEqual(await issuePaths(await patchMe({ answer: "Chips" }, cookie)), [["answer"]]);
+  const both = await patchMe({ display_name: "Ally", answer: "Chips" }, cookie);
+  assert.deepEqual(await issuePaths(both), [["answer"]]);
+  const { user } = await meAs(userId);
+  assert.equal(user.display_name, "Alex");
+  assert.equal(user.answer, null);
+});
+
+test("a request needs the name, the answer or both", async () => {
+  const { signIn, patchMe, userId } = await harness();
+  const res = await patchMe({}, await signIn(userId));
+  assert.equal((await issuePaths(res)).length, 1);
 });

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { jsonBody } from "../lib/validate.ts";
+import { jsonBody, validationFailed } from "../lib/validate.ts";
+import { answerSchema, type OwnQuestion, questionAndAnswer, setAnswer } from "./answers.ts";
 import { displayNameSchema, setOwnName } from "./display-names.ts";
 import {
   requireSession,
@@ -13,18 +14,28 @@ import type { AppEnv } from "../app.ts";
 
 export interface MeRouteDeps {
   session: SessionOptions;
+  /** The questions in the event's answers game, from its settings, or none for no answers game. */
+  questions: readonly string[];
 }
 
-const setNameSchema = z.object({ display_name: displayNameSchema });
+/** PATCH /api/v1/me's body (the API agreement's 8.7): either field, or both. */
+const setMeSchema = z
+  .object({ display_name: displayNameSchema.optional(), answer: answerSchema.optional() })
+  .refine(
+    (body) => body.display_name !== undefined || body.answer !== undefined,
+    "A request needs display_name, answer or both",
+  );
 
 /** The `user` object that GET and PATCH /api/v1/me answer with (the API agreement's 8.1). */
-function userBody(user: SessionUser) {
+function userBody(user: SessionUser, { question, answer }: OwnQuestion) {
   return {
     id: user.id,
     display_name: user.displayName,
     role: user.role,
     has_name: user.hasName,
     kind: user.kind,
+    question,
+    answer,
   };
 }
 
@@ -33,17 +44,22 @@ function userBody(user: SessionUser) {
  * frontend learns that nobody is signed in.
  *
  * GET / is everything the participant dashboard and passport need in one
- * call. PATCH / sets the name the event shows (display-names.ts).
+ * call. PATCH / sets the name the event shows (display-names.ts), the
+ * answer in the answers game (answers.ts), or both. Each gives the user
+ * their question first if they have none yet.
  */
-export function meRoutes({ session }: MeRouteDeps) {
+export function meRoutes({ session, questions }: MeRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
 
   app.get("/", requireSession(session), async (c) => {
     // The session already loaded the profile, so only the rest is read here.
     const user = c.var.user;
-    const me = await loadMe(c.var.db, user.id);
+    const [me, own] = await Promise.all([
+      loadMe(c.var.db, user.id),
+      questionAndAnswer(c.var.db, user, questions),
+    ]);
     return c.json({
-      user: userBody(user),
+      user: userBody(user, own),
       points: me.points,
       // The wire calls the passport's slots `stamps`. Fields are never renamed within /api/v1.
       stamps: me.passport.map((slot) => ({
@@ -74,10 +90,21 @@ export function meRoutes({ session }: MeRouteDeps) {
     });
   });
 
-  app.patch("/", requireSession(session), jsonBody(setNameSchema), async (c) => {
-    const { display_name } = c.req.valid("json");
-    await setOwnName(c.var.db, c.var.user.id, display_name);
-    return c.json({ user: userBody({ ...c.var.user, displayName: display_name, hasName: true }) });
+  app.patch("/", requireSession(session), jsonBody(setMeSchema), async (c) => {
+    const { display_name, answer } = c.req.valid("json");
+    const { db, user } = c.var;
+    const own = await questionAndAnswer(db, user, questions);
+    // Checked before anything is written, so a request where either field fails changes neither.
+    if (answer !== undefined && own.question === null) {
+      return validationFailed(c, ["answer"], "There is no question to answer");
+    }
+    await db.transaction(async (tx) => {
+      if (display_name !== undefined) await setOwnName(tx, user.id, display_name);
+      if (answer !== undefined) await setAnswer(tx, user.id, answer);
+    });
+    const named =
+      display_name === undefined ? user : { ...user, displayName: display_name, hasName: true };
+    return c.json({ user: userBody(named, answer === undefined ? own : { ...own, answer }) });
   });
 
   return app;
