@@ -13,8 +13,8 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.11 (draft) |
-| Date | 30 October 2026 |
+| Version | 0.12 (draft) |
+| Date | 2 November 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -150,6 +150,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `not_found` | 404 | |
 | `token_taken` | 409 | Someone else has claimed this token |
 | `token_limit_reached` | 409 | The user already holds 3 tokens |
+| `skip_locked` | 409 | The hunt's target can't be skipped yet: 10 minutes haven't passed since it was given, and the target is still active (8.9) |
 | `station_has_taps` | 409 | A game has counted or held back a tap at the station, so its game can't change until the data is cleared ([Games](#games)) |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
@@ -167,7 +168,7 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 |---|---|---|
 | GeekyKey Service | Each station's requests, taps and heartbeats together | 60 |
 | GeekyKey Service | Each user's requests to its API | 60 |
-| GeekyKey Service | Each user's token lookups and claims, which also count toward the 60 | 20 |
+| GeekyKey Service | Each user's token lookups, claims and meetings (8.8), which also count toward the 60 | 20 |
 | Event Service | Each user's requests to its API | 60, counted by each server instance |
 
 - The station limit counts a request by the key it sends, before the key is checked. So a wrong
@@ -177,12 +178,13 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
   `/me`, the token lookup, the claim, the release and login links. A request whose path or body
   fails its check counts too. `/auth/*` isn't counted, since there's no user ID before login. A
   request with no session isn't counted, and gets `401 unauthenticated`.
-- A user over the 20 gets `429` from the lookup and the claim only, and their other calls still
-  answer until they pass the 60.
+- A user over the 20 gets `429` from the lookup, the claim and the meeting only, and their other
+  calls still answer until they pass the 60.
 - The GeekyKey Service's limits are approximate. Cloudflare counts each one separately in each of
   its data centres, so a caller whose requests reach several can sometimes get past it.
 - The Event Service's limit counts by user ID every request with a session to its `/api/v1`
-  endpoints: `/me`, the name change (8.1 and 8.7) and the organizer endpoints (section 9),
+  endpoints: `/me`, the name and answer change (8.1 and 8.7), the hunt (8.9) and the organizer
+  endpoints (section 9),
   including a participant's, which gets `403`. A request whose path or body fails its check
   counts too. `/auth/*` isn't counted, nor are the hand-off routes, which the GeekyKey Service
   calls with the Event Service key (section 11). A request with no `event_session`, or one that
@@ -384,6 +386,26 @@ list of games is in the Event Service's code, so it changes only with a deploy.
   tea and the showcase.
 - Stations created before version 0.7 with passport settings run the passport.
 
+### Connections
+
+Added in 0.12, at `Checkpoint 7`. A connection joins two users of different kinds, and the Event
+Service keeps it as the connections game's own record. The rules, from CONTEXT.md:
+
+- A connection joins two users, never two tokens, so nobody connects to themselves, and a pair
+  connects once.
+- The two must be of different kinds. Each side's kind is the user's kind in 8.1, or, for a user
+  with none yet, the kind of the token named in the meeting (11.10). A user with no kind at all
+  connects with nobody.
+- **The phone's way** (8.8, 11.10). Two users each tap their phone on the other's token. Each tap
+  is a **half**. The connection is made when the second half arrives within 2 minutes of the
+  first, timed by the Event Service's own clock. A half on its own expires after the 2 minutes,
+  and does nothing.
+- A connection point, where two tokens are tapped at one station, stays out of scope until its
+  own change (section 12).
+- The connection keeps both users' questions and answers as they were when it was made, so a
+  later change of answer (8.7) doesn't change what either saw.
+- The evening-before clear empties connections, halves and the hunt, with the taps.
+
 ### Stamps and points
 
 Worked out by the Event Service from accepted taps. The screens display them and never calculate
@@ -417,6 +439,7 @@ them.
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Implemented` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Implemented` | Release a token |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
+| POST | `/api/v1/tokens/{uid}/meet` | User | `Checkpoint 7` | The user tapped someone else's token, a half of a connection |
 
 **The Event Service**
 
@@ -426,12 +449,15 @@ them.
 | GET | `/geekykey/v1/stations` | GeekyKey Service | `Implemented` | Its registered stations |
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
+| POST | `/geekykey/v1/meetings` | GeekyKey Service | `Checkpoint 7` | The meeting hand-off, a half of a connection |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/login-link` | browser | `Implemented` | Log in with a login link, set `event_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
-| PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows |
+| PATCH | `/api/v1/me` | Participant, Organizer | `Implemented`, `answer` at `Checkpoint 7` | Set the name the event shows, and the user's answer |
+| GET | `/api/v1/hunt` | Participant, Organizer | `Checkpoint 7` | The user's target in the answers game, given if they have none |
+| POST | `/api/v1/hunt/skip` | Participant, Organizer | `Checkpoint 7` | Swap the target for another |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Implemented` | Add or change a station's passport settings |
 | PUT | `/api/v1/admin/stations/{id}/game` | Organizer | `Implemented` | Set the game a station runs |
 | PUT | `/api/v1/admin/stations/{id}/booth` | Organizer | `Implemented` | Set the booth a station stands at |
@@ -773,9 +799,10 @@ way a guest reaches the Event screens. The link's format is in 11.9.
 
 ## 8. User endpoints
 
-8.1 and 8.7 are on the Event Service, for participants and organizers. 8.2 to 8.6 are on the
-GeekyKey Service, for any logged-in user, and are what the token page and My tokens call. Each of
-8.2 to 8.5, and 8.6 when it names a token, answers `503 claims_unavailable` when the claims
+8.1, 8.7 and 8.9 are on the Event Service, for participants and organizers. 8.2 to 8.6 and 8.8
+are on the GeekyKey Service, for any logged-in user, and are what the token page and My tokens
+call. Each of
+8.2 to 8.5 and 8.8, and 8.6 when it names a token, answers `503 claims_unavailable` when the claims
 stand-in, or after the switch the Portal, doesn't answer properly within 4 seconds. The screens say "Couldn't reach GeeksHacking. Try
 again." Nothing changes, with one exception each in 8.2 and 8.3: the claim or the release may
 already have been made.
@@ -790,7 +817,7 @@ Everything the participant dashboard and passport view need in one call.
 
 ```json
 {
-  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E" },
+  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips" },
   "points": 3,
   "stamps": [
     { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "link": "https://example.com/3d-printing", "earned_at": "2026-10-10T09:00:01.250Z" },
@@ -799,7 +826,10 @@ Everything the participant dashboard and passport view need in one call.
   "recent_taps": [
     { "id": 42, "station_id": "…", "station_name": "3D Printing Booth", "status": "accepted", "source": "nfc", "tapped_at": "2026-10-10T09:00:00.000Z", "received_at": "2026-10-10T09:00:01.250Z" }
   ],
-  "next_stop": { "station_id": "…", "name": "Cloud Sponsor", "booth": "B3" }
+  "next_stop": { "station_id": "…", "name": "Cloud Sponsor", "booth": "B3" },
+  "connections": [
+    { "connected_at": "2026-11-12T08:12:30.000Z", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
+  ]
 }
 ```
 
@@ -836,6 +866,15 @@ Everything the participant dashboard and passport view need in one call.
   the passport and `booth` its booth. It follows the crowd, so it can change between polls, and
   two participants at one station can get different ones. A booth the station's screen can't
   show still comes here, though the station then says what happened instead (6.1).
+- `user.question` is the question the user answers in the answers game, from the event's own
+  list in the Event Service's code, or `null` when the event has none. It doesn't change once
+  given. `user.answer` is their answer (8.7), or `null` until they give one. Added in 0.12, at
+  `Checkpoint 7`. While `question` isn't `null` and `answer` is, the passport asks the question
+  (section 13).
+- `connections` lists the user's connections ([Connections](#connections)), newest first. Each
+  gives when it was made, and the other person's kind, question and answer as they were then.
+  `answer` is `null` if they hadn't answered yet. It never gives the other person's user ID or
+  name. Added in 0.12, at `Checkpoint 7`, and an empty list before that.
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
@@ -996,7 +1035,7 @@ token's UID, in any separator style ([Token UID](#token-uid)), and My tokens sen
 ### 8.7 `PATCH /api/v1/me` on the Event Service (`Implemented`)
 
 Sets the name the event shows for the current user: on the passport, the scan log and the
-export. The passport asks for it when `has_name` is `false` (8.1), and lets the user change it
+export. From 0.12, at `Checkpoint 7`, it also sets the user's answer in the answers game. The passport asks for it when `has_name` is `false` (8.1), and lets the user change it
 later. Anyone can set it, not only a guest. A Google user may not want their full Google name
 shown.
 
@@ -1005,24 +1044,112 @@ shown.
 **Request**
 
 ```json
-{ "display_name": "Alex" }
+{ "display_name": "Alex", "answer": "Chips" }
 ```
+
+Both fields are optional, and a request needs at least one.
 
 `display_name` is trimmed, then must be 1 to 30 characters, counted as Unicode code points. Any
 script is allowed. A name that breaks the rule gets `validation_failed`, with its issue under the
 path `["display_name"]`, and leaves the name as it was.
 
+`answer` follows the same rules, trimmed and then 1 to 60 code points, with its issue under
+`["answer"]`. A user whose `question` is `null` gets `validation_failed` for any `answer`. The user
+can change it at any time, and the hunt shows the newest. A request where either field breaks its
+rule changes neither.
+
 **Response `200`**, with the `user` object from 8.1:
 
 ```json
-{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E" } }
+{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips" } }
 ```
 
 - From now on, logging in (7.2) and login links (7.4) no longer change the name.
 - Nothing checks what a name says. Until something shows names on a public screen, only the user
   and the organizers see it.
+- Nothing checks what an answer says either. Answers show only on phones, in the hunt (8.9) and
+  in `connections` (8.1), and never on the map (9.10), since a unique answer can identify someone
+  as a name can.
 
 **Errors:** `unauthenticated`, `validation_failed`, and `rate_limited`
+([Rate limits](#rate-limits)).
+
+### 8.8 `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (`Checkpoint 7`)
+
+The current user tapped their phone on someone else's token: one half of a connection
+([Connections](#connections)). The token page calls it by itself once its lookup (8.5) answers
+`someone_else`, except for a GeekyKey admin, who may be holding a lost token.
+
+**Auth:** `gk_session`, any user.
+
+**Request:** no body. `{uid}` is a [Token UID](#token-uid) in any separator style.
+
+**Response `200`**
+
+```json
+{ "meetings": [ { "event_id": "showcase", "status": "waiting" } ] }
+```
+
+- The GeekyKey Service asks who owns the token, then hands the half to each Event Service whose
+  settings take meetings (11.10), all at once within the 4 seconds. `meetings` has one item for
+  each, in the order of `events` in `/me` (8.4), and is empty when none takes them.
+- `status` is the Event Service's answer (11.10): `waiting`, `connected`, `already_connected` or
+  `same_kind`. Section 13 has what the token page shows for each.
+- An Event Service that doesn't answer in time, or answers wrongly, gets the status
+  `unavailable` in its item. Nothing is retried. Tapping the token again sends the half again,
+  which does no harm.
+- An Event Service that answers `404`, as one from before 0.12 does, doesn't take meetings, and
+  is left out of `meetings`.
+
+**Errors:** `unauthenticated`, `validation_failed`, `not_found` for a token that isn't someone
+else's (nobody's, or the user's own), `claims_unavailable`, and `rate_limited`
+([Rate limits](#rate-limits)).
+
+### 8.9 `GET /api/v1/hunt` and `POST /api/v1/hunt/skip` on the Event Service (`Checkpoint 7`)
+
+The answers game's hunt: the one person the user is looking for, shown by their question and
+answer. The passport polls `GET` every 15 seconds while the hunt is shown.
+
+**Auth:** `event_session`, any role.
+
+**Response `200`**, from both:
+
+```json
+{
+  "hunt": {
+    "target": {
+      "question": "What's the best snack at a party?",
+      "answer": "Kaya toast",
+      "given_at": "2026-11-12T08:02:00.000Z",
+      "can_skip": false,
+      "skip_at": "2026-11-12T08:12:00.000Z"
+    },
+    "tapped_you": 0
+  }
+}
+```
+
+- When the user has no target, `GET` picks one. The candidates are the users who have answered,
+  of a different kind from the user, active, not connected with the user yet, and not skipped by
+  them. Of those it picks the one the fewest users are hunting now, at random among equals.
+- A user is **active** while they have made a request to this Event Service's `/api/v1`, or a tap
+  or a half of theirs has reached it, in the last 20 minutes.
+- `target` is `null` when there is no candidate, or the user has no kind yet. The screen then says
+  "Find someone from another group." (section 13), and the next `GET` tries again.
+- `answer` is the target's answer now, so it follows a change they make (8.7).
+- A connection with the target gives a new target at the next `GET`. A connection with anyone
+  else counts as one, and the target stays.
+- `skip_at` is 10 minutes after `given_at`, or the time the target stopped being active if that's
+  sooner, and `can_skip` is `true` from then on. The screen shows `skip_at` as minutes left, and
+  never works it out itself.
+- `tapped_you` counts the halves where someone tapped the user's token in the last 2 minutes and
+  the user hasn't tapped theirs back. It never says who.
+- `POST /api/v1/hunt/skip` swaps the target for another, picked as above, and the skipped user is
+  never offered to this user again. Before `skip_at`, it answers `409 skip_locked`, and the target
+  stays.
+- The answer gives no user ID or name.
+
+**Errors:** `unauthenticated`, `skip_locked` (skip only), and `rate_limited`
 ([Rate limits](#rate-limits)).
 
 ---
@@ -1414,7 +1541,11 @@ session gets `unauthenticated`. It isn't under `/admin`, because a map screen is
       "unique_participants": 0,
       "last_tap_at": null
     }
-  ]
+  ],
+  "connections": {
+    "count": 3,
+    "links": [[1, 2], [1, 3], [2, 4]]
+  }
 }
 ```
 
@@ -1448,8 +1579,12 @@ session gets `unauthenticated`. It isn't under `/admin`, because a map screen is
   doesn't pulse, even when a QR fallback tap (9.4) raises its `taps`.
 - A map screen's `/me` says `participant` (8.1), so `/me` can't tell the screen whether it may
   read the map. The screen reads the map, and `forbidden` means it may not.
-- Dual-tap connections, once they're built, add their own fields here, in the change that takes
-  them out of section 12.
+- `connections` is added in 0.12, at `Checkpoint 7` ([Connections](#connections)). `count` is
+  how many connections the event has. `links` gives each one as two numbers, the smaller first,
+  oldest connection first. Each number stands for a user, numbered in the order they first
+  connected, so the screen keeps its layout between polls and draws an anonymous web. The numbers
+  aren't user IDs, and nothing here links one to a user. The screen doesn't mark which link is
+  new. Before it's built, the answer leaves `connections` out, and the screen draws no web.
 
 Poll this every 2 seconds while the map is shown. That uses 30 of the user's 60 requests a minute
 ([Rate limits](#rate-limits)).
@@ -1548,7 +1683,8 @@ Portal.
 Every Event Service serves three requests, all called by the GeekyKey Service with the Event
 Service key: its registered stations (11.1), the hand-off (11.2) and the heartbeat hand-off
 (11.3). An Event Service with a public address also accepts login links (11.9), since the event
-buttons on My tokens and the token page open one. It also creates its own stations and issues their keys, in whatever way suits it; ours
+buttons on My tokens and the token page open one. One that plays connections can also take
+meetings (11.10), if its entry in the GeekyKey Service's settings says so. It also creates its own stations and issues their keys, in whatever way suits it; ours
 does it on the station board (9.7 to 9.9).
 
 Adding an Event Service is a reviewed pull request to the GeekyKey Service's settings: its ID,
@@ -1763,6 +1899,51 @@ UTF-8, then the HMAC-SHA256 of that first part's characters with the login link 
 The Event Service compares the HMAC in constant time, then checks `v`, `exp` and `jti`, and
 answers `invalid_login_link` (401) if any check fails. It never logs a link.
 
+### 11.10 The meeting hand-off: `POST /geekykey/v1/meetings` (`Checkpoint 7`)
+
+Added in 0.12. The GeekyKey Service calls this when a user taps their phone on someone else's
+token (8.8), on each Event Service whose entry in its settings takes meetings. Ours does.
+
+**Auth:** `Authorization: Bearer <Event Service key>`.
+
+**Request**
+
+```json
+{ "user_id": "<the tapper's user ID>", "user_kind": "E", "owner_id": "<the owner's user ID>", "owner_kind": "B" }
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `user_id` | string | 1 to 128 chars. The user who tapped |
+| `user_kind` | string or `null` | The kind of the tapper's own token claimed first, with 11.2's rules, or `null` |
+| `owner_id` | string | 1 to 128 chars, never the same as `user_id`. The owner of the token tapped |
+| `owner_kind` | string or `null` | The tapped token's kind, with 11.2's rules, or `null` |
+
+**Response `200`**
+
+```json
+{ "status": "waiting" }
+```
+
+| `status` | Meaning |
+|---|---|
+| `waiting` | The half is kept. A connection comes if the owner taps the user's token within 2 minutes |
+| `connected` | This half met the owner's half, and the two are connected |
+| `already_connected` | The two were connected before. Nothing changes |
+| `same_kind` | The two aren't of different kinds ([Connections](#connections)), so nothing is kept |
+
+- Ours uses its own kind for each user (8.1) when it has one, and the hand-off's otherwise, which
+  then becomes the user's kind as a tap's does (11.2).
+- A user it hasn't seen yet is added, as a tap's user is.
+- The 4-second deadline and the failures in 11.5 apply, with `unavailable` given to the token
+  page (8.8) instead of a station's `503`. The GeekyKey Service doesn't retry.
+- It works with either service's previous version: a GeekyKey Service from before 0.12 never
+  calls it, and an Event Service from before answers `404`, which 8.8 reads as no meetings.
+- Like the tap hand-off, it leaves out the token's UID (11.8).
+- Its JSON Schemas join the others in `packages/handoff/json-schema/` (11.7).
+
+**Errors:** `invalid_event_service_key`, `validation_failed`.
+
 ---
 
 ## 12. Out of scope for the showcase
@@ -1774,7 +1955,9 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
   showcase, with its data cleared between them.
 - Moving a station between Event Services. A reader moved to another event becomes a new station
   there.
-- Dual-tap connections, or leaderboards.
+- Connections at a connection point, where two tokens are tapped at one station. Connections by
+  phone are in scope ([Connections](#connections)).
+- Leaderboards.
 - WebSocket or server-sent events. Poll the endpoints above.
 - Reading a station key back. Replacing one is in scope, for organizers.
 - Removing a station's passport settings. Before the station's game is fixed, an organizer can
@@ -1795,7 +1978,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | Screen | Calls |
 |---|---|
 | Login | Firebase's web SDK, with Google, GeeksHacking's login or as a guest, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
-| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token; `POST /api/v1/login-links` with the token's `uid` for the event buttons |
+| Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token; `POST /api/v1/login-links` with the token's `uid` for the event buttons; `POST /api/v1/tokens/{uid}/meet` once the lookup answers `someone_else` |
 | My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form; `POST /api/v1/login-links` for the event buttons |
 
 There are no GeekyKey admin screens.
@@ -1807,7 +1990,8 @@ There are no GeekyKey admin screens.
 | Login | Firebase's web SDK, with Google or GeeksHacking's login, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development. No guest sign-in |
 | Arriving from a login link, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` |
 | Participant dashboard | `GET /api/v1/me` |
-| Passport / stamp book | `GET /api/v1/me` (the `stamps` array); `PATCH /api/v1/me` for the name |
+| Passport / stamp book | `GET /api/v1/me` (the `stamps` array, and `connections` for the reveal); `PATCH /api/v1/me` for the name and the answer |
+| The hunt, in the passport | `GET /api/v1/hunt`, polled every 15 seconds; `POST /api/v1/hunt/skip` |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
 | Organizer station board | `GET /api/v1/admin/stations`, polled; `PUT /api/v1/admin/stations/{id}/passport`; `PUT /api/v1/admin/stations/{id}/game`; `PUT /api/v1/admin/stations/{id}/booth`; `POST /api/v1/admin/stations`; `POST /api/v1/admin/stations/{id}/key`; `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
@@ -1841,6 +2025,24 @@ There are no GeekyKey admin screens.
 - When `has_name` is `false`, the passport asks "What should we call you?", with **Save** and
   **Skip**. Skipping keeps `Guest`, and the passport keeps a way to set the name later. On
   `validation_failed` it says "Use 1 to 30 characters."
+- When `question` isn't `null` and `answer` is (8.1), the passport asks the question in its own
+  words, after the name, with **Save**. On `validation_failed` it says "Use 1 to 60 characters."
+  The question can be answered later, and the hunt still works without it.
+- The hunt shows the target as **"Find the person who answered "{answer}" to "{question}"."**
+  With no target it says **"Find someone from another group."** Its **Skip** button is greyed
+  out until `can_skip`, with **"Skip in {n} min"** under it, rounded up. On `skip_locked` it
+  shows the target from a fresh `GET`. While `tapped_you` is more than 0 it adds **"Someone
+  tapped your token. Tap theirs back to connect."**
+- When `connections` gains an item, the passport shows the reveal: **"You're connected!"**, then
+  the other person's question and answer, or **"They haven't answered yet."** when `answer` is
+  `null`.
+- After the meeting call (8.8), the token page shows, under "This token belongs to someone
+  else": for `waiting`, **"Now ask them to tap your token with their phone."**; for `connected`,
+  **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
+  `same_kind`, **"You're in the same group. Find someone from another group."**; and for
+  `unavailable`, **"Couldn't connect. Tap their token again."** With `connected` or
+  `already_connected`, it offers the event's button, which opens the passport through a login
+  link (8.6) to show the reveal.
 - When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
   shows the stamp's `name` with a button, **"Open their page?"**, which opens `link` in a new
   tab. It never opens the page by itself, since a browser opens one only after a press. A stamp
@@ -1970,3 +2172,4 @@ Closed on 2026-10-10:
 | 2026-10-30 | Version 0.10: each token has a kind (ADR 0006, BAC-113). The token writer writes it into the token's address, and GeekyKey keeps a list of them beside the claims stand-in, which games trust instead of the address. **New, all optional:** `kind` on each tap in the hand-off (11.2), the kind of the token tapped, or `null` for a token with none; `kind` in the login link's payload (11.9); `uid` in the request for a login link (8.6), so the token page's link carries its token's kind while the user owns it; and `user.kind` on the Event Service's `GET /api/v1/me` (8.1), the first kind either one gave, which `PATCH /api/v1/me` (8.7) answers with too. 8.6 answers `claims_unavailable` when it names a token and the claims stand-in doesn't answer, as section 8's opening now says. 7.4 says a link's kind becomes the user's, and 11.8 that an Event Service sees a token's kind but never its UID. Section 12 drops "archetype quests". A service from before kinds leaves the new fields out, and the other reads that as no kind, so either service can be rolled back alone. The hand-off's JSON Schema is in `packages/handoff/json-schema/taps-request.schema.json` (11.7). |
 | 2026-10-30 | Ethan, the screens owner, approved version 0.10, so it is no longer a draft. No endpoint or shape changes (BAC-113). |
 | 2026-10-30 | Version 0.11, a draft for Ethan's review: after a passport tap, the station names the participant's next stop, and the passport gives the same one (BAC-98). **New, optional:** `next_stop` on the Event Service's `GET /api/v1/me` (8.1), the stamp slot without the participant's stamp that had the fewest taps made in the last 10 minutes, with its `station_id`, `name` and `booth`, or `null`. A disabled station and one with no booth are never the next stop, and a tie goes to the earlier slot. The passport's second line for the station (6.1) is now `Next: B3` while there is a next stop, in place of `Tap counted!` or `Already counted`, which it still says without one. The shape of `lines` is unchanged. Nothing is removed. |
+| 2026-11-02 | Version 0.12, a draft for Ethan's review: connections by phone, and the answers game on top (BAC-116, and the migration spec's section 6, "The answers game"). Two users connect when each taps their phone on the other's token within 2 minutes ([Connections](#connections), in section 4). **New, at `Checkpoint 7`:** `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (8.8), which the token page calls once its lookup says `someone_else`; the meeting hand-off, `POST /geekykey/v1/meetings` (11.10), taken by an Event Service whose entry in the GeekyKey Service's settings says so; and `GET /api/v1/hunt` and `POST /api/v1/hunt/skip` on the Event Service (8.9), with the new `409 skip_locked`. **New fields, at `Checkpoint 7`:** `user.question`, `user.answer` and `connections` in the Event Service's `/me` (8.1); `answer` in `PATCH /api/v1/me` (8.7), where `display_name` becomes optional; and `connections`, a count and anonymous links, in the map's data (9.10). The meeting counts toward the GeekyKey Service's 20 lookups a minute. Section 12 keeps connection points out of scope and lets connections by phone in. Section 13 adds the hunt's, the reveal's and the token page's sentences. No field is removed, and each service works with the other's previous version. |
