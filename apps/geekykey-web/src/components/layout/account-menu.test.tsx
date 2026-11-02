@@ -6,7 +6,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -67,6 +67,22 @@ describe("AccountMenu", () => {
     expect(screen.getByRole("button", { name: "Account menu" })).toHaveTextContent(
       SEEDED_PARTICIPANT_ID,
     );
+  });
+
+  it("keeps an icon showing when the user ID is hidden on a phone", async () => {
+    await renderMenu(
+      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Account menu" });
+    // Below `sm` the user ID and caret are display: none, so the icon is the whole
+    // button; from `sm` up the ID returns. jsdom applies no Tailwind, so the
+    // classes are what this can read.
+    expect(within(trigger).getByText(SEEDED_PARTICIPANT_ID)).toHaveClass("hidden", "sm:inline");
+    const visibleIcons = [...trigger.querySelectorAll("svg")].filter(
+      (icon) => !icon.classList.contains("hidden"),
+    );
+    expect(visibleIcons).toHaveLength(1);
   });
 
   it("calls onSignOut when Sign out is chosen", async () => {
