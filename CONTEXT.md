@@ -178,15 +178,28 @@ move booth without becoming a different station.
 _Avoid_: location, which is the text a participant reads in the passport; spot
 
 **Connection**:
-A link between two participants, made when both tap at the same connection point within a few
-seconds of each other. It joins two users, never two tokens, so nobody connects to themselves, and
-a pair connects once however often they tap together. Since 30 Oct, the two tokens must be of
-different kinds.
+A link between two participants of different kinds. Since 2 Nov it's made when each taps their
+phone on the other's token within 2 minutes, and a connection point may make one too, if it's
+built. It joins two users, never two tokens, so nobody connects to themselves, and a pair connects
+once however often they tap.
 _Avoid_: dual tap, link between tags
+
+**Half**:
+One of the two taps that make a connection by phone: one participant's phone on the other's token.
+A half on its own expires after 2 minutes.
+_Avoid_: pending connection
 
 **Connection point**:
 Where participants tap together to connect: one station, or a few stations linked to act as one.
-Its stations count only for connections, not for the passport.
+Its stations count only for connections, not for the passport. Since 2 Nov it's built only if
+there's time before the grad tea.
+
+**Answers game**:
+The grad tea's game on top of connections. Each participant answers one short question, and their
+phone gives them a **target**: one other participant to find, shown only by that person's answer.
+Finding them and connecting gives a new target, and **Skip** gives one too, 10 minutes after the
+target was given.
+_Avoid_: quiz, which was the dropped speakeasy game
 
 **Accepted tap**:
 A tap that counts in at least one of the event's games, such as toward passport stamps and points.

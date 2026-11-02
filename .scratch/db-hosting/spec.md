@@ -454,7 +454,7 @@ Settings for a Worker live in its `wrangler.jsonc`. Settings for the Event Servi
 | Side doors off | `workers_dev`, `preview_urls` | Both `false` |
 | Placement | `placement` | `{ "region": "gcp:asia-southeast1" }`, so the Worker runs near Cloud Run whichever data centre answered (BAC-63, section 11.3) |
 | Binding | Rate limits | See the table below |
-| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, an `https://` address, and optionally a public address, `public_url`, for the token page's and My tokens' buttons, which show its name. For the showcase, one entry: `showcase`, "Capstone Showcase", `https://event-api.geekshacking.com`, `https://event.geekshacking.com`. Until the grad tea, the same entry is named "Grad Tea", and the switch after it puts "Capstone Showcase" back (section 6, "The grad tea") |
+| Setting | `EVENT_SERVICES` | The list of Event Services. For each: an ID, a name, an `https://` address, and optionally a public address, `public_url`, for the token page's and My tokens' buttons, which show its name. For the showcase, one entry: `showcase`, "Capstone Showcase", `https://event-api.geekshacking.com`, `https://event.geekshacking.com`. Until the grad tea, the same entry is named "Grad Tea", and the switch after it puts "Capstone Showcase" back (section 6, "The grad tea"). *Added 2 Nov* (BAC-116): each entry can also say it takes meetings, the half of a connection by phone (agreement 8.8 and 11.10). Ours does |
 | Setting | `CLAIMS_STAND_IN_URL` | `https://event-api.geekshacking.com/claims-stand-in/v1`, until the switch |
 | Setting | `GEEKYKEY_ADMINS` | User IDs. Adam, Ethan and Zi Tao for the showcase |
 | Setting | `MAX_TOKENS_PER_USER` | `3` |
