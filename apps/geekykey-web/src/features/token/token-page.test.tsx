@@ -14,7 +14,7 @@ import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
-import { NetworkError } from "@/api/errors";
+import { ApiError, NetworkError } from "@/api/errors";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { MeetingStatus } from "@/api/types";
@@ -465,6 +465,91 @@ describe("TokenPage", () => {
 
       expect(await screen.findByText(SENTENCES.waiting)).toBeInTheDocument();
       expect(meet).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses agreement 13's wording when it can't reach GeeksHacking, with no retry to press", async () => {
+      // Section 13 fixes the token page's sentence for claims_unavailable, and the half
+      // has no button: tapping the token again is the retry (8.8).
+      vi.spyOn(api, "meetToken").mockRejectedValue(new ApiError(503, "claims_unavailable"));
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Couldn't reach GeeksHacking. Try again.",
+      );
+      // The owner sentence stays, so the screen still says what the token is.
+      expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /try again/i })).not.toBeInTheDocument();
+    });
+
+    it("uses agreement 13's wording when the half is rate limited", async () => {
+      vi.spyOn(api, "meetToken").mockRejectedValue(new ApiError(429, "rate_limited"));
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Too many tries. Wait a minute and try again.",
+      );
+    });
+
+    it("says nothing when the session is gone, because the page is leaving for the login", async () => {
+      vi.spyOn(api, "meetToken").mockRejectedValue(new ApiError(401, "unauthenticated"));
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("looks the token up again when the half finds it is no longer someone else's", async () => {
+      // 8.8 answers not_found when the token stopped being someone else's between the
+      // lookup and the half. Section 13 sets no sentence for it, so the fresh lookup
+      // decides what the page shows: here the token was released, so Claim comes back.
+      const getToken = vi.spyOn(api, "getToken");
+      vi.spyOn(api, "meetToken").mockImplementation(async () => {
+        api.mock.data.tokens = api.mock.data.tokens.filter(
+          (token) => token.uid !== OWNED_BY_SOMEONE_ELSE,
+        );
+        throw new ApiError(404, "not_found");
+      });
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByText("Nobody has claimed this token yet.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Claim" })).toBeInTheDocument();
+      expect(getToken).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("shows describeError's sentence for a transport failure", async () => {
+      // Nothing in section 13 words a dropped request, so it gets the screens' own
+      // sentence rather than nothing at all.
+      vi.spyOn(api, "meetToken").mockRejectedValue(new NetworkError());
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not reach the server. Check the Wi-Fi and try again.",
+      );
+    });
+
+    it("shows the lookup's own error if the re-lookup fails, rather than a blank sentence", async () => {
+      // 8.8's not_found has the page ask the lookup again. If that fails too, the page is
+      // back to TokenError, which words it from section 13 and offers a retry.
+      vi.spyOn(api, "meetToken").mockImplementation(async () => {
+        api.mock.data.tokens = api.mock.data.tokens.filter(
+          (token) => token.uid !== OWNED_BY_SOMEONE_ELSE,
+        );
+        api.mock.failNext("rate_limited");
+        throw new ApiError(404, "not_found");
+      });
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(
+        await screen.findByText("Too many tries. Wait a minute and try again."),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
     });
   });
 });

@@ -14,6 +14,7 @@ import { useSession } from "@/lib/session";
 import { useClaimToken } from "@/lib/use-claim-token";
 import { useReleaseToken } from "@/lib/use-release-token";
 import type { EventServiceLink, TokenLookup } from "@/api/types";
+import { MeetingError } from "@/features/token/meeting-error";
 import { MeetingNotice } from "@/features/token/meeting-notice";
 import { useMeeting } from "@/features/token/use-meeting";
 import { useToken } from "@/features/token/use-token";
@@ -215,7 +216,10 @@ function SomeoneElseHasIt({
       {isAdmin ? (
         <ReleaseTokenBlock release={release} ownerId={ownerId} mine={false} />
       ) : (
-        <MeetingNotice meetings={meeting.data ?? []} events={events} uid={uid} />
+        <>
+          <MeetingNotice meetings={meeting.data ?? []} events={events} uid={uid} />
+          <MeetingError error={meeting.error} />
+        </>
       )}
     </div>
   );

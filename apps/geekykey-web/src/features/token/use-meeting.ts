@@ -1,7 +1,9 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { useApi } from "@/api/context";
+import { isApiErrorCode } from "@/api/errors";
+import { queryKeys } from "@/api/keys";
 import type { Meeting } from "@/api/types";
 
 /**
@@ -21,9 +23,19 @@ import type { Meeting } from "@/api/types";
  */
 export function useMeeting(uid: string, shouldSend: boolean) {
   const api = useApi();
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (tapped: string): Promise<Meeting[]> => api.meetToken(tapped),
+
+    // 8.8 answers not_found when the token stopped being someone else's between the
+    // lookup and the half: released, or claimed by whoever holds it now. Section 13 sets
+    // no sentence for that, so the page asks the lookup again and its fresh owner decides
+    // what to show.
+    onError: async (error, tapped) => {
+      if (!isApiErrorCode(error, "not_found")) return;
+      await queryClient.invalidateQueries({ queryKey: queryKeys.token(tapped) });
+    },
   });
 
   const { mutate } = mutation;
