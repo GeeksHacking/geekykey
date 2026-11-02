@@ -4,6 +4,7 @@ import { createBaseApp } from "./base-app.ts";
 import { claimsStandInRoutes } from "./claims-stand-in/routes.ts";
 import type { Config } from "./config.ts";
 import type { Db } from "./db/pool.ts";
+import type { Question } from "./event/answers.ts";
 import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
@@ -29,9 +30,9 @@ export interface AppDeps {
   now?: () => Date;
   /**
    * The questions in the event's answers game, the grad tea's unless given.
-   * Tests replace them, and give none for an event without the game.
+   * Tests replace them, and give null for an event without the game.
    */
-  questions?: readonly string[];
+  questions?: readonly Question[] | null;
 }
 
 /**

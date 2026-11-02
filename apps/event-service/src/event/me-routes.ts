@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { jsonBody, validationFailed } from "../lib/validate.ts";
-import { answerSchema, type OwnQuestion, questionAndAnswer, setAnswer } from "./answers.ts";
+import { jsonBody } from "../lib/validate.ts";
+import { type Answers, answersSchema, type Question, setAnswers, shownAnswers } from "./answers.ts";
 import { displayNameSchema, setOwnName } from "./display-names.ts";
 import {
   requireSession,
@@ -14,28 +14,19 @@ import type { AppEnv } from "../app.ts";
 
 export interface MeRouteDeps {
   session: SessionOptions;
-  /** The questions in the event's answers game, from its settings, or none for no answers game. */
-  questions: readonly string[];
+  /** The questions in the event's answers game, from its settings, or null for no answers game. */
+  questions: readonly Question[] | null;
 }
 
-/** PATCH /api/v1/me's body (the API agreement's 8.7): either field, or both. */
-const setMeSchema = z
-  .object({ display_name: displayNameSchema.optional(), answer: answerSchema.optional() })
-  .refine(
-    (body) => body.display_name !== undefined || body.answer !== undefined,
-    "A request needs display_name, answer or both",
-  );
-
 /** The `user` object that GET and PATCH /api/v1/me answer with (the API agreement's 8.1). */
-function userBody(user: SessionUser, { question, answer }: OwnQuestion) {
+function userBody(user: SessionUser, questions: readonly Question[] | null, answers: Answers) {
   return {
     id: user.id,
     display_name: user.displayName,
     role: user.role,
     has_name: user.hasName,
     kind: user.kind,
-    question,
-    answer,
+    answers: shownAnswers(answers, questions),
   };
 }
 
@@ -44,22 +35,30 @@ function userBody(user: SessionUser, { question, answer }: OwnQuestion) {
  * frontend learns that nobody is signed in.
  *
  * GET / is everything the participant dashboard and passport need in one
- * call. PATCH / sets the name the event shows (display-names.ts), the
- * answer in the answers game (answers.ts), or both. Each gives the user
- * their question first if they have none yet.
+ * call. PATCH / sets the name the event shows (display-names.ts), some
+ * answers in the answers game (answers.ts), or both.
  */
 export function meRoutes({ session, questions }: MeRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
 
+  /** PATCH /api/v1/me's body: either field, or both. */
+  const setMeSchema = z
+    .object({
+      display_name: displayNameSchema.optional(),
+      answers: answersSchema(questions).optional(),
+    })
+    .refine(
+      (body) => body.display_name !== undefined || body.answers !== undefined,
+      "A request needs display_name, answers or both",
+    );
+
   app.get("/", requireSession(session), async (c) => {
     // The session already loaded the profile, so only the rest is read here.
     const user = c.var.user;
-    const [me, own] = await Promise.all([
-      loadMe(c.var.db, user.id),
-      questionAndAnswer(c.var.db, user, questions),
-    ]);
+    const me = await loadMe(c.var.db, user.id);
     return c.json({
-      user: userBody(user, own),
+      user: userBody(user, questions, user.answers),
+      questions,
       points: me.points,
       // The wire calls the passport's slots `stamps`. Fields are never renamed within /api/v1.
       stamps: me.passport.map((slot) => ({
@@ -91,20 +90,20 @@ export function meRoutes({ session, questions }: MeRouteDeps) {
   });
 
   app.patch("/", requireSession(session), jsonBody(setMeSchema), async (c) => {
-    const { display_name, answer } = c.req.valid("json");
+    const { display_name, answers: given } = c.req.valid("json");
     const { db, user } = c.var;
-    const own = await questionAndAnswer(db, user, questions);
-    // Checked before anything is written, so a request where either field fails changes neither.
-    if (answer !== undefined && own.question === null) {
-      return validationFailed(c, ["answer"], "There is no question to answer");
-    }
-    await db.transaction(async (tx) => {
-      if (display_name !== undefined) await setOwnName(tx, user.id, display_name);
-      if (answer !== undefined) await setAnswer(tx, user.id, answer);
+    // One transaction, so a request whose answers are refused changes the name neither.
+    const saved = await db.transaction(async (tx) => {
+      const result = given === undefined ? user.answers : await setAnswers(tx, user.id, given);
+      if (result !== "fixed" && display_name !== undefined) {
+        await setOwnName(tx, user.id, display_name);
+      }
+      return result;
     });
+    if (saved === "fixed") return c.json({ error: "answers_fixed" }, 409);
     const named =
       display_name === undefined ? user : { ...user, displayName: display_name, hasName: true };
-    return c.json({ user: userBody(named, answer === undefined ? own : { ...own, answer }) });
+    return c.json({ user: userBody(named, questions, saved) });
   });
 
   return app;

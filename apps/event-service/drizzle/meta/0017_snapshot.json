@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "26f49191-1f34-40e4-a378-8d4e99369185",
+  "id": "6f642382-5439-4f6d-82d3-8383c25fd876",
   "prevId": "f77572d6-1927-414b-950a-40a08450ec03",
   "tables": {
     "answers": {
@@ -14,29 +14,15 @@
           "notNull": true,
           "autoincrement": false
         },
-        "question": {
-          "name": "question",
-          "type": "text",
+        "choices": {
+          "name": "choices",
+          "type": "json",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "answer": {
-          "name": "answer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "given_at": {
-          "name": "given_at",
-          "type": "varchar(24)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "answered_at": {
-          "name": "answered_at",
+        "fixed_at": {
+          "name": "fixed_at",
           "type": "varchar(24)",
           "primaryKey": false,
           "notNull": false,

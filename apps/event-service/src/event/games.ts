@@ -10,7 +10,10 @@ import type { Db } from "../db/pool.ts";
  * (schema.ts, at PASSPORT_GAME_ID).
  */
 
-/** The database inside one ingest's transaction, with the station's row locked. */
+/**
+ * The database inside a transaction: one ingest's, with the station's row
+ * locked, or a route's, such as PATCH /api/v1/me's.
+ */
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 /**
