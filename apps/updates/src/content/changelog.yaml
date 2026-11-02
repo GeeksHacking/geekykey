@@ -1961,10 +1961,13 @@
     tapping their phone on the other's token, and then both see each other's answer. A guest can ask
     for someone else to find after 10 minutes, or at once if the person they're looking for has left.
 
-- id: participants-answer-the-question
-  date: 2026-11-02
+- id: participants-answer-five-questions
+  date: 2026-11-03
   area: backend
   change: >-
-    The Event Service gives each participant the grad tea's question the first time their passport
-    loads, and the question stays the same after that. A participant can save an answer of up to 60
-    characters, and the passport can read both the question and the answer.
+    The Event Service now gives every participant the same 5 multiple-choice questions, in place of
+    one question with a typed answer. Mr Pang asked for this so that two people who connect see how
+    many answers they share, as a percentage. The service saves each answer, and a participant can
+    change one until their first connection. That connection fixes their answers, so a percentage
+    already shown stays true. The passport's questions screen comes next, and the 5 questions are
+    placeholders until the grad tea team helps write them by 9 Nov.

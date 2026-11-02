@@ -1,10 +1,60 @@
+import type { Question } from "../event/answers.ts";
+
 /**
- * The questions in the grad tea's answers game (spec section 6, "The answers
- * game"). The Event Service gives each participant one of them the first time
- * their /me is asked for, and it never changes after (the API agreement's 8.1),
- * so a question taken off this list stays with those already given it.
+ * The grad tea's questions in the answers game (spec section 6, "The answers
+ * game"), the same for every participant, each with 2 to 4 choices. The IDs are
+ * stored with each answer, so keep them when rewording a question or a
+ * choice. A question or choice taken off the list drops out of everyone's
+ * answers.
  *
- * One for now, from the agreement's example. The group settles the wording,
- * and whether there are up to three, at the meeting on Thu 5 Nov.
+ * Placeholders from BAC-119. The grad tea team helps write the final ones
+ * by Mon 9 Nov.
  */
-export const gradTeaQuestions: readonly string[] = ["What's the best snack at a party?"];
+export const gradTeaQuestions: readonly Question[] = [
+  {
+    id: "drink",
+    text: "Tea or coffee?",
+    choices: [
+      { id: "tea", text: "Tea" },
+      { id: "coffee", text: "Coffee" },
+    ],
+  },
+  {
+    id: "hours",
+    text: "Night owl or early bird?",
+    choices: [
+      { id: "night_owl", text: "Night owl" },
+      { id: "early_bird", text: "Early bird" },
+    ],
+  },
+  {
+    id: "school",
+    text: "Best part of school?",
+    choices: [
+      { id: "friends", text: "Friends" },
+      { id: "cca", text: "CCA" },
+      { id: "camps", text: "Camps" },
+      { id: "food", text: "The food" },
+    ],
+  },
+  {
+    id: "superpower",
+    text: "Pick a superpower",
+    choices: [
+      { id: "fly", text: "Fly" },
+      { id: "invisibility", text: "Invisibility" },
+      { id: "reading_minds", text: "Reading minds" },
+      { id: "time_travel", text: "Time travel" },
+    ],
+  },
+  {
+    id: "weekend",
+    text: "Your weekend?",
+    choices: [
+      { id: "friends", text: "Out with friends" },
+      { id: "home", text: "At home" },
+      { id: "sport", text: "Sport" },
+      { id: "games", text: "Games" },
+    ],
+  },
+];

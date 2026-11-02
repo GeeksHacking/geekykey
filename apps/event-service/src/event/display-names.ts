@@ -1,7 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
 import { isoNow } from "../db/columns.ts";
 import type { Db } from "../db/pool.ts";
-import { trimmedText } from "../lib/trimmed-text.ts";
 import type { Tx } from "./games.ts";
 import { users } from "./schema.ts";
 
@@ -19,10 +19,14 @@ export const DEFAULT_DISPLAY_NAME = "Guest";
 const DISPLAY_NAME_MAX = 30;
 
 /** A name the user sets: trimmed, then 1 to 30 code points, in any script. */
-export const displayNameSchema = trimmedText(
-  DISPLAY_NAME_MAX,
-  `display_name must be 1 to ${DISPLAY_NAME_MAX} characters`,
-);
+export const displayNameSchema = z
+  .string()
+  .trim()
+  // Spread, not .length, which counts UTF-16 units and so would count an emoji twice.
+  .refine(
+    (name) => name !== "" && [...name].length <= DISPLAY_NAME_MAX,
+    `display_name must be 1 to ${DISPLAY_NAME_MAX} characters`,
+  );
 
 /**
  * Whether the user has a name of their own, which is `has_name` on GET

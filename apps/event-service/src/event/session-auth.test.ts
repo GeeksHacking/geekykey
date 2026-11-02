@@ -78,8 +78,7 @@ test("puts the signed-in user on the context", async () => {
       hasName: true,
       role: "participant",
       kind: null,
-      question: null,
-      answer: null,
+      answers: {},
     },
   });
 });

@@ -160,8 +160,7 @@ test("a new user's good token logs them in as its sub, with the token's name", a
     role: "participant",
     has_name: true,
     kind: null,
-    question: null,
-    answer: null,
+    answers: {},
   });
 });
 
@@ -199,8 +198,7 @@ test("a token with no name gives a new user the name Guest, and no name of their
     role: "participant",
     has_name: false,
     kind: null,
-    question: null,
-    answer: null,
+    answers: {},
   });
 });
 
@@ -213,8 +211,7 @@ test("a later login with a name replaces the default name", async () => {
     role: "participant",
     has_name: true,
     kind: null,
-    question: null,
-    answer: null,
+    answers: {},
   });
 });
 
@@ -228,8 +225,7 @@ test("a guest who sets their name has one", async () => {
     role: "participant",
     has_name: true,
     kind: null,
-    question: null,
-    answer: null,
+    answers: {},
   });
 });
 
@@ -249,8 +245,7 @@ test("a guest's token logs them in as its sub, like any other with no name", asy
     role: "participant",
     has_name: false,
     kind: null,
-    question: null,
-    answer: null,
+    answers: {},
   });
 });
 
@@ -357,8 +352,7 @@ test("a login link logs its user in, with the name their login had", async () =>
     role: "participant",
     has_name: true,
     kind: null,
-    question: null,
-    answer: null,
+    answers: {},
   });
 });
 
@@ -371,8 +365,7 @@ test("a guest's login link logs them in as Guest, with no name of their own", as
     role: "participant",
     has_name: false,
     kind: null,
-    question: null,
-    answer: null,
+    answers: {},
   });
 });
 
