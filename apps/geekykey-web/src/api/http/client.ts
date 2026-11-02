@@ -3,6 +3,7 @@ import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import {
   parseClaimResponse,
   parseLoginLinkResponse,
+  parseMeetingResponse,
   parseMeResponse,
   parseTokenLookupResponse,
 } from "@/api/schemas";
@@ -133,6 +134,11 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
         "/api/v1/login-links",
         postJson(uid === undefined ? { event_id: eventId } : { event_id: eventId, uid }),
       ).then(parseLoginLinkResponse),
+
+    // Agreement 8.8. No body: the token is in the path and the session says who tapped.
+    // One item for each Event Service that takes meetings, in /me's order.
+    meetToken: (uid) =>
+      sendJson<unknown>(`${tokenPath(uid)}/meet`, { method: "POST" }).then(parseMeetingResponse),
   };
 }
 

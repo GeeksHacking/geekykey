@@ -181,6 +181,7 @@ describe("createAppClient", () => {
         "getToken",
         "logout",
         "me",
+        "meetToken",
         "releaseToken",
       ].sort(),
     );

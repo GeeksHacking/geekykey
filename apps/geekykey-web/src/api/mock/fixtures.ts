@@ -14,6 +14,11 @@ export interface MockEventService {
   url: string;
   /** Present only while the service is in the settings; a station link can outlive it. */
   in_settings: boolean;
+  /**
+   * Whether the GeekyKey Service hands this Event Service a meeting (agreement 8.8,
+   * 11.10). One from before 0.12 answers 404 and is left out of `meetings`.
+   */
+  takes_meetings: boolean;
 }
 
 export interface MockToken {
@@ -53,13 +58,16 @@ export function createFixtures(now: number = Date.now()): MockData {
       name: "Capstone Showcase",
       url: "https://event.geekshacking.com",
       in_settings: true,
+      takes_meetings: true,
     },
-    // Left the settings, so /me offers no link to it (agreement 8.4).
+    // Left the settings, so /me offers no link to it (agreement 8.4), and it takes no
+    // meetings either: 8.8 asks only the services whose settings say they do.
     {
       id: "e_4b19",
       name: "Midnight Hardware Jam",
       url: "https://event.geekshacking.com/jam",
       in_settings: false,
+      takes_meetings: false,
     },
   ];
 
