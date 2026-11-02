@@ -1892,6 +1892,46 @@
     is a next stop, the screen no longer says "Tap counted!", so the station's sound and light are
     what tell a counted tap from one in the cooldown.
 
+- id: grad-tea-avatar
+  date: 2026-10-31
+  area: frontend
+  change: >-
+    At the grad tea, the dashboard leads with the guest's avatar, built from cubes the guest can
+    drag to turn. Each stamp adds a piece, such as a hat or pearls, and at 6 of 6 the avatar
+    turns round once under gold confetti. Guests pick a skin tone, hair colour and suit colour,
+    and can save their avatar as a card with their name and "The Grad Tea" on it. The art is a
+    placeholder until Joshua's drawings are ready.
+
+- id: grad-tea-avatar-art
+  date: 2026-11-01
+  area: frontend
+  change: >-
+    Joshua's drawings replace the avatar's placeholder art. Guests pick a character: a man in a
+    tuxedo, who collects a hat, a monocle, a cane and a glass of champagne, or a woman in a
+    flapper dress, who collects a feather, pearls, a cane and a glass. A script turns his Sprite
+    Fusion pictures into the avatar's data. It lines each piece up with the character, ignores
+    the small colour differences the export adds, and keeps only what the piece changed, so the
+    arm that lifts the glass takes the guest's suit colour while the glass keeps its own. The 3D
+    figure is now rounded, with round arms and legs, rather than the flat picture made thick.
+
+- id: grad-tea-avatar-models
+  date: 2026-11-01
+  area: frontend
+  change: >-
+    Each avatar's 3D figure is now a file the team can edit by hand in MagicaVoxel, a free voxel
+    editor, instead of being worked out from the drawing in the browser. The art script builds
+    the file from Joshua's drawing once, and after that the app shows whatever the file holds.
+    The script can also export each figure for Blender or another 3D tool, and bring a
+    cleaned-up body shape back in, colouring it from the drawing. A page on the dev server shows
+    a figure from the front, either side and the back, and says where a clicked cube is in
+    MagicaVoxel. The dark green edge that showed on the back of the dress is gone, a bare arm
+    drawn against the dress is now round instead of as deep as the body, and each hand is
+    shaped on its own, so the hand holding the cane is no bigger than the other and its colours
+    stay off the cane. Claude then edited the man's file in two rounds that were checked against
+    the drawing: he has a round head with hair around it, a nose, a hat brim, rounded shoulders
+    and coat hem, and shoes whose toes come forward, and from the front he still matches
+    Joshua's drawing exactly.
+
 - id: showcase-no-longer-the-test
   date: 2026-11-01
   area: research

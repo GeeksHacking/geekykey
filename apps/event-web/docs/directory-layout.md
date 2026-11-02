@@ -17,6 +17,10 @@ apps/event-web/
     worker.test.ts          # runs the Worker in wrangler dev against a fake Event Service and a fake Firebase
   vitest.config.ts
   scripts/shot.ts           # pnpm shot: the definition of done's four screenshots of a route
+  scripts/avatar-art.ts     # pnpm avatar-art: the grad tea avatar's PNGs into avatar/art-data.ts
+  scripts/avatar-3d.ts      # its 3D half: model.vox in and out, .glb out, a cleaned-up shape in, voxel-data.ts
+  art/avatar/               # the avatar's art (FRO-105): a folder per character, its PNGs and model.vox; README.md says how to edit
+  avatar-lab.html           # the avatar lab, on the dev server only, for checking the 3D figures while editing them
   e2e/                      # Playwright specs against the mock dev server (pnpm test:e2e)
   components.json           # shadcn config
   tsconfig.json             # solution file; also carries the @/ alias for the shadcn CLI
@@ -44,7 +48,8 @@ apps/event-web/
         summary.tsx
     features/               # one folder per domain; the real UI lives here
       auth/                 # login screen, Firebase sign-in buttons, dev-login form, expired-link notice, RequireSession, RequireRole, 403 view, shell wiring
-      passport/             # dashboard, stamp grid, stamp tile, points summary, station glyph, the name prompt and Change name,
+      passport/             # dashboard, stamp grid, stamp tile, station glyph, the name prompt and Change name,
+                           # the grad tea's avatar, its colours and memory card (avatar/, FRO-105),
                            # what a poll changed (passport-changes.ts), the new stamp's group link offer
                            # (new-stamp-banner.tsx, use-new-stamp-link.ts), and its animations
                            # (desktop-motion.ts, passport-motion.ts)
@@ -92,7 +97,7 @@ apps/event-web/
       use-route-heading-focus.ts
       utils.ts              # cn()
     styles/globals.css      # Tailwind import, @theme mapping, CSS-variable tokens for both themes
-    test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia and ResizeObserver stubs
+    test/setup.ts           # Vitest setup: jest-dom matchers, matchMedia, ResizeObserver and canvas stubs
     test/providers.tsx      # the app's provider stack for tests
     test/hold-next-me.ts    # holds a /me answer so a test can land it after a write
     test/highlight-motion.test.ts  # fails on a colour transition beside a current or selected highlight

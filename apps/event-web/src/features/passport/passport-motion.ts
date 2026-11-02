@@ -25,31 +25,12 @@ export function playPassportChanges(scope: HTMLElement, changes: PassportChanges
     for (const tile of scope.querySelectorAll<HTMLElement>('[data-changed="stamp"]')) {
       playStampEarned(tile);
     }
-    const slots = scope.querySelectorAll('[data-changed="slot"]');
-    if (slots.length > 0) {
-      playSlotsFilling(slots);
-    }
     const points = scope.querySelector('[data-changed="points"]')?.firstChild;
     if (points instanceof Text && changes.points) {
       return countUp(points, changes.points);
     }
   });
   return () => media.revert();
-}
-
-function playSlotsFilling(slots: NodeListOf<Element>) {
-  gsap.fromTo(
-    slots,
-    { scaleX: 0 },
-    {
-      scaleX: 1,
-      transformOrigin: "left center",
-      duration: 0.5,
-      delay: 0.3,
-      ease: "power3.out",
-      stagger: 0.08,
-    },
-  );
 }
 
 /** The one long animation: the seal presses into the slot, then the slot's note comes in. */

@@ -1,11 +1,10 @@
 import { useRef } from "react";
 
-import { PageHeading } from "@/components/layout/page-heading";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ParticipantTapList } from "@/components/participant-tap-list";
+import { AvatarHero } from "@/features/passport/avatar/avatar-hero";
 import { DashboardClaimHelp } from "@/features/passport/dashboard-claim-help";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
-import { PointsSummary } from "@/features/passport/points-summary";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
 import { UserIdRow } from "@/features/passport/user-id-row";
 import { useMe } from "@/lib/session";
@@ -21,13 +20,10 @@ export function DashboardScreen() {
 
   return (
     <div ref={scope} className="space-y-10">
-      <div>
-        <p className="text-sm text-muted-foreground">Signed in as</p>
-        <PageHeading>{me.user.display_name ?? "Welcome back"}</PageHeading>
-        <UserIdRow userId={me.user.id} />
-      </div>
-
-      <PointsSummary points={me.points} stamps={me.stamps} changes={changes} />
+      {/* The grad tea's dashboard leads with the avatar (FRO-105). The showcase's switch PR
+          swaps it for the spaceship (FRO-104) or puts the points summary back. */}
+      <AvatarHero me={me} changes={changes} />
+      <UserIdRow userId={me.user.id} />
 
       {me.recent_taps.length === 0 ? <DashboardClaimHelp /> : null}
 

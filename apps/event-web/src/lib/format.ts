@@ -33,6 +33,11 @@ export function formatPoints(points: number): string {
   return points === 1 ? "1 pt" : `${points} pts`;
 }
 
+/** The word after a points figure drawn on its own, as the dashboard's count-up needs. */
+export function pointsUnit(points: number): string {
+  return points === 1 ? "point" : "points";
+}
+
 function parseDate(iso: string): Date | null {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date;
