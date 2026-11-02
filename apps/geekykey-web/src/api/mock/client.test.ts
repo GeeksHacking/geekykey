@@ -360,6 +360,25 @@ describe("geekykey-web mock client", () => {
       expect(await codeOf(() => api.createLoginLink(""))).toBe("validation_failed");
     });
 
+    it("answers validation_failed for a malformed uid, before looking the event up", async () => {
+      // 8.6's schema checks the whole body first, so a bad uid is a bad request even
+      // when the event is not one /me offers.
+      const api = setup();
+
+      expect(await codeOf(() => api.createLoginLink("no-such-event", "04A1"))).toBe(
+        "validation_failed",
+      );
+    });
+
+    it("takes the token page's uid in any separator style", async () => {
+      // Agreement "Token UID": the token page may send the address's UID as it is.
+      const api = setup();
+
+      const link = await api.createLoginLink("showcase", "04:a1:b2:c3:d4:e5:f6");
+
+      expect(link.url).toBe("http://localhost:5173/#login=mock");
+    });
+
     it("needs a session", async () => {
       const api = createMockClient({ latencyMs: [0, 0], storage: null });
 

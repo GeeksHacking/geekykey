@@ -90,6 +90,18 @@ describe("TokenPage", () => {
     );
   });
 
+  it("asks for the link with the token's uid, so the Event screens learn its kind", async () => {
+    // Agreement 8.6: the token page sends its token's UID, and 11.9 carries the
+    // token's kind in the link, so the passport knows it before the first tap.
+    const create = vi.spyOn(api, "createLoginLink");
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, "04:a1:b2:c3:d4:e5:f6");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Open Capstone Showcase" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("showcase", OWNED_BY_PARTICIPANT));
+  });
+
   it("shows no event button on a token nobody has claimed", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderAs(api, UNCLAIMED);

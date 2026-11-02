@@ -31,11 +31,11 @@ afterEach(() => {
   location.restore();
 });
 
-function renderButtons(events: EventServiceLink[]) {
+function renderButtons(events: EventServiceLink[], uid?: string) {
   const { Providers } = createTestProviders(api);
   return render(
     <Providers>
-      <EventButtons events={events} />
+      <EventButtons events={events} uid={uid} />
     </Providers>,
   );
 }
@@ -60,6 +60,17 @@ describe("EventButtons", () => {
     await userEvent.click(screen.getByRole("button", { name: "Open Capstone Showcase" }));
 
     await waitFor(() => expect(location.assign).toHaveBeenCalledWith(MOCK_LINK_URL));
+  });
+
+  it("sends the token's uid when the page has one, so the link carries its kind", async () => {
+    // Agreement 8.6: the token page names its token, and 11.9 has the link carry
+    // that token's kind. My tokens shows several tokens, so it sends none.
+    const create = vi.spyOn(api, "createLoginLink");
+    renderButtons(EVENTS, "04A1B2C3D4E5F6");
+
+    await userEvent.click(screen.getByRole("button", { name: "Open Capstone Showcase" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("showcase", "04A1B2C3D4E5F6"));
   });
 
   it("is disabled while the request is out", async () => {
@@ -109,6 +120,20 @@ describe("EventButtons", () => {
     expect(
       await screen.findByText("Too many tries. Wait a minute and try again."),
     ).toBeInTheDocument();
+  });
+
+  it("says section 13's sentence when the claims stand-in does not answer", async () => {
+    // Section 13 fixes the sentence for 8.6's claims_unavailable, and describeError
+    // already gives it, so the buttons only have to show it.
+    vi.spyOn(api, "createLoginLink").mockRejectedValueOnce(new ApiError(503, "claims_unavailable"));
+    renderButtons(EVENTS);
+
+    const button = screen.getByRole("button", { name: "Open Capstone Showcase" });
+    await userEvent.click(button);
+
+    expect(await screen.findByText("Couldn't reach GeeksHacking. Try again.")).toBeInTheDocument();
+    // The failure is not permanent: the button is offered again for the retry.
+    await waitFor(() => expect(button).toBeEnabled());
   });
 
   it("says nothing when the service does not have the event, since /me settles it", async () => {

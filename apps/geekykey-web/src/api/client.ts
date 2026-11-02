@@ -52,6 +52,10 @@ export interface ApiClient {
    * current user, which works once and expires 60 seconds after it is made. The
    * event buttons on My tokens and the token page open the url it answers and
    * keep nothing.
+   *
+   * `uid` is the token page's token, in any separator style. With it, the service
+   * carries that token's kind in the link (11.9) while the user owns it. My tokens
+   * sends none, because it shows several tokens and no single one made the link.
    */
-  createLoginLink(eventId: string): Promise<LoginLink>;
+  createLoginLink(eventId: string, uid?: string): Promise<LoginLink>;
 }

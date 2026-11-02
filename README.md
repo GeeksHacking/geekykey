@@ -219,12 +219,13 @@ session, asks the claims stand-in for the user's tokens, and lists each Event Se
 to answer. When it doesn't answer properly in that time, the Worker answers
 `503 claims_unavailable`.
 
-The event buttons call `POST /api/v1/login-links`. It answers the event's address with a login
-link in its fragment, `#login=`, signed with a key derived from that Event Service's key. The
-Event screens send the link to the Event Service's `POST /auth/login-link`, which checks it with
-the same package. The Event Service keeps the link's ID in `used_login_links`, so the link works
-once, then sets `event_session` for the same user. The link lasts 60 seconds, and neither
-service logs it.
+The event buttons call `POST /api/v1/login-links`. The token page also sends its token's UID,
+and while the session's user owns that token the link carries its kind. The service answers the
+event's address with a login link in its fragment, `#login=`, signed with a key derived from that
+Event Service's key. The Event screens send the link to the Event Service's
+`POST /auth/login-link`, which checks it with the same package. The Event Service keeps the
+link's ID in `used_login_links`, so the link works once, then sets `event_session` for the same
+user. The link lasts 60 seconds, and neither service logs it.
 
 ## Running the Event screens
 

@@ -66,7 +66,9 @@ Firebase call fails in `localStorage` until the next successful sign-in, so a re
 not log the person back in (FRO-92).
 My tokens and the token page carry a button for each event in `/me`, which asks the
 GeekyKey Service for a login link (agreement 8.6) and opens it, so the user reaches an
-event's screens as the same user (FRO-31). The buttons are in
+event's screens as the same user (FRO-31). The token page's buttons name its token, so
+the link carries the token's kind (11.9, ADR 0006); My tokens sends none, since it shows
+several tokens (FRO-106). The buttons are in
 `src/components/event-buttons.tsx`, and the hook that opens the link is in
 `src/lib/use-login-link.ts`.
 There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,

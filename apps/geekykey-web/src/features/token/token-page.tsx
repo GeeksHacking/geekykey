@@ -113,7 +113,7 @@ function OwnerView({
     owner === "nobody" ? (
       <NobodyHasIt claim={claim} uid={lookup.uid} />
     ) : owner === "you" ? (
-      <YouOwnIt claimedAt={claimedAt} release={release} events={events} />
+      <YouOwnIt claimedAt={claimedAt} release={release} events={events} uid={lookup.uid} />
     ) : (
       <SomeoneElseHasIt release={release} ownerId={ownerId} isAdmin={isAdmin} />
     );
@@ -146,16 +146,19 @@ function NobodyHasIt({ claim, uid }: { claim: ReturnType<typeof useClaimToken>; 
 /**
  * Your own token: when you claimed it, the Release, and a button for each event in /me.
  * Agreement 8.5's table puts those side by side, and the button opens that event's
- * screens as the same user through a login link (8.6).
+ * screens as the same user through a login link (8.6). The page names its token, so
+ * the link carries the token's kind (11.9).
  */
 function YouOwnIt({
   claimedAt,
   release,
   events,
+  uid,
 }: {
   claimedAt: string | null;
   release: ReturnType<typeof useReleaseToken>;
   events: EventServiceLink[];
+  uid: string;
 }) {
   return (
     <div className="flex flex-col items-start gap-4">
@@ -166,7 +169,7 @@ function YouOwnIt({
         ) : null}
       </div>
       <ReleaseTokenBlock release={release} mine />
-      <EventButtons events={events} />
+      <EventButtons events={events} uid={uid} />
     </div>
   );
 }

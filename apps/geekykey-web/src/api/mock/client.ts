@@ -251,13 +251,17 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       }),
 
     // Agreement 8.6: a link to one event's screens, for the session's own user. The
-    // event has to be one /me offers, or the service answers not_found.
-    createLoginLink: (eventId) =>
+    // event has to be one /me offers, or the service answers not_found. The token page
+    // also names its token, in any separator style; the mock's link carries no kind,
+    // because the mock keeps no token kinds.
+    createLoginLink: (eventId, uid) =>
       call((): LoginLink => {
         currentUserId();
-        // The service reads the body before it looks the event up, so an empty id is
-        // refused as a bad request rather than as an event that is not there.
+        // The service reads the body before it looks the event up, so an empty id or a
+        // uid that is not 4 to 10 bytes of hex is refused as a bad request rather than as
+        // an event that is not there.
         if (eventId.length < 1) fail("validation_failed");
+        if (uid !== undefined && !isValidUid(normalizeUid(uid))) fail("validation_failed");
         if (!events().some((event) => event.id === eventId)) fail("not_found");
         return {
           url: MOCK_LOGIN_LINK_URL,
