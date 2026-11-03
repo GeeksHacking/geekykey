@@ -1,5 +1,6 @@
 import type { Question } from "../event/answers.ts";
 import { answersGame } from "../games/connections/answers.ts";
+import { connectionsGame } from "../games/connections/connections.ts";
 
 /**
  * The grad tea's questions in the answers game (spec section 6, "The answers
@@ -62,3 +63,6 @@ export const gradTeaQuestions: readonly Question[] = [
 
 /** The grad tea's answers game, which src/app.ts hands the base. */
 export const gradTeaAnswers = answersGame(gradTeaQuestions);
+
+/** The grad tea's connections game, whose match compares the answers above. */
+export const gradTeaConnections = connectionsGame(gradTeaAnswers);

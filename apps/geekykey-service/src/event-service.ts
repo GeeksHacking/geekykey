@@ -2,6 +2,9 @@ import {
   type HeartbeatsRequest,
   LINE_PATTERN,
   MAX_LINES,
+  meetingsAnswer,
+  type MeetingsRequest,
+  type MeetingStatus,
   type RegisteredStation,
   stationsAnswer,
   type TapsAnswer,
@@ -94,6 +97,27 @@ export class EventService {
       signal,
       fail: EventServiceUnavailable,
     });
+  }
+
+  /**
+   * The meeting hand-off (11.10): one half of a connection, which only an
+   * Event Service whose entry takes meetings is sent. Gives its status.
+   * Throws EventServiceUnavailable for anything else, or when `signal`
+   * fires first, and its reason `status` with 404 is an Event Service from
+   * before meetings. There's no retry: tapping the token again sends the
+   * half again, which does no harm.
+   */
+  async handOffMeeting(request: MeetingsRequest, signal: AbortSignal): Promise<MeetingStatus> {
+    const { status } = await askService(this.#send, {
+      method: "POST",
+      url: `${this.#url}/geekykey/v1/meetings`,
+      key: this.#key,
+      body: request,
+      answer: meetingsAnswer,
+      signal,
+      fail: EventServiceUnavailable,
+    });
+    return status;
   }
 }
 

@@ -1,4 +1,4 @@
-import type { RegisteredStation } from "@geekykey/handoff";
+import type { MeetingsRequest, RegisteredStation } from "@geekykey/handoff";
 import type { Config } from "../src/config.ts";
 import type { Send } from "../src/service-request.ts";
 
@@ -24,7 +24,7 @@ type Answer = (request: SentRequest) => Promise<Response>;
 
 /**
  * The services the Worker calls, faked behind `fetch` (its `send`): each of
- * `config`'s Event Services, with the three requests in the API agreement's
+ * `config`'s Event Services, with the four requests in the API agreement's
  * section 11, and the claims stand-in's `POST /owners`,
  * `POST /tokens/{uid}/claim`, `POST /tokens/{uid}/release` and
  * `GET /users/{id}/tokens`. Each checks the
@@ -41,7 +41,9 @@ type Answer = (request: SentRequest) => Promise<Response>;
  *   stand-in's table would. A release by the token's owner takes it out of
  *   both;
  * - `statusOf`, each handed-off tap's status, `accepted` unless a test says
- *   otherwise.
+ *   otherwise;
+ * - `meetingStatusOf`, each half's status in the meeting hand-off, by the
+ *   Event Service's ID, `waiting` unless a test says otherwise.
  *
  * A test can replace one kind of answer in `answers`, as a service that's
  * down or wrong would answer. Every request is in `sent`, in order.
@@ -54,8 +56,12 @@ export function fakeServices(config: Config) {
     tokens: new Map<string, { uid: string; claimed_at: string }[]>(),
     now: "2026-11-18T06:00:00.000Z",
     statusOf: (_tap: HandedOffTap, _stationId: string): string => "accepted",
+    meetingStatusOf: (_meeting: MeetingsRequest, _eventServiceId: string): string => "waiting",
     answers: {} as Partial<
-      Record<"stations" | "taps" | "heartbeats" | "owners" | "claim" | "release" | "tokens", Answer>
+      Record<
+        "stations" | "taps" | "heartbeats" | "meetings" | "owners" | "claim" | "release" | "tokens",
+        Answer
+      >
     >,
     sent: [] as SentRequest[],
     send: (async () => new Response()) as Send,
@@ -153,6 +159,12 @@ export function fakeServices(config: Config) {
       if (request.method === "POST" && path === "/geekykey/v1/heartbeats") {
         if (fake.answers.heartbeats) return fake.answers.heartbeats(request);
         return new Response(null, { status: 204 });
+      }
+      if (request.method === "POST" && path === "/geekykey/v1/meetings") {
+        if (fake.answers.meetings) return fake.answers.meetings(request);
+        return Response.json({
+          status: fake.meetingStatusOf(body as MeetingsRequest, eventService.id),
+        });
       }
       return Response.json({ error: "not_found" }, { status: 404 });
     }

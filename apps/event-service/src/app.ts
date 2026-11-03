@@ -5,6 +5,7 @@ import { claimsStandInRoutes } from "./claims-stand-in/routes.ts";
 import type { Config } from "./config.ts";
 import type { Db } from "./db/pool.ts";
 import type { AnswersGame } from "./event/answers.ts";
+import type { ConnectionsGame } from "./event/connections.ts";
 import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
@@ -12,7 +13,7 @@ import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
 import { userLimit } from "./event/user-limit.ts";
-import { gradTeaAnswers } from "./grad-tea/questions.ts";
+import { gradTeaAnswers, gradTeaConnections } from "./grad-tea/questions.ts";
 import { showcaseGames } from "./showcase/games.ts";
 
 export type AppEnv = {
@@ -33,6 +34,12 @@ export interface AppDeps {
    * own, or null for an event without the game.
    */
   answers?: AnswersGame | null;
+  /**
+   * The event's connections game, the grad tea's unless given. Tests give
+   * their own, or null for an event without the game, which takes no
+   * meetings.
+   */
+  connections?: ConnectionsGame | null;
 }
 
 /**
@@ -57,7 +64,9 @@ export function createApp(
   config: Config,
   db: Db,
   // One set of keys for the server's life, so Google's keys are cached between logins.
-  { googleKeys, now, answers = gradTeaAnswers }: AppDeps = { googleKeys: googleSigningKeys() },
+  { googleKeys, now, answers = gradTeaAnswers, connections = gradTeaConnections }: AppDeps = {
+    googleKeys: googleSigningKeys(),
+  },
 ) {
   // Built once and shared, so every route that reads or writes a session agrees on it,
   // and every request with a session counts toward the one limit on its user.
@@ -90,11 +99,14 @@ export function createApp(
       loginLinks: loginLinks(config.eventServiceKey),
     }),
   );
-  app.route("/api/v1/me", meRoutes({ session, answers }));
+  app.route("/api/v1/me", meRoutes({ session, answers, connections, now }));
   app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now }));
-  app.route("/api/v1/map", mapRoutes({ session }));
+  app.route("/api/v1/map", mapRoutes({ session, connections }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
-  app.route("/geekykey/v1", handoffRoutes({ key: config.eventServiceKey, games: showcaseGames }));
+  app.route(
+    "/geekykey/v1",
+    handoffRoutes({ key: config.eventServiceKey, games: showcaseGames, connections, now }),
+  );
 
   // The claims stand-in: who owns each token, for the GeekyKey Service only.
   app.route("/claims-stand-in/v1", claimsStandInRoutes({ key: config.claimsStandInKey }));

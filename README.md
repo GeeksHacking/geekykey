@@ -227,6 +227,19 @@ Event Service's key. The Event screens send the link to the Event Service's
 link's ID in `used_login_links`, so the link works once, then sets `event_session` for the same
 user. The link lasts 60 seconds, and neither service logs it.
 
+When the token page shows someone else's token, it calls `POST /api/v1/tokens/{uid}/meet`: one
+half of a connection. The Worker asks the claims stand-in for the user's first-claimed token,
+then for the owner of the token tapped and the kinds of both. The meeting gets 4 seconds for
+all of its calls. The Worker sends the half to the Event side's `POST /geekykey/v1/meetings`.
+It sends it only to the Event Services whose `EVENT_SERVICES` entry has `"meetings": true`, and
+to all of them at once. Each answers `waiting`, `connected`, `already_connected` or `same_kind`.
+When one doesn't answer properly in time, the Worker gives it `unavailable` and writes a
+`meeting_handoff_failed` log line. The Worker leaves out one that answers `404`, as an Event
+Service from before meetings does. On the Event side, the connections game
+(`src/games/connections/`) keeps one row per pair in `meeting_halves`. Each half locks the
+pair's row while it reads it, so two halves at once on two instances still meet. The second
+half within 2 minutes of the first writes the pair's row in `connections`, with their match.
+
 ## Running the Event screens
 
 The Event screens currently run against **mock data** shaped like the API agreement, so you

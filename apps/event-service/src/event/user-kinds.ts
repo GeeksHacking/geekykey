@@ -14,7 +14,9 @@ export interface SeenKind {
  * Keeps each user's kind (ADR 0006), as a tap's hand-off or a login link gave
  * it. The first kind seen stays: a user already with a kind keeps it, and of
  * two kinds for one user in `seen`, the first does. One write, for any number
- * of users, and none when `seen` is empty.
+ * of users, and none when `seen` is empty. The write locks the users' rows in
+ * the order of their IDs, as a connection does (the connections game), so the
+ * two can't deadlock.
  */
 export async function keepKinds(db: Db | Tx, seen: readonly SeenKind[]): Promise<void> {
   const firsts = new Map<string, string>();
@@ -24,6 +26,10 @@ export async function keepKinds(db: Db | Tx, seen: readonly SeenKind[]): Promise
   // write. Never INSERT IGNORE, which would also store bad values without a word.
   await db
     .insert(userKinds)
-    .values([...firsts].map(([userId, kind]) => ({ userId, kind, createdAt: isoNow() })))
+    .values(
+      [...firsts]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([userId, kind]) => ({ userId, kind, createdAt: isoNow() })),
+    )
     .onDuplicateKeyUpdate({ set: { userId: sql`user_id` } });
 }

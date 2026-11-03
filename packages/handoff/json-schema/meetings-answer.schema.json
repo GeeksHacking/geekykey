@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "waiting",
+        "connected",
+        "already_connected",
+        "same_kind"
+      ],
+      "description": "waiting: the half is kept for 2 minutes. connected: it met the owner's half. already_connected: the two were connected before. same_kind: the two aren't of different kinds, so nothing is kept"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "The answer to the meeting hand-off: POST /geekykey/v1/meetings"
+}

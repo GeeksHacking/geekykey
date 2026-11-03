@@ -15,6 +15,9 @@ const LOG_LINES = {
   handoff_failed: "ERROR",
   // A station's heartbeat, already answered, that its Event Service didn't take properly in time.
   heartbeat_handoff_failed: "ERROR",
+  // A half of a connection its Event Service didn't take properly in time, so the token page
+  // shows it as unavailable for that event.
+  meeting_handoff_failed: "ERROR",
   // The copy of the registered stations was filled on a station's request.
   stations_copy_filled: "INFO",
   // An Event Service's registered stations couldn't be had. Its last good list, if any, is kept.

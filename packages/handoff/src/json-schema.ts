@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { heartbeatsRequest } from "./heartbeats.ts";
+import { meetingsAnswer, meetingsRequest } from "./meetings.ts";
 import { stationsAnswer } from "./stations.ts";
 import { tapsAnswer, tapsRequest } from "./taps.ts";
 
@@ -20,6 +21,13 @@ const SCHEMAS = {
   "heartbeats-request.schema.json": heartbeatsRequest.meta({
     title: "The heartbeat hand-off: POST /geekykey/v1/heartbeats",
     description: "Answered 204, with no body.",
+  }),
+  "meetings-request.schema.json": meetingsRequest.meta({
+    title: "The meeting hand-off: POST /geekykey/v1/meetings",
+    description: "Also: owner_id is never the same as user_id.",
+  }),
+  "meetings-answer.schema.json": meetingsAnswer.meta({
+    title: "The answer to the meeting hand-off: POST /geekykey/v1/meetings",
   }),
 };
 

@@ -62,6 +62,9 @@ function harness({
       app.request(`/api/v1/tokens/${UID}`, { headers: headers(cookie) }),
     claim: (cookie: string | null) =>
       app.request(`/api/v1/tokens/${UID}/claim`, { method: "POST", headers: headers(cookie) }),
+    // A meeting with a token nobody owns: not_found, which still counts.
+    meet: (cookie: string | null) =>
+      app.request(`/api/v1/tokens/${UID}/meet`, { method: "POST", headers: headers(cookie) }),
     release: (cookie: string | null) =>
       app.request(`/api/v1/tokens/${UID}`, { method: "DELETE", headers: headers(cookie) }),
     loginLink: (cookie: string | null) =>
@@ -118,17 +121,18 @@ test("a user's 61st request in a minute, spread over every route, is turned away
   for (const route of Object.values(routes)) await assertRateLimited(await route(cookie));
 });
 
-test("a user's 21st lookup or claim in a minute is turned away, while /me still answers", async () => {
+test("a user's 21st lookup, claim or meeting in a minute is turned away, while /me still answers", async () => {
   const { logIn, routes } = harness();
   loggedLines();
   const cookie = await logIn("firebase-uid-1");
-  const { me, lookUp, claim, release, loginLink } = routes;
+  const { me, lookUp, claim, meet, release, loginLink } = routes;
 
-  const statuses = await callMany([lookUp, claim], TOKEN_LIMIT, cookie);
+  const statuses = await callMany([lookUp, claim, meet], TOKEN_LIMIT, cookie);
   assert.ok(!statuses.includes(429), String(statuses));
 
   await assertRateLimited(await lookUp(cookie));
   await assertRateLimited(await claim(cookie));
+  await assertRateLimited(await meet(cookie));
   assert.equal((await me(cookie)).status, 200);
   assert.equal((await release(cookie)).status, 204);
   assert.equal((await loginLink(cookie)).status, 201);
