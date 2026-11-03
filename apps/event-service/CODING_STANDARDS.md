@@ -23,6 +23,15 @@ oxfmt and `tsc` cover the rest. Each rule names an example to copy.
   (a name, a booth) so the part that matters stays whole: `progressLine()` keeps `3 of 6` and
   shortens the name.
 
+## Games
+
+- **A game's records live in its folder.** Its tables, in `src/games/<game>/schema.ts` and
+  listed in `drizzle.config.ts`, and the code that writes them sit under `src/games/<game>/`.
+  The base reaches them only through an interface that `src/app.ts` hands in, so it imports no
+  game. Example: the answers game, with `AnswersGame` in `src/event/answers.ts` and
+  `answersGame()` in `src/games/connections/answers.ts`. The passport's tables in
+  `src/event/schema.ts` are older than this rule.
+
 ## Database reads
 
 - **Type `db` as `Db | Tx`** for a read the tap pipeline also runs during an ingest, and as

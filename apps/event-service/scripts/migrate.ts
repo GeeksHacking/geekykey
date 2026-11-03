@@ -3,7 +3,8 @@
  *
  * With no option, it migrates the two local databases. `mise run db:up` and
  * `db:reset` run it after create-databases.ts, and `mise run db:migrate` runs
- * it on its own after a new migration.
+ * it on its own after a new migration. It stops first if a migration has
+ * changed since it ran there (refuseChangedMigrations()).
  *
  * With --production, it migrates one database on GeeksHacking's cluster
  * instead, and nothing else: whichever the migration login in
@@ -19,7 +20,7 @@
  *   mise run db:migrate -- --production --env-file ~/.config/geekykey/tidb-staging-migration.env
  */
 import { parseArgs } from "node:util";
-import { migrate } from "../src/db/migrate.ts";
+import { migrate, refuseChangedMigrations } from "../src/db/migrate.ts";
 import { LOCAL_DATABASES, localDatabaseUrl } from "./local-tidb.ts";
 import { migrationLogin } from "./production-tidb.ts";
 
@@ -36,6 +37,7 @@ if (values.production) {
   console.log(`${login.database} on GeeksHacking's TiDB is migrated`);
 } else {
   for (const name of LOCAL_DATABASES) {
+    await refuseChangedMigrations(localDatabaseUrl(name));
     await migrate(localDatabaseUrl(name));
     console.log(`${name} is migrated`);
   }

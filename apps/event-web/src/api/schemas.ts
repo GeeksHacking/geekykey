@@ -170,7 +170,7 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
 });
 
 /** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
-const setDisplayNameResponseSchema: z.ZodMiniType<SetDisplayNameResponse> = z.object({
+export const setDisplayNameResponseSchema: z.ZodMiniType<SetDisplayNameResponse> = z.object({
   user: userSchema,
 });
 
