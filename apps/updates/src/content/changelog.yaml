@@ -2325,3 +2325,11 @@
     freeze starts at the last merge on 15 Nov, not on 11 Nov. The trade-offs we accept: with no
     fixed rehearsal, nothing sets when each step gets tried, and backend changes can land up to two
     days before the showcase.
+
+- id: answers-game-in-agreement
+  date: 2026-11-06
+  area: research
+  change: >-
+    The draft API agreement now describes the answers game as built: multiple-choice questions, and
+    a percentage match for two people who connect, with the answers they share shown 2 minutes
+    later. A token's kind can also be its colour, so people can see who they can connect with.

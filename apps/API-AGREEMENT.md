@@ -13,8 +13,8 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 
 | | |
 |---|---|
-| Version | 0.12 (draft) |
-| Date | 2 November 2026 |
+| Version | 0.13 (draft) |
+| Date | 6 November 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -152,6 +152,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `token_limit_reached` | 409 | The user already holds 3 tokens |
 | `already_played` | 409 | The user has already played this connection's reaction test (8.11) |
 | `too_late` | 409 | The 2 minutes to play this connection's reaction test have passed (8.11) |
+| `answers_fixed` | 409 | The user's answers in the answers game can't change, because their first connection fixed them (8.7) |
 | `station_has_taps` | 409 | A game has counted or held back a tap at the station, so its game can't change until the data is cleared ([Games](#games)) |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
@@ -184,7 +185,7 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 - The GeekyKey Service's limits are approximate. Cloudflare counts each one separately in each of
   its data centres, so a caller whose requests reach several can sometimes get past it.
 - The Event Service's limit counts by user ID every request with a session to its `/api/v1`
-  endpoints: `/me`, the name and answer change (8.1 and 8.7) and the organizer
+  endpoints: `/me`, the name and answers change (8.1 and 8.7) and the organizer
   endpoints (section 9),
   including a participant's, which gets `403`. A request whose path or body fails its check
   counts too. `/auth/*` isn't counted, nor are the hand-off routes, which the GeekyKey Service
@@ -429,7 +430,8 @@ game's own record. The rules, from CONTEXT.md:
   someone moves group, and after the groups' Reset.
 - **Across token kinds.** The two must be of different kinds. Each side's kind is the user's kind
   in 8.1, or, for a user with none yet, the kind of the token named in the meeting (11.10). A
-  user with no kind at all connects with nobody.
+  user with no kind at all connects with nobody. A token's kind can be its colour (HAR-30), so a
+  participant can see who they can connect with.
 - **Across groups.** The two must be placed in different groups, whatever their tokens' kinds,
   and a token with no kind connects too. Two people in the same group don't connect, and nor
   does anyone who isn't placed in a group: not joined, or waiting. The connection keeps each
@@ -447,9 +449,15 @@ game's own record. The rules, from CONTEXT.md:
   answer is the rule's usual status.
 - A connection point, where two tokens are tapped at one station, stays out of scope until its
   own change (section 12).
-- The connection keeps both users' questions and answers as they were when it was made, so a
-  later change of answer (8.7) doesn't change what either saw.
-- The evening-before clear empties connections and connection requests, with the taps.
+- **The match.** When an event has the answers game (8.1), a connection keeps the pair's
+  `match`: of the questions both answered, the share where they picked the same choice, as a
+  whole percent, rounded. It is `null` when no question was answered by both, as in an older
+  connection. The connection also keeps which questions they answered the same, which `/me` gives
+  2 minutes later (8.1), so the pair talk first.
+- A user's first connection fixes their answers, in the same step that works out the match, so
+  the match can't change later and stays true for both. After that, a change to an answer gets
+  `409 answers_fixed` (8.7).
+- The evening-before clear empties connections, connection requests and answers, with the taps.
 
 ### Stamps and points
 
@@ -461,8 +469,9 @@ them.
   station that has settings but runs another game keeps them, and isn't a stamp slot.
 - A user has a **stamp** for a station once they have at least one `accepted` tap there.
 - **Points** are the sum of the station's points over the user's accepted taps, so tapping a
-  station again after the cooldown earns its points again. This is the simplest rule that keeps
-  the showcase interesting and can be changed later without an API change.
+  station again after the cooldown earns its points again, plus 1 for each connection
+  ([Connections](#connections)), whatever its match, from 0.13. This is the simplest rule that
+  keeps the showcase interesting and can be changed later without an API change.
 - A station disabled later keeps its stamp slot and the stamps already earned there.
 
 ---
@@ -484,7 +493,7 @@ them.
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Implemented` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Implemented` | Release a token |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
-| POST | `/api/v1/tokens/{uid}/meet` | User | `Checkpoint 7` | The user tapped someone else's token, which sends a connection request or accepts theirs |
+| POST | `/api/v1/tokens/{uid}/meet` | User | `Implemented` | The user tapped someone else's token, which sends a connection request or accepts theirs |
 
 **The Event Service**
 
@@ -494,13 +503,13 @@ them.
 | GET | `/geekykey/v1/stations` | GeekyKey Service | `Implemented` | Its registered stations |
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
-| POST | `/geekykey/v1/meetings` | GeekyKey Service | `Checkpoint 7` | The meeting hand-off: a tap that sends a connection request or accepts one |
+| POST | `/geekykey/v1/meetings` | GeekyKey Service | `Implemented` | The meeting hand-off: a tap that sends a connection request or accepts one |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/login-link` | browser | `Implemented` | Log in with a login link, set `event_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
-| PATCH | `/api/v1/me` | Participant, Organizer | `Implemented`, `answer` at `Checkpoint 7` | Set the name the event shows, and the user's answer |
+| PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows, and the user's answers |
 | POST | `/api/v1/me/connection-requests/{id}/accept` | Participant, Organizer | `Checkpoint 7` | Accept a connection request |
 | POST | `/api/v1/me/connection-requests/{id}/decline` | Participant, Organizer | `Checkpoint 7` | Decline a connection request |
 | POST | `/api/v1/me/connections/{id}/reaction` | Participant, Organizer | `Checkpoint 7` | Play a connection's reaction test |
@@ -869,8 +878,12 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
 
 ```json
 {
-  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips", "bio": "Building a robot arm", "contact_line": "@alex on Telegram" },
-  "points": 3,
+  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "R", "answers": { "drink": "tea", "hours": "night_owl" }, "bio": "Building a robot arm", "contact_line": "@alex on Telegram" },
+  "questions": [
+    { "id": "drink", "text": "Tea or coffee?", "choices": [ { "id": "tea", "text": "Tea" }, { "id": "coffee", "text": "Coffee" } ] },
+    { "id": "hours", "text": "Night owl or early bird?", "choices": [ { "id": "night_owl", "text": "Night owl" }, { "id": "early_bird", "text": "Early bird" } ] }
+  ],
+  "points": 4,
   "stamps": [
     { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "link": "https://example.com/3d-printing", "earned_at": "2026-10-10T09:00:01.250Z" },
     { "station_id": "…", "name": "Cloud Sponsor",     "location": "Hall B", "points": 2, "link": null, "earned_at": null }
@@ -883,7 +896,7 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
     { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "requested_at": "2026-11-12T08:12:00.000Z" }
   ],
   "connections": [
-    { "id": "0b7e4d2c-1f9a-4c3e-8a5d-6e2f1b9c7d40", "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
+    { "id": "0b7e4d2c-1f9a-4c3e-8a5d-6e2f1b9c7d40", "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "match": 50, "shared": null, "shared_at": "2026-11-12T08:14:30.000Z" }
   ]
 }
 ```
@@ -921,11 +934,16 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   the passport and `booth` its booth. It follows the crowd, so it can change between polls, and
   two participants at one station can get different ones. A booth the station's screen can't
   show still comes here, though the station then says what happened instead (6.1).
-- `user.question` is the question the user answers in the answers game, from the event's own
-  list in the Event Service's code, or `null` when the event has none. It doesn't change once
-  given. `user.answer` is their answer (8.7), or `null` until they give one. Added in 0.12, at
-  `Checkpoint 7`. While `question` isn't `null` and `answer` is, the passport asks the question
-  (section 13).
+- `questions` is the answers game's list of questions, the same for every user, in the order the
+  passport asks them, or `null` when the event has no answers game. Each has an `id`, its `text`
+  and 2 to 4 `choices`, each with an `id` and its `text`, in the order to show them. The list is
+  code in the Event Service, so it changes only with a deploy. The IDs stay the same when a
+  question or choice is reworded, so a reworded one keeps everyone's answers. Added in 0.13.
+- `user.answers` maps each question the user has answered to the choice they picked, by ID
+  (8.7). It leaves out the questions they haven't answered, so it is `{}` until they answer one,
+  and always `{}` without an answers game. An answer to a question or choice taken off the list
+  is left out too. While a question isn't in `answers`, the passport asks it (section 13). Added
+  in 0.13, replacing 0.12's `user.question` and `user.answer`, which were never built.
 - `connection_requests` lists the requests waiting for the user to accept or decline
   ([Connections](#connections)), newest first (BAC-149, a draft for the next version). `id` is the
   request's own, for 8.10, because this answer never gives another person's user ID.
@@ -939,9 +957,16 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   approved for the next version). A screen reads a missing one as `null`, so it works with an Event
   Service from before them.
 - `connections` lists the user's connections ([Connections](#connections)), newest first. Each
-  gives when it was made, and the other person's kind, question and answer as they were then.
-  `answer` is `null` if they hadn't answered yet. It never gives the other person's user ID. Added
-  in 0.12, at `Checkpoint 7`, and an empty list before that.
+  gives when it was made and the other person's `kind`, and never their user ID or answers.
+  Without a connections game it is an empty list. Added in 0.12, with these fields from 0.13:
+  - `match` is the pair's match as a whole percent, from 0 to 100, kept from when they connected.
+    It is `null` when no question was answered by both, or the event has no answers game.
+  - `shared` lists the IDs of the questions both answered the same, in the order of `questions`.
+    It is `null` until `shared_at`, and may be an empty list after it.
+  - `shared_at` is 2 minutes after `connected_at`, so the passport knows when `shared` will come.
+    It shows "Show what we share" once a poll gives `shared` (section 13).
+- `points` adds 1 for each connection, whatever its match, to the passport's points (section 4,
+  "Stamps and points").
 - Each connection's `display_name`, `bio` and `contact_line` are the other person's current ones,
   so an edit shows at the next poll and clearing one hides it, while the rest of the connection
   stays as it was made. `display_name` is `null` when they have never logged in to this Event
@@ -1143,7 +1168,7 @@ token's UID, in any separator style ([Token UID](#token-uid)), and My tokens sen
 ### 8.7 `PATCH /api/v1/me` on the Event Service (`Implemented`)
 
 Sets the name the event shows for the current user: on the passport, the scan log and the
-export. From 0.12, at `Checkpoint 7`, it also sets the user's answer in the answers game, and it
+export. From 0.13 it also sets some or all of the user's answers in the answers game, and it
 sets the user's bio and contact line (BAC-147, approved for the next version). Participant setup asks for the name when `has_name` is `false` (8.1), and the dashboard and passport let the user change it
 later. Anyone can set it, not only a guest. A Google user may not want their full Google name
 shown.
@@ -1153,7 +1178,7 @@ shown.
 **Request**
 
 ```json
-{ "display_name": "Alex", "answer": "Chips", "bio": "Building a robot arm", "contact_line": "@alex on Telegram" }
+{ "display_name": "Alex", "answers": { "drink": "tea" }, "bio": "Building a robot arm", "contact_line": "@alex on Telegram" }
 ```
 
 Every field is optional, and a request needs at least one.
@@ -1172,16 +1197,20 @@ The check runs only when a name is saved, so duplicates from before it stay unti
 people changes their name. A name that comes from a login isn't checked. It still counts when
 someone else saves it.
 
-`answer` follows the same rules, trimmed and then 1 to 60 code points, with its issue under
-`["answer"]`. A user whose `question` is `null` gets `validation_failed` for any `answer`. The user
-can change it at any time.
+`answers` maps question IDs to choice IDs, from `questions` in 8.1. It sets the answers it names
+and keeps the user's others, so a screen can send one answer at a time, as each choice is tapped.
+A question it names that isn't on the list, or a choice that isn't one of the question's, gets
+`validation_failed`, with its issue under `["answers", "<question ID>"]`. Without an answers game
+every question is unknown, so only an empty `answers` passes. Answers can't be removed, only
+changed. A user can change their answers until their first connection fixes them
+([Connections](#connections)).
 
 `bio` and `contact_line` are each a string or `null`. A string is trimmed, then must be at most 160
 code points for `bio` and 80 for `contact_line`, with its issue under `["bio"]` or
 `["contact_line"]`. A blank string or `null` clears it, and `GET` then gives `null`. The contact
 line is free text, such as a Telegram handle (BAC-147, approved for the next version).
 
-BAC-144 keeps the multiple-choice draft's first-connection lock on existing answers. A user
+BAC-144 keeps that lock on existing answers. A user
 whose older connection fixed incomplete answers can fill a missing question, including a question
 added later, but cannot change an answer already on the current list. A mixed request that also
 tries to change a fixed answer still answers `409 answers_fixed` and changes nothing. A past
@@ -1192,7 +1221,7 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
 **Response `200`**, with the `user` object from 8.1:
 
 ```json
-{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips", "bio": "Building a robot arm", "contact_line": "@alex on Telegram" } }
+{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "R", "answers": { "drink": "tea", "hours": "night_owl" }, "bio": "Building a robot arm", "contact_line": "@alex on Telegram" } }
 ```
 
 - From now on, logging in (7.2) and login links (7.4) no longer change the name.
@@ -1200,9 +1229,9 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
   phones, the user's name shows to the organizers, to the user's group, to anyone who taps the
   user's token, before the two connect, and to anyone whose token the user taps (8.8, BAC-143,
   approved for the next version).
-- Nothing checks what an answer says either. Answers show only on phones, in `connections`
-  (8.1), and never on the map (9.10), since a unique answer can identify someone
-  as a name can.
+- `user.answers` is all the user's answers after the change, as 8.1 gives them.
+- Answers show only on the user's own phone. `/me` never gives another person's answers, only
+  the questions a pair answered the same (8.1), and the map (9.10) gives none.
 - Nothing checks what a bio or a contact line says either. A contact line shows only to the user
   and to the people they have connected with, in `connections` (8.1). A bio shows to them too, and
   also to anyone who taps the user's token, before the two connect (8.8), and to anyone whose token
@@ -1210,10 +1239,10 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
   organizers' screens, the export, the map and the memory card never show either one (BAC-147,
   approved for the next version, and BAC-151, for the next version).
 
-**Errors:** `unauthenticated`, `validation_failed`, `name_taken` (BAC-145), and `rate_limited`
+**Errors:** `unauthenticated`, `validation_failed`, `answers_fixed`, `name_taken` (BAC-145), and `rate_limited`
 ([Rate limits](#rate-limits)).
 
-### 8.8 `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (`Checkpoint 7`)
+### 8.8 `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (`Implemented`)
 
 The current user tapped their phone on someone else's token: one half of a connection, which
 sends the owner a connection request or accepts theirs ([Connections](#connections)). The token
@@ -1232,9 +1261,14 @@ shows only the sentence that the token belongs to someone else.
 { "meetings": [ { "event_id": "showcase", "status": "waiting", "owner_name": "Sam", "owner_bio": "Building a robot arm" } ] }
 ```
 
-- The GeekyKey Service asks who owns the token, then hands the half to each Event Service whose
-  settings take meetings (11.10), all at once within the 4 seconds. `meetings` has one item for
-  each, in the order of `events` in `/me` (8.4), and is empty when none takes them.
+- The GeekyKey Service asks the claims stand-in for the user's tokens, then for who owns the
+  tapped token and both tokens' kinds. It then hands the half to each Event Service whose entry in
+  its settings takes meetings (11.10), all at once. One 4-second deadline covers the claims calls
+  and every hand-off.
+- `user_kind` in the hand-off is the kind of the user's own token claimed first, or `null` when
+  they hold none, or released it between the two calls to the claims stand-in.
+- `meetings` has one item for each Event Service that takes meetings, in the order of `events` in
+  `/me` (8.4), and is empty when none takes them.
 - `status` is the Event Service's answer (11.10): `waiting`, `connected`, `already_connected` or
   `same_kind`, or `answers_needed` (BAC-144, approved for the next version). Section 13 has what the token page shows for each. A tap makes one request at most,
   so `waiting` can come again for the same pair.
@@ -1246,7 +1280,7 @@ shows only the sentence that the token belongs to someone else.
   The GeekyKey Service passes it on and stores no bios. The answer never gives a contact line. A
   screen that gets no `owner_bio` reads it as `null` (BAC-151, for the next version).
 - An Event Service that doesn't answer in time, or answers wrongly, gets the status
-  `unavailable` in its item, with `owner_name` and `owner_bio` `null`. Nothing is retried. Tapping the token again
+  `unavailable` in its item, with `owner_name` and `owner_bio` `null`, and the GeekyKey Service logs `meeting_handoff_failed`. The other items are unaffected. Nothing is retried. Tapping the token again
   sends the half again, which does no harm.
 - An Event Service that answers `404`, as one from before 0.12 does, doesn't take meetings, and
   is left out of `meetings`.
@@ -1757,12 +1791,13 @@ session gets `unauthenticated`. It isn't under `/admin`, because a map screen is
   doesn't pulse, even when a QR fallback tap (9.4) raises its `taps`.
 - A map screen's `/me` says `participant` (8.1), so `/me` can't tell the screen whether it may
   read the map. The screen reads the map, and `forbidden` means it may not.
-- `connections` is added in 0.12, at `Checkpoint 7` ([Connections](#connections)). `count` is
-  how many connections the event has. `links` gives each one as two numbers, the smaller first,
-  oldest connection first. Each number stands for a user, numbered in the order they first
-  connected, so the screen keeps its layout between polls and draws an anonymous web. The numbers
-  aren't user IDs, and nothing here links one to a user. The screen doesn't mark which link is
-  new. Before it's built, the answer leaves `connections` out, and the screen draws no web.
+- `connections` is added in 0.12 ([Connections](#connections)). `count` is how many connections
+  the event has. `links` gives each one as two numbers, the smaller first, oldest connection
+  first. Each number stands for a user, numbered from 1 in the order they first connected, so the
+  screen keeps its layout between polls and draws an anonymous web. When both users in one
+  connection are new, the one with the smaller user ID gets the lower number. The numbers aren't
+  user IDs, and nothing here links one to a user. The screen doesn't mark which link is new.
+  Without a connections game, the answer leaves `connections` out, and the screen draws no web.
 
 Poll this every 2 seconds while the map is shown. That uses 30 of the user's 60 requests a minute
 ([Rate limits](#rate-limits)).
@@ -2077,10 +2112,11 @@ UTF-8, then the HMAC-SHA256 of that first part's characters with the login link 
 The Event Service compares the HMAC in constant time, then checks `v`, `exp` and `jti`, and
 answers `invalid_login_link` (401) if any check fails. It never logs a link.
 
-### 11.10 The meeting hand-off: `POST /geekykey/v1/meetings` (`Checkpoint 7`)
+### 11.10 The meeting hand-off: `POST /geekykey/v1/meetings` (`Implemented`)
 
 Added in 0.12. The GeekyKey Service calls this when a user taps their phone on someone else's
-token (8.8), on each Event Service whose entry in its settings takes meetings. Ours does.
+token (8.8), on each Event Service whose entry in its settings takes meetings. Ours does: its
+entry in `EVENT_SERVICES` says `"meetings": true`, and an entry that leaves it out takes none.
 
 **Auth:** `Authorization: Bearer <Event Service key>`.
 
@@ -2094,7 +2130,7 @@ token (8.8), on each Event Service whose entry in its settings takes meetings. O
 |---|---|---|
 | `user_id` | string | 1 to 128 chars. The user who tapped |
 | `user_kind` | string or `null` | The kind of the tapper's own token claimed first, with 11.2's rules, or `null` |
-| `owner_id` | string | 1 to 128 chars, never the same as `user_id`. The owner of the token tapped |
+| `owner_id` | string | 1 to 128 chars, never the same as `user_id`, which gets `validation_failed` with its issue under `["owner_id"]`. The owner of the token tapped |
 | `owner_kind` | string or `null` | The tapped token's kind, with 11.2's rules, or `null` |
 
 **Response `200`**
@@ -2194,7 +2230,7 @@ There are no GeekyKey admin screens.
 | Signing out after arriving from a login link | `POST /auth/logout`, then opens `/sign-out#user=<user ID>` on the GeekyKey screens (section 3, "Browser sessions") |
 | A guest who signed out on the GeekyKey screens, `/sign-out#user=<user ID>` | `GET /api/v1/me`, then `POST /auth/logout` when it names that user, then opens the GeekyKey login (section 3, "Browser sessions") |
 | Participant dashboard | `GET /api/v1/me`, with `connection_requests`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline`; `PATCH /api/v1/me` for the bio and the contact line |
-| Passport / stamp book | `GET /api/v1/me` (the `stamps` array, and `connections` for the reveal); `PATCH /api/v1/me` for the name and the answer |
+| Passport / stamp book | `GET /api/v1/me` (the `stamps` array, and `connections` for the reveal); `PATCH /api/v1/me` for the name and the answers |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
 | Organizer station board | `GET /api/v1/admin/stations`, polled; `PUT /api/v1/admin/stations/{id}/passport`; `PUT /api/v1/admin/stations/{id}/game`; `PUT /api/v1/admin/stations/{id}/booth`; `POST /api/v1/admin/stations`; `POST /api/v1/admin/stations/{id}/key`; `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
@@ -2258,9 +2294,13 @@ There are no GeekyKey admin screens.
   answers summary; answers can be changed until the first connection, as Adam confirmed for
   BAC-144. The name can always be changed. Someone whose older connection fixed incomplete
   answers is asked only for the missing answers, and can fill them without changing past matches.
-- When `connections` gains an item, the passport shows the reveal: **"You're connected!"**, then
-  the other person's question and answer, or **"They haven't answered yet."** when `answer` is
-  `null`.
+- When `connections` gains an item, the passport shows the reveal: **"{match}% match!"**, then
+  **"Talk to find out which answers you share."** When `match` is `null` it says **"You're
+  connected!"** instead. The list of connections shows **"{match}% match"**, or **"Connected"** when
+  `match` is `null`.
+- Once a connection's `shared` isn't `null`, it gets a **"Show what we share"** button, which
+  lists each shared question with the choice both picked, from `questions`.
+- On `answers_fixed`, a screen says **"You've connected, so your answers are set."**
 - The reveal and the list of connections show the other person's `display_name`, or **Guest** for
   `null`, then their `bio`, then **"Contact: {contact_line}"**. A field that's `null` takes no line
   (BAC-136 and BAC-147, approved for the next version; "Contact:" is a draft for Ethan to approve).
@@ -2461,3 +2501,4 @@ Closed on 2026-10-10:
 | 2026-11-06 | For the next version: a guest who signs out releases their tokens, after a warning, so a token can't stay stuck with a login nobody can use again (FRO-131, from the 5 Nov meeting). Section 13 replaces the warning FRO-62 set, which said the tokens stay with the guest, and Ethan approved the new wording, as Adam reported. A failed release keeps the guest signed in and says why. When Firebase can't say whether the user is a guest, the screens used to ask, and now they release nothing and say so, because going ahead now releases tokens. Section 3 has the Event screens send a user whose session came from a login link to a new `/sign-out` page on the GeekyKey screens. No service changes, and no endpoint or field changes: the page uses 7.3, 8.3, 8.4 and 8.6. Connections, points and earlier taps don't change, as 8.3 already says of taps. |
 | 2026-11-06 | For the next version: a guest who signs out on the GeekyKey screens is logged out of the Event screens too, so the next person on a shared phone doesn't find their passport (FRO-144). Section 3 has the GeekyKey screens open a new `/sign-out` page on the Event screens, which logs out only the user the address names, then opens the GeekyKey login. Section 13 adds the sentence for a failed log out, which Ethan hasn't seen. A Google or GeeksHacking user's Event session stays. No service changes, and no endpoint or field changes: the page uses 7.3 and 8.1. |
 | 2026-11-06 | For the next version: the agreement follows the decisions of 3 and 4 November (BAC-126). The grad tea was scrapped on 3 November, so the opening and sections 4 and 12 no longer plan for it. The hunt was canceled on 4 November (BAC-121), so 8.9 is empty, and `GET /api/v1/hunt`, `POST /api/v1/hunt/skip`, `tapped_you`, `409 skip_locked` and the hunt's lines in section 13 are removed. The export is now Joshua's analysis, not the A/B analysis, with its shape unchanged. Removing them is an exception to section 1's rule, as in the row of 2026-10-07: no service ever built the routes or sent the field, and no screen uses any of them now, since BAC-149 took `tapped_you` out of the passport. Nothing else is removed. |
+| 2026-11-06 | Version 0.13, a draft: the answers game's shapes as built (BAC-116, BAC-119, BAC-120, FRO-112). This replaces PR #235's text of 3 November, whose halves with a 2-minute limit BAC-149 has since replaced, and whose hunt was canceled (BAC-126). **Answers:** `/me` (8.1) gives `questions`, the answers game's list with each question's choices, or `null` without the game, and `user.answers`, a map from question ID to choice ID. `PATCH /api/v1/me` (8.7) takes a partial `answers` map, refuses an unknown question or choice under `["answers", "<question ID>"]`, and answers the new `409 answers_fixed` when a change would alter an answer the user's first connection fixed. **Connections:** each item in `/me`'s `connections` gives `match`, a whole percent or `null`, kept from when they connected; `shared`, the IDs of the questions both answered the same, `null` until `shared_at`; and `shared_at`, 2 minutes after the connection. Each connection adds 1 point (section 4). 8.8, 11.10 and 9.10's `connections` are `Implemented`: one 4-second deadline covers the claims calls and the hand-offs, `user_kind` is `null` if the tapper released their first token in between, a failed hand-off is logged as `meeting_handoff_failed`, and the map numbers a new pair by user ID. An `EVENT_SERVICES` entry takes meetings with `"meetings": true`. A token's kind can be its colour (HAR-30). Section 13 has the match's sentences as the screens show them. 0.12's `user.question`, `user.answer`, `answer` in 8.7 and the connection's `question` and `answer` are replaced; 0.12 was a draft and they were never built. |
