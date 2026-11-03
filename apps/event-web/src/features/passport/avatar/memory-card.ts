@@ -1,5 +1,6 @@
 import { SIZE, type Pixels } from "@/features/passport/avatar/art";
 import { paintPixels } from "@/features/passport/avatar/layers";
+import { shareOrDownload } from "@/features/passport/avatar/share-file";
 
 /*
   The memory card as a picture (FRO-105): the same art-deco card the dialog tilts, drawn
@@ -93,25 +94,9 @@ function fileName(name: string): string {
   return `grad-tea-${slug || "guest"}.png`;
 }
 
-/**
- * On a phone, the share sheet, whose "Save image" puts it in the gallery. Elsewhere, or where
- * the browser can't share a file, a download. Closing the share sheet isn't a failure.
- */
+/** The card as a file named after the guest, shared or downloaded by shareOrDownload. */
 export async function saveMemoryCard(blob: Blob, name: string): Promise<void> {
-  const file = new File([blob], fileName(name), { type: "image/png" });
-  const phone = window.matchMedia("(pointer: coarse)").matches;
-  if (phone && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: "The Grad Tea" });
-      return;
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-    }
-  }
-  const url = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  await shareOrDownload(new File([blob], fileName(name), { type: "image/png" }), {
+    title: "The Grad Tea",
+  });
 }

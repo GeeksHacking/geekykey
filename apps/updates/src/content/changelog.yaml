@@ -1981,3 +1981,12 @@
     answer. Which answers they share shows 2 minutes later, so they talk first. Each connection
     earns the same points whatever the match, and the map's data counts the connections as a web
     with no names. The token page and the passport screens for it come next.
+
+- id: avatar-sticker
+  date: 2026-11-03
+  area: frontend
+  change: >-
+    A guest can save their grad tea avatar as a square picture with no background, to send in a
+    chat. On a phone the share sheet opens, so it can go straight to WhatsApp; on a laptop it
+    downloads as my-avatar.png. The card with the guest's name and "The Grad Tea" is still there
+    for keeping.

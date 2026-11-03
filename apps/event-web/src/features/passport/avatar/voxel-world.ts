@@ -29,7 +29,7 @@ export interface PickedCube {
 }
 
 /** The cubes the guest wears, in their colours: the body and each worn piece's own. */
-function cubesFor(worn: readonly PieceKey[], colours: AvatarColours) {
+export function cubesFor(worn: readonly PieceKey[], colours: AvatarColours) {
   const figure = figureFor(colours.character, worn);
   const paint = (cubes: ModelCube[]): Cube[] => {
     const painted = recolour(
@@ -65,6 +65,17 @@ interface Arrival {
   t0: number;
 }
 
+/** The lights the live stage and the sticker share, so both see the same colours. */
+export function addLights(scene: THREE.Scene) {
+  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x202030, 1.8));
+  const key = new THREE.DirectionalLight(0xffffff, 2.4);
+  key.position.set(20, 30, 40);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xd4af37, 2.5);
+  rim.position.set(-30, 10, -30);
+  scene.add(rim);
+}
+
 export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -73,13 +84,7 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(28, 1, 1, 1000);
-  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x202030, 1.8));
-  const key = new THREE.DirectionalLight(0xffffff, 2.4);
-  key.position.set(20, 30, 40);
-  scene.add(key);
-  const rim = new THREE.DirectionalLight(0xd4af37, 2.5);
-  rim.position.set(-30, 10, -30);
-  scene.add(rim);
+  addLights(scene);
 
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(18, 48),
