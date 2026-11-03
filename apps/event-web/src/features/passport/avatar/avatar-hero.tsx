@@ -9,6 +9,7 @@ import { useDressedUrl } from "@/features/passport/avatar/layers";
 import { MemoryCardDialog } from "@/features/passport/avatar/memory-card-dialog";
 import { demoOutfitFrom, outfitFrom } from "@/features/passport/avatar/outfit";
 import { OutfitPieces } from "@/features/passport/avatar/outfit-pieces";
+import { StickerButton } from "@/features/passport/avatar/sticker-button";
 import { useAvatarColours } from "@/features/passport/avatar/use-avatar-colours";
 import { useDemoOutfit } from "@/features/passport/avatar/use-demo-outfit";
 import type { PassportChanges } from "@/features/passport/passport-changes";
@@ -70,6 +71,7 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
         pointsRose={changes.points !== null}
       />
       <div className="flex flex-wrap justify-center gap-2">
+        <StickerButton slots={outfit.slots} colours={colours} />
         <MemoryCardDialog slots={outfit.slots} colours={colours} name={name} />
         <ColoursDialog userId={me.user.id} />
       </div>
