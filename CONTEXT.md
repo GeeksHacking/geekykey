@@ -231,8 +231,9 @@ Its stations count only for connections, not for the passport. Since 4 Nov it is
 The game on top of connections. Since 4 Nov it's variation 1, the token game, of the two variations
 Mr Johari asked for. Each participant answers the event's multiple-choice questions, and a connection
 shows the pair their **match**, the share of the questions both answered where they picked the same
-choice. A participant's first connection fixes their answers. It was first planned for the grad tea,
-which was scrapped on 3 Nov. The hunt for one person to find was canceled on 4 Nov (BAC-121).
+choice. What they share is shown 2 minutes later, so they talk first. A participant's first
+connection fixes their answers. It was first planned for the grad tea, which was scrapped on 3 Nov.
+The hunt for one person to find was canceled on 4 Nov (BAC-121).
 _Avoid_: quiz, which was the dropped speakeasy game
 
 **Group**:
@@ -279,7 +280,7 @@ one station can be worth different points at different events.
 
 **Points**:
 A participant's total: station points summed over all their accepted taps, so a repeat visit
-after the cooldown earns again.
+after the cooldown earns again, plus 1 for each connection, whatever its match.
 _Avoid_: score
 
 **Cooldown**:
