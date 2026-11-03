@@ -503,7 +503,9 @@ test("a participant sets the name the event shows, and /me shows it", async () =
   const { signIn, patchMe, meAs, userId } = await harness();
   const res = await patchMe({ display_name: "Ally" }, await signIn(userId));
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), {
+  const body = await res.json();
+  screensSchemas.setDisplayNameResponseSchema.parse(body);
+  assert.deepEqual(body, {
     user: {
       id: userId,
       display_name: "Ally",

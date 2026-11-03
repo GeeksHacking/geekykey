@@ -5,10 +5,11 @@
  * `pnpm --filter @geekykey/event-service check:migrations`.
  *
  * It runs `drizzle-kit generate` and passes only when that says there is
- * nothing to write, and wrote nothing. drizzle-kit's exit code is no help:
- * when it needs to ask whether a column was renamed, it can't ask without a
- * terminal, and this script gives it none, so it prints an error, writes
- * nothing, and still exits 0.
+ * nothing to write, and wrote nothing. A migration written and not yet
+ * committed passes, so the check works before a commit. drizzle-kit's exit
+ * code is no help: when it needs to ask whether a column was renamed, it
+ * can't ask without a terminal, and this script gives it none, so it prints
+ * an error, writes nothing, and still exits 0.
  *
  * When it fails, it has usually just written the missing migration into
  * drizzle/: look it over and commit it. After a rename it writes nothing, so
@@ -26,6 +27,13 @@ const migrationsDir = join(backendDir, "drizzle");
 // same Node works the same everywhere, with or without pnpm putting it on PATH.
 const drizzleKit = join(dirname(createRequire(import.meta.url).resolve("drizzle-kit")), "bin.cjs");
 
+/** What git sees in drizzle/, such as a migration written but not committed yet. */
+const drizzleStatus = () =>
+  execFileSync("git", ["status", "--porcelain", "--", migrationsDir], { encoding: "utf8" });
+
+// Taken first, so a migration that's written but not committed yet doesn't fail the check.
+const before = drizzleStatus();
+
 const generate = spawnSync(process.execPath, [drizzleKit, "generate"], {
   cwd: backendDir,
   stdio: ["ignore", "pipe", "pipe"],
@@ -36,12 +44,10 @@ process.stderr.write(generate.stderr ?? "");
 
 const output = `${generate.stdout ?? ""}${generate.stderr ?? ""}`;
 const saidNothingToDo = output.includes("No schema changes, nothing to migrate");
-const changed = execFileSync("git", ["status", "--porcelain", "--", migrationsDir], {
-  encoding: "utf8",
-});
+const after = drizzleStatus();
 
-if (generate.status !== 0 || !saidNothingToDo || changed !== "") {
-  if (changed !== "") console.error(`\nChanged in drizzle/:\n${changed}`);
+if (generate.status !== 0 || !saidNothingToDo || after !== before) {
+  if (after !== before) console.error(`\nChanged in drizzle/ by drizzle-kit:\n${after}`);
   console.error(
     "drizzle-kit generate failed, or found a schema change with no migration. " +
       "Commit the migration it wrote, or run `pnpm --filter @geekykey/event-service db:generate` " +

@@ -98,7 +98,9 @@ async function issuePaths(res: Response): Promise<(string | number)[][]> {
 /** The user's answers in PATCH /api/v1/me's 200, which must be one. */
 async function answersIn(res: Response): Promise<Record<string, string>> {
   assert.equal(res.status, 200);
-  return ((await res.json()) as Pick<MeBody, "user">).user.answers;
+  const body = await res.json();
+  screensSchemas.setDisplayNameResponseSchema.parse(body);
+  return (body as Pick<MeBody, "user">).user.answers;
 }
 
 /** What the connections game does to each person when it makes their connection. */
@@ -161,7 +163,9 @@ test("one request sets the name and answers together", async () => {
     await signIn(userId),
   );
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), {
+  const body = await res.json();
+  screensSchemas.setDisplayNameResponseSchema.parse(body);
+  assert.deepEqual(body, {
     user: {
       id: userId,
       display_name: "Ally",

@@ -34,7 +34,8 @@ export const screensSchemas = (await import(
   | "listTapsResponseSchema"
   | "fallbackTapResponseSchema"
   | "statsResponseSchema"
-  | "meResponseSchema",
+  | "meResponseSchema"
+  | "setDisplayNameResponseSchema",
   ScreensSchema
 >;
 
