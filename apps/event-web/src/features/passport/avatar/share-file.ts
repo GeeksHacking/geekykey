@@ -8,10 +8,7 @@ interface ShareFileOptions {
  * files. Closing the sheet isn't a failure, so it doesn't fall through to a download. The
  * object URL waits 10 seconds, so the browser has started the download before it goes.
  */
-export async function shareOrDownload(
-  file: File,
-  { title }: ShareFileOptions = {},
-): Promise<void> {
+export async function shareOrDownload(file: File, { title }: ShareFileOptions = {}): Promise<void> {
   const phone = window.matchMedia("(pointer: coarse)").matches;
   if (phone && navigator.canShare?.({ files: [file] })) {
     try {

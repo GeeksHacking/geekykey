@@ -10,15 +10,11 @@ interface StickerButtonProps {
   colours: AvatarColours;
 }
 
-type Drawn =
-  | { key: string; state: "ready"; blob: Blob }
-  | { key: string; state: "failed" };
+type Drawn = { key: string; state: "ready"; blob: Blob } | { key: string; state: "failed" };
 
 /** What the picture depends on: the worn pieces, in order, and the guest's colours. */
 function stickerKey(slots: readonly Slot[], colours: AvatarColours): string {
-  const pieces = slots
-    .map((slot) => `${slot.piece.key}:${slot.worn ? "worn" : "empty"}`)
-    .join(",");
+  const pieces = slots.map((slot) => `${slot.piece.key}:${slot.worn ? "worn" : "empty"}`).join(",");
   return `${pieces}|${colours.character}|${colours.skin}|${colours.hair}|${colours.suit}`;
 }
 

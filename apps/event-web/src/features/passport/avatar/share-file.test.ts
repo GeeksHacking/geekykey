@@ -44,11 +44,11 @@ describe("shareOrDownload", () => {
     setPointer(true);
     Object.defineProperty(navigator, "canShare", { configurable: true, value: () => false });
     const saved: { download: string; href: string }[] = [];
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(function (this: HTMLAnchorElement) {
-        saved.push({ download: this.download, href: this.href });
-      });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push({ download: this.download, href: this.href });
+    });
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:test"),
