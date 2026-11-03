@@ -229,15 +229,16 @@ user. The link lasts 60 seconds, and neither service logs it.
 
 When the token page shows someone else's token, it calls `POST /api/v1/tokens/{uid}/meet`: one
 half of a connection. The Worker asks the claims stand-in for the user's first-claimed token,
-then for the owner of the token tapped and the kinds of both. It sends the half to the Event
-side's `POST /geekykey/v1/meetings` on each Event Service whose `EVENT_SERVICES` entry has
-`"meetings": true`, all at once, within what's left of the same 4 seconds. Each Event Service
-answers `waiting`, `connected`, `already_connected` or `same_kind`. One that doesn't answer
-properly in time gets `unavailable`, and a `meeting_handoff_failed` log line. One that answers
-`404`, as an Event Service from before meetings does, is left out. On the Event side, the
-connections game (`src/games/connections/`) keeps one row per pair in `meeting_halves`, locked
-while each half is read, so two halves at once on two instances still meet. The second half
-within 2 minutes of the first writes the pair's row in `connections`, with their match.
+then for the owner of the token tapped and the kinds of both. The meeting gets 4 seconds for
+all of its calls. The Worker sends the half to the Event side's `POST /geekykey/v1/meetings`.
+It sends it only to the Event Services whose `EVENT_SERVICES` entry has `"meetings": true`, and
+to all of them at once. Each answers `waiting`, `connected`, `already_connected` or `same_kind`.
+When one doesn't answer properly in time, the Worker gives it `unavailable` and writes a
+`meeting_handoff_failed` log line. The Worker leaves out one that answers `404`, as an Event
+Service from before meetings does. On the Event side, the connections game
+(`src/games/connections/`) keeps one row per pair in `meeting_halves`. Each half locks the
+pair's row while it reads it, so two halves at once on two instances still meet. The second
+half within 2 minutes of the first writes the pair's row in `connections`, with their match.
 
 ## Running the Event screens
 

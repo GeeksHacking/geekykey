@@ -1976,7 +1976,7 @@
   date: 2026-11-03
   area: backend
   change: >-
-    Two guests now connect by each tapping their phone on the other's token within 2 minutes. Both
+    Two participants now connect by each tapping their phone on the other's token within 2 minutes. Both
     see their match: the share of the questions they both answered where they chose the same
     answer. Which answers they share shows 2 minutes later, so they talk first. Each connection
     earns the same points whatever the match, and the map's data counts the connections as a web

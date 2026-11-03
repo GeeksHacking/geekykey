@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import type { Question } from "../../event/answers.ts";
 import { users } from "../../event/schema.ts";
-import { fakeClock, TEST_EVENT_SERVICE_KEY, testApp, testDb } from "../../test-helpers.ts";
+import {
+  fakeClock,
+  screensSchemas,
+  TEST_EVENT_SERVICE_KEY,
+  testApp,
+  testDb,
+} from "../../test-helpers.ts";
 import { answersGame } from "./answers.ts";
 import { connectionsGame } from "./connections.ts";
 
@@ -100,11 +106,13 @@ function harness({ withGame = true } = {}) {
     return (login.headers.get("Set-Cookie") ?? "").split(";")[0]!;
   };
 
-  /** The user's /me, which must be a 200. */
+  /** The user's /me, which must be a 200 that the Event screens accept. */
   const meOf = async (userId: string) => {
     const res = await app.request("/api/v1/me", { headers: { Cookie: await signIn(userId) } });
     assert.equal(res.status, 200);
-    return (await res.json()) as { points: number; connections: ConnectionBody[] };
+    const body = await res.json();
+    screensSchemas.meResponseSchema.parse(body);
+    return body as { points: number; connections: ConnectionBody[] };
   };
 
   /** The user's answers, set through PATCH /api/v1/me. */
@@ -216,6 +224,23 @@ test("two halves at once, as on two instances, still connect the pair once", asy
   for (const [a, b] of pairs) {
     assert.equal((await meOf(a)).connections.length, 1);
     assert.equal((await meOf(b)).connections.length, 1);
+  }
+});
+
+test("two halves at once still connect when one brings no kind for someone who has one", async () => {
+  const { meet, statusOf } = harness();
+  const pairs = Array.from({ length: 8 }, (_, i) => [`a-${i}`, `b-${i}`] as const);
+  // Each a-person has a kind already, from a half with someone else.
+  for (const [a] of pairs) await meet(a, "E", "someone", "C");
+  const statuses = await Promise.all(
+    pairs.flatMap(([a, b]) => [
+      // b's token page doesn't know a's kind, so it brings none.
+      statusOf(meet(b, "B", a, null)),
+      statusOf(meet(a, "E", b, "B")),
+    ]),
+  );
+  for (let i = 0; i < pairs.length; i++) {
+    assert.deepEqual([statuses[2 * i], statuses[2 * i + 1]].sort(), ["connected", "waiting"]);
   }
 });
 

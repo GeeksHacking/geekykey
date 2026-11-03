@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import type { MeetingStatus } from "@geekykey/handoff";
 import type { Claims } from "./claims.ts";
 import { withClaimsDeadline } from "./claims-deadline.ts";
 import { type EventService, EventServiceUnavailable } from "./event-service.ts";
@@ -25,7 +26,7 @@ export interface TokenRouteDeps {
 }
 
 /** One Event Service's answer to a half, as the meeting answers it (8.8). */
-type MeetingView = { event_id: string; status: string };
+type MeetingView = { event_id: string; status: MeetingStatus | "unavailable" };
 
 /** What the lookup answers: who owns the token, as the token page sees it. */
 type TokenView = {

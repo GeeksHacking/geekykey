@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import type { Answers, Question } from "../../event/answers.ts";
 import type { Connection, ConnectionsGame, ConnectionsWeb } from "../../event/connections.ts";
+import type { Tx } from "../../event/games.ts";
 import { userKinds } from "../../event/schema.ts";
 import { keepKinds } from "../../event/user-kinds.ts";
 import type { ConnectionsAnswers } from "./answers.ts";
@@ -33,6 +34,22 @@ export function matchOf(
 }
 
 /**
+ * The user's kind, locked until `tx` ends: the one they have, or else
+ * `given`, the hand-off's, which then becomes theirs (11.10). Null when
+ * they have none and none is given.
+ */
+async function lockKind(tx: Tx, userId: string, given: string | null): Promise<string | null> {
+  if (given !== null) await keepKinds(tx, [{ userId, kind: given }]);
+  const [row] = await tx
+    .select({ kind: userKinds.kind })
+    .from(userKinds)
+    .where(eq(userKinds.userId, userId))
+    // A locking read sees the latest rows, as tap-pipeline.ts's #lockStation explains.
+    .for("update");
+  return row?.kind ?? null;
+}
+
+/**
  * The connections game, with the event's answers game, or null for an event
  * with none, whose connections then have no match.
  *
@@ -48,33 +65,19 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
 
     meet: (db, { userId, userKind, ownerId, ownerKind }, now) =>
       db.transaction(async (tx) => {
-        // In the order of their IDs, as every lock here is taken, so two halves can't deadlock.
+        // Every lock here is taken in one order: each user's kind, by ID, then the pair's row,
+        // then each user's answers, by ID. So no two halves, of one pair or of two that share
+        // someone, can each hold a lock the other waits for.
         const [userA, userB] = [userId, ownerId].sort() as [string, string];
         const tapperIsA = userId === userA;
-
-        // Each side's kind is the one it has, or else the hand-off's, which then becomes its own.
-        await keepKinds(
-          tx,
-          [
-            { userId, kind: userKind },
-            { userId: ownerId, kind: ownerKind },
-          ]
-            .filter((seen): seen is { userId: string; kind: string } => seen.kind !== null)
-            .sort((x, y) => (x.userId < y.userId ? -1 : 1)),
-        );
-        const kinds = new Map(
-          (
-            await tx
-              .select({ userId: userKinds.userId, kind: userKinds.kind })
-              .from(userKinds)
-              .where(inArray(userKinds.userId, [userA, userB]))
-              // A locking read sees the latest rows, as tap-pipeline.ts's #lockStation explains.
-              .for("update")
-          ).map((row) => [row.userId, row.kind]),
-        );
-        const kindA = kinds.get(userA);
-        const kindB = kinds.get(userB);
-        if (kindA === undefined || kindB === undefined || kindA === kindB) return "same_kind";
+        const given = new Map([
+          [userId, userKind],
+          [ownerId, ownerKind],
+        ]);
+        // One user at a time, so a half with no kind for one of them takes the same order.
+        const kindA = await lockKind(tx, userA, given.get(userA) ?? null);
+        const kindB = await lockKind(tx, userB, given.get(userB) ?? null);
+        if (kindA === null || kindB === null || kindA === kindB) return "same_kind";
 
         // The pair's row, made if it isn't there, and locked until the transaction ends, so
         // two halves at once, even on two instances, take turns and can't miss each other.
