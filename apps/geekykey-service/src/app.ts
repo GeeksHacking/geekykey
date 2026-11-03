@@ -160,6 +160,8 @@ export function createApp(
       deadlineMs: claimsDeadlineMs,
       maxTokensPerUser: config.maxTokensPerUser,
       tokenLimit,
+      // In EVENT_SERVICES' order, as /me's `events` are.
+      meetingServices: eventServices.filter((_, i) => config.eventServices[i]!.meetings),
     }),
   );
   app.route(

@@ -97,7 +97,9 @@
     // The Event Services whose stations this Worker takes taps from, and
     // hands them to: an ID, a name, and an https:// address with no / at the
     // end. `public_url`, which may be left out, is where its screens are, for
-    // the buttons on the token page and My tokens. Locally, dev.env points the
+    // the buttons on the token page and My tokens. `meetings`, which may be
+    // left out for false, says it takes the halves of connections by phone
+    // (the API agreement's 8.8 and 11.10). Locally, dev.env points the
     // showcase at http://localhost:8001, and its screens at 5173.
     "EVENT_SERVICES": [
       {
@@ -107,6 +109,8 @@
         "name": "Grad Tea",
         "url": "https://event-api.geekshacking.com",
         "public_url": "https://event.geekshacking.com",
+        // The grad tea's connections (BAC-120).
+        "meetings": true,
       },
     ],
     // Who owns each token, until the switch to the Portal's tag APIs.

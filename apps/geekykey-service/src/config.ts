@@ -16,6 +16,12 @@ export interface EventServiceEntry {
    */
   publicUrl: string | null;
   /**
+   * Whether it takes meetings, the halves of connections by phone (the API
+   * agreement's 8.8 and 11.10), from the entry's `meetings`. False when the
+   * entry leaves it out.
+   */
+  meetings: boolean;
+  /**
    * The Event Service key its requests carry, from the secret
    * EVENT_SERVICE_KEY_<ID>. 64 lower-case hex characters, as `openssl rand
    * -hex 32` writes them.
@@ -146,6 +152,7 @@ const eventServicesSetting = z
       url: address,
       // No key goes there, but it's where a browser is sent, so the same rule holds.
       public_url: address.optional(),
+      meetings: z.boolean().optional(),
     }),
   )
   .min(1)
@@ -221,11 +228,12 @@ export function loadConfig(settings: object): Config {
     "EVENT_SERVICES",
     eventServicesSetting,
     jsonSetting(env, "EVENT_SERVICES"),
-  ).map(({ id, name, url, public_url }) => ({
+  ).map(({ id, name, url, public_url, meetings }) => ({
     id,
     name,
     url,
     publicUrl: public_url ?? null,
+    meetings: meetings ?? false,
     key: keyFromEnv(env, `EVENT_SERVICE_KEY_${id.toUpperCase()}`),
   }));
   return {

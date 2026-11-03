@@ -1971,3 +1971,13 @@
     change one until their first connection. That connection fixes their answers, so a percentage
     already shown stays true. The passport's questions screen comes next, and the 5 questions are
     placeholders until the grad tea team helps write them by 9 Nov.
+
+- id: guests-connect-by-tapping-tokens
+  date: 2026-11-03
+  area: backend
+  change: >-
+    Two guests now connect by each tapping their phone on the other's token within 2 minutes. Both
+    see their match: the share of the questions they both answered where they chose the same
+    answer. Which answers they share shows 2 minutes later, so they talk first. Each connection
+    earns the same points whatever the match, and the map's data counts the connections as a web
+    with no names. The token page and the passport screens for it come next.

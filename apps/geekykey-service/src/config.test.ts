@@ -70,6 +70,8 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
         name: "Grad Tea",
         url: "https://event-api.geekshacking.com",
         publicUrl: "https://event.geekshacking.com",
+        // The grad tea's connections, by phone (the API agreement's 8.8).
+        meetings: true,
         key: EVENT_SERVICE_KEY_SHOWCASE,
       },
     ],
@@ -136,6 +138,14 @@ test("dev.env, with the DEV_AUTH_ENABLED `pnpm dev` adds, starts the Worker with
 test("an Event Service without a public address has none, and the screens get no button for it", () => {
   const config = loadConfig(settings());
   assert.equal(config.eventServices[0]!.publicUrl, null);
+});
+
+test("an Event Service takes meetings only when its entry says so", () => {
+  const showcase = { id: "showcase", name: "Capstone Showcase", url: "https://event.test" };
+  assert.equal(loadConfig(settings()).eventServices[0]!.meetings, false);
+  const meeting = loadConfig(settings({ EVENT_SERVICES: [{ ...showcase, meetings: true }] }));
+  assert.equal(meeting.eventServices[0]!.meetings, true);
+  assertRefused({ EVENT_SERVICES: [{ ...showcase, meetings: "true" }] }, "EVENT_SERVICES");
 });
 
 test("a public address is checked like the others, and loses its / at the end", () => {

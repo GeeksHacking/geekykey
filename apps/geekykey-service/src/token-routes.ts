@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Claims } from "./claims.ts";
 import { withClaimsDeadline } from "./claims-deadline.ts";
+import { type EventService, EventServiceUnavailable } from "./event-service.ts";
 import { log } from "./lib/log.ts";
 import { tokenUid } from "./lib/token-uid.ts";
 import { userIdSchema } from "./lib/user-id.ts";
@@ -17,9 +18,14 @@ export interface TokenRouteDeps {
   deadlineMs: number;
   /** From config.maxTokensPerUser: a user holding this many claims no more. */
   maxTokensPerUser: number;
-  /** Counts each user's lookups and claims: the TOKEN_LIMIT binding in wrangler.jsonc. */
+  /** Counts each user's lookups, claims and meetings: the TOKEN_LIMIT binding in wrangler.jsonc. */
   tokenLimit: RateLimit;
+  /** The Event Services whose entries take meetings, in EVENT_SERVICES' order. */
+  meetingServices: readonly Pick<EventService, "id" | "handOffMeeting">[];
 }
+
+/** One Event Service's answer to a half, as the meeting answers it (8.8). */
+type MeetingView = { event_id: string; status: string };
 
 /** What the lookup answers: who owns the token, as the token page sees it. */
 type TokenView = {
@@ -57,8 +63,16 @@ type TokenView = {
  * `tokensOf` for the first two checks, then `claim`. A release asks
  * `release` alone.
  *
+ * The meeting (8.8) is the token page's half of a connection, sent by
+ * itself once the lookup says `someone_else`. It asks `tokensOf` for the
+ * user's first-claimed token, then `ownersOf` for the token's owner and the
+ * kinds of both, and hands the half to each of `meetingServices` at once,
+ * within what's left of the same deadline. Each answers its own status, or
+ * `unavailable` when it doesn't answer properly in time, and is left out
+ * when it answers `404`, as one from before meetings does.
+ *
  * Every request counts toward the user's USER_LIMIT (src/session.ts). The
- * lookup and the claim count toward TOKEN_LIMIT as well, so nobody can work
+ * lookup, the claim and the meeting count toward TOKEN_LIMIT as well, so nobody can work
  * through UIDs to see which are claimed (the API agreement's section 2,
  * "Rate limits"). The release doesn't: a user can only release a token
  * they hold, unless they're a GeekyKey admin.
@@ -70,6 +84,7 @@ export function tokenRoutes({
   deadlineMs,
   maxTokensPerUser,
   tokenLimit,
+  meetingServices,
 }: TokenRouteDeps) {
   return new Hono<SessionEnv>()
     .get(
@@ -120,6 +135,54 @@ export function tokenRoutes({
           const claimed = await claims.claim(uid, userId, signal);
           if (claimed.result === "taken") return c.json({ error: "token_taken" }, 409);
           return token(claimed.claimedAt, claimed.result === "claimed" ? 201 : 200);
+        });
+      },
+    )
+    .post(
+      "/:uid/meet",
+      requireSession(session, tokenLimit),
+      pathParams(z.object({ uid: tokenUid })),
+      async (c) => {
+        const { uid } = c.req.valid("param");
+        const { userId } = c.var;
+        return await withClaimsDeadline(c, deadlineMs, async (signal) => {
+          // The user's kind is their first-claimed token's (11.10), asked with the owner.
+          const first = (await claims.tokensOf(userId, signal))[0]?.uid;
+          const owners = await claims.ownersOf(first === undefined ? [uid] : [uid, first], signal);
+          const owner = owners.get(uid);
+          if (owner === undefined || owner.userId === userId) {
+            return c.json({ error: "not_found" }, 404);
+          }
+          const mine = first === undefined ? undefined : owners.get(first);
+          const request = {
+            user_id: userId,
+            // Released since tokensOf, it has no kind of the user's.
+            user_kind: mine?.userId === userId ? mine.kind : null,
+            owner_id: owner.userId,
+            owner_kind: owner.kind,
+          };
+          const meetings = await Promise.all(
+            meetingServices.map(async (service): Promise<MeetingView | null> => {
+              try {
+                return {
+                  event_id: service.id,
+                  status: await service.handOffMeeting(request, signal),
+                };
+              } catch (err) {
+                if (!(err instanceof EventServiceUnavailable)) throw err;
+                // An Event Service from before meetings, which takes none (11.10).
+                if (err.reason === "status" && err.status === 404) return null;
+                log("meeting_handoff_failed", {
+                  event_service: service.id,
+                  user_id: userId,
+                  reason: err.reason,
+                  status: err.status,
+                });
+                return { event_id: service.id, status: "unavailable" };
+              }
+            }),
+          );
+          return c.json({ meetings: meetings.filter((meeting) => meeting !== null) });
         });
       },
     )
