@@ -8,7 +8,7 @@ import {
   userKinds,
   users,
 } from "../src/event/schema.ts";
-import { answers } from "../src/games/connections/schema.ts";
+import { answers, connections, meetingHalves } from "../src/games/connections/schema.ts";
 
 /*
   Which tables the evening-before clear empties, and which it keeps (spec,
@@ -26,8 +26,10 @@ export const clearedTables: readonly MySqlTable[] = [
   tokens,
   // Each user's first kind came from a token the clear releases.
   userKinds,
-  // The answers game's.
+  // The answers game's, and the connections game's halves and connections.
   answers,
+  meetingHalves,
+  connections,
 ];
 
 /** The settings and the people, which both events share. */

@@ -1,9 +1,17 @@
-import { heartbeatsRequest, type StationsAnswer, tapsRequest } from "@geekykey/handoff";
+import {
+  heartbeatsRequest,
+  type MeetingsAnswer,
+  meetingsRequest,
+  type StationsAnswer,
+  tapsRequest,
+} from "@geekykey/handoff";
 import { eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import { requireBearerKey } from "../lib/bearer-key.ts";
+import { log } from "../lib/log.ts";
 import { jsonBody, validationFailed } from "../lib/validate.ts";
+import type { ConnectionsGame } from "./connections.ts";
 import type { GameOnStations } from "./games.ts";
 import { stations } from "./schema.ts";
 import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
@@ -12,10 +20,24 @@ import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
  * What the GeekyKey Service asks of this Event Service (mounted at
  * /geekykey/v1): the API agreement's section 11. Every request carries the
  * Event Service key, checked in constant time and never logged, and each
- * body is checked against packages/handoff. `games` judge the taps.
+ * body is checked against packages/handoff. `games` judge the taps, and
+ * `connections` takes the meeting hand-off's halves. With no connections
+ * game, there's no meeting hand-off, and its `404` tells the GeekyKey
+ * Service this event takes no meetings (11.10).
  */
-export function handoffRoutes({ key, games }: { key: string; games: readonly GameOnStations[] }) {
-  return new Hono<AppEnv>()
+export function handoffRoutes({
+  key,
+  games,
+  connections,
+  now = () => new Date(),
+}: {
+  key: string;
+  games: readonly GameOnStations[];
+  connections: ConnectionsGame | null;
+  /** The clock a half is timed by. Tests pin it. */
+  now?: () => Date;
+}) {
+  const app = new Hono<AppEnv>()
     .use(requireBearerKey(key, "invalid_event_service_key"))
     .get("/stations", async (c) => {
       // The registered stations: the enabled ones, each with its key's hash (11.1).
@@ -100,4 +122,17 @@ export function handoffRoutes({ key, games }: { key: string; games: readonly Gam
 
       return c.body(null, 204);
     });
+
+  if (connections === null) return app;
+  return app.post("/meetings", jsonBody(meetingsRequest), async (c) => {
+    // One half of a connection: a user tapped their phone on someone else's token (11.10).
+    const { user_id, user_kind, owner_id, owner_kind } = c.req.valid("json");
+    const status = await connections.meet(
+      c.var.db,
+      { userId: user_id, userKind: user_kind, ownerId: owner_id, ownerKind: owner_kind },
+      now(),
+    );
+    log("meeting_handled", { user_id, owner_id, status });
+    return c.json({ status } satisfies MeetingsAnswer);
+  });
 }

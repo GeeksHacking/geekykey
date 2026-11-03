@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
+import type { ConnectionsGame } from "./connections.ts";
 import { loadMap, type MapStation } from "./map.ts";
 import {
   requireMapReader,
@@ -10,6 +11,8 @@ import {
 
 export interface MapRouteDeps {
   session: SessionOptions;
+  /** The event's connections game, whose web the map draws, or null for none. */
+  connections: ConnectionsGame | null;
 }
 
 /** A station as the map's data lists it (the API agreement's 9.10). */
@@ -32,11 +35,18 @@ function stationBody(station: MapStation) {
  * signed in gets `forbidden`, and nobody signed in `unauthenticated`. It
  * isn't under /admin, since a map screen isn't an organizer.
  */
-export function mapRoutes({ session }: MapRouteDeps) {
+export function mapRoutes({ session, connections }: MapRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireMapReader(session));
 
-  app.get("/", async (c) => c.json({ stations: (await loadMap(c.var.db)).map(stationBody) }));
+  app.get("/", async (c) => {
+    const [stations, web] = await Promise.all([
+      loadMap(c.var.db),
+      connections ? connections.web(c.var.db) : null,
+    ]);
+    // With no connections game, the answer leaves `connections` out, and the screen draws no web.
+    return c.json({ stations: stations.map(stationBody), ...(web && { connections: web }) });
+  });
 
   return app;
 }

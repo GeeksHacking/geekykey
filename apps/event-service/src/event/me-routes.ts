@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { jsonBody } from "../lib/validate.ts";
 import { type Answers, type AnswersGame, answersSchema } from "./answers.ts";
+import type { Connection, ConnectionsGame } from "./connections.ts";
 import { displayNameSchema, setOwnName } from "./display-names.ts";
 import {
   requireSession,
@@ -16,6 +17,21 @@ export interface MeRouteDeps {
   session: SessionOptions;
   /** The event's answers game, from its settings, or null for none. */
   answers: AnswersGame | null;
+  /** The event's connections game, from its settings, or null for none. */
+  connections: ConnectionsGame | null;
+  /** The clock that says when what a pair share is shown. Tests pin it. */
+  now?: () => Date;
+}
+
+/** One of the user's connections, as /me lists it (8.1). */
+function connectionBody(connection: Connection) {
+  return {
+    connected_at: connection.connectedAt,
+    kind: connection.kind,
+    match: connection.match,
+    shared: connection.shared,
+    shared_at: connection.sharedAt,
+  };
 }
 
 /** The `user` object that GET and PATCH /api/v1/me answer with (the API agreement's 8.1). */
@@ -38,7 +54,12 @@ function userBody(user: SessionUser, answers: Answers) {
  * call. PATCH / sets the name the event shows (display-names.ts), some
  * answers in the event's answers game (answers.ts), or both.
  */
-export function meRoutes({ session, answers: game }: MeRouteDeps) {
+export function meRoutes({
+  session,
+  answers: game,
+  connections: connectionsGame,
+  now = () => new Date(),
+}: MeRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
 
   /** PATCH /api/v1/me's body: either field, or both. */
@@ -55,14 +76,16 @@ export function meRoutes({ session, answers: game }: MeRouteDeps) {
   app.get("/", requireSession(session), async (c) => {
     // The session already loaded the profile, so only the rest is read here.
     const user = c.var.user;
-    const [me, answers] = await Promise.all([
+    const [me, answers, connections] = await Promise.all([
       loadMe(c.var.db, user.id),
       game ? game.answersOf(c.var.db, user.id) : {},
+      connectionsGame ? connectionsGame.connectionsOf(c.var.db, user.id, now()) : [],
     ]);
     return c.json({
       user: userBody(user, answers),
       questions: game ? game.questions : null,
-      points: me.points,
+      // The passport's points, and the same for each connection, whatever its match.
+      points: me.points + connections.length * (connectionsGame?.pointsEach ?? 0),
       // The wire calls the passport's slots `stamps`. Fields are never renamed within /api/v1.
       stamps: me.passport.map((slot) => ({
         station_id: slot.stationId,
@@ -89,6 +112,7 @@ export function meRoutes({ session, answers: game }: MeRouteDeps) {
               name: me.nextStop.name,
               booth: me.nextStop.booth,
             },
+      connections: connections.map(connectionBody),
     });
   });
 

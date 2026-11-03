@@ -29,6 +29,9 @@ const LOG_LINES = {
   login_unavailable: "ERROR",
   // A user passed the limit on requests a minute and got 429: which user, by ID.
   rate_limited: "INFO",
+  // A half of a connection the meeting hand-off brought (11.10): who tapped whose token, and its
+  // status, so the halves and connections can be rebuilt after a restore, and counted.
+  meeting_handled: "INFO",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;
