@@ -7,6 +7,7 @@ import type { AvatarColours } from "@/features/passport/avatar/avatar-colours";
 import { Confetti } from "@/features/passport/avatar/confetti";
 import { FlatAvatar } from "@/features/passport/avatar/flat-avatar";
 import type { Slot } from "@/features/passport/avatar/outfit";
+import { hasWebGL } from "@/features/passport/avatar/webgl";
 
 /*
   three.js comes through import() only, so the dashboard paints with the flat avatar first
@@ -19,15 +20,6 @@ const VoxelStage = lazy((): Promise<{ default: ComponentType<VoxelStageProps> }>
     () => ({ default: ({ fallback }: VoxelStageProps) => fallback }),
   ),
 );
-
-function hasWebGL(): boolean {
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
 
 interface AvatarStageProps {
   slots: readonly Slot[];
