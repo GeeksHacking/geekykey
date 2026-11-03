@@ -4,6 +4,7 @@ import { NetworkError } from "@/api/errors";
 import {
   parseClaimResponse,
   parseLoginLinkResponse,
+  parseMeetingResponse,
   parseMeResponse,
   parseTokenLookupResponse,
 } from "@/api/schemas";
@@ -126,5 +127,36 @@ describe("geekykey-web schemas", () => {
     for (const bad of [undefined, null, "a string", 42, []]) {
       expect(() => parseMeResponse(bad)).toThrow(NetworkError);
     }
+  });
+
+  it("accepts each of the five statuses an Event Service can answer with", () => {
+    // Agreement 11.10's four, and 8.8's own `unavailable` for a service that misses
+    // the deadline. A status the screens cannot word would reach them as a NetworkError,
+    // so each one has to parse.
+    for (const status of [
+      "waiting",
+      "connected",
+      "already_connected",
+      "same_kind",
+      "unavailable",
+    ] as const) {
+      const meetings = parseMeetingResponse({ meetings: [{ event_id: "showcase", status }] });
+      expect(meetings[0]?.status).toBe(status);
+      expect(meetings[0]?.event_id).toBe("showcase");
+    }
+  });
+
+  it("keeps an empty meetings list, which is every service left out", () => {
+    // 8.8: empty when no Event Service takes meetings.
+    expect(parseMeetingResponse({ meetings: [] })).toEqual([]);
+  });
+
+  it("rejects a meeting with an unknown status, or with no meetings key", () => {
+    expect(() =>
+      parseMeetingResponse({ meetings: [{ event_id: "showcase", status: "met" }] }),
+    ).toThrow(NetworkError);
+    expect(() => parseMeetingResponse([{ event_id: "showcase", status: "waiting" }])).toThrow(
+      NetworkError,
+    );
   });
 });

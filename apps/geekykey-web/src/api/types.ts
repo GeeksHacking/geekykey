@@ -3,9 +3,9 @@
   shape for the GeekyKey Service. Never add a field the agreement does not have;
   propose a change to the agreement instead.
 
-  Sections 8.2 to 8.6 of the agreement are the endpoints here. Section 10 has been
-  empty since version 0.3: a GeekyKey admin's one job is releasing someone else's token,
-  which is 8.3 with `owner_id`. The Event Service's shapes (agreement 8.1, 9.x)
+  Sections 8.2 to 8.6 and 8.8 of the agreement are the endpoints here. Section 10 has
+  been empty since version 0.3: a GeekyKey admin's one job is releasing someone else's
+  token, which is 8.3 with `owner_id`. The Event Service's shapes (agreement 8.1, 9.x)
   are deliberately absent: they belong to apps/event-web and must not leak into
   these screens.
 */
@@ -31,6 +31,29 @@ export interface TokenLookup {
 }
 
 export type TokenOwner = "nobody" | "you" | "someone_else";
+
+/** One Event Service's answer to a meeting (agreement 8.8, from 11.10). */
+export interface Meeting {
+  /** The Event Service's id, one of the events in /me (8.4). */
+  event_id: string;
+  status: MeetingStatus;
+}
+
+/**
+ * Every status an Event Service can answer a half with (agreement 11.10 and 8.8). One
+ * array, so the union the screens switch on and the schema that reads the wire cannot
+ * drift apart. `unavailable` is not the Event Service's own word: 8.8 gives it to any
+ * Event Service that doesn't answer in time or answers wrongly.
+ */
+export const MEETING_STATUSES = [
+  "waiting",
+  "connected",
+  "already_connected",
+  "same_kind",
+  "unavailable",
+] as const;
+
+export type MeetingStatus = (typeof MEETING_STATUSES)[number];
 
 /** GET /api/v1/me on the GeekyKey Service (agreement 8.4). */
 export interface MeResponse {

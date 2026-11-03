@@ -261,6 +261,29 @@ describe("geekykey-web http client", () => {
     await expect(api.createLoginLink("showcase")).rejects.toMatchObject({ name: "NetworkError" });
   });
 
+  it("posts the meeting to the token's path with no body", async () => {
+    // Agreement 8.8: the request has no body. The token is in the path and the session
+    // says who tapped, so there is nothing else to send.
+    const { calls } = stubFetch(() =>
+      json({ meetings: [{ event_id: "showcase", status: "waiting" }] }),
+    );
+    const api = createHttpClient();
+
+    const meetings = await api.meetToken("04C3D5F70912");
+
+    expect(calls[0]?.url).toBe("/api/v1/tokens/04C3D5F70912/meet");
+    expect(calls[0]?.init?.method).toBe("POST");
+    expect(calls[0]?.init?.body).toBeUndefined();
+    expect(meetings).toEqual([{ event_id: "showcase", status: "waiting" }]);
+  });
+
+  it("turns a status the agreement does not name into a NetworkError", async () => {
+    stubFetch(() => json({ meetings: [{ event_id: "showcase", status: "maybe" }] }));
+    const api = createHttpClient();
+
+    await expect(api.meetToken("04C3D5F70912")).rejects.toMatchObject({ name: "NetworkError" });
+  });
+
   it("turns a transport failure into a NetworkError", async () => {
     vi.stubGlobal(
       "fetch",

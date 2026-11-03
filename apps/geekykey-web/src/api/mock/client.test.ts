@@ -15,6 +15,14 @@ function setup(userId: string = SEEDED_PARTICIPANT_ID): MockApiClient {
 const UNCLAIMED = "04E5F7091B3D";
 /** Owned by p_1041 in the fixtures. */
 const SOMEONE_ELSES = "04C3D5F70912";
+/** Every status an Event Service can answer a meeting with (agreement 11.10). */
+const MEETING_STATUSES = [
+  "waiting",
+  "connected",
+  "already_connected",
+  "same_kind",
+  "unavailable",
+] as const;
 
 async function codeOf(work: () => Promise<unknown>): Promise<ErrorCode> {
   try {
@@ -383,6 +391,75 @@ describe("geekykey-web mock client", () => {
       const api = createMockClient({ latencyMs: [0, 0], storage: null });
 
       expect(await codeOf(() => api.createLoginLink("showcase"))).toBe("unauthenticated");
+    });
+  });
+
+  describe("meetings", () => {
+    it("answers the event's status for a token someone else holds", async () => {
+      // Agreement 8.8: the half goes to each Event Service whose settings take meetings.
+      // 11.10's waiting is what one half looks like while it waits for the other.
+      const api = setup();
+
+      expect(await api.meetToken(SOMEONE_ELSES)).toEqual([
+        { event_id: "showcase", status: "waiting" },
+      ]);
+    });
+
+    it.each(MEETING_STATUSES)("answers %s when the Event Service does", async (status) => {
+      const api = setup();
+      api.mock.setMeetingStatus(status);
+
+      expect((await api.meetToken(SOMEONE_ELSES))[0]?.status).toBe(status);
+    });
+
+    it("answers an empty list when no Event Service takes meetings", async () => {
+      // 8.8: "empty when none takes them". The flag does the work, not the number of
+      // services: the fixtures' second one left the settings and is never asked.
+      const api = setup();
+      api.mock.data.event_services = api.mock.data.event_services.map((service) => ({
+        ...service,
+        takes_meetings: false,
+      }));
+
+      expect(await api.meetToken(SOMEONE_ELSES)).toEqual([]);
+    });
+
+    it("answers not_found for your own token", async () => {
+      // 8.8 answers not_found for "a token that isn't someone else's", yours included.
+      const api = setup();
+
+      expect(await codeOf(() => api.meetToken("04A1B2C3D4E5F6"))).toBe("not_found");
+    });
+
+    it("answers not_found for a token nobody has claimed", async () => {
+      const api = setup();
+
+      expect(await codeOf(() => api.meetToken(UNCLAIMED))).toBe("not_found");
+    });
+
+    it("answers not_found for a UID no token carries, which reads as nobody's", async () => {
+      const api = setup();
+
+      expect(await codeOf(() => api.meetToken("04FFFFFFFFFF"))).toBe("not_found");
+    });
+
+    it("takes the UID in any separator style", async () => {
+      // Agreement "Token UID": the token page may send the address's UID as it is.
+      const api = setup();
+
+      expect((await api.meetToken("04:c3:d5:f7:09:12"))[0]?.event_id).toBe("showcase");
+    });
+
+    it("answers validation_failed for a UID that is too short to be a token", async () => {
+      const api = setup();
+
+      expect(await codeOf(() => api.meetToken("04A1"))).toBe("validation_failed");
+    });
+
+    it("needs a session", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+
+      expect(await codeOf(() => api.meetToken(SOMEONE_ELSES))).toBe("unauthenticated");
     });
   });
 

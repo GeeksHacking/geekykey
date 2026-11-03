@@ -10,12 +10,14 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiProvider } from "@/api/provider";
-import { NetworkError } from "@/api/errors";
+import { ApiError, NetworkError } from "@/api/errors";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import type { MeetingStatus } from "@/api/types";
 import { RequireSession } from "@/features/auth/require-session";
 import { TokenPage } from "@/features/token/token-page";
 import { createQueryClient } from "@/lib/query-client";
@@ -335,5 +337,219 @@ describe("TokenPage", () => {
 
     expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/Wei Lin/i);
+  });
+
+  describe("half a connection, when the token is someone else's", () => {
+    /** Section 13's sentence for each status an Event Service can answer with (11.10). */
+    const SENTENCES: Record<MeetingStatus, string> = {
+      waiting: "Now ask them to tap your token with their phone.",
+      connected: "You're connected!",
+      already_connected: "You're already connected.",
+      same_kind: "You're in the same group. Find someone from another group.",
+      unavailable: "Couldn't connect. Tap their token again.",
+    };
+    const STATUSES = Object.keys(SENTENCES) as MeetingStatus[];
+
+    it("sends the half by itself, with the token's normalised UID", async () => {
+      // Agreement 8.8: no button and no press. The lookup answering someone_else is the
+      // signal, and 11.10 says a half sent again does no harm, so nothing guards a retry.
+      const meet = vi.spyOn(api, "meetToken");
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, "04:c3:d5:f7:09:12");
+
+      expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
+      // The sentence is the answer showing, so the re-render it caused is behind us.
+      expect(await screen.findByText(SENTENCES.waiting)).toBeInTheDocument();
+      expect(meet).toHaveBeenCalledTimes(1);
+      expect(meet).toHaveBeenCalledWith(OWNED_BY_SOMEONE_ELSE);
+    });
+
+    it.each(STATUSES)("says what %s means in section 13's words", async (status) => {
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      api.mock.setMeetingStatus(status);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByText(SENTENCES[status])).toBeInTheDocument();
+      // The owner sentence stays above it, which is where section 13 puts the answer.
+      expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
+    });
+
+    it.each(["connected", "already_connected"] as const)(
+      "offers the event's button on %s, so the guest reaches the reveal",
+      async (status) => {
+        // Section 13: the button opens the passport through a login link (8.6).
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingStatus(status);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(
+          await screen.findByRole("button", { name: "Open Capstone Showcase" }),
+        ).toBeInTheDocument();
+      },
+    );
+
+    it.each(["waiting", "same_kind", "unavailable"] as const)(
+      "offers no event button on %s, which has nothing to open yet",
+      async (status) => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingStatus(status);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(SENTENCES[status])).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
+      },
+    );
+
+    it("shows nothing new when no Event Service takes meetings", async () => {
+      // 8.8: "empty when none takes them", so the owner sentence is the whole answer.
+      const meet = vi.spyOn(api, "meetToken");
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      api.mock.data.event_services = api.mock.data.event_services.map((service) => ({
+        ...service,
+        takes_meetings: false,
+      }));
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
+      await waitFor(() => expect(meet).toHaveBeenCalledTimes(1));
+      for (const sentence of Object.values(SENTENCES)) {
+        expect(screen.queryByText(sentence)).not.toBeInTheDocument();
+      }
+      expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
+    });
+
+    it("sends no half for a GeekyKey admin, who may be holding a lost token", async () => {
+      // 8.8 skips the call for an admin: Release is the action on this screen for them.
+      const meet = vi.spyOn(api, "meetToken");
+      api.mock.setSession(SEEDED_ADMIN_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByRole("button", { name: "Release" })).toBeInTheDocument();
+      expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
+      expect(meet).not.toHaveBeenCalled();
+      expect(screen.queryByText(SENTENCES.waiting)).not.toBeInTheDocument();
+    });
+
+    it("sends no half for your own token", async () => {
+      const meet = vi.spyOn(api, "meetToken");
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_PARTICIPANT);
+
+      expect(await screen.findByText("This is your token.")).toBeInTheDocument();
+      expect(meet).not.toHaveBeenCalled();
+    });
+
+    it("sends no half for a token nobody has claimed", async () => {
+      const meet = vi.spyOn(api, "meetToken");
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, UNCLAIMED);
+
+      expect(await screen.findByText("Nobody has claimed this token yet.")).toBeInTheDocument();
+      expect(meet).not.toHaveBeenCalled();
+    });
+
+    it("sends one half when React runs the effect twice, as development does", async () => {
+      // StrictMode mounts, unmounts and mounts again, so an effect without the ref would
+      // send a second half. 11.10 says that does no harm, but it is still a second read
+      // of the claims stand-in against the 20 a minute.
+      const meet = vi.spyOn(api, "meetToken");
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      const { Providers } = createTestProviders(api, { session: true });
+      render(
+        <StrictMode>
+          <Providers>
+            <TokenPage uid={OWNED_BY_SOMEONE_ELSE} />
+          </Providers>
+        </StrictMode>,
+      );
+
+      expect(await screen.findByText(SENTENCES.waiting)).toBeInTheDocument();
+      expect(meet).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses agreement 13's wording when it can't reach GeeksHacking, with no retry to press", async () => {
+      // Section 13 fixes the token page's sentence for claims_unavailable, and the half
+      // has no button: tapping the token again is the retry (8.8).
+      vi.spyOn(api, "meetToken").mockRejectedValue(new ApiError(503, "claims_unavailable"));
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Couldn't reach GeeksHacking. Try again.",
+      );
+      // The owner sentence stays, so the screen still says what the token is.
+      expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /try again/i })).not.toBeInTheDocument();
+    });
+
+    it("uses agreement 13's wording when the half is rate limited", async () => {
+      vi.spyOn(api, "meetToken").mockRejectedValue(new ApiError(429, "rate_limited"));
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Too many tries. Wait a minute and try again.",
+      );
+    });
+
+    it("says nothing when the session is gone, because the page is leaving for the login", async () => {
+      vi.spyOn(api, "meetToken").mockRejectedValue(new ApiError(401, "unauthenticated"));
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("looks the token up again when the half finds it is no longer someone else's", async () => {
+      // 8.8 answers not_found when the token stopped being someone else's between the
+      // lookup and the half. Section 13 sets no sentence for it, so the fresh lookup
+      // decides what the page shows: here the token was released, so Claim comes back.
+      const getToken = vi.spyOn(api, "getToken");
+      vi.spyOn(api, "meetToken").mockImplementation(async () => {
+        api.mock.data.tokens = api.mock.data.tokens.filter(
+          (token) => token.uid !== OWNED_BY_SOMEONE_ELSE,
+        );
+        throw new ApiError(404, "not_found");
+      });
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByText("Nobody has claimed this token yet.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Claim" })).toBeInTheDocument();
+      expect(getToken).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("shows describeError's sentence for a transport failure", async () => {
+      // Nothing in section 13 words a dropped request, so it gets the screens' own
+      // sentence rather than nothing at all.
+      vi.spyOn(api, "meetToken").mockRejectedValue(new NetworkError());
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not reach the server. Check the Wi-Fi and try again.",
+      );
+    });
+
+    it("shows the lookup's own error if the re-lookup fails, rather than a blank sentence", async () => {
+      // 8.8's not_found has the page ask the lookup again. If that fails too, the page is
+      // back to TokenError, which words it from section 13 and offers a retry.
+      vi.spyOn(api, "meetToken").mockImplementation(async () => {
+        api.mock.data.tokens = api.mock.data.tokens.filter(
+          (token) => token.uid !== OWNED_BY_SOMEONE_ELSE,
+        );
+        api.mock.failNext("rate_limited");
+        throw new ApiError(404, "not_found");
+      });
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      expect(
+        await screen.findByText("Too many tries. Wait a minute and try again."),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
+    });
   });
 });

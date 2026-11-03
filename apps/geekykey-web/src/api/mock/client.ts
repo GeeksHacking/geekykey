@@ -13,6 +13,8 @@ import type {
   ErrorCode,
   EventServiceLink,
   LoginLink,
+  Meeting,
+  MeetingStatus,
   MeResponse,
   Token,
   TokenLookup,
@@ -64,6 +66,11 @@ export interface MockControls {
   failNext(failure: MockFailure): void;
   /** Sign in without going through devLogin. Tests only. */
   setSession(userId: string | null): void;
+  /**
+   * What the Event Services answer a meeting with (agreement 11.10). Tests only: the
+   * mock keeps no halves, so it cannot work out `connected` by itself.
+   */
+  setMeetingStatus(status: MeetingStatus): void;
   readonly data: MockData;
 }
 
@@ -77,6 +84,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;
   let pendingFailure: MockFailure | null = null;
+  // 11.10's `waiting` is what one half looks like on its own, so it is the demo's state.
+  let meetingStatus: MeetingStatus = "waiting";
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -268,6 +277,25 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           expires_at: iso(now() + LOGIN_LINK_TTL_MS),
         };
       }),
+
+    // Agreement 8.8: one half of a connection. The mock keeps no halves and no clock,
+    // so it answers the status a test asked for rather than working out whether the
+    // other half arrived; the real service answers from 11.10's rules.
+    meetToken: (uid) =>
+      call((): Meeting[] => {
+        const userId = currentUserId();
+        const normalized = normalizeUid(uid);
+        if (!isValidUid(normalized)) fail("validation_failed");
+        const token = tokenByUid(normalized);
+        // 8.8 answers not_found for "a token that isn't someone else's": your own, or one
+        // that no token carries, which the mock reads as nobody's like the lookup does.
+        if (!token || token.owner_id === null || token.owner_id === userId) fail("not_found");
+        // One item for each service whose settings take meetings, in /me's order, and none
+        // for one from before 0.12, which would answer 404.
+        return data.event_services
+          .filter((service) => service.in_settings && service.takes_meetings)
+          .map((service) => ({ event_id: service.id, status: meetingStatus }));
+      }),
   };
 
   return {
@@ -277,6 +305,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         pendingFailure = failure;
       },
       setSession,
+      setMeetingStatus: (status) => {
+        meetingStatus = status;
+      },
       data,
     },
   };

@@ -71,6 +71,13 @@ the link carries the token's kind (11.9, ADR 0006); My tokens sends none, since 
 several tokens (FRO-106). The buttons are in
 `src/components/event-buttons.tsx`, and the hook that opens the link is in
 `src/lib/use-login-link.ts`.
+A token someone else holds sends half a connection by itself once the lookup answers
+`someone_else`, except for a GeekyKey admin, and the page words the Event Service's answer
+with section 13's sentences (agreement 8.8, FRO-110). With `connected` or
+`already_connected`, the event's button opens the passport through a login link, so the
+guest sees the reveal. The mock answers it for now: BAC-120 builds 8.8 in the service. The
+hook is `src/features/token/use-meeting.ts`, and the sentences are in
+`src/features/token/meeting-notice.tsx`.
 There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,
 which would have been one, was canceled.
 

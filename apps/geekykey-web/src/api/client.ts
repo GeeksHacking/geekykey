@@ -1,4 +1,4 @@
-import type { LoginLink, MeResponse, Token, TokenLookup } from "@/api/types";
+import type { LoginLink, Meeting, MeResponse, Token, TokenLookup } from "@/api/types";
 
 /*
   The one interface every feature consumes. Two implementations:
@@ -58,4 +58,16 @@ export interface ApiClient {
    * sends none, because it shows several tokens and no single one made the link.
    */
   createLoginLink(eventId: string, uid?: string): Promise<LoginLink>;
+
+  /**
+   * POST /api/v1/tokens/{uid}/meet. Agreement 8.8. The current user tapped someone
+   * else's token, one half of a connection (CONTEXT.md's "Half"). The token page calls
+   * it by itself, once, when its lookup (8.5) answers `someone_else`, and never for a
+   * GeekyKey admin, who may be holding a lost token.
+   *
+   * The answer is one item for each Event Service that takes meetings, in /me's order,
+   * and empty when none does (11.10). Tapping the token again sends the half again,
+   * which does no harm, so a failure needs no retry of its own.
+   */
+  meetToken(uid: string): Promise<Meeting[]>;
 }
