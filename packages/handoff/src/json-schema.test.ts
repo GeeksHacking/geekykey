@@ -51,6 +51,20 @@ test("the heartbeat hand-off's JSON Schema keeps the agreement's rules", () => {
   assert.equal(schema.properties.buffered_taps.maximum, 2_147_483_647);
 });
 
+test("the meeting hand-off's JSON Schemas keep the agreement's rules", () => {
+  const request = JSON.parse(jsonSchemaFiles()["meetings-request.schema.json"]!);
+  // Both kinds are always there, null for none.
+  assert.deepEqual(request.required, ["user_id", "user_kind", "owner_id", "owner_kind"]);
+  assert.equal(request.properties.owner_id.maxLength, 128);
+  const answer = JSON.parse(jsonSchemaFiles()["meetings-answer.schema.json"]!);
+  assert.deepEqual(answer.properties.status.enum, [
+    "waiting",
+    "connected",
+    "already_connected",
+    "same_kind",
+  ]);
+});
+
 test("a field added later doesn't break a team checking with an older JSON Schema", () => {
   // Fields are only ever added (the agreement's section 1), so none may be refused.
   for (const contents of Object.values(jsonSchemaFiles())) {

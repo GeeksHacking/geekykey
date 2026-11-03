@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "The user who tapped"
+    },
+    "user_kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The kind of the tapper's own token claimed first, or null for none"
+    },
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "The owner of the token tapped, never the user who tapped"
+    },
+    "owner_kind": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The kind of the token tapped, or null for none"
+    }
+  },
+  "required": [
+    "user_id",
+    "user_kind",
+    "owner_id",
+    "owner_kind"
+  ],
+  "title": "The meeting hand-off: POST /geekykey/v1/meetings",
+  "description": "Also: owner_id is never the same as user_id."
+}
