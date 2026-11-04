@@ -70,14 +70,33 @@ export async function createGroup(
   });
 }
 
-/** Joins the user, who then waits. Someone who has already joined keeps their place. */
+/**
+ * Joins the user. Before allocation has started, they wait. After it has, they
+ * are a latecomer, placed at once by the spec's "Placement rules" without the
+ * shuffle, or left waiting when there's no group. Someone who has already
+ * joined keeps their place. The allocation lock makes many joins at once take
+ * turns, so each sees the sizes the one before left.
+ */
 export async function joinGroups(db: Db, userId: string, now: Date): Promise<void> {
   await db.transaction(async (tx) => {
-    await lockAllocation(tx);
+    const { startedAt } = await lockAllocation(tx);
+    const [already] = await tx
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId))
+      .for("update");
+    if (already) return;
+
+    const joinedAt = now.toISOString();
+    const place =
+      startedAt === null ? undefined : choosePlace((await loadPlacesAndMembers(tx)).places);
     await tx
       .insert(groupMembers)
-      .values({ userId, joinedAt: now.toISOString() })
-      .onDuplicateKeyUpdate({ set: { userId: sql`${groupMembers.userId}` } });
+      .values(
+        place
+          ? { userId, joinedAt, groupId: place.id, placedAt: joinedAt, how: "latecomer" }
+          : { userId, joinedAt },
+      );
   });
 }
 
@@ -94,10 +113,9 @@ export type AllocateRefusal =
 
 /**
  * Places everyone waiting by the spec's "Placement rules", in an order
- * `shuffle` gives, and moves nobody
- * already placed. Each goes to the group with the fewest members that still
- * has room, or, when every group is full, the group with the fewest members.
- * The oldest group wins a tie. The first time, it also starts allocation.
+ * `shuffle` gives, each as choosePlace() says, and moves nobody already
+ * placed. The first time, it also starts allocation, and from then on
+ * joinGroups() places each latecomer as they join.
  *
  * It refuses, placing nobody and starting nothing, when there are no groups,
  * or fewer than 2 joined participants for each group.
@@ -109,41 +127,26 @@ export async function allocateWaiting(
 ): Promise<AllocateRefusal | null> {
   return db.transaction(async (tx) => {
     const { startedAt } = await lockAllocation(tx);
-    const groups = await tx
-      .select({ id: participantGroups.id, capacity: participantGroups.capacity })
-      .from(participantGroups)
-      .orderBy(asc(participantGroups.createdAt), asc(participantGroups.id))
-      .for("update");
-    if (groups.length === 0) return { error: "no_groups" };
-
-    const members = await tx
-      .select({ userId: groupMembers.userId, groupId: groupMembers.groupId })
-      .from(groupMembers)
-      .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId))
-      .for("update");
-    const needed = MIN_PER_GROUP * groups.length - members.length;
+    const { places, members } = await loadPlacesAndMembers(tx);
+    if (places.length === 0) return { error: "no_groups" };
+    const needed = MIN_PER_GROUP * places.length - members.length;
     if (needed > 0) return { error: "too_few_participants", needed };
 
-    const places = groups.map(({ id, capacity }) => ({
-      id,
-      capacity,
-      size: members.filter((member) => member.groupId === id).length,
-      newcomers: [] as string[],
-    }));
+    const newcomers = new Map(places.map(({ id }) => [id, [] as string[]]));
     const waiting = members.filter((member) => member.groupId === null);
     for (const { userId } of shuffle(waiting)) {
-      const place = smallest(places.filter(hasRoom)) ?? smallest(places)!;
+      const place = choosePlace(places)!;
       place.size += 1;
-      place.newcomers.push(userId);
+      newcomers.get(place.id)!.push(userId);
     }
 
     const placedAt = now.toISOString();
-    for (const { id, newcomers } of places) {
-      if (newcomers.length === 0) continue;
+    for (const [id, userIds] of newcomers) {
+      if (userIds.length === 0) continue;
       await tx
         .update(groupMembers)
         .set({ groupId: id, placedAt, how: "allocated" })
-        .where(inArray(groupMembers.userId, newcomers));
+        .where(inArray(groupMembers.userId, userIds));
     }
     if (startedAt === null) {
       await tx
@@ -155,10 +158,45 @@ export async function allocateWaiting(
   });
 }
 
-/** A group as allocation counts it. */
+/** A group as allocation counts it, with how many are in it now. */
 interface Place {
+  id: string;
   capacity: number | null;
   size: number;
+}
+
+/**
+ * Every group oldest first, with its size, and everyone who has joined. Call it
+ * only with the allocation lock held. Its reads lock too, since on TiDB a plain
+ * read after the lock could miss a join that the lock waited for.
+ */
+async function loadPlacesAndMembers(tx: Tx) {
+  const groups = await tx
+    .select({ id: participantGroups.id, capacity: participantGroups.capacity })
+    .from(participantGroups)
+    .orderBy(asc(participantGroups.createdAt), asc(participantGroups.id))
+    .for("update");
+  const members = await tx
+    .select({ userId: groupMembers.userId, groupId: groupMembers.groupId })
+    .from(groupMembers)
+    .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId))
+    .for("update");
+  const places: Place[] = groups.map(({ id, capacity }) => ({
+    id,
+    capacity,
+    size: members.filter((member) => member.groupId === id).length,
+  }));
+  return { places, members };
+}
+
+/**
+ * Where the next person goes by the spec's "Placement rules": the group with
+ * the fewest members that still has room, or, when every group is full, the
+ * group with the fewest members. The first in `places`, the oldest, wins a tie.
+ * None when there are no groups.
+ */
+function choosePlace(places: Place[]): Place | undefined {
+  return smallest(places.filter(hasRoom)) ?? smallest(places);
 }
 
 /** Whether a group can take one more without passing its capacity. */
@@ -167,8 +205,8 @@ function hasRoom({ capacity, size }: Place): boolean {
 }
 
 /** The group with the fewest members, the first in `places` on a tie, or none from an empty list. */
-function smallest<P extends Place>(places: P[]): P | undefined {
-  return places.reduce<P | undefined>(
+function smallest(places: Place[]): Place | undefined {
+  return places.reduce<Place | undefined>(
     (best, place) => (best === undefined || place.size < best.size ? place : best),
     undefined,
   );

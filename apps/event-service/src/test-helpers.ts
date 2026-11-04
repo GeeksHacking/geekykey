@@ -65,6 +65,16 @@ const testPool = createDbPool(localDatabaseUrl("geekykey_test"));
 afterAll(testPool.close);
 
 /**
+ * Another pool to geekykey_test, with its own connections, as a second
+ * instance of the service on Cloud Run has. Closed once the file's tests are done.
+ */
+export function anotherTestDb(): Db {
+  const pool = createDbPool(localDatabaseUrl("geekykey_test"));
+  afterAll(pool.close);
+  return pool.db;
+}
+
+/**
  * geekykey_test, through a pool like the server's. Every table starts each
  * test empty (test-support/empty-tables.ts).
  */
@@ -83,7 +93,9 @@ export function testDb(): Db {
  * answers game, so /me's `questions` is null, unless a test of the game gives
  * its own `answers`, and no connections game, so it takes no meetings, unless
  * a test of that game gives its own `connections`. Allocate shuffles the
- * groups' waiting list at random, unless a test gives its own `shuffle`.
+ * groups' waiting list at random, unless a test gives its own `shuffle`. It
+ * shares one pool with every other testApp() in the file, unless a test gives
+ * its own `db`, as one standing in for a second instance of the service does.
  */
 export function testApp(
   settings: Record<string, string> = {},
@@ -93,7 +105,8 @@ export function testApp(
     answers = null,
     connections = null,
     shuffle,
-  }: Partial<AppDeps> = {},
+    db = testDb(),
+  }: Partial<AppDeps> & { db?: Db } = {},
 ) {
   const config = loadConfig({
     DATABASE_URL: localDatabaseUrl("geekykey_test"),
@@ -103,7 +116,7 @@ export function testApp(
     FIREBASE_PROJECT_ID: TEST_FIREBASE_PROJECT_ID,
     ...settings,
   });
-  return createApp(config, testDb(), { googleKeys, now, answers, connections, shuffle });
+  return createApp(config, db, { googleKeys, now, answers, connections, shuffle });
 }
 
 /** One station running the passport, with its settings, and one participant holding one token. */

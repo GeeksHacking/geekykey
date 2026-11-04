@@ -41,7 +41,8 @@ function Loading() {
  * The top of the participant's dashboard (spec: participant groups): the name prompt while
  * they have no name, then a Join button until they join, then that they're waiting, then their
  * group and its members' names. A page that arrived through a login link joins by itself, so
- * the token is all the participant needs.
+ * the token is all the participant needs. Someone who joins after Allocate sees their group at
+ * once, or, left waiting, to ask an organiser.
  */
 export function GroupCard() {
   const { me } = useMe();
@@ -93,7 +94,7 @@ function GroupCardBody() {
     return <Loading />;
   }
 
-  const { status, group } = myGroup.data;
+  const { status, allocation_started, group } = myGroup.data;
   // What a failed poll means, kept with the last answer so a card isn't lost to it.
   const pollProblem = !myGroup.isError ? null : showStaleNote(myGroup.error, true) ? (
     <StaleDataNote onRetry={refetch} />
@@ -122,7 +123,11 @@ function GroupCardBody() {
         <Frame label="Groups">
           <p className="mt-1 text-lg font-semibold">You&apos;re waiting for a group.</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            It will show here. You don&apos;t need to do anything else.
+            {/* After Allocate, someone waits only when there was no group to put them in, an
+                organiser sent them back, or their group was deleted. */}
+            {allocation_started
+              ? "Ask an organiser to put you in one."
+              : "It will show here. You don't need to do anything else."}
           </p>
         </Frame>
       ) : (

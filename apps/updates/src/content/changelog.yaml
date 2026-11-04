@@ -2079,3 +2079,10 @@
   change: >-
     A guest who opens the dashboard is asked for their name, so their group sees it rather
     than "Guest". Skipping still lets them join and see their group.
+- id: groups-latecomers-placed
+  date: 2026-11-04
+  area: backend
+  change: >-
+    Once an organizer has pressed Allocate, anyone who joins goes straight into the smallest group
+    with room, even when many join at once. Anyone still waiting after that sees a line on their
+    dashboard asking them to find an organizer.
