@@ -15,6 +15,8 @@ import {
   parseStationResponse,
   parseStatsResponse,
   parseMapResponse,
+  setDisplayNameResponseSchema,
+  updateMeResponseSchema,
 } from "@/api/schemas";
 import { makeMe } from "@/test/make-me";
 
@@ -26,6 +28,87 @@ describe("me response contract", () => {
 
     expect(meResponseSchema.safeParse(me).success).toBe(true);
     expect(parseMeResponse(me)).toEqual(me);
+  });
+
+  it("reads the answers game's questions, the user's answers and their connections", () => {
+    const parsed = parseMeResponse(
+      makeMe({
+        user: { answers: { drink: "tea" } },
+        questions: [
+          {
+            id: "drink",
+            text: "Tea or coffee?",
+            choices: [
+              { id: "tea", text: "Tea" },
+              { id: "coffee", text: "Coffee" },
+            ],
+          },
+        ],
+        connections: [
+          {
+            connected_at: "2026-11-12T08:12:30.000Z",
+            kind: "B",
+            match: 60,
+            shared: null,
+            shared_at: "2026-11-12T08:14:30.000Z",
+          },
+        ],
+      }),
+    );
+
+    expect(parsed.questions?.[0]?.choices).toHaveLength(2);
+    expect(parsed.user.answers).toEqual({ drink: "tea" });
+    expect(parsed.connections[0]?.match).toBe(60);
+  });
+
+  it("accepts no questions and no connections", () => {
+    const parsed = parseMeResponse(makeMe());
+
+    expect(parsed.questions).toBeNull();
+    expect(parsed.connections).toEqual([]);
+  });
+
+  it("refuses a question without 2 to 4 choices and a match outside 0 to 100", () => {
+    const base = makeMe();
+    const connection = {
+      connected_at: "2026-11-12T08:12:30.000Z",
+      kind: "B",
+      match: 60,
+      shared: null,
+      shared_at: "2026-11-12T08:14:30.000Z",
+    };
+
+    expect(() =>
+      parseMeResponse({
+        ...base,
+        questions: [{ id: "drink", text: "Tea or coffee?", choices: [] }],
+      }),
+    ).toThrow(NetworkError);
+    expect(() =>
+      parseMeResponse({ ...base, questions: [{ id: "drink", text: "Tea or coffee?" }] }),
+    ).toThrow(NetworkError);
+    expect(() =>
+      parseMeResponse({ ...base, connections: [{ ...connection, match: 101 }] }),
+    ).toThrow(NetworkError);
+    expect(() => parseMeResponse({ ...base, connections: [{ ...connection, match: -1 }] })).toThrow(
+      NetworkError,
+    );
+    expect(() =>
+      parseMeResponse({ ...base, user: { ...base.user, answers: { drink: 1 } } }),
+    ).toThrow(NetworkError);
+  });
+
+  it("parses PATCH /me's answer for the name or the answers", () => {
+    const user = {
+      id: "u",
+      display_name: "Alex",
+      role: "participant",
+      has_name: true,
+      answers: { drink: "tea" },
+    };
+
+    expect(updateMeResponseSchema.safeParse({ user }).success).toBe(true);
+    expect(setDisplayNameResponseSchema.safeParse({ user }).success).toBe(true);
   });
 
   it("ignores unknown legacy fields until the backend checkpoint removes them", () => {

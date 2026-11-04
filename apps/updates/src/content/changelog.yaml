@@ -2020,3 +2020,10 @@
   change: >-
     After a connection, the dashboard and the passport show the percentage match and list the
     guest's connections, with no names. Two minutes later a button lists the answers the two share.
+- id: passport-five-questions
+  date: 2026-11-04
+  area: frontend
+  change: >-
+    The passport asks the grad tea's 5 questions one at a time, each answered with a tap on
+    a choice. A guest can skip a question and come back, change an answer until their first
+    connection, and after connecting sees the answers without a way to change them.

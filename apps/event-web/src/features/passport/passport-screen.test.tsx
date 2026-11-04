@@ -126,13 +126,13 @@ describe("the name prompt (agreement 8.1, 8.7 and 13)", () => {
   ])("says the rule for %s and sends nothing", async (_, name) => {
     const { api, user } = renderPassport(SEEDED_GUEST_ID);
     await screen.findByRole("heading", { name: PROMPT });
-    const setDisplayName = vi.spyOn(api, "setDisplayName");
+    const updateMe = vi.spyOn(api, "updateMe");
 
     if (name) await user.type(screen.getByLabelText("Name"), name);
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Use 1 to 30 characters.")).toBeInTheDocument();
-    expect(setDisplayName).not.toHaveBeenCalled();
+    expect(updateMe).not.toHaveBeenCalled();
   });
 
   it("takes 30 emoji, which are 30 characters though 60 UTF-16 units", async () => {

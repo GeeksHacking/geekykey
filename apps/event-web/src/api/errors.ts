@@ -60,6 +60,8 @@ export function describeError(error: unknown): string {
         return "Your account is not allowed to do that.";
       case "not_found":
         return "That was not found. It may have been removed.";
+      case "answers_fixed":
+        return "You've connected, so your answers are set.";
       case "rate_limited":
         return "Too many requests. Wait a minute and try again.";
       case "invalid_event_service_key":

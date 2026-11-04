@@ -49,6 +49,8 @@ apps/event-web/
     features/               # one folder per domain; the real UI lives here
       auth/                 # login screen, Firebase sign-in buttons, dev-login form, expired-link notice, RequireSession, RequireRole, 403 view, shell wiring
       passport/             # dashboard, stamp grid, stamp tile, station glyph, the name prompt and Change name,
+                           # the answers game's questions and their summary (questions-prompt.tsx,
+                           # question-step.tsx, answers-summary.tsx, answers.ts),
                            # the grad tea's avatar, its colours and memory card (avatar/, FRO-105),
                            # what a poll changed (passport-changes.ts), the new stamp's group link offer
                            # (new-stamp-banner.tsx, use-new-stamp-link.ts), the reveal and list of connections

@@ -239,7 +239,7 @@ describe("what you share (agreement 0.13 draft, section 13)", () => {
 
     const button = within(list).getByRole("button", { name: SHOW });
     expect(button).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Tea or coffee?")).not.toBeInTheDocument();
+    expect(within(list).queryByRole("list", { name: "What you share" })).not.toBeInTheDocument();
 
     await user.click(button);
 

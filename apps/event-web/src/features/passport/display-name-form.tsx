@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useSetDisplayName } from "@/features/passport/use-set-display-name";
+import { useUpdateMe } from "@/features/passport/use-update-me";
 import { isDisplayName } from "@/lib/display-name";
 
 /** Agreement 13's sentence for a name the rule refuses, here or at the service. */
@@ -40,7 +40,7 @@ export function DisplayNameForm({
   secondaryAction?: ReactNode;
   onSaved?: () => void;
 }) {
-  const setDisplayName = useSetDisplayName();
+  const updateMe = useUpdateMe();
   const form = useForm<NameValues>({
     resolver: zodResolver(schema),
     defaultValues: { display_name: defaultName },
@@ -50,7 +50,7 @@ export function DisplayNameForm({
   async function onSubmit(values: NameValues) {
     setFormError(null);
     try {
-      await setDisplayName.mutateAsync(values.display_name.trim());
+      await updateMe.mutateAsync({ display_name: values.display_name.trim() });
       onSaved?.();
     } catch (error) {
       // The service has the last word on the rule, and section 13 words its answer.
