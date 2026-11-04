@@ -32,6 +32,10 @@ export function useUpdateMe() {
         }
         return { ...me, user: next };
       });
+      // The group card lists every member's name, so a new name leaves that answer out of date.
+      if (input.display_name !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.myGroup });
+      }
     },
   });
 }
