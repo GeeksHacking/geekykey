@@ -15,7 +15,7 @@ const JOIN_HINT = "Press Join when you're at the event, and you'll be put in a g
 const WAITING = "You're waiting for a group.";
 const PROMPT = "What should we call you?";
 const NOTHING_TO_DO = "It will show here. You don't need to do anything else.";
-const ASK_AN_ORGANIZER = "There's no group to put you in yet. Ask an organizer.";
+const ASK_AN_ORGANISER = "Ask an organiser to put you in one.";
 
 /** As RequireSession does in the app, so the card's first read is signed in. */
 function SignedIn({ children }: { children: ReactNode }) {
@@ -272,7 +272,7 @@ describe("GroupCard", () => {
     expect(screen.queryByText(WAITING)).not.toBeInTheDocument();
   });
 
-  it("tells a latecomer to ask an organizer when there's no group to put them in", async () => {
+  it("tells a latecomer to ask an organiser when there's no group to put them in", async () => {
     const { api, user } = renderCard();
     const join = await screen.findByRole("button", { name: "Join" });
     await allocateElsewhere(api);
@@ -281,7 +281,7 @@ describe("GroupCard", () => {
     await user.click(join);
 
     expect(await screen.findByText(WAITING)).toBeInTheDocument();
-    expect(screen.getByText(ASK_AN_ORGANIZER)).toBeInTheDocument();
+    expect(screen.getByText(ASK_AN_ORGANISER)).toBeInTheDocument();
     expect(screen.queryByText(NOTHING_TO_DO)).not.toBeInTheDocument();
   });
 
