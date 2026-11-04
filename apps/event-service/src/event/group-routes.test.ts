@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { anotherTestDb, fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
@@ -9,6 +10,21 @@ const ORGANIZER = "dev-organizer-1";
 const JOINED_AT = "2026-11-05T01:00:00.000Z";
 
 const { myGroupResponseSchema, groupBoardResponseSchema, eventGroupSchema } = screensSchemas;
+
+/**
+ * The Event screens' own list of the CSV's columns (apps/event-web), so the two
+ * can't drift apart. Imported by a path tsc doesn't follow, since the screens'
+ * code is checked with their settings, not the service's.
+ */
+const SCREENS_TYPES = fileURLToPath(
+  new URL("../../../event-web/src/api/types.ts", import.meta.url),
+);
+const { GROUPS_EXPORT_CSV_COLUMNS } = (await import(/* @vite-ignore */ SCREENS_TYPES)) as {
+  GROUPS_EXPORT_CSV_COLUMNS: readonly string[];
+};
+
+/** The CSV's first line (draft for the API agreement's 0.14). */
+const EXPORT_HEADER = "user_id,display_name,group_name,joined_at,placed_at,how";
 
 /** GET and POST /api/v1/me/group, in the shape the spec's draft for agreement 0.14 gives. */
 interface MyGroupBody {
@@ -138,6 +154,15 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
       groupBoardResponseSchema,
     );
 
+  /** The groups CSV's lines as an organizer downloads it, which must be a 200. */
+  const exportLines = async (): Promise<string[]> => {
+    const response = await send(ORGANIZER, "GET", "/api/v1/admin/groups/export.csv");
+    assert.equal(response.status, 200);
+    const csv = await response.text();
+    assert.ok(csv.endsWith("\r\n"), "the last line ends like the others");
+    return csv.slice(0, -2).split("\r\n");
+  };
+
   let crowdSize = 0;
   /** Adds `count` more people who have logged in to the event before, and gives their user IDs. */
   const arriveCrowd = async (count: number): Promise<string[]> => {
@@ -168,6 +193,7 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
     arriveCrowd,
     joinCrowd,
     allocate,
+    exportLines,
   };
 }
 
@@ -367,6 +393,7 @@ const ORGANIZER_ROUTES = [
   ["GET", "/api/v1/admin/groups"],
   ["POST", "/api/v1/admin/groups"],
   ["POST", "/api/v1/admin/groups/allocate"],
+  ["GET", "/api/v1/admin/groups/export.csv"],
 ] as const;
 
 test("a participant is refused on every organizer route", async () => {
@@ -713,4 +740,90 @@ test("20 people with 3 groups of capacity 5, 14 of them joining at once, give 7,
   assert.equal(after.joined_count, 20);
   const placed = after.groups.flatMap((group) => group.members.map(({ user_id }) => user_id));
   assert.equal(new Set(placed).size, 20, "nobody is in two groups");
+});
+
+test("the CSV downloads as a file, with the columns the Event screens expect", async () => {
+  const { send, exportLines } = await harness();
+
+  const response = await send(ORGANIZER, "GET", "/api/v1/admin/groups/export.csv");
+
+  assert.equal(response.headers.get("Content-Type"), "text/csv; charset=utf-8");
+  assert.equal(
+    response.headers.get("Content-Disposition"),
+    'attachment; filename="geekykey-groups.csv"',
+  );
+  assert.equal(GROUPS_EXPORT_CSV_COLUMNS.join(","), EXPORT_HEADER);
+  assert.deepEqual(await exportLines(), [EXPORT_HEADER], "nobody has joined, so no rows");
+});
+
+test("the CSV has a row for each person, oldest join first, with their group, times and how", async () => {
+  const { clock, createGroup, join, allocate, exportLines } = await harness({
+    shuffle: (items) => items,
+  });
+  await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  await createGroup("Mixer B");
+  for (const userId of ["user-1", "user-2", "user-3", "user-4"]) {
+    clock.advanceSeconds(10);
+    await join(userId);
+  }
+  clock.advanceSeconds(60);
+  await allocate();
+  clock.advanceSeconds(60);
+  await testDb().insert(users).values({ id: "user-5", displayName: "Eli" });
+  await join("user-5");
+
+  assert.deepEqual(await exportLines(), [
+    EXPORT_HEADER,
+    "user-1,Alex,Mixer A,2026-11-05T01:00:11.000Z,2026-11-05T01:01:41.000Z,allocated",
+    "user-2,Bala,Mixer B,2026-11-05T01:00:21.000Z,2026-11-05T01:01:41.000Z,allocated",
+    "user-3,Chen,Mixer A,2026-11-05T01:00:31.000Z,2026-11-05T01:01:41.000Z,allocated",
+    "user-4,Dewi,Mixer B,2026-11-05T01:00:41.000Z,2026-11-05T01:01:41.000Z,allocated",
+    "user-5,Eli,Mixer A,2026-11-05T01:02:41.000Z,2026-11-05T01:02:41.000Z,latecomer",
+  ]);
+});
+
+test("someone still waiting has a row, with their group, placed time and how empty", async () => {
+  const { join, exportLines } = await harness();
+
+  await join("user-1");
+
+  assert.deepEqual((await exportLines()).slice(1), [`user-1,Alex,,${JOINED_AT},,`]);
+});
+
+test("someone an organizer placed says so", async () => {
+  const { createGroup, exportLines } = await harness();
+  const group = await createGroup("Mixer A");
+  // Written straight into the table until BAC-132 gives organizers the route.
+  await testDb().insert(groupMembers).values({
+    userId: "user-1",
+    groupId: group.id,
+    joinedAt: JOINED_AT,
+    placedAt: "2026-11-05T01:05:00.000Z",
+    how: "organizer",
+  });
+
+  assert.deepEqual((await exportLines()).slice(1), [
+    `user-1,Alex,Mixer A,${JOINED_AT},2026-11-05T01:05:00.000Z,organizer`,
+  ]);
+});
+
+test("a name with a comma or a quote is quoted, and one like a formula is left as typed", async () => {
+  const { createGroup, join, allocate, exportLines } = await harness({
+    shuffle: (items) => items,
+  });
+  await createGroup("Hall, Level 2");
+  await testDb()
+    .update(users)
+    .set({ displayName: 'Sam "the" Tapper' })
+    .where(eq(users.id, "user-1"));
+  await testDb().update(users).set({ displayName: "=1+1" }).where(eq(users.id, "user-2"));
+  await join("user-1");
+  await join("user-2");
+  await allocate();
+
+  assert.deepEqual((await exportLines()).slice(1), [
+    `user-1,"Sam ""the"" Tapper","Hall, Level 2",${JOINED_AT},${JOINED_AT},allocated`,
+    `user-2,=1+1,"Hall, Level 2",${JOINED_AT},${JOINED_AT},allocated`,
+  ]);
 });

@@ -14,7 +14,7 @@ Each row says what a screen reads and writes, and the cases it must handle.
 | `/activity` | participant | `GET /me` `recent_taps` | | non-accepted taps shown with a plain-language reason |
 | `/admin` | organiser | | | participant sees the 403 view |
 | `/admin/stations` | organiser | `GET /admin/stations` (Event board) polled | `POST /admin/stations`, `POST /admin/stations/{id}/key`, `PUT /admin/stations/{id}/passport`, `PUT /admin/stations/{id}/booth`, `POST /admin/stations/{id}/disable`, `POST /admin/stations/{id}/enable` | one-time `api_key` reveal with copy button and warning; online and offline; unknown status, which is never shown as offline; problem stations first; empty board; one Actions menu per row, named for its station, holding every row action, and the rows' order held while it is open; Add to passport on a row with no settings, Edit on one with, including the group link it can save or clear; each station's booth, or "No booth", changed from the menu, with the example plan's codes in the field's hint; Replace key on every row, disabled rows included; Disable behind a confirmation, Enable at once; a closed dialog puts the keyboard back on its row's Actions button |
-| `/admin/groups` | organiser | `GET /admin/groups` polled every 5 s | `POST /admin/groups`, `POST /admin/groups/allocate` | no groups; `name_taken` under the name in the dialog; an optional capacity in the dialog, blank for any number; `no_groups` and `too_few_participants` (with how many more are `needed`) in words under the header; who has joined and who is waiting; each group's members, latecomers included at the next poll, with its size out of its capacity and "Over capacity" past it |
+| `/admin/groups` | organiser | `GET /admin/groups` polled every 5 s | `POST /admin/groups`, `POST /admin/groups/allocate`, `GET /admin/groups/export.csv`, fetched and saved as a file | no groups; `name_taken` under the name in the dialog; an optional capacity in the dialog, blank for any number; `no_groups` and `too_few_participants` (with how many more are `needed`) in words under the header; who has joined and who is waiting; each group's members, latecomers included at the next poll, with its size out of its capacity and "Over capacity" past it; Download CSV, with the same rule and notice for escaped values as the summary's |
 | `/admin/taps` | organiser | `GET /admin/taps` polled, filters, cursor | | stored `no_game` keeps its user; load more; empty log |
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
@@ -22,8 +22,8 @@ Each row says what a screen reads and writes, and the cases it must handle.
 
 `/admin/stations` and `/admin/fallback` both read the Event board, from
 `listStationBoard()`, which is the only call to `GET /api/v1/admin/stations` (9.2).
-The export is not a link: `features/stats/export-button.tsx`
-fetches it and hands the browser a Blob.
+Neither export is a link: `components/csv-download-button.tsx` fetches the file and hands the
+browser a Blob.
 
 Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens
 against `MVP` endpoints are still built now, against mocks.

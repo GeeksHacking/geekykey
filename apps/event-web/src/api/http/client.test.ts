@@ -77,6 +77,17 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     );
   });
 
+  it("fetches the groups CSV as a file", async () => {
+    const api = createHttpClient();
+
+    fetchMock.mockResolvedValueOnce(new Response("user_id,display_name\r\n"));
+    await expect((await api.exportGroupsCsv()).text()).resolves.toBe("user_id,display_name\r\n");
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/export.csv",
+      expect.anything(),
+    );
+  });
+
   it("keeps name_taken from the answer, and refuses an answer in the wrong shape", async () => {
     const api = createHttpClient();
 

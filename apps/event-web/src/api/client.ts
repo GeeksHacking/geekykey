@@ -135,4 +135,7 @@ export interface ApiClient {
 
   /** POST /api/v1/admin/groups/allocate (draft for agreement 0.14). Answers with the board. */
   allocateGroups(): Promise<GroupBoardResponse>;
+
+  /** GET /api/v1/admin/groups/export.csv (draft for agreement 0.14) as a file the browser can save. */
+  exportGroupsCsv(): Promise<Blob>;
 }

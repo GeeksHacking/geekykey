@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { Button } from "@/components/ui/button";
 import { AddGroupDialog } from "@/features/groups/add-group-dialog";
+import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
 import { useAllocateGroups } from "@/features/groups/use-allocate-groups";
@@ -74,6 +75,7 @@ export function GroupsScreen() {
             <p className="mt-3 text-sm text-muted-foreground">Nobody is waiting.</p>
           )}
         </section>
+        <ExportGroupsButton />
       </div>
     );
   }

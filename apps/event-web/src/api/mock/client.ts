@@ -12,6 +12,7 @@ import {
 } from "@/api/mock/fixtures";
 import {
   EXPORT_CSV_COLUMNS,
+  GROUPS_EXPORT_CSV_COLUMNS,
   type AdminTap,
   type ApiIssue,
   type CreateGroupRequest,
@@ -738,12 +739,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               tap.received_at,
             ];
           });
-        const lines = [
-          EXPORT_CSV_COLUMNS.join(","),
-          ...rows.map((row) => row.map(csvCell).join(",")),
-        ];
-        // RFC 4180, as agreement 9.6 has it: every line ends in CRLF, the last one too.
-        return new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+        return csvFile(EXPORT_CSV_COLUMNS, rows);
       }),
 
     // Agreement 9.10. The mock keeps no map screen list, so only an organizer may read it.
@@ -841,6 +837,25 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         data.groupAllocationStartedAt ??= placedAt;
         return toGroupBoard();
       }),
+
+    // Everyone who has joined, oldest join first, as the Event Service writes it.
+    exportGroupsCsv: () =>
+      call(() => {
+        currentOrganizer();
+        const rows = data.groupMembers
+          .toSorted(
+            (a, b) => a.joined_at.localeCompare(b.joined_at) || a.user_id.localeCompare(b.user_id),
+          )
+          .map((member) => [
+            member.user_id,
+            memberName(member.user_id),
+            data.groups.find((group) => group.id === member.group_id)?.name ?? "",
+            member.joined_at,
+            member.placed_at ?? "",
+            member.how ?? "",
+          ]);
+        return csvFile(GROUPS_EXPORT_CSV_COLUMNS, rows);
+      }),
   };
 
   // Station simulator: keeps online stations fresh and drips in new taps so polling has something to show.
@@ -888,6 +903,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
 function csvCell(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/** RFC 4180, as agreement 9.6 has it: every line ends in CRLF, the last one too. */
+function csvFile(columns: readonly string[], rows: string[][]): Blob {
+  const lines = [columns.join(","), ...rows.map((row) => row.map(csvCell).join(","))];
+  return new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
 }
 
 /** A copy of `items` in a random order (Fisher-Yates), as Allocate places the waiting list. */
