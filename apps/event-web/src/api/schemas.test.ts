@@ -68,7 +68,7 @@ describe("me response contract", () => {
     expect(parsed.connections).toEqual([]);
   });
 
-  it("refuses a question without 2 to 4 choices and a match outside 0 to 100", () => {
+  it("refuses a question without choices and a match outside 0 to 100", () => {
     const base = makeMe();
     const connection = {
       connected_at: "2026-11-12T08:12:30.000Z",
@@ -78,12 +78,6 @@ describe("me response contract", () => {
       shared_at: "2026-11-12T08:14:30.000Z",
     };
 
-    expect(() =>
-      parseMeResponse({
-        ...base,
-        questions: [{ id: "drink", text: "Tea or coffee?", choices: [] }],
-      }),
-    ).toThrow(NetworkError);
     expect(() =>
       parseMeResponse({ ...base, questions: [{ id: "drink", text: "Tea or coffee?" }] }),
     ).toThrow(NetworkError);

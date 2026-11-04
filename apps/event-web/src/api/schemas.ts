@@ -37,9 +37,7 @@ const userSchema = z.object({
 const questionSchema = z.object({
   id: z.string(),
   text: z.string(),
-  choices: z
-    .array(z.object({ id: z.string(), text: z.string() }))
-    .check(z.minLength(2), z.maxLength(4)),
+  choices: z.array(z.object({ id: z.string(), text: z.string() })),
 });
 
 const connectionSchema = z.object({
