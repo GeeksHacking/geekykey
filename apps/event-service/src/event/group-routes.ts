@@ -10,6 +10,7 @@ import {
   joinGroups,
   loadGroupBoard,
   loadMyGroup,
+  type Shuffle,
   shuffleAtRandom,
 } from "./groups.ts";
 import { organizerText } from "./organizer-text.ts";
@@ -97,7 +98,10 @@ export function myGroupRoutes({
   return app;
 }
 
-/** A new group: its name, and the most people it has room for, or none for any number. */
+/**
+ * A new group: its name, and the most people it has room for, or none for any number (draft
+ * for the API agreement's 0.14).
+ */
 const createGroupSchema = z.object({
   name: organizerText("name"),
   capacity: z.number().int().positive().nullable().default(null),
@@ -112,8 +116,8 @@ export function adminGroupRoutes({
   shuffle = shuffleAtRandom,
 }: {
   now?: () => Date;
-  /** The order Allocate places the waiting list in, at random unless a test gives its own. */
-  shuffle?: <T>(items: T[]) => T[];
+  /** At random unless a test gives its own. */
+  shuffle?: Shuffle;
 }) {
   const app = new Hono<AppEnv & SessionEnv>();
 

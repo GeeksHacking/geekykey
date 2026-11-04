@@ -81,16 +81,20 @@ export async function joinGroups(db: Db, userId: string, now: Date): Promise<voi
   });
 }
 
+/** Puts the waiting list in the order Allocate places it. */
+export type Shuffle = <T>(items: T[]) => T[];
+
 /** The fewest joined participants Allocate takes for each group, so nobody is put in one alone. */
 const MIN_PER_GROUP = 2;
 
-/** Why Allocate placed nobody, as its 409 answers. */
+/** Why Allocate placed nobody, as its 409 answers (draft for the API agreement's 0.14). */
 export type AllocateRefusal =
   | { error: "no_groups" }
   | { error: "too_few_participants"; needed: number };
 
 /**
- * Places everyone waiting, in an order `shuffle` gives, and moves nobody
+ * Places everyone waiting by the spec's "Placement rules", in an order
+ * `shuffle` gives, and moves nobody
  * already placed. Each goes to the group with the fewest members that still
  * has room, or, when every group is full, the group with the fewest members.
  * The oldest group wins a tie. The first time, it also starts allocation.
@@ -101,7 +105,7 @@ export type AllocateRefusal =
 export async function allocateWaiting(
   db: Db,
   now: Date,
-  shuffle: <T>(items: T[]) => T[],
+  shuffle: Shuffle,
 ): Promise<AllocateRefusal | null> {
   return db.transaction(async (tx) => {
     const { startedAt } = await lockAllocation(tx);
@@ -171,14 +175,14 @@ function smallest<P extends Place>(places: P[]): P | undefined {
 }
 
 /** A copy of `items` in a random order (Fisher-Yates). */
-export function shuffleAtRandom<T>(items: T[]): T[] {
+export const shuffleAtRandom: Shuffle = (items) => {
   const shuffled = [...items];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
   }
   return shuffled;
-}
+};
 
 /** When allocation started, or null before it has. */
 async function allocationStartedAt(db: Db): Promise<string | null> {

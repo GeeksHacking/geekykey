@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
+import type { Shuffle } from "./groups.ts";
 import { users } from "./schema.ts";
 
 const ORGANIZER = "dev-organizer-1";
@@ -52,7 +53,7 @@ const PEOPLE = [
 ];
 
 /** Every test goes through the routes a screen calls, and reads answers as the screens do. */
-async function harness({ shuffle }: { shuffle?: <T>(items: T[]) => T[] } = {}) {
+async function harness({ shuffle }: { shuffle?: Shuffle } = {}) {
   const clock = fakeClock(JOINED_AT);
   const app = testApp({}, { now: clock.now, shuffle });
   // Dev-login signs in only someone who has logged in to this event before.
@@ -133,7 +134,7 @@ async function harness({ shuffle }: { shuffle?: <T>(items: T[]) => T[] } = {}) {
     return crowd.map(({ id }) => id);
   };
 
-  return { clock, send, createGroup, board, myGroup, join, joinCrowd, allocate };
+  return { clock, send, read, createGroup, board, myGroup, join, joinCrowd, allocate };
 }
 
 test("a new group is on the board by its name, with nobody in it", async () => {
@@ -217,7 +218,7 @@ test("a group's name must be 1 to 80 characters", async () => {
 });
 
 test("a group can have a capacity, and has none unless given one", async () => {
-  const { clock, send, createGroup, board } = await harness();
+  const { clock, send, read, createGroup, board } = await harness();
 
   const small = await createGroup("Small room", 6);
   clock.advanceSeconds(1);
@@ -230,8 +231,10 @@ test("a group can have a capacity, and has none unless given one", async () => {
 
   assert.equal(small.capacity, 6);
   assert.equal(hall.capacity, null);
-  assert.equal(stage.status, 201);
-  assert.equal(((await stage.json()) as { capacity: unknown }).capacity, null);
+  assert.equal(
+    (await read<BoardBody["groups"][number]>(stage, eventGroupSchema, 201)).capacity,
+    null,
+  );
   assert.deepEqual(
     (await board()).groups.map((group) => group.capacity),
     [6, null, null],

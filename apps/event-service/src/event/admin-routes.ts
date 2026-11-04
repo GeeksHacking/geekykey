@@ -22,6 +22,7 @@ import {
 } from "./schema.ts";
 import { exportTapsCsv } from "./export.ts";
 import { adminGroupRoutes } from "./group-routes.ts";
+import type { Shuffle } from "./groups.ts";
 import { organizerText } from "./organizer-text.ts";
 import { runsThePassport } from "./stamp-slots.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
@@ -36,8 +37,8 @@ export interface AdminRouteDeps {
   games: readonly GameOnStations[];
   /** The clock the station board tells online stations by, and a QR fallback tap is received by. */
   now?: () => Date;
-  /** The order Allocate places the groups' waiting list in, at random unless given. */
-  shuffle?: <T>(items: T[]) => T[];
+  /** For the groups' Allocate, at random unless given. */
+  shuffle?: Shuffle;
 }
 
 /** A new station's label, the device's name. */

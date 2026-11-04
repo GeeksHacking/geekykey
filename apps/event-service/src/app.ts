@@ -9,6 +9,7 @@ import type { ConnectionsGame } from "./event/connections.ts";
 import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { myGroupRoutes } from "./event/group-routes.ts";
+import type { Shuffle } from "./event/groups.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
@@ -41,8 +42,8 @@ export interface AppDeps {
    * meetings.
    */
   connections?: ConnectionsGame | null;
-  /** The order Allocate places the groups' waiting list in, at random unless a test gives its own. */
-  shuffle?: <T>(items: T[]) => T[];
+  /** For the groups' Allocate, at random unless a test gives its own. */
+  shuffle?: Shuffle;
 }
 
 /**

@@ -2063,7 +2063,6 @@
   date: 2026-11-04
   area: backend
   change: >-
-    Allocate splits people by the agreed rules. It shuffles everyone waiting, fills every group
-    with room before any goes over its capacity, and refuses with no groups or fewer than 2
-    people for each group, saying how many more to wait for. A group past its capacity shows
-    "Over capacity" on the Groups screen.
+    Allocate shuffles everyone waiting and fills every group with room before any goes over its
+    capacity, which the Groups screen then shows as "Over capacity". With no groups, or fewer than
+    2 people for each group, it places nobody and says how many more to wait for.

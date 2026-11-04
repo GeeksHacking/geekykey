@@ -16,13 +16,12 @@ export function GroupPanel({ group }: { group: EventGroup }) {
           {group.name}
         </h2>
         <span className="look-label shrink-0 text-muted-foreground">
+          <span className="font-mono text-foreground">{size}</span>
           {group.capacity === null ? (
-            <>
-              <span className="font-mono text-foreground">{size}</span> in it
-            </>
+            " in it"
           ) : (
             <>
-              <span className="font-mono text-foreground">{size}</span> of{" "}
+              {" of "}
               <span className="font-mono text-foreground">{group.capacity}</span>
             </>
           )}
