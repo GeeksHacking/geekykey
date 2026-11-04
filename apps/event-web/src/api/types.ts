@@ -224,9 +224,22 @@ export interface MapStation {
   last_tap_at: string | null;
 }
 
+/**
+ * The event's connections, anonymous (agreement 9.10). `count` is how many the event has.
+ * `links` gives each one as two guest numbers, the smaller first, oldest connection first.
+ * The numbers stand for users, numbered in the order they first connected, and none of them
+ * carries a name or a user ID.
+ */
+export interface MapConnections {
+  count: number;
+  links: [number, number][];
+}
+
 /** GET /api/v1/map: every station, stamp slots first in slot order, then the others oldest first. */
 export interface MapResponse {
   stations: MapStation[];
+  /** Absent before the Event Service that answers has connections (9.10). */
+  connections?: MapConnections;
 }
 
 export type ErrorCode =

@@ -154,6 +154,18 @@ describe("sessions and roles", () => {
     expect(stations.slice(5).every((s) => s.game === null)).toBe(true);
   });
 
+  it("grows the map's web over a few polls", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    const first = (await api.map()).connections;
+    const second = (await api.map()).connections;
+
+    expect(first?.count).toBeGreaterThan(0);
+    expect(second?.count).toBe((first?.count ?? 0) + 1);
+    expect(second?.links).toHaveLength(second?.count ?? 0);
+  });
+
   it("counts a cooldown tap in the map's taps, as 9.10 does", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);

@@ -130,6 +130,12 @@ const mapResponseSchema: z.ZodMiniType<MapResponse> = z.object({
       last_tap_at: z.nullable(isoTimestamp),
     }),
   ),
+  connections: z.optional(
+    z.object({
+      count,
+      links: z.array(z.tuple([z.int(), z.int()])),
+    }),
+  ),
 });
 
 /** Agreement 9.3. The log holds stored taps only, so no `duplicate`, and each has a user. */
