@@ -41,6 +41,24 @@ async function createGroup(
   await user.click(within(dialog).getByRole("button", { name: "Create group" }));
 }
 
+/** Fills the Split into groups dialog, as an organiser does, and presses Split. */
+async function split(
+  user: ReturnType<typeof userEvent.setup>,
+  { groups, perGroup, locations = [] }: { groups: string; perGroup: string; locations?: string[] },
+) {
+  await user.click(screen.getByRole("button", { name: "Split into groups" }));
+  const dialog = await screen.findByRole("dialog");
+  await user.type(within(dialog).getByLabelText("Number of groups"), groups);
+  await user.type(within(dialog).getByLabelText("People per group"), perGroup);
+  for (const [i, location] of locations.entries()) {
+    // A blank one is left as it is.
+    if (location !== "")
+      await user.type(within(dialog).getByLabelText(`Group ${i + 1} location`), location);
+  }
+  await user.click(within(dialog).getByRole("button", { name: "Split" }));
+  return dialog;
+}
+
 /** Catches the file a download saves, with its name, in place of the browser saving it. */
 function catchDownload() {
   const saved: { blob?: Blob; name?: string } = {};
@@ -584,5 +602,117 @@ describe("GroupsScreen", () => {
     expect(await within(atrium).findByText("Fewer than 2 members")).toBeInTheDocument();
     const foyer = screen.getByRole("region", { name: "Foyer mixer" });
     expect(within(foyer).queryByText("Fewer than 2 members")).not.toBeInTheDocument();
+  });
+
+  it("splits everyone into the groups the form sets, with each group's location, in one press", async () => {
+    // 5 have joined and there are no groups.
+    const { api, user } = renderScreen({ prepare: (api) => (api.mock.data.groups = []) });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const dialog = await split(user, { groups: "2", perGroup: "2", locations: ["Room 3A"] });
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(screen.getByText("Nobody is waiting.")).toBeInTheDocument();
+    const first = screen.getByRole("region", { name: "Group 1" });
+    const second = screen.getByRole("region", { name: "Group 2" });
+    expect(within(first).getByText("Room 3A")).toBeInTheDocument();
+    expect(namesIn("Members of Group 1")).toHaveLength(3);
+    expect(namesIn("Members of Group 2")).toHaveLength(2);
+    // 3 in a group of 2 shows in words.
+    expect(within(first).getByText("Over capacity")).toBeInTheDocument();
+    expect(within(second).queryByText("Over capacity")).not.toBeInTheDocument();
+    expect(api.mock.data.groups.map(({ capacity, location }) => [capacity, location])).toEqual([
+      [2, "Room 3A"],
+      [2, null],
+    ]);
+  });
+
+  it("says in the dialog how many more people the split needs, makes nothing, and works once they join", async () => {
+    const { api, user } = renderScreen({ prepare: (api) => (api.mock.data.groups = []) });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    // 5 have joined, and 3 groups need 6.
+    const dialog = await split(user, { groups: "3", perGroup: "2" });
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Each group needs at least 2 people. Wait for 1 more person to join, then press Split again.",
+    );
+    expect(api.mock.data.groups).toEqual([]);
+    expect(api.mock.data.groupAllocationStartedAt).toBeNull();
+
+    api.mock.data.groupMembers.push({
+      user_id: "u_a1c3",
+      group_id: null,
+      joined_at: new Date().toISOString(),
+      placed_at: null,
+      how: null,
+    });
+    await user.click(within(dialog).getByRole("button", { name: "Split" }));
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual(["Group 1", "Group 2", "Group 3"]);
+    expect(await screen.findByText("Nobody is waiting.")).toBeInTheDocument();
+  });
+
+  it("says in the dialog why a split can't run while there are groups, and changes nothing", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const dialog = await split(user, { groups: "2", perGroup: "3" });
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "There are groups already. Delete them first, or press Allocate to fill them.",
+    );
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual(["Foyer mixer", "Atrium mixer"]);
+    expect(api.mock.data.groupMembers.every((member) => member.group_id === null)).toBe(true);
+  });
+
+  it("draws a location field for each group typed, and refuses numbers that aren't whole and above 0", async () => {
+    const { api, user } = renderScreen({ prepare: (api) => (api.mock.data.groups = []) });
+    await screen.findByRole("list", { name: "Waiting" });
+    await user.click(screen.getByRole("button", { name: "Split into groups" }));
+    const dialog = await screen.findByRole("dialog");
+    const count = within(dialog).getByLabelText("Number of groups");
+
+    await user.type(count, "3");
+    expect(within(dialog).getAllByLabelText(/^Group \d+ location$/)).toHaveLength(3);
+    // A mistyped large number draws 30, and says how to set the rest.
+    await user.type(count, "00");
+    expect(within(dialog).getAllByLabelText(/^Group \d+ location$/)).toHaveLength(30);
+    expect(
+      within(dialog).getByText(
+        /Only the first 30 have a field here\. Set the rest from each group's menu afterwards\./,
+      ),
+    ).toBeInTheDocument();
+    await user.clear(count);
+    await user.type(count, "0");
+    expect(within(dialog).queryAllByLabelText(/^Group \d+ location$/)).toHaveLength(0);
+    await user.type(within(dialog).getByLabelText("People per group"), "2.5");
+    await user.click(within(dialog).getByRole("button", { name: "Split" }));
+
+    expect(await within(dialog).findAllByText("Enter a whole number above 0.")).toHaveLength(2);
+    expect(api.mock.data.groups).toEqual([]);
+  });
+
+  it("refuses a location past 80 characters before sending, and sends a blank one as none", async () => {
+    const { api, user } = renderScreen({ prepare: (api) => (api.mock.data.groups = []) });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const dialog = await split(user, {
+      groups: "2",
+      perGroup: "2",
+      locations: ["", "a".repeat(81)],
+    });
+
+    expect(await within(dialog).findByText("Keep it under 80 characters.")).toBeInTheDocument();
+    expect(api.mock.data.groups).toEqual([]);
+
+    const second = within(dialog).getByLabelText("Group 2 location");
+    await user.clear(second);
+    await user.type(second, "Lobby");
+    await user.click(within(dialog).getByRole("button", { name: "Split" }));
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(api.mock.data.groups.map(({ location }) => location)).toEqual([null, "Lobby"]);
   });
 });

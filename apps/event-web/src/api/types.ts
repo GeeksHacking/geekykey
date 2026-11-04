@@ -348,6 +348,18 @@ export interface CreateGroupRequest {
 
 export type UpdateGroupRequest = CreateGroupRequest;
 
+/**
+ * POST /api/v1/admin/groups/split (BAC-138, draft for agreement 0.14): makes `group_count`
+ * groups named "Group 1", "Group 2" and so on, each with `people_per_group` as its capacity,
+ * then allocates everyone who has joined. Group n's location is the nth of `locations`, at most
+ * one for each group, and a missing or blank one is none.
+ */
+export interface SplitGroupsRequest {
+  group_count: number;
+  people_per_group: number;
+  locations?: (string | null)[];
+}
+
 export type ErrorCode =
   | "validation_failed"
   | "unauthenticated"
@@ -362,10 +374,12 @@ export type ErrorCode =
   // Agreement 0.13 section 8.7: the user's first connection fixed their answers.
   | "answers_fixed"
   // Drafts for agreement 0.14: another group has this name; Allocate with no groups, or with
-  // fewer than 2 joined for each group, which also gives how many more it `needed`.
+  // fewer than 2 joined for each group, which also gives how many more it `needed`; the
+  // one-step split while any group exists.
   | "name_taken"
   | "no_groups"
   | "too_few_participants"
+  | "groups_exist"
   | "rate_limited"
   | "invalid_event_service_key"
   | "event_service_unavailable"

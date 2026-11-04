@@ -4,6 +4,7 @@ import type {
   EventGroup,
   GroupBoardResponse,
   MyGroupResponse,
+  SplitGroupsRequest,
   UpdateGroupRequest,
   StationKeyResponse,
   StationResponse,
@@ -136,6 +137,14 @@ export interface ApiClient {
 
   /** POST /api/v1/admin/groups/allocate (draft for agreement 0.14). Answers with the board. */
   allocateGroups(): Promise<GroupBoardResponse>;
+
+  /**
+   * POST /api/v1/admin/groups/split (BAC-138, draft for agreement 0.14). Makes the groups and
+   * allocates everyone who has joined, in one step, and answers with the board. It makes
+   * nothing on a refusal: `groups_exist` while any group is there, or Allocate's
+   * `too_few_participants`.
+   */
+  splitGroups(input: SplitGroupsRequest): Promise<GroupBoardResponse>;
 
   /**
    * POST /api/v1/admin/groups/reset (draft for agreement 0.14). Everyone leaves their group and

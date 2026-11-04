@@ -23,6 +23,8 @@ GeekyKey's token has no part in this today. Mr Tan's brief doesn't give it one.
 
 Organizers get a Groups screen in the existing organizer console. They create groups, each with a name, tags, a location and an optional capacity. When they're ready, they press Allocate, and the app splits everyone who has joined into those groups at random. From then on, each latecomer goes straight into the smallest group with room. Organizers can move or remove anyone by hand.
 
+There's also a shortcut, which Adam suggested to the team on 5 Nov (BAC-138). Once people have joined, an organizer opens a form on the Groups screen and enters the number of groups, the people per group and a location for each group. One press makes the groups and allocates everyone who has joined. It works only while there are no groups.
+
 A participant taps their token with their phone and presses the event's button on the token page, as they do today. That logs them in to the event and joins them. The dashboard then shows that they're waiting, and after allocation shows their group, its location and the other members' names.
 
 ## User stories
@@ -97,6 +99,12 @@ Participants:
 51. As a participant, I want to see only my own group's members, so that the screen stays simple and other people's details stay private.
 52. As an organizer account, I want to be kept out of allocation, so that staff don't take up a participant's place.
 
+The shortcut (BAC-138):
+
+53. As an organizer, I want to enter a number of groups, the people per group and a location for each group, and have the groups made and filled in one press, so that splitting a room takes one form.
+54. As an organizer, I want the shortcut refused while any group exists, so that it can't overwrite a live board.
+55. As an organizer, I want a refused shortcut to leave nothing behind, so that I can send the same form again once enough people have joined.
+
 ## Implementation decisions
 
 ### Modules
@@ -119,6 +127,18 @@ Participants:
 - Nothing rebalances by itself. Deleting a group, removing a person or changing a capacity changes only what the organizer asked for, and the waiting list empties at the next Allocate.
 - An organizer's manual assignment may pass a capacity. The board shows any group over its capacity, however it got there.
 - Joining is idempotent. A participant who has already joined keeps their place.
+
+### The shortcut
+
+Adam agreed these rules on 5 Nov (BAC-138).
+
+- The form takes the number of groups and the people per group, each a whole number above 0, and an optional location for each group, which follows a group's location rule.
+- It makes the groups named "Group 1", "Group 2" and so on, oldest first in that order. Each has the people per group as its capacity and no tags.
+- It then allocates by the placement rules above, so 5 joined in 2 groups of 2 gives sizes 3 and 2, and the board shows the first over capacity.
+- The service refuses it while any group exists, and makes nothing. Changing the numbers between trials means deleting the groups first, because Reset keeps them.
+- The service also refuses it, making nothing, when fewer than 2 have joined for each group, with Allocate's `too_few_participants`. So people join before anyone uses it. The dialog's sentence ends "then press Split again", since pressing Allocate after a refused split would find no groups.
+- The service does the whole step in one transaction under the allocation lock. A refusal leaves nothing behind, so a retry can't fail on group names that already exist. Of two organizers pressing at once, the second finds the first's groups and is refused.
+- The screen shows locations for up to 30 groups. The rest get theirs from each group's menu afterwards, so a mistyped large number doesn't draw hundreds of fields.
 
 ### Concurrency
 
@@ -153,6 +173,7 @@ Organizer:
 - `PUT /api/v1/admin/groups/members/{user_id}` takes `{ "group_id": string | null }`, where null means waiting, and adds the user if they haven't joined. It answers `404 not_found` when the group or the user doesn't exist.
 - `DELETE /api/v1/admin/groups/members/{user_id}` removes them. They can join again.
 - `POST /api/v1/admin/groups/reset` empties the members and un-starts allocation, and keeps the groups.
+- `POST /api/v1/admin/groups/split` takes `{ "group_count": integer, "people_per_group": integer, "locations"?: (string | null)[] }`, with at most one location for each group, and a missing or blank one as none. It makes the groups and allocates, and answers `201` with the board. It answers `409 groups_exist` while any group exists, or `409 too_few_participants` with `needed`, and makes nothing either way.
 - `GET /api/v1/admin/groups/export.csv` gives each member's group, join time, placed time and how they were placed.
 
 Errors otherwise follow the agreement: `unauthenticated`, `forbidden`, `validation_failed` and `rate_limited`.
@@ -186,6 +207,11 @@ The backend tests cover the brief's scenarios:
 | Allocate again | After deleting a group | Its members placed, others unmoved |
 | Rush | 20 joins at once after allocation, 3 groups with capacity 5 | Nobody in two groups, nobody waiting, sizes 7, 7, 6 |
 | Reset | After allocation | Groups kept, nobody joined, status `not_joined` |
+| Shortcut, even | 4 people, 2 groups of 2 | "Group 1" and "Group 2", sizes 2, 2 |
+| Shortcut, over capacity | 5 people, 2 groups of 2 | Sizes 3, 2, the first over capacity |
+| Shortcut, too few | 3 people, 2 groups | `409 too_few_participants`, `needed` 1, no groups; the same form works after a fourth joins |
+| Shortcut, groups there | 1 group, 6 people | `409 groups_exist`, nothing made or placed |
+| Shortcut, at once | Two presses on two instances | One `201`, one `409 groups_exist`, one set of groups |
 
 The rest of the backend tests cover roles (a participant is refused every organizer route), privacy (a participant's answer has no user IDs and only their own group), manual moves past capacity, deleting a group, and the CSV.
 

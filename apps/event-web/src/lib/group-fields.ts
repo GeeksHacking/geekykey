@@ -8,6 +8,9 @@ export const GROUP_TEXT_MAX = 80;
 
 export const GROUP_TAGS_MAX = 5;
 
+/** What a form says under a name, tag or location past GROUP_TEXT_MAX. */
+export const GROUP_TEXT_TOO_LONG = "Keep it under 80 characters.";
+
 export function isGroupText(text: string): boolean {
   // Spread, not .length, which counts UTF-16 units and so would count an emoji twice.
   return [...text.trim()].length <= GROUP_TEXT_MAX;

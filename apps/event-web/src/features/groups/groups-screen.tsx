@@ -14,6 +14,7 @@ import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
 import { MemberRow } from "@/features/groups/member-row";
 import { ResetGroupsDialog } from "@/features/groups/reset-groups-dialog";
+import { SplitGroupsDialog } from "@/features/groups/split-groups-dialog";
 import { useAllocateGroups } from "@/features/groups/use-allocate-groups";
 import { useGroupBoard } from "@/features/groups/use-group-board";
 import { showStaleNote } from "@/lib/rate-limit";
@@ -65,7 +66,7 @@ export function GroupsScreen() {
           <EmptyState
             icon={UsersThree}
             title="No groups yet"
-            description="Create the first group, then press Allocate once people have joined."
+            description="Once people have joined, press Split into groups to make the groups and place everyone at once. Or create the first group, then press Allocate."
           />
         )}
         <section aria-labelledby="groups-waiting" className="rounded-lg border p-4">
@@ -96,10 +97,12 @@ export function GroupsScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Groups"
-        description="Create groups, then press Allocate to split everyone who has joined. Move anyone from their menu. Reset empties the groups for another trial. Refreshes every 5 seconds."
+        description="Create groups, then press Allocate to split everyone who has joined, or press Split into groups to do both at once. Move anyone from their menu. Reset empties the groups for another trial. Refreshes every 5 seconds."
         actions={
           <>
             <AddGroupDialog />
+            {/* Split answers with the board, as Allocate does, so the two take turns too. */}
+            <SplitGroupsDialog disabled={!data || allocate.isPending} />
             <Button disabled={!data || allocate.isPending} onClick={() => allocate.mutate()}>
               Allocate
             </Button>

@@ -19,6 +19,7 @@ import {
   resetAllocation,
   type Shuffle,
   shuffleAtRandom,
+  splitIntoGroups,
 } from "./groups.ts";
 import { optionalOrganizerText, organizerText } from "./organizer-text.ts";
 import {
@@ -122,6 +123,22 @@ const groupFieldsSchema = z.object({
   capacity: z.number().int().positive().nullable().default(null),
 });
 
+/**
+ * The Groups screen's one-step form (BAC-138, draft for the API agreement's 0.14): how many
+ * groups, the people per group, which is each group's capacity, and a location for each
+ * group, in order. Locations follow a group's location rule, and a missing one is none.
+ */
+const splitSchema = z
+  .object({
+    group_count: z.number().int().positive(),
+    people_per_group: z.number().int().positive(),
+    locations: z.array(optionalOrganizerText("location")).default([]),
+  })
+  .refine(({ group_count, locations }) => locations.length <= group_count, {
+    path: ["locations"],
+    message: "locations must have at most one item for each group",
+  });
+
 /** Where an organizer puts someone: a group by its ID, or waiting with null. */
 const placeMemberSchema = z.object({ group_id: z.string().nullable() });
 
@@ -198,6 +215,21 @@ export function adminGroupRoutes({
     if (refusal) return c.json(refusal, 409);
     log("groups_allocated", { user_id: c.var.user.id });
     return c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers)));
+  });
+
+  // Makes the groups and allocates everyone who has joined, in one step, or makes nothing.
+  app.post("/split", jsonBody(splitSchema), async (c) => {
+    const { group_count, people_per_group, locations } = c.req.valid("json");
+    const refusal = await splitIntoGroups(
+      c.var.db,
+      { groupCount: group_count, peoplePerGroup: people_per_group, locations },
+      now(),
+      shuffle,
+      organizers,
+    );
+    if (refusal) return c.json(refusal, 409);
+    log("groups_split", { user_id: c.var.user.id, group_count });
+    return c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers)), 201);
   });
 
   // Everyone joins again for the next trial, and the groups stay.
