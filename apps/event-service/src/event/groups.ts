@@ -180,16 +180,17 @@ export async function joinGroups(
  * An organizer's choice of where `userId` goes: the group `groupId`, or waiting when it's null.
  * It may pass a capacity, since an organizer's judgement overrules it (the spec's "Placement
  * rules"). Someone who hasn't joined joins now. Putting someone where they already are changes
- * nothing. It gives `"not_found"` when there's no such user or group.
- *
- * The caller keeps organizer accounts out, as the route does.
+ * nothing. It gives `"not_found"` when there's no such user or group, and `"organizer"` for an
+ * account on the organizer list, which is never placed (the spec's user story 52).
  */
 export async function placeMember(
   db: Db,
   userId: string,
   groupId: string | null,
   now: Date,
-): Promise<"not_found" | null> {
+  organizers: Organizers,
+): Promise<"not_found" | "organizer" | null> {
+  if (organizers.has(userId)) return "organizer";
   return db.transaction(async (tx) => {
     await lockAllocation(tx);
     const [user] = await tx

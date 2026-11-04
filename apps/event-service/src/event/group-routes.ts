@@ -175,12 +175,10 @@ export function adminGroupRoutes({
   app.put("/members/:userId", jsonBody(placeMemberSchema), async (c) => {
     const { db, user } = c.var;
     const userId = c.req.param("userId");
-    // Staff don't take a participant's place (the spec's user story 52).
-    if (organizers.has(userId)) return c.json({ error: "forbidden" }, 403);
     const groupId = c.req.valid("json").group_id;
-    if ((await placeMember(db, userId, groupId, now())) === "not_found") {
-      return c.json({ error: "not_found" }, 404);
-    }
+    const refusal = await placeMember(db, userId, groupId, now(), organizers);
+    if (refusal === "not_found") return c.json({ error: "not_found" }, 404);
+    if (refusal === "organizer") return c.json({ error: "forbidden" }, 403);
     log("group_member_moved", { user_id: user.id, member_id: userId, group_id: groupId });
     return c.json(groupBoardBody(await loadGroupBoard(db, organizers)));
   });

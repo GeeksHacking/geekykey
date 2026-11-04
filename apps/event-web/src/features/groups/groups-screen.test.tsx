@@ -413,10 +413,14 @@ describe("GroupsScreen", () => {
     expect(namesIn("Members of Foyer mixer")).toHaveLength(3);
   });
 
-  it("deletes a group with nobody in it without asking", async () => {
+  it("asks before deleting a group with nobody in it too, since a latecomer may just have joined it", async () => {
     const { api, user } = renderScreen();
 
-    await pick(user, "Foyer mixer", "Delete group");
+    await pick(user, "Foyer mixer", "Delete group…");
+    const alert = await screen.findByRole("alertdialog");
+    expect(alert).toHaveTextContent("Delete Foyer mixer?");
+    expect(alert).toHaveTextContent("Nobody is in it.");
+    await user.click(within(alert).getByRole("button", { name: "Delete" }));
 
     await waitFor(() =>
       expect(screen.queryByRole("heading", { name: "Foyer mixer" })).not.toBeInTheDocument(),

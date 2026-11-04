@@ -16,15 +16,16 @@ import {
 import { useDeleteGroup } from "@/features/groups/use-delete-group";
 import { returnFocusOnClose } from "@/lib/dialog-focus";
 
-/** What happens to a deleted group's members, by how many there are. */
+/** What happens to a deleted group's members, by how many there were at the last poll. */
 function membersSentence(count: number): string {
+  if (count === 0) return "Nobody is in it.";
   const who = count === 1 ? "Its 1 member goes" : `Its ${count} members go`;
   return `${who} back to the waiting list. Press Allocate to place them again.`;
 }
 
 /**
- * Asks before deleting a group with members (the spec's user story 12), as the station board's
- * disable alert asks. Radix mounts the content only once it opens, so the delete call lives in
+ * Asks before deleting a group (the spec's user story 12), as the station board's disable alert
+ * asks. Its members, if any, go back to the waiting list. Radix mounts the content only once it opens, so the delete call lives in
  * the confirmation below.
  */
 export function DeleteGroupDialog({

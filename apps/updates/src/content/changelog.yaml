@@ -2099,5 +2099,6 @@
   area: backend
   change: >-
     On the Groups screen, an organizer can give a group tags and a location, edit or delete it,
-    and move anyone to another group, back to waiting or off the event. A participant's dashboard
-    shows their group's tags and location, and their new group at the next check when they're moved.
+    and move anyone to another group, back to waiting or off the board. A participant's dashboard
+    shows their group's tags and location, and shows their new group within 15 seconds when an
+    organizer moves them.

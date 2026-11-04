@@ -326,12 +326,19 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return smallest(withRoom) ?? smallest(data.groups);
   }
 
+  /** `name_taken` when a group other than `ownId` has the name, whatever its capitals. */
+  function refuseTakenName(name: string, ownId: string | null) {
+    const taken = data.groups.some(
+      (group) => group.id !== ownId && group.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (taken) fail("name_taken");
+  }
+
   /**
    * A group's fields as the Event Service checks them, trimmed, with a blank location as none,
-   * or `validation_failed` at the first field past its limit, or `name_taken` when a group
-   * other than `ownId` has the name, whatever its capitals.
+   * or `validation_failed` at the first field past its limit.
    */
-  function groupFields(input: CreateGroupRequest, ownId: string | null): Omit<MockGroup, "id"> {
+  function groupFields(input: CreateGroupRequest): Omit<MockGroup, "id"> {
     const name = input.name.trim();
     if (name === "" || !isGroupText(name)) {
       fail("validation_failed", [
@@ -362,10 +369,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         { path: ["capacity"], message: "capacity must be a whole number above 0, or null" },
       ]);
     }
-    const taken = data.groups.some(
-      (group) => group.id !== ownId && group.name.toLowerCase() === name.toLowerCase(),
-    );
-    if (taken) fail("name_taken");
     return { name, tags, location, capacity };
   }
 
@@ -836,7 +839,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     createGroup: (input: CreateGroupRequest) =>
       call(() => {
         currentOrganizer();
-        const group: MockGroup = { id: `g_${randomBase62(8)}`, ...groupFields(input, null) };
+        const fields = groupFields(input);
+        refuseTakenName(fields.name, null);
+        const group: MockGroup = { id: `g_${randomBase62(8)}`, ...fields };
         data.groups.push(group);
         return toEventGroup(group);
       }),
@@ -844,10 +849,11 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     updateGroup: (groupId: string, input: UpdateGroupRequest) =>
       call(() => {
         currentOrganizer();
+        // validation_failed, then not_found, then name_taken, in the Event Service's order.
+        const fields = groupFields(input);
         const group = data.groups.find(({ id }) => id === groupId);
-        // Checked after the fields, as the Event Service validates the body before it looks.
-        const fields = groupFields(input, groupId);
         if (!group) fail("not_found");
+        refuseTakenName(fields.name, groupId);
         // Moves nobody, even when the capacity drops below the group's size.
         Object.assign(group, fields);
         return toEventGroup(group);

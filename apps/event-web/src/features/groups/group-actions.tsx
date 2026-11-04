@@ -1,7 +1,6 @@
 import { CaretDown } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 
-import { describeError } from "@/api/errors";
 import type { EventGroup } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
@@ -15,22 +14,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteGroupDialog } from "@/features/groups/delete-group-dialog";
 import { GroupForm } from "@/features/groups/group-form";
-import { useDeleteGroup } from "@/features/groups/use-delete-group";
 import { returnFocusOnClose } from "@/lib/dialog-focus";
 
 /**
- * A group's Actions menu, with the dialogs it opens. Delete asks first only when the group has
- * members, who go back to the waiting list; an empty group goes at once, and an ellipsis on the
- * item says which it will do.
+ * A group's Actions menu, with the dialogs it opens. Delete always asks first: the spec asks it
+ * for a group with members, and a group that looks empty may have taken a latecomer since the
+ * last poll.
  */
 export function GroupActions({ group }: { group: EventGroup }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
-  const deleteGroup = useDeleteGroup();
-  const hasMembers = group.members.length > 0;
 
   return (
-    <div className="grid justify-items-end gap-1">
+    <div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -50,18 +46,12 @@ export function GroupActions({ group }: { group: EventGroup }) {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-            disabled={deleteGroup.isPending}
-            onSelect={() => (hasMembers ? setDialog("delete") : deleteGroup.mutate(group.id))}
+            onSelect={() => setDialog("delete")}
           >
-            {hasMembers ? "Delete group…" : "Delete group"}
+            Delete group…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {deleteGroup.isError ? (
-        <p role="alert" className="text-xs text-destructive">
-          {describeError(deleteGroup.error)}
-        </p>
-      ) : null}
       <Dialog open={dialog === "edit"} onOpenChange={(open) => setDialog(open ? "edit" : null)}>
         <DialogContent onCloseAutoFocus={(event) => returnFocusOnClose(event, trigger.current)}>
           <CornerBrackets />

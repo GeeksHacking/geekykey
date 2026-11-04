@@ -1091,6 +1091,12 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     expect([bare.tags, bare.location, bare.capacity]).toEqual([[], null, null]);
     await expectApiError(api.updateGroup(foyer.id, { name: "atrium MIXER" }), "name_taken", 409);
     await expectApiError(api.updateGroup("no-such-group", { name: "X" }), "not_found", 404);
+    // As the Event Service answers: a missing group before a taken name.
+    await expectApiError(
+      api.updateGroup("no-such-group", { name: "Atrium mixer" }),
+      "not_found",
+      404,
+    );
   });
 
   it("sends a deleted group's members back to waiting", async () => {
