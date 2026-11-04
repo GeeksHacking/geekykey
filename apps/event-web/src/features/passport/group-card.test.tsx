@@ -14,6 +14,8 @@ import { createTestProviders } from "@/test/providers";
 const JOIN_HINT = "Press Join when you're at the event, and you'll be put in a group.";
 const WAITING = "You're waiting for a group.";
 const PROMPT = "What should we call you?";
+const NOTHING_TO_DO = "It will show here. You don't need to do anything else.";
+const ASK_AN_ORGANIZER = "There's no group to put you in yet. Ask an organizer.";
 
 /** As RequireSession does in the app, so the card's first read is signed in. */
 function SignedIn({ children }: { children: ReactNode }) {
@@ -197,6 +199,7 @@ describe("GroupCard", () => {
     await user.click(await screen.findByRole("button", { name: "Join" }));
 
     expect(await screen.findByText(WAITING)).toBeInTheDocument();
+    expect(screen.getByText(NOTHING_TO_DO)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Join" })).not.toBeInTheDocument();
   });
 
@@ -254,6 +257,32 @@ describe("GroupCard", () => {
 
     expect(await screen.findByText("Wei Lin")).toBeInTheDocument();
     expect(screen.queryByText("Wei Lin Chong")).not.toBeInTheDocument();
+  });
+
+  it("shows the group at once to a latecomer who joins after Allocate", async () => {
+    const { api, user } = renderCard();
+    const join = await screen.findByRole("button", { name: "Join" });
+    await allocateElsewhere(api);
+
+    await user.click(join);
+
+    const mine = await api.myGroup();
+    if (!mine.group) throw new Error("The latecomer wasn't placed");
+    expect(await screen.findByRole("heading", { name: mine.group.name })).toBeInTheDocument();
+    expect(screen.queryByText(WAITING)).not.toBeInTheDocument();
+  });
+
+  it("tells a latecomer to ask an organizer when there's no group to put them in", async () => {
+    const { api, user } = renderCard();
+    const join = await screen.findByRole("button", { name: "Join" });
+    await allocateElsewhere(api);
+    api.mock.data.groups = [];
+
+    await user.click(join);
+
+    expect(await screen.findByText(WAITING)).toBeInTheDocument();
+    expect(screen.getByText(ASK_AN_ORGANIZER)).toBeInTheDocument();
+    expect(screen.queryByText(NOTHING_TO_DO)).not.toBeInTheDocument();
   });
 
   it("offers a retry when the first read fails", async () => {

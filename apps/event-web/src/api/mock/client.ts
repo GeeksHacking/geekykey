@@ -307,6 +307,23 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     };
   }
 
+  // The next person's group, by the spec's "Placement rules", as the Event Service chooses: the
+  // one with the fewest members that has room, or the one with the fewest when all are full,
+  // the oldest on a tie. None with no groups.
+  function choosePlace(): MockGroup | undefined {
+    const sizeOf = (groupId: string) =>
+      data.groupMembers.filter((member) => member.group_id === groupId).length;
+    const smallest = (groups: MockGroup[]) =>
+      groups.reduce<MockGroup | undefined>(
+        (best, group) => (!best || sizeOf(group.id) < sizeOf(best.id) ? group : best),
+        undefined,
+      );
+    const withRoom = data.groups.filter(
+      (group) => group.capacity === null || sizeOf(group.id) < group.capacity,
+    );
+    return smallest(withRoom) ?? smallest(data.groups);
+  }
+
   function toMyGroup(userId: string): MyGroupResponse {
     const allocation_started = data.groupAllocationStartedAt !== null;
     const mine = data.groupMembers.find((member) => member.user_id === userId);
@@ -756,12 +773,15 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const user = currentUser();
         if (user.role === "organizer") fail("forbidden");
         if (!data.groupMembers.some((member) => member.user_id === user.id)) {
+          // After Allocate, a latecomer is placed as they join, or waits with no groups.
+          const place = data.groupAllocationStartedAt === null ? undefined : choosePlace();
+          const joinedAt = iso(Date.now());
           data.groupMembers.push({
             user_id: user.id,
-            group_id: null,
-            joined_at: iso(Date.now()),
-            placed_at: null,
-            how: null,
+            group_id: place?.id ?? null,
+            joined_at: joinedAt,
+            placed_at: place ? joinedAt : null,
+            how: place ? "latecomer" : null,
           });
         }
         return toMyGroup(user.id);
@@ -802,8 +822,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return toEventGroup(group);
       }),
 
-    // Everyone waiting, shuffled, each to the group with the fewest members that has room, or
-    // the group with the fewest when all are full, the oldest on a tie. It refuses with no
+    // Everyone waiting, shuffled, each to the group choosePlace() gives. It refuses with no
     // groups, or fewer than 2 joined for each, as the Event Service does.
     allocateGroups: () =>
       call(() => {
@@ -811,20 +830,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         if (data.groups.length === 0) fail("no_groups");
         const needed = 2 * data.groups.length - data.groupMembers.length;
         if (needed > 0) fail("too_few_participants", [], needed);
-        const sizeOf = (groupId: string) =>
-          data.groupMembers.filter((member) => member.group_id === groupId).length;
-        const smallest = (groups: MockGroup[]) =>
-          groups.reduce<MockGroup | undefined>(
-            (best, group) => (!best || sizeOf(group.id) < sizeOf(best.id) ? group : best),
-            undefined,
-          );
         const placedAt = iso(Date.now());
         const waiting = data.groupMembers.filter((member) => member.group_id === null);
         for (const member of shuffled(waiting)) {
-          const withRoom = data.groups.filter(
-            (group) => group.capacity === null || sizeOf(group.id) < group.capacity,
-          );
-          const place = smallest(withRoom) ?? smallest(data.groups)!;
+          const place = choosePlace()!;
           member.group_id = place.id;
           member.placed_at = placedAt;
           member.how = "allocated";

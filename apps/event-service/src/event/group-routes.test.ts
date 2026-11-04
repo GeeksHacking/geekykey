@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
+import { anotherTestDb, fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
 import type { Shuffle } from "./groups.ts";
-import { users } from "./schema.ts";
+import { groupMembers, participantGroups, users } from "./schema.ts";
 
 const ORGANIZER = "dev-organizer-1";
 const JOINED_AT = "2026-11-05T01:00:00.000Z";
@@ -52,16 +53,28 @@ const PEOPLE = [
   { id: "user-4", displayName: "Dewi" },
 ];
 
-/** Every test goes through the routes a screen calls, and reads answers as the screens do. */
-async function harness({ shuffle }: { shuffle?: Shuffle } = {}) {
+/** A second instance of the service, with its own connections, made once for the file. */
+let secondInstanceDb: ReturnType<typeof anotherTestDb> | undefined;
+
+/**
+ * Every test goes through the routes a screen calls, and reads answers as the
+ * screens do. `instances` above 1 runs more of the service against the same
+ * database, as Cloud Run may, and `join` takes which one to send to.
+ */
+async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instances?: 1 | 2 } = {}) {
   const clock = fakeClock(JOINED_AT);
   const app = testApp({}, { now: clock.now, shuffle });
+  const apps = [app];
+  if (instances === 2) {
+    secondInstanceDb ??= anotherTestDb();
+    apps.push(testApp({}, { now: clock.now, shuffle, db: secondInstanceDb }));
+  }
   // Dev-login signs in only someone who has logged in to this event before.
   await testDb().insert(users).values(PEOPLE);
 
   /** Signs in through dev-login and returns the cookie a browser would send back. */
-  const signIn = async (userId: string): Promise<string> => {
-    const login = await app.request("/auth/dev-login", {
+  const signIn = async (userId: string, on = app): Promise<string> => {
+    const login = await on.request("/auth/dev-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId }),
@@ -70,17 +83,18 @@ async function harness({ shuffle }: { shuffle?: Shuffle } = {}) {
     return login.headers.get("set-cookie")!.split(";")[0]!;
   };
 
-  /** Sends a request as `userId`, or with no session when it's null. */
+  /** Sends a request as `userId`, or with no session when it's null, to the first instance unless told. */
   const send = async (
     userId: string | null,
     method: "GET" | "POST" | "PATCH",
     path: string,
     body?: unknown,
+    instance = 0,
   ) =>
-    app.request(path, {
+    apps[instance]!.request(path, {
       method,
       headers: {
-        ...(userId === null ? {} : { Cookie: await signIn(userId) }),
+        ...(userId === null ? {} : { Cookie: await signIn(userId, apps[instance]) }),
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -112,8 +126,11 @@ async function harness({ shuffle }: { shuffle?: Shuffle } = {}) {
   const myGroup = async (userId: string) =>
     read<MyGroupBody>(await send(userId, "GET", "/api/v1/me/group"), myGroupResponseSchema);
 
-  const join = async (userId: string) =>
-    read<MyGroupBody>(await send(userId, "POST", "/api/v1/me/group"), myGroupResponseSchema);
+  const join = async (userId: string, instance = 0) =>
+    read<MyGroupBody>(
+      await send(userId, "POST", "/api/v1/me/group", undefined, instance),
+      myGroupResponseSchema,
+    );
 
   const allocate = async () =>
     read<BoardBody>(
@@ -122,19 +139,36 @@ async function harness({ shuffle }: { shuffle?: Shuffle } = {}) {
     );
 
   let crowdSize = 0;
-  /** Signs `count` more people in to the event and joins each, and gives their user IDs. */
-  const joinCrowd = async (count: number): Promise<string[]> => {
+  /** Adds `count` more people who have logged in to the event before, and gives their user IDs. */
+  const arriveCrowd = async (count: number): Promise<string[]> => {
     const crowd = Array.from({ length: count }, (_, i) => {
       const n = String(crowdSize + i + 1).padStart(2, "0");
       return { id: `crowd-${n}`, displayName: `Person ${n}` };
     });
     crowdSize += count;
     await testDb().insert(users).values(crowd);
-    for (const { id } of crowd) await join(id);
     return crowd.map(({ id }) => id);
   };
 
-  return { clock, send, read, createGroup, board, myGroup, join, joinCrowd, allocate };
+  /** Joins `count` more people, one after another, and gives their user IDs. */
+  const joinCrowd = async (count: number): Promise<string[]> => {
+    const crowd = await arriveCrowd(count);
+    for (const id of crowd) await join(id);
+    return crowd;
+  };
+
+  return {
+    clock,
+    send,
+    read,
+    createGroup,
+    board,
+    myGroup,
+    join,
+    arriveCrowd,
+    joinCrowd,
+    allocate,
+  };
 }
 
 test("a new group is on the board by its name, with nobody in it", async () => {
@@ -437,28 +471,45 @@ test("a new name shows to the rest of the group at their next read", async () =>
   assert.deepEqual(names.sort(), ["Ally", "Bala"]);
 });
 
-test("pressing Allocate again places anyone waiting, and moves nobody already placed", async () => {
-  const { clock, createGroup, join, joinCrowd, allocate } = await harness();
-  await createGroup("Mixer A");
+/**
+ * Deletes a group and sends its members back to waiting, as the spec says its
+ * delete route will. That route is BAC-132's, so until it's built, this does
+ * it straight in the tables.
+ */
+async function deleteGroup(groupId: string) {
+  await testDb()
+    .update(groupMembers)
+    .set({ groupId: null, placedAt: null, how: null })
+    .where(eq(groupMembers.groupId, groupId));
+  await testDb().delete(participantGroups).where(eq(participantGroups.id, groupId));
+}
+
+test("pressing Allocate again places a deleted group's members, and moves nobody else", async () => {
+  const { clock, createGroup, joinCrowd, allocate, board } = await harness();
+  const doomed = await createGroup("Mixer A");
+  clock.advanceSeconds(1);
   await createGroup("Mixer B");
-  await joinCrowd(4);
-  const first = await allocate();
+  clock.advanceSeconds(1);
+  await createGroup("Mixer C");
+  await joinCrowd(6);
+  await allocate();
+  await deleteGroup(doomed.id);
+  const before = await board();
+  assert.equal(before.waiting.length, 2);
   clock.advanceSeconds(30);
-  // Until latecomers are placed as they join (BAC-131), a later joiner waits for the next press.
-  await join("user-1");
 
-  const second = await allocate();
+  const after = await allocate();
 
-  assert.equal(second.allocation_started_at, first.allocation_started_at);
-  assert.deepEqual(second.waiting, []);
-  for (const group of first.groups) {
-    const after = second.groups.find(({ id }) => id === group.id)!;
+  assert.equal(after.allocation_started_at, before.allocation_started_at);
+  assert.deepEqual(after.waiting, []);
+  assert.deepEqual(sizes(after), [3, 3]);
+  for (const group of before.groups) {
+    const now = after.groups.find(({ id }) => id === group.id)!;
     for (const member of group.members)
       assert.ok(
-        after.members.some((m) => m.user_id === member.user_id && m.placed_at === member.placed_at),
+        now.members.some((m) => m.user_id === member.user_id && m.placed_at === member.placed_at),
       );
   }
-  assert.equal(second.groups.flatMap((group) => group.members).length, 5);
 });
 
 test("Allocate places the waiting list in the order the shuffle gives, not the order they joined", async () => {
@@ -572,4 +623,94 @@ test("too_few_participants counts how many more are needed, and nobody at all is
 
   assert.equal(response.status, 409);
   assert.deepEqual(await response.json(), { error: "too_few_participants", needed: 6 });
+});
+
+test("after Allocate, with groups of 3 and 2, the next person joins the group of 2", async () => {
+  const { clock, createGroup, joinCrowd, allocate, join, board } = await harness();
+  await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  const smaller = await createGroup("Mixer B");
+  await joinCrowd(5);
+  assert.deepEqual(sizes(await allocate()), [3, 2]);
+  clock.advanceSeconds(120);
+
+  const mine = await join("user-1");
+
+  assert.equal(mine.status, "placed");
+  assert.equal(mine.allocation_started, true);
+  assert.equal(mine.group!.id, smaller.id);
+  assert.ok(mine.group!.members.some(({ display_name }) => display_name === "Alex"));
+  const after = await board();
+  assert.deepEqual(sizes(after), [3, 3]);
+  assert.deepEqual(after.waiting, []);
+  // Placed as they joined, which is what the report's time to group measures.
+  const placed = after.groups[1]!.members.find(({ user_id }) => user_id === "user-1")!;
+  assert.equal(placed.how, "latecomer");
+  assert.equal(placed.joined_at, clock.now().toISOString());
+  assert.equal(placed.placed_at, clock.now().toISOString());
+});
+
+test("with groups of 3 and 2 both at capacity, the next person still joins the group of 2", async () => {
+  const { clock, createGroup, joinCrowd, allocate, join, board } = await harness();
+  await createGroup("Mixer A", 3);
+  clock.advanceSeconds(1);
+  const smaller = await createGroup("Mixer B", 2);
+  await joinCrowd(5);
+  assert.deepEqual(sizes(await allocate()), [3, 2]);
+
+  assert.equal((await join("user-1")).group!.id, smaller.id);
+
+  // The board then shows the group past its capacity, which the Groups screen flags.
+  const after = await board();
+  assert.deepEqual(
+    after.groups.map(({ capacity, members }) => [members.length, capacity]),
+    [
+      [3, 3],
+      [3, 2],
+    ],
+  );
+  assert.deepEqual(after.waiting, []);
+});
+
+test("with no groups left, a latecomer waits, and knows allocation has started", async () => {
+  const { createGroup, joinCrowd, allocate, join, board } = await harness();
+  const only = await createGroup("Mixer A");
+  const [first, second] = await joinCrowd(2);
+  await allocate();
+  await deleteGroup(only.id);
+
+  assert.deepEqual(await join("user-1"), {
+    status: "waiting",
+    allocation_started: true,
+    group: null,
+  });
+  assert.deepEqual(
+    (await board()).waiting.map(({ user_id }) => user_id),
+    [first, second, "user-1"],
+  );
+});
+
+test("20 people with 3 groups of capacity 5, 14 of them joining at once, give 7, 7, 6", async () => {
+  const { clock, createGroup, arriveCrowd, joinCrowd, allocate, join, board } = await harness({
+    instances: 2,
+  });
+  for (const name of ["Mixer A", "Mixer B", "Mixer C"]) {
+    await createGroup(name, 5);
+    clock.advanceSeconds(1);
+  }
+  // Allocate takes 2 for each group, so the rush comes after the first 6.
+  await joinCrowd(6);
+  assert.deepEqual(sizes(await allocate()), [2, 2, 2]);
+  const rush = await arriveCrowd(14);
+
+  // Half to each instance, so only a lock in the database keeps them taking turns.
+  const answers = await Promise.all(rush.map((userId, i) => join(userId, i % 2)));
+
+  assert.ok(answers.every(({ status }) => status === "placed"));
+  const after = await board();
+  assert.deepEqual(sizes(after), [7, 7, 6]);
+  assert.deepEqual(after.waiting, []);
+  assert.equal(after.joined_count, 20);
+  const placed = after.groups.flatMap((group) => group.members.map(({ user_id }) => user_id));
+  assert.equal(new Set(placed).size, 20, "nobody is in two groups");
 });

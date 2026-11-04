@@ -1054,6 +1054,38 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     expect(board.groups.map((group) => group.members.length)).toEqual([3, 2]);
   });
 
+  it("places a latecomer as they join, in the smallest group, or waits with no groups", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const allocated = await api.allocateGroups();
+    expect(allocated.groups.map((group) => group.members.length)).toEqual([3, 2]);
+
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    const mine = await api.joinGroups();
+
+    expect(mine.status).toBe("placed");
+    expect(mine.group?.id).toBe(allocated.groups[1]?.id);
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.groupBoard();
+    const latecomer = board.groups[1]?.members.find(
+      (member) => member.user_id === SEEDED_PARTICIPANT_ID,
+    );
+    expect(latecomer?.how).toBe("latecomer");
+    expect(latecomer?.placed_at).toBe(latecomer?.joined_at);
+
+    // With no groups left, the next one waits.
+    api.mock.data.groups = [];
+    api.mock.data.groupMembers = api.mock.data.groupMembers.filter(
+      (member) => member.user_id !== SEEDED_PARTICIPANT_ID,
+    );
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    expect(await api.joinGroups()).toEqual({
+      status: "waiting",
+      allocation_started: true,
+      group: null,
+    });
+  });
+
   it("keeps a group's capacity, and refuses one that isn't a whole number above 0", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
