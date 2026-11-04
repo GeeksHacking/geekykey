@@ -11,11 +11,14 @@ export function AnswersSummary({
   questions,
   answers,
   editable,
+  pending = false,
   onChange,
 }: {
   questions: readonly Question[];
   answers: Readonly<Record<string, string>>;
   editable: boolean;
+  /** Disable Change while an answer is being sent, so its answer cannot close a new step. */
+  pending?: boolean;
   onChange?: (questionId: string) => void;
 }) {
   return (
@@ -49,6 +52,7 @@ export function AnswersSummary({
                   variant="ghost"
                   size="sm"
                   aria-label={`Change answer to "${question.text}"`}
+                  disabled={pending}
                   onClick={() => onChange(question.id)}
                 >
                   Change

@@ -4,22 +4,24 @@ import { ApiError, describeError } from "@/api/errors";
 import type { ErrorCode } from "@/api/types";
 
 /** Every code in the union, so a new one cannot be added without a message. */
-const CODES: ErrorCode[] = [
-  "validation_failed",
-  "unauthenticated",
-  "invalid_token",
-  "missing_station_key",
-  "invalid_station_key",
-  "forbidden",
-  "not_found",
-  "rate_limited",
-  "invalid_event_service_key",
-  "event_service_unavailable",
-  "claims_unavailable",
-  "login_unavailable",
-  "service_unavailable",
-  "internal_error",
-];
+const CODES: Record<ErrorCode, true> = {
+  validation_failed: true,
+  unauthenticated: true,
+  invalid_token: true,
+  invalid_login_link: true,
+  missing_station_key: true,
+  invalid_station_key: true,
+  forbidden: true,
+  not_found: true,
+  answers_fixed: true,
+  rate_limited: true,
+  invalid_event_service_key: true,
+  event_service_unavailable: true,
+  claims_unavailable: true,
+  login_unavailable: true,
+  service_unavailable: true,
+  internal_error: true,
+};
 
 describe("API error messages", () => {
   it("explains service and rate-limit errors", () => {
@@ -37,7 +39,7 @@ describe("API error messages", () => {
   });
 
   it("gives every error code its own plain-language text", () => {
-    for (const code of CODES) {
+    for (const code of Object.keys(CODES) as ErrorCode[]) {
       const text = describeError(new ApiError(400, code));
       expect(text, `${code} had no text`).toBeTruthy();
       expect(text, `${code} had no text`).not.toContain(code);

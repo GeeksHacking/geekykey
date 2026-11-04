@@ -162,6 +162,54 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     expect(screen.getByText("Tea")).toBeInTheDocument();
   });
 
+  it("does not carry an error from another question into a change", async () => {
+    const { api, user } = renderPassport();
+    await screen.findByRole("heading", { name: "Tea or coffee?" });
+    await user.click(screen.getByRole("button", { name: "Tea" }));
+    await screen.findByRole("heading", { name: "Night owl or early bird?" });
+    api.mock.failNext("network");
+    await user.click(screen.getByRole("button", { name: "Night owl" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not reach the server");
+
+    await user.click(screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Tea" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("disables Change while an answer is being sent", async () => {
+    const { api, user } = renderPassport();
+    await screen.findByRole("heading", { name: "Tea or coffee?" });
+    await user.click(screen.getByRole("button", { name: "Tea" }));
+    await screen.findByRole("heading", { name: "Night owl or early bird?" });
+
+    const held = deferred<UpdateMeResponse>();
+    vi.spyOn(api, "updateMe").mockReturnValue(held.promise);
+    await user.click(screen.getByRole("button", { name: "Night owl" }));
+
+    expect(
+      screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }),
+    ).toBeDisabled();
+
+    await act(async () => {
+      held.resolve({
+        user: {
+          id: SEEDED_GUEST_ID,
+          display_name: "Guest",
+          role: "participant",
+          has_name: false,
+          answers: { drink: "tea", hours: "night_owl" },
+        },
+      });
+    });
+    expect(
+      await screen.findByRole("heading", { name: "Best part of school?" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows the answers read-only after a connection reaches a poll", async () => {
     const { api, queryClient, user } = renderPassport();
     await answerAll(user);
