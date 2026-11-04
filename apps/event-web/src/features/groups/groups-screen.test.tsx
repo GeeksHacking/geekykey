@@ -7,7 +7,7 @@ import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { GroupsScreen } from "@/features/groups/groups-screen";
 import { createTestProviders } from "@/test/providers";
 
-/** The organiser's screen on the mock, with the fixtures' groups and waiting list unless cleared. */
+/** The organizer's screen on the mock, with the fixtures' groups and waiting list unless cleared. */
 function renderScreen({ cleared = false } = {}) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_ORGANIZER_ID);
@@ -74,6 +74,26 @@ describe("GroupsScreen", () => {
 
     expect(await screen.findByText("Give the group a name.")).toBeInTheDocument();
     expect(api.mock.data.groups).toHaveLength(0);
+  });
+
+  it("counts a name in characters, so 80 emoji are allowed and 81 are not", async () => {
+    const { api, user } = renderScreen({ cleared: true });
+    await screen.findByRole("heading", { name: "No groups yet" });
+    await user.click(screen.getByRole("button", { name: "Create group" }));
+    const dialog = await screen.findByRole("dialog");
+    const name = within(dialog).getByLabelText("Name");
+    const submit = within(dialog).getByRole("button", { name: "Create group" });
+
+    await user.click(name);
+    await user.paste("😀".repeat(81));
+    await user.click(submit);
+    expect(await within(dialog).findByText("Keep it under 80 characters.")).toBeInTheDocument();
+    expect(api.mock.data.groups).toHaveLength(0);
+
+    await user.clear(name);
+    await user.paste("😀".repeat(80));
+    await user.click(submit);
+    await waitFor(() => expect(api.mock.data.groups).toHaveLength(1));
   });
 
   it("counts who has joined and lists who is waiting", async () => {

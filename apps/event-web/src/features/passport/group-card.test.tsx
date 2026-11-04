@@ -23,7 +23,7 @@ function renderCard() {
   return { api, user: userEvent.setup() };
 }
 
-/** As an organiser pressing Allocate from elsewhere, then back to the participant. */
+/** As an organizer pressing Allocate from elsewhere, then back to the participant. */
 async function allocateElsewhere(api: MockApiClient) {
   api.mock.setSession(SEEDED_ORGANIZER_ID);
   await api.allocateGroups();

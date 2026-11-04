@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useCreateGroup } from "@/features/groups/use-create-group";
 import { applyApiIssues } from "@/lib/form-errors";
+import { isGroupName } from "@/lib/group-name";
 
 const schema = z.object({
   name: z
@@ -24,7 +25,7 @@ const schema = z.object({
     .check(
       z.trim(),
       z.minLength(1, "Give the group a name."),
-      z.maxLength(80, "Keep it under 80 characters."),
+      z.refine(isGroupName, "Keep it under 80 characters."),
     ),
 });
 

@@ -42,6 +42,7 @@ import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
 import { isGroupLink } from "@/lib/group-link";
+import { GROUP_NAME_MAX, isGroupName } from "@/lib/group-name";
 
 /**
  * The mock's anonymous web, oldest connection first. Each link joins numbers a few apart, so
@@ -770,9 +771,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call(() => {
         currentOrganizer();
         const name = input.name.trim();
-        if (name === "" || [...name].length > 80) {
+        if (name === "" || !isGroupName(name)) {
           fail("validation_failed", [
-            { path: ["name"], message: "name must be 1 to 80 characters" },
+            { path: ["name"], message: `name must be 1 to ${GROUP_NAME_MAX} characters` },
           ]);
         }
         if (data.groups.some((group) => group.name === name)) fail("name_taken");

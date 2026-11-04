@@ -8,7 +8,7 @@ export const POLL_ME_MS = 10_000;
 /** The participant's group card: often while they wait, less once they know where to go (spec: participant groups). */
 export const POLL_MY_GROUP_WAITING_MS = 5_000;
 export const POLL_MY_GROUP_PLACED_MS = 15_000;
-/** The organisers' Groups screen (spec: participant groups). */
+/** The organizers' Groups screen (spec: participant groups). */
 export const POLL_GROUP_BOARD_MS = 5_000;
 
 /** A station counts as online when it was seen within this window. Backend computes it; the mock mirrors it. */

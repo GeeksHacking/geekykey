@@ -25,7 +25,7 @@ export function DashboardScreen() {
     <div ref={scope} className="space-y-10">
       {/* First, because the token page's login link lands on this screen (agreement 8.6). */}
       <ConnectionReveal me={me} />
-      {/* An organiser sees this screen too, and is kept out of allocation. */}
+      {/* An organizer sees this screen too, and is kept out of allocation. */}
       {me.user.role === "participant" ? <GroupCard /> : null}
       {/* The grad tea's dashboard leads with the avatar (FRO-105). The showcase's switch PR
           swaps it for the spaceship (FRO-104) or puts the points summary back. */}
