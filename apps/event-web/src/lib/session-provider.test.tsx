@@ -469,7 +469,13 @@ describe("SessionProvider with a login link", () => {
     const { result } = setup(undefined, "mock");
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
 
-    expect(result.current.consumeLoginLinkArrival()).toBe(true);
+    expect(result.current.loginLinkArrival).toBe(true);
+    let consumed = false;
+    act(() => {
+      consumed = result.current.consumeLoginLinkArrival();
+    });
+    expect(consumed).toBe(true);
+    await waitFor(() => expect(result.current.loginLinkArrival).toBe(false));
     expect(result.current.consumeLoginLinkArrival()).toBe(false);
   });
 
@@ -477,6 +483,7 @@ describe("SessionProvider with a login link", () => {
     const { result } = setup(undefined, "expired-link");
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
 
+    expect(result.current.loginLinkArrival).toBe(false);
     expect(result.current.consumeLoginLinkArrival()).toBe(false);
   });
 
@@ -488,6 +495,7 @@ describe("SessionProvider with a login link", () => {
       await result.current.signIn(SEEDED_PARTICIPANT_ID);
     });
 
+    expect(result.current.loginLinkArrival).toBe(false);
     expect(result.current.consumeLoginLinkArrival()).toBe(false);
   });
 
@@ -499,6 +507,7 @@ describe("SessionProvider with a login link", () => {
       await result.current.signOut();
     });
 
+    expect(result.current.loginLinkArrival).toBe(false);
     expect(result.current.consumeLoginLinkArrival()).toBe(false);
   });
 
@@ -519,6 +528,7 @@ describe("SessionProvider with a login link", () => {
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(api.loginLink).not.toHaveBeenCalled();
     expect(result.current.loginLinkError).toBeUndefined();
+    expect(result.current.loginLinkArrival).toBe(false);
     expect(result.current.consumeLoginLinkArrival()).toBe(false);
   });
 });

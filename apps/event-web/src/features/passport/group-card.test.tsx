@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -129,6 +129,34 @@ describe("GroupCard", () => {
     expect(screen.getByRole("button", { name: "Join" })).toBeInTheDocument();
   });
 
+  it("keeps its loading card while the join on arrival is sent", async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let joins = 0;
+    renderCard({
+      onArrival: true,
+      prepare: (client) => {
+        const real = client.joinGroups.bind(client);
+        vi.spyOn(client, "joinGroups").mockImplementationOnce(async () => {
+          joins += 1;
+          await held;
+          return real();
+        });
+      },
+    });
+
+    await waitFor(() => expect(joins).toBe(1));
+    expect(screen.getByRole("status", { name: "Loading your group" })).toBeInTheDocument();
+    expect(screen.queryByText(JOIN_HINT)).not.toBeInTheDocument();
+
+    await act(async () => {
+      release();
+    });
+    expect(await screen.findByText(WAITING)).toBeInTheDocument();
+  });
+
   it("shows that they're waiting once they press Join", async () => {
     const { user } = renderCard();
 
@@ -142,7 +170,7 @@ describe("GroupCard", () => {
     const { api, user } = renderCard();
     const joinButton = await screen.findByRole("button", { name: "Join" });
 
-    vi.spyOn(api, "joinGroups").mockRejectedValueOnce(new ApiError(500, "internal_error"));
+    api.mock.failNext("internal_error");
     await user.click(joinButton);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(

@@ -39,6 +39,7 @@ export function SessionProvider({
   const unsentLoginLink = useRef(loginLink);
   // Read once by the dashboard, so a link that lands there joins the participant once.
   const loginLinkAccepted = useRef(false);
+  const [loginLinkArrival, setLoginLinkArrival] = useState(false);
   const [loginLinkError, setLoginLinkError] = useState<unknown>();
 
   const me = useQuery({
@@ -50,6 +51,7 @@ export function SessionProvider({
         try {
           await api.loginLink(link);
           loginLinkAccepted.current = true;
+          setLoginLinkArrival(true);
         } catch (error) {
           // The session the browser had carries on underneath, so /me is read as usual.
           setLoginLinkError(error);
@@ -81,6 +83,7 @@ export function SessionProvider({
   const consumeLoginLinkArrival = useCallback(() => {
     const accepted = loginLinkAccepted.current;
     loginLinkAccepted.current = false;
+    if (accepted) setLoginLinkArrival(false);
     return accepted;
   }, []);
 
@@ -119,6 +122,7 @@ export function SessionProvider({
     setAuthorizationFailure(undefined);
     setLoginLinkError(undefined);
     loginLinkAccepted.current = false;
+    setLoginLinkArrival(false);
     clearIdentityQueries();
   }, [clearIdentityQueries, settleSession]);
 
@@ -172,6 +176,7 @@ export function SessionProvider({
       setAuthorizationFailure(undefined);
       setLoginLinkError(undefined);
       loginLinkAccepted.current = false;
+      setLoginLinkArrival(false);
       clearIdentityQueries();
     },
     onSuccess: () => {
@@ -213,6 +218,7 @@ export function SessionProvider({
       error: me.error ?? signIn.error ?? signInWithFirebase.error ?? signOut.error,
       authorizationError,
       loginLinkError,
+      loginLinkArrival,
       consumeLoginLinkArrival,
       refresh,
       signIn: signIn.mutateAsync,
@@ -225,6 +231,7 @@ export function SessionProvider({
       me.error,
       authorizationError,
       loginLinkError,
+      loginLinkArrival,
       consumeLoginLinkArrival,
       signIn.error,
       signIn.mutateAsync,

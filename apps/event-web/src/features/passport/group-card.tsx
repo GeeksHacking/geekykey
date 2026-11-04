@@ -21,6 +21,20 @@ function Frame({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** The card's loading state, from the first read through a join on arrival. */
+function Loading() {
+  return (
+    <div
+      className="space-y-2 rounded-lg border bg-card p-4"
+      role="status"
+      aria-label="Loading your group"
+    >
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-5 w-48" />
+    </div>
+  );
+}
+
 /**
  * The top of the participant's dashboard (spec: participant groups): a Join button until they
  * join, then that they're waiting, then their group and its members' names. A page that arrived
@@ -34,7 +48,7 @@ export function GroupCard() {
     isError: joinFailed,
     error: joinError,
   } = useJoinGroups();
-  const { consumeLoginLinkArrival } = useSession();
+  const { consumeLoginLinkArrival, loginLinkArrival } = useSession();
   const refetch = () => void myGroup.refetch();
 
   // Spend the arrival on the first status, and join only when they haven't already. A join that
@@ -53,15 +67,13 @@ export function GroupCard() {
         title="Your group couldn't be loaded."
       />
     ) : (
-      <div
-        className="space-y-2 rounded-lg border bg-card p-4"
-        role="status"
-        aria-label="Loading your group"
-      >
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-5 w-48" />
-      </div>
+      <Loading />
     );
+  }
+
+  // A token visitor should never read the away-from-event hint while the join is on its way.
+  if (myGroup.data.status === "not_joined" && (loginLinkArrival === true || joinPending)) {
+    return <Loading />;
   }
 
   const { status, group } = myGroup.data;

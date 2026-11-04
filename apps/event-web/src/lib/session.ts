@@ -20,6 +20,11 @@ export interface SessionState {
    */
   loginLinkError?: unknown;
   /**
+   * True while an accepted login link's arrival has not been consumed. The dashboard keeps its
+   * loading card and joins, so the away-from-event Join hint never flashes on the way in.
+   */
+  loginLinkArrival?: boolean;
+  /**
    * Whether the page arrived with a login link that was accepted (agreement 7.4). Answers true
    * once, then false, so the dashboard joins the participant once.
    */
