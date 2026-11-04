@@ -137,6 +137,13 @@ export interface ApiClient {
   /** POST /api/v1/admin/groups/allocate (draft for agreement 0.14). Answers with the board. */
   allocateGroups(): Promise<GroupBoardResponse>;
 
+  /**
+   * POST /api/v1/admin/groups/reset (draft for agreement 0.14). Everyone leaves their group and
+   * the waiting list, and allocation goes back to not started. The groups stay. Answers with the
+   * board.
+   */
+  resetGroups(): Promise<GroupBoardResponse>;
+
   /** GET /api/v1/admin/groups/export.csv (draft for agreement 0.14) as a file the browser can save. */
   exportGroupsCsv(): Promise<Blob>;
 

@@ -921,6 +921,16 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return toGroupBoard();
       }),
 
+    // Everyone has to join again and allocation hasn't started, as before the first trial. The
+    // groups stay.
+    resetGroups: () =>
+      call(() => {
+        currentOrganizer();
+        data.groupMembers = [];
+        data.groupAllocationStartedAt = null;
+        return toGroupBoard();
+      }),
+
     // Everyone who has joined, oldest join first, as the Event Service writes it.
     exportGroupsCsv: () =>
       call(() => {

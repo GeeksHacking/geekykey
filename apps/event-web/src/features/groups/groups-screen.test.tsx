@@ -303,6 +303,58 @@ describe("GroupsScreen", () => {
     expect(screen.getByRole("list", { name: "Waiting" })).toBeInTheDocument();
   });
 
+  it("asks before a reset, then empties every group and the waiting list and keeps the groups", async () => {
+    const { api, user } = renderScreen();
+    const groups = api.mock.data.groups.map(({ name }) => name);
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    const alert = await screen.findByRole("alertdialog");
+    expect(alert).toHaveTextContent("Reset the groups?");
+    expect(alert).toHaveTextContent(
+      "Everyone leaves their group and has to join again, and Allocate starts over. The groups stay as they are. Download the CSV first to keep this trial's times.",
+    );
+    await user.click(within(alert).getByRole("button", { name: "Cancel" }));
+    expect(api.mock.data.groupMembers).not.toHaveLength(0);
+    expect(api.mock.data.groupAllocationStartedAt).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "SPAN" && element.textContent === "0 joined, 0 waiting",
+      ),
+    ).toBeInTheDocument();
+    for (const name of groups) {
+      expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+      expect(screen.queryByRole("list", { name: `Members of ${name}` })).not.toBeInTheDocument();
+    }
+    expect(screen.getAllByText("Nobody here yet.")).toHaveLength(groups.length);
+    expect(api.mock.data.groupAllocationStartedAt).toBeNull();
+  });
+
+  it("says why a reset failed in its alert, and keeps everyone where they are", async () => {
+    const { api, user } = renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    const alert = await screen.findByRole("alertdialog");
+    api.mock.failNext("internal_error");
+    await user.click(within(alert).getByRole("button", { name: "Reset" }));
+
+    expect(await within(alert).findByRole("alert")).toHaveTextContent(
+      "Something went wrong on the server. Try again in a moment.",
+    );
+    expect(screen.getByText("Nobody is waiting.")).toBeInTheDocument();
+  });
+
   it("offers a retry when the first load fails", async () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     api.mock.setSession(SEEDED_ORGANIZER_ID);

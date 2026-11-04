@@ -280,6 +280,27 @@ describe("GroupCard", () => {
     expect(screen.queryByRole("heading", { name: from!.name })).not.toBeInTheDocument();
   });
 
+  it("offers the Join button again at the next poll after an organiser resets", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { api, user } = renderCard({
+      prepare: (client) => void placeInOneGroup(client, [SEEDED_PARTICIPANT_ID]),
+    });
+    const [group] = api.mock.data.groups;
+    expect(await screen.findByRole("heading", { name: group!.name })).toBeInTheDocument();
+
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    await api.resetGroups();
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    await act(() => vi.advanceTimersByTimeAsync(POLL_MY_GROUP_PLACED_MS));
+
+    expect(await screen.findByText(JOIN_HINT)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: group!.name })).not.toBeInTheDocument();
+
+    // Joining works again, and waits, since the next trial's Allocate hasn't been pressed.
+    await user.click(screen.getByRole("button", { name: "Join" }));
+    expect(await screen.findByText(WAITING)).toBeInTheDocument();
+  });
+
   it("shows another member's new name at the next poll", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { api } = renderCard({

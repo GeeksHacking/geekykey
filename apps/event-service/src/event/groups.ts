@@ -247,6 +247,22 @@ export async function removeMember(db: Db, userId: string): Promise<"not_found" 
   });
 }
 
+/**
+ * Readies the groups for another timed trial (the spec's user story 37): everyone leaves their
+ * group and the waiting list, so each has to join again, and allocation goes back to not
+ * started. The groups stay as they are.
+ */
+export async function resetAllocation(db: Db): Promise<void> {
+  await db.transaction(async (tx) => {
+    await lockAllocation(tx);
+    await tx.delete(groupMembers);
+    await tx
+      .update(groupAllocation)
+      .set({ startedAt: null })
+      .where(eq(groupAllocation.id, ALLOCATION_ROW));
+  });
+}
+
 /** Puts the waiting list in the order Allocate places it. */
 export type Shuffle = <T>(items: T[]) => T[];
 

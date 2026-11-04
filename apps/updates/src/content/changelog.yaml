@@ -2102,3 +2102,11 @@
     and move anyone to another group, back to waiting or off the board. A participant's dashboard
     shows their group's tags and location, and shows their new group within 15 seconds when an
     organizer moves them.
+
+- id: groups-reset-between-trials
+  date: 2026-11-04
+  area: backend
+  change: >-
+    An organizer can press Reset on the Groups screen and confirm it, to run another timed trial
+    with the same groups. Everyone leaves their group and has to join again, and the next Allocate
+    starts the trial afresh.

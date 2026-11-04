@@ -16,6 +16,7 @@ import {
   type Organizers,
   placeMember,
   removeMember,
+  resetAllocation,
   type Shuffle,
   shuffleAtRandom,
 } from "./groups.ts";
@@ -196,6 +197,13 @@ export function adminGroupRoutes({
     const refusal = await allocateWaiting(c.var.db, now(), shuffle, organizers);
     if (refusal) return c.json(refusal, 409);
     log("groups_allocated", { user_id: c.var.user.id });
+    return c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers)));
+  });
+
+  // Everyone joins again for the next trial, and the groups stay.
+  app.post("/reset", async (c) => {
+    await resetAllocation(c.var.db);
+    log("groups_reset", { user_id: c.var.user.id });
     return c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers)));
   });
 

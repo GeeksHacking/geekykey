@@ -32,6 +32,7 @@ describe("service client boundary", () => {
         "placeGroupMember",
         "removeGroupMember",
         "replaceStationKey",
+        "resetGroups",
         "setStationBooth",
         "setStationPassport",
         "stats",

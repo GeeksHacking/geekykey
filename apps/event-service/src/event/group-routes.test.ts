@@ -193,6 +193,13 @@ async function harness({
       groupBoardResponseSchema,
     );
 
+  /** Empties every group and the waiting list, and un-starts allocation, keeping the groups. */
+  const reset = async () =>
+    read<BoardBody>(
+      await send(ORGANIZER, "POST", "/api/v1/admin/groups/reset"),
+      groupBoardResponseSchema,
+    );
+
   /** The groups CSV's lines as an organizer downloads it, which must be a 200. */
   const exportLines = async (): Promise<string[]> => {
     const response = await send(ORGANIZER, "GET", "/api/v1/admin/groups/export.csv");
@@ -235,6 +242,7 @@ async function harness({
     deleteGroup,
     place,
     allocate,
+    reset,
     exportLines,
   };
 }
@@ -588,6 +596,7 @@ const ORGANIZER_ROUTES = [
   ["PUT", "/api/v1/admin/groups/some-group"],
   ["DELETE", "/api/v1/admin/groups/some-group"],
   ["POST", "/api/v1/admin/groups/allocate"],
+  ["POST", "/api/v1/admin/groups/reset"],
   ["GET", "/api/v1/admin/groups/export.csv"],
   ["PUT", "/api/v1/admin/groups/members/user-2"],
   ["DELETE", "/api/v1/admin/groups/members/user-2"],
@@ -1353,4 +1362,62 @@ test("someone made an organizer after being placed leaves their group's size and
   // Their group is now the smaller, so the next latecomer goes there.
   const [latecomer] = await arriveCrowd(1);
   assert.equal((await join(latecomer!, later)).group!.id, theirs);
+});
+
+test("reset after Allocate keeps the groups, and nobody has joined", async () => {
+  const { clock, createGroup, joinCrowd, allocate, reset, board, myGroup } = await harness();
+  const first = await createGroup("Mixer A", 3);
+  clock.advanceSeconds(1);
+  const second = await createGroup("Mixer B");
+  const [someone] = await joinCrowd(4);
+  await allocate();
+
+  const after = await reset();
+
+  assert.deepEqual(after, {
+    allocation_started_at: null,
+    joined_count: 0,
+    groups: [
+      { ...first, members: [] },
+      { ...second, members: [] },
+    ],
+    waiting: [],
+  });
+  assert.deepEqual(await board(), after);
+  assert.deepEqual(await myGroup(someone!), {
+    status: "not_joined",
+    allocation_started: false,
+    group: null,
+  });
+});
+
+test("after a reset, participants join and wait again, and Allocate starts the next trial", async () => {
+  const { clock, createGroup, joinCrowd, allocate, reset, join, board } = await harness();
+  await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  await createGroup("Mixer B");
+  await joinCrowd(4);
+  await allocate();
+  await reset();
+  clock.advanceSeconds(600);
+
+  // Not a latecomer: allocation hasn't started for this trial.
+  assert.deepEqual(await join("user-1"), {
+    status: "waiting",
+    allocation_started: false,
+    group: null,
+  });
+  const [, , last] = await joinCrowd(3);
+  const nextTrial = clock.now().toISOString();
+
+  const after = await allocate();
+
+  assert.equal(after.allocation_started_at, nextTrial);
+  assert.equal(after.joined_count, 4);
+  assert.deepEqual(sizes(after), [2, 2]);
+  assert.deepEqual(after.waiting, []);
+  const placed = placedOn(after, last!)!;
+  assert.equal(placed.how, "allocated");
+  assert.equal(placed.joined_at, nextTrial);
+  assert.deepEqual(await board(), after);
 });

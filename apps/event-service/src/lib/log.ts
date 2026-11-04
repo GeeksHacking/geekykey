@@ -32,11 +32,13 @@ const LOG_LINES = {
   // A half of a connection the meeting hand-off brought (11.10): who tapped whose token, and its
   // status, so the halves and connections can be rebuilt after a restore, and counted.
   meeting_handled: "INFO",
-  // An organizer created, changed or deleted a group, or pressed Allocate: who, and which group.
+  // An organizer created, changed or deleted a group, or pressed Allocate or Reset: who, and
+  // which group for the first three.
   group_created: "INFO",
   group_changed: "INFO",
   group_deleted: "INFO",
   groups_allocated: "INFO",
+  groups_reset: "INFO",
   // An organizer put someone in a group or sent them back to waiting, or removed them: who, whom,
   // and the group, or null for waiting.
   group_member_moved: "INFO",
