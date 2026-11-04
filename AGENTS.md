@@ -29,7 +29,7 @@ In order: the API agreement, then the spec, then `CONTEXT.md` and the ADRs, with
 
 Where a lower source contradicts a higher one, the higher one wins, and the difference is raised as an issue rather than settled in the code.
 
-A ticket may build draft shapes ahead of the agreement's next version. The PR then lists the additions that version still needs, so a reviewer checks the list rather than raising the difference again.
+A ticket may build draft shapes ahead of the agreement's next version. The draft is on its open PR's branch, so read it with `git show origin/<branch>:apps/API-AGREEMENT.md`; `main` still has the version before it. The PR then lists the additions that version still needs, so a reviewer checks the list rather than raising the difference again. Give a reviewer the same draft, or it reports the draft's fields as violations.
 
 These documents change often, so re-read them at the start of a task and before any claim about the contract, and check for new commits on them rather than working from what was true earlier in the session.
 

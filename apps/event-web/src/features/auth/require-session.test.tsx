@@ -13,21 +13,9 @@ import { ApiError } from "@/api/errors";
 import type { MeResponse } from "@/api/types";
 import { RequireSession } from "@/features/auth/require-session";
 import { SessionContext, type SessionState } from "@/lib/session";
+import { makeMe } from "@/test/make-me";
 
-const me: MeResponse = {
-  user: {
-    id: "dev-user-1",
-    display_name: "Alex Tan",
-    role: "participant",
-    has_name: true,
-    answers: {},
-  },
-  questions: null,
-  connections: [],
-  points: 0,
-  stamps: [],
-  recent_taps: [],
-};
+const me = makeMe();
 
 function sessionWith(
   status: SessionState["status"],

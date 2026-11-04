@@ -17,7 +17,7 @@ export function ForbiddenView() {
           are helping run the event, ask the lead organiser to update your role.
         </p>
         <Button asChild className="mt-6">
-          <Link to="/">Back to your passport</Link>
+          <Link to="/">Back to home</Link>
         </Button>
       </div>
     </main>

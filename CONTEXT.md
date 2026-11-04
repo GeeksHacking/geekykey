@@ -207,7 +207,7 @@ A tap that counts in at least one of the event's games, such as toward passport 
 ### Passport
 
 **Passport**:
-All of one participant's stamp slots, one for each station the passport counts.
+All of one participant's stamp slots, one for each station the passport counts. The Event screens show it at `/passport`. The dashboard at `/` is another screen, and it's where a login link lands.
 _Avoid_: stamp book
 
 **Stamp slot**:

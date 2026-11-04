@@ -5,6 +5,11 @@
  *   pnpm shot /admin/stations --as organiser
  *   pnpm shot /passport --as participant
  *   pnpm shot /login
+ *   pnpm shot /passport --as participant --click "Show what we share"
+ *
+ * `--click` presses the first button with that name before each shot. Those files end in
+ * `-clicked`, so they sit beside the plain ones. A Radix menu or select ignores it: see "gotchas"
+ * in CLAUDE.md.
  *
  * It uses the dev server on :5173 if one is running, and starts the mock one if not. A server
  * you started with `pnpm dev:live` is used as it is, so the shots show live data. The files go
@@ -26,12 +31,13 @@ const ACCOUNTS = { participant: "dev-user-1", organiser: "dev-organizer-1" } as 
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { as: { type: "string" } },
+  options: { as: { type: "string" }, click: { type: "string" } },
 });
 const route = positionals[0];
 const as = values.as;
+const click = values.click;
 if (!route?.startsWith("/") || (as !== undefined && !(as in ACCOUNTS))) {
-  console.error("Usage: pnpm shot <route> [--as participant|organiser]");
+  console.error('Usage: pnpm shot <route> [--as participant|organiser] [--click "<button name>"]');
   process.exit(2);
 }
 
@@ -68,7 +74,8 @@ async function startServer(): Promise<ChildProcess | null> {
 const server = await startServer();
 const browser = await chromium.launch();
 await mkdir(OUT_DIR, { recursive: true });
-const slug = route === "/" ? "home" : route.slice(1).replaceAll("/", "-");
+const pageName = route === "/" ? "home" : route.slice(1).replaceAll("/", "-");
+const slug = click ? `${pageName}-clicked` : pageName;
 
 try {
   for (const width of WIDTHS) {
@@ -83,6 +90,7 @@ try {
       // first, then for every Skeleton (the full-page loader is one) to give way to data.
       await page.locator("h1").first().waitFor();
       await page.waitForFunction(`!document.querySelector(".animate-pulse")`);
+      if (click) await page.getByRole("button", { name: click }).first().click();
       const file = `${OUT_DIR}/${slug}-${width}-${theme}.png`;
       await page.screenshot({ path: file, fullPage: true });
       console.log(file);
