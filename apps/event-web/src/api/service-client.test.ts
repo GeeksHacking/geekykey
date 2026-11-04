@@ -18,6 +18,7 @@ describe("service client boundary", () => {
         "createFallbackTap",
         "createGroup",
         "createStation",
+        "deleteGroup",
         "disableStation",
         "enableStation",
         "exportCsv",
@@ -28,10 +29,13 @@ describe("service client boundary", () => {
         "listTaps",
         "map",
         "myGroup",
+        "placeGroupMember",
+        "removeGroupMember",
         "replaceStationKey",
         "setStationBooth",
         "setStationPassport",
         "stats",
+        "updateGroup",
       ].sort(),
     );
   });

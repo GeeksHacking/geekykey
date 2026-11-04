@@ -31,6 +31,10 @@ export type EventApi = Pick<
   | "createGroup"
   | "allocateGroups"
   | "exportGroupsCsv"
+  | "updateGroup"
+  | "deleteGroup"
+  | "placeGroupMember"
+  | "removeGroupMember"
 >;
 
 export interface ServiceClientBundle {
@@ -70,6 +74,10 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       createGroup: api.createGroup.bind(api),
       allocateGroups: api.allocateGroups.bind(api),
       exportGroupsCsv: api.exportGroupsCsv.bind(api),
+      updateGroup: api.updateGroup.bind(api),
+      deleteGroup: api.deleteGroup.bind(api),
+      placeGroupMember: api.placeGroupMember.bind(api),
+      removeGroupMember: api.removeGroupMember.bind(api),
     },
   };
 }

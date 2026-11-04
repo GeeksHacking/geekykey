@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { returnFocusOnClose } from "@/features/stations/dialog-focus";
+import { returnFocusOnClose } from "@/lib/dialog-focus";
 import { StationKeyReveal } from "@/features/stations/station-key-reveal";
 import { useReplaceStationKey } from "@/features/stations/use-replace-station-key";
 

@@ -4,6 +4,7 @@ import type {
   EventGroup,
   GroupBoardResponse,
   MyGroupResponse,
+  UpdateGroupRequest,
   StationKeyResponse,
   StationResponse,
   EventStationBoardResponse,
@@ -138,4 +139,29 @@ export interface ApiClient {
 
   /** GET /api/v1/admin/groups/export.csv (draft for agreement 0.14) as a file the browser can save. */
   exportGroupsCsv(): Promise<Blob>;
+
+  /**
+   * PUT /api/v1/admin/groups/{id} (draft for agreement 0.14). Sets every field and moves nobody,
+   * even below a lower capacity. `not_found` or `name_taken`.
+   */
+  updateGroup(groupId: string, input: UpdateGroupRequest): Promise<EventGroup>;
+
+  /**
+   * DELETE /api/v1/admin/groups/{id} (draft for agreement 0.14). Its members go back to waiting.
+   * `not_found`.
+   */
+  deleteGroup(groupId: string): Promise<void>;
+
+  /**
+   * PUT /api/v1/admin/groups/members/{user_id} (draft for agreement 0.14). Puts the user in the
+   * group, past its capacity if need be, or back to waiting with null, joining them first if
+   * they haven't. Answers with the board. `not_found`, or `forbidden` for an organizer account.
+   */
+  placeGroupMember(userId: string, groupId: string | null): Promise<GroupBoardResponse>;
+
+  /**
+   * DELETE /api/v1/admin/groups/members/{user_id} (draft for agreement 0.14). They can join
+   * again. `not_found` when they haven't joined.
+   */
+  removeGroupMember(userId: string): Promise<void>;
 }

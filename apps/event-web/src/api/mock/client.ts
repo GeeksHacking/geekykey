@@ -32,6 +32,7 @@ import {
   type MapStation,
   type MeResponse,
   type MyGroupResponse,
+  type UpdateGroupRequest,
   type SetStationPassportResponse,
   type StationResponse,
   type StatsResponse,
@@ -43,7 +44,7 @@ import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
 import { isGroupLink } from "@/lib/group-link";
-import { GROUP_NAME_MAX, isGroupName } from "@/lib/group-name";
+import { GROUP_TAGS_MAX, GROUP_TEXT_MAX, isGroupText } from "@/lib/group-fields";
 
 /**
  * The mock's anonymous web, oldest connection first. Each link joins numbers a few apart, so
@@ -323,6 +324,49 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       (group) => group.capacity === null || sizeOf(group.id) < group.capacity,
     );
     return smallest(withRoom) ?? smallest(data.groups);
+  }
+
+  /**
+   * A group's fields as the Event Service checks them, trimmed, with a blank location as none,
+   * or `validation_failed` at the first field past its limit, or `name_taken` when a group
+   * other than `ownId` has the name, whatever its capitals.
+   */
+  function groupFields(input: CreateGroupRequest, ownId: string | null): Omit<MockGroup, "id"> {
+    const name = input.name.trim();
+    if (name === "" || !isGroupText(name)) {
+      fail("validation_failed", [
+        { path: ["name"], message: `name must be 1 to ${GROUP_TEXT_MAX} characters` },
+      ]);
+    }
+    const tags = (input.tags ?? []).map((tag) => tag.trim());
+    if (tags.length > GROUP_TAGS_MAX) {
+      fail("validation_failed", [
+        { path: ["tags"], message: `tags must have at most ${GROUP_TAGS_MAX} items` },
+      ]);
+    }
+    const badTag = tags.findIndex((tag) => tag === "" || !isGroupText(tag));
+    if (badTag >= 0) {
+      fail("validation_failed", [
+        { path: ["tags", badTag], message: `tag must be 1 to ${GROUP_TEXT_MAX} characters` },
+      ]);
+    }
+    const location = input.location?.trim() || null;
+    if (location !== null && !isGroupText(location)) {
+      fail("validation_failed", [
+        { path: ["location"], message: `location must be 0 to ${GROUP_TEXT_MAX} characters` },
+      ]);
+    }
+    const capacity = input.capacity ?? null;
+    if (capacity !== null && !(Number.isInteger(capacity) && capacity > 0)) {
+      fail("validation_failed", [
+        { path: ["capacity"], message: "capacity must be a whole number above 0, or null" },
+      ]);
+    }
+    const taken = data.groups.some(
+      (group) => group.id !== ownId && group.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (taken) fail("name_taken");
+    return { name, tags, location, capacity };
   }
 
   function toMyGroup(userId: string): MyGroupResponse {
@@ -792,30 +836,63 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     createGroup: (input: CreateGroupRequest) =>
       call(() => {
         currentOrganizer();
-        const name = input.name.trim();
-        if (name === "" || !isGroupName(name)) {
-          fail("validation_failed", [
-            { path: ["name"], message: `name must be 1 to ${GROUP_NAME_MAX} characters` },
-          ]);
-        }
-        const capacity = input.capacity ?? null;
-        if (capacity !== null && !(Number.isInteger(capacity) && capacity > 0)) {
-          fail("validation_failed", [
-            { path: ["capacity"], message: "capacity must be a whole number above 0, or null" },
-          ]);
-        }
-        if (data.groups.some((group) => group.name.toLowerCase() === name.toLowerCase())) {
-          fail("name_taken");
-        }
-        const group: MockGroup = {
-          id: `g_${randomBase62(8)}`,
-          name,
-          tags: [],
-          location: null,
-          capacity,
-        };
+        const group: MockGroup = { id: `g_${randomBase62(8)}`, ...groupFields(input, null) };
         data.groups.push(group);
         return toEventGroup(group);
+      }),
+
+    updateGroup: (groupId: string, input: UpdateGroupRequest) =>
+      call(() => {
+        currentOrganizer();
+        const group = data.groups.find(({ id }) => id === groupId);
+        // Checked after the fields, as the Event Service validates the body before it looks.
+        const fields = groupFields(input, groupId);
+        if (!group) fail("not_found");
+        // Moves nobody, even when the capacity drops below the group's size.
+        Object.assign(group, fields);
+        return toEventGroup(group);
+      }),
+
+    deleteGroup: (groupId: string) =>
+      call(() => {
+        currentOrganizer();
+        if (!data.groups.some(({ id }) => id === groupId)) fail("not_found");
+        data.groups = data.groups.filter(({ id }) => id !== groupId);
+        for (const member of data.groupMembers) {
+          if (member.group_id !== groupId) continue;
+          member.group_id = null;
+          member.placed_at = null;
+          member.how = null;
+        }
+      }),
+
+    // An organizer's choice overrules a capacity. Someone who hasn't joined joins now.
+    placeGroupMember: (userId: string, groupId: string | null) =>
+      call(() => {
+        currentOrganizer();
+        const user = userById(userId);
+        if (user?.role === "organizer") fail("forbidden");
+        if (!user) fail("not_found");
+        if (groupId !== null && !data.groups.some(({ id }) => id === groupId)) fail("not_found");
+        const at = iso(Date.now());
+        let member = data.groupMembers.find((candidate) => candidate.user_id === userId);
+        if (!member) {
+          member = { user_id: userId, group_id: null, joined_at: at, placed_at: null, how: null };
+          data.groupMembers.push(member);
+        }
+        if (member.group_id !== groupId) {
+          member.group_id = groupId;
+          member.placed_at = groupId === null ? null : at;
+          member.how = groupId === null ? null : "organizer";
+        }
+        return toGroupBoard();
+      }),
+
+    removeGroupMember: (userId: string) =>
+      call(() => {
+        currentOrganizer();
+        if (!data.groupMembers.some((member) => member.user_id === userId)) fail("not_found");
+        data.groupMembers = data.groupMembers.filter((member) => member.user_id !== userId);
       }),
 
     // Everyone waiting, shuffled, each to the group choosePlace() gives. It refuses with no

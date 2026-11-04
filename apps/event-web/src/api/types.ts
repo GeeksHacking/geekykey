@@ -335,11 +335,18 @@ export interface GroupBoardResponse {
   waiting: GroupWaitingMember[];
 }
 
-/** POST /api/v1/admin/groups. With no capacity, or a null one, the group takes any number. */
+/**
+ * POST /api/v1/admin/groups, and PUT /api/v1/admin/groups/{id}, which sets every field. A field
+ * left out is none: no tags, no location, and room for any number. At most 5 tags.
+ */
 export interface CreateGroupRequest {
   name: string;
+  tags?: string[];
+  location?: string | null;
   capacity?: number | null;
 }
+
+export type UpdateGroupRequest = CreateGroupRequest;
 
 export type ErrorCode =
   | "validation_failed"

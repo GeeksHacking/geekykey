@@ -3,19 +3,23 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { createMockClient } from "@/api/mock/client";
+import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { GroupsScreen } from "@/features/groups/groups-screen";
 import { createTestProviders } from "@/test/providers";
 
 /** The organizer's screen on the mock, with the fixtures' groups and waiting list unless cleared. */
-function renderScreen({ cleared = false } = {}) {
+function renderScreen({
+  cleared = false,
+  prepare,
+}: { cleared?: boolean; prepare?: (api: MockApiClient) => void } = {}) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_ORGANIZER_ID);
   if (cleared) {
     api.mock.data.groups = [];
     api.mock.data.groupMembers = [];
   }
+  prepare?.(api);
   const { Providers } = createTestProviders(api);
   render(
     <Providers>
@@ -58,6 +62,19 @@ function catchDownload() {
     click.mockRestore();
   });
   return saved;
+}
+
+/** Opens the menu named for a group or a person, as an organiser does, and picks `action`. */
+async function pick(user: ReturnType<typeof userEvent.setup>, name: string, action: string) {
+  await user.click(await screen.findByRole("button", { name: `Actions for ${name}` }));
+  await user.click(await screen.findByRole("menuitem", { name: action }));
+}
+
+/** The names listed under a group, or on the waiting list, by each person's menu. */
+function namesIn(list: string) {
+  return within(screen.getByRole("list", { name: list }))
+    .queryAllByRole("button", { name: /^Actions for / })
+    .map((button) => button.getAttribute("aria-label")?.replace("Actions for ", ""));
 }
 
 describe("GroupsScreen", () => {
@@ -301,5 +318,215 @@ describe("GroupsScreen", () => {
     await user.click(await screen.findByRole("button", { name: "Try again" }));
 
     expect(await screen.findByRole("list", { name: "Waiting" })).toBeInTheDocument();
+  });
+
+  it("gives a group tags and a location in the dialog, and shows them on its panel", async () => {
+    const { api, user } = renderScreen({ cleared: true });
+    await screen.findByRole("heading", { name: "No groups yet" });
+    await user.click(screen.getByRole("button", { name: "Create group" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "Mixer A");
+    await user.type(within(dialog).getByLabelText("Tags"), "Mixer, Year 1, ");
+    await user.type(within(dialog).getByLabelText("Location"), "Room 3-01");
+    await user.click(within(dialog).getByRole("button", { name: "Create group" }));
+
+    const panel = await screen.findByRole("region", { name: "Mixer A" });
+    expect(api.mock.data.groups[0]).toMatchObject({
+      tags: ["Mixer", "Year 1"],
+      location: "Room 3-01",
+    });
+    expect(within(panel).getByText("Mixer")).toBeInTheDocument();
+    expect(within(panel).getByText("Year 1")).toBeInTheDocument();
+    expect(within(panel).getByText("Room 3-01")).toBeInTheDocument();
+  });
+
+  it("refuses a sixth tag, or a location past 80 characters, before sending", async () => {
+    const { api, user } = renderScreen({ cleared: true });
+    await screen.findByRole("heading", { name: "No groups yet" });
+    await user.click(screen.getByRole("button", { name: "Create group" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "Mixer A");
+    await user.type(within(dialog).getByLabelText("Tags"), "a, b, c, d, e, f");
+    await user.click(within(dialog).getByLabelText("Location"));
+    await user.paste("x".repeat(81));
+    await user.click(within(dialog).getByRole("button", { name: "Create group" }));
+
+    expect(await within(dialog).findByText("Use at most 5 tags.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Keep it under 80 characters.")).toBeInTheDocument();
+    expect(api.mock.data.groups).toHaveLength(0);
+  });
+
+  it("edits a group from its menu, starting from what it has", async () => {
+    const { api, user } = renderScreen({
+      prepare: (client) => {
+        Object.assign(client.mock.data.groups[0]!, { tags: ["Mixer"], capacity: 6 });
+      },
+    });
+
+    await pick(user, "Foyer mixer", "Edit group…");
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Name")).toHaveValue("Foyer mixer");
+    expect(within(dialog).getByLabelText("Tags")).toHaveValue("Mixer");
+    expect(within(dialog).getByLabelText("Capacity")).toHaveValue("6");
+    await user.clear(within(dialog).getByLabelText("Name"));
+    await user.type(within(dialog).getByLabelText("Name"), "Foyer");
+    await user.type(within(dialog).getByLabelText("Location"), "Level 1 foyer");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("heading", { name: "Foyer" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(api.mock.data.groups[0]).toMatchObject({
+      name: "Foyer",
+      tags: ["Mixer"],
+      location: "Level 1 foyer",
+      capacity: 6,
+    });
+  });
+
+  it("refuses an edit to a name another group has, under the name", async () => {
+    const { api, user } = renderScreen();
+
+    await pick(user, "Foyer mixer", "Edit group…");
+    const dialog = await screen.findByRole("dialog");
+    await user.clear(within(dialog).getByLabelText("Name"));
+    await user.type(within(dialog).getByLabelText("Name"), "atrium mixer");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    expect(
+      await within(dialog).findByText("Another group has this name. Choose a different one."),
+    ).toBeInTheDocument();
+    expect(api.mock.data.groups[0]!.name).toBe("Foyer mixer");
+  });
+
+  it("lowers a capacity without moving anyone, and shows the group over capacity", async () => {
+    const { user } = renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await waitFor(() => expect(namesIn("Members of Foyer mixer")).toHaveLength(3));
+
+    await pick(user, "Foyer mixer", "Edit group…");
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Capacity"), "1");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    const foyer = screen.getByRole("region", { name: "Foyer mixer" });
+    expect(await within(foyer).findByText("Over capacity")).toBeInTheDocument();
+    expect(namesIn("Members of Foyer mixer")).toHaveLength(3);
+  });
+
+  it("deletes a group with nobody in it without asking", async () => {
+    const { api, user } = renderScreen();
+
+    await pick(user, "Foyer mixer", "Delete group");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Foyer mixer" })).not.toBeInTheDocument(),
+    );
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual(["Atrium mixer"]);
+  });
+
+  it("asks before deleting a group with members, then sends them back to waiting", async () => {
+    const { api, user } = renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+
+    await pick(user, "Foyer mixer", "Delete group…");
+    const alert = await screen.findByRole("alertdialog");
+    expect(alert).toHaveTextContent("Delete Foyer mixer?");
+    expect(alert).toHaveTextContent(
+      "Its 3 members go back to the waiting list. Press Allocate to place them again.",
+    );
+    await user.click(within(alert).getByRole("button", { name: "Cancel" }));
+    expect(api.mock.data.groups).toHaveLength(2);
+
+    await pick(user, "Foyer mixer", "Delete group…");
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }),
+    );
+
+    await waitFor(() => expect(namesIn("Waiting")).toHaveLength(3));
+    expect(screen.queryByRole("heading", { name: "Foyer mixer" })).not.toBeInTheDocument();
+  });
+
+  it("moves someone to another group from their menu", async () => {
+    const { api, user } = renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+    const [mover] = namesIn("Members of Foyer mixer");
+
+    await pick(user, mover!, "Move to Atrium mixer");
+
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toContain(mover));
+    expect(namesIn("Members of Foyer mixer")).not.toContain(mover);
+    expect(api.mock.data.groupMembers.find(({ how }) => how === "organizer")).toBeDefined();
+  });
+
+  it("puts someone waiting in a full group, and shows it over capacity", async () => {
+    const { user } = renderScreen({
+      prepare: (client) => {
+        client.mock.data.groups[1]!.capacity = 1;
+      },
+    });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]));
+    await pick(user, "Hui Min Loh", "Move to Atrium mixer");
+
+    const atrium = screen.getByRole("region", { name: "Atrium mixer" });
+    expect(await within(atrium).findByText("Over capacity")).toBeInTheDocument();
+    expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong", "Hui Min Loh"]);
+    expect(namesIn("Waiting")).not.toContain("Kenji Ong");
+  });
+
+  it("sends someone back to waiting, and removes someone who has left", async () => {
+    const { user } = renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+    const [back, gone] = namesIn("Members of Foyer mixer");
+
+    await pick(user, back!, "Send back to waiting");
+    await waitFor(() => expect(namesIn("Waiting")).toEqual([back]));
+
+    await pick(user, gone!, "Remove");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: `Actions for ${gone}` })).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "SPAN" && element.textContent === "4 joined, 1 waiting",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says where a move failed, and keeps the screen", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    api.mock.failNext("not_found");
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "That was not found. It may have been removed.",
+    );
+    expect(namesIn("Waiting")).toContain("Kenji Ong");
+  });
+
+  it("flags a group with fewer than 2 members once allocation has started", async () => {
+    const { user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    expect(screen.queryByText("Fewer than 2 members")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+    expect(screen.queryByText("Fewer than 2 members")).not.toBeInTheDocument();
+    for (const name of namesIn("Members of Atrium mixer").slice(1)) {
+      await pick(user, name!, "Move to Foyer mixer");
+    }
+
+    const atrium = screen.getByRole("region", { name: "Atrium mixer" });
+    expect(await within(atrium).findByText("Fewer than 2 members")).toBeInTheDocument();
+    const foyer = screen.getByRole("region", { name: "Foyer mixer" });
+    expect(within(foyer).queryByText("Fewer than 2 members")).not.toBeInTheDocument();
   });
 });

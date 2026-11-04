@@ -1031,6 +1031,135 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     await expectApiError(api.allocateGroups(), "forbidden", 403);
   });
 
+  it("refuses a participant on the organizer's edits and moves", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+
+    await expectApiError(api.updateGroup("g_foyer", { name: "Mine" }), "forbidden", 403);
+    await expectApiError(api.deleteGroup("g_foyer"), "forbidden", 403);
+    await expectApiError(api.placeGroupMember("u_7f3a", "g_foyer"), "forbidden", 403);
+    await expectApiError(api.removeGroupMember("u_7f3a"), "forbidden", 403);
+  });
+
+  it("keeps a group's tags and location, trimmed, and refuses ones past the limits", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    const group = await api.createGroup({
+      name: "Mixer A",
+      tags: [" Mixer ", "Year 1"],
+      location: " Room 3-01 ",
+    });
+    expect([group.tags, group.location]).toEqual([["Mixer", "Year 1"], "Room 3-01"]);
+    expect((await api.createGroup({ name: "Mixer B", location: "  " })).location).toBeNull();
+
+    for (const input of [
+      { tags: ["a", "b", "c", "d", "e", "f"] },
+      { tags: ["fine", "  "] },
+      { tags: ["x".repeat(81)] },
+      { location: "x".repeat(81) },
+    ]) {
+      await expectApiError(
+        api.createGroup({ name: "Mixer C", ...input }),
+        "validation_failed",
+        400,
+      );
+    }
+  });
+
+  it("edits every field of a group, keeps its own name, and moves nobody", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const before = await api.allocateGroups();
+    const foyer = before.groups[0]!;
+
+    const edited = await api.updateGroup(foyer.id, {
+      name: "FOYER MIXER",
+      tags: ["Year 1"],
+      location: "Foyer",
+      capacity: 1,
+    });
+
+    expect(edited).toEqual({
+      ...foyer,
+      name: "FOYER MIXER",
+      tags: ["Year 1"],
+      location: "Foyer",
+      capacity: 1,
+    });
+    const bare = await api.updateGroup(foyer.id, { name: "Foyer mixer" });
+    expect([bare.tags, bare.location, bare.capacity]).toEqual([[], null, null]);
+    await expectApiError(api.updateGroup(foyer.id, { name: "atrium MIXER" }), "name_taken", 409);
+    await expectApiError(api.updateGroup("no-such-group", { name: "X" }), "not_found", 404);
+  });
+
+  it("sends a deleted group's members back to waiting", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const before = await api.allocateGroups();
+    const [foyer, atrium] = before.groups;
+
+    await api.deleteGroup(foyer!.id);
+
+    const after = await api.groupBoard();
+    expect(after.groups).toEqual([atrium]);
+    expect(after.waiting.map(({ user_id }) => user_id).sort()).toEqual(
+      foyer!.members.map(({ user_id }) => user_id).sort(),
+    );
+    await expectApiError(api.deleteGroup(foyer!.id), "not_found", 404);
+  });
+
+  it("puts someone in a group past its capacity, or back to waiting, as the organizer's", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const full = await api.createGroup({ name: "Small room", capacity: 1 });
+    const [first, second] = (await api.groupBoard()).waiting;
+
+    await api.placeGroupMember(first!.user_id, full.id);
+    const board = await api.placeGroupMember(second!.user_id, full.id);
+
+    const room = board.groups.find(({ id }) => id === full.id)!;
+    expect(room.members.map(({ user_id, how }) => [user_id, how])).toEqual([
+      [first!.user_id, "organizer"],
+      [second!.user_id, "organizer"],
+    ]);
+    const back = await api.placeGroupMember(first!.user_id, null);
+    expect(back.waiting.map(({ user_id }) => user_id)).toContain(first!.user_id);
+    expect(back.groups.find(({ id }) => id === full.id)!.members).toHaveLength(1);
+  });
+
+  it("joins someone an organizer places who hasn't joined, and refuses an organizer account", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const group = api.mock.data.groups[0]!;
+
+    const board = await api.placeGroupMember(SEEDED_PARTICIPANT_ID, group.id);
+
+    expect(board.joined_count).toBe(6);
+    await expectApiError(api.placeGroupMember(SEEDED_ORGANIZER_ID, group.id), "forbidden", 403);
+    await expectApiError(api.placeGroupMember("no-such-user", group.id), "not_found", 404);
+    await expectApiError(
+      api.placeGroupMember(SEEDED_PARTICIPANT_ID, "no-such-group"),
+      "not_found",
+      404,
+    );
+  });
+
+  it("removes someone, who can then join again", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await api.joinGroups();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    await api.removeGroupMember(SEEDED_PARTICIPANT_ID);
+
+    expect((await api.groupBoard()).joined_count).toBe(5);
+    await expectApiError(api.removeGroupMember(SEEDED_PARTICIPANT_ID), "not_found", 404);
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    expect((await api.myGroup()).status).toBe("not_joined");
+    expect((await api.joinGroups()).status).toBe("waiting");
+  });
+
   it("refuses a name another group has, and a blank one", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);

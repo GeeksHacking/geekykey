@@ -2,7 +2,7 @@ import type { EventStationBoardStation } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BoothForm } from "@/features/stations/booth-form";
-import { returnFocusOnClose } from "@/features/stations/dialog-focus";
+import { returnFocusOnClose } from "@/lib/dialog-focus";
 
 /**
  * Wraps BoothForm in a dialog. The board renders one of these per station and keeps it
