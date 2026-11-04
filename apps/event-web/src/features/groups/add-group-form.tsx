@@ -9,6 +9,7 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,6 +28,14 @@ const schema = z.object({
       z.minLength(1, "Give the group a name."),
       z.refine(isGroupName, "Keep it under 80 characters."),
     ),
+  // Kept as text so the input stays controlled, and converted on submit. Empty is any number.
+  capacity: z.string().check(
+    z.trim(),
+    z.refine(
+      (value) => value === "" || (/^\d+$/.test(value) && Number(value) > 0),
+      "Enter a whole number above 0, or leave it empty.",
+    ),
+  ),
 });
 
 type GroupValues = z.infer<typeof schema>;
@@ -35,14 +44,17 @@ export function AddGroupForm({ onCreated }: { onCreated: () => void }) {
   const createGroup = useCreateGroup();
   const form = useForm<GroupValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "" },
+    defaultValues: { name: "", capacity: "" },
   });
   const [formError, setFormError] = useState<string | null>(null);
 
   async function onSubmit(values: GroupValues) {
     setFormError(null);
     try {
-      await createGroup.mutateAsync({ name: values.name });
+      await createGroup.mutateAsync({
+        name: values.name,
+        capacity: values.capacity === "" ? null : Number(values.capacity),
+      });
       onCreated();
     } catch (error) {
       if (isApiError(error) && error.code === "name_taken") {
@@ -74,6 +86,28 @@ export function AddGroupForm({ onCreated }: { onCreated: () => void }) {
               <FormControl>
                 <Input {...field} autoComplete="off" />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="capacity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="look-label">Capacity</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className="w-24 font-mono"
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. Allocate fills every group with room before any goes over. Leave it empty
+                for any number.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

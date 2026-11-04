@@ -9,6 +9,7 @@ import type { ConnectionsGame } from "./event/connections.ts";
 import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { myGroupRoutes } from "./event/group-routes.ts";
+import type { Shuffle } from "./event/groups.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
@@ -41,6 +42,8 @@ export interface AppDeps {
    * meetings.
    */
   connections?: ConnectionsGame | null;
+  /** For the groups' Allocate, at random unless a test gives its own. */
+  shuffle?: Shuffle;
 }
 
 /**
@@ -65,7 +68,13 @@ export function createApp(
   config: Config,
   db: Db,
   // One set of keys for the server's life, so Google's keys are cached between logins.
-  { googleKeys, now, answers = gradTeaAnswers, connections = gradTeaConnections }: AppDeps = {
+  {
+    googleKeys,
+    now,
+    answers = gradTeaAnswers,
+    connections = gradTeaConnections,
+    shuffle,
+  }: AppDeps = {
     googleKeys: googleSigningKeys(),
   },
 ) {
@@ -102,7 +111,7 @@ export function createApp(
   );
   app.route("/api/v1/me", meRoutes({ session, answers, connections, now }));
   app.route("/api/v1/me/group", myGroupRoutes({ session, now }));
-  app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now }));
+  app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now, shuffle }));
   app.route("/api/v1/map", mapRoutes({ session, connections }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route(

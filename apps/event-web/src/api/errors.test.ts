@@ -7,6 +7,8 @@ import type { ErrorCode } from "@/api/types";
 const CODES: Record<ErrorCode, true> = {
   validation_failed: true,
   name_taken: true,
+  no_groups: true,
+  too_few_participants: true,
   unauthenticated: true,
   invalid_token: true,
   invalid_login_link: true,
@@ -47,6 +49,15 @@ describe("API error messages", () => {
       // No em-dash or en-dash in visible text, per the app's copy rules.
       expect(text, `${code} used a dash`).not.toMatch(/[\u2014\u2013]/);
     }
+  });
+
+  it("says how many more people Allocate needs, in words that fit the count", () => {
+    expect(describeError(new ApiError(409, "too_few_participants", [], 1))).toBe(
+      "Each group needs at least 2 people. Wait for 1 more person to join, then press Allocate again.",
+    );
+    expect(describeError(new ApiError(409, "too_few_participants", [], 3))).toBe(
+      "Each group needs at least 2 people. Wait for 3 more people to join, then press Allocate again.",
+    );
   });
 
   it("uses the agreement's wording for login_unavailable", () => {

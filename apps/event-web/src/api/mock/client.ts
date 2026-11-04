@@ -80,6 +80,8 @@ const MOCK_LOGIN_LINKS: Record<string, string> = {
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   name_taken: 409,
+  no_groups: 409,
+  too_few_participants: 409,
   validation_failed: 400,
   unauthenticated: 401,
   // Agreement 0.4 section 7.2, POST /auth/firebase, on both services.
@@ -159,8 +161,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   }
 
   // Explicit type so TypeScript treats a bare `fail(...)` statement as the end of that path.
-  const fail: (code: ErrorCode, issues?: ApiIssue[]) => never = (code, issues) => {
-    throw new ApiError(HTTP_STATUS[code], code, issues);
+  const fail: (code: ErrorCode, issues?: ApiIssue[], needed?: number) => never = (
+    code,
+    issues,
+    needed,
+  ) => {
+    throw new ApiError(HTTP_STATUS[code], code, issues, needed);
   };
 
   function currentUser(): MockUser {
@@ -776,6 +782,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             { path: ["name"], message: `name must be 1 to ${GROUP_NAME_MAX} characters` },
           ]);
         }
+        const capacity = input.capacity ?? null;
+        if (capacity !== null && !(Number.isInteger(capacity) && capacity > 0)) {
+          fail("validation_failed", [
+            { path: ["capacity"], message: "capacity must be a whole number above 0, or null" },
+          ]);
+        }
         if (data.groups.some((group) => group.name.toLowerCase() === name.toLowerCase())) {
           fail("name_taken");
         }
@@ -784,29 +796,36 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           name,
           tags: [],
           location: null,
-          capacity: null,
+          capacity,
         };
         data.groups.push(group);
         return toEventGroup(group);
       }),
 
-    // Everyone waiting, each to the group with the fewest members, the oldest on a tie. With
-    // no groups it does nothing, as the Event Service does.
+    // Everyone waiting, shuffled, each to the group with the fewest members that has room, or
+    // the group with the fewest when all are full, the oldest on a tie. It refuses with no
+    // groups, or fewer than 2 joined for each, as the Event Service does.
     allocateGroups: () =>
       call(() => {
         currentOrganizer();
-        const [first] = data.groups;
-        if (!first) return toGroupBoard();
+        if (data.groups.length === 0) fail("no_groups");
+        const needed = 2 * data.groups.length - data.groupMembers.length;
+        if (needed > 0) fail("too_few_participants", [], needed);
         const sizeOf = (groupId: string) =>
           data.groupMembers.filter((member) => member.group_id === groupId).length;
-        const placedAt = iso(Date.now());
-        for (const member of data.groupMembers) {
-          if (member.group_id !== null) continue;
-          const smallest = data.groups.reduce(
-            (best, group) => (sizeOf(group.id) < sizeOf(best.id) ? group : best),
-            first,
+        const smallest = (groups: MockGroup[]) =>
+          groups.reduce<MockGroup | undefined>(
+            (best, group) => (!best || sizeOf(group.id) < sizeOf(best.id) ? group : best),
+            undefined,
           );
-          member.group_id = smallest.id;
+        const placedAt = iso(Date.now());
+        const waiting = data.groupMembers.filter((member) => member.group_id === null);
+        for (const member of shuffled(waiting)) {
+          const withRoom = data.groups.filter(
+            (group) => group.capacity === null || sizeOf(group.id) < group.capacity,
+          );
+          const place = smallest(withRoom) ?? smallest(data.groups)!;
+          member.group_id = place.id;
           member.placed_at = placedAt;
           member.how = "allocated";
         }
@@ -860,6 +879,16 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
 function csvCell(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/** A copy of `items` in a random order (Fisher-Yates), as Allocate places the waiting list. */
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
+  }
+  return copy;
 }
 
 function randomBase62(length: number): string {

@@ -298,6 +298,9 @@ Rules:
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
    - `name_taken`: under the name in the Groups screen's dialog (draft for agreement 0.14).
+   - `no_groups` / `too_few_participants`: under the Groups screen's header, where Allocate was
+     pressed. `too_few_participants` also carries `needed`, which `ApiError.needed` keeps so the
+     sentence can say how many more people to wait for (draft for agreement 0.14).
    - `answers_fixed`: the passport shows the answers without a way to change them
      (agreement 8.7 and section 13).
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.

@@ -10,6 +10,8 @@ import {
   joinGroups,
   loadGroupBoard,
   loadMyGroup,
+  type Shuffle,
+  shuffleAtRandom,
 } from "./groups.ts";
 import { organizerText } from "./organizer-text.ts";
 import {
@@ -96,27 +98,41 @@ export function myGroupRoutes({
   return app;
 }
 
-/** A new group, by its name. */
-const createGroupSchema = z.object({ name: organizerText("name") });
+/**
+ * A new group: its name, and the most people it has room for, or none for any number (draft
+ * for the API agreement's 0.14).
+ */
+const createGroupSchema = z.object({
+  name: organizerText("name"),
+  capacity: z.number().int().positive().nullable().default(null),
+});
 
 /**
  * Mounted at /api/v1/admin/groups, inside adminRoutes(), which lets only
  * organizers through.
  */
-export function adminGroupRoutes({ now = () => new Date() }: { now?: () => Date }) {
+export function adminGroupRoutes({
+  now = () => new Date(),
+  shuffle = shuffleAtRandom,
+}: {
+  now?: () => Date;
+  /** At random unless a test gives its own. */
+  shuffle?: Shuffle;
+}) {
   const app = new Hono<AppEnv & SessionEnv>();
 
   app.get("/", async (c) => c.json(groupBoardBody(await loadGroupBoard(c.var.db))));
 
   app.post("/", jsonBody(createGroupSchema), async (c) => {
-    const group = await createGroup(c.var.db, c.req.valid("json").name, now());
+    const group = await createGroup(c.var.db, c.req.valid("json"), now());
     if (group === "name_taken") return c.json({ error: "name_taken" }, 409);
     log("group_created", { user_id: c.var.user.id, group_id: group.id });
     return c.json(eventGroupBody(group), 201);
   });
 
   app.post("/allocate", async (c) => {
-    await allocateWaiting(c.var.db, now());
+    const refusal = await allocateWaiting(c.var.db, now(), shuffle);
+    if (refusal) return c.json(refusal, 409);
     log("groups_allocated", { user_id: c.var.user.id });
     return c.json(groupBoardBody(await loadGroupBoard(c.var.db)));
   });

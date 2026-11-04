@@ -4,13 +4,21 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: ErrorCode;
   readonly issues: ApiIssue[];
+  /** With `too_few_participants`, how many more must join before Allocate can run. */
+  readonly needed: number | null;
 
-  constructor(status: number, code: ErrorCode, issues: ApiIssue[] = []) {
+  constructor(
+    status: number,
+    code: ErrorCode,
+    issues: ApiIssue[] = [],
+    needed: number | null = null,
+  ) {
     super(code);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.issues = issues;
+    this.needed = needed;
   }
 }
 
@@ -41,6 +49,12 @@ export function isApiErrorCode(error: unknown, code: ErrorCode): boolean {
 /** Agreement section 13: what the Event screens say on invalid_login_link. */
 export const LOGIN_LINK_EXPIRED = "That link has expired. Tap your token again to get back in.";
 
+/** How many more people too_few_participants needs, as words that fit the count. */
+function morePeople(needed: number | null): string {
+  if (needed === null) return "more people";
+  return needed === 1 ? "1 more person" : `${needed} more people`;
+}
+
 /** Plain-language fallback text for a generic error state. Screens override for specific codes. */
 export function describeError(error: unknown): string {
   if (isApiError(error)) {
@@ -64,6 +78,10 @@ export function describeError(error: unknown): string {
         return "You've connected, so your answers are set.";
       case "name_taken":
         return "Another group has this name. Choose a different one.";
+      case "no_groups":
+        return "Create a group first, then press Allocate.";
+      case "too_few_participants":
+        return `Each group needs at least 2 people. Wait for ${morePeople(error.needed)} to join, then press Allocate again.`;
       case "rate_limited":
         return "Too many requests. Wait a minute and try again.";
       case "invalid_event_service_key":

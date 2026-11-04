@@ -82,7 +82,8 @@ export function testDb(): Db {
  * of the station board's online light pins the clock with `now`. It runs no
  * answers game, so /me's `questions` is null, unless a test of the game gives
  * its own `answers`, and no connections game, so it takes no meetings, unless
- * a test of that game gives its own `connections`.
+ * a test of that game gives its own `connections`. Allocate shuffles the
+ * groups' waiting list at random, unless a test gives its own `shuffle`.
  */
 export function testApp(
   settings: Record<string, string> = {},
@@ -91,6 +92,7 @@ export function testApp(
     now,
     answers = null,
     connections = null,
+    shuffle,
   }: Partial<AppDeps> = {},
 ) {
   const config = loadConfig({
@@ -101,7 +103,7 @@ export function testApp(
     FIREBASE_PROJECT_ID: TEST_FIREBASE_PROJECT_ID,
     ...settings,
   });
-  return createApp(config, testDb(), { googleKeys, now, answers, connections });
+  return createApp(config, testDb(), { googleKeys, now, answers, connections, shuffle });
 }
 
 /** One station running the passport, with its settings, and one participant holding one token. */

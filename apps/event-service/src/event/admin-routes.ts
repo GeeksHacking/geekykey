@@ -22,6 +22,7 @@ import {
 } from "./schema.ts";
 import { exportTapsCsv } from "./export.ts";
 import { adminGroupRoutes } from "./group-routes.ts";
+import type { Shuffle } from "./groups.ts";
 import { organizerText } from "./organizer-text.ts";
 import { runsThePassport } from "./stamp-slots.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
@@ -36,6 +37,8 @@ export interface AdminRouteDeps {
   games: readonly GameOnStations[];
   /** The clock the station board tells online stations by, and a QR fallback tap is received by. */
   now?: () => Date;
+  /** For the groups' Allocate, at random unless given. */
+  shuffle?: Shuffle;
 }
 
 /** A new station's label, the device's name. */
@@ -192,11 +195,11 @@ function statsBody(stats: EventStats) {
  * section 9). Nobody signed in gets `unauthenticated`, and anyone not on the
  * organizer list gets `forbidden`.
  */
-export function adminRoutes({ session, games, now = () => new Date() }: AdminRouteDeps) {
+export function adminRoutes({ session, games, now = () => new Date(), shuffle }: AdminRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireRole("organizer"));
 
-  app.route("/groups", adminGroupRoutes({ now }));
+  app.route("/groups", adminGroupRoutes({ now, shuffle }));
 
   /** The games organizers choose a station's from, in the settings' order (9.2). */
   const gameChoices = games.flatMap((onStations) =>

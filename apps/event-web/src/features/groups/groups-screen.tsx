@@ -86,10 +86,7 @@ export function GroupsScreen() {
         actions={
           <>
             <AddGroupDialog />
-            <Button
-              disabled={!data || data.groups.length === 0 || allocate.isPending}
-              onClick={() => allocate.mutate()}
-            >
+            <Button disabled={!data || allocate.isPending} onClick={() => allocate.mutate()}>
               Allocate
             </Button>
           </>

@@ -54,7 +54,7 @@ function sameGroupName(a: string, b: string): boolean {
  */
 export async function createGroup(
   db: Db,
-  name: string,
+  { name, capacity }: { name: string; capacity: number | null },
   now: Date,
 ): Promise<EventGroup | "name_taken"> {
   return db.transaction(async (tx) => {
@@ -64,7 +64,7 @@ export async function createGroup(
       .from(participantGroups)
       .for("update");
     if (taken.some((group) => sameGroupName(group.name, name))) return "name_taken";
-    const group = { id: crypto.randomUUID(), name, tags: [], location: null, capacity: null };
+    const group = { id: crypto.randomUUID(), name, tags: [], location: null, capacity };
     await tx.insert(participantGroups).values({ ...group, createdAt: now.toISOString() });
     return { ...group, members: [] };
   });
@@ -81,36 +81,60 @@ export async function joinGroups(db: Db, userId: string, now: Date): Promise<voi
   });
 }
 
+/** Puts the waiting list in the order Allocate places it. */
+export type Shuffle = <T>(items: T[]) => T[];
+
+/** The fewest joined participants Allocate takes for each group, so nobody is put in one alone. */
+const MIN_PER_GROUP = 2;
+
+/** Why Allocate placed nobody, as its 409 answers (draft for the API agreement's 0.14). */
+export type AllocateRefusal =
+  | { error: "no_groups" }
+  | { error: "too_few_participants"; needed: number };
+
 /**
- * Places everyone waiting, each in the group with the fewest members, the
- * oldest group on a tie, and moves nobody already placed. The first time, it
- * also starts allocation. With no groups, it does neither.
+ * Places everyone waiting by the spec's "Placement rules", in an order
+ * `shuffle` gives, and moves nobody
+ * already placed. Each goes to the group with the fewest members that still
+ * has room, or, when every group is full, the group with the fewest members.
+ * The oldest group wins a tie. The first time, it also starts allocation.
+ *
+ * It refuses, placing nobody and starting nothing, when there are no groups,
+ * or fewer than 2 joined participants for each group.
  */
-export async function allocateWaiting(db: Db, now: Date): Promise<void> {
-  await db.transaction(async (tx) => {
+export async function allocateWaiting(
+  db: Db,
+  now: Date,
+  shuffle: Shuffle,
+): Promise<AllocateRefusal | null> {
+  return db.transaction(async (tx) => {
     const { startedAt } = await lockAllocation(tx);
     const groups = await tx
-      .select({ id: participantGroups.id })
+      .select({ id: participantGroups.id, capacity: participantGroups.capacity })
       .from(participantGroups)
       .orderBy(asc(participantGroups.createdAt), asc(participantGroups.id))
       .for("update");
-    if (groups.length === 0) return;
+    if (groups.length === 0) return { error: "no_groups" };
 
     const members = await tx
       .select({ userId: groupMembers.userId, groupId: groupMembers.groupId })
       .from(groupMembers)
       .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId))
       .for("update");
-    const places = groups.map(({ id }) => ({
+    const needed = MIN_PER_GROUP * groups.length - members.length;
+    if (needed > 0) return { error: "too_few_participants", needed };
+
+    const places = groups.map(({ id, capacity }) => ({
       id,
+      capacity,
       size: members.filter((member) => member.groupId === id).length,
       newcomers: [] as string[],
     }));
-    for (const member of members) {
-      if (member.groupId !== null) continue;
-      const smallest = places.reduce((best, place) => (place.size < best.size ? place : best));
-      smallest.size += 1;
-      smallest.newcomers.push(member.userId);
+    const waiting = members.filter((member) => member.groupId === null);
+    for (const { userId } of shuffle(waiting)) {
+      const place = smallest(places.filter(hasRoom)) ?? smallest(places)!;
+      place.size += 1;
+      place.newcomers.push(userId);
     }
 
     const placedAt = now.toISOString();
@@ -127,8 +151,38 @@ export async function allocateWaiting(db: Db, now: Date): Promise<void> {
         .set({ startedAt: placedAt })
         .where(eq(groupAllocation.id, ALLOCATION_ROW));
     }
+    return null;
   });
 }
+
+/** A group as allocation counts it. */
+interface Place {
+  capacity: number | null;
+  size: number;
+}
+
+/** Whether a group can take one more without passing its capacity. */
+function hasRoom({ capacity, size }: Place): boolean {
+  return capacity === null || size < capacity;
+}
+
+/** The group with the fewest members, the first in `places` on a tie, or none from an empty list. */
+function smallest<P extends Place>(places: P[]): P | undefined {
+  return places.reduce<P | undefined>(
+    (best, place) => (best === undefined || place.size < best.size ? place : best),
+    undefined,
+  );
+}
+
+/** A copy of `items` in a random order (Fisher-Yates). */
+export const shuffleAtRandom: Shuffle = (items) => {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  return shuffled;
+};
 
 /** When allocation started, or null before it has. */
 async function allocationStartedAt(db: Db): Promise<string | null> {
