@@ -1005,3 +1005,67 @@ describe("disable and enable stations", () => {
     await expectApiError(api.enableStation("no-such-station"), "not_found", 404);
   });
 });
+
+describe("the mock's groups (draft for agreement 0.14)", () => {
+  it("joins a participant once, and refuses an organizer", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    expect((await api.myGroup()).status).toBe("not_joined");
+
+    expect((await api.joinGroups()).status).toBe("waiting");
+    const joined = api.mock.data.groupMembers.length;
+    expect((await api.joinGroups()).status).toBe("waiting");
+    expect(api.mock.data.groupMembers).toHaveLength(joined);
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    expect((await api.myGroup()).status).toBe("not_joined");
+    await expectApiError(api.joinGroups(), "forbidden", 403);
+  });
+
+  it("refuses a participant on the organizer's calls", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+
+    await expectApiError(api.groupBoard(), "forbidden", 403);
+    await expectApiError(api.createGroup({ name: "Mine" }), "forbidden", 403);
+    await expectApiError(api.allocateGroups(), "forbidden", 403);
+  });
+
+  it("refuses a name another group has, and a blank one", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    await api.createGroup({ name: "Mixer A" });
+
+    await expectApiError(api.createGroup({ name: " Mixer A " }), "name_taken", 409);
+    await expectApiError(api.createGroup({ name: "mixer a" }), "name_taken", 409);
+    await expectApiError(api.createGroup({ name: "   " }), "validation_failed", 400);
+  });
+
+  it("places everyone waiting, sizes at most one apart, and starts allocation", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const { waiting } = await api.groupBoard();
+    expect(waiting).toHaveLength(5);
+
+    const board = await api.allocateGroups();
+
+    expect(board.waiting).toEqual([]);
+    expect(board.allocation_started_at).not.toBeNull();
+    expect(board.groups.map((group) => group.members.length)).toEqual([3, 2]);
+  });
+
+  it("leaves a placed participant's answer to names, for their own group only", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await api.joinGroups();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.allocateGroups();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+
+    const { status, group } = await api.myGroup();
+
+    const onBoard = board.groups.find(({ id }) => id === group?.id);
+    expect(status).toBe("placed");
+    expect(group?.members).toEqual(onBoard?.members.map(({ display_name }) => ({ display_name })));
+  });
+});

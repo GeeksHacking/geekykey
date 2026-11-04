@@ -2,11 +2,14 @@ import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import type { ApiIssue, ErrorCode, ListTapsQuery } from "@/api/types";
 import {
+  parseEventGroup,
   parseEventStationBoardResponse,
+  parseGroupBoardResponse,
   parseFallbackTapResponse,
   parseListTapsResponse,
   parseMapResponse,
   parseMeResponse,
+  parseMyGroupResponse,
   parseUpdateMeResponse,
   parseSetStationPassportResponse,
   parseStationKeyResponse,
@@ -181,6 +184,18 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     // Agreement 9.10. Not under /admin, because a map screen isn't an organizer.
     map: () => sendJson("/api/v1/map").then(parseMapResponse),
+
+    // The groups, from the spec's draft for agreement 0.14.
+    myGroup: () => sendJson("/api/v1/me/group").then(parseMyGroupResponse),
+
+    joinGroups: () => sendJson("/api/v1/me/group", { method: "POST" }).then(parseMyGroupResponse),
+
+    groupBoard: () => sendJson("/api/v1/admin/groups").then(parseGroupBoardResponse),
+
+    createGroup: (input) => sendJson("/api/v1/admin/groups", postJson(input)).then(parseEventGroup),
+
+    allocateGroups: () =>
+      sendJson("/api/v1/admin/groups/allocate", { method: "POST" }).then(parseGroupBoardResponse),
   };
 }
 
@@ -194,6 +209,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "forbidden",
   "not_found",
   "answers_fixed",
+  "name_taken",
   "rate_limited",
   "invalid_event_service_key",
   "event_service_unavailable",

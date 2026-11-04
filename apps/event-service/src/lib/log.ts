@@ -32,6 +32,9 @@ const LOG_LINES = {
   // A half of a connection the meeting hand-off brought (11.10): who tapped whose token, and its
   // status, so the halves and connections can be rebuilt after a restore, and counted.
   meeting_handled: "INFO",
+  // An organizer created a group, or pressed Allocate: who, and which group.
+  group_created: "INFO",
+  groups_allocated: "INFO",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

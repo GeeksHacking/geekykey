@@ -62,6 +62,8 @@ export function describeError(error: unknown): string {
         return "That was not found. It may have been removed.";
       case "answers_fixed":
         return "You've connected, so your answers are set.";
+      case "name_taken":
+        return "Another group has this name. Choose a different one.";
       case "rate_limited":
         return "Too many requests. Wait a minute and try again.";
       case "invalid_event_service_key":

@@ -297,6 +297,7 @@ Rules:
      on, so the sentence sits above the screen it shows.
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
+   - `name_taken`: under the name in the Groups screen's dialog (draft for agreement 0.14).
    - `answers_fixed`: the passport shows the answers without a way to change them
      (agreement 8.7 and section 13).
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.

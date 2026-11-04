@@ -5,6 +5,7 @@ import {
   SEEDED_GUEST_ID,
   SEEDED_PARTICIPANT_ID,
   type MockData,
+  type MockGroup,
   type MockStation,
   type MockTap,
   type MockUser,
@@ -13,19 +14,23 @@ import {
   EXPORT_CSV_COLUMNS,
   type AdminTap,
   type ApiIssue,
+  type CreateGroupRequest,
   type CreateStationRequest,
   type StationKeyResponse,
   type ErrorCode,
+  type EventGroup,
   type EventStationBoardResponse,
   type EventStationBoardStation,
   type FallbackTapRequest,
   type FallbackTapResponse,
   type FallbackTapStatus,
+  type GroupBoardResponse,
   type ListTapsQuery,
   type ListTapsResponse,
   type MapResponse,
   type MapStation,
   type MeResponse,
+  type MyGroupResponse,
   type SetStationPassportResponse,
   type StationResponse,
   type StatsResponse,
@@ -37,6 +42,7 @@ import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
 import { isGroupLink } from "@/lib/group-link";
+import { GROUP_NAME_MAX, isGroupName } from "@/lib/group-name";
 
 /**
  * The mock's anonymous web, oldest connection first. Each link joins numbers a few apart, so
@@ -73,6 +79,7 @@ const MOCK_LOGIN_LINKS: Record<string, string> = {
 };
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
+  name_taken: 409,
   validation_failed: 400,
   unauthenticated: 401,
   // Agreement 0.4 section 7.2, POST /auth/firebase, on both services.
@@ -252,6 +259,66 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       buffered_taps: station.buffered_taps,
       reader_ok: station.reader_ok,
       last_tap_at: lastTap?.received_at ?? null,
+    };
+  }
+
+  /** The name the Event Service reads from its users table for a member. */
+  function memberName(userId: string): string {
+    return userById(userId)?.display_name ?? "Guest";
+  }
+
+  function toEventGroup(group: MockGroup): EventGroup {
+    return {
+      ...group,
+      members: data.groupMembers.flatMap((member) =>
+        member.group_id === group.id && member.placed_at !== null && member.how !== null
+          ? [
+              {
+                user_id: member.user_id,
+                display_name: memberName(member.user_id),
+                joined_at: member.joined_at,
+                placed_at: member.placed_at,
+                how: member.how,
+              },
+            ]
+          : [],
+      ),
+    };
+  }
+
+  function toGroupBoard(): GroupBoardResponse {
+    return {
+      allocation_started_at: data.groupAllocationStartedAt,
+      joined_count: data.groupMembers.length,
+      groups: data.groups.map(toEventGroup),
+      waiting: data.groupMembers
+        .filter((member) => member.group_id === null)
+        .map((member) => ({
+          user_id: member.user_id,
+          display_name: memberName(member.user_id),
+          joined_at: member.joined_at,
+        })),
+    };
+  }
+
+  function toMyGroup(userId: string): MyGroupResponse {
+    const allocation_started = data.groupAllocationStartedAt !== null;
+    const mine = data.groupMembers.find((member) => member.user_id === userId);
+    if (!mine) return { status: "not_joined", allocation_started, group: null };
+    const group = data.groups.find(({ id }) => id === mine.group_id);
+    if (!group) return { status: "waiting", allocation_started, group: null };
+    return {
+      status: "placed",
+      allocation_started,
+      group: {
+        id: group.id,
+        name: group.name,
+        tags: group.tags,
+        location: group.location,
+        members: data.groupMembers
+          .filter((member) => member.group_id === group.id)
+          .map((member) => ({ display_name: memberName(member.user_id) })),
+      },
     };
   }
 
@@ -674,6 +741,77 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           stations: [...slots, ...others].map(toMapStation),
           connections: { count: links.length, links },
         };
+      }),
+    // The groups, from the spec's draft for agreement 0.14.
+    myGroup: () => call(() => toMyGroup(currentUser().id)),
+
+    joinGroups: () =>
+      call(() => {
+        const user = currentUser();
+        if (user.role === "organizer") fail("forbidden");
+        if (!data.groupMembers.some((member) => member.user_id === user.id)) {
+          data.groupMembers.push({
+            user_id: user.id,
+            group_id: null,
+            joined_at: iso(Date.now()),
+            placed_at: null,
+            how: null,
+          });
+        }
+        return toMyGroup(user.id);
+      }),
+
+    groupBoard: () =>
+      call(() => {
+        currentOrganizer();
+        return toGroupBoard();
+      }),
+
+    createGroup: (input: CreateGroupRequest) =>
+      call(() => {
+        currentOrganizer();
+        const name = input.name.trim();
+        if (name === "" || !isGroupName(name)) {
+          fail("validation_failed", [
+            { path: ["name"], message: `name must be 1 to ${GROUP_NAME_MAX} characters` },
+          ]);
+        }
+        if (data.groups.some((group) => group.name.toLowerCase() === name.toLowerCase())) {
+          fail("name_taken");
+        }
+        const group: MockGroup = {
+          id: `g_${randomBase62(8)}`,
+          name,
+          tags: [],
+          location: null,
+          capacity: null,
+        };
+        data.groups.push(group);
+        return toEventGroup(group);
+      }),
+
+    // Everyone waiting, each to the group with the fewest members, the oldest on a tie. With
+    // no groups it does nothing, as the Event Service does.
+    allocateGroups: () =>
+      call(() => {
+        currentOrganizer();
+        const [first] = data.groups;
+        if (!first) return toGroupBoard();
+        const sizeOf = (groupId: string) =>
+          data.groupMembers.filter((member) => member.group_id === groupId).length;
+        const placedAt = iso(Date.now());
+        for (const member of data.groupMembers) {
+          if (member.group_id !== null) continue;
+          const smallest = data.groups.reduce(
+            (best, group) => (sizeOf(group.id) < sizeOf(best.id) ? group : best),
+            first,
+          );
+          member.group_id = smallest.id;
+          member.placed_at = placedAt;
+          member.how = "allocated";
+        }
+        data.groupAllocationStartedAt ??= placedAt;
+        return toGroupBoard();
       }),
   };
 

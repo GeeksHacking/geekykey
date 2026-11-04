@@ -3,13 +3,14 @@ import {
   boolean,
   index,
   int,
+  json,
   mysqlEnum,
   mysqlTable,
   text,
   uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core";
-import { isoNow, isoTimestamp, stationId, userId } from "../db/columns.ts";
+import { groupId, isoNow, isoTimestamp, stationId, userId } from "../db/columns.ts";
 
 /**
  * The Event side's tables. The claims stand-in's `tokens` is in
@@ -173,6 +174,58 @@ export const userKinds = mysqlTable("user_kinds", {
   kind: varchar("kind", { length: TOKEN_KIND_MAX }).notNull(),
   /** When the kind was first seen. */
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
+});
+
+/**
+ * The groups organizers make (spec: participant groups). Not `groups`, which
+ * MySQL reserves. The event's settings, which the evening-before clear keeps.
+ */
+export const participantGroups = mysqlTable("participant_groups", {
+  id: groupId("id").primaryKey(),
+  /**
+   * Unique, so participants can't confuse two groups, and groups.ts also refuses one that
+   * differs only in capitals. At most 80 code points, as `varchar` counts.
+   */
+  name: varchar("name", { length: 80 }).notNull().unique(),
+  /** Free text that labels the group. Allocation ignores it. */
+  tags: json("tags").$type<string[]>().notNull(),
+  location: text("location"),
+  /** The most people the group has room for, or null for any number. */
+  capacity: int("capacity"),
+  /** Which group goes first when two have as many members. */
+  createdAt: isoTimestamp("created_at").notNull(),
+});
+
+export const GROUP_PLACED_HOW = ["allocated", "latecomer", "organizer"] as const;
+
+/**
+ * Each participant who has joined, one row each, so nobody can be in two
+ * groups. The event's own data, which the evening-before clear empties.
+ */
+export const groupMembers = mysqlTable(
+  "group_members",
+  {
+    userId: userId("user_id").primaryKey(),
+    /** Their group, or null while they wait. */
+    groupId: groupId("group_id"),
+    joinedAt: isoTimestamp("joined_at").notNull(),
+    placedAt: isoTimestamp("placed_at"),
+    how: mysqlEnum("how", GROUP_PLACED_HOW),
+  },
+  // Each participant's poll reads their group's members.
+  (t) => [index("group_members_group_id_idx").on(t.groupId)],
+);
+
+/**
+ * One row, made by the first write that needs it, since the evening-before
+ * clear empties this table. Every write that changes who is in a group locks
+ * it first, so those writes take turns across the service's instances
+ * (groups.ts).
+ */
+export const groupAllocation = mysqlTable("group_allocation", {
+  id: int("id").primaryKey(),
+  /** When an organizer first pressed Allocate, or null before that. */
+  startedAt: isoTimestamp("started_at"),
 });
 
 export type User = typeof users.$inferSelect;

@@ -1,4 +1,4 @@
-import type { Connection, Question, Role, TapSource, TapStatus } from "@/api/types";
+import type { Connection, GroupPlacedHow, Question, Role, TapSource, TapStatus } from "@/api/types";
 
 /*
   Seed data for the mock client. Deterministic (seeded PRNG) so tests are stable,
@@ -63,12 +63,36 @@ export interface MockTap {
   received_at: string;
 }
 
+/** One row of the Event Service's `participant_groups`. */
+export interface MockGroup {
+  id: string;
+  name: string;
+  tags: string[];
+  location: string | null;
+  capacity: number | null;
+}
+
+/** One row of the Event Service's `group_members`: someone who has joined. */
+export interface MockGroupMember {
+  user_id: string;
+  group_id: string | null;
+  joined_at: string;
+  placed_at: string | null;
+  how: GroupPlacedHow | null;
+}
+
 export interface MockData {
   users: MockUser[];
   stations: MockStation[];
   taps: MockTap[];
   /** The event's answers game, or null when it has none. */
   questions: Question[] | null;
+  /** Oldest first. */
+  groups: MockGroup[];
+  /** Joined order. */
+  groupMembers: MockGroupMember[];
+  /** When an organizer first pressed Allocate, or null before that. */
+  groupAllocationStartedAt: string | null;
 }
 
 /**
@@ -428,5 +452,28 @@ export function createFixtures(now: number = Date.now()): MockData {
   */
   users.push({ id: SEEDED_GUEST_ID, display_name: "Guest", role: "participant", has_name: false });
 
-  return { users, stations, taps, questions: QUESTIONS };
+  // Two groups and an odd number waiting, so Allocate has something to split unevenly.
+  const groups: MockGroup[] = [
+    { id: "g_foyer", name: "Foyer mixer", tags: [], location: null, capacity: null },
+    { id: "g_atrium", name: "Atrium mixer", tags: [], location: null, capacity: null },
+  ];
+  const groupMembers: MockGroupMember[] = ["u_7f3a", "u_9c21", "u_2e8b", "u_b514", "u_d0a9"].map(
+    (user_id, index) => ({
+      user_id,
+      group_id: null,
+      joined_at: new Date(now - minutes(11 - 2 * index)).toISOString(),
+      placed_at: null,
+      how: null,
+    }),
+  );
+
+  return {
+    users,
+    stations,
+    taps,
+    questions: QUESTIONS,
+    groups,
+    groupMembers,
+    groupAllocationStartedAt: null,
+  };
 }

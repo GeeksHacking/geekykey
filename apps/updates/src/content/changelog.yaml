@@ -2027,6 +2027,13 @@
     The passport asks the grad tea's 5 questions one at a time, each answered with a tap on
     a choice. A guest can skip a question and come back, change an answer until their first
     connection, and after connecting sees the answers without a way to change them.
+- id: participant-groups-first-path
+  date: 2026-11-04
+  area: backend
+  change: >-
+    Organizers can create groups by name on a new Groups screen and press Allocate, and a
+    participant who presses Join on the dashboard waits, then sees their group and its members'
+    names without reloading.
 
 - id: dashboard-tap-hint
   date: 2026-11-04

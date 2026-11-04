@@ -1,5 +1,9 @@
 import type {
+  CreateGroupRequest,
   CreateStationRequest,
+  EventGroup,
+  GroupBoardResponse,
+  MyGroupResponse,
   StationKeyResponse,
   StationResponse,
   EventStationBoardResponse,
@@ -110,4 +114,25 @@ export interface ApiClient {
    * on the map screen list may read it, and anyone else gets `forbidden`.
    */
   map(): Promise<MapResponse>;
+
+  /**
+   * GET /api/v1/me/group (draft for agreement 0.14). Whether the current user has joined, and
+   * their own group with its members' names. An organizer reads `not_joined`.
+   */
+  myGroup(): Promise<MyGroupResponse>;
+
+  /**
+   * POST /api/v1/me/group (draft for agreement 0.14). Joins the current user, and answers as
+   * `myGroup` does. Joining twice changes nothing, and an organizer gets `forbidden`.
+   */
+  joinGroups(): Promise<MyGroupResponse>;
+
+  /** GET /api/v1/admin/groups (draft for agreement 0.14). */
+  groupBoard(): Promise<GroupBoardResponse>;
+
+  /** POST /api/v1/admin/groups (draft for agreement 0.14), or `name_taken`. */
+  createGroup(input: CreateGroupRequest): Promise<EventGroup>;
+
+  /** POST /api/v1/admin/groups/allocate (draft for agreement 0.14). Answers with the board. */
+  allocateGroups(): Promise<GroupBoardResponse>;
 }

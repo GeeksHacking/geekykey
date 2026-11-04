@@ -43,6 +43,7 @@ apps/event-web/
         route.tsx           # session gate + organiser role gate + console shell
         index.tsx           # redirects to /admin/stations
         stations.tsx
+        groups.tsx
         taps.tsx
         fallback.tsx
         summary.tsx
@@ -55,12 +56,14 @@ apps/event-web/
                            # what a poll changed (passport-changes.ts), the new stamp's group link offer
                            # (new-stamp-banner.tsx, use-new-stamp-link.ts), the reveal and list of connections
                            # (connection-reveal.tsx, use-connection-reveal.ts, connection-list.tsx,
-                           # connection-row.tsx), and its animations
+                           # connection-row.tsx), the group card (group-card.tsx, use-my-group.ts,
+                           # use-join-groups.ts), and its animations
                            # (desktop-motion.ts, passport-motion.ts)
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
                            # passport settings form (add or edit a slot), booth dialog,
                            # each row's Actions menu
+      groups/               # the organisers' Groups screen: create a group, Allocate, each group's members, who is waiting
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export

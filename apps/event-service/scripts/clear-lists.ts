@@ -1,6 +1,9 @@
 import type { MySqlTable } from "drizzle-orm/mysql-core";
 import { tokenKinds, tokens } from "../src/claims-stand-in/schema.ts";
 import {
+  groupAllocation,
+  groupMembers,
+  participantGroups,
   passportStations,
   stations,
   taps,
@@ -30,6 +33,9 @@ export const clearedTables: readonly MySqlTable[] = [
   answers,
   meetingHalves,
   connections,
+  // Who has joined and where they went, and whether allocation has started.
+  groupMembers,
+  groupAllocation,
 ];
 
 /** The settings and the people, which both events share. */
@@ -41,4 +47,6 @@ export const keptTables: readonly MySqlTable[] = [
   tokenKinds,
   // Each row goes a minute after its link expires anyway, and emptying it could let a used link in again.
   usedLoginLinks,
+  // The event's groups, with its other settings. Their members are cleared.
+  participantGroups,
 ];

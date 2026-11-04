@@ -134,6 +134,13 @@
       "when": 1793665496638,
       "tag": "0018_two_guests_connect",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1793773599106,
+      "tag": "0019_organizers_split_participants_into_groups",
+      "breakpoints": true
     }
   ]
 }

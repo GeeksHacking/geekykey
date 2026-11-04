@@ -29,6 +29,65 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("the groups' calls (draft for agreement 0.14)", () => {
+  const myGroup = { status: "waiting", allocation_started: false, group: null };
+  const group = {
+    id: "g1",
+    name: "Mixer A",
+    tags: [],
+    location: null,
+    capacity: null,
+    members: [],
+  };
+  const board = { allocation_started_at: null, joined_count: 0, groups: [group], waiting: [] };
+
+  it("reads and joins at /api/v1/me/group", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(response(myGroup)));
+    const api = createHttpClient();
+
+    await expect(api.myGroup()).resolves.toEqual(myGroup);
+    await expect(api.joinGroups()).resolves.toEqual(myGroup);
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/me/group", expect.anything());
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/me/group",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("reads the board, creates a group by its name, and allocates", async () => {
+    const api = createHttpClient();
+
+    fetchMock.mockResolvedValueOnce(response(board));
+    await expect(api.groupBoard()).resolves.toEqual(board);
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/v1/admin/groups", expect.anything());
+
+    fetchMock.mockResolvedValueOnce(response(group, 201));
+    await expect(api.createGroup({ name: "Mixer A" })).resolves.toEqual(group);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ name: "Mixer A" }) }),
+    );
+
+    fetchMock.mockResolvedValueOnce(response(board));
+    await expect(api.allocateGroups()).resolves.toEqual(board);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/allocate",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("keeps name_taken from the answer, and refuses an answer in the wrong shape", async () => {
+    const api = createHttpClient();
+
+    fetchMock.mockResolvedValueOnce(response({ error: "name_taken" }, 409));
+    expect((await apiError(api.createGroup({ name: "Mixer A" }))).code).toBe("name_taken");
+
+    fetchMock.mockResolvedValueOnce(response({ status: "placed" }));
+    await expect(api.myGroup()).rejects.toBeInstanceOf(NetworkError);
+  });
+});
+
 describe("HTTP client transport", () => {
   it("sends cookie credentials and parses a successful JSON response", async () => {
     fetchMock.mockResolvedValue(response(me));
@@ -449,6 +508,7 @@ const statusFor = {
   forbidden: 403,
   not_found: 404,
   answers_fixed: 409,
+  name_taken: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,
