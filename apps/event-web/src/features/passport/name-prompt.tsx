@@ -3,10 +3,10 @@ import { AvatarColourPicker } from "@/features/passport/avatar/avatar-colour-pic
 import { DisplayNameForm } from "@/features/passport/display-name-form";
 
 /**
- * Agreement 13: when `has_name` is false the passport asks for a name, with Save and Skip.
- * It sits above the stamps rather than in front of them, so it never blocks the passport.
- * Beside it, the guest picks their avatar's colours (FRO-105), which apply at once and need
- * no Save.
+ * Agreement 13: when `has_name` is false the passport and the dashboard's group card ask for
+ * a name, with Save and Skip. It sits above the stamps or the group card rather than in front
+ * of them, so it never blocks the screen. Beside it, the guest picks their avatar's colours
+ * (FRO-105), which apply at once and need no Save.
  */
 export function NamePrompt({ userId, onSkip }: { userId: string; onSkip: () => void }) {
   return (

@@ -1,18 +1,19 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
-import { SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import { SEEDED_GUEST_ID, SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { GroupCard } from "@/features/passport/group-card";
-import { POLL_MY_GROUP_WAITING_MS } from "@/lib/constants";
+import { POLL_MY_GROUP_PLACED_MS, POLL_MY_GROUP_WAITING_MS } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 import { createTestProviders } from "@/test/providers";
 
 const JOIN_HINT = "Press Join when you're at the event, and you'll be put in a group.";
 const WAITING = "You're waiting for a group.";
+const PROMPT = "What should we call you?";
 
 /** As RequireSession does in the app, so the card's first read is signed in. */
 function SignedIn({ children }: { children: ReactNode }) {
@@ -22,16 +23,20 @@ function SignedIn({ children }: { children: ReactNode }) {
 
 function renderCard({
   onArrival = false,
+  loginLink = "mock",
+  userId = SEEDED_PARTICIPANT_ID,
   prepare,
 }: {
   onArrival?: boolean;
+  loginLink?: "mock" | "guest";
+  userId?: string;
   prepare?: (api: MockApiClient) => void;
 } = {}) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
-  if (!onArrival) api.mock.setSession(SEEDED_PARTICIPANT_ID);
+  if (!onArrival) api.mock.setSession(userId);
   prepare?.(api);
   const { Providers } = onArrival
-    ? createTestProviders(api, { session: true, loginLink: "mock" })
+    ? createTestProviders(api, { session: true, loginLink })
     : createTestProviders(api, { session: true });
   render(
     <Providers>
@@ -60,6 +65,35 @@ async function allocateElsewhere(api: MockApiClient) {
   await api.allocateGroups();
   api.mock.setSession(SEEDED_PARTICIPANT_ID);
 }
+
+/** Puts each user in one group, as Allocate or an organizer's move would. */
+function placeInOneGroup(api: MockApiClient, userIds: string[]) {
+  const group = api.mock.data.groups[0];
+  if (!group) throw new Error("The fixture has no groups");
+  const placedAt = new Date().toISOString();
+  api.mock.data.groupAllocationStartedAt = placedAt;
+  for (const userId of userIds) {
+    const member = api.mock.data.groupMembers.find((candidate) => candidate.user_id === userId);
+    if (member) {
+      member.group_id = group.id;
+      member.placed_at = placedAt;
+      member.how = "organizer";
+    } else {
+      api.mock.data.groupMembers.push({
+        user_id: userId,
+        group_id: group.id,
+        joined_at: placedAt,
+        placed_at: placedAt,
+        how: "organizer",
+      });
+    }
+  }
+  return group;
+}
+
+beforeEach(() => {
+  sessionStorage.clear();
+});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -201,6 +235,27 @@ describe("GroupCard", () => {
     expect(screen.queryByText(WAITING)).not.toBeInTheDocument();
   });
 
+  it("shows another member's new name at the next poll", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { api } = renderCard({
+      prepare: (client) => {
+        placeInOneGroup(client, [SEEDED_PARTICIPANT_ID, "u_7f3a"]);
+      },
+    });
+
+    expect(await screen.findByText("Wei Lin Chong")).toBeInTheDocument();
+
+    // Another member sets their name from their own phone, before this card's next read.
+    api.mock.setSession("u_7f3a");
+    await api.updateMe({ display_name: "Wei Lin" });
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+
+    await act(() => vi.advanceTimersByTimeAsync(POLL_MY_GROUP_PLACED_MS));
+
+    expect(await screen.findByText("Wei Lin")).toBeInTheDocument();
+    expect(screen.queryByText("Wei Lin Chong")).not.toBeInTheDocument();
+  });
+
   it("offers a retry when the first read fails", async () => {
     const { user } = renderCard({
       prepare: (client) => {
@@ -211,5 +266,87 @@ describe("GroupCard", () => {
     await user.click(await screen.findByRole("button", { name: "Try again" }));
 
     expect(await screen.findByText(JOIN_HINT)).toBeInTheDocument();
+  });
+});
+
+describe("GroupCard's name prompt (agreement 8.1, 8.7 and 13)", () => {
+  it("asks a guest above the group card, and the Join button is still there", async () => {
+    renderCard({ userId: SEEDED_GUEST_ID });
+
+    expect(await screen.findByRole("heading", { name: PROMPT })).toBeInTheDocument();
+    expect(await screen.findByText(JOIN_HINT)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Join" })).toBeInTheDocument();
+  });
+
+  it("doesn't ask a participant who has a name", async () => {
+    renderCard();
+
+    expect(await screen.findByText(JOIN_HINT)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: PROMPT })).not.toBeInTheDocument();
+  });
+
+  it("saves the name, stops asking, and sends it", async () => {
+    const { api, user } = renderCard({ userId: SEEDED_GUEST_ID });
+    await screen.findByRole("heading", { name: PROMPT });
+
+    await user.type(screen.getByLabelText("Name"), "Mei Ling");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: PROMPT })).not.toBeInTheDocument(),
+    );
+    await expect(api.me()).resolves.toMatchObject({
+      user: { display_name: "Mei Ling", has_name: true },
+    });
+  });
+
+  it("shows the participant's own new name in the group at once", async () => {
+    const { user } = renderCard({
+      userId: SEEDED_GUEST_ID,
+      prepare: (client) => {
+        placeInOneGroup(client, [SEEDED_GUEST_ID, "u_7f3a"]);
+      },
+    });
+    await screen.findByRole("heading", { name: PROMPT });
+    const members = await screen.findByRole("list", { name: "Members" });
+    expect(within(members).getByText("Guest")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Name"), "Mei Ling");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "Members" })).getByText("Mei Ling"),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      within(screen.getByRole("list", { name: "Members" })).queryByText("Guest"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the Join button after Skip, and joining still works", async () => {
+    const { user } = renderCard({ userId: SEEDED_GUEST_ID });
+    await screen.findByRole("heading", { name: PROMPT });
+
+    await user.click(screen.getByRole("button", { name: "Skip" }));
+
+    expect(screen.queryByRole("heading", { name: PROMPT })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Join" }));
+    expect(await screen.findByText(WAITING)).toBeInTheDocument();
+  });
+
+  it("asks a guest who arrives through a login link, and still joins them once", async () => {
+    let join: ReturnType<typeof countJoins> | undefined;
+    renderCard({
+      onArrival: true,
+      loginLink: "guest",
+      prepare: (client) => {
+        join = countJoins(client);
+      },
+    });
+
+    expect(await screen.findByRole("heading", { name: PROMPT })).toBeInTheDocument();
+    expect(await screen.findByText(WAITING)).toBeInTheDocument();
+    expect(join?.calls).toBe(1);
   });
 });

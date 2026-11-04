@@ -23,6 +23,10 @@ vi.mock("@/components/layout/section-heading", () => ({
 
 const baseMe = makeMe({ user: { id: "user-1" } });
 
+beforeEach(() => {
+  sessionStorage.clear();
+});
+
 function renderDashboard() {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_PARTICIPANT_ID);
@@ -47,6 +51,21 @@ describe("DashboardScreen", () => {
     renderDashboard();
     expect(screen.queryByRole("button", { name: "Join" })).not.toBeInTheDocument();
     expect(screen.queryByRole("status", { name: "Loading your group" })).not.toBeInTheDocument();
+  });
+
+  it("asks a participant with no name at the group card, and an organizer not at all", async () => {
+    state.me = makeMe({ user: { id: "user-1", has_name: false } });
+    const { unmount } = renderDashboard();
+    expect(
+      await screen.findByRole("heading", { name: "What should we call you?" }),
+    ).toBeInTheDocument();
+    unmount();
+
+    state.me = makeMe({ user: { id: "user-1", role: "organizer", has_name: false } });
+    renderDashboard();
+    expect(
+      screen.queryByRole("heading", { name: "What should we call you?" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows how to start collecting stamps before the first tap", () => {

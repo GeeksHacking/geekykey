@@ -6,10 +6,12 @@ import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NamePrompt } from "@/features/passport/name-prompt";
 import { useJoinGroups } from "@/features/passport/use-join-groups";
 import { useMyGroup } from "@/features/passport/use-my-group";
+import { useNamePromptSkip } from "@/features/passport/use-name-prompt-skip";
 import { showStaleNote } from "@/lib/rate-limit";
-import { useSession } from "@/lib/session";
+import { useMe, useSession } from "@/lib/session";
 
 function Frame({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -36,11 +38,26 @@ function Loading() {
 }
 
 /**
- * The top of the participant's dashboard (spec: participant groups): a Join button until they
- * join, then that they're waiting, then their group and its members' names. A page that arrived
- * through a login link joins by itself, so the token is all the participant needs.
+ * The top of the participant's dashboard (spec: participant groups): the name prompt while
+ * they have no name, then a Join button until they join, then that they're waiting, then their
+ * group and its members' names. A page that arrived through a login link joins by itself, so
+ * the token is all the participant needs.
  */
 export function GroupCard() {
+  const { me } = useMe();
+  const namePrompt = useNamePromptSkip(me.user.id);
+  return (
+    <div className="space-y-3">
+      {!me.user.has_name && !namePrompt.skipped ? (
+        <NamePrompt userId={me.user.id} onSkip={namePrompt.skip} />
+      ) : null}
+      <GroupCardBody />
+    </div>
+  );
+}
+
+/** The card's join state, below the name prompt. */
+function GroupCardBody() {
   const myGroup = useMyGroup();
   const {
     mutate: joinGroups,

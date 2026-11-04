@@ -2072,3 +2072,10 @@
     Allocate shuffles everyone waiting and fills every group with room before any goes over its
     capacity, which the Groups screen then shows as "Over capacity". With no groups, or fewer than
     2 people for each group, it places nobody and says how many more to wait for.
+
+- id: groups-ask-guest-name
+  date: 2026-11-04
+  area: frontend
+  change: >-
+    A guest who opens the dashboard is asked for their name, so their group sees it rather
+    than "Guest". Skipping still lets them join and see their group.
