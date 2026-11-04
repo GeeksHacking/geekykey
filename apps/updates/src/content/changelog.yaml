@@ -1991,6 +1991,15 @@
     downloads as my-avatar.png. The card with the guest's name and "The Grad Tea" is still there
     for keeping.
 
+- id: grad-tea-pilot-scrapped
+  date: 2026-11-03
+  area: research
+  change: >-
+    We scrapped the grad tea pilot on 12 Nov, as our supervisors recommended, because it felt force
+    fit and wasn't feasible without more planning. A timed internal trial among capstone groups
+    on Thu 5 Nov replaces it. The trade-offs we accept: the report's results come from people who
+    know the project, not from people at a real event.
+
 - id: sticker-hint
   date: 2026-11-04
   area: frontend
@@ -2048,3 +2057,10 @@
   change: >-
     Opening the event from a token joins the participant to the groups, so the dashboard
     goes straight to waiting or to their group. Any other visit still shows the Join button.
+- id: two-variations-for-the-trial
+  date: 2026-11-04
+  area: research
+  change: >-
+    The trial on Thu 5 Nov tests two variations: the token game, our reading of the criteria of
+    Julian as the client, and participant groups, from Mr Tan's brief. Groups can so far be created
+    and allocated and participants can join, and the agreed allocation rules and latecomers come next.
