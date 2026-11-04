@@ -4,12 +4,7 @@ import { describeError, isApiErrorCode } from "@/api/errors";
 import type { Question } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { AnswersSummary } from "@/features/passport/answers-summary";
-import {
-  answerAllSentence,
-  answeredCount,
-  nextQuestion,
-  questionPosition,
-} from "@/features/passport/answers";
+import { answerAllSentence, nextQuestion, questionPosition } from "@/features/passport/answers";
 import { QuestionStep } from "@/features/passport/question-step";
 import { useUpdateMe } from "@/features/passport/use-update-me";
 
@@ -44,14 +39,19 @@ export function QuestionsPrompt({
   if (questions.length === 0) return null;
 
   const fixed = answersFixed || fixedByService;
-  const answered = answeredCount(questions, answers);
+  const answeredQuestions = questions.filter((question) => Object.hasOwn(answers, question.id));
+  const answered = answeredQuestions.length;
   const complete = answered === questions.length;
   const current = nextQuestion(questions, answers, skipped);
   const editing = editingId
     ? (questions.find((question) => question.id === editingId) ?? null)
     : null;
   const position = current ? questionPosition(questions, current.id) : 0;
-  const answeredQuestions = questions.filter((question) => Object.hasOwn(answers, question.id));
+
+  function startEditing(questionId: string) {
+    setError(null);
+    setEditingId(questionId);
+  }
 
   async function answer(question: Question, choiceId: string) {
     setError(null);
@@ -106,7 +106,13 @@ export function QuestionsPrompt({
           }}
         />
       ) : complete ? (
-        <AnswersSummary questions={questions} answers={answers} editable onChange={setEditingId} />
+        <AnswersSummary
+          questions={questions}
+          answers={answers}
+          editable
+          pending={updateMe.isPending}
+          onChange={startEditing}
+        />
       ) : (
         <>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -144,7 +150,8 @@ export function QuestionsPrompt({
               questions={answeredQuestions}
               answers={answers}
               editable
-              onChange={setEditingId}
+              pending={updateMe.isPending}
+              onChange={startEditing}
             />
           ) : null}
         </>

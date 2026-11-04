@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Question } from "@/api/types";
-import {
-  answerAllSentence,
-  answeredCount,
-  nextQuestion,
-  questionPosition,
-} from "@/features/passport/answers";
+import { answerAllSentence, nextQuestion, questionPosition } from "@/features/passport/answers";
 
 const questions: Question[] = [
   {
@@ -40,12 +35,6 @@ describe("the questions' order and the skip set", () => {
   it("has nothing to ask when every question left is skipped", () => {
     expect(nextQuestion(questions, {}, new Set(["drink", "hours"]))).toBeNull();
     expect(nextQuestion(questions, { drink: "tea" }, new Set(["hours"]))).toBeNull();
-  });
-
-  it("counts the answered questions, including one outside the list", () => {
-    expect(answeredCount(questions, {})).toBe(0);
-    expect(answeredCount(questions, { drink: "tea" })).toBe(1);
-    expect(answeredCount(questions, { drink: "tea", removed: "x" })).toBe(1);
   });
 
   it("gives a question's place from 1, and 0 for one off the list", () => {

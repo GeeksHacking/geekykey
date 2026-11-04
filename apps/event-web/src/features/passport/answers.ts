@@ -8,14 +8,6 @@ export function answerAllSentence(questionCount: number): string {
   return `Answer all ${questionCount} to get your match when you connect.`;
 }
 
-/** How many of the event's questions the user has answered. */
-export function answeredCount(
-  questions: readonly Question[],
-  answers: Readonly<Record<string, string>>,
-): number {
-  return questions.filter((question) => Object.hasOwn(answers, question.id)).length;
-}
-
 /**
  * The first question in the event's order that the user hasn't answered and hasn't skipped
  * for now, or null when every one left is skipped. The order is the service's, so the
