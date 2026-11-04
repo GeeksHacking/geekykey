@@ -14,7 +14,15 @@ import { SessionContext, type SessionState } from "@/lib/session";
 import { ThemeProvider } from "@/lib/theme-provider";
 
 const me: MeResponse = {
-  user: { id: "dev-organizer-1", display_name: "Priya Raman", role: "organizer", has_name: true },
+  user: {
+    id: "dev-organizer-1",
+    display_name: "Priya Raman",
+    role: "organizer",
+    has_name: true,
+    answers: {},
+  },
+  questions: null,
+  connections: [],
   points: 0,
   stamps: [],
   recent_taps: [],

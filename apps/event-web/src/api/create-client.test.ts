@@ -5,7 +5,15 @@ import type { MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 
 const me = {
-  user: { id: "dev-user-1", display_name: "Alex", role: "participant" as const, has_name: true },
+  user: {
+    id: "dev-user-1",
+    display_name: "Alex",
+    role: "participant" as const,
+    has_name: true,
+    answers: {},
+  },
+  questions: null,
+  connections: [],
   points: 0,
   stamps: [],
   recent_taps: [],

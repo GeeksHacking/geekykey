@@ -176,6 +176,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     display_name: user.display_name,
     role: user.role,
     has_name: user.has_name,
+    answers: user.answers ?? {},
   });
 
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
@@ -306,9 +307,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             earned_at: first?.received_at ?? null,
           };
         });
+        const connections = (user.connections ?? []).map((connection) => ({
+          ...connection,
+          shared: new Date(connection.shared_at).getTime() <= Date.now() ? connection.shared : null,
+        }));
         const points = accepted.reduce(
           (sum, t) => sum + (stationById(t.station_id)?.passport?.points ?? 0),
-          0,
+          connections.length,
         );
         const recent_taps = [...mine]
           .sort((a, b) => b.id - a.id)
@@ -324,9 +329,11 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           }));
         return {
           user: toUser(user),
+          questions: data.questions,
           points,
           stamps,
           recent_taps,
+          connections,
         };
       }, false),
 

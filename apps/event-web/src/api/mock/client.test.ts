@@ -1,4 +1,4 @@
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { ApiError, AUTH_ERROR_EVENT } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
@@ -223,6 +223,57 @@ describe("the auth error the session provider hears", () => {
   });
 });
 
+describe("connections in /me (agreement 0.13 draft, 8.1)", () => {
+  async function meOfParticipant() {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    return api.me();
+  }
+
+  it("gives a new connection, one with `shared` arrived, and one with no match", async () => {
+    const { connections } = await meOfParticipant();
+
+    expect(connections.map(({ match }) => match)).toEqual([60, 80, null]);
+    expect(connections[0]?.shared).toBeNull();
+    expect(connections[1]?.shared).toEqual(["drink", "hours", "superpower", "weekend"]);
+    expect(connections[2]?.shared).toEqual([]);
+  });
+
+  it("lists connections newest first", async () => {
+    const { connections } = await meOfParticipant();
+
+    const times = connections.map(({ connected_at }) => connected_at);
+    expect(times).toEqual([...times].sort().reverse());
+  });
+
+  it("gives what a new connection shares once its 2 minutes are up", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      await api.devLogin(SEEDED_PARTICIPANT_ID);
+      expect((await api.me()).connections[0]?.shared).toBeNull();
+
+      vi.setSystemTime(Date.now() + 2 * 60_000);
+
+      expect((await api.me()).connections[0]?.shared).toEqual(["drink", "school", "weekend"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("adds a point for each connection (section 4)", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    const before = (await api.me()).points;
+
+    const participant = api.mock.data.users.find((user) => user.id === SEEDED_PARTICIPANT_ID);
+    if (!participant) throw new Error("The fixtures have no participant");
+    participant.connections = [];
+
+    expect((await api.me()).points).toBe(before - 3);
+  });
+});
+
 describe("the name the event shows (agreement 8.7)", () => {
   it("saves the trimmed name, answers the user, and counts it as their own", async () => {
     const api = client();
@@ -231,7 +282,13 @@ describe("the name the event shows (agreement 8.7)", () => {
     const answer = await api.setDisplayName({ display_name: "  Mei Ling  " });
 
     expect(answer).toEqual({
-      user: { id: SEEDED_GUEST_ID, display_name: "Mei Ling", role: "participant", has_name: true },
+      user: {
+        id: SEEDED_GUEST_ID,
+        display_name: "Mei Ling",
+        role: "participant",
+        has_name: true,
+        answers: {},
+      },
     });
     await expect(api.me()).resolves.toMatchObject({ user: answer.user });
   });

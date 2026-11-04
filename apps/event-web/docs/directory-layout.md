@@ -51,7 +51,9 @@ apps/event-web/
       passport/             # dashboard, stamp grid, stamp tile, station glyph, the name prompt and Change name,
                            # the grad tea's avatar, its colours and memory card (avatar/, FRO-105),
                            # what a poll changed (passport-changes.ts), the new stamp's group link offer
-                           # (new-stamp-banner.tsx, use-new-stamp-link.ts), and its animations
+                           # (new-stamp-banner.tsx, use-new-stamp-link.ts), the reveal and list of connections
+                           # (connection-reveal.tsx, use-connection-reveal.ts, connection-list.tsx,
+                           # connection-row.tsx), and its animations
                            # (desktop-motion.ts, passport-motion.ts)
       activity/             # participant tap history
       stations/             # station board, add-station dialog, one-time key reveal,
