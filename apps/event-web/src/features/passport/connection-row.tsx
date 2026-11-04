@@ -50,7 +50,7 @@ export function ConnectionRow({ connection, me }: ConnectionRowProps) {
       </div>
       {shared && showShared ? (
         shared.length > 0 ? (
-          <ul aria-label="What you share" className="space-y-2 rounded-md bg-muted p-3 text-sm">
+          <ul aria-label="What you share" className="space-y-2 rounded-lg bg-muted p-3 text-sm">
             {shared.map((answer) => (
               <li key={answer.id}>
                 <p className="text-muted-foreground">{answer.question}</p>
@@ -59,7 +59,7 @@ export function ConnectionRow({ connection, me }: ConnectionRowProps) {
             ))}
           </ul>
         ) : (
-          <p className="rounded-md bg-muted p-3 text-sm">You don&apos;t share any answers.</p>
+          <p className="rounded-lg bg-muted p-3 text-sm">You don&apos;t share any answers.</p>
         )
       ) : null}
     </li>
