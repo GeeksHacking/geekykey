@@ -6,6 +6,7 @@ import { AvatarHero } from "@/features/passport/avatar/avatar-hero";
 import { ConnectionList } from "@/features/passport/connection-list";
 import { ConnectionReveal } from "@/features/passport/connection-reveal";
 import { DashboardClaimHelp } from "@/features/passport/dashboard-claim-help";
+import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
 import { UserIdRow } from "@/features/passport/user-id-row";
@@ -24,6 +25,8 @@ export function DashboardScreen() {
     <div ref={scope} className="space-y-10">
       {/* First, because the token page's login link lands on this screen (agreement 8.6). */}
       <ConnectionReveal me={me} />
+      {/* An organiser sees this screen too, and is kept out of allocation. */}
+      {me.user.role === "participant" ? <GroupCard /> : null}
       {/* The grad tea's dashboard leads with the avatar (FRO-105). The showcase's switch PR
           swaps it for the spaceship (FRO-104) or puts the points summary back. */}
       <AvatarHero me={me} changes={changes} />

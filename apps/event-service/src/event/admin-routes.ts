@@ -21,6 +21,8 @@ import {
   taps,
 } from "./schema.ts";
 import { exportTapsCsv } from "./export.ts";
+import { adminGroupRoutes } from "./group-routes.ts";
+import { organizerText } from "./organizer-text.ts";
 import { runsThePassport } from "./stamp-slots.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
@@ -35,26 +37,6 @@ export interface AdminRouteDeps {
   /** The clock the station board tells online stations by, and a QR fallback tap is received by. */
   now?: () => Date;
 }
-
-/**
- * The longest station label, passport name, location or booth, in Unicode
- * code points (the API agreement's 9.1 and 9.7).
- */
-const TEXT_MAX = 80;
-
-/**
- * Text an organizer types: trimmed, then at most 80 code points, and at least
- * one unless `blankAllowed`.
- */
-const organizerText = (field: string, { blankAllowed = false } = {}) =>
-  z
-    .string()
-    .trim()
-    // Spread, not .length, which counts UTF-16 units and so would count an emoji twice.
-    .refine(
-      (text) => (blankAllowed || text !== "") && [...text].length <= TEXT_MAX,
-      `${field} must be ${blankAllowed ? 0 : 1} to ${TEXT_MAX} characters`,
-    );
 
 /** A new station's label, the device's name. */
 const createStationSchema = z.object({ label: organizerText("label") });
@@ -213,6 +195,8 @@ function statsBody(stats: EventStats) {
 export function adminRoutes({ session, games, now = () => new Date() }: AdminRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireRole("organizer"));
+
+  app.route("/groups", adminGroupRoutes({ now }));
 
   /** The games organizers choose a station's from, in the settings' order (9.2). */
   const gameChoices = games.flatMap((onStations) =>

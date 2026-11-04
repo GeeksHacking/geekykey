@@ -2,10 +2,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createMockClient } from "@/api/mock/client";
+import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { MeResponse, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { makeMe } from "@/test/make-me";
+import { createTestProviders } from "@/test/providers";
 
 const state = vi.hoisted(() => ({ me: null as MeResponse | null }));
 
@@ -20,14 +23,31 @@ vi.mock("@/components/layout/section-heading", () => ({
 const baseMe = makeMe({ user: { id: "user-1" } });
 
 function renderDashboard() {
+  const api = createMockClient({ latencyMs: [0, 0], storage: null });
+  api.mock.setSession(SEEDED_PARTICIPANT_ID);
+  const { Providers } = createTestProviders(api);
   return render(
-    <ThemeProvider>
-      <DashboardScreen />
-    </ThemeProvider>,
+    <Providers>
+      <ThemeProvider>
+        <DashboardScreen />
+      </ThemeProvider>
+    </Providers>,
   );
 }
 
 describe("DashboardScreen", () => {
+  it("gives a participant the group card, and an organiser none", async () => {
+    state.me = baseMe;
+    const { unmount } = renderDashboard();
+    expect(await screen.findByRole("button", { name: "Join" })).toBeInTheDocument();
+    unmount();
+
+    state.me = makeMe({ user: { id: "user-1", role: "organizer" } });
+    renderDashboard();
+    expect(screen.queryByRole("button", { name: "Join" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Loading your group" })).not.toBeInTheDocument();
+  });
+
   it("shows the claim help before the first tap", () => {
     state.me = baseMe;
     renderDashboard();

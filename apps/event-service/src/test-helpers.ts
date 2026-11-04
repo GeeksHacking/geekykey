@@ -35,7 +35,10 @@ export const screensSchemas = (await import(
   | "fallbackTapResponseSchema"
   | "statsResponseSchema"
   | "meResponseSchema"
-  | "setDisplayNameResponseSchema",
+  | "setDisplayNameResponseSchema"
+  | "myGroupResponseSchema"
+  | "groupBoardResponseSchema"
+  | "eventGroupSchema",
   ScreensSchema
 >;
 

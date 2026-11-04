@@ -25,6 +25,11 @@ export type EventApi = Pick<
   | "stats"
   | "exportCsv"
   | "map"
+  | "myGroup"
+  | "joinGroups"
+  | "groupBoard"
+  | "createGroup"
+  | "allocateGroups"
 >;
 
 export interface ServiceClientBundle {
@@ -58,6 +63,11 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       stats: api.stats.bind(api),
       exportCsv: api.exportCsv.bind(api),
       map: api.map.bind(api),
+      myGroup: api.myGroup.bind(api),
+      joinGroups: api.joinGroups.bind(api),
+      groupBoard: api.groupBoard.bind(api),
+      createGroup: api.createGroup.bind(api),
+      allocateGroups: api.allocateGroups.bind(api),
     },
   };
 }

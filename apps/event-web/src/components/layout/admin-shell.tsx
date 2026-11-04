@@ -1,4 +1,4 @@
-import { Broadcast, ChartBar, ListBullets, QrCode } from "@phosphor-icons/react";
+import { Broadcast, ChartBar, ListBullets, QrCode, UsersThree } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -12,6 +12,7 @@ import { Wordmark } from "@/components/layout/wordmark";
 
 const NAV = [
   { to: "/admin/stations", label: "Stations", icon: Broadcast },
+  { to: "/admin/groups", label: "Groups", icon: UsersThree },
   { to: "/admin/taps", label: "Scan log", icon: ListBullets },
   { to: "/admin/fallback", label: "QR fallback", icon: QrCode },
   { to: "/admin/summary", label: "Summary", icon: ChartBar },

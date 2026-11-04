@@ -18,6 +18,7 @@ import { Route as AppActivityRouteImport } from './routes/_app/activity'
 import { Route as AppPassportRouteImport } from './routes/_app/passport'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminFallbackRouteImport } from './routes/admin/fallback'
+import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
 import { Route as AdminStationsRouteImport } from './routes/admin/stations'
 import { Route as AdminSummaryRouteImport } from './routes/admin/summary'
 import { Route as AdminTapsRouteImport } from './routes/admin/taps'
@@ -66,6 +67,11 @@ const AdminFallbackRoute = AdminFallbackRouteImport.update({
   path: '/fallback',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminGroupsRoute = AdminGroupsRouteImport.update({
+  id: '/groups',
+  path: '/groups',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminStationsRoute = AdminStationsRouteImport.update({
   id: '/stations',
   path: '/stations',
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/activity': typeof AppActivityRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
+  '/admin/groups': typeof AdminGroupsRoute
   '/admin/stations': typeof AdminStationsRoute
   '/admin/summary': typeof AdminSummaryRoute
   '/admin/taps': typeof AdminTapsRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/activity': typeof AppActivityRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
+  '/admin/groups': typeof AdminGroupsRoute
   '/admin/stations': typeof AdminStationsRoute
   '/admin/summary': typeof AdminSummaryRoute
   '/admin/taps': typeof AdminTapsRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/_app/activity': typeof AppActivityRoute
   '/_app/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
+  '/admin/groups': typeof AdminGroupsRoute
   '/admin/stations': typeof AdminStationsRoute
   '/admin/summary': typeof AdminSummaryRoute
   '/admin/taps': typeof AdminTapsRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/passport'
     | '/admin/fallback'
+    | '/admin/groups'
     | '/admin/stations'
     | '/admin/summary'
     | '/admin/taps'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/passport'
     | '/admin/fallback'
+    | '/admin/groups'
     | '/admin/stations'
     | '/admin/summary'
     | '/admin/taps'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/_app/activity'
     | '/_app/passport'
     | '/admin/fallback'
+    | '/admin/groups'
     | '/admin/stations'
     | '/admin/summary'
     | '/admin/taps'
@@ -236,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFallbackRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/groups': {
+      id: '/admin/groups'
+      path: '/groups'
+      fullPath: '/admin/groups'
+      preLoaderRoute: typeof AdminGroupsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/stations': {
       id: '/admin/stations'
       path: '/stations'
@@ -262,6 +281,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminFallbackRoute: typeof AdminFallbackRoute
+  AdminGroupsRoute: typeof AdminGroupsRoute
   AdminStationsRoute: typeof AdminStationsRoute
   AdminSummaryRoute: typeof AdminSummaryRoute
   AdminTapsRoute: typeof AdminTapsRoute
@@ -270,6 +290,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminFallbackRoute: AdminFallbackRoute,
+  AdminGroupsRoute: AdminGroupsRoute,
   AdminStationsRoute: AdminStationsRoute,
   AdminSummaryRoute: AdminSummaryRoute,
   AdminTapsRoute: AdminTapsRoute,

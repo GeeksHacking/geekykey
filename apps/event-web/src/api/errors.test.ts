@@ -6,6 +6,7 @@ import type { ErrorCode } from "@/api/types";
 /** Every code in the union, so a new one cannot be added without a message. */
 const CODES: Record<ErrorCode, true> = {
   validation_failed: true,
+  name_taken: true,
   unauthenticated: true,
   invalid_token: true,
   invalid_login_link: true,

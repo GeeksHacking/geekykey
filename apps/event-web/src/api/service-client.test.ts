@@ -14,14 +14,19 @@ describe("service client boundary", () => {
     );
     expect(Object.keys(services.event).sort()).toEqual(
       [
+        "allocateGroups",
         "createFallbackTap",
+        "createGroup",
         "createStation",
         "disableStation",
         "enableStation",
         "exportCsv",
+        "groupBoard",
+        "joinGroups",
         "listStationBoard",
         "listTaps",
         "map",
+        "myGroup",
         "replaceStationKey",
         "setStationBooth",
         "setStationPassport",

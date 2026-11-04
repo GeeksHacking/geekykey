@@ -2,11 +2,14 @@ import * as z from "zod/mini";
 
 import { NetworkError } from "@/api/errors";
 import type {
+  EventGroup,
   EventStationBoardResponse,
   FallbackTapResponse,
+  GroupBoardResponse,
   ListTapsResponse,
   MapResponse,
   MeResponse,
+  MyGroupResponse,
   SetStationPassportResponse,
   StationKeyResponse,
   StationResponse,
@@ -204,6 +207,49 @@ export const updateMeResponseSchema: z.ZodMiniType<UpdateMeResponse> = z.object(
  */
 export const setDisplayNameResponseSchema = updateMeResponseSchema;
 
+/** GET and POST /api/v1/me/group (draft for agreement 0.14). */
+export const myGroupResponseSchema: z.ZodMiniType<MyGroupResponse> = z.object({
+  status: z.enum(["not_joined", "waiting", "placed"]),
+  allocation_started: z.boolean(),
+  group: z.nullable(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      tags: z.array(z.string()),
+      location: z.nullable(z.string()),
+      members: z.array(z.object({ display_name: z.string() })),
+    }),
+  ),
+});
+
+/** A group on the organizers' board, and POST /api/v1/admin/groups's answer. */
+export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
+  id: z.string(),
+  name: z.string(),
+  tags: z.array(z.string()),
+  location: z.nullable(z.string()),
+  capacity: z.nullable(z.int()),
+  members: z.array(
+    z.object({
+      user_id: z.string(),
+      display_name: z.string(),
+      joined_at: isoTimestamp,
+      placed_at: isoTimestamp,
+      how: z.enum(["allocated", "latecomer", "organizer"]),
+    }),
+  ),
+});
+
+/** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate. */
+export const groupBoardResponseSchema: z.ZodMiniType<GroupBoardResponse> = z.object({
+  allocation_started_at: z.nullable(isoTimestamp),
+  joined_count: z.int(),
+  groups: z.array(eventGroupSchema),
+  waiting: z.array(
+    z.object({ user_id: z.string(), display_name: z.string(), joined_at: isoTimestamp }),
+  ),
+});
+
 export function parseEventStationBoardResponse(input: unknown): EventStationBoardResponse {
   const result = eventStationBoardResponseSchema.safeParse(input);
   if (!result.success) {
@@ -257,3 +303,11 @@ export const parseStationResponse = (input: unknown) =>
 
 export const parseSetStationPassportResponse = (input: unknown) =>
   parseOrganizerResponse(setStationPassportResponseSchema, input);
+
+export const parseMyGroupResponse = (input: unknown) =>
+  parseOrganizerResponse(myGroupResponseSchema, input);
+
+export const parseEventGroup = (input: unknown) => parseOrganizerResponse(eventGroupSchema, input);
+
+export const parseGroupBoardResponse = (input: unknown) =>
+  parseOrganizerResponse(groupBoardResponseSchema, input);

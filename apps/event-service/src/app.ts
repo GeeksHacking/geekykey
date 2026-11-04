@@ -8,6 +8,7 @@ import type { AnswersGame } from "./event/answers.ts";
 import type { ConnectionsGame } from "./event/connections.ts";
 import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
+import { myGroupRoutes } from "./event/group-routes.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
@@ -100,6 +101,7 @@ export function createApp(
     }),
   );
   app.route("/api/v1/me", meRoutes({ session, answers, connections, now }));
+  app.route("/api/v1/me/group", myGroupRoutes({ session, now }));
   app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now }));
   app.route("/api/v1/map", mapRoutes({ session, connections }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.

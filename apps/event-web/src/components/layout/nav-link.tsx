@@ -8,6 +8,7 @@ export type NavTarget =
   | "/passport"
   | "/activity"
   | "/admin/stations"
+  | "/admin/groups"
   | "/admin/taps"
   | "/admin/fallback"
   | "/admin/summary";

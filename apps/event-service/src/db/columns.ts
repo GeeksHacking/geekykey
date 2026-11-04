@@ -21,3 +21,5 @@ export const userId = (name: string) => varchar(name, { length: 128 });
 export const stationId = (name: string) => varchar(name, { length: 64 });
 /** The taps route accepts UIDs of 4 to 10 bytes, in hex. */
 export const tokenUid = (name: string) => varchar(name, { length: 20 });
+/** `crypto.randomUUID()`. */
+export const groupId = (name: string) => varchar(name, { length: 36 });

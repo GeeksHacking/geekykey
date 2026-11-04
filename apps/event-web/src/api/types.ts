@@ -284,6 +284,62 @@ export interface MapResponse {
   connections?: MapConnections;
 }
 
+/** How someone came to be in their group (spec: participant groups, draft for agreement 0.14). */
+export type GroupPlacedHow = "allocated" | "latecomer" | "organizer";
+
+/** A participant's own group. Its members are names only, never a user ID. */
+export interface MyGroup {
+  id: string;
+  name: string;
+  tags: string[];
+  location: string | null;
+  members: { display_name: string }[];
+}
+
+/** GET and POST /api/v1/me/group (draft for agreement 0.14). `group` is set only when `placed`. */
+export interface MyGroupResponse {
+  status: "not_joined" | "waiting" | "placed";
+  allocation_started: boolean;
+  group: MyGroup | null;
+}
+
+export interface EventGroupMember {
+  user_id: string;
+  display_name: string;
+  joined_at: string;
+  placed_at: string;
+  how: GroupPlacedHow;
+}
+
+/** A group as the organizers' board lists it, and as creating one answers. */
+export interface EventGroup {
+  id: string;
+  name: string;
+  tags: string[];
+  location: string | null;
+  capacity: number | null;
+  members: EventGroupMember[];
+}
+
+export interface GroupWaitingMember {
+  user_id: string;
+  display_name: string;
+  joined_at: string;
+}
+
+/** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate (draft for agreement 0.14). */
+export interface GroupBoardResponse {
+  allocation_started_at: string | null;
+  joined_count: number;
+  groups: EventGroup[];
+  waiting: GroupWaitingMember[];
+}
+
+/** POST /api/v1/admin/groups. */
+export interface CreateGroupRequest {
+  name: string;
+}
+
 export type ErrorCode =
   | "validation_failed"
   | "unauthenticated"
@@ -297,6 +353,8 @@ export type ErrorCode =
   | "not_found"
   // Agreement 0.13 section 8.7: the user's first connection fixed their answers.
   | "answers_fixed"
+  // Draft for agreement 0.14: another group has this name.
+  | "name_taken"
   | "rate_limited"
   | "invalid_event_service_key"
   | "event_service_unavailable"
