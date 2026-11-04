@@ -17,7 +17,7 @@ An organizer has a room of people who need splitting into groups for an activity
 
 A participant, meanwhile, has no quick way to find out which group they're in, who else is in it or where to go.
 
-GeekyKey's token has no part in this today. Mr Tan's brief doesn't give it one, and Julian asked where it would fit.
+GeekyKey's token has no part in this today. Mr Tan's brief doesn't give it one.
 
 ## Solution
 
