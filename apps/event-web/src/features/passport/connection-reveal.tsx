@@ -3,7 +3,10 @@ import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { useConnectionReveal } from "@/features/passport/use-connection-reveal";
 
-/** The match with a new connection (agreement 0.13 draft, section 13). It stays until dismissed. */
+/**
+ * The match with a new connection, from agreement 0.13's draft (section 13). The draft's "You're a
+ * {match}% match!" reads "a 80%", so PR #235 takes this wording instead. It stays until dismissed.
+ */
 export function ConnectionReveal({ me }: { me: MeResponse }) {
   const { connection, dismiss } = useConnectionReveal(me);
   if (!connection) return null;
@@ -20,7 +23,7 @@ export function ConnectionReveal({ me }: { me: MeResponse }) {
           <p className="mt-1 text-xl font-semibold">You&apos;re connected!</p>
         ) : (
           <>
-            <p className="mt-1 text-xl font-semibold">You&apos;re a {connection.match}% match!</p>
+            <p className="mt-1 text-xl font-semibold">{connection.match}% match!</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Talk to find out which answers you share.
             </p>
