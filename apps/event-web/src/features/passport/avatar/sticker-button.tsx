@@ -8,6 +8,8 @@ import { drawSticker, saveSticker } from "@/features/passport/avatar/sticker";
 interface StickerButtonProps {
   slots: readonly Slot[];
   colours: AvatarColours;
+  /** The id of the line that tells the guest how to use the picture. */
+  describedBy?: string;
 }
 
 type Drawn = { key: string; state: "ready"; blob: Blob } | { key: string; state: "failed" };
@@ -24,7 +26,7 @@ function stickerKey(slots: readonly Slot[], colours: AvatarColours): string {
  * press that opens the share sheet is the whole gesture. Safari only opens the sheet while
  * the press is fresh.
  */
-export function StickerButton({ slots, colours }: StickerButtonProps) {
+export function StickerButton({ slots, colours, describedBy }: StickerButtonProps) {
   const key = stickerKey(slots, colours);
   const [drawn, setDrawn] = useState<Drawn | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -51,6 +53,7 @@ export function StickerButton({ slots, colours }: StickerButtonProps) {
         variant="outline"
         disabled={sticker === null}
         aria-busy={sticker === null}
+        aria-describedby={describedBy}
         onClick={() => {
           if (sticker?.state === "ready") void saveSticker(sticker.blob);
           else if (sticker?.state === "failed") {

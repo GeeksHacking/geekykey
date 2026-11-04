@@ -1990,3 +1990,9 @@
     chat. On a phone the share sheet opens, so it can go straight to WhatsApp; on a laptop it
     downloads as my-avatar.png. The card with the guest's name and "The Grad Tea" is still there
     for keeping.
+
+- id: sticker-hint
+  date: 2026-11-04
+  area: frontend
+  change: >-
+    The dashboard tells guests they can add the avatar picture as a sticker in WhatsApp.
