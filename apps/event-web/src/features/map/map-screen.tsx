@@ -9,6 +9,7 @@ import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { Wordmark } from "@/components/layout/wordmark";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MPH_EXAMPLE_PLAN } from "@/features/map/floor-plan";
+import { MapConnections } from "@/features/map/map-connections";
 import { MapForbidden } from "@/features/map/map-forbidden";
 import { MapPlan } from "@/features/map/map-plan";
 import { placeStations } from "@/features/map/place-stations";
@@ -84,6 +85,7 @@ export function MapScreen() {
               title="The map is not updating."
             />
           ) : null}
+          {map.data.connections ? <MapConnections connections={map.data.connections} /> : null}
           {map.data.stations.length === 0 ? (
             <p className="text-muted-foreground">
               No stations yet. Each one appears here once an organiser adds it on the station board

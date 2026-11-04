@@ -38,6 +38,21 @@ import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
 import { isGroupLink } from "@/lib/group-link";
 
+/**
+ * The mock's anonymous web, oldest connection first. Each link joins numbers a few apart, so
+ * the spiral reads as a web rather than a ring. The map shows the first 30 links and adds one
+ * per read, so the screen's web grows over a few polls as the event's would.
+ */
+const MAP_CONNECTIONS: [number, number][] = Array.from({ length: 60 }, (_, index) => {
+  const first = index + 1;
+  const second = index + 2 + (index % 5);
+  const pair: [number, number] = [first, second];
+  return pair;
+});
+
+/** How many links the first map read shows. Each later read adds one, up to the list. */
+const MAP_LINKS_AT_FIRST_READ = 30;
+
 /*
   In-memory stand-in for apps/event-service. Same interface as the future HTTP
   client, same shapes as API-AGREEMENT.md, same status codes. It also mirrors
@@ -110,6 +125,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   let sessionUserId: string | null = storage?.getItem(SESSION_KEY) ?? null;
   let pendingFailure: MockFailure | null = null;
   let nextTapId = data.taps.reduce((max, tap) => Math.max(max, tap.id), 0) + 1;
+  let mapReads = 0;
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -588,13 +604,19 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     map: () =>
       call((): MapResponse => {
         currentOrganizer();
+        const shown = Math.min(MAP_LINKS_AT_FIRST_READ + mapReads, MAP_CONNECTIONS.length);
+        mapReads += 1;
+        const links = MAP_CONNECTIONS.slice(0, shown);
         const slots = data.stations
           .filter((station) => station.passport)
           .sort((a, b) => (a.passport?.added_at ?? "").localeCompare(b.passport?.added_at ?? ""));
         const others = data.stations
           .filter((station) => !station.passport)
           .sort((a, b) => a.created_at.localeCompare(b.created_at));
-        return { stations: [...slots, ...others].map(toMapStation) };
+        return {
+          stations: [...slots, ...others].map(toMapStation),
+          connections: { count: links.length, links },
+        };
       }),
   };
 

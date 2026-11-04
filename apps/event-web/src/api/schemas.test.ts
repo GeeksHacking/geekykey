@@ -300,6 +300,24 @@ describe("organizer response contract", () => {
     expect(() => parseMapResponse({ stations: [{ ...map.stations[0], taps: -1 }] })).toThrow(
       NetworkError,
     );
+
+    const withConnections = {
+      ...map,
+      connections: {
+        count: 2,
+        links: [
+          [1, 2],
+          [1, 3],
+        ],
+      },
+    };
+    expect(parseMapResponse(withConnections)).toEqual(withConnections);
+    expect(() => parseMapResponse({ ...map, connections: { count: 1, links: [[1]] } })).toThrow(
+      NetworkError,
+    );
+    expect(() => parseMapResponse({ ...map, connections: { count: -1, links: [] } })).toThrow(
+      NetworkError,
+    );
   });
 
   it("validates a page of the tap log as agreement 9.3 gives it", () => {
