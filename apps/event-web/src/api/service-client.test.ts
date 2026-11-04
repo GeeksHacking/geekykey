@@ -4,41 +4,18 @@ import { createMockClient } from "@/api/mock/client";
 import { createServiceClients } from "@/api/service-client";
 
 describe("service client boundary", () => {
-  it("groups each method under the service that owns it in the agreement", () => {
+  it("puts the session calls in the session bundle and every other method in the Event one", () => {
     const api = createMockClient({ latencyMs: [0, 0], storage: null });
     const services = createServiceClients(api);
+    const session = Object.keys(services.session);
+    const event = Object.keys(services.event);
+    // Every method of the client, read from the client itself, so a new one can't be left out.
+    const methods = Object.keys(api).filter((key) => key !== "mock");
 
     expect(Object.keys(services)).toEqual(["session", "event"]);
-    expect(Object.keys(services.session).sort()).toEqual(
-      ["devLogin", "firebaseLogin", "loginLink", "logout", "me"].sort(),
-    );
-    expect(Object.keys(services.event).sort()).toEqual(
-      [
-        "allocateGroups",
-        "createFallbackTap",
-        "createGroup",
-        "createStation",
-        "deleteGroup",
-        "disableStation",
-        "enableStation",
-        "exportCsv",
-        "exportGroupsCsv",
-        "groupBoard",
-        "joinGroups",
-        "listStationBoard",
-        "listTaps",
-        "map",
-        "myGroup",
-        "placeGroupMember",
-        "removeGroupMember",
-        "replaceStationKey",
-        "resetGroups",
-        "setStationBooth",
-        "setStationPassport",
-        "stats",
-        "updateGroup",
-      ].sort(),
-    );
+    expect(session.sort()).toEqual(["devLogin", "firebaseLogin", "loginLink", "logout", "me"]);
+    expect(event.filter((key) => session.includes(key))).toEqual([]);
+    expect([...session, ...event].sort()).toEqual(methods.sort());
   });
 
   it("has no GeekyKey slice, because the Event screens make no GeekyKey call", () => {

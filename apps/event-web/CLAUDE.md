@@ -346,18 +346,8 @@ acted; toasts only for transient success.
 
 ## Coding conventions
 
-- Function components, named exports, one component per file, explicit prop types.
-  No `React.FC`.
-- Strict TypeScript with `noUncheckedIndexedAccess`. No `any`; use `unknown` and narrow.
-- Tailwind classes only. No CSS modules, no CSS-in-JS, no `.css` files beyond
-  `globals.css`. Compose class names with `cn()`.
-- Server data enters components through TanStack Query hooks in `features/*`. Never
-  `useEffect` plus `fetch`, and never a `useState` copy of something the cache holds.
-- Derive, do not sync: no state that duplicates props or server data.
-- Formatting rules for dates and points live in `lib/format.ts` and nowhere else.
-- Colocate tests as `*.test.tsx`. Test behaviour through the DOM, not implementation.
-- Comments explain why, not what. Keep components under roughly 150 lines and split by
-  responsibility, not by markup.
+Before writing or reviewing code here, read [CODING_STANDARDS.md](CODING_STANDARDS.md): components,
+types, styling, data, tests, and the docs a change updates.
 
 ## Team and AI usage
 
