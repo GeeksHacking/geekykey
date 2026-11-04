@@ -30,6 +30,7 @@ export type EventApi = Pick<
   | "groupBoard"
   | "createGroup"
   | "allocateGroups"
+  | "resetGroups"
   | "exportGroupsCsv"
   | "updateGroup"
   | "deleteGroup"
@@ -73,6 +74,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       groupBoard: api.groupBoard.bind(api),
       createGroup: api.createGroup.bind(api),
       allocateGroups: api.allocateGroups.bind(api),
+      resetGroups: api.resetGroups.bind(api),
       exportGroupsCsv: api.exportGroupsCsv.bind(api),
       updateGroup: api.updateGroup.bind(api),
       deleteGroup: api.deleteGroup.bind(api),

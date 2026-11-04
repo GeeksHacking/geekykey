@@ -55,6 +55,17 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     );
   });
 
+  it("resets, and answers with the board", async () => {
+    const api = createHttpClient();
+
+    fetchMock.mockResolvedValueOnce(response(board));
+    await expect(api.resetGroups()).resolves.toEqual(board);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/reset",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("reads the board, creates a group by its name, and allocates", async () => {
     const api = createHttpClient();
 

@@ -13,6 +13,7 @@ import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
 import { MemberRow } from "@/features/groups/member-row";
+import { ResetGroupsDialog } from "@/features/groups/reset-groups-dialog";
 import { useAllocateGroups } from "@/features/groups/use-allocate-groups";
 import { useGroupBoard } from "@/features/groups/use-group-board";
 import { showStaleNote } from "@/lib/rate-limit";
@@ -95,13 +96,16 @@ export function GroupsScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Groups"
-        description="Create groups, then press Allocate to split everyone who has joined. Move anyone from their menu. Refreshes every 5 seconds."
+        description="Create groups, then press Allocate to split everyone who has joined. Move anyone from their menu. Reset empties the groups for another trial. Refreshes every 5 seconds."
         actions={
           <>
             <AddGroupDialog />
             <Button disabled={!data || allocate.isPending} onClick={() => allocate.mutate()}>
               Allocate
             </Button>
+            {/* Reset's alert covers Allocate while a reset is sent, and this covers the other way, so
+                the two can't answer out of order and leave the older board on the screen. */}
+            <ResetGroupsDialog disabled={!data || allocate.isPending} />
           </>
         }
       />
