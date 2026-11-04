@@ -67,10 +67,15 @@ export interface MockData {
   users: MockUser[];
   stations: MockStation[];
   taps: MockTap[];
+  /** The event's answers game, or null when it has none. */
   questions: Question[] | null;
 }
 
-/** The Event Service's placeholder questions (BAC-119), which the grad tea's team will replace. */
+/**
+ * The Event Service's placeholder questions (BAC-119). They mirror
+ * apps/event-service/src/grad-tea/questions.ts, so the mock asks what the service asks.
+ * The grad tea team replaces them by Mon 9 Nov; a reworded one keeps its IDs.
+ */
 const QUESTIONS: Question[] = [
   {
     id: "drink",

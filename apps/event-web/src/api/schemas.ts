@@ -7,18 +7,18 @@ import type {
   ListTapsResponse,
   MapResponse,
   MeResponse,
-  SetDisplayNameResponse,
   SetStationPassportResponse,
   StationKeyResponse,
   StationResponse,
   StatsResponse,
+  UpdateMeResponse,
 } from "@/api/types";
 
 /*
-  Seven of the response schemas below are exported for the Event Service's route tests,
-  which import this file by path and parse their answers with them
+  The response schemas below are exported for the Event Service's route tests, which import
+  this file by path and parse their answers with them
   (apps/event-service/src/test-helpers.ts). TypeScript cannot see that caller, so a
-  dead-export sweep must leave those seven alone.
+  dead-export sweep must leave those alone.
 */
 
 const isoTimestamp = z.iso.datetime({ offset: true });
@@ -37,7 +37,9 @@ const userSchema = z.object({
 const questionSchema = z.object({
   id: z.string(),
   text: z.string(),
-  choices: z.array(z.object({ id: z.string(), text: z.string() })),
+  choices: z
+    .array(z.object({ id: z.string(), text: z.string() }))
+    .check(z.minLength(2), z.maxLength(4)),
 });
 
 const connectionSchema = z.object({
@@ -193,9 +195,16 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
 });
 
 /** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
-export const setDisplayNameResponseSchema: z.ZodMiniType<SetDisplayNameResponse> = z.object({
+export const updateMeResponseSchema: z.ZodMiniType<UpdateMeResponse> = z.object({
   user: userSchema,
 });
+
+/**
+ * The Event Service's route tests import this schema by this name
+ * (apps/event-service/src/test-helpers.ts), so it stays while the screens call the method
+ * that answers it `updateMe`. It is the same schema.
+ */
+export const setDisplayNameResponseSchema = updateMeResponseSchema;
 
 export function parseEventStationBoardResponse(input: unknown): EventStationBoardResponse {
   const result = eventStationBoardResponseSchema.safeParse(input);
@@ -213,8 +222,8 @@ export function parseMeResponse(input: unknown): MeResponse {
   return result.data;
 }
 
-export function parseSetDisplayNameResponse(input: unknown): SetDisplayNameResponse {
-  const result = setDisplayNameResponseSchema.safeParse(input);
+export function parseUpdateMeResponse(input: unknown): UpdateMeResponse {
+  const result = updateMeResponseSchema.safeParse(input);
   if (!result.success) {
     throw new NetworkError("The server returned an unexpected response");
   }

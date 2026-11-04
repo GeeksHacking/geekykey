@@ -47,8 +47,8 @@ Rules that make this possible:
   change to the agreement instead of inventing it.
 - `src/api/mock/` holds fixtures and a mock client with the same interface as the HTTP
   client. Fixtures use the seeded IDs (`dev-user-1`, `dev-organizer-1`), cover the
-  statuses currently used by the mock, include stamps with `earned_at: null`, and use realistic,
-  uneven data. No round numbers, no "John Doe".
+  statuses currently used by the mock, include stamps with `earned_at: null`, the answers
+  game's 5 questions, and use realistic, uneven data. No round numbers, no "John Doe".
 - The mock client simulates latency and can be told to fail with any error code from the
   agreement, so loading and error states are real from day one. `api.mock.failNext(code)`
   fails the next call with that code, or with `"network"`; tests use it. With
@@ -142,9 +142,9 @@ TanStack Query owns everything that comes from the API. The pattern, shown once:
   `features/fallback/use-log-fallback-tap.ts` invalidates `["taps"]` and `queryKeys.stats`
   after a successful QR fallback, because the tap shows up in the scan log and the totals.
   A write that answers with what it changed puts that into the cache instead:
-  `features/passport/use-set-display-name.ts` writes the `user` that `PATCH /me` answers
+  `features/passport/use-update-me.ts` merges the user fields that `PATCH /me` answers
   into `["me"]`. It drops a `/me` poll in flight first, so a late answer cannot put the
-  old name back (FRO-68).
+  old name or answers back (FRO-68).
 - Screens read `isPending`, `isError`, `isFetching`, `dataUpdatedAt`, and `data`. They do
   not hold copies of server data in `useState`.
 - The session is the `["me"]` query in `lib/session-provider.tsx`. A 401 is a normal
@@ -297,6 +297,8 @@ Rules:
      on, so the sentence sits above the screen it shows.
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it.
+   - `answers_fixed`: the passport shows the answers without a way to change them
+     (agreement 8.7 and section 13).
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.
    - `event_service_unavailable` / `claims_unavailable` / `service_unavailable`: show a
      service-availability message.

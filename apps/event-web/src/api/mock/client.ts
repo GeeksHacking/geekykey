@@ -26,12 +26,12 @@ import {
   type MapResponse,
   type MapStation,
   type MeResponse,
-  type SetDisplayNameRequest,
-  type SetDisplayNameResponse,
   type SetStationPassportResponse,
   type StationResponse,
   type StatsResponse,
   type TapStatus,
+  type UpdateMeRequest,
+  type UpdateMeResponse,
 } from "@/api/types";
 import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
@@ -83,6 +83,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   invalid_station_key: 401,
   forbidden: 403,
   not_found: 404,
+  answers_fixed: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,
@@ -311,6 +312,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           ...connection,
           shared: new Date(connection.shared_at).getTime() <= Date.now() ? connection.shared : null,
         }));
+        // 0.13: each connection adds 1 point, whatever its match. The grad tea's game
+        // keeps that at 1, and the mock has no setting of its own.
         const points = accepted.reduce(
           (sum, t) => sum + (stationById(t.station_id)?.passport?.points ?? 0),
           connections.length,
@@ -337,18 +340,65 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         };
       }, false),
 
-    // Agreement 8.7. A name the user sets counts as their own, even `Guest`, and one that
-    // breaks the rule leaves the name as it was.
-    setDisplayName: (input: SetDisplayNameRequest) =>
-      call((): SetDisplayNameResponse => {
+    // Agreement 8.7. The name is trimmed and 1 to 30 code points, and `answers` sets only
+    // the questions it names. A request that breaks either rule changes neither.
+    updateMe: (input: UpdateMeRequest) =>
+      call((): UpdateMeResponse => {
         const user = currentUser();
-        if (!isDisplayName(input.display_name)) {
+        const issues: ApiIssue[] = [];
+        const name = input.display_name?.trim();
+
+        // 8.7: a request needs at least one of the two fields. The service's schema refuses
+        // an empty body before the handler runs.
+        if (input.display_name === undefined && input.answers === undefined) {
           fail("validation_failed", [
-            { path: ["display_name"], message: "display_name must be 1 to 30 characters" },
+            { path: [], message: "A request needs display_name, answers or both" },
           ]);
         }
-        user.display_name = input.display_name.trim();
-        user.has_name = true;
+
+        if (name !== undefined && !isDisplayName(name)) {
+          issues.push({
+            path: ["display_name"],
+            message: "display_name must be 1 to 30 characters",
+          });
+        }
+
+        if (input.answers !== undefined) {
+          // 0.13: an unknown question or choice is refused under its question's ID.
+          const choicesOf = new Map(
+            (data.questions ?? []).map((question) => [
+              question.id,
+              new Set(question.choices.map((choice) => choice.id)),
+            ]),
+          );
+          for (const [questionId, choiceId] of Object.entries(input.answers)) {
+            const choices = choicesOf.get(questionId);
+            if (!choices) {
+              issues.push({ path: ["answers", questionId], message: "No question has this ID" });
+            } else if (!choices.has(choiceId)) {
+              issues.push({
+                path: ["answers", questionId],
+                message: "The question has no choice with this ID",
+              });
+            }
+          }
+        }
+
+        if (issues.length) fail("validation_failed", issues);
+
+        // 0.13: the first connection fixes the answers, so any request with `answers` is
+        // refused, even an empty map. A name-only request still succeeds.
+        if (input.answers !== undefined && (user.connections?.length ?? 0) > 0) {
+          fail("answers_fixed");
+        }
+
+        if (name !== undefined) {
+          user.display_name = name;
+          user.has_name = true;
+        }
+        if (input.answers !== undefined) {
+          user.answers = { ...user.answers, ...input.answers };
+        }
         return { user: toUser(user) };
       }),
 

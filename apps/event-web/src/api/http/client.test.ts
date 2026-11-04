@@ -224,7 +224,7 @@ describe("HTTP client transport", () => {
     };
     fetchMock.mockResolvedValue(response({ user }));
 
-    await expect(createHttpClient().setDisplayName({ display_name: "Mei Ling" })).resolves.toEqual({
+    await expect(createHttpClient().updateMe({ display_name: "Mei Ling" })).resolves.toEqual({
       user,
     });
     expect(fetchMock).toHaveBeenCalledWith(
@@ -234,6 +234,28 @@ describe("HTTP client transport", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ display_name: "Mei Ling" }),
         credentials: "include",
+      }),
+    );
+  });
+
+  it("sends one answer as agreement 8.7's PATCH and answers the user's answers", async () => {
+    const user = {
+      id: "dev-user-1",
+      display_name: "Alex",
+      role: "participant",
+      has_name: true,
+      answers: { drink: "tea" },
+    };
+    fetchMock.mockResolvedValue(response({ user }));
+
+    await expect(createHttpClient().updateMe({ answers: { drink: "tea" } })).resolves.toEqual({
+      user,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/me",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ answers: { drink: "tea" } }),
       }),
     );
   });
@@ -279,7 +301,7 @@ describe("HTTP client transport", () => {
     );
 
     const error = await createHttpClient()
-      .setDisplayName({ display_name: "Mei Ling" })
+      .updateMe({ display_name: "Mei Ling" })
       .catch((reason: unknown) => reason);
     expect(error).toBeInstanceOf(NetworkError);
   });
@@ -295,7 +317,7 @@ describe("HTTP client transport", () => {
       ),
     );
 
-    const error = await apiError(createHttpClient().setDisplayName({ display_name: "" }));
+    const error = await apiError(createHttpClient().updateMe({ display_name: "" }));
 
     expect(error.code).toBe("validation_failed");
     expect(error.issues).toEqual([
@@ -314,7 +336,7 @@ describe("HTTP client transport", () => {
       await apiError(createHttpClient().me());
       expect(seen).toEqual([]);
 
-      await apiError(createHttpClient().setDisplayName({ display_name: "Mei Ling" }));
+      await apiError(createHttpClient().updateMe({ display_name: "Mei Ling" }));
     } finally {
       window.removeEventListener(AUTH_ERROR_EVENT, listener);
     }
@@ -426,6 +448,7 @@ const statusFor = {
   invalid_station_key: 401,
   forbidden: 403,
   not_found: 404,
+  answers_fixed: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,

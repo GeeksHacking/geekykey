@@ -37,6 +37,7 @@ describe("the mock's error statuses", () => {
       invalid_login_link: 401,
       forbidden: 403,
       not_found: 404,
+      answers_fixed: 409,
       rate_limited: 429,
       event_service_unavailable: 503,
       claims_unavailable: 503,
@@ -279,7 +280,7 @@ describe("the name the event shows (agreement 8.7)", () => {
     const api = client();
     await api.loginLink("guest");
 
-    const answer = await api.setDisplayName({ display_name: "  Mei Ling  " });
+    const answer = await api.updateMe({ display_name: "  Mei Ling  " });
 
     expect(answer).toEqual({
       user: {
@@ -297,7 +298,7 @@ describe("the name the event shows (agreement 8.7)", () => {
     const api = client();
     await api.loginLink("guest");
 
-    await api.setDisplayName({ display_name: "Guest" });
+    await api.updateMe({ display_name: "Guest" });
 
     await expect(api.me()).resolves.toMatchObject({ user: { has_name: true } });
   });
@@ -307,11 +308,9 @@ describe("the name the event shows (agreement 8.7)", () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);
 
-    await expect(api.setDisplayName({ display_name: "🦊".repeat(30) })).resolves.toBeDefined();
+    await expect(api.updateMe({ display_name: "🦊".repeat(30) })).resolves.toBeDefined();
 
-    const refused = await api
-      .setDisplayName({ display_name: "a".repeat(31) })
-      .catch((e: unknown) => e);
+    const refused = await api.updateMe({ display_name: "a".repeat(31) }).catch((e: unknown) => e);
     expect(refused).toBeInstanceOf(ApiError);
     expect((refused as ApiError).code).toBe("validation_failed");
     expect((refused as ApiError).issues?.[0]?.path).toEqual(["display_name"]);
@@ -321,7 +320,7 @@ describe("the name the event shows (agreement 8.7)", () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);
 
-    await expectApiError(api.setDisplayName({ display_name: "   " }), "validation_failed", 400);
+    await expectApiError(api.updateMe({ display_name: "   " }), "validation_failed", 400);
 
     await expect(api.me()).resolves.toMatchObject({
       user: { display_name: "Alex Tan", has_name: true },
@@ -329,7 +328,157 @@ describe("the name the event shows (agreement 8.7)", () => {
   });
 
   it("answers 401 when nobody is signed in", async () => {
-    await expectApiError(client().setDisplayName({ display_name: "Alex" }), "unauthenticated", 401);
+    await expectApiError(client().updateMe({ display_name: "Alex" }), "unauthenticated", 401);
+  });
+});
+
+describe("the answers game (agreement 0.13)", () => {
+  const connection = {
+    connected_at: "2026-11-12T08:12:30.000Z",
+    kind: "B",
+    match: 60,
+    shared: null,
+    shared_at: "2026-11-12T08:14:30.000Z",
+  };
+
+  function connect(api: ReturnType<typeof client>, userId: string = SEEDED_GUEST_ID) {
+    const user = api.mock.data.users.find((candidate) => candidate.id === userId);
+    if (!user) throw new Error("The seeded user is missing");
+    user.connections = [connection];
+  }
+
+  it("gives the same 5 questions, and no answers before any", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+
+    const me = await api.me();
+
+    expect(me.questions).toHaveLength(5);
+    expect(me.questions?.[0]).toMatchObject({ id: "drink", text: "Tea or coffee?" });
+    expect(me.user.answers).toEqual({});
+  });
+
+  it("sets one answer at a time and keeps the user's others", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+
+    await api.updateMe({ answers: { drink: "tea" } });
+    const answer = await api.updateMe({ answers: { hours: "night_owl" } });
+
+    expect(answer.user.answers).toEqual({ drink: "tea", hours: "night_owl" });
+  });
+
+  it("changes an answer the user already gave", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+    await api.updateMe({ answers: { drink: "tea" } });
+
+    const answer = await api.updateMe({ answers: { drink: "coffee" } });
+
+    expect(answer.user.answers).toEqual({ drink: "coffee" });
+  });
+
+  it("refuses a PATCH with neither the name nor the answers", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+
+    const error = await api.updateMe({}).catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("validation_failed");
+    expect((error as ApiError).issues).toEqual([
+      { path: [], message: "A request needs display_name, answers or both" },
+    ]);
+  });
+
+  it("adds a point for a connection, whatever its match", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+    const before = await api.me();
+
+    connect(api);
+
+    await expect(api.me()).resolves.toMatchObject({ points: before.points + 1 });
+  });
+
+  it("refuses an unknown question under its ID and changes nothing", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+
+    const error = await api
+      .updateMe({ answers: { drink: "tea", snack: "chips" } })
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("validation_failed");
+    expect((error as ApiError).issues).toEqual([
+      { path: ["answers", "snack"], message: "No question has this ID" },
+    ]);
+    await expect(api.me()).resolves.toMatchObject({ user: { answers: {} } });
+  });
+
+  it("refuses a choice that is not the question's, under its ID", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+
+    const error = await api
+      .updateMe({ answers: { drink: "milo" } })
+      .catch((reason: unknown) => reason);
+
+    expect((error as ApiError).issues).toEqual([
+      {
+        path: ["answers", "drink"],
+        message: "The question has no choice with this ID",
+      },
+    ]);
+    await expect(api.me()).resolves.toMatchObject({ user: { answers: {} } });
+  });
+
+  it("refuses any answers after the first connection, even an empty map", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+    await api.updateMe({ answers: { drink: "tea" } });
+    connect(api);
+
+    await expectApiError(api.updateMe({ answers: {} }), "answers_fixed", 409);
+    await expectApiError(api.updateMe({ answers: { hours: "night_owl" } }), "answers_fixed", 409);
+    await expect(api.me()).resolves.toMatchObject({ user: { answers: { drink: "tea" } } });
+  });
+
+  it("still changes the name after a connection when the request has no answers", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    connect(api, SEEDED_PARTICIPANT_ID);
+
+    await expect(api.updateMe({ display_name: "Alex" })).resolves.toMatchObject({
+      user: { display_name: "Alex", has_name: true },
+    });
+  });
+
+  it("gives no questions without an answers game, and accepts only an empty map", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_GUEST_ID);
+    api.mock.data.questions = null;
+
+    await expect(api.me()).resolves.toMatchObject({ questions: null });
+    await expectApiError(api.updateMe({ answers: { drink: "tea" } }), "validation_failed", 400);
+    await expect(api.updateMe({ answers: {} })).resolves.toMatchObject({
+      user: { answers: {} },
+    });
+  });
+
+  it("keeps answers and questions off the map and the station board", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    await api.updateMe({ answers: { drink: "tea" } });
+
+    const board = JSON.stringify(await api.listStationBoard());
+    const map = JSON.stringify(await api.map());
+
+    for (const body of [board, map]) {
+      expect(body).not.toContain('"answers"');
+      expect(body).not.toContain('"questions"');
+    }
   });
 });
 

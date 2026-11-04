@@ -20,30 +20,12 @@ export interface User {
    * gave. Then the passport asks for a name (agreement 8.1, 8.7).
    */
   has_name: boolean;
-  /** Each question the user has answered, by ID, with the choice they picked (0.13 draft, 8.1). */
+  /**
+   * Each question the user has answered, by ID, with the choice they picked (agreement 0.13
+   * draft, 8.1). It leaves out the questions they haven't answered, so it is `{}` until they
+   * answer one, and always `{}` without an answers game.
+   */
   answers: Record<string, string>;
-}
-
-/** One entry per station with passport settings. `earned_at` is null until the user has an accepted tap there. */
-export interface Stamp {
-  station_id: string;
-  name: string;
-  location: string | null;
-  points: number;
-  /** The group's page from the station's settings (agreement 8.1), or null. */
-  link: string | null;
-  earned_at: string | null;
-}
-
-export interface MeTap {
-  id: number;
-  station_id: string;
-  /** Null for a station without passport settings. */
-  station_name: string | null;
-  status: TapStatus;
-  source: TapSource;
-  tapped_at: string | null;
-  received_at: string;
 }
 
 export interface QuestionChoice {
@@ -73,25 +55,52 @@ export interface Connection {
   shared_at: string;
 }
 
-/** PATCH /api/v1/me (agreement 8.7). Trimmed, then 1 to 30 code points. */
-export interface SetDisplayNameRequest {
-  display_name: string;
+/** One entry per station with passport settings. `earned_at` is null until the user has an accepted tap there. */
+export interface Stamp {
+  station_id: string;
+  name: string;
+  location: string | null;
+  points: number;
+  /** The group's page from the station's settings (agreement 8.1), or null. */
+  link: string | null;
+  earned_at: string | null;
+}
+
+export interface MeTap {
+  id: number;
+  station_id: string;
+  /** Null for a station without passport settings. */
+  station_name: string | null;
+  status: TapStatus;
+  source: TapSource;
+  tapped_at: string | null;
+  received_at: string;
+}
+
+/**
+ * PATCH /api/v1/me (agreement 8.7). Both fields are optional, and a request needs at least
+ * one. `display_name` is trimmed, then 1 to 30 code points; `answers` maps question IDs to
+ * choice IDs and sets only the answers it names.
+ */
+export interface UpdateMeRequest {
+  display_name?: string;
+  answers?: Record<string, string>;
 }
 
 /** Agreement 8.7 answers with the `user` object from 8.1. */
-export interface SetDisplayNameResponse {
+export interface UpdateMeResponse {
   user: User;
 }
 
 /** GET /api/v1/me */
 export interface MeResponse {
   user: User;
-  /** Null when the event has no answers game. */
+  /** The answers game's questions in the order to ask them, or null without the game. */
   questions: Question[] | null;
   points: number;
   stamps: Stamp[];
   recent_taps: MeTap[];
-  /** Newest first. Empty without a connections game. */
+  /** The user's connections, newest first. Empty without a connections game. */
   connections: Connection[];
 }
 
@@ -286,6 +295,8 @@ export type ErrorCode =
   | "invalid_station_key"
   | "forbidden"
   | "not_found"
+  // Agreement 0.13 section 8.7: the user's first connection fixed their answers.
+  | "answers_fixed"
   | "rate_limited"
   | "invalid_event_service_key"
   | "event_service_unavailable"

@@ -7,7 +7,7 @@ import {
   parseListTapsResponse,
   parseMapResponse,
   parseMeResponse,
-  parseSetDisplayNameResponse,
+  parseUpdateMeResponse,
   parseSetStationPassportResponse,
   parseStationKeyResponse,
   parseStationResponse,
@@ -108,8 +108,8 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     // Agreement 8.7. The answer replaces the user in the ["me"] cache, so it is checked
     // like /me's.
-    setDisplayName: (input) =>
-      sendJson("/api/v1/me", jsonBody(input, "PATCH")).then(parseSetDisplayNameResponse),
+    updateMe: (input) =>
+      sendJson("/api/v1/me", jsonBody(input, "PATCH")).then(parseUpdateMeResponse),
 
     devLogin: async (userId) => {
       await send("/auth/dev-login", postJson({ user_id: userId }));
@@ -193,6 +193,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "invalid_station_key",
   "forbidden",
   "not_found",
+  "answers_fixed",
   "rate_limited",
   "invalid_event_service_key",
   "event_service_unavailable",

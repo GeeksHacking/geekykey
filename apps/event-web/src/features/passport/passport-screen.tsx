@@ -6,6 +6,7 @@ import { ConnectionReveal } from "@/features/passport/connection-reveal";
 import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { NamePrompt } from "@/features/passport/name-prompt";
 import { NewStampBanner } from "@/features/passport/new-stamp-banner";
+import { QuestionsPrompt } from "@/features/passport/questions-prompt";
 import { StampGrid } from "@/features/passport/stamp-grid";
 import { useNamePromptSkip } from "@/features/passport/use-name-prompt-skip";
 import { useNewStampLink } from "@/features/passport/use-new-stamp-link";
@@ -13,7 +14,7 @@ import { usePassportChanges } from "@/features/passport/use-passport-changes";
 import { useMe } from "@/lib/session";
 
 export function PassportScreen() {
-  const { me } = useMe();
+  const { me, refresh } = useMe();
   const namePrompt = useNamePromptSkip(me.user.id);
   const scope = useRef<HTMLDivElement>(null);
   const changes = usePassportChanges(scope, me);
@@ -32,6 +33,15 @@ export function PassportScreen() {
       <ConnectionReveal me={me} />
       {!me.user.has_name && !namePrompt.skipped ? (
         <NamePrompt userId={me.user.id} onSkip={namePrompt.skip} />
+      ) : null}
+      {me.questions ? (
+        <QuestionsPrompt
+          key={me.user.id}
+          questions={me.questions}
+          answers={me.user.answers}
+          answersFixed={me.connections.length > 0}
+          onAnswersFixed={() => void refresh()}
+        />
       ) : null}
       {newStamp.offer ? (
         <NewStampBanner

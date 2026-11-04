@@ -9,12 +9,12 @@ import type {
   ListTapsResponse,
   MapResponse,
   MeResponse,
-  SetDisplayNameRequest,
-  SetDisplayNameResponse,
   SetStationBoothRequest,
   SetStationPassportRequest,
   SetStationPassportResponse,
   StatsResponse,
+  UpdateMeRequest,
+  UpdateMeResponse,
 } from "@/api/types";
 
 /*
@@ -28,10 +28,11 @@ export interface ApiClient {
   me(): Promise<MeResponse>;
 
   /**
-   * PATCH /api/v1/me (agreement 8.7). Sets the name the event shows for the current user, and
-   * answers with the same `user` object as GET /api/v1/me.
+   * PATCH /api/v1/me (agreement 8.7). Sets the name the event shows for the current user,
+   * some or all of their answers, or both, and answers with the same `user` object as
+   * GET /api/v1/me.
    */
-  setDisplayName(input: SetDisplayNameRequest): Promise<SetDisplayNameResponse>;
+  updateMe(input: UpdateMeRequest): Promise<UpdateMeResponse>;
 
   /** POST /auth/dev-login. Local development only. */
   devLogin(userId: string): Promise<void>;
