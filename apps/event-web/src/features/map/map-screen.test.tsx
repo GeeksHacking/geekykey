@@ -187,4 +187,52 @@ describe("MapScreen", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
   });
+
+  it("shows the connection count and the anonymous web", async () => {
+    setup();
+
+    const panel = await screen.findByRole("region", { name: "Connections" });
+    expect(panel).toHaveTextContent(/\d+ connections/);
+    expect(within(panel).getByRole("img")).toHaveAccessibleName(/A web of \d+ connections/);
+    expect(document.querySelector("[data-web-node='1']")).toBeInTheDocument();
+  });
+
+  it("keeps the web's layout as it grows over a poll", async () => {
+    const { poll } = setup();
+    const panel = await screen.findByRole("region", { name: "Connections" });
+    const node = () => document.querySelector("[data-web-node='1']")?.getAttribute("transform");
+    const edges = () => panel.querySelectorAll("[data-web-edge]").length;
+    const before = node();
+    const first = edges();
+
+    await poll();
+    await waitFor(() => expect(edges()).toBeGreaterThan(first));
+
+    expect(node()).toBe(before);
+  });
+
+  it("says when there are no connections yet", async () => {
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValue({
+        stations: [mapStation({ station_id: "s1", booth: "B1" })],
+        connections: { count: 0, links: [] },
+      });
+    });
+
+    expect(
+      await screen.findByText("No connections yet. Guests connect by tapping each other's tokens."),
+    ).toBeInTheDocument();
+    expect(document.querySelector("[data-web-node]")).not.toBeInTheDocument();
+  });
+
+  it("draws no web when connections is left out", async () => {
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValue({
+        stations: [mapStation({ station_id: "s1", booth: "B1" })],
+      });
+    });
+
+    await screen.findByRole("region", { name: "On the map" });
+    expect(screen.queryByRole("region", { name: "Connections" })).not.toBeInTheDocument();
+  });
 });
