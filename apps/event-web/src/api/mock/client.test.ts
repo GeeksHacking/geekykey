@@ -1054,6 +1054,59 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     expect(board.groups.map((group) => group.members.length)).toEqual([3, 2]);
   });
 
+  it("keeps a group's capacity, and refuses one that isn't a whole number above 0", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    expect((await api.createGroup({ name: "Small room", capacity: 2 })).capacity).toBe(2);
+    expect((await api.createGroup({ name: "Hall", capacity: null })).capacity).toBeNull();
+    await expectApiError(api.createGroup({ name: "Stage", capacity: 0 }), "validation_failed", 400);
+    await expectApiError(
+      api.createGroup({ name: "Stage", capacity: 1.5 }),
+      "validation_failed",
+      400,
+    );
+  });
+
+  it("answers no_groups to Allocate with no groups, and starts nothing", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    api.mock.data.groups = [];
+
+    await expectApiError(api.allocateGroups(), "no_groups", 409);
+    expect((await api.groupBoard()).allocation_started_at).toBeNull();
+  });
+
+  it("answers too_few_participants with how many more it needs", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    await api.createGroup({ name: "Mixer C" });
+    await api.createGroup({ name: "Mixer D" });
+
+    // 5 have joined, and 4 groups need 8.
+    const error = await api.allocateGroups().catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("too_few_participants");
+    expect((error as ApiError).status).toBe(409);
+    expect((error as ApiError).needed).toBe(3);
+    expect((await api.groupBoard()).waiting).toHaveLength(5);
+  });
+
+  it("fills groups with room first, then overflows into the smallest", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    api.mock.data.groups = [];
+    await api.createGroup({ name: "Small", capacity: 1 });
+    await api.createGroup({ name: "Large", capacity: 3 });
+
+    // 5 waiting: Small fills at 1 and Large at 3, then the last overflows into Small.
+    const board = await api.allocateGroups();
+
+    expect(board.groups.map((group) => group.members.length)).toEqual([2, 3]);
+    expect(board.waiting).toEqual([]);
+  });
+
   it("leaves a placed participant's answer to names, for their own group only", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);

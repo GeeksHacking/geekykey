@@ -77,6 +77,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       response.status,
       errorCodeFor(path, response.status, parsed.code),
       parsed.issues,
+      parsed.needed,
     );
     // The session query answers /me's own 401 itself. The name's PATCH to the same path is
     // not that read, so it publishes like any other request.
@@ -210,6 +211,8 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "not_found",
   "answers_fixed",
   "name_taken",
+  "no_groups",
+  "too_few_participants",
   "rate_limited",
   "invalid_event_service_key",
   "event_service_unavailable",
@@ -249,8 +252,12 @@ function errorCodeForStatus(status: number): ErrorCode {
   return "internal_error";
 }
 
-function parseErrorBody(body: unknown): { code?: ErrorCode; issues: ApiIssue[] } {
-  if (!body || typeof body !== "object") return { issues: [] };
+function parseErrorBody(body: unknown): {
+  code?: ErrorCode;
+  issues: ApiIssue[];
+  needed: number | null;
+} {
+  if (!body || typeof body !== "object") return { issues: [], needed: null };
   const record = body as Record<string, unknown>;
   const code =
     typeof record.error === "string" && ERROR_CODES.has(record.error as ErrorCode)
@@ -267,7 +274,9 @@ function parseErrorBody(body: unknown): { code?: ErrorCode; issues: ApiIssue[] }
         return [{ path, message: value.message }];
       })
     : [];
-  return { code, issues };
+  // Only too_few_participants carries it (draft for agreement 0.14).
+  const needed = typeof record.needed === "number" ? record.needed : null;
+  return { code, issues, needed };
 }
 
 /** Only the filters that are set. An absent one must not travel as the string "undefined". */

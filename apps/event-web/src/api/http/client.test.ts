@@ -86,6 +86,39 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     fetchMock.mockResolvedValueOnce(response({ status: "placed" }));
     await expect(api.myGroup()).rejects.toBeInstanceOf(NetworkError);
   });
+
+  it("keeps Allocate's refusals, and how many more too_few_participants needs", async () => {
+    const api = createHttpClient();
+
+    fetchMock.mockResolvedValueOnce(response({ error: "no_groups" }, 409));
+    const noGroups = await apiError(api.allocateGroups());
+    expect(noGroups.code).toBe("no_groups");
+    expect(noGroups.needed).toBeNull();
+
+    fetchMock.mockResolvedValueOnce(response({ error: "too_few_participants", needed: 2 }, 409));
+    const tooFew = await apiError(api.allocateGroups());
+    expect(tooFew.code).toBe("too_few_participants");
+    expect(tooFew.needed).toBe(2);
+  });
+
+  it("sends a group's capacity", async () => {
+    const api = createHttpClient();
+    const group = {
+      id: "g_1",
+      name: "Small room",
+      tags: [],
+      location: null,
+      capacity: 6,
+      members: [],
+    };
+
+    fetchMock.mockResolvedValueOnce(response(group, 201));
+    await expect(api.createGroup({ name: "Small room", capacity: 6 })).resolves.toEqual(group);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups",
+      expect.objectContaining({ body: JSON.stringify({ name: "Small room", capacity: 6 }) }),
+    );
+  });
 });
 
 describe("HTTP client transport", () => {
@@ -509,6 +542,8 @@ const statusFor = {
   not_found: 404,
   answers_fixed: 409,
   name_taken: 409,
+  no_groups: 409,
+  too_few_participants: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,

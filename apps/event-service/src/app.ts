@@ -41,6 +41,8 @@ export interface AppDeps {
    * meetings.
    */
   connections?: ConnectionsGame | null;
+  /** The order Allocate places the groups' waiting list in, at random unless a test gives its own. */
+  shuffle?: <T>(items: T[]) => T[];
 }
 
 /**
@@ -65,7 +67,13 @@ export function createApp(
   config: Config,
   db: Db,
   // One set of keys for the server's life, so Google's keys are cached between logins.
-  { googleKeys, now, answers = gradTeaAnswers, connections = gradTeaConnections }: AppDeps = {
+  {
+    googleKeys,
+    now,
+    answers = gradTeaAnswers,
+    connections = gradTeaConnections,
+    shuffle,
+  }: AppDeps = {
     googleKeys: googleSigningKeys(),
   },
 ) {
@@ -102,7 +110,7 @@ export function createApp(
   );
   app.route("/api/v1/me", meRoutes({ session, answers, connections, now }));
   app.route("/api/v1/me/group", myGroupRoutes({ session, now }));
-  app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now }));
+  app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now, shuffle }));
   app.route("/api/v1/map", mapRoutes({ session, connections }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route(

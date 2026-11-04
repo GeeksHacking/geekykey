@@ -2058,3 +2058,12 @@
     The trial on Thu 5 Nov tests two variations: the token game, our reading of the criteria of
     Julian as the client, and participant groups, from Mr Tan's brief. Groups can so far be created
     and allocated and participants can join, and the agreed allocation rules and latecomers come next.
+
+- id: groups-allocation-rules
+  date: 2026-11-04
+  area: backend
+  change: >-
+    Allocate splits people by the agreed rules. It shuffles everyone waiting, fills every group
+    with room before any goes over its capacity, and refuses with no groups or fewer than 2
+    people for each group, saying how many more to wait for. A group past its capacity shows
+    "Over capacity" on the Groups screen.
