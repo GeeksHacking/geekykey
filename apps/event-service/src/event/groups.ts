@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import type { Tx } from "./games.ts";
 import { groupAllocation, groupMembers, participantGroups, users } from "./schema.ts";
@@ -9,6 +9,18 @@ import { groupAllocation, groupMembers, participantGroups, users } from "./schem
   participant is in at most one group, since group_members has one row each.
   All the placement rules live here, and the routes hold none.
 */
+
+/**
+ * From config.organizers: the accounts kept out of every group (the spec's user story 52). Someone
+ * added to the list after joining keeps their row, but no read counts or shows it, so they
+ * aren't placed, take no place in a group's size, and read `not_joined`.
+ */
+export type Organizers = ReadonlySet<string>;
+
+/** Leaves out the rows of group_members that belong to organizers. */
+function participantsOnly(organizers: Organizers) {
+  return organizers.size === 0 ? undefined : notInArray(groupMembers.userId, [...organizers]);
+}
 
 /** The one row of group_allocation. */
 const ALLOCATION_ROW = 1;
@@ -41,6 +53,14 @@ async function lockAllocation(tx: Tx): Promise<{ startedAt: string | null }> {
   return { startedAt: row?.startedAt ?? null };
 }
 
+/** What an organizer sets on a group. */
+export interface GroupFields {
+  name: string;
+  tags: string[];
+  location: string | null;
+  capacity: number | null;
+}
+
 /** Whether two names would confuse participants: the same, whatever their capitals. */
 function sameGroupName(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
@@ -54,7 +74,7 @@ function sameGroupName(a: string, b: string): boolean {
  */
 export async function createGroup(
   db: Db,
-  { name, capacity }: { name: string; capacity: number | null },
+  fields: GroupFields,
   now: Date,
 ): Promise<EventGroup | "name_taken"> {
   return db.transaction(async (tx) => {
@@ -63,10 +83,59 @@ export async function createGroup(
       .select({ name: participantGroups.name })
       .from(participantGroups)
       .for("update");
-    if (taken.some((group) => sameGroupName(group.name, name))) return "name_taken";
-    const group = { id: crypto.randomUUID(), name, tags: [], location: null, capacity };
+    if (taken.some((group) => sameGroupName(group.name, fields.name))) return "name_taken";
+    const group = { id: crypto.randomUUID(), ...fields };
     await tx.insert(participantGroups).values({ ...group, createdAt: now.toISOString() });
     return { ...group, members: [] };
+  });
+}
+
+/**
+ * Sets every field of the group `id`, or gives `"not_found"` when there's no such group, or
+ * `"name_taken"` when another group has the name, whatever its capitals. It moves nobody,
+ * even when the capacity drops below the group's size, since nothing rebalances by itself (the
+ * spec's "Placement rules"). It takes the allocation lock, as createGroup() does, so an edit
+ * and a create at once can't both take one name.
+ */
+export async function editGroup(
+  db: Db,
+  id: string,
+  fields: GroupFields,
+): Promise<"not_found" | "name_taken" | null> {
+  return db.transaction(async (tx) => {
+    await lockAllocation(tx);
+    const groups = await tx
+      .select({ id: participantGroups.id, name: participantGroups.name })
+      .from(participantGroups)
+      .for("update");
+    if (!groups.some((group) => group.id === id)) return "not_found";
+    if (groups.some((group) => group.id !== id && sameGroupName(group.name, fields.name))) {
+      return "name_taken";
+    }
+    await tx.update(participantGroups).set(fields).where(eq(participantGroups.id, id));
+    return null;
+  });
+}
+
+/**
+ * Deletes the group `id` and sends its members back to waiting, to be placed at the next
+ * Allocate, or gives `"not_found"` when there's no such group. Nobody else moves.
+ */
+export async function deleteGroup(db: Db, id: string): Promise<"not_found" | null> {
+  return db.transaction(async (tx) => {
+    await lockAllocation(tx);
+    const [group] = await tx
+      .select({ id: participantGroups.id })
+      .from(participantGroups)
+      .where(eq(participantGroups.id, id))
+      .for("update");
+    if (!group) return "not_found";
+    await tx
+      .update(groupMembers)
+      .set({ groupId: null, placedAt: null, how: null })
+      .where(eq(groupMembers.groupId, id));
+    await tx.delete(participantGroups).where(eq(participantGroups.id, id));
+    return null;
   });
 }
 
@@ -77,7 +146,12 @@ export async function createGroup(
  * joined keeps their place. The allocation lock makes many joins at once take
  * turns, so each sees the sizes the one before left.
  */
-export async function joinGroups(db: Db, userId: string, now: Date): Promise<void> {
+export async function joinGroups(
+  db: Db,
+  userId: string,
+  now: Date,
+  organizers: Organizers,
+): Promise<void> {
   await db.transaction(async (tx) => {
     const { startedAt } = await lockAllocation(tx);
     const [already] = await tx
@@ -89,7 +163,9 @@ export async function joinGroups(db: Db, userId: string, now: Date): Promise<voi
 
     const joinedAt = now.toISOString();
     const place =
-      startedAt === null ? undefined : choosePlace((await loadPlacesAndMembers(tx)).places);
+      startedAt === null
+        ? undefined
+        : choosePlace((await loadPlacesAndMembers(tx, organizers)).places);
     await tx
       .insert(groupMembers)
       .values(
@@ -97,6 +173,77 @@ export async function joinGroups(db: Db, userId: string, now: Date): Promise<voi
           ? { userId, joinedAt, groupId: place.id, placedAt: joinedAt, how: "latecomer" }
           : { userId, joinedAt },
       );
+  });
+}
+
+/**
+ * An organizer's choice of where `userId` goes: the group `groupId`, or waiting when it's null.
+ * It may pass a capacity, since an organizer's judgement overrules it (the spec's "Placement
+ * rules"). Someone who hasn't joined joins now. Putting someone where they already are changes
+ * nothing. It gives `"not_found"` when there's no such user or group, and `"organizer"` for an
+ * account on the organizer list, which is never placed (the spec's user story 52).
+ */
+export async function placeMember(
+  db: Db,
+  userId: string,
+  groupId: string | null,
+  now: Date,
+  organizers: Organizers,
+): Promise<"not_found" | "organizer" | null> {
+  if (organizers.has(userId)) return "organizer";
+  return db.transaction(async (tx) => {
+    await lockAllocation(tx);
+    const [user] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .for("update");
+    if (!user) return "not_found";
+    if (groupId !== null) {
+      const [group] = await tx
+        .select({ id: participantGroups.id })
+        .from(participantGroups)
+        .where(eq(participantGroups.id, groupId))
+        .for("update");
+      if (!group) return "not_found";
+    }
+    const [member] = await tx
+      .select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId))
+      .for("update");
+    if (member && member.groupId === groupId) return null;
+
+    const at = now.toISOString();
+    const place =
+      groupId === null
+        ? { groupId: null, placedAt: null, how: null }
+        : { groupId, placedAt: at, how: "organizer" as const };
+    if (member) {
+      await tx.update(groupMembers).set(place).where(eq(groupMembers.userId, userId));
+    } else {
+      await tx.insert(groupMembers).values({ userId, joinedAt: at, ...place });
+    }
+    return null;
+  });
+}
+
+/**
+ * Takes `userId` off the board, as someone who has left, so they no longer count toward a
+ * group's size. They can join again, as a latecomer once allocation has started. It gives
+ * `"not_found"` when they haven't joined.
+ */
+export async function removeMember(db: Db, userId: string): Promise<"not_found" | null> {
+  return db.transaction(async (tx) => {
+    await lockAllocation(tx);
+    const [member] = await tx
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId))
+      .for("update");
+    if (!member) return "not_found";
+    await tx.delete(groupMembers).where(eq(groupMembers.userId, userId));
+    return null;
   });
 }
 
@@ -124,10 +271,11 @@ export async function allocateWaiting(
   db: Db,
   now: Date,
   shuffle: Shuffle,
+  organizers: Organizers,
 ): Promise<AllocateRefusal | null> {
   return db.transaction(async (tx) => {
     const { startedAt } = await lockAllocation(tx);
-    const { places, members } = await loadPlacesAndMembers(tx);
+    const { places, members } = await loadPlacesAndMembers(tx, organizers);
     if (places.length === 0) return { error: "no_groups" };
     const needed = MIN_PER_GROUP * places.length - members.length;
     if (needed > 0) return { error: "too_few_participants", needed };
@@ -166,11 +314,11 @@ interface Place {
 }
 
 /**
- * Every group oldest first, with its size, and everyone who has joined. Call it
+ * Every group oldest first, with its size, and every participant who has joined. Call it
  * only with the allocation lock held. Its reads lock too, since on TiDB a plain
  * read after the lock could miss a join that the lock waited for.
  */
-async function loadPlacesAndMembers(tx: Tx) {
+async function loadPlacesAndMembers(tx: Tx, organizers: Organizers) {
   const groups = await tx
     .select({ id: participantGroups.id, capacity: participantGroups.capacity })
     .from(participantGroups)
@@ -179,6 +327,7 @@ async function loadPlacesAndMembers(tx: Tx) {
   const members = await tx
     .select({ userId: groupMembers.userId, groupId: groupMembers.groupId })
     .from(groupMembers)
+    .where(participantsOnly(organizers))
     .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId))
     .for("update");
   const places: Place[] = groups.map(({ id, capacity }) => ({
@@ -232,7 +381,7 @@ async function allocationStartedAt(db: Db): Promise<string | null> {
 }
 
 /** Everything the organizers' Groups screen shows, groups oldest first. */
-export async function loadGroupBoard(db: Db) {
+export async function loadGroupBoard(db: Db, organizers: Organizers) {
   const [startedAt, groups, members] = await Promise.all([
     allocationStartedAt(db),
     db
@@ -256,6 +405,7 @@ export async function loadGroupBoard(db: Db) {
       })
       .from(groupMembers)
       .innerJoin(users, eq(users.id, groupMembers.userId))
+      .where(participantsOnly(organizers))
       .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId)),
   ]);
   return {
@@ -271,9 +421,10 @@ export async function loadGroupBoard(db: Db) {
 
 /**
  * What a user sees of the groups: whether they've joined, and their own group
- * with its members' names. Never anyone's user ID, nor anyone else's group.
+ * with its members' names. Never anyone's user ID, nor anyone else's group. An
+ * organizer reads `not_joined`.
  */
-export async function loadMyGroup(db: Db, userId: string) {
+export async function loadMyGroup(db: Db, userId: string, organizers: Organizers) {
   const [startedAt, [mine]] = await Promise.all([
     allocationStartedAt(db),
     db
@@ -291,13 +442,14 @@ export async function loadMyGroup(db: Db, userId: string) {
       .limit(1),
   ]);
   const allocationStarted = startedAt !== null;
-  if (!mine) return { status: "not_joined" as const, allocationStarted, group: null };
+  if (!mine || organizers.has(userId))
+    return { status: "not_joined" as const, allocationStarted, group: null };
   if (!mine.group) return { status: "waiting" as const, allocationStarted, group: null };
   const members = await db
     .select({ displayName: users.displayName })
     .from(groupMembers)
     .innerJoin(users, eq(users.id, groupMembers.userId))
-    .where(eq(groupMembers.groupId, mine.group.id))
+    .where(and(eq(groupMembers.groupId, mine.group.id), participantsOnly(organizers)))
     .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId));
   return { status: "placed" as const, allocationStarted, group: { ...mine.group, members } };
 }

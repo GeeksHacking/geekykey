@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { AddGroupForm } from "@/features/groups/add-group-form";
+import { GroupForm } from "@/features/groups/group-form";
 
 export function AddGroupDialog() {
   const [open, setOpen] = useState(false);
@@ -18,7 +18,7 @@ export function AddGroupDialog() {
       </DialogTrigger>
       <DialogContent>
         <CornerBrackets />
-        <AddGroupForm onCreated={() => setOpen(false)} />
+        <GroupForm onSaved={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );

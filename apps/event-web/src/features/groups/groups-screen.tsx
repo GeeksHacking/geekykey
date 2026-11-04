@@ -12,6 +12,7 @@ import { AddGroupDialog } from "@/features/groups/add-group-dialog";
 import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
+import { MemberRow } from "@/features/groups/member-row";
 import { useAllocateGroups } from "@/features/groups/use-allocate-groups";
 import { useGroupBoard } from "@/features/groups/use-group-board";
 import { showStaleNote } from "@/lib/rate-limit";
@@ -51,7 +52,12 @@ export function GroupsScreen() {
         {data.groups.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
             {data.groups.map((group) => (
-              <GroupPanel key={group.id} group={group} />
+              <GroupPanel
+                key={group.id}
+                group={group}
+                groups={data.groups}
+                allocationStarted={data.allocation_started_at !== null}
+              />
             ))}
           </div>
         ) : (
@@ -68,7 +74,12 @@ export function GroupsScreen() {
           {data.waiting.length > 0 ? (
             <ul aria-label="Waiting" className="mt-3 space-y-1 text-sm">
               {data.waiting.map((member) => (
-                <li key={member.user_id}>{member.display_name}</li>
+                <MemberRow
+                  key={member.user_id}
+                  member={member}
+                  groupId={null}
+                  groups={data.groups}
+                />
               ))}
             </ul>
           ) : (
@@ -84,7 +95,7 @@ export function GroupsScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Groups"
-        description="Create groups, then press Allocate to split everyone who has joined. Refreshes every 5 seconds."
+        description="Create groups, then press Allocate to split everyone who has joined. Move anyone from their menu. Refreshes every 5 seconds."
         actions={
           <>
             <AddGroupDialog />

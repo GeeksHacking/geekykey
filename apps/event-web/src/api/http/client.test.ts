@@ -112,6 +112,50 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     expect(tooFew.needed).toBe(2);
   });
 
+  it("edits and deletes a group by its ID", async () => {
+    const api = createHttpClient();
+    const fields = { name: "Mixer B", tags: ["Year 1"], location: "Hall", capacity: 4 };
+
+    fetchMock.mockResolvedValueOnce(response({ ...group, ...fields }));
+    await expect(api.updateGroup("g/1", fields)).resolves.toEqual({ ...group, ...fields });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/g%2F1",
+      expect.objectContaining({ method: "PUT", body: JSON.stringify(fields) }),
+    );
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await expect(api.deleteGroup("g/1")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/g%2F1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("puts someone in a group or back to waiting, and removes them", async () => {
+    const api = createHttpClient();
+
+    fetchMock.mockResolvedValueOnce(response(board));
+    await expect(api.placeGroupMember("user:1", "g1")).resolves.toEqual(board);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/members/user%3A1",
+      expect.objectContaining({ method: "PUT", body: JSON.stringify({ group_id: "g1" }) }),
+    );
+
+    fetchMock.mockResolvedValueOnce(response(board));
+    await api.placeGroupMember("user:1", null);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/members/user%3A1",
+      expect.objectContaining({ body: JSON.stringify({ group_id: null }) }),
+    );
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await expect(api.removeGroupMember("user:1")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/members/user%3A1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
   it("sends a group's capacity", async () => {
     const api = createHttpClient();
     const group = {

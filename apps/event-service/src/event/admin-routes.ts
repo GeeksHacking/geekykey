@@ -23,7 +23,7 @@ import {
 import { exportTapsCsv } from "./export.ts";
 import { adminGroupRoutes } from "./group-routes.ts";
 import type { Shuffle } from "./groups.ts";
-import { organizerText } from "./organizer-text.ts";
+import { optionalOrganizerText, organizerText } from "./organizer-text.ts";
 import { runsThePassport } from "./stamp-slots.ts";
 import { type BoardStation, loadBoardStation, loadStationBoard } from "./station-board.ts";
 import { generateStationKey, hashStationKey } from "./station-keys.ts";
@@ -43,12 +43,6 @@ export interface AdminRouteDeps {
 
 /** A new station's label, the device's name. */
 const createStationSchema = z.object({ label: organizerText("label") });
-
-/** Optional text an organizer types: a blank or missing one is none. */
-const optionalOrganizerText = (field: string) =>
-  organizerText(field, { blankAllowed: true })
-    .nullish()
-    .transform((text) => text || null);
 
 /**
  * A station's booth (9.1, 9.12): a blank or null one is none. Nullable, not
@@ -199,7 +193,7 @@ export function adminRoutes({ session, games, now = () => new Date(), shuffle }:
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireRole("organizer"));
 
-  app.route("/groups", adminGroupRoutes({ now, shuffle }));
+  app.route("/groups", adminGroupRoutes({ organizers: session.organizers, now, shuffle }));
 
   /** The games organizers choose a station's from, in the settings' order (9.2). */
   const gameChoices = games.flatMap((onStations) =>

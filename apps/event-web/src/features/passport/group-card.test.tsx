@@ -238,6 +238,48 @@ describe("GroupCard", () => {
     expect(screen.queryByText(WAITING)).not.toBeInTheDocument();
   });
 
+  it("shows the group's tags and location", async () => {
+    renderCard({
+      prepare: (client) => {
+        const group = placeInOneGroup(client, [SEEDED_PARTICIPANT_ID]);
+        group.tags = ["Mixer", "Year 1"];
+        group.location = "Room 3-01";
+      },
+    });
+
+    const card = await screen.findByRole("region", { name: "Your group" });
+    expect(within(card).getByText("Room 3-01")).toBeInTheDocument();
+    expect(
+      within(within(card).getByRole("list", { name: "Tags" })).getAllByRole("listitem"),
+    ).toHaveLength(2);
+    expect(within(card).getByText("Year 1")).toBeInTheDocument();
+  });
+
+  it("shows a group with no tags or location by its name and members alone", async () => {
+    renderCard({ prepare: (client) => void placeInOneGroup(client, [SEEDED_PARTICIPANT_ID]) });
+
+    const card = await screen.findByRole("region", { name: "Your group" });
+    expect(within(card).queryByRole("list", { name: "Tags" })).not.toBeInTheDocument();
+    expect(within(card).getByRole("list", { name: "Members" })).toBeInTheDocument();
+  });
+
+  it("shows the new group at the next poll when an organiser moves them", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { api } = renderCard({
+      prepare: (client) => void placeInOneGroup(client, [SEEDED_PARTICIPANT_ID]),
+    });
+    const [from, to] = api.mock.data.groups;
+    expect(await screen.findByRole("heading", { name: from!.name })).toBeInTheDocument();
+
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    await api.placeGroupMember(SEEDED_PARTICIPANT_ID, to!.id);
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    await act(() => vi.advanceTimersByTimeAsync(POLL_MY_GROUP_PLACED_MS));
+
+    expect(await screen.findByRole("heading", { name: to!.name })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: from!.name })).not.toBeInTheDocument();
+  });
+
   it("shows another member's new name at the next poll", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { api } = renderCard({

@@ -63,7 +63,9 @@ apps/event-web/
       stations/             # station board, add-station dialog, one-time key reveal,
                            # passport settings form (add or edit a slot), booth dialog,
                            # each row's Actions menu
-      groups/               # the organisers' Groups screen: create a group, Allocate, each group's members, who is waiting, the CSV
+      groups/               # the organisers' Groups screen: create and edit a group (group-form.tsx), delete one,
+                           # Allocate, each group's members and who is waiting, each person's moves
+                           # (member-row.tsx), the CSV
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
@@ -99,6 +101,8 @@ apps/event-web/
       display-name.ts       # agreement 8.7's rule for a name, shared by the form and the mock
       booth.ts              # agreement 9.12's rule for a station's booth, shared the same way
       group-link.ts         # agreement 9.1's rule for a group link, shared the same way
+      group-fields.ts       # the draft 0.14 rules for a group's name, tags and location, shared the same way
+      dialog-focus.ts       # where a dialog opened from a menu sends the keyboard when it closes
       format.ts             # dates, points, counts
       constants.ts          # poll intervals, seeded user IDs, GEEKYKEY_SCREENS_URL
       csv.ts                # the export's column order and cell escaping

@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { returnFocusOnClose } from "@/features/stations/dialog-focus";
+import { returnFocusOnClose } from "@/lib/dialog-focus";
 import { useDisableStation } from "@/features/stations/use-disable-station";
 
 /** FRO-26's sentence, from the ticket. Used as written, so it is asserted whole. */

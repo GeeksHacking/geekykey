@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { anotherTestDb, fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
 import type { Shuffle } from "./groups.ts";
-import { groupMembers, participantGroups, users } from "./schema.ts";
+import { users } from "./schema.ts";
 
 const ORGANIZER = "dev-organizer-1";
 const JOINED_AT = "2026-11-05T01:00:00.000Z";
@@ -77,7 +77,19 @@ let secondInstanceDb: ReturnType<typeof anotherTestDb> | undefined;
  * screens do. `instances` above 1 runs more of the service against the same
  * database, as Cloud Run may, and `join` takes which one to send to.
  */
-async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instances?: 1 | 2 } = {}) {
+async function harness({
+  shuffle,
+  instances = 1,
+  promoted = [],
+}: {
+  shuffle?: Shuffle;
+  instances?: 1 | 2;
+  /**
+   * People a later instance has on its organizer list as well, as if ORGANIZERS changed while
+   * they were joined. That instance is the last, which `promotedInstance` names.
+   */
+  promoted?: string[];
+} = {}) {
   const clock = fakeClock(JOINED_AT);
   const app = testApp({}, { now: clock.now, shuffle });
   const apps = [app];
@@ -85,6 +97,12 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
     secondInstanceDb ??= anotherTestDb();
     apps.push(testApp({}, { now: clock.now, shuffle, db: secondInstanceDb }));
   }
+  if (promoted.length > 0) {
+    apps.push(
+      testApp({ ORGANIZERS: [ORGANIZER, ...promoted].join(",") }, { now: clock.now, shuffle }),
+    );
+  }
+  const promotedInstance = apps.length - 1;
   // Dev-login signs in only someone who has logged in to this event before.
   await testDb().insert(users).values(PEOPLE);
 
@@ -102,7 +120,7 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
   /** Sends a request as `userId`, or with no session when it's null, to the first instance unless told. */
   const send = async (
     userId: string | null,
-    method: "GET" | "POST" | "PATCH",
+    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
     path: string,
     body?: unknown,
     instance = 0,
@@ -136,11 +154,17 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
       201,
     );
 
-  const board = async () =>
-    read<BoardBody>(await send(ORGANIZER, "GET", "/api/v1/admin/groups"), groupBoardResponseSchema);
+  const board = async (instance = 0) =>
+    read<BoardBody>(
+      await send(ORGANIZER, "GET", "/api/v1/admin/groups", undefined, instance),
+      groupBoardResponseSchema,
+    );
 
-  const myGroup = async (userId: string) =>
-    read<MyGroupBody>(await send(userId, "GET", "/api/v1/me/group"), myGroupResponseSchema);
+  const myGroup = async (userId: string, instance = 0) =>
+    read<MyGroupBody>(
+      await send(userId, "GET", "/api/v1/me/group", undefined, instance),
+      myGroupResponseSchema,
+    );
 
   const join = async (userId: string, instance = 0) =>
     read<MyGroupBody>(
@@ -148,9 +172,24 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
       myGroupResponseSchema,
     );
 
-  const allocate = async () =>
+  /** Deletes a group, which sends its members back to waiting. */
+  const deleteGroup = async (groupId: string) => {
+    const response = await send(ORGANIZER, "DELETE", `/api/v1/admin/groups/${groupId}`);
+    assert.equal(response.status, 204);
+  };
+
+  /** Puts `userId` in the group `groupId`, or sends them back to waiting with null. */
+  const place = async (userId: string, groupId: string | null) =>
     read<BoardBody>(
-      await send(ORGANIZER, "POST", "/api/v1/admin/groups/allocate"),
+      await send(ORGANIZER, "PUT", `/api/v1/admin/groups/members/${userId}`, {
+        group_id: groupId,
+      }),
+      groupBoardResponseSchema,
+    );
+
+  const allocate = async (instance = 0) =>
+    read<BoardBody>(
+      await send(ORGANIZER, "POST", "/api/v1/admin/groups/allocate", undefined, instance),
       groupBoardResponseSchema,
     );
 
@@ -184,6 +223,7 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
 
   return {
     clock,
+    promotedInstance,
     send,
     read,
     createGroup,
@@ -192,6 +232,8 @@ async function harness({ shuffle, instances = 1 }: { shuffle?: Shuffle; instance
     join,
     arriveCrowd,
     joinCrowd,
+    deleteGroup,
+    place,
     allocate,
     exportLines,
   };
@@ -320,6 +362,65 @@ test("a capacity must be a whole number above 0", async () => {
   assert.deepEqual((await board()).groups, []);
 });
 
+test("a group can have tags and a location, trimmed, and a blank location is none", async () => {
+  const { send, read, createGroup } = await harness();
+
+  const tagged = await read<BoardBody["groups"][number]>(
+    await send(ORGANIZER, "POST", "/api/v1/admin/groups", {
+      name: "Mixer A",
+      tags: [" Mixer ", "Year 1"],
+      location: "  Room 3-01 ",
+    }),
+    eventGroupSchema,
+    201,
+  );
+  const plain = await read<BoardBody["groups"][number]>(
+    await send(ORGANIZER, "POST", "/api/v1/admin/groups", { name: "Mixer B", location: "  " }),
+    eventGroupSchema,
+    201,
+  );
+
+  assert.deepEqual([tagged.tags, tagged.location], [["Mixer", "Year 1"], "Room 3-01"]);
+  assert.deepEqual([plain.tags, plain.location], [[], null]);
+  assert.equal((await createGroup("Mixer C")).location, null);
+});
+
+test("tags allow at most 5, each 1 to 80 characters, and a location at most 80", async () => {
+  const { send, read, board } = await harness();
+
+  for (const [body, path] of [
+    [{ tags: ["a", "b", "c", "d", "e", "f"] }, ["tags"]],
+    [{ tags: ["fine", "   "] }, ["tags", 1]],
+    [{ tags: ["x".repeat(81)] }, ["tags", 0]],
+    [{ location: "x".repeat(81) }, ["location"]],
+  ] as const) {
+    const response = await send(ORGANIZER, "POST", "/api/v1/admin/groups", {
+      name: "Mixer A",
+      ...body,
+    });
+    assert.equal(response.status, 400, JSON.stringify(body));
+    const { error, issues } = (await response.json()) as {
+      error: string;
+      issues: { path: (string | number)[] }[];
+    };
+    assert.equal(error, "validation_failed");
+    assert.deepEqual(issues[0]!.path, path);
+  }
+  assert.deepEqual((await board()).groups, []);
+
+  // Counted in code points, so 5 tags of 80 emoji each pass.
+  const full = await read<BoardBody["groups"][number]>(
+    await send(ORGANIZER, "POST", "/api/v1/admin/groups", {
+      name: "Mixer A",
+      tags: Array.from({ length: 5 }, () => "😀".repeat(80)),
+      location: "😀".repeat(80),
+    }),
+    eventGroupSchema,
+    201,
+  );
+  assert.equal(full.tags.length, 5);
+});
+
 test("groups are listed oldest first", async () => {
   const { clock, createGroup, board } = await harness();
 
@@ -331,6 +432,98 @@ test("groups are listed oldest first", async () => {
     (await board()).groups.map((group) => group.name),
     ["Zebra", "Apple"],
   );
+});
+
+test("editing a group sets all its fields, and a field left out is none", async () => {
+  const { send, read, createGroup, board } = await harness();
+  const group = await createGroup("Mixer A", 6);
+
+  const edited = await read<BoardBody["groups"][number]>(
+    await send(ORGANIZER, "PUT", `/api/v1/admin/groups/${group.id}`, {
+      name: " Mixer B ",
+      tags: ["Year 1"],
+      location: "Hall",
+      capacity: 4,
+    }),
+    eventGroupSchema,
+  );
+  assert.deepEqual(edited, {
+    id: group.id,
+    name: "Mixer B",
+    tags: ["Year 1"],
+    location: "Hall",
+    capacity: 4,
+    members: [],
+  });
+
+  const bare = await read<BoardBody["groups"][number]>(
+    await send(ORGANIZER, "PUT", `/api/v1/admin/groups/${group.id}`, { name: "Mixer B" }),
+    eventGroupSchema,
+  );
+  assert.deepEqual([bare.tags, bare.location, bare.capacity], [[], null, null]);
+  assert.deepEqual((await board()).groups, [bare]);
+});
+
+test("editing a group can't take another's name, whatever its capitals, but can keep its own", async () => {
+  const { clock, send, read, createGroup, board } = await harness();
+  await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  const other = await createGroup("Mixer B");
+
+  const response = await send(ORGANIZER, "PUT", `/api/v1/admin/groups/${other.id}`, {
+    name: "MIXER A",
+  });
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: "name_taken" });
+  assert.equal((await board()).groups[1]!.name, "Mixer B");
+
+  const recapped = await read<BoardBody["groups"][number]>(
+    await send(ORGANIZER, "PUT", `/api/v1/admin/groups/${other.id}`, { name: "mixer b" }),
+    eventGroupSchema,
+  );
+  assert.equal(recapped.name, "mixer b");
+});
+
+test("editing a group that doesn't exist answers 404 not_found", async () => {
+  const { send } = await harness();
+
+  const response = await send(ORGANIZER, "PUT", "/api/v1/admin/groups/no-such-group", {
+    name: "Mixer A",
+  });
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "not_found" });
+});
+
+test("editing a group checks its fields as creating one does", async () => {
+  const { send, createGroup } = await harness();
+  const group = await createGroup("Mixer A");
+
+  const response = await send(ORGANIZER, "PUT", `/api/v1/admin/groups/${group.id}`, {
+    name: "Mixer A",
+    tags: ["a", "b", "c", "d", "e", "f"],
+  });
+
+  assert.equal(response.status, 400);
+  const { issues } = (await response.json()) as { issues: { path: string[] }[] };
+  assert.deepEqual(issues[0]!.path, ["tags"]);
+});
+
+test("lowering a group's capacity below its size moves nobody, and shows it over capacity", async () => {
+  const { send, read, createGroup, joinCrowd, allocate } = await harness();
+  const group = await createGroup("Mixer A");
+  await joinCrowd(4);
+  await allocate();
+
+  const lowered = await read<BoardBody["groups"][number]>(
+    await send(ORGANIZER, "PUT", `/api/v1/admin/groups/${group.id}`, {
+      name: "Mixer A",
+      capacity: 2,
+    }),
+    eventGroupSchema,
+  );
+
+  assert.deepEqual([lowered.members.length, lowered.capacity], [4, 2]);
 });
 
 test("someone who hasn't joined is not_joined, an organizer included", async () => {
@@ -392,24 +585,31 @@ test("an organizer account is refused when joining, and doesn't join", async () 
 const ORGANIZER_ROUTES = [
   ["GET", "/api/v1/admin/groups"],
   ["POST", "/api/v1/admin/groups"],
+  ["PUT", "/api/v1/admin/groups/some-group"],
+  ["DELETE", "/api/v1/admin/groups/some-group"],
   ["POST", "/api/v1/admin/groups/allocate"],
   ["GET", "/api/v1/admin/groups/export.csv"],
+  ["PUT", "/api/v1/admin/groups/members/user-2"],
+  ["DELETE", "/api/v1/admin/groups/members/user-2"],
 ] as const;
 
 test("a participant is refused on every organizer route", async () => {
-  const { send, board } = await harness();
+  const { send, board, join } = await harness();
+  await join("user-2");
 
   for (const [method, path] of ORGANIZER_ROUTES) {
     const response = await send(
       "user-1",
       method,
       path,
-      method === "POST" ? { name: "Mine" } : undefined,
+      method === "POST" || method === "PUT" ? { name: "Mine", group_id: null } : undefined,
     );
     assert.equal(response.status, 403, `${method} ${path}`);
     assert.deepEqual(await response.json(), { error: "forbidden" });
   }
-  assert.deepEqual((await board()).groups, []);
+  const after = await board();
+  assert.deepEqual(after.groups, []);
+  assert.equal(after.joined_count, 1);
 });
 
 test("nobody signed in is refused on every route", async () => {
@@ -498,21 +698,45 @@ test("a new name shows to the rest of the group at their next read", async () =>
   assert.deepEqual(names.sort(), ["Ally", "Bala"]);
 });
 
-/**
- * Deletes a group and sends its members back to waiting, as the spec says its
- * delete route will. That route is BAC-132's, so until it's built, this does
- * it straight in the tables.
- */
-async function deleteGroup(groupId: string) {
-  await testDb()
-    .update(groupMembers)
-    .set({ groupId: null, placedAt: null, how: null })
-    .where(eq(groupMembers.groupId, groupId));
-  await testDb().delete(participantGroups).where(eq(participantGroups.id, groupId));
-}
+test("deleting a group sends its members back to waiting, and moves nobody else", async () => {
+  const { clock, createGroup, joinCrowd, allocate, deleteGroup, board, myGroup } = await harness();
+  const doomed = await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  const kept = await createGroup("Mixer B");
+  const crowd = await joinCrowd(4);
+  const before = await allocate();
+  const doomedMembers = before.groups[0]!.members.map(({ user_id }) => user_id);
+
+  await deleteGroup(doomed.id);
+
+  const after = await board();
+  assert.deepEqual(
+    after.groups.map(({ id }) => id),
+    [kept.id],
+  );
+  assert.deepEqual(after.groups[0]!.members, before.groups[1]!.members);
+  assert.deepEqual(after.waiting.map(({ user_id }) => user_id).sort(), doomedMembers.sort());
+  assert.equal(after.joined_count, crowd.length);
+  for (const userId of doomedMembers) {
+    assert.deepEqual(await myGroup(userId), {
+      status: "waiting",
+      allocation_started: true,
+      group: null,
+    });
+  }
+});
+
+test("deleting a group that doesn't exist answers 404 not_found", async () => {
+  const { send } = await harness();
+
+  const response = await send(ORGANIZER, "DELETE", "/api/v1/admin/groups/no-such-group");
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "not_found" });
+});
 
 test("pressing Allocate again places a deleted group's members, and moves nobody else", async () => {
-  const { clock, createGroup, joinCrowd, allocate, board } = await harness();
+  const { clock, createGroup, joinCrowd, allocate, deleteGroup, board } = await harness();
   const doomed = await createGroup("Mixer A");
   clock.advanceSeconds(1);
   await createGroup("Mixer B");
@@ -700,7 +924,7 @@ test("with groups of 3 and 2 both at capacity, the next person still joins the g
 });
 
 test("with no groups left, a latecomer waits, and knows allocation has started", async () => {
-  const { createGroup, joinCrowd, allocate, join, board } = await harness();
+  const { createGroup, joinCrowd, allocate, deleteGroup, join, board } = await harness();
   const only = await createGroup("Mixer A");
   const [first, second] = await joinCrowd(2);
   await allocate();
@@ -792,19 +1016,37 @@ test("someone still waiting has a row, with their group, placed time and how emp
 });
 
 test("someone an organizer placed says so", async () => {
-  const { createGroup, exportLines } = await harness();
+  const { clock, createGroup, join, place, exportLines } = await harness();
   const group = await createGroup("Mixer A");
-  // Written straight into the table until BAC-132 gives organizers the route.
-  await testDb().insert(groupMembers).values({
-    userId: "user-1",
-    groupId: group.id,
-    joinedAt: JOINED_AT,
-    placedAt: "2026-11-05T01:05:00.000Z",
-    how: "organizer",
-  });
+  await join("user-1");
+  clock.advanceSeconds(300);
+
+  await place("user-1", group.id);
 
   assert.deepEqual((await exportLines()).slice(1), [
     `user-1,Alex,Mixer A,${JOINED_AT},2026-11-05T01:05:00.000Z,organizer`,
+  ]);
+});
+
+test("someone sent back to waiting, or whose group was deleted, has their group, placed time and how empty", async () => {
+  const { clock, createGroup, joinCrowd, allocate, place, deleteGroup, exportLines } =
+    await harness({ shuffle: (items) => items });
+  const doomed = await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  await createGroup("Mixer B");
+  const [first, second, third, fourth] = await joinCrowd(4);
+  const at = clock.now().toISOString();
+  await allocate();
+
+  // In order, first and third went to Mixer A, second and fourth to Mixer B.
+  await place(second!, null);
+  await deleteGroup(doomed.id);
+
+  assert.deepEqual((await exportLines()).slice(1), [
+    `${first},Person 01,,${at},,`,
+    `${second},Person 02,,${at},,`,
+    `${third},Person 03,,${at},,`,
+    `${fourth},Person 04,Mixer B,${at},${at},allocated`,
   ]);
 });
 
@@ -826,4 +1068,289 @@ test("a name with a comma or a quote is quoted, and one like a formula is left a
     `user-1,"Sam ""the"" Tapper","Hall, Level 2",${JOINED_AT},${JOINED_AT},allocated`,
     `user-2,=1+1,"Hall, Level 2",${JOINED_AT},${JOINED_AT},allocated`,
   ]);
+});
+
+/** The member `userId` on `board`, with their group's ID, or undefined when not placed. */
+const placedOn = (board: BoardBody, userId: string) => {
+  for (const group of board.groups) {
+    const member = group.members.find(({ user_id }) => user_id === userId);
+    if (member) return { ...member, group_id: group.id };
+  }
+  return undefined;
+};
+
+test("an organizer can put a waiting participant in a group before Allocate, and Allocate leaves them", async () => {
+  const { clock, createGroup, join, place, allocate, joinCrowd } = await harness();
+  await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  const chosen = await createGroup("Mixer B");
+  await join("user-1");
+  const joinedAt = clock.now().toISOString();
+  clock.advanceSeconds(30);
+
+  const board = await place("user-1", chosen.id);
+
+  assert.deepEqual(placedOn(board, "user-1"), {
+    user_id: "user-1",
+    display_name: "Alex",
+    joined_at: joinedAt,
+    placed_at: clock.now().toISOString(),
+    how: "organizer",
+    group_id: chosen.id,
+  });
+  assert.deepEqual(board.waiting, []);
+  assert.equal(board.allocation_started_at, null);
+
+  await joinCrowd(3);
+  const after = await allocate();
+  assert.equal(placedOn(after, "user-1")!.group_id, chosen.id);
+  assert.equal(placedOn(after, "user-1")!.how, "organizer");
+});
+
+test("an organizer can move a placed participant to another group, and they see it", async () => {
+  const { clock, createGroup, joinCrowd, allocate, place, myGroup } = await harness();
+  await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  await createGroup("Mixer B");
+  const crowd = await joinCrowd(4);
+  const before = await allocate();
+  const mover = crowd[0]!;
+  const from = placedOn(before, mover)!.group_id;
+  const to = before.groups.find(({ id }) => id !== from)!;
+  clock.advanceSeconds(60);
+
+  const after = await place(mover, to.id);
+
+  assert.equal(placedOn(after, mover)!.group_id, to.id);
+  assert.equal(placedOn(after, mover)!.how, "organizer");
+  assert.equal(placedOn(after, mover)!.placed_at, clock.now().toISOString());
+  const mine = await myGroup(mover);
+  assert.equal(mine.group!.id, to.id);
+  assert.equal(mine.group!.name, to.name);
+});
+
+test("putting someone in the group they're already in changes nothing", async () => {
+  const { clock, createGroup, joinCrowd, allocate, place } = await harness();
+  await createGroup("Mixer A");
+  const [first] = await joinCrowd(2);
+  const before = await allocate();
+  clock.advanceSeconds(60);
+
+  const after = await place(first!, before.groups[0]!.id);
+
+  assert.deepEqual(placedOn(after, first!), placedOn(before, first!));
+});
+
+test("an organizer can send a placed participant back to waiting", async () => {
+  const { createGroup, joinCrowd, allocate, place, myGroup } = await harness();
+  await createGroup("Mixer A");
+  const [first] = await joinCrowd(2);
+  await allocate();
+
+  const board = await place(first!, null);
+
+  assert.equal(placedOn(board, first!), undefined);
+  assert.deepEqual(
+    board.waiting.map(({ user_id }) => user_id),
+    [first],
+  );
+  assert.deepEqual(await myGroup(first!), {
+    status: "waiting",
+    allocation_started: true,
+    group: null,
+  });
+});
+
+test("an organizer can put someone in a full group, which the board shows over capacity", async () => {
+  const { createGroup, joinCrowd, allocate, place } = await harness();
+  const full = await createGroup("Small room", 2);
+  const [first, second, third] = await joinCrowd(3);
+  await place(first!, full.id);
+  await place(second!, full.id);
+
+  const board = await place(third!, full.id);
+
+  assert.deepEqual(
+    board.groups.map(({ capacity, members }) => [members.length, capacity]),
+    [[3, 2]],
+  );
+  assert.deepEqual((await allocate()).groups[0]!.members.length, 3);
+});
+
+test("putting in a group someone who hasn't joined joins them", async () => {
+  const { clock, createGroup, place, myGroup } = await harness();
+  const group = await createGroup("Mixer A");
+  clock.advanceSeconds(5);
+
+  const board = await place("user-2", group.id);
+
+  assert.equal(board.joined_count, 1);
+  const member = placedOn(board, "user-2")!;
+  assert.equal(member.joined_at, clock.now().toISOString());
+  assert.equal(member.placed_at, clock.now().toISOString());
+  assert.equal((await myGroup("user-2")).status, "placed");
+
+  const waiting = await place("user-3", null);
+  assert.deepEqual(
+    waiting.waiting.map(({ user_id }) => user_id),
+    ["user-3"],
+  );
+});
+
+test("putting someone in a group answers 404 not_found for a group or a user that doesn't exist", async () => {
+  const { send, createGroup, join, board } = await harness();
+  const group = await createGroup("Mixer A");
+  await join("user-1");
+
+  for (const [userId, groupId] of [
+    ["user-1", "no-such-group"],
+    ["no-such-user", group.id],
+    ["no-such-user", null],
+  ] as const) {
+    const response = await send(ORGANIZER, "PUT", `/api/v1/admin/groups/members/${userId}`, {
+      group_id: groupId,
+    });
+    assert.equal(response.status, 404, `${userId} to ${groupId}`);
+    assert.deepEqual(await response.json(), { error: "not_found" });
+  }
+  const after = await board();
+  assert.equal(after.joined_count, 1);
+  assert.deepEqual(
+    after.waiting.map(({ user_id }) => user_id),
+    ["user-1"],
+  );
+});
+
+test("putting someone in a group needs group_id, a string or null", async () => {
+  const { send, join } = await harness();
+  await join("user-1");
+
+  for (const body of [{}, { group_id: 3 }]) {
+    const response = await send(ORGANIZER, "PUT", "/api/v1/admin/groups/members/user-1", body);
+    assert.equal(response.status, 400, JSON.stringify(body));
+    const { error, issues } = (await response.json()) as {
+      error: string;
+      issues: { path: string[] }[];
+    };
+    assert.equal(error, "validation_failed");
+    assert.deepEqual(issues[0]!.path, ["group_id"]);
+  }
+});
+
+test("an organizer account can't be put in a group, and answers 403 forbidden", async () => {
+  const { send, createGroup, board } = await harness();
+  const group = await createGroup("Mixer A");
+
+  const response = await send(ORGANIZER, "PUT", `/api/v1/admin/groups/members/${ORGANIZER}`, {
+    group_id: group.id,
+  });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { error: "forbidden" });
+  assert.equal((await board()).joined_count, 0);
+});
+
+test("a removed participant leaves the board, and can join again", async () => {
+  const { clock, send, createGroup, joinCrowd, allocate, board, myGroup, join } = await harness();
+  const group = await createGroup("Mixer A");
+  const [leaver, stayer] = await joinCrowd(2);
+  await allocate();
+
+  const response = await send(ORGANIZER, "DELETE", `/api/v1/admin/groups/members/${leaver}`);
+
+  assert.equal(response.status, 204);
+  const after = await board();
+  assert.equal(after.joined_count, 1);
+  assert.deepEqual(
+    after.groups[0]!.members.map(({ user_id }) => user_id),
+    [stayer],
+  );
+  assert.deepEqual(await myGroup(leaver!), {
+    status: "not_joined",
+    allocation_started: true,
+    group: null,
+  });
+
+  // Back again after Allocate, they're a latecomer, placed as they join.
+  clock.advanceSeconds(300);
+  const again = await join(leaver!);
+  assert.equal(again.status, "placed");
+  assert.equal(again.group!.id, group.id);
+  const rejoined = placedOn(await board(), leaver!)!;
+  assert.equal(rejoined.how, "latecomer");
+  assert.equal(rejoined.joined_at, clock.now().toISOString());
+});
+
+test("removing someone who hasn't joined answers 404 not_found", async () => {
+  const { send } = await harness();
+
+  const response = await send(ORGANIZER, "DELETE", "/api/v1/admin/groups/members/user-1");
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "not_found" });
+});
+
+test("someone made an organizer after joining is kept out of Allocate, the board and their group", async () => {
+  const {
+    promotedInstance: later,
+    createGroup,
+    join,
+    joinCrowd,
+    allocate,
+    board,
+    myGroup,
+  } = await harness({ promoted: ["user-1"] });
+  await createGroup("Mixer A");
+  await join("user-1");
+  const crowd = await joinCrowd(2);
+
+  const after = await allocate(later);
+
+  assert.equal(after.joined_count, 2);
+  assert.deepEqual(after.waiting, []);
+  assert.deepEqual(after.groups[0]!.members.map(({ user_id }) => user_id).sort(), crowd.sort());
+  assert.deepEqual(await board(later), after);
+  assert.deepEqual(await myGroup("user-1", later), {
+    status: "not_joined",
+    allocation_started: true,
+    group: null,
+  });
+});
+
+test("someone made an organizer after being placed leaves their group's size and names", async () => {
+  const {
+    clock,
+    promotedInstance: later,
+    createGroup,
+    join,
+    arriveCrowd,
+    joinCrowd,
+    allocate,
+    board,
+    myGroup,
+  } = await harness({ promoted: ["user-1"] });
+  await createGroup("Mixer A");
+  clock.advanceSeconds(1);
+  await createGroup("Mixer B");
+  await join("user-1");
+  await joinCrowd(3);
+  const before = await allocate();
+  const theirs = placedOn(before, "user-1")!.group_id;
+  const mate = before.groups
+    .find(({ id }) => id === theirs)!
+    .members.find(({ user_id }) => user_id !== "user-1")!;
+
+  const after = await board(later);
+  assert.deepEqual(
+    after.groups.map(({ id, members }) => [id, members.length]),
+    before.groups.map(({ id }) => [id, id === theirs ? 1 : 2]),
+  );
+  assert.deepEqual(
+    (await myGroup(mate.user_id, later)).group!.members.map(({ display_name }) => display_name),
+    [mate.display_name],
+  );
+
+  // Their group is now the smaller, so the next latecomer goes there.
+  const [latecomer] = await arriveCrowd(1);
+  assert.equal((await join(latecomer!, later)).group!.id, theirs);
 });

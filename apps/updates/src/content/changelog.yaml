@@ -2093,3 +2093,12 @@
     Organizers can download a CSV from the Groups screen, listing each person's group, join time,
     placement time and how they were placed. It keeps a trial's times for the report's time to
     group.
+
+- id: groups-edited-by-hand
+  date: 2026-11-04
+  area: backend
+  change: >-
+    On the Groups screen, an organizer can give a group tags and a location, edit or delete it,
+    and move anyone to another group, back to waiting or off the board. A participant's dashboard
+    shows their group's tags and location, and shows their new group within 15 seconds when an
+    organizer moves them.

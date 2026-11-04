@@ -199,6 +199,28 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       sendJson("/api/v1/admin/groups/allocate", { method: "POST" }).then(parseGroupBoardResponse),
 
     exportGroupsCsv: async () => (await send("/api/v1/admin/groups/export.csv")).blob(),
+
+    updateGroup: (groupId, input) =>
+      sendJson(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`, jsonBody(input, "PUT")).then(
+        parseEventGroup,
+      ),
+
+    // A delete answers 204 with no body.
+    deleteGroup: async (groupId) => {
+      await send(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`, { method: "DELETE" });
+    },
+
+    placeGroupMember: (userId, groupId) =>
+      sendJson(
+        `/api/v1/admin/groups/members/${encodeURIComponent(userId)}`,
+        jsonBody({ group_id: groupId }, "PUT"),
+      ).then(parseGroupBoardResponse),
+
+    removeGroupMember: async (userId) => {
+      await send(`/api/v1/admin/groups/members/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+      });
+    },
   };
 }
 

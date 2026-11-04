@@ -2,8 +2,8 @@ import { z } from "zod";
 
 /**
  * The longest station label, passport name, location or booth, in Unicode code
- * points (the API agreement's 9.1 and 9.7), and of a group's name, in the
- * participant groups spec's draft for the agreement's 0.14.
+ * points (the API agreement's 9.1 and 9.7), and of a group's name, tag or
+ * location, in the participant groups spec's draft for the agreement's 0.14.
  */
 const TEXT_MAX = 80;
 
@@ -20,3 +20,9 @@ export const organizerText = (field: string, { blankAllowed = false } = {}) =>
       (text) => (blankAllowed || text !== "") && [...text].length <= TEXT_MAX,
       `${field} must be ${blankAllowed ? 0 : 1} to ${TEXT_MAX} characters`,
     );
+
+/** Optional text an organizer types: a blank or missing one is none. */
+export const optionalOrganizerText = (field: string) =>
+  organizerText(field, { blankAllowed: true })
+    .nullish()
+    .transform((text) => text || null);
