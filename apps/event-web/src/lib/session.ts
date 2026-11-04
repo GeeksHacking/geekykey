@@ -19,6 +19,16 @@ export interface SessionState {
    * someone signs in or out. The session it had carries on underneath.
    */
   loginLinkError?: unknown;
+  /**
+   * True while an accepted login link's arrival has not been consumed. The dashboard keeps its
+   * loading card and joins, so the away-from-event Join hint never flashes on the way in.
+   */
+  loginLinkArrival?: boolean;
+  /**
+   * Whether the page arrived with a login link that was accepted (agreement 7.4). Answers true
+   * once, then false, so the dashboard joins the participant once.
+   */
+  consumeLoginLinkArrival: () => boolean;
   /** A recent 403 from an identity-scoped request, consumed by the role gate. */
   authorizationError?: unknown;
   /** Re-fetch /me. Call after anything that changes stamps, points, or recent taps. */

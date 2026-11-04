@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({ me: null as MeResponse | null }));
 
 vi.mock("@/lib/session", () => ({
   useMe: () => ({ me: state.me, refresh: async () => {} }),
+  useSession: () => ({ consumeLoginLinkArrival: () => false }),
 }));
 
 vi.mock("@/components/layout/section-heading", () => ({

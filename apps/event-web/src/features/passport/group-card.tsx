@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { describeError } from "@/api/errors";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useJoinGroups } from "@/features/passport/use-join-groups";
 import { useMyGroup } from "@/features/passport/use-my-group";
 import { showStaleNote } from "@/lib/rate-limit";
+import { useSession } from "@/lib/session";
 
 function Frame({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -20,14 +21,43 @@ function Frame({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** The card's loading state, from the first read through a join on arrival. */
+function Loading() {
+  return (
+    <div
+      className="space-y-2 rounded-lg border bg-card p-4"
+      role="status"
+      aria-label="Loading your group"
+    >
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-5 w-48" />
+    </div>
+  );
+}
+
 /**
  * The top of the participant's dashboard (spec: participant groups): a Join button until they
- * join, then that they're waiting, then their group and its members' names.
+ * join, then that they're waiting, then their group and its members' names. A page that arrived
+ * through a login link joins by itself, so the token is all the participant needs.
  */
 export function GroupCard() {
   const myGroup = useMyGroup();
-  const join = useJoinGroups();
+  const {
+    mutate: joinGroups,
+    isPending: joinPending,
+    isError: joinFailed,
+    error: joinError,
+  } = useJoinGroups();
+  const { consumeLoginLinkArrival, loginLinkArrival } = useSession();
   const refetch = () => void myGroup.refetch();
+
+  // Spend the arrival on the first status, and join only when they haven't already. A join that
+  // fails leaves the status alone, so the button below is still there with its error.
+  useEffect(() => {
+    if (!myGroup.data) return;
+    if (!consumeLoginLinkArrival()) return;
+    if (myGroup.data.status === "not_joined") joinGroups();
+  }, [consumeLoginLinkArrival, joinGroups, myGroup.data]);
 
   if (!myGroup.data) {
     return myGroup.isError ? (
@@ -37,15 +67,13 @@ export function GroupCard() {
         title="Your group couldn't be loaded."
       />
     ) : (
-      <div
-        className="space-y-2 rounded-lg border bg-card p-4"
-        role="status"
-        aria-label="Loading your group"
-      >
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-5 w-48" />
-      </div>
+      <Loading />
     );
+  }
+
+  // A token visitor should never read the away-from-event hint while the join is on its way.
+  if (myGroup.data.status === "not_joined" && (loginLinkArrival === true || joinPending)) {
+    return <Loading />;
   }
 
   const { status, group } = myGroup.data;
@@ -88,14 +116,14 @@ export function GroupCard() {
           <Button
             type="button"
             className="mt-3"
-            disabled={join.isPending}
-            onClick={() => join.mutate()}
+            disabled={joinPending}
+            onClick={() => joinGroups()}
           >
             Join
           </Button>
-          {join.isError ? (
+          {joinFailed ? (
             <p role="alert" className="mt-2 text-sm text-destructive">
-              {describeError(join.error)}
+              {describeError(joinError)}
             </p>
           ) : null}
         </Frame>

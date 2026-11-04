@@ -465,6 +465,52 @@ describe("SessionProvider with a login link", () => {
     expect(api.loginLink).toHaveBeenCalledTimes(1);
   });
 
+  it("answers the arrival once, so the dashboard joins once", async () => {
+    const { result } = setup(undefined, "mock");
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    expect(result.current.loginLinkArrival).toBe(true);
+    let consumed = false;
+    act(() => {
+      consumed = result.current.consumeLoginLinkArrival();
+    });
+    expect(consumed).toBe(true);
+    await waitFor(() => expect(result.current.loginLinkArrival).toBe(false));
+    expect(result.current.consumeLoginLinkArrival()).toBe(false);
+  });
+
+  it("answers no arrival when the link was refused", async () => {
+    const { result } = setup(undefined, "expired-link");
+    await waitFor(() => expect(result.current.status).toBe("anonymous"));
+
+    expect(result.current.loginLinkArrival).toBe(false);
+    expect(result.current.consumeLoginLinkArrival()).toBe(false);
+  });
+
+  it("drops an unused arrival when someone signs in", async () => {
+    const { result } = setup(undefined, "mock");
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    await act(async () => {
+      await result.current.signIn(SEEDED_PARTICIPANT_ID);
+    });
+
+    expect(result.current.loginLinkArrival).toBe(false);
+    expect(result.current.consumeLoginLinkArrival()).toBe(false);
+  });
+
+  it("drops an unused arrival on sign-out", async () => {
+    const { result } = setup(undefined, "mock");
+    await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(result.current.loginLinkArrival).toBe(false);
+    expect(result.current.consumeLoginLinkArrival()).toBe(false);
+  });
+
   it("forgets the link's error once someone signs in", async () => {
     const { result } = setup(undefined, "expired-link");
     await waitFor(() => expect(result.current.loginLinkError).toBeDefined());
@@ -482,6 +528,8 @@ describe("SessionProvider with a login link", () => {
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(api.loginLink).not.toHaveBeenCalled();
     expect(result.current.loginLinkError).toBeUndefined();
+    expect(result.current.loginLinkArrival).toBe(false);
+    expect(result.current.consumeLoginLinkArrival()).toBe(false);
   });
 });
 
