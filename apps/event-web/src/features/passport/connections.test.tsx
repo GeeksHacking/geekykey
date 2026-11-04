@@ -90,7 +90,7 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
     guestOf(api).connections = [connection(0, { match: 67 })];
     await poll();
 
-    expect(screen.getByText("You're a 67% match!")).toBeInTheDocument();
+    expect(screen.getByText("67% match!")).toBeInTheDocument();
     expect(screen.getByText(TALK)).toBeInTheDocument();
   });
 
@@ -105,71 +105,71 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
   it("shows 0% as a match, not as no match", async () => {
     renderScreen(setUp([connection(0, { match: 0 })]));
 
-    expect(await screen.findByText("You're a 0% match!")).toBeInTheDocument();
+    expect(await screen.findByText("0% match!")).toBeInTheDocument();
   });
 
   it("shows a connection the page arrived with, because the token page's button leads here", async () => {
     renderScreen(setUp([connection(0, { match: 67 })]));
 
-    expect(await screen.findByText("You're a 67% match!")).toBeInTheDocument();
+    expect(await screen.findByText("67% match!")).toBeInTheDocument();
   });
 
   it("shows the newest of several new connections", async () => {
     renderScreen(setUp([connection(1, { match: 80 }), connection(9, { match: 20 })]));
 
-    expect(await screen.findByText("You're a 80% match!")).toBeInTheDocument();
-    expect(screen.queryByText("You're a 20% match!")).not.toBeInTheDocument();
+    expect(await screen.findByText("80% match!")).toBeInTheDocument();
+    expect(screen.queryByText("20% match!")).not.toBeInTheDocument();
   });
 
   it("stays dismissed after a reload, and comes back for the next connection", async () => {
     const api = setUp([connection(5, { match: 67 })]);
     const first = renderScreen(api);
-    await screen.findByText("You're a 67% match!");
+    await screen.findByText("67% match!");
 
     await first.user.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByText("You're a 67% match!")).not.toBeInTheDocument();
+    expect(screen.queryByText("67% match!")).not.toBeInTheDocument();
 
     await first.poll();
-    expect(screen.queryByText("You're a 67% match!")).not.toBeInTheDocument();
+    expect(screen.queryByText("67% match!")).not.toBeInTheDocument();
 
     first.unmount();
     const second = renderScreen(api);
     await screen.findByRole("list", { name: "Stamps" });
-    expect(screen.queryByText("You're a 67% match!")).not.toBeInTheDocument();
+    expect(screen.queryByText("67% match!")).not.toBeInTheDocument();
 
     guestOf(api).connections = [connection(0, { match: 33 }), ...(guestOf(api).connections ?? [])];
     await second.poll();
-    expect(screen.getByText("You're a 33% match!")).toBeInTheDocument();
+    expect(screen.getByText("33% match!")).toBeInTheDocument();
   });
 
   it("stays until it is dismissed, on the next visit too", async () => {
     const api = setUp([connection(5, { match: 67 })]);
     const first = renderScreen(api);
-    await screen.findByText("You're a 67% match!");
+    await screen.findByText("67% match!");
 
     first.unmount();
     renderScreen(api, <DashboardScreen />);
 
-    expect(await screen.findByText("You're a 67% match!")).toBeInTheDocument();
+    expect(await screen.findByText("67% match!")).toBeInTheDocument();
   });
 
   it("is still shown to the next person on a shared phone", async () => {
     const api = setUp([connection(5, { match: 67 })]);
     const first = renderScreen(api);
-    await screen.findByText("You're a 67% match!");
+    await screen.findByText("67% match!");
     await first.user.click(screen.getByRole("button", { name: "Dismiss" }));
     first.unmount();
 
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderScreen(api);
 
-    expect(await screen.findByText("You're a 60% match!")).toBeInTheDocument();
+    expect(await screen.findByText("60% match!")).toBeInTheDocument();
   });
 
   it("shows on the dashboard, where the token page's login link lands", async () => {
     renderScreen(setUp([connection(0, { match: 67 })]), <DashboardScreen />);
 
-    expect(await screen.findByText("You're a 67% match!")).toBeInTheDocument();
+    expect(await screen.findByText("67% match!")).toBeInTheDocument();
   });
 });
 
