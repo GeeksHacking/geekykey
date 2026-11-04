@@ -99,6 +99,17 @@ describe("DashboardScreen's avatar", () => {
     expect(avatar).toHaveTextContent("1 of 2 pieces · 5 points");
   });
 
+  it("says the picture can be added as a sticker in WhatsApp", () => {
+    state.me = dressing;
+    renderDashboard();
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    const button = within(avatar).getByRole("button", { name: "Save as sticker" });
+    expect(button).toHaveAccessibleDescription(
+      "You can add this picture as a sticker in WhatsApp.",
+    );
+  });
+
   it("keeps a colour the guest picks, for that guest only", async () => {
     const user = userEvent.setup();
     state.me = dressing;

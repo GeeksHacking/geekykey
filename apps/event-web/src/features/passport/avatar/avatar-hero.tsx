@@ -70,10 +70,15 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
         arriving={arriving}
         pointsRose={changes.points !== null}
       />
-      <div className="flex flex-wrap justify-center gap-2">
-        <StickerButton slots={outfit.slots} colours={colours} />
-        <MemoryCardDialog slots={outfit.slots} colours={colours} name={name} />
-        <ColoursDialog userId={me.user.id} />
+      <div className="space-y-2">
+        <div className="flex flex-wrap justify-center gap-2">
+          <StickerButton slots={outfit.slots} colours={colours} describedBy="sticker-hint" />
+          <MemoryCardDialog slots={outfit.slots} colours={colours} name={name} />
+          <ColoursDialog userId={me.user.id} />
+        </div>
+        <p id="sticker-hint" className="text-center text-sm text-muted-foreground">
+          You can add this picture as a sticker in WhatsApp.
+        </p>
       </div>
       {isOrganizer ? <DemoPieces character={colours.character} demo={demo} /> : null}
     </section>
