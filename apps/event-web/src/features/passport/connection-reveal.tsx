@@ -11,7 +11,7 @@ export function ConnectionReveal({ me }: { me: MeResponse }) {
     <section
       role="status"
       aria-label="New connection"
-      className="relative flex flex-col gap-3 rounded-lg border bg-card p-4 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-200 sm:flex-row sm:items-center sm:justify-between"
+      className="relative flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
     >
       <CornerBrackets />
       <div className="min-w-0">

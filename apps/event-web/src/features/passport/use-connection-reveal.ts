@@ -18,13 +18,13 @@ function readDismissed(userId: string): string | null {
   }
 }
 
-export interface ConnectionReveal {
+export interface ConnectionRevealState {
   /** The newest connection, until it is dismissed. */
   connection: Connection | null;
   dismiss: () => void;
 }
 
-export function useConnectionReveal(me: MeResponse): ConnectionReveal {
+export function useConnectionReveal(me: MeResponse): ConnectionRevealState {
   const userId = me.user.id;
   const newest = me.connections[0] ?? null;
   const [dismissed, setDismissed] = useState<{ userId: string; at: string } | null>(null);

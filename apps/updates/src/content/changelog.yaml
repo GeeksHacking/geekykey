@@ -2018,6 +2018,5 @@
   date: 2026-11-04
   area: frontend
   change: >-
-    After a connection, the dashboard and the passport show the percentage match and ask the two
-    guests to talk. Two minutes later a button lists the answers they share. Each screen also
-    lists the guest's connections, with no names.
+    After a connection, the dashboard and the passport show the percentage match and list the
+    guest's connections, with no names. Two minutes later a button lists the answers the two share.
