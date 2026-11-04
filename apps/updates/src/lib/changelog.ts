@@ -106,11 +106,27 @@ function inFileOrder(loaded: Change[]): Change[] {
 /** Short lowercase words joined by hyphens, since it ends up in a link: /changelog#api-v1-me */
 const ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+const MAX_SENTENCES = 2;
+const SENTENCE_END = /[.!?](?=\s|$)/g;
+const TRADE_OFFS = "The trade-offs we accept:";
+/** Lines up to this day were written before the check, and most are longer. They stay as they are. */
+const LONG_LINES_UNTIL = "2026-11-04";
+
 function check(change: Change) {
   if (!ID.test(change.id)) {
     fail(`the id "${change.id}" should be lowercase words joined by hyphens, like api-v1-me.`);
   }
   checkText([change.data.change], fail);
+
+  // A decision's line may end with one more sentence, which this marker starts.
+  const [said = ""] = change.data.change.split(TRADE_OFFS);
+  const sentences = said.replace(/\b(e\.g|i\.e)\./g, "$1").match(SENTENCE_END)?.length ?? 0;
+  if (isoDay(change.data.date) > LONG_LINES_UNTIL && sentences > MAX_SENTENCES) {
+    fail(
+      `the line "${change.id}" has ${sentences} sentences. CONTENT-MODEL.md asks for one or two, ` +
+        `and one more for "${TRADE_OFFS}". If there's more to say, it belongs in an entry.`,
+    );
+  }
 }
 
 /**

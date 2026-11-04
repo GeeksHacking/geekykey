@@ -261,9 +261,20 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The build can't see a changelog line that went missing, since what's
+      # left is still a valid file.
+      - name: Changelog keeps its lines
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --depth=1 origin "$BASE_REF"
+          node apps/updates/scripts/check-changelog-ids.ts FETCH_HEAD
+
       # The build is also the site's content check: it stops on a bad entry
-      # file name, a banned dash, a changelog line out of order, or a leftover
-      # TODO( marker. Running it here catches those on the PR that adds them.
+      # file name, a banned dash, a changelog line out of order, a line too
+      # long, or a leftover TODO( marker. Running it here catches those on the
+      # PR that adds them.
       - name: Build
         run: pnpm build:updates
         env:
