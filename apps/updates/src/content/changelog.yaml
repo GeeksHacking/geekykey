@@ -2003,3 +2003,13 @@
   change: >-
     The map on the big screen shows the event's connection count and an anonymous web of
     numbered nodes.
+
+- id: participant-groups-planned
+  date: 2026-11-04
+  area: research
+  change: >-
+    The plan now has participant groups, as an extension after the token game. Organizers create
+    groups, and the app splits everyone who has joined at random, then places each latecomer in the
+    smallest group with room. The trade-offs we accept: when every group is full, people overflow into the
+    smallest group rather than wait, and joining works without a token, so the token is one way in
+    rather than a requirement.
