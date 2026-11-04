@@ -393,3 +393,16 @@ export const EXPORT_CSV_COLUMNS = [
   "tapped_at",
   "received_at",
 ] as const;
+
+/**
+ * CSV columns of GET /api/v1/admin/groups/export.csv, in order (draft for agreement 0.14).
+ * `group_name`, `placed_at` and `how` are empty for someone still waiting.
+ */
+export const GROUPS_EXPORT_CSV_COLUMNS = [
+  "user_id",
+  "display_name",
+  "group_name",
+  "joined_at",
+  "placed_at",
+  "how",
+] as const;

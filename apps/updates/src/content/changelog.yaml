@@ -2086,3 +2086,10 @@
     Once an organizer has pressed Allocate, anyone who joins goes straight into the smallest group
     with room, even when many join at once. Anyone still waiting after that sees a line on their
     dashboard asking them to find an organizer.
+- id: groups-times-export
+  date: 2026-11-04
+  area: backend
+  change: >-
+    Organizers can download a CSV from the Groups screen, listing each person's group, join time,
+    placement time and how they were placed. It keeps a trial's times for the report's time to
+    group.

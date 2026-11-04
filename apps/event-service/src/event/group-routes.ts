@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AppEnv } from "../app.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody } from "../lib/validate.ts";
+import { exportGroupsCsv } from "./export.ts";
 import {
   allocateWaiting,
   createGroup,
@@ -136,6 +137,14 @@ export function adminGroupRoutes({
     log("groups_allocated", { user_id: c.var.user.id });
     return c.json(groupBoardBody(await loadGroupBoard(c.var.db)));
   });
+
+  // Each person's group, times and how they were placed, as a file for the report.
+  app.get("/export.csv", async (c) =>
+    c.body(await exportGroupsCsv(c.var.db), 200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="geekykey-groups.csv"',
+    }),
+  );
 
   return app;
 }

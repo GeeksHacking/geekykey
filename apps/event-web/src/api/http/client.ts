@@ -197,6 +197,8 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     allocateGroups: () =>
       sendJson("/api/v1/admin/groups/allocate", { method: "POST" }).then(parseGroupBoardResponse),
+
+    exportGroupsCsv: async () => (await send("/api/v1/admin/groups/export.csv")).blob(),
   };
 }
 

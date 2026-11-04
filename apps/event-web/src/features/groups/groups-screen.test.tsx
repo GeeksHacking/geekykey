@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { toast } from "sonner";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
@@ -36,7 +37,80 @@ async function createGroup(
   await user.click(within(dialog).getByRole("button", { name: "Create group" }));
 }
 
+/** Catches the file a download saves, with its name, in place of the browser saving it. */
+function catchDownload() {
+  const saved: { blob?: Blob; name?: string } = {};
+  const original = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  URL.createObjectURL = (blob) => {
+    saved.blob = blob as Blob;
+    return "blob:groups";
+  };
+  URL.revokeObjectURL = () => {};
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    saved.name = this.download;
+  });
+  onTestFinished(() => {
+    URL.createObjectURL = original;
+    URL.revokeObjectURL = originalRevoke;
+    click.mockRestore();
+  });
+  return saved;
+}
+
 describe("GroupsScreen", () => {
+  it("downloads everyone's group, times and how as a CSV, named for the groups", async () => {
+    const saved = catchDownload();
+    const { user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    await user.click(screen.getByRole("button", { name: "Download CSV" }));
+
+    await waitFor(() => expect(saved.name).toMatch(/^geekykey-groups-\d{8}-\d{4}\.csv$/));
+    const lines = (await saved.blob!.text()).trimEnd().split("\r\n");
+    expect(lines[0]).toBe("user_id,display_name,group_name,joined_at,placed_at,how");
+    expect(lines).toHaveLength(6);
+    expect(
+      screen.getByText(
+        "A value that a spreadsheet could run as a formula gets an apostrophe, so it stays text.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Some values were escaped, so this file is not the service's own."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("escapes a name a spreadsheet could run as a formula, and says the file was changed", async () => {
+    const saved = catchDownload();
+    const { api, user } = renderScreen();
+    api.mock.data.users.find((candidate) => candidate.id === "u_7f3a")!.display_name = "=2+2";
+    await screen.findByRole("list", { name: "Waiting" });
+
+    await user.click(screen.getByRole("button", { name: "Download CSV" }));
+
+    await screen.findByText("Some values were escaped, so this file is not the service's own.");
+    expect(await saved.blob!.text()).toContain("u_7f3a,'=2+2,");
+  });
+
+  it("says why a download failed, saves nothing, and lets the organiser try again", async () => {
+    const saved = catchDownload();
+    const error = vi.spyOn(toast, "error");
+    onTestFinished(() => error.mockRestore());
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    api.mock.failNext("rate_limited");
+
+    await user.click(screen.getByRole("button", { name: "Download CSV" }));
+
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith("Too many requests. Wait a minute and try again."),
+    );
+    expect(saved.blob).toBeUndefined();
+    expect(screen.getByRole("button", { name: "Download CSV" })).toBeEnabled();
+  });
+
   it("says what to do with no groups, and Allocate says why it can't run", async () => {
     const { user } = renderScreen({ cleared: true });
 

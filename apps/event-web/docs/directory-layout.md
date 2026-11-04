@@ -63,7 +63,7 @@ apps/event-web/
       stations/             # station board, add-station dialog, one-time key reveal,
                            # passport settings form (add or edit a slot), booth dialog,
                            # each row's Actions menu
-      groups/               # the organisers' Groups screen: create a group, Allocate, each group's members, who is waiting
+      groups/               # the organisers' Groups screen: create a group, Allocate, each group's members, who is waiting, the CSV
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
@@ -73,6 +73,7 @@ apps/event-web/
       layout/               # shells, nav, page header, theme toggle, account menu, empty/error/loading views
       look/                 # the sci-fi look's corner brackets; its grid and labels are utilities in globals.css
       tap-status.tsx        # shared by several features, alongside online-status and participant-tap-list
+      csv-download-button.tsx # saves a CSV from the service; the summary and the Groups screen use it
       online-status.tsx     # online, offline, or never connected (agreement 9.2)
     api/
       types.ts              # mirrors API-AGREEMENT.md exactly

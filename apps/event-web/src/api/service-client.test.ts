@@ -21,6 +21,7 @@ describe("service client boundary", () => {
         "disableStation",
         "enableStation",
         "exportCsv",
+        "exportGroupsCsv",
         "groupBoard",
         "joinGroups",
         "listStationBoard",

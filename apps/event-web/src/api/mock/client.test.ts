@@ -3,7 +3,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { ApiError, AUTH_ERROR_EVENT } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID, SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
-import { EXPORT_CSV_COLUMNS } from "@/api/types";
+import { EXPORT_CSV_COLUMNS, GROUPS_EXPORT_CSV_COLUMNS } from "@/api/types";
 
 function client() {
   return createMockClient({ latencyMs: [0, 0], storage: null });
@@ -1152,5 +1152,63 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     const onBoard = board.groups.find(({ id }) => id === group?.id);
     expect(status).toBe("placed");
     expect(group?.members).toEqual(onBoard?.members.map(({ display_name }) => ({ display_name })));
+  });
+});
+
+describe("mock groups export", () => {
+  /** The groups CSV's lines, split on the CRLF that ends each one. */
+  async function groupExportLines(api: ReturnType<typeof client>) {
+    const text = await (await api.exportGroupsCsv()).text();
+    expect(text.endsWith("\r\n")).toBe(true);
+    return text.slice(0, -2).split("\r\n");
+  }
+
+  it("refuses a participant", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+
+    await expectApiError(api.exportGroupsCsv(), "forbidden", 403);
+  });
+
+  it("has the service's columns, and a row with an empty group for everyone waiting", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const { joined_count } = await api.groupBoard();
+
+    const [header, ...rows] = await groupExportLines(api);
+
+    expect(header).toBe(GROUPS_EXPORT_CSV_COLUMNS.join(","));
+    expect(rows).toHaveLength(joined_count);
+    for (const row of rows) {
+      const [, , group, , placedAt, how] = row.split(",");
+      expect([group, placedAt, how]).toEqual(["", "", ""]);
+    }
+  });
+
+  it("gives each placed person their group, placed time and how, in the order they joined", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const board = await api.allocateGroups();
+
+    const rows = (await groupExportLines(api)).slice(1).map((row) => row.split(","));
+
+    const joined = board.groups.flatMap((group) => group.members);
+    expect(rows.map((row) => row[0])).toEqual(
+      joined.toSorted((a, b) => a.joined_at.localeCompare(b.joined_at)).map((m) => m.user_id),
+    );
+    for (const [userId, , group, , placedAt, how] of rows) {
+      const home = board.groups.find((g) => g.members.some((m) => m.user_id === userId))!;
+      expect(group).toBe(home.name);
+      expect(placedAt).toBe(board.allocation_started_at);
+      expect(how).toBe("allocated");
+    }
+  });
+
+  it("quotes a name with a comma", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    api.mock.data.users.find((user) => user.id === "u_7f3a")!.display_name = "Chong, Wei Lin";
+
+    expect((await groupExportLines(api)).join("\n")).toContain('u_7f3a,"Chong, Wei Lin",');
   });
 });
