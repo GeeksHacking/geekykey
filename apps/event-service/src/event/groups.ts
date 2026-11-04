@@ -1,6 +1,5 @@
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { errorCode } from "../lib/log.ts";
 import type { Tx } from "./games.ts";
 import { groupAllocation, groupMembers, participantGroups, users } from "./schema.ts";
 
@@ -42,23 +41,33 @@ async function lockAllocation(tx: Tx): Promise<{ startedAt: string | null }> {
   return { startedAt: row?.startedAt ?? null };
 }
 
+/** Whether two names would confuse participants: the same, whatever their capitals. */
+function sameGroupName(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 /**
- * Makes a group with this name, or gives `"name_taken"` when another has it.
- * The name is the table's unique key, so of two at once, one insert fails.
+ * Makes a group with this name, or gives `"name_taken"` when another has it,
+ * whatever its capitals. The check is here rather than in a collation, since
+ * the ones that ignore case treat every emoji as the same character. It takes
+ * the allocation lock, so of two at once, the second sees the first.
  */
 export async function createGroup(
   db: Db,
   name: string,
   now: Date,
 ): Promise<EventGroup | "name_taken"> {
-  const group = { id: crypto.randomUUID(), name, tags: [], location: null, capacity: null };
-  try {
-    await db.insert(participantGroups).values({ ...group, createdAt: now.toISOString() });
-  } catch (err) {
-    if (errorCode(err) !== "ER_DUP_ENTRY") throw err;
-    return "name_taken";
-  }
-  return { ...group, members: [] };
+  return db.transaction(async (tx) => {
+    await lockAllocation(tx);
+    const taken = await tx
+      .select({ name: participantGroups.name })
+      .from(participantGroups)
+      .for("update");
+    if (taken.some((group) => sameGroupName(group.name, name))) return "name_taken";
+    const group = { id: crypto.randomUUID(), name, tags: [], location: null, capacity: null };
+    await tx.insert(participantGroups).values({ ...group, createdAt: now.toISOString() });
+    return { ...group, members: [] };
+  });
 }
 
 /** Joins the user, who then waits. Someone who has already joined keeps their place. */

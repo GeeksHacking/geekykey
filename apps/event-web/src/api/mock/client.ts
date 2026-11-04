@@ -776,7 +776,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             { path: ["name"], message: `name must be 1 to ${GROUP_NAME_MAX} characters` },
           ]);
         }
-        if (data.groups.some((group) => group.name === name)) fail("name_taken");
+        if (data.groups.some((group) => group.name.toLowerCase() === name.toLowerCase())) {
+          fail("name_taken");
+        }
         const group: MockGroup = {
           id: `g_${randomBase62(8)}`,
           name,

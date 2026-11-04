@@ -154,6 +154,37 @@ test("a second group with the same name gets 409 name_taken, and isn't made", as
   assert.equal((await board()).groups.length, 1);
 });
 
+test("a name that differs only in capitals is the same name", async () => {
+  const { send, createGroup, board } = await harness();
+  await createGroup("Mixer A");
+
+  const response = await send(ORGANIZER, "POST", "/api/v1/admin/groups", { name: "MIXER a" });
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: "name_taken" });
+  assert.equal((await board()).groups.length, 1);
+});
+
+test("two names that differ only in their emoji are different names", async () => {
+  const { createGroup, board } = await harness();
+
+  await createGroup("Mixer 😀");
+  await createGroup("Mixer 😁");
+
+  assert.equal((await board()).groups.length, 2);
+});
+
+test("two creates at once with the same name make one group", async () => {
+  const { send, board } = await harness();
+
+  const answers = await Promise.all(
+    ["Mixer A", "mixer a"].map((name) => send(ORGANIZER, "POST", "/api/v1/admin/groups", { name })),
+  );
+
+  assert.deepEqual(answers.map(({ status }) => status).sort(), [201, 409]);
+  assert.equal((await board()).groups.length, 1);
+});
+
 test("a group's name must be 1 to 80 characters", async () => {
   const { send, createGroup } = await harness();
 

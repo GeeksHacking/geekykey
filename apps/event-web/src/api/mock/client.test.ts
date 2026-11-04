@@ -1037,6 +1037,7 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     await api.createGroup({ name: "Mixer A" });
 
     await expectApiError(api.createGroup({ name: " Mixer A " }), "name_taken", 409);
+    await expectApiError(api.createGroup({ name: "mixer a" }), "name_taken", 409);
     await expectApiError(api.createGroup({ name: "   " }), "validation_failed", 400);
   });
 

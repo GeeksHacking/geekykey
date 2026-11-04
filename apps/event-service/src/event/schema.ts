@@ -182,7 +182,10 @@ export const userKinds = mysqlTable("user_kinds", {
  */
 export const participantGroups = mysqlTable("participant_groups", {
   id: groupId("id").primaryKey(),
-  /** Unique, so participants can't confuse two groups. At most 80 code points, as `varchar` counts. */
+  /**
+   * Unique, so participants can't confuse two groups, and groups.ts also refuses one that
+   * differs only in capitals. At most 80 code points, as `varchar` counts.
+   */
   name: varchar("name", { length: 80 }).notNull().unique(),
   /** Free text that labels the group. Allocation ignores it. */
   tags: json("tags").$type<string[]>().notNull(),
