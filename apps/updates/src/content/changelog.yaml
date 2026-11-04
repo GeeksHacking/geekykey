@@ -1996,3 +1996,10 @@
   area: frontend
   change: >-
     The dashboard tells guests they can add the avatar picture as a sticker in WhatsApp.
+
+- id: map-connections-web
+  date: 2026-11-04
+  area: frontend
+  change: >-
+    The map on the big screen shows the event's connection count and an anonymous web of
+    numbered nodes.
