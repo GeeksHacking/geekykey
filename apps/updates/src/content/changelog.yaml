@@ -2034,3 +2034,10 @@
     Organizers can create groups by name on a new Groups screen and press Allocate, and a
     participant who presses Join on the dashboard waits, then sees their group and its members'
     names without reloading.
+
+- id: dashboard-tap-hint
+  date: 2026-11-04
+  area: frontend
+  change: >-
+    The dashboard says how to start collecting stamps, and no longer tells a participant who
+    has already claimed a token to claim it.

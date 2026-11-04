@@ -5,7 +5,7 @@ import { ParticipantTapList } from "@/components/participant-tap-list";
 import { AvatarHero } from "@/features/passport/avatar/avatar-hero";
 import { ConnectionList } from "@/features/passport/connection-list";
 import { ConnectionReveal } from "@/features/passport/connection-reveal";
-import { DashboardClaimHelp } from "@/features/passport/dashboard-claim-help";
+import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
@@ -32,7 +32,7 @@ export function DashboardScreen() {
       <AvatarHero me={me} changes={changes} />
       <UserIdRow userId={me.user.id} />
 
-      {me.recent_taps.length === 0 ? <DashboardClaimHelp /> : null}
+      {me.recent_taps.length === 0 ? <DashboardTapHelp /> : null}
 
       <ConnectionList me={me} />
 

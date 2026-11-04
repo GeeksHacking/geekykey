@@ -48,15 +48,19 @@ describe("DashboardScreen", () => {
     expect(screen.queryByRole("status", { name: "Loading your group" })).not.toBeInTheDocument();
   });
 
-  it("shows the claim help before the first tap", () => {
+  it("shows how to start collecting stamps before the first tap", () => {
     state.me = baseMe;
     renderDashboard();
 
-    expect(screen.getByText("Tap your token with your phone to claim it")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Tap your token at any station to start collecting stamps",
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "My tokens" })).toBeInTheDocument();
   });
 
-  it("keeps the user ID but removes the claim help after the first tap", () => {
+  it("keeps the user ID but removes the hint after the first tap", () => {
     state.me = {
       ...baseMe,
       recent_taps: [
@@ -74,7 +78,9 @@ describe("DashboardScreen", () => {
     renderDashboard();
 
     expect(
-      screen.queryByText("Tap your token with your phone to claim it"),
+      screen.queryByRole("heading", {
+        name: "Tap your token at any station to start collecting stamps",
+      }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
