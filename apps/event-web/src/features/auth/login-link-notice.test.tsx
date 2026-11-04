@@ -2,24 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ApiError, NetworkError } from "@/api/errors";
-import type { MeResponse } from "@/api/types";
 import { LoginLinkNotice } from "@/features/auth/login-link-notice";
 import { SessionContext, type SessionState } from "@/lib/session";
+import { makeMe } from "@/test/make-me";
 
-const me: MeResponse = {
-  user: {
-    id: "dev-organizer-1",
-    display_name: "Priya Raman",
-    role: "organizer",
-    has_name: true,
-    answers: {},
-  },
-  questions: null,
-  connections: [],
-  points: 0,
-  stamps: [],
-  recent_taps: [],
-};
+const me = makeMe({
+  user: { id: "dev-organizer-1", display_name: "Priya Raman", role: "organizer" },
+});
 
 const EXPIRED = "That link has expired. Tap your token again to get back in.";
 

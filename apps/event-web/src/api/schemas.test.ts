@@ -16,6 +16,7 @@ import {
   parseStatsResponse,
   parseMapResponse,
 } from "@/api/schemas";
+import { makeMe } from "@/test/make-me";
 
 describe("me response contract", () => {
   it("validates the participant fixture returned by the mock", async () => {
@@ -28,27 +29,13 @@ describe("me response contract", () => {
   });
 
   it("ignores unknown legacy fields until the backend checkpoint removes them", () => {
-    const parsed = parseMeResponse({
-      user: { id: "u", display_name: "U", role: "participant", has_name: true, answers: {} },
-      questions: null,
-      connections: [],
-      legacy_field: "ignored",
-      points: 0,
-      stamps: [],
-      recent_taps: [],
-    });
+    const parsed = parseMeResponse({ ...makeMe(), legacy_field: "ignored" });
 
     expect(parsed).not.toHaveProperty("legacy_field");
   });
 
   it("accepts no_game and rejects station-only statuses", () => {
-    const base = {
-      user: { id: "u", display_name: "U", role: "participant", has_name: true, answers: {} },
-      questions: null,
-      connections: [],
-      points: 0,
-      stamps: [],
-    };
+    const base = makeMe();
     const noGame = parseMeResponse({
       ...base,
       recent_taps: [
@@ -485,9 +472,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
 
 describe("the rules each field carries", () => {
   const me = {
-    user: { id: "u", display_name: null, role: "participant", has_name: false, answers: {} },
-    questions: null,
-    connections: [],
+    ...makeMe({ user: { display_name: null, has_name: false } }),
     points: 7,
     stamps: [
       {

@@ -3,21 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppClient } from "@/api/create-client";
 import type { MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
+import { makeMe } from "@/test/make-me";
 
-const me = {
-  user: {
-    id: "dev-user-1",
-    display_name: "Alex",
-    role: "participant" as const,
-    has_name: true,
-    answers: {},
-  },
-  questions: null,
-  connections: [],
-  points: 0,
-  stamps: [],
-  recent_taps: [],
-};
+const me = makeMe({ user: { display_name: "Alex" } });
 
 let fetchMock: ReturnType<typeof vi.fn>;
 

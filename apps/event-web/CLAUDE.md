@@ -42,8 +42,9 @@ Rules that make this possible:
 
 - All data access goes through `src/api/`. Components and pages never call `fetch`.
 - `src/api/types.ts` mirrors the agreement field for field, in `snake_case`. Never add a
-  field the agreement does not have. If a screen needs something missing, propose a change
-  to the agreement instead of inventing it.
+  field the agreement does not have, unless a ticket builds on a draft of its next version
+  ("Source of truth" in the root `AGENTS.md`). If a screen needs something missing, propose a
+  change to the agreement instead of inventing it.
 - `src/api/mock/` holds fixtures and a mock client with the same interface as the HTTP
   client. Fixtures use the seeded IDs (`dev-user-1`, `dev-organizer-1`), cover the
   statuses currently used by the mock, include stamps with `earned_at: null`, and use realistic,
@@ -184,13 +185,15 @@ pnpm dev:live     # same, but every call goes to the Event Service on :8001
 pnpm build        # typecheck, then production build to dist/
 pnpm preview      # serve dist/ locally
 pnpm typecheck    # tsc --noEmit
-pnpm lint         # oxlint
+pnpm lint         # oxlint, then scripts/check-dashes.ts
 pnpm format       # oxfmt, rewrites files in place
 pnpm format:check # oxfmt --check, lists files that are not formatted
 pnpm test         # vitest run
 pnpm test:watch   # vitest
 pnpm test:e2e     # playwright Chromium smoke suite against the mock dev server
 pnpm shot <route> --as organiser   # 360 and 1280 px, light and dark, into test-results/shots/
+pnpm shot <route> --click "<name>" # the same, after pressing the first button with that name
+EVENT_SESSION=<cookie> pnpm check:me <service address>  # a deployed /me against the screens' schema; run it before a deploy that adds a required field
 pnpm avatar-art   # the avatar's PNGs and 3D figures in art/avatar/ into its data; art/avatar/README.md has the options
 pnpm dlx shadcn@latest add <component>   # add a shadcn component
 pnpm worker:dev       # live build, then the production Worker in wrangler dev on :8173
@@ -377,8 +380,8 @@ backend. Working agreement from the 2 September 2026 team meeting:
 
 For step 3, `pnpm shot <route>` takes the four screenshots, with `--as participant` or
 `--as organiser` to sign in first (`scripts/shot.ts`). It uses the dev server on :5173 if one is
-up and starts the mock one if not. For anything it doesn't do, such as opening a menu first,
-drive Playwright yourself. Two gotchas: Radix Select ignores a synthetic click, so dispatch a
+up and starts the mock one if not. For anything `--click` doesn't cover, such as opening a menu
+first, drive Playwright yourself. Two gotchas: Radix Select ignores a synthetic click, so dispatch a
 `pointerdown` on the trigger and then click the option; and headless Arc crashes after a few
 navigations.
 

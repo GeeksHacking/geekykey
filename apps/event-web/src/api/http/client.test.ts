@@ -3,21 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, AUTH_ERROR_EVENT, NetworkError } from "@/api/errors";
 import { createHttpClient } from "@/api/http/client";
 import type { ErrorCode } from "@/api/types";
+import { makeMe } from "@/test/make-me";
 
-const me = {
-  user: {
-    id: "dev-user-1",
-    display_name: "Alex Tan",
-    role: "participant" as const,
-    has_name: true,
-    answers: {},
-  },
-  questions: null,
-  points: 0,
-  stamps: [],
-  recent_taps: [],
-  connections: [],
-};
+const me = makeMe();
 
 let fetchMock: ReturnType<typeof vi.fn>;
 

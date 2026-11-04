@@ -6,6 +6,7 @@ import type { MeResponse, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { PassportScreen } from "@/features/passport/passport-screen";
 import { createTestProviders } from "@/test/providers";
+import { makeMe } from "@/test/make-me";
 
 /*
   jsdom is a phone here: its matchMedia matches nothing, so the screens never load GSAP and
@@ -39,20 +40,7 @@ const lounge: Stamp = {
   earned_at: "2026-11-17T02:14:09.000Z",
 };
 
-const before: MeResponse = {
-  user: {
-    id: "dev-user-1",
-    display_name: "Alex Tan",
-    role: "participant",
-    has_name: true,
-    answers: {},
-  },
-  questions: null,
-  connections: [],
-  points: 2,
-  stamps: [printing, lounge],
-  recent_taps: [],
-};
+const before = makeMe({ points: 2, stamps: [printing, lounge] });
 
 const afterPrinting: MeResponse = {
   ...before,

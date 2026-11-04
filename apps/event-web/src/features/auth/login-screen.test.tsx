@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
-import type { MeResponse } from "@/api/types";
 import { ApiProvider } from "@/api/provider";
 import { LoginScreen } from "@/features/auth/login-screen";
 import { SessionContext, type SessionState } from "@/lib/session";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { makeMe } from "@/test/make-me";
 
 const { goAfterLogin } = vi.hoisted(() => ({ goAfterLogin: vi.fn() }));
 
@@ -31,20 +31,7 @@ vi.mock("@/lib/firebase", async (importOriginal) => ({
   hasFirebaseConfig: () => true,
 }));
 
-const me: MeResponse = {
-  user: {
-    id: "dev-user-1",
-    display_name: "Alex Tan",
-    role: "participant",
-    has_name: true,
-    answers: {},
-  },
-  questions: null,
-  connections: [],
-  points: 0,
-  stamps: [],
-  recent_taps: [],
-};
+const me = makeMe();
 
 function session(status: SessionState["status"], loginLinkError?: unknown): SessionState {
   return {

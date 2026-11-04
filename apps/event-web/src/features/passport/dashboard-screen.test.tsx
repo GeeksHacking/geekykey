@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MeResponse, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { makeMe } from "@/test/make-me";
 
 const state = vi.hoisted(() => ({ me: null as MeResponse | null }));
 
@@ -16,20 +17,7 @@ vi.mock("@/components/layout/section-heading", () => ({
   SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
 }));
 
-const baseMe: MeResponse = {
-  user: {
-    id: "user-1",
-    display_name: "Alex Tan",
-    role: "participant",
-    has_name: true,
-    answers: {},
-  },
-  questions: null,
-  connections: [],
-  points: 0,
-  stamps: [],
-  recent_taps: [],
-};
+const baseMe = makeMe({ user: { id: "user-1" } });
 
 function renderDashboard() {
   return render(
