@@ -39,6 +39,7 @@ function session(status: SessionState["status"], loginLinkError?: unknown): Sess
     me: status === "authenticated" ? me : null,
     error: undefined,
     loginLinkError,
+    consumeLoginLinkArrival: () => false,
     refresh: async () => {},
     signIn: async () => me,
     signInWithFirebase: async () => me,

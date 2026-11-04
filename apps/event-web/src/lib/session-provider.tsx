@@ -37,6 +37,8 @@ export function SessionProvider({
   }>();
   // A link works once, so it is sent once, however often /me is read afterwards.
   const unsentLoginLink = useRef(loginLink);
+  // Read once by the dashboard, so a link that lands there joins the participant once.
+  const loginLinkAccepted = useRef(false);
   const [loginLinkError, setLoginLinkError] = useState<unknown>();
 
   const me = useQuery({
@@ -47,6 +49,7 @@ export function SessionProvider({
         unsentLoginLink.current = undefined;
         try {
           await api.loginLink(link);
+          loginLinkAccepted.current = true;
         } catch (error) {
           // The session the browser had carries on underneath, so /me is read as usual.
           setLoginLinkError(error);
@@ -70,6 +73,16 @@ export function SessionProvider({
     // A shared browser must not show the previous account's stations, taps, or stats.
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "me" });
   }, [queryClient]);
+
+  /**
+   * Answers true once after a login link signed someone in, then false, so the dashboard joins
+   * the participant once however often the card polls or remounts.
+   */
+  const consumeLoginLinkArrival = useCallback(() => {
+    const accepted = loginLinkAccepted.current;
+    loginLinkAccepted.current = false;
+    return accepted;
+  }, []);
 
   /**
    * Every write of the session goes through here. A poll asked for before the write answers
@@ -105,6 +118,7 @@ export function SessionProvider({
     settleSession(null);
     setAuthorizationFailure(undefined);
     setLoginLinkError(undefined);
+    loginLinkAccepted.current = false;
     clearIdentityQueries();
   }, [clearIdentityQueries, settleSession]);
 
@@ -157,6 +171,7 @@ export function SessionProvider({
       settleSession(null);
       setAuthorizationFailure(undefined);
       setLoginLinkError(undefined);
+      loginLinkAccepted.current = false;
       clearIdentityQueries();
     },
     onSuccess: () => {
@@ -198,6 +213,7 @@ export function SessionProvider({
       error: me.error ?? signIn.error ?? signInWithFirebase.error ?? signOut.error,
       authorizationError,
       loginLinkError,
+      consumeLoginLinkArrival,
       refresh,
       signIn: signIn.mutateAsync,
       signInWithFirebase: signInWithFirebase.mutateAsync,
@@ -209,6 +225,7 @@ export function SessionProvider({
       me.error,
       authorizationError,
       loginLinkError,
+      consumeLoginLinkArrival,
       signIn.error,
       signIn.mutateAsync,
       signInWithFirebase.error,

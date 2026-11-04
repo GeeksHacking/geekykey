@@ -26,6 +26,7 @@ function sessionWith(
     status,
     me: payload,
     error,
+    consumeLoginLinkArrival: () => false,
     refresh: async () => {},
     signIn: async () => me,
     signInWithFirebase: async () => me,

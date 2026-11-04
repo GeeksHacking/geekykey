@@ -18,6 +18,7 @@ function renderNotice(loginLinkError: unknown) {
     me,
     error: undefined,
     loginLinkError,
+    consumeLoginLinkArrival: () => false,
     refresh: async () => {},
     signIn: async () => me,
     signInWithFirebase: async () => me,

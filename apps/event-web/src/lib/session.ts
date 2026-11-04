@@ -19,6 +19,11 @@ export interface SessionState {
    * someone signs in or out. The session it had carries on underneath.
    */
   loginLinkError?: unknown;
+  /**
+   * Whether the page arrived with a login link that was accepted (agreement 7.4). Answers true
+   * once, then false, so the dashboard joins the participant once.
+   */
+  consumeLoginLinkArrival: () => boolean;
   /** A recent 403 from an identity-scoped request, consumed by the role gate. */
   authorizationError?: unknown;
   /** Re-fetch /me. Call after anything that changes stamps, points, or recent taps. */
