@@ -7,36 +7,13 @@ export type SessionApi = Pick<
 >;
 
 /**
- * The Event Service owns every station call, 9.2 and 9.7 to 9.9, plus the tap log, stats,
- * the export, the fallback and the map. Version 0.3 left the GeekyKey Service with token claims and
- * releases, which the Event screens never call, so there is no GeekyKey slice here.
+ * The Event Service owns every other call: every station call, 9.2 and 9.7 to 9.9, plus the tap
+ * log, stats, the export, the fallback, the map and the groups. Version 0.3 left the GeekyKey
+ * Service with token claims and releases, which the Event screens never call, so there is no
+ * GeekyKey slice here. It is everything but the session, so a new `ApiClient` method fails the
+ * typecheck until `createServiceClients` binds it.
  */
-export type EventApi = Pick<
-  ApiClient,
-  | "listStationBoard"
-  | "createStation"
-  | "replaceStationKey"
-  | "disableStation"
-  | "enableStation"
-  | "setStationBooth"
-  | "setStationPassport"
-  | "listTaps"
-  | "createFallbackTap"
-  | "stats"
-  | "exportCsv"
-  | "map"
-  | "myGroup"
-  | "joinGroups"
-  | "groupBoard"
-  | "createGroup"
-  | "allocateGroups"
-  | "resetGroups"
-  | "exportGroupsCsv"
-  | "updateGroup"
-  | "deleteGroup"
-  | "placeGroupMember"
-  | "removeGroupMember"
->;
+export type EventApi = Omit<ApiClient, keyof SessionApi>;
 
 export interface ServiceClientBundle {
   session: SessionApi;
@@ -69,6 +46,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       stats: api.stats.bind(api),
       exportCsv: api.exportCsv.bind(api),
       map: api.map.bind(api),
+      updateMe: api.updateMe.bind(api),
       myGroup: api.myGroup.bind(api),
       joinGroups: api.joinGroups.bind(api),
       groupBoard: api.groupBoard.bind(api),

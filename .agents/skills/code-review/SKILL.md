@@ -20,6 +20,8 @@ Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main
 
 Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
+Then run `git status --porcelain`. When it lists changes, the work isn't all committed (the `implement` skill reviews before it commits), so the diff command becomes `git diff $(git merge-base <fixed-point> HEAD)`, which takes in the working tree, and the sub-agents also get every `??` path it lists, to read whole. Those are new files that no diff shows.
+
 Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
 
 ### 2. Identify the spec source

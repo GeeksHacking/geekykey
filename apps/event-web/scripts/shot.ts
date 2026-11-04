@@ -7,9 +7,9 @@
  *   pnpm shot /login
  *   pnpm shot /passport --as participant --click "Show what we share"
  *
- * `--click` presses the first button with that name before each shot. Those files end in
- * `-clicked`, so they sit beside the plain ones. A Radix menu or select ignores it: see "gotchas"
- * in CLAUDE.md.
+ * `--click` presses the first button with that name before each shot, and waits for what it
+ * opened to finish animating in. Those files end in `-clicked`, so they sit beside the plain ones.
+ * A Radix menu or select ignores it: see "gotchas" in CLAUDE.md.
  *
  * It uses the dev server on :5173 if one is running, and starts the mock one if not. A server
  * you started with `pnpm dev:live` is used as it is, so the shots show live data. The files go
@@ -90,7 +90,14 @@ try {
       // first, then for every Skeleton (the full-page loader is one) to give way to data.
       await page.locator("h1").first().waitFor();
       await page.waitForFunction(`!document.querySelector(".animate-pulse")`);
-      if (click) await page.getByRole("button", { name: click }).first().click();
+      if (click) {
+        await page.getByRole("button", { name: click }).first().click();
+        // A dialog or alert fades and zooms in, so the shot waits until every animation that ends
+        // has ended. One that loops forever, such as a spinner, never would, so it is left out.
+        await page.waitForFunction(
+          `document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getComputedTiming().endTime === Infinity)`,
+        );
+      }
       const file = `${OUT_DIR}/${slug}-${width}-${theme}.png`;
       await page.screenshot({ path: file, fullPage: true });
       console.log(file);
