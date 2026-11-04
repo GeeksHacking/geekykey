@@ -29,7 +29,9 @@ describe("me response contract", () => {
 
   it("ignores unknown legacy fields until the backend checkpoint removes them", () => {
     const parsed = parseMeResponse({
-      user: { id: "u", display_name: "U", role: "participant", has_name: true },
+      user: { id: "u", display_name: "U", role: "participant", has_name: true, answers: {} },
+      questions: null,
+      connections: [],
       legacy_field: "ignored",
       points: 0,
       stamps: [],
@@ -41,7 +43,9 @@ describe("me response contract", () => {
 
   it("accepts no_game and rejects station-only statuses", () => {
     const base = {
-      user: { id: "u", display_name: "U", role: "participant", has_name: true },
+      user: { id: "u", display_name: "U", role: "participant", has_name: true, answers: {} },
+      questions: null,
+      connections: [],
       points: 0,
       stamps: [],
     };
@@ -420,9 +424,70 @@ describe("organizer response contract", () => {
   });
 });
 
+describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", () => {
+  const me = {
+    user: {
+      id: "u",
+      display_name: "U",
+      role: "participant",
+      has_name: true,
+      answers: { drink: "tea" },
+    },
+    questions: [
+      {
+        id: "drink",
+        text: "Tea or coffee?",
+        choices: [
+          { id: "tea", text: "Tea" },
+          { id: "coffee", text: "Coffee" },
+        ],
+      },
+    ],
+    points: 2,
+    stamps: [],
+    recent_taps: [],
+    connections: [
+      {
+        connected_at: "2026-11-12T08:12:30.000Z",
+        kind: "B",
+        match: 50,
+        shared: null,
+        shared_at: "2026-11-12T08:14:30.000Z",
+      },
+      {
+        connected_at: "2026-11-12T08:00:00.000Z",
+        kind: "G",
+        match: null,
+        shared: [],
+        shared_at: "2026-11-12T08:02:00.000Z",
+      },
+    ],
+  };
+
+  it("keeps the questions, the answers and each connection's fields", () => {
+    expect(parseMeResponse(me)).toEqual(me);
+  });
+
+  it("takes an event with no answers game", () => {
+    expect(parseMeResponse({ ...me, questions: null, connections: [] }).questions).toBeNull();
+  });
+
+  it("refuses an answer without connections or questions", () => {
+    expect(() => parseMeResponse({ ...me, connections: undefined })).toThrow(NetworkError);
+    expect(() => parseMeResponse({ ...me, questions: undefined })).toThrow(NetworkError);
+  });
+
+  it("refuses a match outside 0 to 100", () => {
+    const connection = { ...me.connections[0], match: 101 };
+    expect(() => parseMeResponse({ ...me, connections: [connection] })).toThrow(NetworkError);
+  });
+});
+
 describe("the rules each field carries", () => {
   const me = {
-    user: { id: "u", display_name: null, role: "participant", has_name: false },
+    user: { id: "u", display_name: null, role: "participant", has_name: false, answers: {} },
+    questions: null,
+    connections: [],
     points: 7,
     stamps: [
       {

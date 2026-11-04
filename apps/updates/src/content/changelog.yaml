@@ -2013,3 +2013,11 @@
     smallest group with room. The trade-offs we accept: when every group is full, people overflow into the
     smallest group rather than wait, and joining works without a token, so the token is one way in
     rather than a requirement.
+
+- id: connection-match-reveal
+  date: 2026-11-04
+  area: frontend
+  change: >-
+    After a connection, the dashboard and the passport show the percentage match and ask the two
+    guests to talk. Two minutes later a button lists the answers they share. Each screen also
+    lists the guest's connections, with no names.

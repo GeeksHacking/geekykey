@@ -1,4 +1,4 @@
-import type { Role, TapSource, TapStatus } from "@/api/types";
+import type { Connection, Question, Role, TapSource, TapStatus } from "@/api/types";
 
 /*
   Seed data for the mock client. Deterministic (seeded PRNG) so tests are stable,
@@ -10,6 +10,12 @@ export interface MockUser {
   display_name: string | null;
   role: Role;
   has_name: boolean;
+  answers?: Record<string, string>;
+  /**
+   * Newest first. `shared` holds what the pair share from the start, and the mock's /me hides it
+   * until `shared_at`, as the Event Service does.
+   */
+  connections?: Connection[];
 }
 
 /**
@@ -61,7 +67,58 @@ export interface MockData {
   users: MockUser[];
   stations: MockStation[];
   taps: MockTap[];
+  questions: Question[] | null;
 }
+
+/** The Event Service's placeholder questions (BAC-119), which the grad tea's team will replace. */
+const QUESTIONS: Question[] = [
+  {
+    id: "drink",
+    text: "Tea or coffee?",
+    choices: [
+      { id: "tea", text: "Tea" },
+      { id: "coffee", text: "Coffee" },
+    ],
+  },
+  {
+    id: "hours",
+    text: "Night owl or early bird?",
+    choices: [
+      { id: "night_owl", text: "Night owl" },
+      { id: "early_bird", text: "Early bird" },
+    ],
+  },
+  {
+    id: "school",
+    text: "Best part of school?",
+    choices: [
+      { id: "friends", text: "Friends" },
+      { id: "cca", text: "CCA" },
+      { id: "camps", text: "Camps" },
+      { id: "food", text: "The food" },
+    ],
+  },
+  {
+    id: "superpower",
+    text: "Pick a superpower",
+    choices: [
+      { id: "fly", text: "Fly" },
+      { id: "invisibility", text: "Invisibility" },
+      { id: "reading_minds", text: "Reading minds" },
+      { id: "time_travel", text: "Time travel" },
+    ],
+  },
+  {
+    id: "weekend",
+    text: "Your weekend?",
+    choices: [
+      { id: "friends", text: "Out with friends" },
+      { id: "home", text: "At home" },
+      { id: "sport", text: "Sport" },
+      { id: "games", text: "Games" },
+    ],
+  },
+];
 
 /** Small deterministic PRNG (mulberry32). */
 function createRandom(seed: number): () => number {
@@ -85,6 +142,12 @@ export const SEEDED_GUEST_ID = "u_a6f0";
 export function createFixtures(now: number = Date.now()): MockData {
   const random = createRandom(20261010);
   const minutes = (n: number) => n * 60_000;
+  /** What `shared_at` is for a connection made that long ago: 2 minutes after it (8.1). */
+  const connection = (msAgo: number, fields: Omit<Connection, "connected_at" | "shared_at">) => ({
+    ...fields,
+    connected_at: new Date(now - msAgo).toISOString(),
+    shared_at: new Date(now - msAgo + minutes(2)).toISOString(),
+  });
 
   const users: MockUser[] = [
     {
@@ -92,6 +155,25 @@ export function createFixtures(now: number = Date.now()): MockData {
       display_name: "Alex Tan",
       role: "participant",
       has_name: true,
+      answers: {
+        drink: "tea",
+        hours: "night_owl",
+        school: "cca",
+        superpower: "time_travel",
+        weekend: "games",
+      },
+      // A new connection, one whose `shared` has arrived, and one with no match. The fixtures
+      // start again from "now" at each page load, so a dismissed reveal comes back on a reload
+      // here, and only here: the Event Service's `connected_at` doesn't move.
+      connections: [
+        connection(47_000, { kind: "B", match: 60, shared: ["drink", "school", "weekend"] }),
+        connection(minutes(26), {
+          kind: "G",
+          match: 80,
+          shared: ["drink", "hours", "superpower", "weekend"],
+        }),
+        connection(minutes(58), { kind: "B", match: null, shared: [] }),
+      ],
     },
     {
       id: SEEDED_ORGANIZER_ID,
@@ -341,5 +423,5 @@ export function createFixtures(now: number = Date.now()): MockData {
   */
   users.push({ id: SEEDED_GUEST_ID, display_name: "Guest", role: "participant", has_name: false });
 
-  return { users, stations, taps };
+  return { users, stations, taps, questions: QUESTIONS };
 }

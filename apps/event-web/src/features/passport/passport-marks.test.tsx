@@ -40,7 +40,15 @@ const lounge: Stamp = {
 };
 
 const before: MeResponse = {
-  user: { id: "dev-user-1", display_name: "Alex Tan", role: "participant", has_name: true },
+  user: {
+    id: "dev-user-1",
+    display_name: "Alex Tan",
+    role: "participant",
+    has_name: true,
+    answers: {},
+  },
+  questions: null,
+  connections: [],
   points: 2,
   stamps: [printing, lounge],
   recent_taps: [],

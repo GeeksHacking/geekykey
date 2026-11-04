@@ -1,6 +1,8 @@
 import { useRef } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ConnectionList } from "@/features/passport/connection-list";
+import { ConnectionReveal } from "@/features/passport/connection-reveal";
 import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { NamePrompt } from "@/features/passport/name-prompt";
 import { NewStampBanner } from "@/features/passport/new-stamp-banner";
@@ -27,6 +29,7 @@ export function PassportScreen() {
         <PageHeader title="Passport" description={description} />
         <DisplayNameRow displayName={me.user.display_name} />
       </div>
+      <ConnectionReveal me={me} />
       {!me.user.has_name && !namePrompt.skipped ? (
         <NamePrompt userId={me.user.id} onSkip={namePrompt.skip} />
       ) : null}
@@ -37,6 +40,7 @@ export function PassportScreen() {
           onPress={newStamp.press}
         />
       ) : null}
+      <ConnectionList me={me} />
       <StampGrid stamps={me.stamps} stamped={changes.stamped} />
     </div>
   );

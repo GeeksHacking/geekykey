@@ -3,6 +3,8 @@ import { useRef } from "react";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ParticipantTapList } from "@/components/participant-tap-list";
 import { AvatarHero } from "@/features/passport/avatar/avatar-hero";
+import { ConnectionList } from "@/features/passport/connection-list";
+import { ConnectionReveal } from "@/features/passport/connection-reveal";
 import { DashboardClaimHelp } from "@/features/passport/dashboard-claim-help";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
@@ -20,12 +22,16 @@ export function DashboardScreen() {
 
   return (
     <div ref={scope} className="space-y-10">
+      {/* First, because the token page's login link lands on this screen (agreement 8.6). */}
+      <ConnectionReveal me={me} />
       {/* The grad tea's dashboard leads with the avatar (FRO-105). The showcase's switch PR
           swaps it for the spaceship (FRO-104) or puts the points summary back. */}
       <AvatarHero me={me} changes={changes} />
       <UserIdRow userId={me.user.id} />
 
       {me.recent_taps.length === 0 ? <DashboardClaimHelp /> : null}
+
+      <ConnectionList me={me} />
 
       <section>
         <SectionHeading title="Latest stamps" linkTo="/passport" linkLabel="Open passport" />

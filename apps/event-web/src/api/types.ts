@@ -20,6 +20,8 @@ export interface User {
    * gave. Then the passport asks for a name (agreement 8.1, 8.7).
    */
   has_name: boolean;
+  /** Each question the user has answered, by ID, with the choice they picked (0.13 draft, 8.1). */
+  answers: Record<string, string>;
 }
 
 /** One entry per station with passport settings. `earned_at` is null until the user has an accepted tap there. */
@@ -44,6 +46,33 @@ export interface MeTap {
   received_at: string;
 }
 
+export interface QuestionChoice {
+  id: string;
+  text: string;
+}
+
+/** One of the answers game's questions (agreement 0.13 draft, 8.1). */
+export interface Question {
+  id: string;
+  text: string;
+  choices: QuestionChoice[];
+}
+
+/**
+ * One of the user's connections (agreement 0.13 draft, 8.1). It never carries the other
+ * person's user ID, name or answers.
+ */
+export interface Connection {
+  connected_at: string;
+  /** The other person's kind. */
+  kind: string;
+  /** A whole percent, or null when no question was answered by both. */
+  match: number | null;
+  /** IDs of the questions both answered the same. Null until `shared_at`, then maybe empty. */
+  shared: string[] | null;
+  shared_at: string;
+}
+
 /** PATCH /api/v1/me (agreement 8.7). Trimmed, then 1 to 30 code points. */
 export interface SetDisplayNameRequest {
   display_name: string;
@@ -57,9 +86,13 @@ export interface SetDisplayNameResponse {
 /** GET /api/v1/me */
 export interface MeResponse {
   user: User;
+  /** Null when the event has no answers game. */
+  questions: Question[] | null;
   points: number;
   stamps: Stamp[];
   recent_taps: MeTap[];
+  /** Newest first. Empty without a connections game. */
+  connections: Connection[];
 }
 
 export interface EventStationPassport {

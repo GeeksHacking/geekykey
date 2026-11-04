@@ -10,10 +10,13 @@ const me = {
     display_name: "Alex Tan",
     role: "participant" as const,
     has_name: true,
+    answers: {},
   },
+  questions: null,
   points: 0,
   stamps: [],
   recent_taps: [],
+  connections: [],
 };
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -229,6 +232,7 @@ describe("HTTP client transport", () => {
       display_name: "Mei Ling",
       role: "participant",
       has_name: true,
+      answers: {},
     };
     fetchMock.mockResolvedValue(response({ user }));
 

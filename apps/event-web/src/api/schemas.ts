@@ -31,6 +31,21 @@ const userSchema = z.object({
   display_name: z.nullable(z.string()),
   role,
   has_name: z.boolean(),
+  answers: z.record(z.string(), z.string()),
+});
+
+const questionSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  choices: z.array(z.object({ id: z.string(), text: z.string() })),
+});
+
+const connectionSchema = z.object({
+  connected_at: isoTimestamp,
+  kind: z.string(),
+  match: z.nullable(z.int().check(z.gte(0), z.lte(100))),
+  shared: z.nullable(z.array(z.string())),
+  shared_at: isoTimestamp,
 });
 
 const stampSchema = z.object({
@@ -170,9 +185,11 @@ export const fallbackTapResponseSchema: z.ZodMiniType<FallbackTapResponse> = z.o
  */
 export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   user: userSchema,
+  questions: z.nullable(z.array(questionSchema)),
   points: z.int().check(z.nonnegative()),
   stamps: z.array(stampSchema),
   recent_taps: z.array(meTapSchema),
+  connections: z.array(connectionSchema),
 });
 
 /** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
