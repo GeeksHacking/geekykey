@@ -18,7 +18,10 @@ interface ConnectionRowProps {
   me: MeResponse;
 }
 
-/** One connection, with its match and no names (agreement 0.13 draft, section 13). */
+/**
+ * One connection: the other person's name above its match. Someone with no name shows as `Guest`
+ * (BAC-136, draft for the agreement's next version).
+ */
 export function ConnectionRow({ connection, me }: ConnectionRowProps) {
   const [showShared, setShowShared] = useState(false);
   const shared = connection.shared === null ? null : sharedAnswers(connection.shared, me);
@@ -26,7 +29,8 @@ export function ConnectionRow({ connection, me }: ConnectionRowProps) {
     <li className="space-y-3 px-3 py-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
-          <p className="font-medium">
+          <p className="font-medium break-words">{connection.display_name ?? "Guest"}</p>
+          <p className="text-sm">
             {connection.match === null ? "Connected" : `${connection.match}% match`}
           </p>
           <time

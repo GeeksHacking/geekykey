@@ -42,10 +42,16 @@ export interface Question {
 
 /**
  * One of the user's connections (agreement 0.13 draft, 8.1). It never carries the other
- * person's user ID, name or answers.
+ * person's user ID or answers.
  */
 export interface Connection {
   connected_at: string;
+  /**
+   * The other person's current name, so unlike the rest it can change after the connection. Null
+   * when they have never logged in to this Event Service, which a screen shows as `Guest`
+   * (BAC-136, draft for the agreement's next version).
+   */
+  display_name: string | null;
   /**
    * The other person's kind, or null for none, which only a connection across groups has
    * (BAC-140, draft for the agreement's next version).

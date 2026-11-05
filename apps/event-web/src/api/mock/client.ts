@@ -561,6 +561,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           user.connections = [
             {
               connected_at: new Date(at).toISOString(),
+              display_name: request.display_name,
               kind: "B",
               match: 40,
               shared: ["drink", "weekend"],

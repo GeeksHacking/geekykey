@@ -49,6 +49,7 @@ const QUESTIONS: readonly Question[] = [
 /** A connection as /me lists it. */
 interface ConnectionBody {
   connected_at: string;
+  display_name: string | null;
   kind: string;
   match: number | null;
   shared: string[] | null;
@@ -328,6 +329,7 @@ test("what the two share shows 2 minutes after they connect, and not before", as
   const before = (await meOf("bea")).connections[0]!;
   assert.deepEqual(before, {
     connected_at: "2026-11-12T08:00:00.000Z",
+    display_name: "alex",
     kind: "E",
     match: 67,
     shared: null,
@@ -365,6 +367,74 @@ test("/me lists connections newest first, and each adds the same point, whatever
   assert.equal((await meOf("dan")).points, 0);
 });
 
+test("each connection gives the other person's name, and not their ID or answers", async () => {
+  const { meet, meOf, answer } = harness();
+  await testDb()
+    .insert(users)
+    .values([
+      { id: "u_alex", displayName: "Alex Tan" },
+      { id: "u_bea", displayName: "Mei Lin" },
+    ]);
+  await answer("u_alex", { drink: "tea" });
+  await answer("u_bea", { drink: "coffee" });
+  await meet("u_alex", "E", "u_bea", "B");
+  await meet("u_bea", "B", "u_alex", "E");
+
+  const alex = await meOf("u_alex");
+  // The whole connection, so a new field has to be chosen here too.
+  assert.deepEqual(alex.connections, [
+    {
+      connected_at: "2026-11-12T08:00:00.000Z",
+      display_name: "Mei Lin",
+      kind: "B",
+      match: 0,
+      shared: null,
+      shared_at: "2026-11-12T08:02:00.000Z",
+    },
+  ]);
+  assert.ok(!JSON.stringify(alex).includes("u_bea"));
+  assert.equal((await meOf("u_bea")).connections[0]!.display_name, "Alex Tan");
+});
+
+test("a name set after connecting shows at the next /me, and the rest of the connection stays", async () => {
+  const { app, meet, meOf, signIn } = harness();
+  await testDb()
+    .insert(users)
+    .values([
+      { id: "alex", displayName: "Alex Tan" },
+      { id: "bea", displayName: "Guest" },
+    ]);
+  await meet("alex", "E", "bea", "B");
+  await meet("bea", "B", "alex", "E");
+  const [before] = (await meOf("alex")).connections;
+  assert.equal(before!.display_name, "Guest");
+
+  const renamed = await app.request("/api/v1/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: await signIn("bea") },
+    body: JSON.stringify({ display_name: "Mei Lin" }),
+  });
+  assert.equal(renamed.status, 200);
+  screensSchemas.setDisplayNameResponseSchema.parse(await renamed.json());
+
+  assert.deepEqual((await meOf("alex")).connections, [{ ...before!, display_name: "Mei Lin" }]);
+});
+
+test("someone with no users row has a null name, and someone with no name of their own has Guest", async () => {
+  const { clock, meet, meOf } = harness();
+  await testDb().insert(users).values({ id: "no-name", displayName: "Guest" });
+  await meet("alex", "E", "never-logged-in", "B");
+  await meet("never-logged-in", "B", "alex", "E");
+  clock.advanceSeconds(10);
+  await meet("alex", "E", "no-name", "B");
+  await meet("no-name", "B", "alex", "E");
+
+  assert.deepEqual(
+    (await meOf("alex")).connections.map(({ display_name }) => display_name),
+    ["Guest", null],
+  );
+});
+
 test("the map gives the count and the anonymous web, users numbered as they first connected", async () => {
   const { clock, meet, app, signIn } = harness();
   const connect = async (a: string, kindA: string, b: string, kindB: string) => {
@@ -394,6 +464,18 @@ test("the map gives the count and the anonymous web, users numbered as they firs
     [zoe, 3],
     [yan, 4],
   ]);
+});
+
+test("the map gives no name of anyone connected", async () => {
+  const { app, meet, signIn } = harness();
+  await testDb().insert(users).values({ id: "bea", displayName: "Mei Lin" });
+  await meet("alex", "E", "bea", "B");
+  await meet("bea", "B", "alex", "E");
+  const map = await app.request("/api/v1/map", {
+    headers: { Cookie: await signIn("dev-organizer-1") },
+  });
+  assert.equal(map.status, 200);
+  assert.ok(!(await map.text()).includes("Mei Lin"));
 });
 
 test("without the connections game, the map leaves connections out and /me lists none", async () => {

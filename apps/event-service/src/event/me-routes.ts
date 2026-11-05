@@ -28,6 +28,7 @@ export interface MeRouteDeps {
 function connectionBody(connection: Connection) {
   return {
     connected_at: connection.connectedAt,
+    display_name: connection.displayName,
     kind: connection.kind,
     match: connection.match,
     shared: connection.shared,

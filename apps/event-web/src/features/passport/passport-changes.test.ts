@@ -34,6 +34,7 @@ function stampPrinting(me: MeResponse): MeResponse {
 function connection(connected_at: string): Connection {
   return {
     connected_at,
+    display_name: "Mei Lin",
     kind: "B",
     match: 60,
     shared: null,
