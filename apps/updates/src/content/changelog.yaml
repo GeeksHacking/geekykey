@@ -2151,3 +2151,10 @@
     The dashboard's avatar wears one piece for each person a guest connects with, up to its
     four pieces, and the fourth connection completes the outfit. A new connection's piece flies
     in on the poll that brings it, and a stamp gives points and no piece.
+
+- id: tapped-you-prompt
+  date: 2026-11-05
+  area: frontend
+  change: >-
+    The passport prompts a user whose token someone has tapped to tap that person's token
+    back, and the line goes when they do or the 2 minutes pass.
