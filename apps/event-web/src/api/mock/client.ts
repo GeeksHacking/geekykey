@@ -47,7 +47,13 @@ import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
 import { isGroupLink } from "@/lib/group-link";
-import { GROUP_TAGS_MAX, GROUP_TEXT_MAX, isGroupText } from "@/lib/group-fields";
+import {
+  GROUP_TAGS_MAX,
+  GROUP_TEXT_MAX,
+  isGroupText,
+  PEOPLE_PER_GROUP_MIN,
+  splitGroupCount,
+} from "@/lib/group-fields";
 
 /**
  * The mock's anonymous web, oldest connection first. Each link joins numbers a few apart, so
@@ -397,23 +403,21 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   }
 
   /**
-   * The split's numbers and locations as the Event Service checks them: whole numbers above 0,
-   * at most one location for each group, each trimmed with a blank one as none, or
-   * `validation_failed` at the first that breaks a rule.
+   * The split's fields as the Event Service checks them: a whole number, 2 or more, and each
+   * location trimmed with a blank one as none, or `validation_failed` at the first that breaks a
+   * rule.
    */
   function checkSplitRequest(input: SplitGroupsRequest) {
-    for (const field of ["group_count", "people_per_group"] as const) {
-      const value = input[field];
-      if (!(Number.isInteger(value) && value > 0)) {
-        fail("validation_failed", [{ path: [field], message: "must be a whole number above 0" }]);
-      }
-    }
-    const locations = (input.locations ?? []).map((location) => location?.trim() || null);
-    if (locations.length > input.group_count) {
+    const peoplePerGroup = input.people_per_group;
+    if (!(Number.isInteger(peoplePerGroup) && peoplePerGroup >= PEOPLE_PER_GROUP_MIN)) {
       fail("validation_failed", [
-        { path: ["locations"], message: "locations must have at most one item for each group" },
+        {
+          path: ["people_per_group"],
+          message: `people_per_group must be ${PEOPLE_PER_GROUP_MIN} or more`,
+        },
       ]);
     }
+    const locations = (input.locations ?? []).map((location) => location?.trim() || null);
     const tooLong = locations.findIndex((location) => location !== null && !isGroupText(location));
     if (tooLong >= 0) {
       fail("validation_failed", [
@@ -423,7 +427,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         },
       ]);
     }
-    return { group_count: input.group_count, people_per_group: input.people_per_group, locations };
+    return { peoplePerGroup, locations };
   }
 
   function toMyGroup(userId: string): MyGroupResponse {
@@ -966,20 +970,22 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return toGroupBoard();
       }),
 
-    // Makes "Group 1", "Group 2" and so on, then allocates as above, or makes nothing. It
-    // refuses while any group exists, then with too few joined, as the Event Service does.
+    // Works out the number of groups from who has joined, makes "Group 1", "Group 2" and so on,
+    // then allocates as above, or makes nothing. It refuses while any group exists, then with
+    // fewer than 2 joined, as the Event Service does.
     splitGroups: (input: SplitGroupsRequest) =>
       call(() => {
         currentOrganizer();
-        const fields = checkSplitRequest(input);
+        const { peoplePerGroup, locations } = checkSplitRequest(input);
         if (data.groups.length > 0) fail("groups_exist");
-        refuseTooFew(fields.group_count);
-        data.groups = Array.from({ length: fields.group_count }, (_, i) => ({
+        refuseTooFew(1);
+        const groupCount = splitGroupCount(data.groupMembers.length, peoplePerGroup);
+        data.groups = Array.from({ length: groupCount }, (_, i) => ({
           id: `g_${randomBase62(8)}`,
           name: `Group ${i + 1}`,
           tags: [],
-          location: fields.locations[i] ?? null,
-          capacity: fields.people_per_group,
+          location: locations[i] ?? null,
+          capacity: peoplePerGroup,
         }));
         placeWaiting();
         return toGroupBoard();

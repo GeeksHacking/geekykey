@@ -367,13 +367,12 @@ export interface CreateGroupRequest {
 export type UpdateGroupRequest = CreateGroupRequest;
 
 /**
- * POST /api/v1/admin/groups/split (BAC-138, draft for agreement 0.14): makes `group_count`
- * groups named "Group 1", "Group 2" and so on, each with `people_per_group` as its capacity,
- * then allocates everyone who has joined. Group n's location is the nth of `locations`, at most
- * one for each group, and a missing or blank one is none.
+ * POST /api/v1/admin/groups/split (BAC-138, BAC-141, draft for agreement 0.14): works out the
+ * number of groups from who has joined, makes "Group 1", "Group 2" and so on, each with
+ * `people_per_group` (2 or more) as its capacity, then allocates everyone. Group n's location is
+ * the nth of `locations`, a missing or blank one is none, and any past the last group is ignored.
  */
 export interface SplitGroupsRequest {
-  group_count: number;
   people_per_group: number;
   locations?: (string | null)[];
 }

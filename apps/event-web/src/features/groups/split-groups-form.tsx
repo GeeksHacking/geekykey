@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  groupsAPressMakes,
   locationFieldCount,
   SPLIT_GROUPS_FORM_DEFAULTS,
   SPLIT_LOCATION_FIELDS_MAX,
   splitGroupsFormSchema,
+  splitLine,
   toSplitGroupsRequest,
   type SplitGroupsFormValues,
 } from "@/features/groups/split-groups-schema";
@@ -26,23 +28,36 @@ import { useSplitGroups } from "@/features/groups/use-split-groups";
 import { applyApiIssues } from "@/lib/form-errors";
 
 /**
- * The number of groups, the people per group, and a location field for each group, drawn as the
- * number is typed. A refusal stays in the dialog, so the same form can be sent again.
+ * The people per group, a line saying what a press would make of everyone who has joined, and a
+ * location field for each of those groups. `joined` comes from the screen's poll, so the line and
+ * the fields follow as people arrive, and the service counts again at the press. A refusal stays
+ * in the dialog, so the same form can be sent again.
  */
-export function SplitGroupsForm({ onSplit }: { onSplit: () => void }) {
+export function SplitGroupsForm({
+  joined,
+  groupsExist,
+  onSplit,
+}: {
+  joined: number;
+  groupsExist: boolean;
+  onSplit: () => void;
+}) {
   const split = useSplitGroups();
+  // With groups there a press makes none, so the form draws no fields for them.
+  const peopleToSplit = groupsExist ? 0 : joined;
   const form = useForm<SplitGroupsFormValues>({
-    resolver: zodResolver(splitGroupsFormSchema),
+    resolver: zodResolver(splitGroupsFormSchema(peopleToSplit)),
     defaultValues: SPLIT_GROUPS_FORM_DEFAULTS,
   });
-  const groupCount = useWatch({ control: form.control, name: "group_count" });
+  const peoplePerGroup = useWatch({ control: form.control, name: "people_per_group" });
+  const groupCount = groupsAPressMakes(peopleToSplit, peoplePerGroup);
   const locationFields = locationFieldCount(groupCount);
   const [formError, setFormError] = useState<string | null>(null);
 
   async function onSubmit(values: SplitGroupsFormValues) {
     setFormError(null);
     try {
-      await split.mutateAsync(toSplitGroupsRequest(values));
+      await split.mutateAsync(toSplitGroupsRequest(values, peopleToSplit));
       onSplit();
     } catch (error) {
       if (isApiError(error) && error.code === "too_few_participants") {
@@ -66,20 +81,37 @@ export function SplitGroupsForm({ onSplit }: { onSplit: () => void }) {
             there are no groups.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-wrap gap-4">
-          <NumberField form={form} name="group_count" label="Number of groups" />
-          <NumberField form={form} name="people_per_group" label="People per group" />
-        </div>
+        <FormField
+          control={form.control}
+          name="people_per_group"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="look-label">People per group</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  autoComplete="off"
+                  inputMode="numeric"
+                  className="w-24 font-mono"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <p aria-live="polite" className="text-sm">
+          {splitLine(joined, groupsExist, groupCount)}
+        </p>
         <p className="text-sm text-muted-foreground">
-          People per group is each group&apos;s capacity. Every group fills to it before any goes
-          over.
+          People per group is each group&apos;s capacity. The number of groups comes from how many
+          have joined when you press Split.
         </p>
         {locationFields > 0 ? (
           <fieldset className="space-y-3">
             <legend className="look-label text-sm">Locations</legend>
             <p className="text-sm text-muted-foreground">
               Optional. Where each group&apos;s members go.
-              {Number(groupCount) > SPLIT_LOCATION_FIELDS_MAX
+              {groupCount > SPLIT_LOCATION_FIELDS_MAX
                 ? ` Only the first ${SPLIT_LOCATION_FIELDS_MAX} have a field here. Set the rest from each group's menu afterwards.`
                 : null}
             </p>
@@ -123,32 +155,5 @@ export function SplitGroupsForm({ onSplit }: { onSplit: () => void }) {
         </DialogFooter>
       </form>
     </Form>
-  );
-}
-
-/** A labelled whole-number input, with its rule's message under it. */
-function NumberField({
-  form,
-  name,
-  label,
-}: {
-  form: ReturnType<typeof useForm<SplitGroupsFormValues>>;
-  name: "group_count" | "people_per_group";
-  label: string;
-}) {
-  return (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel className="look-label">{label}</FormLabel>
-          <FormControl>
-            <Input {...field} autoComplete="off" inputMode="numeric" className="w-24 font-mono" />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
   );
 }

@@ -15,3 +15,14 @@ export function isGroupText(text: string): boolean {
   // Spread, not .length, which counts UTF-16 units and so would count an emoji twice.
   return [...text.trim()].length <= GROUP_TEXT_MAX;
 }
+
+/** The fewest people per group a split takes, and the fewest people it makes a group of. */
+export const PEOPLE_PER_GROUP_MIN = 2;
+
+/**
+ * How many groups a split makes of `joined` people (BAC-141), or 0 with too few. The service
+ * works this out itself at the press, so here it only tells the organizer what a press would make.
+ */
+export function splitGroupCount(joined: number, peoplePerGroup: number): number {
+  return Math.min(Math.ceil(joined / peoplePerGroup), Math.floor(joined / PEOPLE_PER_GROUP_MIN));
+}

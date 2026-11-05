@@ -268,7 +268,7 @@ export async function resetAllocation(db: Db): Promise<void> {
 export type Shuffle = <T>(items: T[]) => T[];
 
 /** The fewest joined participants Allocate takes for each group, so nobody is put in one alone. */
-const MIN_PER_GROUP = 2;
+export const MIN_PER_GROUP = 2;
 
 /** Why Allocate placed nobody, as its 409 answers (draft for the API agreement's 0.14). */
 export type AllocateRefusal =
@@ -343,12 +343,11 @@ function tooFew(groupCount: number, joined: number): AllocateRefusal | null {
   return needed > 0 ? { error: "too_few_participants", needed } : null;
 }
 
-/** What an organizer enters in the Groups screen's one-step form (BAC-138). */
+/** What an organizer enters in the Groups screen's one-step form (BAC-138, BAC-141). */
 export interface SplitFields {
-  groupCount: number;
-  /** Each group's capacity. */
+  /** Each group's capacity, at least MIN_PER_GROUP. */
   peoplePerGroup: number;
-  /** Group n's location is the nth, or none past the end. */
+  /** Group n's location is the nth, none past the end, and any past the last group is ignored. */
   locations: (string | null)[];
 }
 
@@ -356,13 +355,22 @@ export interface SplitFields {
 export type SplitRefusal = AllocateRefusal | { error: "groups_exist" };
 
 /**
- * The Groups screen's shortcut (BAC-138): makes `groupCount` groups named "Group 1",
- * "Group 2" and so on, each with `peoplePerGroup` as its capacity, then allocates everyone who
- * has joined, as allocateWaiting() does. It all happens in one transaction, so a refusal leaves
- * nothing behind and the same form can be sent again.
+ * How many groups a split makes of `joined` people (BAC-141). Rounding up puts nobody over the
+ * number entered, and the cap stops anyone being alone when 2 is entered and an odd number has
+ * joined. The screen's line works this out as well, in event-web's lib/group-fields.ts.
+ */
+function splitGroupCount(joined: number, peoplePerGroup: number): number {
+  return Math.min(Math.ceil(joined / peoplePerGroup), Math.floor(joined / MIN_PER_GROUP));
+}
+
+/**
+ * The Groups screen's shortcut (BAC-138, BAC-141): counts who has joined, makes as many groups
+ * as splitGroupCount() says, named "Group 1", "Group 2" and so on, each with `peoplePerGroup` as
+ * its capacity, then allocates everyone, as allocateWaiting() does. It all happens in one
+ * transaction, so a refusal leaves nothing behind and the same form can be sent again.
  *
  * It refuses with `groups_exist` when any group is there, so it can't overwrite a live board,
- * and with Allocate's `too_few_participants` when fewer than 2 have joined for each group.
+ * and with Allocate's `too_few_participants` when fewer than 2 have joined, as for one group.
  * The allocation lock makes two at once take turns, so the second finds the first's groups.
  */
 export async function splitIntoGroups(
@@ -376,11 +384,11 @@ export async function splitIntoGroups(
     const { startedAt } = await lockAllocation(tx);
     const { places, members } = await loadPlacesAndMembers(tx, organizers);
     if (places.length > 0) return { error: "groups_exist" };
-    const refusal = tooFew(fields.groupCount, members.length);
+    const refusal = tooFew(1, members.length);
     if (refusal) return refusal;
 
     await tx.insert(participantGroups).values(
-      Array.from({ length: fields.groupCount }, (_, i) => ({
+      Array.from({ length: splitGroupCount(members.length, fields.peoplePerGroup) }, (_, i) => ({
         id: crypto.randomUUID(),
         name: `Group ${i + 1}`,
         tags: [],

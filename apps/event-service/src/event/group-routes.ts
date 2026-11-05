@@ -13,6 +13,7 @@ import {
   joinGroups,
   loadGroupBoard,
   loadMyGroup,
+  MIN_PER_GROUP,
   type Organizers,
   placeMember,
   removeMember,
@@ -126,20 +127,18 @@ const groupFieldsSchema = z.object({
 });
 
 /**
- * The Groups screen's one-step form (BAC-138, draft for the API agreement's 0.14): how many
- * groups, the people per group, which is each group's capacity, and a location for each
- * group, in order. Locations follow a group's location rule, and a missing one is none.
+ * The Groups screen's one-step form (BAC-138, BAC-141, draft for the API agreement's 0.14): the
+ * people per group, which is each group's capacity, and a location for each group, in order.
+ * The service works out how many groups. Locations follow a group's location rule, a missing one
+ * is none, and any past the last group are ignored.
  */
-const splitSchema = z
-  .object({
-    group_count: z.number().int().positive(),
-    people_per_group: z.number().int().positive(),
-    locations: z.array(optionalOrganizerText("location")).default([]),
-  })
-  .refine(({ group_count, locations }) => locations.length <= group_count, {
-    path: ["locations"],
-    message: "locations must have at most one item for each group",
-  });
+const splitSchema = z.object({
+  people_per_group: z
+    .number()
+    .int()
+    .min(MIN_PER_GROUP, `people_per_group must be ${MIN_PER_GROUP} or more`),
+  locations: z.array(optionalOrganizerText("location")).default([]),
+});
 
 /** Where an organizer puts someone: a group by its ID, or waiting with null. */
 const placeMemberSchema = z.object({ group_id: z.string().nullable() });
@@ -221,17 +220,18 @@ export function adminGroupRoutes({
 
   // Makes the groups and allocates everyone who has joined, in one step, or makes nothing.
   app.post("/split", jsonBody(splitSchema), async (c) => {
-    const { group_count, people_per_group, locations } = c.req.valid("json");
+    const { people_per_group, locations } = c.req.valid("json");
     const refusal = await splitIntoGroups(
       c.var.db,
-      { groupCount: group_count, peoplePerGroup: people_per_group, locations },
+      { peoplePerGroup: people_per_group, locations },
       now(),
       shuffle,
       organizers,
     );
     if (refusal) return c.json(refusal, 409);
-    log("groups_split", { user_id: c.var.user.id, group_count });
-    return c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers)), 201);
+    const board = await loadGroupBoard(c.var.db, organizers);
+    log("groups_split", { user_id: c.var.user.id, group_count: board.groups.length });
+    return c.json(groupBoardBody(board), 201);
   });
 
   // Everyone joins again for the next trial, and the groups stay.

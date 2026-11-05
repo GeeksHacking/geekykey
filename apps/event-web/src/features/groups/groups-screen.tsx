@@ -104,7 +104,11 @@ export function GroupsScreen() {
           <>
             <AddGroupDialog />
             {/* Split answers with the board, as Allocate does, so the two take turns too. */}
-            <SplitGroupsDialog disabled={!data || allocate.isPending} />
+            <SplitGroupsDialog
+              disabled={!data || allocate.isPending}
+              joined={data?.joined_count ?? 0}
+              groupsExist={(data?.groups.length ?? 0) > 0}
+            />
             <Button disabled={!data || allocate.isPending} onClick={() => allocate.mutate()}>
               Allocate
             </Button>

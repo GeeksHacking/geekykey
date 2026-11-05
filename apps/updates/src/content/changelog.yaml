@@ -2135,3 +2135,11 @@
     On the Groups screen, an organizer can switch connections from "Connect across token kinds"
     to "Connect across groups". Then two people in different groups connect whatever their
     tokens, and the token page tells anyone in the same group, or not in one, why they didn't.
+
+- id: groups-split-works-out-the-number
+  date: 2026-11-05
+  area: backend
+  change: >-
+    The Split into groups form now asks only for the people per group and a location for each
+    group. The service works out the number of groups from how many people have joined, and the
+    form shows the result before the press, for example "12 have joined. This makes 3 groups of 4."
