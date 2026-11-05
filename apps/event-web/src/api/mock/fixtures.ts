@@ -25,11 +25,6 @@ export interface MockUser {
   display_name: string | null;
   role: Role;
   has_name: boolean;
-  /**
-   * How many people are waiting for this user to tap back, for the mock's /me (agreement 8.1,
-   * a draft for the next version). Absent reads as 0.
-   */
-  tapped_you?: number;
   answers?: Record<string, string>;
   /** Waiting for this user to accept or decline, newest first (BAC-149). Absent reads as none. */
   connection_requests?: MockConnectionRequest[];
@@ -208,7 +203,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       display_name: "Alex Tan",
       role: "participant",
       has_name: true,
-      tapped_you: 1,
       answers: {
         drink: "tea",
         hours: "night_owl",

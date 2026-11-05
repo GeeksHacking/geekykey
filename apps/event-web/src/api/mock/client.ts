@@ -540,7 +540,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           user: toUser(user),
           questions: data.questions,
           points,
-          tapped_you: user.tapped_you ?? 0,
           stamps,
           recent_taps,
           connection_requests: (user.connection_requests ?? []).map(

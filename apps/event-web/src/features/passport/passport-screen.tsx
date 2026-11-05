@@ -8,7 +8,6 @@ import { NamePrompt } from "@/features/passport/name-prompt";
 import { NewStampBanner } from "@/features/passport/new-stamp-banner";
 import { QuestionsPrompt } from "@/features/passport/questions-prompt";
 import { StampGrid } from "@/features/passport/stamp-grid";
-import { TappedYouNotice } from "@/features/passport/tapped-you-notice";
 import { useNamePromptSkip } from "@/features/passport/use-name-prompt-skip";
 import { useNewStampLink } from "@/features/passport/use-new-stamp-link";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
@@ -35,7 +34,6 @@ export function PassportScreen() {
       {!me.user.has_name && !namePrompt.skipped ? (
         <NamePrompt userId={me.user.id} onSkip={namePrompt.skip} />
       ) : null}
-      <TappedYouNotice count={me.tapped_you} />
       {me.questions ? (
         <QuestionsPrompt
           key={me.user.id}

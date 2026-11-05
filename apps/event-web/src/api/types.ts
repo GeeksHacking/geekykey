@@ -127,11 +127,6 @@ export interface MeResponse {
   /** The answers game's questions in the order to ask them, or null without the game. */
   questions: Question[] | null;
   points: number;
-  /**
-   * How many people have tapped this user's token in the last 2 minutes and are waiting for
-   * a tap back (agreement 8.1, a draft for the next version). 0 when nobody is waiting.
-   */
-  tapped_you: number;
   stamps: Stamp[];
   recent_taps: MeTap[];
   /** Newest first. Empty without a connections game (BAC-149). */
