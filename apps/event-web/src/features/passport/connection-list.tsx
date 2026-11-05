@@ -1,6 +1,15 @@
-import type { MeResponse } from "@/api/types";
+import type { Connection, MeResponse } from "@/api/types";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ConnectionRow } from "@/features/passport/connection-row";
+
+/**
+ * A connection has no ID, and two can share `connected_at`. The other fields that never
+ * change keep their rows apart. `shared` is left out because it changes when the pair's
+ * answers arrive, and a changed key would remount the row and close its panel.
+ */
+function connectionKey(connection: Connection): string {
+  return `${connection.connected_at}-${connection.kind ?? "none"}-${connection.match ?? "none"}`;
+}
 
 /**
  * The user's connections, newest first as /me gives them. An event without a connections game
@@ -15,7 +24,7 @@ export function ConnectionList({ me }: { me: MeResponse }) {
       {me.connections.length > 0 ? (
         <ul aria-label="Connections" className="divide-y rounded-lg border">
           {me.connections.map((connection) => (
-            <ConnectionRow key={connection.connected_at} connection={connection} me={me} />
+            <ConnectionRow key={connectionKey(connection)} connection={connection} me={me} />
           ))}
         </ul>
       ) : (

@@ -189,6 +189,25 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
     expect(list).not.toHaveTextContent(SEEDED_GUEST_ID);
   });
 
+  it("keeps two connections with one timestamp apart", async () => {
+    const at = "2026-11-12T08:12:30.000Z";
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      renderScreen(
+        setUp([
+          { connected_at: at, kind: "B", match: 60, shared: [], shared_at: at },
+          { connected_at: at, kind: "B", match: 70, shared: [], shared_at: at },
+        ]),
+      );
+
+      const list = await screen.findByRole("list", { name: "Connections" });
+      expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+      expect(errors.mock.calls.some((call) => String(call[0]).includes("same key"))).toBe(false);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
   it("lists a connection made across groups, which has no kind (BAC-140)", async () => {
     renderScreen(setUp([connection(3, { kind: null, match: null })]));
 
