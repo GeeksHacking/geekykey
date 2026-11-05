@@ -836,7 +836,7 @@ Everything the participant dashboard and passport view need in one call.
 
 ```json
 {
-  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips" },
+  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips", "bio": "Building a robot arm", "contact_line": "@alex on Telegram" },
   "points": 3,
   "stamps": [
     { "station_id": "…", "name": "3D Printing Booth", "location": "Hall A", "points": 1, "link": "https://example.com/3d-printing", "earned_at": "2026-10-10T09:00:01.250Z" },
@@ -850,7 +850,7 @@ Everything the participant dashboard and passport view need in one call.
     { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "requested_at": "2026-11-12T08:12:00.000Z" }
   ],
   "connections": [
-    { "connected_at": "2026-11-12T08:12:30.000Z", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
+    { "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
   ]
 }
 ```
@@ -900,10 +900,20 @@ Everything the participant dashboard and passport view need in one call.
   or `Guest` when they have none. `requested_at` is when the tap reached the Event Service. The
   list is empty without a connections game, and a screen reads a missing list as empty, so it
   works with an Event Service from before it.
+- `user.bio` and `user.contact_line` are what the user wrote (8.7), or `null` for none (BAC-147,
+  approved for the next version). A screen reads a missing one as `null`, so it works with an Event
+  Service from before them.
 - `connections` lists the user's connections ([Connections](#connections)), newest first. Each
   gives when it was made, and the other person's kind, question and answer as they were then.
-  `answer` is `null` if they hadn't answered yet. It never gives the other person's user ID or
-  name. Added in 0.12, at `Checkpoint 7`, and an empty list before that.
+  `answer` is `null` if they hadn't answered yet. It never gives the other person's user ID. Added
+  in 0.12, at `Checkpoint 7`, and an empty list before that.
+- Each connection's `display_name`, `bio` and `contact_line` are the other person's current ones,
+  so an edit shows at the next poll and clearing one hides it, while the rest of the connection
+  stays as it was made. `display_name` is `null` when they have never logged in to this Event
+  Service, and the screens show `Guest` (BAC-136). `bio` and `contact_line` are `null` when they
+  have none. This list is the only answer that gives another person's contact line, so nobody gets
+  one before the two connect. A screen reads a missing one as `null` (BAC-147, approved for the
+  next version).
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
@@ -1064,7 +1074,8 @@ token's UID, in any separator style ([Token UID](#token-uid)), and My tokens sen
 ### 8.7 `PATCH /api/v1/me` on the Event Service (`Implemented`)
 
 Sets the name the event shows for the current user: on the passport, the scan log and the
-export. From 0.12, at `Checkpoint 7`, it also sets the user's answer in the answers game. The passport asks for it when `has_name` is `false` (8.1), and lets the user change it
+export. From 0.12, at `Checkpoint 7`, it also sets the user's answer in the answers game, and it
+sets the user's bio and contact line (BAC-147, approved for the next version). The passport asks for it when `has_name` is `false` (8.1), and lets the user change it
 later. Anyone can set it, not only a guest. A Google user may not want their full Google name
 shown.
 
@@ -1073,10 +1084,10 @@ shown.
 **Request**
 
 ```json
-{ "display_name": "Alex", "answer": "Chips" }
+{ "display_name": "Alex", "answer": "Chips", "bio": "Building a robot arm", "contact_line": "@alex on Telegram" }
 ```
 
-Both fields are optional, and a request needs at least one.
+Every field is optional, and a request needs at least one.
 
 `display_name` is trimmed, then must be 1 to 30 characters, counted as Unicode code points. Any
 script is allowed. A name that breaks the rule gets `validation_failed`, with its issue under the
@@ -1084,13 +1095,19 @@ path `["display_name"]`, and leaves the name as it was.
 
 `answer` follows the same rules, trimmed and then 1 to 60 code points, with its issue under
 `["answer"]`. A user whose `question` is `null` gets `validation_failed` for any `answer`. The user
-can change it at any time, and the hunt shows the newest. A request where either field breaks its
-rule changes neither.
+can change it at any time, and the hunt shows the newest.
+
+`bio` and `contact_line` are each a string or `null`. A string is trimmed, then must be at most 160
+code points for `bio` and 80 for `contact_line`, with its issue under `["bio"]` or
+`["contact_line"]`. A blank string or `null` clears it, and `GET` then gives `null`. The contact
+line is free text, such as a Telegram handle (BAC-147, approved for the next version).
+
+A request where any field breaks its rule changes nothing.
 
 **Response `200`**, with the `user` object from 8.1:
 
 ```json
-{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips" } }
+{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "E", "question": "What's the best snack at a party?", "answer": "Chips", "bio": "Building a robot arm", "contact_line": "@alex on Telegram" } }
 ```
 
 - From now on, logging in (7.2) and login links (7.4) no longer change the name.
@@ -1101,6 +1118,10 @@ rule changes neither.
 - Nothing checks what an answer says either. Answers show only on phones, in the hunt (8.9) and
   in `connections` (8.1), and never on the map (9.10), since a unique answer can identify someone
   as a name can.
+- Nothing checks what a bio or a contact line says either. They show only to the user and to the
+  people they have connected with, in `connections` (8.1). The token page, a connection request,
+  the organizers' screens, the export, the map and the memory card never show them (BAC-147,
+  approved for the next version).
 
 **Errors:** `unauthenticated`, `validation_failed`, and `rate_limited`
 ([Rate limits](#rate-limits)).
@@ -2044,8 +2065,8 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 - Removing a station's passport settings. Before the station's game is fixed, an organizer can
   set it to another game instead (9.11), and it keeps its settings but stops being a stamp slot.
 - Editing or deleting taps.
-- User profile editing, apart from the name the event shows (8.7). A guest can't be turned into
-  a Google account.
+- User profile editing, apart from the name the event shows, the bio and the contact line (8.7).
+  A guest can't be turned into a Google account.
 - Logging in through the Portal (`GET /auth/login` and `GET /auth/callback`). It replaces
   `POST /auth/firebase` after the showcase
   ([ADR 0004](../docs/adr/0004-the-showcase-logs-in-through-firebase.md)).
@@ -2070,7 +2091,7 @@ There are no GeekyKey admin screens.
 |---|---|
 | Login | Firebase's web SDK, with Google or GeeksHacking's login, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development. No guest sign-in |
 | Arriving from a login link, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` |
-| Participant dashboard | `GET /api/v1/me`, with `connection_requests`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline` |
+| Participant dashboard | `GET /api/v1/me`, with `connection_requests`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline`; `PATCH /api/v1/me` for the bio and the contact line |
 | Passport / stamp book | `GET /api/v1/me` (the `stamps` array, and `connections` for the reveal); `PATCH /api/v1/me` for the name and the answer |
 | The hunt, in the passport | `GET /api/v1/hunt`, polled every 15 seconds; `POST /api/v1/hunt/skip` |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
@@ -2119,6 +2140,17 @@ There are no GeekyKey admin screens.
 - When `connections` gains an item, the passport shows the reveal: **"You're connected!"**, then
   the other person's question and answer, or **"They haven't answered yet."** when `answer` is
   `null`.
+- The reveal and the list of connections show the other person's `display_name`, or **Guest** for
+  `null`, then their `bio`, then **"Contact: {contact_line}"**. A field that's `null` takes no line
+  (BAC-136 and BAC-147, approved for the next version; "Contact:" is a draft for Ethan to approve).
+- The dashboard shows **"Your profile"**, with the user's `bio`, **"Contact: {contact_line}"** and an
+  **Change profile** button, or **"No bio or contact line yet. Add them so people you connect with
+  can reach you."** with neither. Change profile opens a form headed **"What people see once you connect."**, with **Bio** and **Contact line**, each with
+  **"People you connect with see this."** under it, and **Save**. The contact line's placeholder is
+  "@yourhandle on Telegram". Leaving one blank clears it. On `validation_failed` it says "Use at most
+  160 characters." or "Use at most 80 characters." under that field. An event with no connections game
+  shows none of this (BAC-147, approved for the next version; the sentence about who sees it is the
+  ticket's, and the other wording is a draft for Ethan to approve).
 - While `connection_requests` isn't empty, the dashboard lists each one under **"Connection
   requests"** as **"{display_name} wants to connect."**, with **Accept** and **Decline** buttons,
   and reads `/me` again after a press (BAC-149, drafts for Ethan to approve). On a `same_kind` or
@@ -2268,3 +2300,4 @@ Closed on 2026-10-10:
 | 2026-11-02 | Version 0.12, a draft for Ethan's review: connections by phone, and the answers game on top (BAC-116, and the migration spec's section 6, "The answers game"). Two users connect when each taps their phone on the other's token within 2 minutes ([Connections](#connections), in section 4). **New, at `Checkpoint 7`:** `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (8.8), which the token page calls once its lookup says `someone_else`; the meeting hand-off, `POST /geekykey/v1/meetings` (11.10), taken by an Event Service whose entry in the GeekyKey Service's settings says so; and `GET /api/v1/hunt` and `POST /api/v1/hunt/skip` on the Event Service (8.9), with the new `409 skip_locked`. **New fields, at `Checkpoint 7`:** `user.question`, `user.answer` and `connections` in the Event Service's `/me` (8.1); `answer` in `PATCH /api/v1/me` (8.7), where `display_name` becomes optional; and `connections`, a count and anonymous links, in the map's data (9.10). The meeting counts toward the GeekyKey Service's 20 lookups a minute. Section 12 keeps connection points out of scope and lets connections by phone in. Section 13 adds the hunt's, the reveal's and the token page's sentences. No field is removed, and each service works with the other's previous version. |
 | 2026-11-05 | A draft for the next version, for Ethan's review: the other person accepts a connection with a button (BAC-149, from the 5 Nov meeting with Julian). A tap on someone's token sends them a connection request with no time limit, a tap back still connects, and the 2 minute limit on a half goes. **New:** `connection_requests` in `/me` (8.1) and 8.10's accept and decline, both at `Checkpoint 7`. **Changed:** what `waiting` means in 8.8 and 11.10, and section 13's `waiting` sentence, which also gets the event's button. No status is added, so either service works with the other's previous version. |
 | 2026-11-05 | For the next version, which Ethan approved: tapping a token says whose it is, so people notice when tokens are swapped (BAC-143, from the 5 Nov trial). **New, at `Checkpoint 7`:** `owner_name` in the meeting hand-off's answer (11.10) and in each item of 8.8's answer, the owner's current name or `null`. **Changed:** 8.7 says who sees a name, 8.5's row says only the lookup gives no name, and section 13 adds the token page's two sentences and the name prompt's line, which also covers FRO-127. No field is removed, and either service works with the other's previous version. |
+| 2026-11-05 | For the next version, whose fields Ethan approved: participants write a bio and a contact line, and people they connect with see both (BAC-147, from the 5 Nov meeting with Julian). **New, at `Checkpoint 7`:** `bio` and `contact_line` in 8.1's `user` and in 8.7's request and answer, and in each item of `connections`, which also gains `display_name` from BAC-136, all three the other person's current values. **Changed:** 8.1 no longer says a connection gives no name, 8.7 says who sees them, and section 13 adds the dashboard's profile and what the reveal and the list show. No field is removed. A screen reads a missing one as `null`, so it works with an Event Service from before them, and the Event Service goes first, since an older one refuses a request with only these two. Ethan's approval covers the fields and the ticket's rules. Section 13 marks the wording the ticket didn't set as a draft for him. |

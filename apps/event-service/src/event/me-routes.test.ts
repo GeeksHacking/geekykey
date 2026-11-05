@@ -25,6 +25,8 @@ interface MeBody {
     has_name: boolean;
     kind: string | null;
     answers: Record<string, string>;
+    bio: string | null;
+    contact_line: string | null;
   };
   questions: unknown[] | null;
   points: number;
@@ -159,6 +161,8 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
       has_name: true,
       kind: null,
       answers: {},
+      bio: null,
+      contact_line: null,
     },
     questions: null,
     points: 0,
@@ -469,6 +473,8 @@ test("an organizer on the list gets the same view of their own account", async (
       has_name: true,
       kind: null,
       answers: {},
+      bio: null,
+      contact_line: null,
     },
     questions: null,
     points: 0,
@@ -519,6 +525,8 @@ test("a participant sets the name the event shows, and /me shows it", async () =
       has_name: true,
       kind: null,
       answers: {},
+      bio: null,
+      contact_line: null,
     },
   });
   assert.equal((await meAs(userId)).user.display_name, "Ally");
@@ -590,7 +598,92 @@ test("an event with no answers game refuses any answer", async () => {
   assert.equal((await meAs(userId)).user.display_name, "Alex");
 });
 
-test("a request needs the name, the answers or both", async () => {
+test("a request needs at least one field", async () => {
   const { signIn, patchMe, userId } = await harness();
   assert.equal((await issuePaths(await patchMe({}, await signIn(userId)))).length, 1);
+});
+
+test("a participant writes a bio and a contact line, and /me shows both", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const res = await patchMe(
+    { bio: "Building a robot arm", contact_line: "@alex on Telegram" },
+    await signIn(userId),
+  );
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  screensSchemas.setDisplayNameResponseSchema.parse(body);
+  assert.deepEqual(body, {
+    user: {
+      id: userId,
+      display_name: "Alex",
+      role: "participant",
+      has_name: true,
+      kind: null,
+      answers: {},
+      bio: "Building a robot arm",
+      contact_line: "@alex on Telegram",
+    },
+  });
+  const { user } = await meAs(userId);
+  assert.equal(user.bio, "Building a robot arm");
+  assert.equal(user.contact_line, "@alex on Telegram");
+});
+
+test("each of the bio and the contact line changes alone, and neither touches the name", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const cookie = await signIn(userId);
+  await patchMe({ bio: "First", contact_line: "@alex" }, cookie);
+  await patchMe({ bio: "Second" }, cookie);
+  await patchMe({ contact_line: "alex@example.com" }, cookie);
+  const { user } = await meAs(userId);
+  assert.equal(user.bio, "Second");
+  assert.equal(user.contact_line, "alex@example.com");
+  assert.equal(user.display_name, "Alex");
+});
+
+test("a blank value or null clears a bio or a contact line", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const cookie = await signIn(userId);
+  for (const empty of ["", "   ", null]) {
+    await patchMe({ bio: "Something", contact_line: "@alex" }, cookie);
+    const res = await patchMe({ bio: empty, contact_line: empty }, cookie);
+    assert.equal(res.status, 200, JSON.stringify(empty));
+    const { user } = await meAs(userId);
+    assert.equal(user.bio, null, JSON.stringify(empty));
+    assert.equal(user.contact_line, null, JSON.stringify(empty));
+  }
+});
+
+test("a bio and a contact line are trimmed, then counted in code points", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const cookie = await signIn(userId);
+  const bio = "😀".repeat(160);
+  const contact = "陈".repeat(80);
+  const res = await patchMe({ bio: `  ${bio}  `, contact_line: `\t${contact}\n` }, cookie);
+  assert.equal(res.status, 200);
+  const { user } = await meAs(userId);
+  assert.equal(user.bio, bio);
+  assert.equal(user.contact_line, contact);
+});
+
+test("a value over its limit is refused under its own path, and a refused request changes nothing", async () => {
+  const { signIn, patchMe, meAs, userId } = await harness();
+  const cookie = await signIn(userId);
+  await patchMe({ bio: "Kept", contact_line: "@kept" }, cookie);
+  const cases: [unknown, string[]][] = [
+    [{ bio: "x".repeat(161) }, ["bio"]],
+    [{ bio: "😀".repeat(161) }, ["bio"]],
+    [{ contact_line: "x".repeat(81) }, ["contact_line"]],
+    [{ bio: 7 }, ["bio"]],
+    [{ contact_line: 7 }, ["contact_line"]],
+    // The rest of the request doesn't go through either.
+    [{ display_name: "New", bio: "New", contact_line: "x".repeat(81) }, ["contact_line"]],
+  ];
+  for (const [body, paths] of cases) {
+    assert.deepEqual(await issuePaths(await patchMe(body, cookie)), [paths], JSON.stringify(body));
+  }
+  const { user } = await meAs(userId);
+  assert.equal(user.bio, "Kept");
+  assert.equal(user.contact_line, "@kept");
+  assert.equal(user.display_name, "Alex");
 });

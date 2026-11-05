@@ -38,6 +38,9 @@ const userSchema = z.object({
   role,
   has_name: z.boolean(),
   answers: z.record(z.string(), z.string()),
+  // BAC-147. A missing value reads as none, so the screens work with a service from before it.
+  bio: z.prefault(z.nullable(z.string()), null),
+  contact_line: z.prefault(z.nullable(z.string()), null),
 });
 
 const questionSchema = z.object({
@@ -50,6 +53,8 @@ const connectionSchema = z.object({
   connected_at: isoTimestamp,
   // BAC-136. A missing name reads as none, so the screens work with a service from before it.
   display_name: z.prefault(z.nullable(z.string()), null),
+  bio: z.prefault(z.nullable(z.string()), null),
+  contact_line: z.prefault(z.nullable(z.string()), null),
   kind: z.nullable(z.string()),
   match: z.nullable(z.int().check(z.gte(0), z.lte(100))),
   shared: z.nullable(z.array(z.string())),

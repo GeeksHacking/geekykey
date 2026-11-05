@@ -42,7 +42,7 @@ const app = testApp({}, { answers: game });
 
 /** The parts of GET /api/v1/me these tests read. */
 interface MeBody {
-  user: { display_name: string; answers: Record<string, string> };
+  user: { display_name: string; answers: Record<string, string>; bio: string | null };
   questions: Question[] | null;
 }
 
@@ -173,6 +173,8 @@ test("one request sets the name and answers together", async () => {
       has_name: true,
       kind: null,
       answers: { drink: "tea" },
+      bio: null,
+      contact_line: null,
     },
   });
   const { user } = await meAs(userId);
@@ -190,6 +192,7 @@ test("after a connection the answers are fixed, and a change is refused with not
     { answers: { drink: "coffee" } },
     { answers: { hours: "owl" } },
     { display_name: "Sam", answers: { hours: "owl" } },
+    { bio: "Refused too", answers: { hours: "owl" } },
   ]) {
     const res = await patchMe(body, cookie);
     assert.equal(res.status, 409, JSON.stringify(body));
@@ -198,8 +201,10 @@ test("after a connection the answers are fixed, and a change is refused with not
   const { user } = await meAs(userId);
   assert.deepEqual(user.answers, { drink: "tea" });
   assert.equal(user.display_name, "Alex");
-  // The name can still change.
+  assert.equal(user.bio, null);
+  // The name, the bio and the contact line can still change.
   assert.equal((await patchMe({ display_name: "Sam" }, cookie)).status, 200);
+  assert.equal((await patchMe({ bio: "Robots", contact_line: "@sam" }, cookie)).status, 200);
   // A second connection gives the same answers.
   assert.deepEqual(await connect(userId), { drink: "tea" });
 });

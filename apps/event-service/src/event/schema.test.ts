@@ -20,7 +20,7 @@ test("each Event table has only the columns the spec gives it", async () => {
       "game",
       "booth",
     ],
-    users: ["id", "display_name", "name_set_at", "created_at"],
+    users: ["id", "display_name", "name_set_at", "bio", "contact_line", "created_at"],
     taps: [
       "id",
       "station_id",

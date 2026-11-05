@@ -289,6 +289,8 @@ describe("the name the event shows (agreement 8.7)", () => {
         role: "participant",
         has_name: true,
         answers: {},
+        bio: null,
+        contact_line: null,
       },
     });
     await expect(api.me()).resolves.toMatchObject({ user: answer.user });
@@ -336,6 +338,8 @@ describe("the answers game (agreement 0.13)", () => {
   const connection = {
     connected_at: "2026-11-12T08:12:30.000Z",
     display_name: "Mei Lin",
+    bio: null,
+    contact_line: null,
     kind: "B",
     match: 60,
     shared: null,
@@ -388,7 +392,10 @@ describe("the answers game (agreement 0.13)", () => {
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).code).toBe("validation_failed");
     expect((error as ApiError).issues).toEqual([
-      { path: [], message: "A request needs display_name, answers or both" },
+      {
+        path: [],
+        message: "A request needs at least one of display_name, answers, bio and contact_line",
+      },
     ]);
   });
 

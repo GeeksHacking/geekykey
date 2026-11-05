@@ -56,6 +56,7 @@ import {
   PEOPLE_PER_GROUP_MIN,
   splitGroupCount,
 } from "@/lib/group-fields";
+import { BIO_MAX, CONTACT_LINE_MAX, fitsLimit } from "@/lib/profile";
 
 /**
  * The mock's anonymous web, oldest connection first. Each link joins numbers a few apart, so
@@ -213,6 +214,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     role: user.role,
     has_name: user.has_name,
     answers: user.answers ?? {},
+    bio: user.bio ?? null,
+    contact_line: user.contact_line ?? null,
   });
 
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
@@ -562,6 +565,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             {
               connected_at: new Date(at).toISOString(),
               display_name: request.display_name,
+              bio: null,
+              contact_line: null,
               kind: "B",
               match: 40,
               shared: ["drink", "weekend"],
@@ -578,20 +583,37 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         takeConnectionRequest(currentUser(), requestId);
       }),
 
-    // Agreement 8.7. The name is trimmed and 1 to 30 code points, and `answers` sets only
-    // the questions it names. A request that breaks either rule changes neither.
+    // Agreement 8.7. The name is trimmed and 1 to 30 code points, `answers` sets only the
+    // questions it names, and blank or null clears the bio or the contact line. A request that
+    // breaks any rule changes nothing.
     updateMe: (input: UpdateMeRequest) =>
       call((): UpdateMeResponse => {
         const user = currentUser();
         const issues: ApiIssue[] = [];
         const name = input.display_name?.trim();
+        const bio = input.bio?.trim();
+        const contactLine = input.contact_line?.trim();
 
-        // 8.7: a request needs at least one of the two fields. The service's schema refuses
-        // an empty body before the handler runs.
-        if (input.display_name === undefined && input.answers === undefined) {
+        // 8.7: a request needs at least one field. The service's schema refuses an empty body
+        // before the handler runs.
+        if (Object.values(input).every((field) => field === undefined)) {
           fail("validation_failed", [
-            { path: [], message: "A request needs display_name, answers or both" },
+            {
+              path: [],
+              message:
+                "A request needs at least one of display_name, answers, bio and contact_line",
+            },
           ]);
+        }
+
+        if (bio && !fitsLimit(bio, BIO_MAX)) {
+          issues.push({ path: ["bio"], message: `bio must be at most ${BIO_MAX} characters` });
+        }
+        if (contactLine && !fitsLimit(contactLine, CONTACT_LINE_MAX)) {
+          issues.push({
+            path: ["contact_line"],
+            message: `contact_line must be at most ${CONTACT_LINE_MAX} characters`,
+          });
         }
 
         if (name !== undefined && !isDisplayName(name)) {
@@ -637,6 +659,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         if (input.answers !== undefined) {
           user.answers = { ...user.answers, ...input.answers };
         }
+        if (input.bio !== undefined) user.bio = bio || null;
+        if (input.contact_line !== undefined) user.contact_line = contactLine || null;
         return { user: toUser(user) };
       }),
 

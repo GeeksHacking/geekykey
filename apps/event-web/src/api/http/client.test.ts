@@ -437,6 +437,8 @@ describe("HTTP client transport", () => {
       role: "participant",
       has_name: true,
       answers: {},
+      bio: null,
+      contact_line: null,
     };
     fetchMock.mockResolvedValue(response({ user }));
 
@@ -461,6 +463,8 @@ describe("HTTP client transport", () => {
       role: "participant",
       has_name: true,
       answers: { drink: "tea" },
+      bio: null,
+      contact_line: null,
     };
     fetchMock.mockResolvedValue(response({ user }));
 

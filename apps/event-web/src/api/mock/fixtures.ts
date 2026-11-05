@@ -26,6 +26,9 @@ export interface MockUser {
   role: Role;
   has_name: boolean;
   answers?: Record<string, string>;
+  /** Absent reads as none, as it does for `contact_line` (BAC-147). */
+  bio?: string | null;
+  contact_line?: string | null;
   /** Waiting for this user to accept or decline, newest first (BAC-149). Absent reads as none. */
   connection_requests?: MockConnectionRequest[];
   /**
@@ -203,6 +206,8 @@ export function createFixtures(now: number = Date.now()): MockData {
       display_name: "Alex Tan",
       role: "participant",
       has_name: true,
+      bio: "Second-year CS. Building a robot arm that can pour teh tarik.",
+      contact_line: "@alextan on Telegram",
       answers: {
         drink: "tea",
         hours: "night_owl",
@@ -223,17 +228,28 @@ export function createFixtures(now: number = Date.now()): MockData {
       connections: [
         connection(47_000, {
           display_name: "Wei Lin Chong",
+          bio: "Looking for a hardware teammate. Ask me about sensors and sourdough.",
+          contact_line: "@weilin_c on Telegram",
           kind: "B",
           match: 60,
           shared: ["drink", "school", "weekend"],
         }),
         connection(minutes(26), {
           display_name: "Farhan Iskandar",
+          bio: null,
+          contact_line: "farhan.i@example.com",
           kind: "G",
           match: 80,
           shared: ["drink", "hours", "superpower", "weekend"],
         }),
-        connection(minutes(58), { display_name: null, kind: "B", match: null, shared: [] }),
+        connection(minutes(58), {
+          display_name: null,
+          bio: null,
+          contact_line: null,
+          kind: "B",
+          match: null,
+          shared: [],
+        }),
       ],
     },
     {

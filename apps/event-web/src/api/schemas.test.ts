@@ -49,6 +49,8 @@ describe("me response contract", () => {
           {
             connected_at: "2026-11-12T08:12:30.000Z",
             display_name: "Mei Lin",
+            bio: null,
+            contact_line: null,
             kind: "B",
             match: 60,
             shared: null,
@@ -85,6 +87,34 @@ describe("me response contract", () => {
     expect(() =>
       parseMeResponse({ ...makeMe(), connection_requests: [{ ...request, id: 7 }] }),
     ).toThrow(NetworkError);
+  });
+
+  it("reads a bio and a contact line, and treats missing ones as none (BAC-147)", () => {
+    const connection = {
+      connected_at: "2026-11-12T08:12:30.000Z",
+      kind: "B",
+      match: 60,
+      shared: null,
+      shared_at: "2026-11-12T08:14:30.000Z",
+    };
+    const { bio, contact_line, ...userBefore } = makeMe().user;
+    expect([bio, contact_line]).toEqual([null, null]);
+    const before = parseMeResponse({
+      ...makeMe(),
+      user: userBefore,
+      connections: [connection],
+    });
+    expect(before.user).toMatchObject({ bio: null, contact_line: null });
+    expect(before.connections[0]).toMatchObject({ bio: null, contact_line: null });
+
+    const given = { bio: "Robot arms", contact_line: "@alex" };
+    const after = parseMeResponse({
+      ...makeMe(),
+      user: { ...makeMe().user, ...given },
+      connections: [{ ...connection, ...given }],
+    });
+    expect(after.user).toMatchObject(given);
+    expect(after.connections[0]).toMatchObject(given);
   });
 
   it("reads a connection with no kind, made across groups (BAC-140)", () => {
@@ -545,6 +575,8 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
       role: "participant",
       has_name: true,
       answers: { drink: "tea" },
+      bio: "Robot arms",
+      contact_line: "@alex",
     },
     questions: [
       {
@@ -564,6 +596,8 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
       {
         connected_at: "2026-11-12T08:12:30.000Z",
         display_name: "Mei Lin",
+        bio: null,
+        contact_line: null,
         kind: "B",
         match: 50,
         shared: null,
@@ -572,6 +606,8 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
       {
         connected_at: "2026-11-12T08:00:00.000Z",
         display_name: null,
+        bio: null,
+        contact_line: null,
         kind: "G",
         match: null,
         shared: [],

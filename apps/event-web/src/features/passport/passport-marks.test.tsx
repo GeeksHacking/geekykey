@@ -46,6 +46,8 @@ const before = makeMe({ points: 2, stamps: [printing, lounge] });
 const met: Connection = {
   connected_at: "2026-11-17T02:40:00.000Z",
   display_name: "Mei Lin",
+  bio: null,
+  contact_line: null,
   kind: "B",
   match: 60,
   shared: null,

@@ -25,6 +25,10 @@ export interface SessionUser {
   role: Role;
   /** The first kind the GeekyKey Service gave with them (user-kinds.ts), or null for none yet. */
   kind: string | null;
+  /** What the user wrote about themselves (profiles.ts), or null for none. */
+  bio: string | null;
+  /** How to reach the user (profiles.ts), or null for none. */
+  contactLine: string | null;
 }
 
 /** Reads the request's `db`, and sets `user` for the handlers after it. */
@@ -120,6 +124,8 @@ async function loadSessionUser(
       id: users.id,
       displayName: users.displayName,
       nameSetAt: users.nameSetAt,
+      bio: users.bio,
+      contactLine: users.contactLine,
       kind: userKinds.kind,
     })
     .from(users)
@@ -134,6 +140,8 @@ async function loadSessionUser(
     hasName: hasName(user),
     role: options.organizers.has(user.id) ? "organizer" : "participant",
     kind: user.kind,
+    bio: user.bio,
+    contactLine: user.contactLine,
   };
 }
 

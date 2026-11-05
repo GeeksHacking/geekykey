@@ -68,6 +68,8 @@ function connection(minutesAgo: number, fields: Partial<Connection> = {}): Conne
   return {
     connected_at: new Date(connectedAt).toISOString(),
     display_name: "Mei Lin",
+    bio: null,
+    contact_line: null,
     kind: "B",
     match: 60,
     shared: [],
@@ -101,6 +103,28 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
     expect(await screen.findByText("You're connected!")).toBeInTheDocument();
     expect(screen.queryByText(/% match!/)).not.toBeInTheDocument();
     expect(screen.queryByText(TALK)).not.toBeInTheDocument();
+  });
+
+  it("shows the other person's name, bio and contact line", async () => {
+    renderScreen(
+      setUp([
+        connection(0, { display_name: "Wei Lin", bio: "Robot arms", contact_line: "@weilin" }),
+      ]),
+    );
+
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    expect(within(reveal).getByText("Wei Lin")).toBeInTheDocument();
+    expect(within(reveal).getByText("Robot arms")).toBeInTheDocument();
+    expect(within(reveal).getByText("Contact: @weilin")).toBeInTheDocument();
+  });
+
+  it("shows only the name of someone with neither field, and Guest for no name", async () => {
+    renderScreen(setUp([connection(0, { display_name: null })]));
+
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    expect(within(reveal).getByText("Guest")).toBeInTheDocument();
+    expect(within(reveal).queryByText(/Contact:/)).not.toBeInTheDocument();
+    expect(reveal.querySelector("p:empty")).toBeNull();
   });
 
   it("shows 0% as a match, not as no match", async () => {
@@ -226,13 +250,45 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
     expect(screen.getByRole("list", { name: "What you share" })).toBeInTheDocument();
   });
 
-  it("leaves the name out of the reveal, which shows only in the row below it", async () => {
-    renderScreen(setUp([connection(0, { display_name: "Mei Lin", match: 67 })]));
+  it("shows each person's bio and contact line under their name", async () => {
+    renderScreen(
+      setUp([
+        connection(3, { display_name: "Mei Lin", bio: "Sourdough", contact_line: "@meilin" }),
+        connection(9, { display_name: "Farhan", bio: "Sensors" }),
+        connection(20, { display_name: "Wei", contact_line: "wei@example.com" }),
+      ]),
+    );
 
-    await screen.findByText("67% match!");
-    expect(screen.getAllByText("Mei Lin")).toHaveLength(1);
-    const list = screen.getByRole("list", { name: "Connections" });
-    expect(within(list).getByText("Mei Lin")).toBeInTheDocument();
+    const list = await screen.findByRole("list", { name: "Connections" });
+    const [first, second, third] = within(list).getAllByRole("listitem");
+    expect(first).toHaveTextContent(/Mei Lin.*Sourdough.*Contact: @meilin.*match/);
+    expect(second).toHaveTextContent(/Farhan.*Sensors/);
+    expect(second).not.toHaveTextContent("Contact:");
+    expect(third).toHaveTextContent(/Wei.*Contact: wei@example\.com/);
+  });
+
+  it("gives someone with neither field no empty line", async () => {
+    renderScreen(setUp([connection(3, { display_name: "Mei Lin" })]));
+
+    const list = await screen.findByRole("list", { name: "Connections" });
+    expect(list).not.toHaveTextContent("Contact:");
+    expect(list.querySelector("p:empty")).toBeNull();
+  });
+
+  it("shows an edit at the next poll, hides what they clear, and keeps the match", async () => {
+    const api = setUp([connection(3, { bio: "Old bio", contact_line: "@old", match: 67 })]);
+    const { poll } = renderScreen(api);
+    const list = await screen.findByRole("list", { name: "Connections" });
+    expect(list).toHaveTextContent("Contact: @old");
+
+    guestOf(api).connections = [connection(3, { bio: "New bio", contact_line: "@new", match: 67 })];
+    await poll();
+    expect(list).toHaveTextContent(/New bio.*Contact: @new.*67% match/);
+
+    guestOf(api).connections = [connection(3, { bio: "New bio", match: 67 })];
+    await poll();
+    expect(list).toHaveTextContent("New bio");
+    expect(list).not.toHaveTextContent("Contact:");
   });
 
   it("keeps two connections with one timestamp apart", async () => {
@@ -244,6 +300,8 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
           {
             connected_at: at,
             display_name: "Mei Lin",
+            bio: null,
+            contact_line: null,
             kind: "B",
             match: 60,
             shared: [],
@@ -252,6 +310,8 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
           {
             connected_at: at,
             display_name: "Mei Lin",
+            bio: null,
+            contact_line: null,
             kind: "B",
             match: 70,
             shared: [],

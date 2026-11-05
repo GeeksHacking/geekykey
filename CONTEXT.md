@@ -186,6 +186,11 @@ too, if it's built. It joins two users, never two tokens, so nobody connects to 
 pair connects once however often they tap.
 _Avoid_: dual tap, link between tags
 
+**Contact line**:
+One line of free text a user writes so that people can reach them, such as a Telegram handle. It
+shows only to the people they have connected with, beside their bio, and always the current value
+(BAC-147).
+
 **Connection rule**:
 What two participants need to connect, which organizers switch on the Groups screen during an
 event: different token kinds, which a new event starts on, or different groups, whatever their

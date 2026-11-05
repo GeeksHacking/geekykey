@@ -57,6 +57,8 @@ const QUESTIONS: readonly Question[] = [
 interface ConnectionBody {
   connected_at: string;
   display_name: string | null;
+  bio: string | null;
+  contact_line: string | null;
   kind: string;
   match: number | null;
   shared: string[] | null;
@@ -131,7 +133,17 @@ function harness({ withGame = true } = {}) {
     assert.equal(res.status, 200);
   };
 
-  return { app, clock, meet, statusOf, meOf, answer, signIn };
+  /** Sets the user's bio or contact line through PATCH /api/v1/me. */
+  const setMe = async (userId: string, fields: { bio?: string; contact_line?: string }) => {
+    const res = await app.request("/api/v1/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: await signIn(userId) },
+      body: JSON.stringify(fields),
+    });
+    assert.equal(res.status, 200);
+  };
+
+  return { app, clock, meet, statusOf, meOf, answer, setMe, signIn };
 }
 
 test("the owner's tap back connects the two, and /me lists it for both", async () => {
@@ -406,6 +418,8 @@ test("what the two share shows 2 minutes after they connect, and not before", as
   assert.deepEqual(before, {
     connected_at: "2026-11-12T08:00:00.000Z",
     display_name: "alex",
+    bio: null,
+    contact_line: null,
     kind: "E",
     match: 67,
     shared: null,
@@ -462,6 +476,8 @@ test("each connection gives the other person's name, and not their ID or answers
     {
       connected_at: "2026-11-12T08:00:00.000Z",
       display_name: "Mei Lin",
+      bio: null,
+      contact_line: null,
       kind: "B",
       match: 0,
       shared: null,
@@ -494,6 +510,97 @@ test("a name set after connecting shows at the next /me, and the rest of the con
   screensSchemas.setDisplayNameResponseSchema.parse(await renamed.json());
 
   assert.deepEqual((await meOf("alex")).connections, [{ ...before!, display_name: "Mei Lin" }]);
+});
+
+test("each person sees the other's bio and contact line once they connect", async () => {
+  const { meet, meOf, setMe } = harness();
+  await setMe("alex", { bio: "Robot arms", contact_line: "@alex" });
+  await setMe("bea", { bio: "Sourdough and sensors", contact_line: "bea@example.com" });
+  await meet("alex", "E", "bea", "B");
+  await meet("bea", "B", "alex", "E");
+
+  const [toBea] = (await meOf("alex")).connections;
+  assert.equal(toBea!.bio, "Sourdough and sensors");
+  assert.equal(toBea!.contact_line, "bea@example.com");
+  const [toAlex] = (await meOf("bea")).connections;
+  assert.equal(toAlex!.bio, "Robot arms");
+  assert.equal(toAlex!.contact_line, "@alex");
+});
+
+test("an edit after connecting shows at the next /me, clearing hides it, and the match stays", async () => {
+  const { meet, meOf, setMe, answer } = harness();
+  await answer("alex", { drink: "tea" });
+  await answer("bea", { drink: "tea" });
+  await setMe("bea", { bio: "Old bio", contact_line: "@old" });
+  await meet("alex", "E", "bea", "B");
+  await meet("bea", "B", "alex", "E");
+  const [before] = (await meOf("alex")).connections;
+  assert.equal(before!.match, 100);
+
+  await setMe("bea", { bio: "New bio", contact_line: "@new" });
+  assert.deepEqual((await meOf("alex")).connections, [
+    { ...before!, bio: "New bio", contact_line: "@new" },
+  ]);
+
+  await setMe("bea", { contact_line: "" });
+  assert.deepEqual((await meOf("alex")).connections, [
+    { ...before!, bio: "New bio", contact_line: null },
+  ]);
+});
+
+test("someone who never logged in has no bio or contact line", async () => {
+  const { meet, meOf } = harness();
+  await meet("alex", "E", "never-logged-in", "B");
+  await meet("never-logged-in", "B", "alex", "E");
+  const [connection] = (await meOf("alex")).connections;
+  assert.equal(connection!.bio, null);
+  assert.equal(connection!.contact_line, null);
+});
+
+test("no answer gives a contact line to someone who hasn't connected with its owner", async () => {
+  const { app, meet, meOf, setMe, signIn } = harness();
+  const CONTACT = "@bea-private-contact";
+  await setMe("bea", { contact_line: CONTACT });
+  const seen = async (res: Response | Promise<Response>) => {
+    const answered = await res;
+    assert.equal(answered.status, 200, answered.url);
+    return await answered.text();
+  };
+  const organizer = { headers: { Cookie: await signIn("dev-organizer-1") } };
+
+  // A tap gives a name, and the request gives its sender's name.
+  const tap = await seen(meet("alex", "E", "bea", "B"));
+  assert.ok(tap.includes("bea"));
+  const answers = [
+    tap,
+    await seen(meet("bea", "B", "cai", "C")),
+    JSON.stringify(await meOf("alex")),
+    JSON.stringify(await meOf("cai")),
+    await seen(app.request("/api/v1/admin/taps", organizer)),
+    await seen(app.request("/api/v1/admin/groups", organizer)),
+    await seen(app.request("/api/v1/admin/export.csv", organizer)),
+    await seen(app.request("/api/v1/map", organizer)),
+  ];
+  for (const answer of answers) assert.ok(!answer.includes(CONTACT), answer);
+
+  // bea's own /me does show it.
+  assert.ok(JSON.stringify(await meOf("bea")).includes(CONTACT));
+  // alex, whose request waits, gets it only once bea accepts: here, with a tap back.
+  await meet("bea", "B", "alex", "E");
+  assert.equal((await meOf("alex")).connections[0]!.contact_line, CONTACT);
+});
+
+test("the map gives no bio or contact line of anyone connected", async () => {
+  const { app, meet, setMe, signIn } = harness();
+  await setMe("bea", { bio: "Sourdough and sensors", contact_line: "@bea" });
+  await meet("alex", "E", "bea", "B");
+  await meet("bea", "B", "alex", "E");
+  const map = await app.request("/api/v1/map", {
+    headers: { Cookie: await signIn("dev-organizer-1") },
+  });
+  assert.equal(map.status, 200);
+  const body = await map.text();
+  assert.ok(!body.includes("Sourdough") && !body.includes("@bea"), body);
 });
 
 test("someone with no users row has a null name, and someone with no name of their own has Guest", async () => {

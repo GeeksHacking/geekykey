@@ -19,6 +19,8 @@ const READ_ONLY = "You've connected, so your answers are set.";
 const connection = {
   connected_at: "2026-11-12T08:12:30.000Z",
   display_name: "Mei Lin",
+  bio: null,
+  contact_line: null,
   kind: "B",
   match: 60,
   shared: null,
@@ -203,6 +205,8 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
           role: "participant",
           has_name: false,
           answers: { drink: "tea", hours: "night_owl" },
+          bio: null,
+          contact_line: null,
         },
       });
     });
@@ -269,6 +273,8 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
           role: "participant",
           has_name: false,
           answers: { drink: "tea" },
+          bio: null,
+          contact_line: null,
         },
       });
     });
@@ -284,6 +290,8 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
           role: "participant",
           has_name: true,
           answers: {},
+          bio: null,
+          contact_line: null,
         },
       });
     });
