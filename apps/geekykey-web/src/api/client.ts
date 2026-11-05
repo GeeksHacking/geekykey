@@ -72,7 +72,7 @@ export interface ApiClient {
    * POST /api/v1/tokens/{uid}/meet. Agreement 8.8. The current user tapped someone
    * else's token, one half of a connection (CONTEXT.md's "Half"). The token page calls
    * it by itself, once, when its lookup (8.5) answers `someone_else`, and never for a
-   * GeekyKey admin, who may be holding a lost token.
+   * GeekyKey admin, who may be holding a lost token, or on a reload or a move back or forward.
    *
    * The answer is one item for each Event Service that takes meetings, in /me's order,
    * and empty when none does (11.10). Tapping the token again sends the half again,

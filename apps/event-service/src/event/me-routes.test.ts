@@ -175,6 +175,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
     recent_taps: [],
     next_stop: null,
     // Without the connections game, which testApp() doesn't run.
+    connection_requests: [],
     connections: [],
   });
 });
@@ -484,6 +485,7 @@ test("an organizer on the list gets the same view of their own account", async (
     recent_taps: [],
     next_stop: null,
     // Without the connections game, which testApp() doesn't run.
+    connection_requests: [],
     connections: [],
   });
   assert.equal((await meAs("dev-user-1")).user.role, "participant");

@@ -1,4 +1,5 @@
 import type {
+  AcceptConnectionRequestResponse,
   ConnectionRule,
   CreateGroupRequest,
   CreateStationRequest,
@@ -40,6 +41,16 @@ export interface ApiClient {
    * GET /api/v1/me.
    */
   updateMe(input: UpdateMeRequest): Promise<UpdateMeResponse>;
+
+  /**
+   * POST /api/v1/me/connection-requests/{id}/accept (BAC-149, draft for the agreement's next
+   * version). The request goes whatever it answers, and only `connected` connects the two.
+   * `not_found` means it no longer waits for this user.
+   */
+  acceptConnectionRequest(requestId: string): Promise<AcceptConnectionRequestResponse>;
+
+  /** POST /api/v1/me/connection-requests/{id}/decline (BAC-149). The tapper isn't told. */
+  declineConnectionRequest(requestId: string): Promise<void>;
 
   /** POST /auth/dev-login. Local development only. */
   devLogin(userId: string): Promise<void>;

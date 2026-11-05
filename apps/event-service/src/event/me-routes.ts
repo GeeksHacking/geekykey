@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { log } from "../lib/log.ts";
 import { jsonBody } from "../lib/validate.ts";
 import { type Answers, type AnswersGame, answersSchema } from "./answers.ts";
-import type { Connection, ConnectionsGame } from "./connections.ts";
+import type { Connection, ConnectionRequest, ConnectionsGame } from "./connections.ts";
 import { displayNameSchema, setOwnName } from "./display-names.ts";
 import {
   requireSession,
@@ -19,7 +20,7 @@ export interface MeRouteDeps {
   answers: AnswersGame | null;
   /** The event's connections game, from its settings, or null for none. */
   connections: ConnectionsGame | null;
-  /** The clock that says when what a pair share is shown. Tests pin it. */
+  /** The clock that says when what a pair share is shown, and when one connects. Tests pin it. */
   now?: () => Date;
 }
 
@@ -31,6 +32,15 @@ function connectionBody(connection: Connection) {
     match: connection.match,
     shared: connection.shared,
     shared_at: connection.sharedAt,
+  };
+}
+
+/** A request waiting for the user, as /me lists it (8.1). */
+function connectionRequestBody(request: ConnectionRequest) {
+  return {
+    id: request.id,
+    display_name: request.displayName,
+    requested_at: request.requestedAt,
   };
 }
 
@@ -76,10 +86,11 @@ export function meRoutes({
   app.get("/", requireSession(session), async (c) => {
     // The session already loaded the profile, so only the rest is read here.
     const user = c.var.user;
-    const [me, answers, connections] = await Promise.all([
+    const [me, answers, connections, requests] = await Promise.all([
       loadMe(c.var.db, user.id),
       game ? game.answersOf(c.var.db, user.id) : {},
       connectionsGame ? connectionsGame.connectionsOf(c.var.db, user.id, now()) : [],
+      connectionsGame ? connectionsGame.requestsFor(c.var.db, user.id) : [],
     ]);
     return c.json({
       user: userBody(user, answers),
@@ -112,6 +123,7 @@ export function meRoutes({
               name: me.nextStop.name,
               booth: me.nextStop.booth,
             },
+      connection_requests: requests.map(connectionRequestBody),
       connections: connections.map(connectionBody),
     });
   });
@@ -136,6 +148,32 @@ export function meRoutes({
     const named =
       display_name === undefined ? user : { ...user, displayName: display_name, hasName: true };
     return c.json({ user: userBody(named, saved) });
+  });
+
+  // Agreement 8.10, a draft for the next version. An event with no connections game has no
+  // requests, so every ID is one that doesn't wait for this user.
+  app.post("/connection-requests/:id/accept", requireSession(session), async (c) => {
+    const { db, user } = c.var;
+    const answer = { requestId: c.req.param("id"), userId: user.id };
+    const result = connectionsGame
+      ? await connectionsGame.accept(db, answer, now())
+      : { status: "not_found" as const };
+    if (result.status === "not_found") return c.json({ error: "not_found" }, 404);
+    log("connection_request_accepted", {
+      user_id: user.id,
+      from_id: result.fromId,
+      status: result.status,
+    });
+    return c.json({ status: result.status });
+  });
+
+  app.post("/connection-requests/:id/decline", requireSession(session), async (c) => {
+    const { db, user } = c.var;
+    const answer = { requestId: c.req.param("id"), userId: user.id };
+    const declined = connectionsGame ? await connectionsGame.decline(db, answer) : false;
+    if (!declined) return c.json({ error: "not_found" }, 404);
+    log("connection_request_declined", { user_id: user.id });
+    return c.body(null, 204);
   });
 
   return app;

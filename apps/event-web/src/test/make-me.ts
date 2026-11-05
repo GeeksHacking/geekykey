@@ -18,9 +18,9 @@ export function makeMe({ user, ...rest }: MeOverrides = {}): MeResponse {
     },
     questions: null,
     points: 0,
-    tapped_you: 0,
     stamps: [],
     recent_taps: [],
+    connection_requests: [],
     connections: [],
     ...rest,
   };

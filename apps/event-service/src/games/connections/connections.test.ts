@@ -13,9 +13,10 @@ import { answersGame } from "./answers.ts";
 import { connectionsGame } from "./connections.ts";
 
 // The connections game: two people each tap their phone on the other's token,
-// and the GeekyKey Service hands each half on (the API agreement's 11.10).
-// The second half within 2 minutes of the first makes the connection, which
-// /me lists for both (8.1), with their match, and the map draws (9.10).
+// and the GeekyKey Service hands each tap on (the API agreement's 11.10). The
+// second tap makes the connection, which /me lists for both (8.1), with their
+// match, and the map draws (9.10). connection-requests.test.ts covers accepting
+// and declining the request the first tap sends.
 
 /** The questions in the tests' answers game, so no test depends on the grad tea's list. */
 const QUESTIONS: readonly Question[] = [
@@ -128,7 +129,7 @@ function harness({ withGame = true } = {}) {
   return { app, clock, meet, statusOf, meOf, answer, signIn };
 }
 
-test("the owner's half back within 2 minutes connects the two, and /me lists it for both", async () => {
+test("the owner's tap back connects the two, and /me lists it for both", async () => {
   const { clock, meet, statusOf, meOf } = harness();
   assert.equal(await statusOf(meet("alex", "E", "bea", "B")), "waiting");
   clock.advanceSeconds(30);
@@ -154,29 +155,6 @@ test("the halves connect in either order", async () => {
   assert.equal(await statusOf(meet("alex", "E", "bea", "B")), "connected");
   assert.equal((await meOf("alex")).connections.length, 1);
   assert.equal((await meOf("bea")).connections.length, 1);
-});
-
-test("the second half exactly 2 minutes after the first connects, and a moment later doesn't", async () => {
-  const { clock, meet, statusOf } = harness();
-  assert.equal(await statusOf(meet("alex", "E", "bea", "B")), "waiting");
-  clock.advanceSeconds(120);
-  assert.equal(await statusOf(meet("bea", "B", "alex", "E")), "connected");
-
-  assert.equal(await statusOf(meet("alex", "E", "cai", "C")), "waiting");
-  clock.advanceSeconds(120.001);
-  // The first half has expired, so this one waits in its place.
-  assert.equal(await statusOf(meet("cai", "C", "alex", "E")), "waiting");
-  clock.advanceSeconds(60);
-  assert.equal(await statusOf(meet("alex", "E", "cai", "C")), "connected");
-});
-
-test("tapping the same token again only waits, and a later half counts from the newest", async () => {
-  const { clock, meet, statusOf } = harness();
-  assert.equal(await statusOf(meet("alex", "E", "bea", "B")), "waiting");
-  clock.advanceSeconds(100);
-  assert.equal(await statusOf(meet("alex", "E", "bea", "B")), "waiting");
-  clock.advanceSeconds(100);
-  assert.equal(await statusOf(meet("bea", "B", "alex", "E")), "connected");
 });
 
 test("a pair connects once, and their halves after it change nothing", async () => {

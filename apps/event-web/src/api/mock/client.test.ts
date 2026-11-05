@@ -1399,16 +1399,46 @@ describe("mock groups export", () => {
   });
 });
 
-describe("the count of taps waiting for you (FRO-116)", () => {
-  it("gives the seeded participant 1, so the line shows in pnpm dev", async () => {
+describe("connection requests (BAC-149, a draft for the agreement's next version)", () => {
+  it("gives the seeded participant one, so it shows in pnpm dev", async () => {
     const api = client();
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
-    await expect(api.me()).resolves.toMatchObject({ tapped_you: 1 });
+    const { connection_requests: requests } = await api.me();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).not.toHaveProperty("accept_answer");
   });
 
-  it("gives 0 when nobody is waiting for the user", async () => {
+  it("makes a connection on accepting, and takes the request away", async () => {
     const api = client();
-    api.mock.setSession(SEEDED_GUEST_ID);
-    await expect(api.me()).resolves.toMatchObject({ tapped_you: 0 });
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    const before = await api.me();
+    const [request] = before.connection_requests;
+
+    await expect(api.acceptConnectionRequest(request!.id)).resolves.toEqual({
+      status: "connected",
+    });
+
+    const after = await api.me();
+    expect(after.connection_requests).toEqual([]);
+    expect(after.connections).toHaveLength(before.connections.length + 1);
+  });
+
+  it("takes the request away on declining, with no connection", async () => {
+    const api = client();
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    const before = await api.me();
+
+    await api.declineConnectionRequest(before.connection_requests[0]!.id);
+
+    const after = await api.me();
+    expect(after.connection_requests).toEqual([]);
+    expect(after.connections).toEqual(before.connections);
+  });
+
+  it("answers not_found for a request that no longer waits", async () => {
+    const api = client();
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    await expectApiError(api.acceptConnectionRequest("gone"), "not_found", 404);
+    await expectApiError(api.declineConnectionRequest("gone"), "not_found", 404);
   });
 });

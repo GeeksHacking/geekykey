@@ -1,6 +1,8 @@
 import type {
+  AcceptConnectionRequestStatus,
   ConnectAcross,
   Connection,
+  ConnectionRequest,
   GroupPlacedHow,
   Question,
   Role,
@@ -13,17 +15,19 @@ import type {
   but anchored to "now" so timestamps look live. Uneven numbers on purpose.
 */
 
+/** A request as the mock keeps it. `accept_answer` is what accepting it says: `connected` if absent. */
+export interface MockConnectionRequest extends ConnectionRequest {
+  accept_answer?: AcceptConnectionRequestStatus;
+}
+
 export interface MockUser {
   id: string;
   display_name: string | null;
   role: Role;
   has_name: boolean;
-  /**
-   * How many people are waiting for this user to tap back, for the mock's /me (agreement 8.1,
-   * a draft for the next version). Absent reads as 0.
-   */
-  tapped_you?: number;
   answers?: Record<string, string>;
+  /** Waiting for this user to accept or decline, newest first (BAC-149). Absent reads as none. */
+  connection_requests?: MockConnectionRequest[];
   /**
    * Newest first. `shared` holds what the pair share from the start, and the mock's /me hides it
    * until `shared_at`, as the Event Service does.
@@ -199,7 +203,6 @@ export function createFixtures(now: number = Date.now()): MockData {
       display_name: "Alex Tan",
       role: "participant",
       has_name: true,
-      tapped_you: 1,
       answers: {
         drink: "tea",
         hours: "night_owl",
@@ -207,6 +210,13 @@ export function createFixtures(now: number = Date.now()): MockData {
         superpower: "time_travel",
         weekend: "games",
       },
+      connection_requests: [
+        {
+          id: "cr_3f1a",
+          display_name: "Mei Lin Koh",
+          requested_at: new Date(now - 38_000).toISOString(),
+        },
+      ],
       // A new connection, one whose `shared` has arrived, and one with no match. The fixtures
       // start again from "now" at each page load, so a dismissed reveal comes back on a reload
       // here, and only here: the Event Service's `connected_at` doesn't move.

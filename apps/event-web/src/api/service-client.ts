@@ -47,6 +47,8 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       exportCsv: api.exportCsv.bind(api),
       map: api.map.bind(api),
       updateMe: api.updateMe.bind(api),
+      acceptConnectionRequest: api.acceptConnectionRequest.bind(api),
+      declineConnectionRequest: api.declineConnectionRequest.bind(api),
       myGroup: api.myGroup.bind(api),
       joinGroups: api.joinGroups.bind(api),
       groupBoard: api.groupBoard.bind(api),

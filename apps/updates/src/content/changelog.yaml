@@ -2158,3 +2158,19 @@
   change: >-
     The passport prompts a user whose token someone has tapped to tap that person's token
     back, and the line goes when they do or the 2 minutes pass.
+
+- id: connection-requests
+  date: 2026-11-05
+  area: backend
+  change: >-
+    Tapping someone's token now sends them a connection request with no time limit, which their
+    dashboard shows with the tapper's name and Accept and Decline buttons. Tapping back still
+    connects straight away, and declining tells the tapper nothing.
+
+- id: tapped-you-prompt-dropped
+  date: 2026-11-05
+  area: frontend
+  change: >-
+    The passport's line asking a user to tap back is gone, because a connection request now
+    names who is asking and has no time limit. The line never showed on the live service, which
+    never sent its count.

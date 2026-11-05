@@ -23,3 +23,5 @@ export const stationId = (name: string) => varchar(name, { length: 64 });
 export const tokenUid = (name: string) => varchar(name, { length: 20 });
 /** `crypto.randomUUID()`. */
 export const groupId = (name: string) => varchar(name, { length: 36 });
+/** `crypto.randomUUID()`. */
+export const connectionRequestId = (name: string) => varchar(name, { length: 36 });

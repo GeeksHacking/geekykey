@@ -58,6 +58,32 @@ export interface Connection {
   shared_at: string;
 }
 
+/**
+ * A request waiting for this user to accept or decline it (BAC-149, draft for the agreement's
+ * next version). `id` is the request's own, so it gives no other person's user ID.
+ */
+export interface ConnectionRequest {
+  id: string;
+  /** The current name of the person asking, or `Guest` when they have none. */
+  display_name: string;
+  requested_at: string;
+}
+
+/** What accepting a connection request answers (BAC-149). One list, for the union and the schema. */
+export const ACCEPT_CONNECTION_REQUEST_STATUSES = [
+  "connected",
+  "already_connected",
+  "same_kind",
+  "same_group",
+  "no_group",
+] as const;
+
+export type AcceptConnectionRequestStatus = (typeof ACCEPT_CONNECTION_REQUEST_STATUSES)[number];
+
+export interface AcceptConnectionRequestResponse {
+  status: AcceptConnectionRequestStatus;
+}
+
 /** One entry per station with passport settings. `earned_at` is null until the user has an accepted tap there. */
 export interface Stamp {
   station_id: string;
@@ -101,13 +127,10 @@ export interface MeResponse {
   /** The answers game's questions in the order to ask them, or null without the game. */
   questions: Question[] | null;
   points: number;
-  /**
-   * How many people have tapped this user's token in the last 2 minutes and are waiting for
-   * a tap back (agreement 8.1, a draft for the next version). 0 when nobody is waiting.
-   */
-  tapped_you: number;
   stamps: Stamp[];
   recent_taps: MeTap[];
+  /** Newest first. Empty without a connections game (BAC-149). */
+  connection_requests: ConnectionRequest[];
   /** The user's connections, newest first. Empty without a connections game. */
   connections: Connection[];
 }

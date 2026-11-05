@@ -7,6 +7,18 @@ import { queryKeys } from "@/api/keys";
 import type { Meeting } from "@/api/types";
 
 /**
+ * Whether the browser says this page load is a reload or a move back or forward, not a tap.
+ * Tapping a token opens its address, which is a plain navigation. Without this, going back to an
+ * old token page would send a new request after the other person declined (8.8, BAC-149). A
+ * browser that doesn't say counts as a tap.
+ */
+function pageLoadWasNotATap() {
+  const [load] = performance.getEntriesByType?.("navigation") ?? [];
+  const type = (load as PerformanceNavigationTiming | undefined)?.type;
+  return type === "reload" || type === "back_forward";
+}
+
+/**
  * POST /api/v1/tokens/{uid}/meet (agreement 8.8): one half of a connection, which the
  * token page sends by itself once its lookup (8.5) answers `someone_else`.
  *
@@ -42,7 +54,7 @@ export function useMeeting(uid: string, shouldSend: boolean) {
   const sentFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!shouldSend || sentFor.current === uid) return;
+    if (!shouldSend || sentFor.current === uid || pageLoadWasNotATap()) return;
     sentFor.current = uid;
     mutate(uid);
   }, [shouldSend, uid, mutate]);

@@ -396,8 +396,8 @@ game's own record. The rules, from CONTEXT.md:
   connects once.
 - Organizers choose on the Groups screen what the two must have (BAC-140, a draft for the next
   version). A new event starts on across token kinds, and the other choice is across groups. The
-  Event Service judges each tap by the choice and the groups at that tap, so organizers can
-  change it during a session with no deploy. Connections already made stay when it changes, when
+  Event Service judges each tap and each accept by the choice and the groups at that moment, so
+  organizers can change it during a session with no deploy. Connections already made stay when it changes, when
   someone moves group, and after the groups' Reset.
 - **Across token kinds.** The two must be of different kinds. Each side's kind is the user's kind
   in 8.1, or, for a user with none yet, the kind of the token named in the meeting (11.10). A
@@ -406,15 +406,22 @@ game's own record. The rules, from CONTEXT.md:
   and a token with no kind connects too. Two people in the same group don't connect, and nor
   does anyone who isn't placed in a group: not joined, or waiting. The connection keeps each
   side's kind, or none.
-- **The phone's way** (8.8, 11.10). Two users each tap their phone on the other's token. Each tap
-  is a **half**. The connection is made when the second half arrives within 2 minutes of the
-  first, timed by the Event Service's own clock. A half on its own expires after the 2 minutes,
-  and does nothing.
+- **The phone's way** (8.8, 8.10, 11.10; BAC-149, a draft for the next version). A user taps their
+  phone on the other's token. That tap, a **half**, sends the owner a **connection request**. The
+  owner's dashboard shows the request with the tapper's name, an Accept button and a Decline
+  button (section 13), and accepting connects the two. A tap on the token of someone who has
+  already sent you a request counts as accepting it, so two taps still connect with no button.
+- A request has no time limit. It stays until the owner accepts or declines it, or the event is
+  cleared. Tapping again while it waits changes nothing.
+- Declining is silent. The tapper isn't told, and tapping again sends a new request.
+- The rule runs on the tap and again on accepting, because the groups or the rule may have
+  changed. If the two no longer pass, accepting makes no connection, the request goes, and the
+  answer is the rule's usual status.
 - A connection point, where two tokens are tapped at one station, stays out of scope until its
   own change (section 12).
 - The connection keeps both users' questions and answers as they were when it was made, so a
   later change of answer (8.7) doesn't change what either saw.
-- The evening-before clear empties connections, halves and the hunt, with the taps.
+- The evening-before clear empties connections, connection requests and the hunt, with the taps.
 
 ### Stamps and points
 
@@ -449,7 +456,7 @@ them.
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Implemented` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Implemented` | Release a token |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
-| POST | `/api/v1/tokens/{uid}/meet` | User | `Checkpoint 7` | The user tapped someone else's token, a half of a connection |
+| POST | `/api/v1/tokens/{uid}/meet` | User | `Checkpoint 7` | The user tapped someone else's token, which sends a connection request or accepts theirs |
 
 **The Event Service**
 
@@ -459,7 +466,7 @@ them.
 | GET | `/geekykey/v1/stations` | GeekyKey Service | `Implemented` | Its registered stations |
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
-| POST | `/geekykey/v1/meetings` | GeekyKey Service | `Checkpoint 7` | The meeting hand-off, a half of a connection |
+| POST | `/geekykey/v1/meetings` | GeekyKey Service | `Checkpoint 7` | The meeting hand-off: a tap that sends a connection request or accepts one |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/login-link` | browser | `Implemented` | Log in with a login link, set `event_session` |
@@ -468,6 +475,8 @@ them.
 | PATCH | `/api/v1/me` | Participant, Organizer | `Implemented`, `answer` at `Checkpoint 7` | Set the name the event shows, and the user's answer |
 | GET | `/api/v1/hunt` | Participant, Organizer | `Checkpoint 7` | The user's target in the answers game, given if they have none |
 | POST | `/api/v1/hunt/skip` | Participant, Organizer | `Checkpoint 7` | Swap the target for another |
+| POST | `/api/v1/me/connection-requests/{id}/accept` | Participant, Organizer | `Checkpoint 7` | Accept a connection request |
+| POST | `/api/v1/me/connection-requests/{id}/decline` | Participant, Organizer | `Checkpoint 7` | Decline a connection request |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Implemented` | Add or change a station's passport settings |
 | PUT | `/api/v1/admin/stations/{id}/game` | Organizer | `Implemented` | Set the game a station runs |
 | PUT | `/api/v1/admin/stations/{id}/booth` | Organizer | `Implemented` | Set the booth a station stands at |
@@ -837,6 +846,9 @@ Everything the participant dashboard and passport view need in one call.
     { "id": 42, "station_id": "…", "station_name": "3D Printing Booth", "status": "accepted", "source": "nfc", "tapped_at": "2026-10-10T09:00:00.000Z", "received_at": "2026-10-10T09:00:01.250Z" }
   ],
   "next_stop": { "station_id": "…", "name": "Cloud Sponsor", "booth": "B3" },
+  "connection_requests": [
+    { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "requested_at": "2026-11-12T08:12:00.000Z" }
+  ],
   "connections": [
     { "connected_at": "2026-11-12T08:12:30.000Z", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
   ]
@@ -881,6 +893,13 @@ Everything the participant dashboard and passport view need in one call.
   given. `user.answer` is their answer (8.7), or `null` until they give one. Added in 0.12, at
   `Checkpoint 7`. While `question` isn't `null` and `answer` is, the passport asks the question
   (section 13).
+- `connection_requests` lists the requests waiting for the user to accept or decline
+  ([Connections](#connections)), newest first (BAC-149, a draft for the next version). `id` is the
+  request's own, for 8.10, because this answer never gives another person's user ID.
+  `display_name` is the tapper's current event name, so a name they change shows at the next poll,
+  or `Guest` when they have none. `requested_at` is when the tap reached the Event Service. The
+  list is empty without a connections game, and a screen reads a missing list as empty, so it
+  works with an Event Service from before it.
 - `connections` lists the user's connections ([Connections](#connections)), newest first. Each
   gives when it was made, and the other person's kind, question and answer as they were then.
   `answer` is `null` if they hadn't answered yet. It never gives the other person's user ID or
@@ -1086,9 +1105,12 @@ rule changes neither.
 
 ### 8.8 `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (`Checkpoint 7`)
 
-The current user tapped their phone on someone else's token: one half of a connection
-([Connections](#connections)). The token page calls it by itself once its lookup (8.5) answers
-`someone_else`, except for a GeekyKey admin, who may be holding a lost token.
+The current user tapped their phone on someone else's token: one half of a connection, which
+sends the owner a connection request or accepts theirs ([Connections](#connections)). The token
+page calls it by itself once its lookup (8.5) answers `someone_else`, except for a GeekyKey admin,
+who may be holding a lost token, and except when the browser says the page load is a reload or a
+move back or forward, which isn't a tap (BAC-149, a draft for the next version). Then the page
+shows only the sentence that the token belongs to someone else.
 
 **Auth:** `gk_session`, any user.
 
@@ -1104,7 +1126,8 @@ The current user tapped their phone on someone else's token: one half of a conne
   settings take meetings (11.10), all at once within the 4 seconds. `meetings` has one item for
   each, in the order of `events` in `/me` (8.4), and is empty when none takes them.
 - `status` is the Event Service's answer (11.10): `waiting`, `connected`, `already_connected` or
-  `same_kind`. Section 13 has what the token page shows for each.
+  `same_kind`. Section 13 has what the token page shows for each. A tap makes one request at most,
+  so `waiting` can come again for the same pair.
 - An Event Service that doesn't answer in time, or answers wrongly, gets the status
   `unavailable` in its item. Nothing is retried. Tapping the token again sends the half again,
   which does no harm.
@@ -1161,6 +1184,37 @@ answer. The passport polls `GET` every 15 seconds while the hunt is shown.
 
 **Errors:** `unauthenticated`, `skip_locked` (skip only), and `rate_limited`
 ([Rate limits](#rate-limits)).
+
+### 8.10 `POST /api/v1/me/connection-requests/{id}/accept` and `/decline` on the Event Service (`Checkpoint 7`)
+
+BAC-149, a draft for the next version. The user answers a connection request that waits for them
+(8.1, [Connections](#connections)). Only that user can answer it.
+
+**Auth:** `event_session`, any role.
+
+**Request:** no body. `{id}` is an `id` from `connection_requests` in `/me` (8.1).
+
+**Response to `accept`, `200`**
+
+```json
+{ "status": "connected" }
+```
+
+| `status` | Meaning |
+|---|---|
+| `connected` | The two are connected, and both see the reveal at their next read of `/me` |
+| `already_connected` | Another accept or a tap back made the connection just before this one |
+| `same_kind` | Across token kinds, the two aren't of different kinds. There's no connection, and the request has gone |
+| `same_group` | Across groups, the two are in one group. There's no connection, and the request has gone |
+| `no_group` | Across groups, either isn't in a group. There's no connection, and the request has gone |
+
+The Event Service fixes both people's answers and works out the match when it makes the
+connection, as it does for a tap back.
+
+**Response to `decline`, `204`**, with no body. The tapper isn't told.
+
+**Errors:** `unauthenticated`, `not_found` for a request that doesn't wait for this user, which
+includes one already answered, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ---
 
@@ -1937,18 +1991,23 @@ token (8.8), on each Event Service whose entry in its settings takes meetings. O
 
 | `status` | Meaning |
 |---|---|
-| `waiting` | The half is kept. A connection comes if the owner taps the user's token within 2 minutes |
-| `connected` | This half met the owner's half, and the two are connected |
+| `waiting` | The owner has a connection request from the user, which waits until they answer it. A request already waiting stays as it is |
+| `connected` | The user had a request from the owner, so this tap accepted it, and the two are connected |
 | `already_connected` | The two were connected before. Nothing changes |
-| `same_kind` | The two aren't of different kinds ([Connections](#connections)), so nothing is kept |
+| `same_kind` | The two aren't of different kinds ([Connections](#connections)), so no request is sent |
 
+- When the rule refuses the tap (`same_kind` above, and BAC-140's `same_group` and `no_group`), a
+  request already waiting from the owner goes too, because a tap back counts as accepting it. A
+  request the user sent stays.
 - Ours uses its own kind for each user (8.1) when it has one, and the hand-off's otherwise, which
   then becomes the user's kind as a tap's does (11.2).
 - A user it hasn't seen yet is added, as a tap's user is.
 - The 4-second deadline and the failures in 11.5 apply, with `unavailable` given to the token
   page (8.8) instead of a station's `503`. The GeekyKey Service doesn't retry.
 - It works with either service's previous version: a GeekyKey Service from before 0.12 never
-  calls it, and an Event Service from before answers `404`, which 8.8 reads as no meetings.
+  calls it, and an Event Service from before answers `404`, which 8.8 reads as no meetings. The
+  statuses don't change with connection requests (BAC-149): `waiting` only comes to mean a request
+  rather than a half that expires.
 - Like the tap hand-off, it leaves out the token's UID (11.8).
 - Its JSON Schemas join the others in `packages/handoff/json-schema/` (11.7).
 
@@ -1999,7 +2058,7 @@ There are no GeekyKey admin screens.
 |---|---|
 | Login | Firebase's web SDK, with Google or GeeksHacking's login, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development. No guest sign-in |
 | Arriving from a login link, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` |
-| Participant dashboard | `GET /api/v1/me` |
+| Participant dashboard | `GET /api/v1/me`, with `connection_requests`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline` |
 | Passport / stamp book | `GET /api/v1/me` (the `stamps` array, and `connections` for the reveal); `PATCH /api/v1/me` for the name and the answer |
 | The hunt, in the passport | `GET /api/v1/hunt`, polled every 15 seconds; `POST /api/v1/hunt/skip` |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
@@ -2046,13 +2105,21 @@ There are no GeekyKey admin screens.
 - When `connections` gains an item, the passport shows the reveal: **"You're connected!"**, then
   the other person's question and answer, or **"They haven't answered yet."** when `answer` is
   `null`.
+- While `connection_requests` isn't empty, the dashboard lists each one under **"Connection
+  requests"** as **"{display_name} wants to connect."**, with **Accept** and **Decline** buttons,
+  and reads `/me` again after a press (BAC-149, drafts for Ethan to approve). On a `same_kind` or
+  `same_group` answer it says **"You're in the same group. Find someone from another group."**,
+  and on `no_group` **"You both need to be in a group to connect. Ask an organiser."**, each with
+  **Dismiss**. On `not_found` it says nothing, since the read takes the request away. Declining
+  says nothing.
 - After the meeting call (8.8), the token page shows, under "This token belongs to someone
-  else": for `waiting`, **"Now ask them to tap your token with their phone."**; for `connected`,
+  else": for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149,
+  a draft for Ethan to approve); for `connected`,
   **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
   `same_kind`, **"You're in the same group. Find someone from another group."**; and for
-  `unavailable`, **"Couldn't connect. Tap their token again."** With `connected` or
-  `already_connected`, it offers the event's button, which opens the passport through a login
-  link (8.6) to show the reveal.
+  `unavailable`, **"Couldn't connect. Tap their token again."** With `waiting`, `connected` or
+  `already_connected`, it offers the event's button, which opens the dashboard through a login
+  link (8.6), where the reveal comes.
 - When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
   shows the stamp's `name` with a button, **"Open their page?"**, which opens `link` in a new
   tab. It never opens the page by itself, since a browser opens one only after a press. A stamp
@@ -2183,3 +2250,4 @@ Closed on 2026-10-10:
 | 2026-10-30 | Ethan, the screens owner, approved version 0.10, so it is no longer a draft. No endpoint or shape changes (BAC-113). |
 | 2026-10-30 | Version 0.11, a draft for Ethan's review: after a passport tap, the station names the participant's next stop, and the passport gives the same one (BAC-98). **New, optional:** `next_stop` on the Event Service's `GET /api/v1/me` (8.1), the stamp slot without the participant's stamp that had the fewest taps made in the last 10 minutes, with its `station_id`, `name` and `booth`, or `null`. A disabled station and one with no booth are never the next stop, and a tie goes to the earlier slot. The passport's second line for the station (6.1) is now `Next: B3` while there is a next stop, in place of `Tap counted!` or `Already counted`, which it still says without one. The shape of `lines` is unchanged. Nothing is removed. |
 | 2026-11-02 | Version 0.12, a draft for Ethan's review: connections by phone, and the answers game on top (BAC-116, and the migration spec's section 6, "The answers game"). Two users connect when each taps their phone on the other's token within 2 minutes ([Connections](#connections), in section 4). **New, at `Checkpoint 7`:** `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (8.8), which the token page calls once its lookup says `someone_else`; the meeting hand-off, `POST /geekykey/v1/meetings` (11.10), taken by an Event Service whose entry in the GeekyKey Service's settings says so; and `GET /api/v1/hunt` and `POST /api/v1/hunt/skip` on the Event Service (8.9), with the new `409 skip_locked`. **New fields, at `Checkpoint 7`:** `user.question`, `user.answer` and `connections` in the Event Service's `/me` (8.1); `answer` in `PATCH /api/v1/me` (8.7), where `display_name` becomes optional; and `connections`, a count and anonymous links, in the map's data (9.10). The meeting counts toward the GeekyKey Service's 20 lookups a minute. Section 12 keeps connection points out of scope and lets connections by phone in. Section 13 adds the hunt's, the reveal's and the token page's sentences. No field is removed, and each service works with the other's previous version. |
+| 2026-11-05 | A draft for the next version, for Ethan's review: the other person accepts a connection with a button (BAC-149, from the 5 Nov meeting with Julian). A tap on someone's token sends them a connection request with no time limit, a tap back still connects, and the 2 minute limit on a half goes. **New:** `connection_requests` in `/me` (8.1) and 8.10's accept and decline, both at `Checkpoint 7`. **Changed:** what `waiting` means in 8.8 and 11.10, and section 13's `waiting` sentence, which also gets the event's button. No status is added, so either service works with the other's previous version. |

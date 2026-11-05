@@ -112,11 +112,13 @@ describe("TokenPage", () => {
     expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
   });
 
-  it("shows no event button on a token someone else holds", async () => {
+  it("shows no event button on a token someone else holds, unless the tap's answer gives one", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    api.mock.setMeetingStatus("same_kind");
     renderAs(api, OWNED_BY_SOMEONE_ELSE);
 
     expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
+    expect(await screen.findByText(/same group/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
   });
 
@@ -342,7 +344,7 @@ describe("TokenPage", () => {
   describe("half a connection, when the token is someone else's", () => {
     /** Section 13's sentence for each status an Event Service can answer with (11.10). */
     const SENTENCES: Record<MeetingStatus, string> = {
-      waiting: "Now ask them to tap your token with their phone.",
+      waiting: "Request sent. Ask them to open their dashboard and accept.",
       connected: "You're connected!",
       already_connected: "You're already connected.",
       same_kind: "You're in the same group. Find someone from another group.",
@@ -355,7 +357,7 @@ describe("TokenPage", () => {
 
     it("sends the half by itself, with the token's normalised UID", async () => {
       // Agreement 8.8: no button and no press. The lookup answering someone_else is the
-      // signal, and 11.10 says a half sent again does no harm, so nothing guards a retry.
+      // signal.
       const meet = vi.spyOn(api, "meetToken");
       api.mock.setSession(SEEDED_PARTICIPANT_ID);
       renderAs(api, "04:c3:d5:f7:09:12");
@@ -377,10 +379,10 @@ describe("TokenPage", () => {
       expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
     });
 
-    it.each(["connected", "already_connected"] as const)(
-      "offers the event's button on %s, so the guest reaches the reveal",
+    it.each(["waiting", "connected", "already_connected"] as const)(
+      "offers the event's button on %s, so the guest reaches the dashboard and the reveal",
       async (status) => {
-        // Section 13: the button opens the passport through a login link (8.6).
+        // Section 13: the button opens the event's screens through a login link (8.6).
         api.mock.setSession(SEEDED_PARTICIPANT_ID);
         api.mock.setMeetingStatus(status);
         renderAs(api, OWNED_BY_SOMEONE_ELSE);
@@ -391,7 +393,7 @@ describe("TokenPage", () => {
       },
     );
 
-    it.each(["waiting", "same_kind", "same_group", "no_group", "unavailable"] as const)(
+    it.each(["same_kind", "same_group", "no_group", "unavailable"] as const)(
       "offers no event button on %s, which has nothing to open yet",
       async (status) => {
         api.mock.setSession(SEEDED_PARTICIPANT_ID);
@@ -431,6 +433,46 @@ describe("TokenPage", () => {
       expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
       expect(meet).not.toHaveBeenCalled();
       expect(screen.queryByText(SENTENCES.waiting)).not.toBeInTheDocument();
+    });
+
+    describe("how the page was loaded (BAC-149)", () => {
+      /** Makes the browser report this kind of page load, as Navigation Timing does. */
+      function loadedBy(type: NavigationTimingType) {
+        vi.stubGlobal("performance", {
+          ...performance,
+          now: () => Date.now(),
+          getEntriesByType: (entryType: string) => (entryType === "navigation" ? [{ type }] : []),
+        });
+      }
+
+      afterEach(() => vi.unstubAllGlobals());
+
+      it.each(["reload", "back_forward"] as const)(
+        "sends no half on a %s, so a declined request doesn't come back without a tap",
+        async (type) => {
+          loadedBy(type);
+          const meet = vi.spyOn(api, "meetToken");
+          api.mock.setSession(SEEDED_PARTICIPANT_ID);
+          renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+          expect(
+            await screen.findByText("This token belongs to someone else."),
+          ).toBeInTheDocument();
+          expect(meet).not.toHaveBeenCalled();
+          expect(screen.queryByText(SENTENCES.waiting)).not.toBeInTheDocument();
+          expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
+        },
+      );
+
+      it("sends the half on a navigation, which is what tapping a token opens", async () => {
+        loadedBy("navigate");
+        const meet = vi.spyOn(api, "meetToken");
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(SENTENCES.waiting)).toBeInTheDocument();
+        expect(meet).toHaveBeenCalledTimes(1);
+      });
     });
 
     it("sends no half for your own token", async () => {

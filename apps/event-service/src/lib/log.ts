@@ -49,6 +49,11 @@ const LOG_LINES = {
   // An organizer switched what connections need, token kinds or groups (BAC-140): who, and to
   // which.
   connection_rule_changed: "INFO",
+  // Someone accepted a connection request (8.10): who, who sent it, and the status, so with
+  // meeting_handled the connections can be rebuilt after a restore, and counted.
+  connection_request_accepted: "INFO",
+  // Someone declined a connection request (8.10): who. The half that sent it is meeting_handled's.
+  connection_request_declined: "INFO",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

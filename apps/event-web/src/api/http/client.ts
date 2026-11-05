@@ -4,6 +4,7 @@ import type { ApiIssue, ErrorCode, ListTapsQuery } from "@/api/types";
 import {
   parseEventGroup,
   parseEventStationBoardResponse,
+  parseAcceptConnectionRequestResponse,
   parseConnectionRule,
   parseGroupBoardResponse,
   parseFallbackTapResponse,
@@ -183,6 +184,19 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     stats: () => sendJson("/api/v1/admin/stats").then(parseStatsResponse),
 
     exportCsv: async () => (await send("/api/v1/admin/export.csv")).blob(),
+
+    // BAC-149, a draft for the agreement's next version.
+    acceptConnectionRequest: (requestId) =>
+      sendJson(`/api/v1/me/connection-requests/${encodeURIComponent(requestId)}/accept`, {
+        method: "POST",
+      }).then(parseAcceptConnectionRequestResponse),
+
+    // A decline answers 204 with no body.
+    declineConnectionRequest: async (requestId) => {
+      await send(`/api/v1/me/connection-requests/${encodeURIComponent(requestId)}/decline`, {
+        method: "POST",
+      });
+    },
 
     // Agreement 9.10. Not under /admin, because a map screen isn't an organizer.
     map: () => sendJson("/api/v1/map").then(parseMapResponse),

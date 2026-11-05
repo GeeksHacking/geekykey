@@ -3,11 +3,11 @@ import type { Db } from "../db/pool.ts";
 
 /*
   What the base knows of the connections game (spec section 6, "The answers
-  game"): the meeting hand-off hands it each half (the API agreement's
-  11.10), /me lists each user's connections and counts their points (8.1),
-  and the map draws the web (9.10). The game itself, with its records, lives
-  in src/games/connections/, and src/app.ts hands it in, as it does the
-  games. An event without it takes no meetings.
+  game"): the meeting hand-off hands it each half (the API agreement's 11.10),
+  /me lists each user's connection requests and connections and counts their
+  points (8.1), and the map draws the web (9.10). The game itself, with its
+  records, lives in src/games/connections/, and src/app.ts hands it in, as it
+  does the games. An event without it takes no meetings.
 */
 
 /** One half of a connection: `userId` tapped their phone on a token of `ownerId`'s. */
@@ -19,6 +19,28 @@ export interface Meeting {
   /** The kind of the token tapped, or null for none. */
   ownerKind: string | null;
 }
+
+/** A request waiting for this user to accept or decline it, as /me lists it (the API agreement's 8.1). */
+export interface ConnectionRequest {
+  /** The request's own ID, since /me gives no other person's user ID. */
+  id: string;
+  /** The current name of the person asking, or `Guest` when they have none. */
+  displayName: string;
+  requestedAt: string;
+}
+
+/** A user answering a request that waits for them (the API agreement's 8.10). */
+export interface RequestAnswer {
+  requestId: string;
+  /** The person the request waits for. Nobody else can answer it. */
+  userId: string;
+}
+
+/** What accepting a request answers (8.10): a meeting's status, since `waiting` has passed. */
+export type AcceptStatus = Exclude<MeetingStatus, "waiting">;
+
+/** What accepting a request gives. `fromId` is who sent it, for the log. */
+export type AcceptResult = { status: "not_found" } | { status: AcceptStatus; fromId: string };
 
 /** One of a user's connections, as /me lists it, with nothing that names the other person. */
 export interface Connection {
@@ -52,6 +74,15 @@ export interface ConnectionsGame {
   readonly pointsEach: number;
   /** Takes one half, at `now`, and gives the meeting hand-off's status. */
   meet(db: Db, meeting: Meeting, now: Date): Promise<MeetingStatus>;
+  /** The requests waiting for the user, newest first. */
+  requestsFor(db: Db, userId: string): Promise<ConnectionRequest[]>;
+  /**
+   * Accepts a request at `now`. The rule runs again, and a refusal takes the request. It gives
+   * `not_found` when no such request waits for the user.
+   */
+  accept(db: Db, answer: RequestAnswer, now: Date): Promise<AcceptResult>;
+  /** Declines a request, and gives false when no such request waits for the user. */
+  decline(db: Db, answer: RequestAnswer): Promise<boolean>;
   /** The user's connections, newest first, as they stand at `now`. */
   connectionsOf(db: Db, userId: string, now: Date): Promise<Connection[]>;
   /** Every connection, for the map. */

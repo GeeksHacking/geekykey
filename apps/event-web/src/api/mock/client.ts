@@ -8,9 +8,11 @@ import {
   type MockGroup,
   type MockStation,
   type MockTap,
+  type MockConnectionRequest,
   type MockUser,
 } from "@/api/mock/fixtures";
 import {
+  type AcceptConnectionRequestResponse,
   EXPORT_CSV_COLUMNS,
   GROUPS_EXPORT_CSV_COLUMNS,
   type AdminTap,
@@ -184,6 +186,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   function currentUser(): MockUser {
     const user = sessionUserId ? data.users.find((u) => u.id === sessionUserId) : undefined;
     return user ?? fail("unauthenticated");
+  }
+
+  /** The request waiting for the user, taken off their list, or `not_found`. */
+  function takeConnectionRequest(user: MockUser, requestId: string): MockConnectionRequest {
+    const request = user.connection_requests?.find(({ id }) => id === requestId);
+    if (!request) fail("not_found");
+    user.connection_requests = user.connection_requests?.filter((item) => item !== request);
+    return request;
   }
 
   function currentOrganizer(): MockUser {
@@ -530,12 +540,42 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           user: toUser(user),
           questions: data.questions,
           points,
-          tapped_you: user.tapped_you ?? 0,
           stamps,
           recent_taps,
+          connection_requests: (user.connection_requests ?? []).map(
+            ({ id, display_name, requested_at }) => ({ id, display_name, requested_at }),
+          ),
           connections,
         };
       }, false),
+
+    // BAC-149, a draft for the agreement's next version. Whatever accepting answers, the request
+    // goes, and only `connected` makes a connection.
+    acceptConnectionRequest: (requestId) =>
+      call((): AcceptConnectionRequestResponse => {
+        const user = currentUser();
+        const request = takeConnectionRequest(user, requestId);
+        const status = request.accept_answer ?? "connected";
+        if (status === "connected") {
+          const at = Date.now();
+          user.connections = [
+            {
+              connected_at: new Date(at).toISOString(),
+              kind: "B",
+              match: 40,
+              shared: ["drink", "weekend"],
+              shared_at: new Date(at + 120_000).toISOString(),
+            },
+            ...(user.connections ?? []),
+          ];
+        }
+        return { status };
+      }),
+
+    declineConnectionRequest: (requestId) =>
+      call(() => {
+        takeConnectionRequest(currentUser(), requestId);
+      }),
 
     // Agreement 8.7. The name is trimmed and 1 to 30 code points, and `answers` sets only
     // the questions it names. A request that breaks either rule changes neither.

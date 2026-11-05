@@ -6,9 +6,9 @@ const userId = z.string().min(1).max(128);
 
 /**
  * The meeting hand-off, `POST /geekykey/v1/meetings`: a user tapped their
- * phone on someone else's token, one half of a connection (the agreement's
- * 11.10). Sent only to an Event Service whose entry in EVENT_SERVICES takes
- * meetings.
+ * phone on someone else's token, one half of a connection, which sends the
+ * owner a connection request or accepts theirs (the agreement's 11.10). Sent
+ * only to an Event Service whose entry in EVENT_SERVICES takes meetings.
  */
 export const meetingsRequest = z
   .object({
@@ -41,7 +41,8 @@ export const meetingsAnswer = z.object({
   status: z
     .enum(MEETING_STATUSES)
     .describe(
-      "waiting: the half is kept for 2 minutes. connected: it met the owner's half. " +
+      "waiting: the owner has a connection request, which waits until they answer it. " +
+        "connected: the half accepted the owner's request. " +
         "already_connected: the two were connected before. same_kind: the two aren't of " +
         "different kinds, so nothing is kept. same_group: connecting across groups, the two " +
         "are in the same group, so nothing is kept. no_group: connecting across groups, and " +

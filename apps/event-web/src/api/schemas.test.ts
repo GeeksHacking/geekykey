@@ -69,10 +69,21 @@ describe("me response contract", () => {
     expect(parsed.connections).toEqual([]);
   });
 
-  it("reads the count of taps waiting for the user, and treats a missing one as 0", () => {
-    expect(parseMeResponse(makeMe({ tapped_you: 2 })).tapped_you).toBe(2);
-    expect(parseMeResponse({ ...makeMe(), tapped_you: undefined }).tapped_you).toBe(0);
-    expect(() => parseMeResponse({ ...makeMe(), tapped_you: -1 })).toThrow(NetworkError);
+  it("reads connection requests, and treats a missing list as none (BAC-149)", () => {
+    const request = {
+      id: "cr_3f1a",
+      display_name: "Mei Lin Koh",
+      requested_at: "2026-11-12T08:00:00.000Z",
+    };
+    expect(parseMeResponse(makeMe({ connection_requests: [request] })).connection_requests).toEqual(
+      [request],
+    );
+    expect(
+      parseMeResponse({ ...makeMe(), connection_requests: undefined }).connection_requests,
+    ).toEqual([]);
+    expect(() =>
+      parseMeResponse({ ...makeMe(), connection_requests: [{ ...request, id: 7 }] }),
+    ).toThrow(NetworkError);
   });
 
   it("reads a connection with no kind, made across groups (BAC-140)", () => {
@@ -545,9 +556,9 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
       },
     ],
     points: 2,
-    tapped_you: 0,
     stamps: [],
     recent_taps: [],
+    connection_requests: [],
     connections: [
       {
         connected_at: "2026-11-12T08:12:30.000Z",
