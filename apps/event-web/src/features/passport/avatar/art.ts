@@ -7,7 +7,7 @@ import {
 
 /*
   The grad tea's avatar art (FRO-105): Joshua's two characters, one in a suit and one in a
-  dress, and each one's pieces, one per stamp slot. The PNGs are in art/avatar/, and
+  dress, and each one's four pieces, one per connection. The PNGs are in art/avatar/, and
   scripts/avatar-art.ts turns them into art-data.ts. The flat avatar, the slot icons and the
   saved card read this file. The cubes come from each character's model.vox (voxel-model.ts),
   which the script first builds from the same art.
@@ -54,7 +54,7 @@ export interface Character {
   /** What the picker calls the suit colour on this character. */
   outfit: "Suit" | "Dress";
   body: Art;
-  /** In slot order: the first stamp slot gives the first piece. */
+  /** In slot order: the first connection gives the first piece. */
   pieces: readonly Piece[];
   /** The art's own skin, hair and suit colours, which the guest's choice replaces. */
   base: { skin: string; hair: string; suit: string };

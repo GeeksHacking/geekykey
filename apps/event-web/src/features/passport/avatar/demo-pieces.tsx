@@ -43,7 +43,8 @@ interface DemoPiecesProps {
 
 /**
  * The organizers' demo toggle (FRO-105): a button for each of the character's pieces, which puts
- * it on the avatar or takes it off, and a way back to the stamps. Shown to organizers only.
+ * it on the avatar or takes it off, and a way back to the guest's connections. Shown to
+ * organizers only.
  */
 export function DemoPieces({ character, demo }: DemoPiecesProps) {
   const pieces = CHARACTERS[character].pieces;
@@ -64,7 +65,7 @@ export function DemoPieces({ character, demo }: DemoPiecesProps) {
       </div>
       {demo.on !== null ? (
         <Button variant="ghost" size="sm" className="mt-2" onClick={demo.reset}>
-          Back to my stamps
+          Back to my connections
         </Button>
       ) : null}
     </section>

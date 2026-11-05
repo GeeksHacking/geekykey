@@ -16,13 +16,13 @@ import type { PassportChanges } from "@/features/passport/passport-changes";
 
 interface AvatarHeroProps {
   me: MeResponse;
-  /** What the last poll changed: a new stamp's piece flies in, and the last one also spins. */
+  /** What the last poll changed: a new connection's piece flies in, and the last one also spins. */
   changes: PassportChanges;
 }
 
 /**
- * The grad tea's dashboard lead (FRO-105): the guest's avatar, dressed one piece per stamp,
- * then the pieces and a caption with the counts the points summary used to show.
+ * The grad tea's dashboard lead (FRO-105): the guest's avatar, dressed one piece per
+ * connection, then the pieces and a caption with the counts the points summary used to show.
  */
 export function AvatarHero({ me, changes }: AvatarHeroProps) {
   const { colours } = useAvatarColours(me.user.id);
@@ -32,19 +32,19 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
   const outfit = useMemo(
     () =>
       demoOn === null
-        ? outfitFrom(me.stamps, colours.character)
-        : demoOutfitFrom(me.stamps, colours.character, demoOn),
-    [me.stamps, colours.character, demoOn],
+        ? outfitFrom(me.connections, colours.character)
+        : demoOutfitFrom(colours.character, demoOn),
+    [me.connections, colours.character, demoOn],
   );
   const flatUrl = useDressedUrl(outfit.slots, colours);
-  const stamped = useMemo(
-    () =>
-      outfit.slots
-        .filter((slot) => changes.stamped.includes(slot.stamp.station_id))
-        .map((slot) => slot.piece.key),
-    [outfit.slots, changes.stamped],
-  );
-  const arriving = demoOn === null ? stamped : demo.arriving;
+  const arriving = useMemo(() => {
+    if (demoOn !== null) return demo.arriving;
+    if (changes.connections === null) return [];
+    return outfit.slots
+      .slice(changes.connections.from, changes.connections.to)
+      .filter((slot) => slot.worn)
+      .map((slot) => slot.piece.key);
+  }, [outfit.slots, changes.connections, demoOn, demo.arriving]);
   const name = me.user.display_name ?? "Guest";
 
   return (

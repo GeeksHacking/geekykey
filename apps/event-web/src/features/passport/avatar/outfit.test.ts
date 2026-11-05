@@ -1,94 +1,94 @@
 import { describe, expect, it } from "vitest";
 
-import type { Stamp } from "@/api/types";
+import type { Connection } from "@/api/types";
 import { demoOutfitFrom, outfitFrom } from "@/features/passport/avatar/outfit";
 
-function stamp(name: string, earned_at: string | null = null): Stamp {
-  return {
-    station_id: `station-${name}`,
-    name,
-    location: null,
-    points: 10,
-    link: null,
-    earned_at,
-  };
+function connections(count: number): Connection[] {
+  return Array.from({ length: count }, (_, index) => ({
+    connected_at: `2026-11-12T08:${String(index).padStart(2, "0")}:00.000Z`,
+    kind: "B",
+    match: null,
+    shared: null,
+    shared_at: `2026-11-12T08:${String(index + 2).padStart(2, "0")}:00.000Z`,
+  }));
 }
 
 describe("outfitFrom", () => {
-  it("gives each stamp slot, in the order 8.1 lists them, the piece in the same place", () => {
-    const outfit = outfitFrom([
-      stamp("Cloud Sponsor", "2026-11-12T08:01:00.000Z"),
-      stamp("Robotics Club"),
-      stamp("Art Room", "2026-11-12T08:14:00.000Z"),
-    ]);
-
-    expect(outfit.slots.map((slot) => [slot.piece.key, slot.stamp.name, slot.worn])).toEqual([
-      ["hat", "Cloud Sponsor", true],
-      ["monocle", "Robotics Club", false],
-      ["cane", "Art Room", true],
-    ]);
-    expect(outfit.worn).toBe(2);
-  });
-
-  it("counts an event with fewer slots than pieces as complete once every slot is stamped", () => {
-    const outfit = outfitFrom([
-      stamp("Cloud Sponsor", "2026-11-12T08:01:00.000Z"),
-      stamp("Robotics Club", "2026-11-12T08:03:00.000Z"),
-    ]);
-
-    expect(outfit.slots).toHaveLength(2);
-    expect(outfit.complete).toBe(true);
-  });
-
-  it("gives no piece to a slot past the last piece", () => {
-    const stamps = ["A", "B", "C", "D", "E"].map((name) => stamp(name, "2026-11-12T08:00:00.000Z"));
-
-    const outfit = outfitFrom(stamps);
+  it("wears no pieces with no connections, and keeps the four slots the caption counts", () => {
+    const outfit = outfitFrom([]);
 
     expect(outfit.slots.map((slot) => slot.piece.key)).toEqual(["hat", "monocle", "cane", "glass"]);
+    expect(outfit.slots.map((slot) => slot.worn)).toEqual([false, false, false, false]);
+    expect(outfit.worn).toBe(0);
+    expect(outfit.complete).toBe(false);
+  });
+
+  it("gives the first connection the first piece, and each next connection the next", () => {
+    expect(outfitFrom(connections(1)).slots.map((slot) => slot.worn)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(outfitFrom(connections(2)).slots.map((slot) => slot.worn)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+    expect(outfitFrom(connections(3)).slots.map((slot) => slot.worn)).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ]);
+  });
+
+  it("completes the outfit on the fourth connection", () => {
+    const outfit = outfitFrom(connections(4));
+
     expect(outfit.worn).toBe(4);
     expect(outfit.complete).toBe(true);
+    expect(outfitFrom(connections(3)).complete).toBe(false);
+  });
+
+  it("stays complete after a fifth connection, wearing the same four pieces", () => {
+    const fourth = outfitFrom(connections(4));
+    const fifth = outfitFrom(connections(5));
+
+    expect(fifth.slots).toEqual(fourth.slots);
+    expect(fifth.worn).toBe(4);
+    expect(fifth.complete).toBe(true);
   });
 
   it("dresses the character in a dress in her own pieces", () => {
-    const stamps = ["A", "B", "C", "D"].map((name) => stamp(name));
+    const outfit = outfitFrom(connections(2), "dress");
 
-    expect(outfitFrom(stamps, "dress").slots.map((slot) => slot.piece.key)).toEqual([
+    expect(outfit.slots.map((slot) => slot.piece.key)).toEqual([
       "feather",
       "pearls",
       "cane",
       "glass",
     ]);
-  });
-
-  it("is not complete with no slots at all", () => {
-    expect(outfitFrom([]).complete).toBe(false);
-  });
-
-  it("is not complete while one slot is still empty", () => {
-    const outfit = outfitFrom([stamp("A", "2026-11-12T08:00:00.000Z"), stamp("B")]);
-
-    expect(outfit.complete).toBe(false);
+    expect(outfit.slots.map((slot) => slot.worn)).toEqual([true, true, false, false]);
   });
 });
 
 describe("demoOutfitFrom", () => {
-  it("gives every piece, worn only when the demo put it on, whatever the stamps say", () => {
-    const outfit = demoOutfitFrom([stamp("Cloud Sponsor", "2026-11-12T08:01:00.000Z")], "suit", [
-      "cane",
-    ]);
+  it("gives every piece, worn only when the demo put it on", () => {
+    const outfit = demoOutfitFrom("suit", ["cane"]);
 
-    expect(outfit.slots.map((slot) => [slot.piece.key, slot.stamp.name, slot.worn])).toEqual([
-      ["hat", "Cloud Sponsor", false],
-      ["monocle", "the demo", false],
-      ["cane", "the demo", true],
-      ["glass", "the demo", false],
+    expect(outfit.slots.map((slot) => [slot.piece.key, slot.worn])).toEqual([
+      ["hat", false],
+      ["monocle", false],
+      ["cane", true],
+      ["glass", false],
     ]);
     expect(outfit.complete).toBe(false);
   });
 
   it("is complete once every piece is on", () => {
-    const outfit = demoOutfitFrom([], "suit", ["hat", "monocle", "cane", "glass"]);
+    const outfit = demoOutfitFrom("suit", ["hat", "monocle", "cane", "glass"]);
 
     expect(outfit.worn).toBe(4);
     expect(outfit.complete).toBe(true);
