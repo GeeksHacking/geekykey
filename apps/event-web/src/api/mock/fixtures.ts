@@ -217,17 +217,23 @@ export function createFixtures(now: number = Date.now()): MockData {
           requested_at: new Date(now - 38_000).toISOString(),
         },
       ],
-      // A new connection, one whose `shared` has arrived, and one with no match. The fixtures
+      // A new connection, one whose `shared` has arrived, and one with no match and no name. The fixtures
       // start again from "now" at each page load, so a dismissed reveal comes back on a reload
       // here, and only here: the Event Service's `connected_at` doesn't move.
       connections: [
-        connection(47_000, { kind: "B", match: 60, shared: ["drink", "school", "weekend"] }),
+        connection(47_000, {
+          display_name: "Wei Lin Chong",
+          kind: "B",
+          match: 60,
+          shared: ["drink", "school", "weekend"],
+        }),
         connection(minutes(26), {
+          display_name: "Farhan Iskandar",
           kind: "G",
           match: 80,
           shared: ["drink", "hours", "superpower", "weekend"],
         }),
-        connection(minutes(58), { kind: "B", match: null, shared: [] }),
+        connection(minutes(58), { display_name: null, kind: "B", match: null, shared: [] }),
       ],
     },
     {

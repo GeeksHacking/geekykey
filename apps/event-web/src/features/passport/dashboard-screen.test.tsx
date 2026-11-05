@@ -126,6 +126,7 @@ const robotics: Stamp = {
 
 const met: Connection = {
   connected_at: "2026-11-12T08:20:00.000Z",
+  display_name: "Mei Lin",
   kind: "B",
   match: 60,
   shared: null,
@@ -277,6 +278,8 @@ describe("DashboardScreen's avatar", () => {
     const card = screen.getByRole("dialog", { name: "Your card from the grad tea" });
     expect(within(card).getByText("THE GRAD TEA")).toBeInTheDocument();
     expect(within(card).getByText("Alex Tan")).toBeInTheDocument();
+    // The card stays anonymous: it never names who the guest connected with.
+    expect(card).not.toHaveTextContent(met.display_name!);
     // jsdom has no canvas, so drawing the picture fails as it would on a broken browser.
     expect(await within(card).findByRole("alert")).toHaveTextContent(
       "Couldn't make the picture. Close this and try again.",

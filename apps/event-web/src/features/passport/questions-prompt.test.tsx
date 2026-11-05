@@ -18,6 +18,7 @@ const EDITABLE = "You can change these until your first connection.";
 const READ_ONLY = "You've connected, so your answers are set.";
 const connection = {
   connected_at: "2026-11-12T08:12:30.000Z",
+  display_name: "Mei Lin",
   kind: "B",
   match: 60,
   shared: null,

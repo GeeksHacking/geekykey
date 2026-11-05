@@ -298,15 +298,19 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
     },
 
     async connectionsOf(db, userId, now) {
+      const otherId = sql`if(${connections.userA} = ${userId}, ${connections.userB}, ${connections.userA})`;
       const rows = await db
-        .select()
+        .select({ row: connections, displayName: users.displayName })
         .from(connections)
+        // A left join, since a meeting's user may never have logged in here, so may have no row.
+        .leftJoin(users, eq(users.id, otherId))
         .where(or(eq(connections.userA, userId), eq(connections.userB, userId)))
         .orderBy(desc(connections.connectedAt), desc(connections.userA), desc(connections.userB));
-      return rows.map((row): Connection => {
+      return rows.map(({ row, displayName }): Connection => {
         const sharedAt = new Date(Date.parse(row.connectedAt) + SHARED_AFTER_MS).toISOString();
         return {
           connectedAt: row.connectedAt,
+          displayName,
           kind: row.userA === userId ? row.kindB : row.kindA,
           match: row.matchPercent,
           shared: now.toISOString() >= sharedAt ? row.shared : null,

@@ -42,9 +42,14 @@ export type AcceptStatus = Exclude<MeetingStatus, "waiting">;
 /** What accepting a request gives. `fromId` is who sent it, for the log. */
 export type AcceptResult = { status: "not_found" } | { status: AcceptStatus; fromId: string };
 
-/** One of a user's connections, as /me lists it, with nothing that names the other person. */
+/** One of a user's connections, as /me lists it, with no user ID and no answers of the other person's. */
 export interface Connection {
   connectedAt: string;
+  /**
+   * The other person's current name, so unlike the rest it can change after the connection.
+   * Null when they have never logged in to this Event Service.
+   */
+  displayName: string | null;
   /** The other person's kind, or null for none, which only a connection across groups has. */
   kind: string | null;
   /**

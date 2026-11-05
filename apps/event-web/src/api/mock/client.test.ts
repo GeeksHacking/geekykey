@@ -335,6 +335,7 @@ describe("the name the event shows (agreement 8.7)", () => {
 describe("the answers game (agreement 0.13)", () => {
   const connection = {
     connected_at: "2026-11-12T08:12:30.000Z",
+    display_name: "Mei Lin",
     kind: "B",
     match: 60,
     shared: null,

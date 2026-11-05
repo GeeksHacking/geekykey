@@ -67,6 +67,7 @@ function connection(minutesAgo: number, fields: Partial<Connection> = {}): Conne
   const connectedAt = Date.now() - minutesAgo * 60_000;
   return {
     connected_at: new Date(connectedAt).toISOString(),
+    display_name: "Mei Lin",
     kind: "B",
     match: 60,
     shared: [],
@@ -174,19 +175,64 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
 });
 
 describe("the list of connections (agreement 0.13 draft, section 13)", () => {
-  it("lists them newest first, each with its match and no names", async () => {
+  it("lists them newest first, each with the other person's name above its match", async () => {
     renderScreen(
-      setUp([connection(3, { match: 67 }), connection(9, { match: null }), connection(20)]),
+      setUp([
+        connection(3, { display_name: "Mei Lin", match: 67 }),
+        connection(9, { display_name: "Farhan", match: null }),
+        connection(20, { display_name: "Wei" }),
+      ]),
     );
 
     const list = await screen.findByRole("list", { name: "Connections" });
     const rows = within(list).getAllByRole("listitem");
     expect(rows).toHaveLength(3);
-    expect(rows[0]).toHaveTextContent("67% match");
-    expect(rows[1]).toHaveTextContent("Connected");
-    expect(rows[2]).toHaveTextContent("60% match");
-    expect(list).not.toHaveTextContent("Guest");
+    expect(rows[0]).toHaveTextContent(/Mei Lin.*67% match/);
+    expect(rows[1]).toHaveTextContent(/Farhan.*Connected/);
+    expect(rows[2]).toHaveTextContent(/Wei.*60% match/);
     expect(list).not.toHaveTextContent(SEEDED_GUEST_ID);
+  });
+
+  it("shows the names on the dashboard too", async () => {
+    renderScreen(setUp([connection(3, { display_name: "Mei Lin" })]), <DashboardScreen />);
+
+    const list = await screen.findByRole("list", { name: "Connections" });
+    expect(within(list).getByRole("listitem")).toHaveTextContent("Mei Lin");
+  });
+
+  it("shows Guest for someone who has never logged in, or has no name of their own", async () => {
+    renderScreen(
+      setUp([connection(3, { display_name: null }), connection(9, { display_name: "Guest" })]),
+    );
+
+    const list = await screen.findByRole("list", { name: "Connections" });
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("Guest");
+    expect(rows[1]).toHaveTextContent("Guest");
+  });
+
+  it("shows a name changed after connecting at the next poll, and keeps the row's panel open", async () => {
+    const held = connection(9, { display_name: "Guest", shared: ["drink"] });
+    const api = setUp([held], { drink: "tea" });
+    const { poll, user } = renderScreen(api);
+    await user.click(await screen.findByRole("button", { name: SHOW }));
+
+    held.display_name = "Mei Lin";
+    await poll();
+
+    const list = screen.getByRole("list", { name: "Connections" });
+    expect(list).toHaveTextContent("Mei Lin");
+    expect(list).not.toHaveTextContent("Guest");
+    expect(screen.getByRole("list", { name: "What you share" })).toBeInTheDocument();
+  });
+
+  it("leaves the name out of the reveal, which shows only in the row below it", async () => {
+    renderScreen(setUp([connection(0, { display_name: "Mei Lin", match: 67 })]));
+
+    await screen.findByText("67% match!");
+    expect(screen.getAllByText("Mei Lin")).toHaveLength(1);
+    const list = screen.getByRole("list", { name: "Connections" });
+    expect(within(list).getByText("Mei Lin")).toBeInTheDocument();
   });
 
   it("keeps two connections with one timestamp apart", async () => {
@@ -195,8 +241,22 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
     try {
       renderScreen(
         setUp([
-          { connected_at: at, kind: "B", match: 60, shared: [], shared_at: at },
-          { connected_at: at, kind: "B", match: 70, shared: [], shared_at: at },
+          {
+            connected_at: at,
+            display_name: "Mei Lin",
+            kind: "B",
+            match: 60,
+            shared: [],
+            shared_at: at,
+          },
+          {
+            connected_at: at,
+            display_name: "Mei Lin",
+            kind: "B",
+            match: 70,
+            shared: [],
+            shared_at: at,
+          },
         ]),
       );
 

@@ -4,8 +4,8 @@ import { ConnectionRow } from "@/features/passport/connection-row";
 
 /**
  * A connection has no ID, and two can share `connected_at`. The other fields that never
- * change keep their rows apart. `shared` is left out because it changes when the pair's
- * answers arrive, and a changed key would remount the row and close its panel.
+ * change keep their rows apart. `shared` and `display_name` are left out because they can
+ * change, and a changed key would remount the row and close its panel.
  */
 function connectionKey(connection: Connection): string {
   return `${connection.connected_at}-${connection.kind ?? "none"}-${connection.match ?? "none"}`;

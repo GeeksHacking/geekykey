@@ -48,6 +48,7 @@ describe("me response contract", () => {
         connections: [
           {
             connected_at: "2026-11-12T08:12:30.000Z",
+            display_name: "Mei Lin",
             kind: "B",
             match: 60,
             shared: null,
@@ -562,6 +563,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
     connections: [
       {
         connected_at: "2026-11-12T08:12:30.000Z",
+        display_name: "Mei Lin",
         kind: "B",
         match: 50,
         shared: null,
@@ -569,6 +571,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
       },
       {
         connected_at: "2026-11-12T08:00:00.000Z",
+        display_name: null,
         kind: "G",
         match: null,
         shared: [],
@@ -592,6 +595,17 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
 
   it("refuses a match outside 0 to 100", () => {
     const connection = { ...me.connections[0], match: 101 };
+    expect(() => parseMeResponse({ ...me, connections: [connection] })).toThrow(NetworkError);
+  });
+
+  it("reads a connection with no name from a service before BAC-136 as no name", () => {
+    const { display_name: _name, ...connection } = me.connections[0]!;
+    const parsed = parseMeResponse({ ...me, connections: [connection] });
+    expect(parsed.connections[0]?.display_name).toBeNull();
+  });
+
+  it("refuses a connection's name that isn't a string", () => {
+    const connection = { ...me.connections[0], display_name: 7 };
     expect(() => parseMeResponse({ ...me, connections: [connection] })).toThrow(NetworkError);
   });
 });

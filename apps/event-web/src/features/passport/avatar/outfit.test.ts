@@ -6,6 +6,7 @@ import { demoOutfitFrom, outfitFrom } from "@/features/passport/avatar/outfit";
 function connections(count: number): Connection[] {
   return Array.from({ length: count }, (_, index) => ({
     connected_at: `2026-11-12T08:${String(index).padStart(2, "0")}:00.000Z`,
+    display_name: "Mei Lin",
     kind: "B",
     match: null,
     shared: null,

@@ -2174,3 +2174,11 @@
     The passport's line asking a user to tap back is gone, because a connection request now
     names who is asking and has no time limit. The line never showed on the live service, which
     never sent its count.
+
+- id: connection-names
+  date: 2026-11-05
+  area: frontend
+  change: >-
+    The connections list on the dashboard and the passport shows each person's current name above
+    the match, or Guest for someone with no name. The map and the memory card still name nobody you
+    connected with.

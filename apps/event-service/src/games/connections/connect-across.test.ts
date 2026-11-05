@@ -169,6 +169,7 @@ test("across groups, two people in different groups connect whatever their kinds
   assert.deepEqual(await connectionsOf("alex"), [
     {
       connected_at: "2026-11-05T09:00:20.000Z",
+      display_name: "bea",
       kind: null,
       match: null,
       shared: null,
