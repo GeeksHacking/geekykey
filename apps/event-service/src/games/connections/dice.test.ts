@@ -14,13 +14,17 @@ import { connections } from "./schema.ts";
 
 const rollDie = vi.fn(() => 1);
 
-function harness() {
+function harness(realDice = false) {
   rollDie.mockReset().mockReturnValue(1);
   const clock = fakeClock("2026-11-12T08:00:00.000Z");
   const answers = answersGame([]);
   const app = testApp(
     {},
-    { now: clock.now, answers, connections: connectionsGame(answers, rollDie) },
+    {
+      now: clock.now,
+      answers,
+      connections: realDice ? connectionsGame(answers) : connectionsGame(answers, rollDie),
+    },
   );
   const cookies = new Map<string, string>();
   const signIn = async (id: string) => {
@@ -52,7 +56,7 @@ function harness() {
       connections: { dice?: { your_roll: number; their_roll: number; result: string } | null }[];
     };
   };
-  const tap = async (back = false) => {
+  const tap = async (back = false, other = "bea") => {
     const res = await app.request("/geekykey/v1/meetings", {
       method: "POST",
       headers: {
@@ -61,8 +65,8 @@ function harness() {
       },
       body: JSON.stringify(
         back
-          ? { user_id: "bea", user_kind: "B", owner_id: "alex", owner_kind: "E" }
-          : { user_id: "alex", user_kind: "E", owner_id: "bea", owner_kind: "B" },
+          ? { user_id: other, user_kind: "B", owner_id: "alex", owner_kind: "E" }
+          : { user_id: "alex", user_kind: "E", owner_id: other, owner_kind: "B" },
       ),
     });
     assert.equal(res.status, 200);
@@ -78,6 +82,24 @@ function harness() {
   };
   return { clock, tap, meOf, accept };
 }
+
+test("the service's real dice give every integer from 1 to 6 and nothing else", async () => {
+  const { tap, meOf } = harness(true);
+  // 192 real rolls make the chance of missing any valid face less than 1 in 10^14.
+  // Checking the whole set catches an exclusive upper bound that accidentally leaves out 6.
+  for (let i = 0; i < 96; i++) {
+    const other = `participant-${i}`;
+    assert.equal(await tap(false, other), "waiting");
+    assert.equal(await tap(true, other), "connected");
+  }
+  const { connections } = await meOf("alex");
+  assert.equal(connections.length, 96);
+  const rolls = connections.flatMap(({ dice }) => {
+    assert.ok(dice);
+    return [dice.your_roll, dice.their_roll];
+  });
+  assert.deepEqual([...new Set(rolls)].sort(), [1, 2, 3, 4, 5, 6]);
+});
 
 test("accepting gives both people the same dice, with the higher roll winning", async () => {
   const { tap, meOf, accept } = harness();

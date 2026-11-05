@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ConnectionPerson } from "@/features/passport/connection-person";
 import { ConnectionDice } from "@/features/passport/connection-dice";
 import { formatWhen } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 /** Each question the two share, with the choice both picked. One no longer on the list drops out. */
 function sharedAnswers(shared: string[], me: MeResponse) {
@@ -33,7 +34,7 @@ export function ConnectionRow({ connection, me }: ConnectionRowProps) {
         <div className="min-w-0">
           <ConnectionPerson connection={connection} />
           <ConnectionDice dice={connection.dice} />
-          <p className="text-sm">
+          <p className={cn("text-sm", connection.dice && "mt-2")}>
             {connection.match === null ? "Connected" : `${connection.match}% match`}
           </p>
           <time

@@ -57,7 +57,7 @@ const connectionSchema = z.object({
   contact_line: z.prefault(z.nullable(z.string()), null),
   kind: z.nullable(z.string()),
   match: z.nullable(z.int().check(z.gte(0), z.lte(100))),
-  // BAC-150, draft for agreement 8.1. A previous service sends no dice.
+  // BAC-150, approved for the next agreement version, section 8.1. A previous service sends no dice.
   dice: z.prefault(
     z.nullable(
       z.object({

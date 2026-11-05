@@ -67,7 +67,7 @@ export interface Connection {
   kind: string | null;
   /** A whole percent, or null when no question was answered by both. */
   match: number | null;
-  /** BAC-150, draft for agreement 8.1. Missing or null for a connection before dice. */
+  /** BAC-150, approved for the next agreement version, section 8.1. Missing or null for a connection before dice. */
   dice?: { your_roll: number; their_roll: number; result: "win" | "loss" } | null;
   /** IDs of the questions both answered the same. Null until `shared_at`, then maybe empty. */
   shared: string[] | null;

@@ -2200,3 +2200,11 @@
     dashboard. Once two people connect, each sees the other's name, bio and contact line in the
     reveal and the connections list, and nobody sees a contact line before that. The trade-offs we
     accept: nothing checks what people write, as with names and answers.
+
+- id: connection-dice
+  date: 2026-11-06
+  area: backend
+  change: >-
+    Connecting now rolls a die for each person and keeps both rolls with the connection. The
+    reveal and connections list show the rolls and who won, with the higher roll winning.
+    The trade-offs we accept: equal rolls give both people a win.

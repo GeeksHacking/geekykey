@@ -334,7 +334,7 @@ export function connectionsGame(
               : {
                   yourRoll,
                   theirRoll,
-                  // Equal rolls win for both (the API agreement's 8.1, BAC-150 draft).
+                  // Equal rolls win for both (the API agreement's 8.1, BAC-150, approved for the next version).
                   result: yourRoll >= theirRoll ? "win" : "loss",
                 },
           shared: now.toISOString() >= sharedAt ? row.shared : null,

@@ -394,6 +394,11 @@ game's own record. The rules, from CONTEXT.md:
 
 - A connection joins two users, never two tokens, so nobody connects to themselves, and a pair
   connects once.
+- When a connection is made, the Event Service independently rolls an integer from 1 to 6 for
+  each person and keeps both rolls with it. The higher roll wins, and equal rolls win for both.
+  A pair plays once, and polls and repeat taps never change the rolls. Older connections have
+  no dice. The answers and match stay visible, and points, the map and the memory card stay as
+  they are (BAC-150, approved for the next version; 8.1 and section 13).
 - Organizers choose on the Groups screen what the two must have (BAC-140, a draft for the next
   version). A new event starts on across token kinds, and the other choice is across groups. The
   Event Service judges each tap and each accept by the choice and the groups at that moment, so
@@ -916,7 +921,7 @@ Everything the participant dashboard and passport view need in one call.
   next version).
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
-**Dice (BAC-150, draft for Ethan to approve in the next version).** Each connection also gives
+**Dice (BAC-150, approved for the next version).** Each connection also gives
 `dice`: `{ "your_roll": 5, "their_roll": 2, "result": "win" }`, or `null` for a connection made
 before dice. Each roll is an integer from 1 to 6, chosen independently by the Event Service when
 the connection is made and stored with it. Accepting with the button or tapping back uses the
@@ -2157,7 +2162,7 @@ There are no GeekyKey admin screens.
 - The reveal and the list of connections also show **"You rolled {your_roll}. They rolled
   {their_roll}."**, then **"You win!"** for `win` or **"They win!"** for `loss`. Equal rolls say
   **"You both win!"**. A connection with no `dice` shows no roll or result. The answers and match
-  stay visible (BAC-150, drafts for Ethan to approve).
+  stay visible (BAC-150, approved for the next version).
 - The dashboard shows **"Your profile"**, with the user's `bio`, **"Contact: {contact_line}"** and an
   **Change profile** button, or **"No bio or contact line yet. Add them so people you connect with
   can reach you."** with neither. Change profile opens a form headed **"What people see once you connect."**, with **Bio** and **Contact line**, each with
@@ -2316,3 +2321,4 @@ Closed on 2026-10-10:
 | 2026-11-05 | A draft for the next version, for Ethan's review: the other person accepts a connection with a button (BAC-149, from the 5 Nov meeting with Julian). A tap on someone's token sends them a connection request with no time limit, a tap back still connects, and the 2 minute limit on a half goes. **New:** `connection_requests` in `/me` (8.1) and 8.10's accept and decline, both at `Checkpoint 7`. **Changed:** what `waiting` means in 8.8 and 11.10, and section 13's `waiting` sentence, which also gets the event's button. No status is added, so either service works with the other's previous version. |
 | 2026-11-05 | For the next version, which Ethan approved: tapping a token says whose it is, so people notice when tokens are swapped (BAC-143, from the 5 Nov trial). **New, at `Checkpoint 7`:** `owner_name` in the meeting hand-off's answer (11.10) and in each item of 8.8's answer, the owner's current name or `null`. **Changed:** 8.7 says who sees a name, 8.5's row says only the lookup gives no name, and section 13 adds the token page's two sentences and the name prompt's line, which also covers FRO-127. No field is removed, and either service works with the other's previous version. |
 | 2026-11-05 | For the next version, whose fields Ethan approved: participants write a bio and a contact line, and people they connect with see both (BAC-147, from the 5 Nov meeting with Julian). **New, at `Checkpoint 7`:** `bio` and `contact_line` in 8.1's `user` and in 8.7's request and answer, and in each item of `connections`, which also gains `display_name` from BAC-136, all three the other person's current values. **Changed:** 8.1 no longer says a connection gives no name, 8.7 says who sees them, and section 13 adds the dashboard's profile and what the reveal and the list show. No field is removed. A screen reads a missing one as `null`, so it works with an Event Service from before them, and the Event Service goes first, since an older one refuses a request with only these two. Ethan's approval covers the fields and the ticket's rules. Section 13 marks the wording the ticket didn't set as a draft for him. |
+| 2026-11-06 | For the next version, which Ethan approved, as Adam confirmed on 6 Nov: each new connection keeps a die roll for each person (BAC-150). **New, at `Checkpoint 7`:** `connections[].dice` in 8.1, with `your_roll`, `their_roll` and `result` (`win` or `loss`), or `null` for an older connection. Section 4 records that the Event Service rolls independently from 1 to 6 once per pair, keeps the rolls, and gives both people a win on equal rolls. Section 13 adds the roll sentence and the win, loss and tie sentences for the reveal and the list. Ethan approved the fields and all four sentences. No field is removed, and a screen reads missing dice as `null` to work with the previous Event Service. |

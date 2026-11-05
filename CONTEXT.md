@@ -183,7 +183,9 @@ A link between two participants of different kinds, or, when organizers choose i
 groups (BAC-140). Since 5 Nov it's made when one taps their phone on the other's token and the other
 accepts, with the Accept button or by tapping back (BAC-149), and a connection point may make one
 too, if it's built. It joins two users, never two tokens, so nobody connects to themselves, and a
-pair connects once however often they tap.
+pair connects once however often they tap. Each new connection keeps one die roll per person,
+chosen by the Event Service when they connect; the higher roll wins, and equal rolls win for
+both (BAC-150). Older connections have no rolls.
 _Avoid_: dual tap, link between tags
 
 **Contact line**:
