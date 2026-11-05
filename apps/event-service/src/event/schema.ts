@@ -31,6 +31,10 @@ export const users = mysqlTable("users", {
    * comes from their login. Once set, a login no longer changes it.
    */
   nameSetAt: isoTimestamp("name_set_at"),
+  /** What the user wrote about themselves, or null for none (the API agreement's 8.7). */
+  bio: text("bio"),
+  /** How to reach the user, which only the people they connect with see, or null for none. */
+  contactLine: text("contact_line"),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
 });
 

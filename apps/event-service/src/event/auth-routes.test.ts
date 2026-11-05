@@ -140,7 +140,14 @@ async function me(login: Response) {
   assert.equal(res.status, 200);
   return (
     (await res.json()) as {
-      user: { id: string; display_name: string; has_name: boolean; kind: string | null };
+      user: {
+        id: string;
+        display_name: string;
+        has_name: boolean;
+        kind: string | null;
+        bio: string | null;
+        contact_line: string | null;
+      };
     }
   ).user;
 }
@@ -160,6 +167,8 @@ test("a new user's good token logs them in as its sub, with the token's name", a
     role: "participant",
     has_name: true,
     kind: null,
+    bio: null,
+    contact_line: null,
     answers: {},
   });
 });
@@ -198,6 +207,8 @@ test("a token with no name gives a new user the name Guest, and no name of their
     role: "participant",
     has_name: false,
     kind: null,
+    bio: null,
+    contact_line: null,
     answers: {},
   });
 });
@@ -211,6 +222,8 @@ test("a later login with a name replaces the default name", async () => {
     role: "participant",
     has_name: true,
     kind: null,
+    bio: null,
+    contact_line: null,
     answers: {},
   });
 });
@@ -225,6 +238,8 @@ test("a guest who sets their name has one", async () => {
     role: "participant",
     has_name: true,
     kind: null,
+    bio: null,
+    contact_line: null,
     answers: {},
   });
 });
@@ -245,6 +260,8 @@ test("a guest's token logs them in as its sub, like any other with no name", asy
     role: "participant",
     has_name: false,
     kind: null,
+    bio: null,
+    contact_line: null,
     answers: {},
   });
 });
@@ -352,6 +369,8 @@ test("a login link logs its user in, with the name their login had", async () =>
     role: "participant",
     has_name: true,
     kind: null,
+    bio: null,
+    contact_line: null,
     answers: {},
   });
 });
@@ -365,6 +384,8 @@ test("a guest's login link logs them in as Guest, with no name of their own", as
     role: "participant",
     has_name: false,
     kind: null,
+    bio: null,
+    contact_line: null,
     answers: {},
   });
 });

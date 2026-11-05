@@ -50,6 +50,13 @@ export interface Connection {
    * Null when they have never logged in to this Event Service.
    */
   displayName: string | null;
+  /** The other person's current bio, or null for none. It can change as the name can. */
+  bio: string | null;
+  /**
+   * The other person's current contact line, or null for none. It can change as the name can.
+   * This is the only answer that gives anyone else's (the API agreement's 8.1).
+   */
+  contactLine: string | null;
   /** The other person's kind, or null for none, which only a connection across groups has. */
   kind: string | null;
   /**

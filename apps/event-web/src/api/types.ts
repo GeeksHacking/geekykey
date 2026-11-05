@@ -26,6 +26,10 @@ export interface User {
    * answer one, and always `{}` without an answers game.
    */
   answers: Record<string, string>;
+  /** What the user wrote about themselves, or null for none (BAC-147, agreement 8.1). */
+  bio: string | null;
+  /** How to reach the user, which only people they connect with see, or null (BAC-147). */
+  contact_line: string | null;
 }
 
 export interface QuestionChoice {
@@ -52,6 +56,10 @@ export interface Connection {
    * (BAC-136, draft for the agreement's next version).
    */
   display_name: string | null;
+  /** The other person's current bio, or null for none (BAC-147). */
+  bio: string | null;
+  /** The other person's current contact line, or null for none (BAC-147). */
+  contact_line: string | null;
   /**
    * The other person's kind, or null for none, which only a connection across groups has
    * (BAC-140, draft for the agreement's next version).
@@ -113,13 +121,16 @@ export interface MeTap {
 }
 
 /**
- * PATCH /api/v1/me (agreement 8.7). Both fields are optional, and a request needs at least
+ * PATCH /api/v1/me (agreement 8.7). Every field is optional, and a request needs at least
  * one. `display_name` is trimmed, then 1 to 30 code points; `answers` maps question IDs to
- * choice IDs and sets only the answers it names.
+ * choice IDs and sets only the answers it names; `bio` and `contact_line` are trimmed, then at
+ * most 160 and 80 code points, and blank or null clears one (BAC-147).
  */
 export interface UpdateMeRequest {
   display_name?: string;
   answers?: Record<string, string>;
+  bio?: string | null;
+  contact_line?: string | null;
 }
 
 /** Agreement 8.7 answers with the `user` object from 8.1. */

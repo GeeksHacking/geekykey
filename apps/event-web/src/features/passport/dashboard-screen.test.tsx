@@ -127,6 +127,8 @@ const robotics: Stamp = {
 const met: Connection = {
   connected_at: "2026-11-12T08:20:00.000Z",
   display_name: "Mei Lin",
+  bio: null,
+  contact_line: null,
   kind: "B",
   match: 60,
   shared: null,

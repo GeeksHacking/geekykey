@@ -319,7 +319,7 @@ Rules:
    - `invalid_event_service_key` / station-key errors: setup/configuration message.
    - `internal_error` or a network failure: generic error state with a retry button.
 - Out of scope, do not build UI for it: leaderboards, dual-tap, archetype quests, event
-  CRUD, editing or deleting taps, profile editing beyond the name (8.7), reading a station
+  CRUD, editing or deleting taps, profile editing beyond the name, bio and contact line (8.7), reading a station
   key back, Web Serial or USB device configuration. Replacing a station's key is **not** out
   of scope: agreement 9.8 does it on the station board and FRO-28 builds it.
 

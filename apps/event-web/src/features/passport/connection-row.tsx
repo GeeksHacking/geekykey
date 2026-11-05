@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { Connection, MeResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { ConnectionPerson } from "@/features/passport/connection-person";
 import { formatWhen } from "@/lib/format";
 
 /** Each question the two share, with the choice both picked. One no longer on the list drops out. */
@@ -19,8 +20,8 @@ interface ConnectionRowProps {
 }
 
 /**
- * One connection: the other person's name above its match. Someone with no name shows as `Guest`
- * (BAC-136, draft for the agreement's next version).
+ * One connection: the other person above its match (BAC-136 and BAC-147, approved for the
+ * agreement's next version).
  */
 export function ConnectionRow({ connection, me }: ConnectionRowProps) {
   const [showShared, setShowShared] = useState(false);
@@ -29,7 +30,7 @@ export function ConnectionRow({ connection, me }: ConnectionRowProps) {
     <li className="space-y-3 px-3 py-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
-          <p className="font-medium break-words">{connection.display_name ?? "Guest"}</p>
+          <ConnectionPerson connection={connection} />
           <p className="text-sm">
             {connection.match === null ? "Connected" : `${connection.match}% match`}
           </p>

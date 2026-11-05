@@ -6,7 +6,7 @@ import type { MeResponse, UpdateMeRequest } from "@/api/types";
 
 /**
  * PATCH /api/v1/me (agreement 8.7). The service answers with the user, so that goes
- * straight into ["me"] and the passport shows the new name or answers without another read.
+ * straight into ["me"] and the screens show what changed without another read.
  */
 export function useUpdateMe() {
   const api = useApi();
@@ -15,7 +15,7 @@ export function useUpdateMe() {
     mutationFn: (input: UpdateMeRequest) => api.updateMe(input),
     onSuccess: ({ user }, input) => {
       // A poll asked for before the PATCH answers with the user as they were then, so drop
-      // it, or its late answer puts the old name or answers back (FRO-68).
+      // it, or its late answer puts the old values back (FRO-68).
       void queryClient.cancelQueries({ queryKey: queryKeys.me });
       queryClient.setQueryData<MeResponse | null>(queryKeys.me, (me) => {
         if (!me) return me;
@@ -29,6 +29,12 @@ export function useUpdateMe() {
         }
         if (input.answers !== undefined) {
           next.answers = user.answers;
+        }
+        if (input.bio !== undefined) {
+          next.bio = user.bio;
+        }
+        if (input.contact_line !== undefined) {
+          next.contact_line = user.contact_line;
         }
         return { ...me, user: next };
       });

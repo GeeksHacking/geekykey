@@ -12,6 +12,7 @@ import {
   type SessionUser,
 } from "./session-auth.ts";
 import { loadMe } from "./me.ts";
+import { bioSchema, contactLineSchema, setProfile } from "./profiles.ts";
 import type { AppEnv } from "../app.ts";
 
 export interface MeRouteDeps {
@@ -29,6 +30,8 @@ function connectionBody(connection: Connection) {
   return {
     connected_at: connection.connectedAt,
     display_name: connection.displayName,
+    bio: connection.bio,
+    contact_line: connection.contactLine,
     kind: connection.kind,
     match: connection.match,
     shared: connection.shared,
@@ -54,6 +57,8 @@ function userBody(user: SessionUser, answers: Answers) {
     has_name: user.hasName,
     kind: user.kind,
     answers,
+    bio: user.bio,
+    contact_line: user.contactLine,
   };
 }
 
@@ -62,8 +67,9 @@ function userBody(user: SessionUser, answers: Answers) {
  * frontend learns that nobody is signed in.
  *
  * GET / is everything the participant dashboard and passport need in one
- * call. PATCH / sets the name the event shows (display-names.ts), some
- * answers in the event's answers game (answers.ts), or both.
+ * call. PATCH / sets any of the name the event shows (display-names.ts), some
+ * answers in the event's answers game (answers.ts), the bio and the contact
+ * line (profiles.ts).
  */
 export function meRoutes({
   session,
@@ -73,15 +79,17 @@ export function meRoutes({
 }: MeRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
 
-  /** PATCH /api/v1/me's body: either field, or both. */
+  /** PATCH /api/v1/me's body: any of its fields. */
   const setMeSchema = z
     .object({
       display_name: displayNameSchema.optional(),
       answers: answersSchema(game).optional(),
+      bio: bioSchema.optional(),
+      contact_line: contactLineSchema.optional(),
     })
     .refine(
-      (body) => body.display_name !== undefined || body.answers !== undefined,
-      "A request needs display_name, answers or both",
+      (body) => Object.values(body).some((field) => field !== undefined),
+      "A request needs at least one of display_name, answers, bio and contact_line",
     );
 
   app.get("/", requireSession(session), async (c) => {
@@ -130,9 +138,9 @@ export function meRoutes({
   });
 
   app.patch("/", requireSession(session), jsonBody(setMeSchema), async (c) => {
-    const { display_name, answers: given } = c.req.valid("json");
+    const { display_name, answers: given, bio, contact_line: contactLine } = c.req.valid("json");
     const { db, user } = c.var;
-    // One transaction, so a request whose answers are refused changes the name neither.
+    // One transaction, so a request whose answers are refused changes nothing else.
     const saved = await db.transaction(async (tx) => {
       // With no game, answersSchema() lets through only an empty `answers`, which sets nothing.
       const result = !game
@@ -140,15 +148,20 @@ export function meRoutes({
         : given === undefined
           ? await game.answersOf(tx, user.id)
           : await game.setAnswers(tx, user.id, given);
-      if (result !== "fixed" && display_name !== undefined) {
-        await setOwnName(tx, user.id, display_name);
+      if (result !== "fixed") {
+        if (display_name !== undefined) await setOwnName(tx, user.id, display_name);
+        await setProfile(tx, user.id, { bio, contactLine });
       }
       return result;
     });
     if (saved === "fixed") return c.json({ error: "answers_fixed" }, 409);
-    const named =
-      display_name === undefined ? user : { ...user, displayName: display_name, hasName: true };
-    return c.json({ user: userBody(named, saved) });
+    const updated = {
+      ...user,
+      ...(display_name !== undefined && { displayName: display_name, hasName: true }),
+      ...(bio !== undefined && { bio }),
+      ...(contactLine !== undefined && { contactLine }),
+    };
+    return c.json({ user: userBody(updated, saved) });
   });
 
   // Agreement 8.10, a draft for the next version. An event with no connections game has no

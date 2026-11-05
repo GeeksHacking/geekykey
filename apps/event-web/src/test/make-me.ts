@@ -14,6 +14,8 @@ export function makeMe({ user, ...rest }: MeOverrides = {}): MeResponse {
       role: "participant",
       has_name: true,
       answers: {},
+      bio: null,
+      contact_line: null,
       ...user,
     },
     questions: null,
