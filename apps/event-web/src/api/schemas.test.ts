@@ -69,6 +69,12 @@ describe("me response contract", () => {
     expect(parsed.connections).toEqual([]);
   });
 
+  it("reads the count of taps waiting for the user, and treats a missing one as 0", () => {
+    expect(parseMeResponse(makeMe({ tapped_you: 2 })).tapped_you).toBe(2);
+    expect(parseMeResponse({ ...makeMe(), tapped_you: undefined }).tapped_you).toBe(0);
+    expect(() => parseMeResponse({ ...makeMe(), tapped_you: -1 })).toThrow(NetworkError);
+  });
+
   it("reads a connection with no kind, made across groups (BAC-140)", () => {
     const parsed = parseMeResponse({
       ...makeMe(),
@@ -539,6 +545,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
       },
     ],
     points: 2,
+    tapped_you: 0,
     stamps: [],
     recent_taps: [],
     connections: [
