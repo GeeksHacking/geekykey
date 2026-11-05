@@ -2198,6 +2198,5 @@
   change: >-
     Participants can now write a short bio and one contact line, such as a Telegram handle, on the
     dashboard. Once two people connect, each sees the other's name, bio and contact line in the
-    reveal and the connections list, and an edit shows at the next poll. The token page, connection
-    requests, the map and the memory card show neither, so a contact line stays hidden until the
-    two connect. Nothing checks what people write, as with names and answers.
+    reveal and the connections list, and nobody sees a contact line before that. The trade-offs we
+    accept: nothing checks what people write, as with names and answers.
