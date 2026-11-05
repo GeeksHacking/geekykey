@@ -1,4 +1,13 @@
-import type { LoginLink, Meeting, MeResponse, Token, TokenLookup } from "@/api/types";
+import type {
+  LoginLink,
+  Meeting,
+  MeResponse,
+  Token,
+  TokenKind,
+  TokenKindsLoaded,
+  TokenKindTotal,
+  TokenLookup,
+} from "@/api/types";
 
 /*
   The one interface every feature consumes. Two implementations:
@@ -11,8 +20,8 @@ import type { LoginLink, Meeting, MeResponse, Token, TokenLookup } from "@/api/t
 
   Agreement version 0.3 has no station endpoints here: section 10 is empty, because
   each Event Service registers its own stations and the jobs moved to the Event screens
-  (agreement 9.7 to 9.9). A GeekyKey admin's one remaining job is releasing someone
-  else's token, which is releaseToken with ownerId.
+  (agreement 9.7 to 9.9). A GeekyKey admin releases someone else's token, which is
+  releaseToken with ownerId, and loads token kinds (BAC-139).
 */
 export interface ApiClient {
   /** GET /api/v1/me. Rejects with `unauthenticated` when there is no session. */
@@ -70,4 +79,17 @@ export interface ApiClient {
    * which does no harm, so a failure needs no retry of its own.
    */
   meetToken(uid: string): Promise<Meeting[]>;
+
+  /**
+   * GET /api/v1/admin/token-kinds, GeekyKey admins only (BAC-139). How many tokens each
+   * kind has on the list, by kind in order.
+   */
+  getTokenKinds(): Promise<TokenKindTotal[]>;
+
+  /**
+   * POST /api/v1/admin/token-kinds, GeekyKey admins only (BAC-139). Puts up to 500 tokens
+   * on the list. A token not named keeps its kind, and nothing is ever removed. Sending
+   * the same tokens again does no harm, and they then count as unchanged.
+   */
+  loadTokenKinds(tokens: TokenKind[]): Promise<TokenKindsLoaded>;
 }

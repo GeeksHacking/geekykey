@@ -1,0 +1,77 @@
+import { Hono, type MiddlewareHandler } from "hono";
+import { z } from "zod";
+import type { Claims } from "./claims.ts";
+import { withClaimsDeadline } from "./claims-deadline.ts";
+import { log } from "./lib/log.ts";
+import { tokenUid } from "./lib/token-uid.ts";
+import { jsonBody } from "./lib/validate.ts";
+import { requireSession, type SessionCheck, type SessionEnv } from "./session.ts";
+
+export interface TokenKindRouteDeps {
+  session: SessionCheck;
+  claims: Claims;
+  /** From config.geekykeyAdmins, checked on every request. */
+  geekykeyAdmins: ReadonlySet<string>;
+  /** Milliseconds the claims stand-in has to answer. */
+  deadlineMs: number;
+}
+
+/** The most tokens one load may carry: what one request to the stand-in may name. */
+const MAX_TOKENS_PER_LOAD = 500;
+
+const loadBody = z.object({
+  tokens: z
+    .array(
+      z.object({
+        uid: tokenUid,
+        // The token writer's one capital letter (firmware/README.md, "Writing tokens").
+        kind: z.string().regex(/^[A-Z]$/, "kind must be one capital letter"),
+      }),
+    )
+    .min(1)
+    .max(MAX_TOKENS_PER_LOAD),
+});
+
+/**
+ * Mounted at /api/v1/admin/token-kinds: the token kinds screen on the GeekyKey
+ * screens (BAC-139). The GET counts the tokens of each kind on the list, and the
+ * POST loads tokens read from the token writer's log, answering how many were
+ * new, changed kind or already had it. A load never removes a token.
+ *
+ * The screen reads the log, so what arrives here is already one kind for each
+ * UID. UIDs stay on the GeekyKey side, here and in the claims stand-in: an Event
+ * Service never sees one (the API agreement's 11.8). Every load writes a
+ * `token_kinds_loaded` log line naming who did it. A load that answers
+ * `claims_unavailable` may still have been made, and sending it again does no
+ * harm.
+ *
+ * Only a GeekyKey admin gets in, checked before the body is read. Every request
+ * counts toward the user's USER_LIMIT (src/session.ts).
+ */
+export function tokenKindRoutes({
+  session,
+  claims,
+  geekykeyAdmins,
+  deadlineMs,
+}: TokenKindRouteDeps) {
+  const requireAdmin: MiddlewareHandler<SessionEnv> = async (c, next) => {
+    if (!geekykeyAdmins.has(c.var.userId)) return c.json({ error: "forbidden" }, 403);
+    return await next();
+  };
+
+  return new Hono<SessionEnv>()
+    .use(requireSession(session), requireAdmin)
+    .get("/", async (c) =>
+      withClaimsDeadline(c, deadlineMs, async (signal) => {
+        return c.json({ kinds: await claims.kindTotals(signal) });
+      }),
+    )
+    .post("/", jsonBody(loadBody), async (c) => {
+      const { tokens } = c.req.valid("json");
+      return await withClaimsDeadline(c, deadlineMs, async (signal) => {
+        const loaded = await claims.loadKinds(tokens, signal);
+        log("token_kinds_loaded", { loaded_by: c.var.userId, ...loaded });
+        return c.json(loaded);
+      });
+    });
+}

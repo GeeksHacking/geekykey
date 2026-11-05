@@ -9,6 +9,9 @@ export const SEEDED_USERS = [
   { id: "dev-organizer-1", label: "Priya Raman", isGeekyKeyAdmin: true },
 ] as const;
 
+/** The most tokens one load of token kinds may carry, which the service holds to as well. */
+export const MAX_TOKENS_PER_LOAD = 500;
+
 /** Simulated request latency for the mock client, in milliseconds. */
 export const MOCK_LATENCY_MS: readonly [number, number] = [180, 520];
 

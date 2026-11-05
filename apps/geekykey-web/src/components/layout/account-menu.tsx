@@ -1,4 +1,4 @@
-import { CaretDown, SignOut, Stamp, UserCircle } from "@phosphor-icons/react";
+import { CaretDown, ListNumbers, SignOut, Stamp, UserCircle } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,14 @@ export function AccountMenu({ userId, isGeekyKeyAdmin, onSignOut }: AccountMenuP
             My tokens
           </Link>
         </DropdownMenuItem>
+        {isGeekyKeyAdmin ? (
+          <DropdownMenuItem asChild>
+            <Link to="/admin/token-kinds">
+              <ListNumbers aria-hidden />
+              Token kinds
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem onSelect={onSignOut}>
           <SignOut aria-hidden />
           Sign out

@@ -95,8 +95,8 @@ describe("the signed-in shell", () => {
 
     // The flag still reads, so the account says who it is.
     expect(within(menu).getByText("GeekyKey admin")).toBeInTheDocument();
-    // No admin row either way: agreement 13 says there are no GeekyKey admin screens, and
-    // an admin's one job is releasing a token from the token page (8.5).
+    // No admin console either way: FRO-21 was canceled. A GeekyKey admin's one screen is
+    // Token kinds, and they release a token from the token page (8.5).
     expect(within(menu).queryByRole("menuitem", { name: /Admin console/ })).not.toBeInTheDocument();
   });
 

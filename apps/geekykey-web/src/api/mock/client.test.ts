@@ -535,6 +535,53 @@ describe("geekykey-web mock client", () => {
     });
   });
 
+  describe("token kinds", () => {
+    it("refuses anyone who isn't a GeekyKey admin", async () => {
+      const api = setup();
+      await expect(api.getTokenKinds()).rejects.toMatchObject({ code: "forbidden" });
+      await expect(
+        api.loadTokenKinds([{ uid: "04E45150324189", kind: "E" }]),
+      ).rejects.toMatchObject({ code: "forbidden" });
+    });
+
+    it("counts each kind in order", async () => {
+      const api = setup(SEEDED_ADMIN_ID);
+      await expect(api.getTokenKinds()).resolves.toEqual([
+        { kind: "B", tokens: 1 },
+        { kind: "E", tokens: 3 },
+        { kind: "H", tokens: 1 },
+      ]);
+    });
+
+    it("says what a load did, and keeps a token not named", async () => {
+      const api = setup(SEEDED_ADMIN_ID);
+      await expect(
+        api.loadTokenKinds([
+          { uid: "04E45150324189", kind: "E" },
+          { uid: "04A1B2C3D4E5F6", kind: "B" },
+          { uid: "04B7C9E1F3A5", kind: "E" },
+        ]),
+      ).resolves.toEqual({ new: 1, changed: 1, unchanged: 1 });
+      await expect(api.getTokenKinds()).resolves.toEqual([
+        { kind: "B", tokens: 2 },
+        { kind: "E", tokens: 3 },
+        { kind: "H", tokens: 1 },
+      ]);
+    });
+
+    it("refuses a load of no tokens or more than 500", async () => {
+      const api = setup(SEEDED_ADMIN_ID);
+      await expect(api.loadTokenKinds([])).rejects.toMatchObject({ code: "validation_failed" });
+      const tooMany = Array.from({ length: 501 }, (_, i) => ({
+        uid: `04${i.toString(16).padStart(12, "0").toUpperCase()}`,
+        kind: "E",
+      }));
+      await expect(api.loadTokenKinds(tooMany)).rejects.toMatchObject({
+        code: "validation_failed",
+      });
+    });
+  });
+
   describe("no station endpoints since 0.3", () => {
     it("has no station methods left on the client", () => {
       // Section 10 is empty: each Event Service registers its own stations now, so the

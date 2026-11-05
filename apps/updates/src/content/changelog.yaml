@@ -2118,3 +2118,10 @@
     On the Groups screen, an organizer can enter a number of groups, the people per group and a
     location for each, and one press makes "Group 1", "Group 2" and so on and places everyone. It
     makes nothing while there are groups already, or with too few people joined.
+- id: token-kinds-screen
+  date: 2026-11-05
+  area: backend
+  change: >-
+    A GeekyKey admin can load token kinds from a screen on the GeekyKey site, by pasting the token
+    writer's log, checking what it found and pressing Load, instead of asking Adam to run a script.
+    The screen also shows how many tokens each kind has.

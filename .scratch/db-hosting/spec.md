@@ -267,7 +267,7 @@ The rules that hold the split together:
 - Each Event Service registers its own stations and issues their station keys. A station feeds the Event Service that registered it, so there are no links. A reader moved to another event becomes a new station there, given the new event's key through the firmware's setup mode, which clears its saved taps (8 Oct).
 - A tap by an unclaimed token stops at the GeekyKey Service. It gets `unknown_token` and a log line, and is stored nowhere.
 - The user ID is the one the login gives: a Firebase UID at the showcase (ADR 0004), and the Portal's user ID once events log in through the Portal. Every "user ID" below means this. The GeekyKey Service keeps no users.
-- Organizer is a role at one event, from a list in the Event Service's settings, and organizers look after their event's stations. GeekyKey admin is a GeeksHacking role, from a list in the GeekyKey Service's settings, and its one job is releasing someone else's token. At the showcase they're the same people.
+- Organizer is a role at one event, from a list in the Event Service's settings, and organizers look after their event's stations. GeekyKey admin is a GeeksHacking role, from a list in the GeekyKey Service's settings, and its jobs are releasing someone else's token and loading token kinds (BAC-139). At the showcase they're the same people.
 - Only the GeekyKey Service calls the claims stand-in, with a key of its own. It isn't part of what an Event Service offers, and other teams' Event Services never build one.
 
 Sources: [Which parts of today's backend belong to the GeekyKey Service, and which to the Event Service?](issues/12-backend-split.md), [Which screens belong to which service, and how does each know who is logged in?](issues/15-screens-and-login.md), [Who registers stations, where is a station key checked, and how does the GeekyKey Service know which Event Service a station feeds?](issues/24-stations-without-a-database.md), [Where do token owners live until the Portal's tag APIs exist, and what does the token page do?](issues/23-token-owners-before-portal.md)
@@ -448,7 +448,7 @@ export interface Claims {
 
 They aren't in the API agreement: nothing but the GeekyKey Service calls them, and they go after the switch.
 
-**The token kinds** (ADR 0006, BAC-113) are a second table beside the stand-in, `token_kinds` (`uid`, `kind`), which `pnpm db:token-kinds` fills from the token writer's log on Adam's laptop. `/owners` reads it with each owner, in the same query, so a tap makes no extra request. The clear between the grad tea and the showcase keeps it, since a kind belongs to the token. The Event Service keeps each user's first kind in its own `user_kinds`, which the clear empties with the users. At the switch, the list moves to the Portal or stays as GeekyKey's own. The switch is in section 6, "After the showcase".
+**The token kinds** (ADR 0006, BAC-113) are a second table beside the stand-in, `token_kinds` (`uid`, `kind`). A GeekyKey admin fills it from the token writer's log at `key.geekshacking.com/admin/token-kinds` (BAC-139). That screen also shows how many tokens each kind has. It calls the GeekyKey Service, which calls two more stand-in routes with the same key: `GET /claims-stand-in/v1/token-kinds` answers `{ "kinds": [{ "kind", "tokens" }] }`, and `POST /claims-stand-in/v1/token-kinds` takes `{ "tokens": [{ "uid", "kind" }] }`, up to 500, and answers `{ "new", "changed", "unchanged" }`. A load removes nothing. `/owners` reads it with each owner, in the same query, so a tap makes no extra request. The clear between the grad tea and the showcase keeps it, since a kind belongs to the token. The Event Service keeps each user's first kind in its own `user_kinds`, which the clear empties with the users. At the switch, the list moves to the Portal or stays as GeekyKey's own. The switch is in section 6, "After the showcase".
 
 Sources: [What does the GeekyKey Service need from the Portal's tag APIs?](issues/17-portal-tag-apis.md), [How do we protect our public addresses without blocking the stations?](issues/18-protecting-public-addresses.md), [Where do token owners live until the Portal's tag APIs exist, and what does the token page do?](issues/23-token-owners-before-portal.md), [Does a station wait for the Event Service's verdict?](issues/25-wait-for-the-verdict.md), [What does the GeekyKey Service cache, and in which store?](issues/26-what-to-cache.md)
 
@@ -1085,7 +1085,7 @@ Until then, anyone with write access could push to `main` and deploy, so the tea
   - My tokens, the home page, with **Release**, the form to claim by typing a UID, and a button for each event;
   - "Couldn't reach GeeksHacking. Try again." on `claims_unavailable`, and "You already have 3 tokens. Release one on My tokens first." on `token_limit_reached`;
   - "Someone else already claimed this token." on `token_taken`, and on the token page, the view from a fresh lookup underneath, whatever it answers;
-  - no GeekyKey admin screens: a GeekyKey admin releases a found token on its token page.
+  - one GeekyKey admin screen, Token kinds (BAC-139): a GeekyKey admin still releases a found token on its token page.
 - **In `apps/event-web`:**
   - **Done:** the passport without pairing, the Portal user ID to copy, passport stations only, the tap log and export of version 0.2, the QR fallback by user ID, and passport settings from the station board.
   - **The station board, changed by version 0.3:** it reads the Event Service's own stations, so "status unknown", "no longer linked" and `status_known` go. Organizers create a station (its key shown once), replace its key, and disable or enable it there, so the station dialogs stay in `event-web` rather than moving to `geekykey-web`. Stations that are offline, holding saved taps, not in the passport, or whose reader isn't responding still turn red and go first.
@@ -1149,7 +1149,7 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 ### 8.2 Other docs
 
 - **`apps/event-web/CLAUDE.md`,** for Ethan to update: the backend is Node on Cloud Run, not a Worker; the station screens (creating a station, its key, disabling it) stay on the organizers' station board; there is no status call. *27 Oct:* its key dates now give the grad tea and the showcase on 17 Nov (BAC-88), and FRO-85 adds how the event's look is picked.
-- **`apps/geekykey-web/CLAUDE.md`:** no GeekyKey admin screens; a GeekyKey admin releases a found token on its token page.
+- **`apps/geekykey-web/CLAUDE.md`:** one GeekyKey admin screen, Token kinds (BAC-139); a GeekyKey admin still releases a found token on its token page.
 - **The Single Source of Truth** still says Docker on Cloud Run with SQLite; it's the team's to correct. Its date for the showcase, 17 Nov, was right (27 Oct).
 
 ---

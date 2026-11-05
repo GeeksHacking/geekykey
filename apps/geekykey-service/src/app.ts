@@ -13,6 +13,7 @@ import type { Send } from "./service-request.ts";
 import type { SessionCheck, SessionOptions } from "./session.ts";
 import { heartbeatRoutes, tapsRoutes } from "./station-routes.ts";
 import { StationsCopy } from "./stations-copy.ts";
+import { tokenKindRoutes } from "./token-kind-routes.ts";
 import { tokenRoutes } from "./token-routes.ts";
 
 /** What the GeekyKey Service reaches outside itself. Tests fake each. */
@@ -162,6 +163,15 @@ export function createApp(
       tokenLimit,
       // In EVENT_SERVICES' order, as /me's `events` are.
       meetingServices: eventServices.filter((_, i) => config.eventServices[i]!.meetings),
+    }),
+  );
+  app.route(
+    "/api/v1/admin/token-kinds",
+    tokenKindRoutes({
+      session: sessionCheck,
+      claims,
+      geekykeyAdmins,
+      deadlineMs: claimsDeadlineMs,
     }),
   );
   app.route(

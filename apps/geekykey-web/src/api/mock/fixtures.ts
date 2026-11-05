@@ -7,6 +7,8 @@
   Service registers its own stations, so the registry lives in apps/event-web now.
 */
 
+import type { TokenKind } from "@/api/types";
+
 export interface MockEventService {
   id: string;
   name: string;
@@ -32,10 +34,12 @@ export interface MockToken {
 export interface MockData {
   event_services: MockEventService[];
   tokens: MockToken[];
+  /** The list of token kinds the GeekyKey admins load (BAC-139). */
+  token_kinds: TokenKind[];
   /**
-   * user IDs on the GeekyKey Service's admin list. Since 0.3 an admin's one
-   * job is releasing someone else's token (8.3 with `owner_id`); the station jobs
-   * moved to the Event screens.
+   * user IDs on the GeekyKey Service's admin list. A GeekyKey admin releases someone
+   * else's token (8.3 with `owner_id`) and loads token kinds (BAC-139); the station jobs moved
+   * to the Event screens.
    */
   admins: string[];
 }
@@ -100,5 +104,13 @@ export function createFixtures(now: number = Date.now()): MockData {
     { uid: "04E5F7091B3D", owner_id: null, claimed_at: null },
   ];
 
-  return { event_services, tokens, admins: [SEEDED_ADMIN_ID] };
+  const token_kinds: TokenKind[] = [
+    { uid: "04A1B2C3D4E5F6", kind: "E" },
+    { uid: "04B7C9E1F3A5", kind: "E" },
+    { uid: "04C3D5F70912", kind: "B" },
+    { uid: "04D9E1F3A5B7", kind: "H" },
+    { uid: "04E5F7091B3D", kind: "E" },
+  ];
+
+  return { event_services, tokens, token_kinds, admins: [SEEDED_ADMIN_ID] };
 }

@@ -2,7 +2,15 @@ import * as z from "zod/mini";
 
 import { NetworkError } from "@/api/errors";
 import { MEETING_STATUSES } from "@/api/types";
-import type { LoginLink, Meeting, MeResponse, Token, TokenLookup } from "@/api/types";
+import type {
+  LoginLink,
+  Meeting,
+  MeResponse,
+  Token,
+  TokenKindsLoaded,
+  TokenKindTotal,
+  TokenLookup,
+} from "@/api/types";
 
 const isoTimestamp = z.iso.datetime({ offset: true });
 const tokenOwner = z.enum(["nobody", "you", "someone_else"]);
@@ -53,6 +61,20 @@ const meetingSchema: z.ZodMiniType<Meeting> = z.object({
 /** Agreement 8.8: one item for each Event Service that takes meetings, in /me's order. */
 const meetingResponseSchema = z.object({ meetings: z.array(meetingSchema) });
 
+const count = z.number().check(z.int(), z.nonnegative());
+
+/** GET /api/v1/admin/token-kinds (BAC-139): the list's total per kind. */
+const tokenKindsResponseSchema: z.ZodMiniType<{ kinds: TokenKindTotal[] }> = z.object({
+  kinds: z.array(z.object({ kind: z.string(), tokens: count })),
+});
+
+/** POST /api/v1/admin/token-kinds (BAC-139). */
+const tokenKindsLoadedSchema: z.ZodMiniType<TokenKindsLoaded> = z.object({
+  new: count,
+  changed: count,
+  unchanged: count,
+});
+
 /** One helper for every parse, so an unexpected shape is always a NetworkError. */
 function parse<T>(schema: z.ZodMiniType<T>, input: unknown, what: string): T {
   const result = schema.safeParse(input);
@@ -80,4 +102,12 @@ export function parseLoginLinkResponse(input: unknown): LoginLink {
 
 export function parseMeetingResponse(input: unknown): Meeting[] {
   return parse(meetingResponseSchema, input, "meeting").meetings;
+}
+
+export function parseTokenKindsResponse(input: unknown): TokenKindTotal[] {
+  return parse(tokenKindsResponseSchema, input, "token kinds").kinds;
+}
+
+export function parseTokenKindsLoaded(input: unknown): TokenKindsLoaded {
+  return parse(tokenKindsLoadedSchema, input, "load");
 }

@@ -67,11 +67,12 @@ token page ([ADR 0006](../docs/adr/0006-a-token-carries-its-kind.md)).
 5. Tap a token, take it away when the screen says so, and tap it again to check it. The screen
    shows `OK kind E` or `FAIL` with the reason. Each token written prints a line such as
    `04E45150324189,E`, its UID and its kind, before the check. Those lines are the list the
-   server loads (BAC-113), so copy every one of them out of the Serial Monitor and send them to
-   Adam. Every one of them has this shape: 14 capital hex digits, a comma and one capital letter.
-   Anything else the writer prints isn't part of the list. Adam loads them with
-   `pnpm db:token-kinds` in `apps/event-service`, which reads only those lines, so the Serial
-   Monitor's text can be pasted into a file as it is.
+   server loads (BAC-113), so copy every one of them out of the Serial Monitor. Every one of them
+   has this shape: 14 capital hex digits, a comma and one capital letter. Anything else the writer
+   prints isn't part of the list. Load them at `https://key.geekshacking.com/admin/token-kinds`,
+   which needs a GeekyKey admin's login. The screen reads only those lines, so the Serial Monitor's text can be pasted as it is. Check the tokens
+   per kind and any lines it flags, then press Load. One load takes up to 500 tokens, so split a
+   longer log.
 
 After a `FAIL` other than `AUTH` or `PASSWORD`, tap the same token again until it shows `OK`. A
 failed check can leave the token written, and writing it again prints its line again.

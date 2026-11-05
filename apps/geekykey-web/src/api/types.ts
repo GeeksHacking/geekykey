@@ -3,9 +3,10 @@
   shape for the GeekyKey Service. Never add a field the agreement does not have;
   propose a change to the agreement instead.
 
-  Sections 8.2 to 8.6 and 8.8 of the agreement are the endpoints here. Section 10 has
-  been empty since version 0.3: a GeekyKey admin's one job is releasing someone else's
-  token, which is 8.3 with `owner_id`. The Event Service's shapes (agreement 8.1, 9.x)
+  Sections 8.2 to 8.6 and 8.8 of the agreement are the endpoints here, and the token
+  kinds screen's two, which BAC-139 builds ahead of the agreement's next version. A
+  GeekyKey admin's other job is releasing someone else's token, which is 8.3 with
+  `owner_id`. The Event Service's shapes (agreement 8.1, 9.x)
   are deliberately absent: they belong to apps/event-web and must not leak into
   these screens.
 */
@@ -81,6 +82,28 @@ export interface LoginLink {
   url: string;
   /** When the link stops working. It works once, for 60 seconds. */
   expires_at: string;
+}
+
+/** One token on the list of token kinds, and its kind (BAC-139). */
+export interface TokenKind {
+  uid: string;
+  kind: string;
+}
+
+/** How many tokens on the list of token kinds have one kind (BAC-139). */
+export interface TokenKindTotal {
+  kind: string;
+  tokens: number;
+}
+
+/** What a load of token kinds did to the list (BAC-139). */
+export interface TokenKindsLoaded {
+  /** Tokens that weren't on the list. */
+  new: number;
+  /** Tokens on the list with another kind, which now have this one. */
+  changed: number;
+  /** Tokens already on the list with this kind. */
+  unchanged: number;
 }
 
 /**

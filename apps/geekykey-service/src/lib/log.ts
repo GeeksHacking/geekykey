@@ -9,6 +9,8 @@ const LOG_LINES = {
   unknown_token: "INFO",
   // A token released by its owner or a GeekyKey admin. No history is kept, so this is the only trace.
   token_released: "INFO",
+  // A GeekyKey admin loaded tokens onto the list of token kinds, with who did it and the counts.
+  token_kinds_loaded: "INFO",
   // A station's or a user's request failed because the claims stand-in didn't answer properly in time.
   claims_unavailable: "ERROR",
   // A station request failed because its Event Service didn't answer the hand-off properly in time.

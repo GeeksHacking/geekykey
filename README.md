@@ -227,6 +227,11 @@ Event Service's key. The Event screens send the link to the Event Service's
 link's ID in `used_login_links`, so the link works once, then sets `event_session` for the same
 user. The link lasts 60 seconds, and neither service logs it.
 
+A GeekyKey admin loads token kinds with `POST /api/v1/admin/token-kinds`, and reads how many
+tokens each kind has with `GET` on the same path. The Worker passes both to the claims stand-in,
+which keeps the list, so a UID never goes to an Event Service's own routes. A load takes up to
+500 tokens and removes none. The Worker writes a `token_kinds_loaded` log line for each load.
+
 When the token page shows someone else's token, it calls `POST /api/v1/tokens/{uid}/meet`: one
 half of a connection. The Worker asks the claims stand-in for the user's first-claimed token,
 then for the owner of the token tapped and the kinds of both. The meeting gets 4 seconds for
@@ -669,11 +674,15 @@ mise exec -- pnpm check:migrations   # fail if a schema file has a change with n
 Commit it, and run `mise run db:migrate` to apply it to both local databases. CI builds
 the image and runs `check:migrations` on every pull request.
 
-Four more set up GeeksHacking's production database: `db:logins`, `db:test-station`,
-`db:token-kinds` and `db:migrate --production`. `db:token-kinds` loads each token's kind from the
-token writer's log. `db:logins --staging` does the same for staging's,
+Three more set up GeeksHacking's production database: `db:logins`, `db:test-station` and
+`db:migrate --production`. `db:logins --staging` does the same for staging's,
 `geekykey_staging`. Only Adam runs them, since they need logins kept on his laptop.
 The comment at the top of each script in `scripts/` says what it does.
+
+A GeekyKey admin loads token kinds from a screen, at `/admin/token-kinds` on the GeekyKey
+screens. They paste the token writer's log, check what it found and press Load. The screen also
+shows how many tokens each kind has. `db:token-kinds` reads a log by the same rules. Use it to
+try a log on `geekykey_dev`. Adam can also use it on production if the screen is down.
 
 ### The image
 

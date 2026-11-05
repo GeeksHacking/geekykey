@@ -117,10 +117,30 @@ describe("AccountMenu", () => {
     expect(screen.getByText("GeekyKey admin")).toBeInTheDocument();
   });
 
-  it("offers an admin no admin console, because there are none (agreement 13)", async () => {
-    // Section 13: "There are no GeekyKey admin screens." A GeekyKey admin's one job is
-    // releasing someone else's token from the token page (8.5), not a console of their own.
-    // FRO-21, which would have added the route, is cancelled.
+  it("offers a GeekyKey admin the token kinds screen", async () => {
+    const { user } = await renderMenu(
+      <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin onSignOut={() => {}} />,
+    );
+
+    await openMenu(user);
+    expect(screen.getByRole("menuitem", { name: /Token kinds/ })).toHaveAttribute(
+      "href",
+      "/admin/token-kinds",
+    );
+  });
+
+  it("doesn't offer the token kinds screen to a participant", async () => {
+    const { user } = await renderMenu(
+      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+    );
+
+    await openMenu(user);
+    expect(screen.queryByRole("menuitem", { name: /Token kinds/ })).not.toBeInTheDocument();
+  });
+
+  it("offers a GeekyKey admin no console: the token kinds screen is the one screen they have", async () => {
+    // FRO-21, which would have added a console, is cancelled. A GeekyKey admin releases
+    // someone else's token from the token page (8.5), and loads kinds on their own screen.
     const { user } = await renderMenu(
       <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin onSignOut={() => {}} />,
     );

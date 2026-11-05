@@ -23,6 +23,8 @@ Read those files before adding screens. They are references, not documents to co
   (see the Forms row of the stack table in `apps/event-web/CLAUDE.md`).
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
+- `src/components/ui/textarea.tsx` is the Event screens' copy, with `input.tsx`'s background and
+  no shadow, so the two fields match.
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see `apps/event-web/docs/tailwind-4.md`).
 - `worker/firebase.ts` and `authDomain()` in `src/lib/firebase.ts` are copies of the Event
   screens', and `worker/config.ts` checks its address the way theirs does. Change them
@@ -78,8 +80,11 @@ with section 13's sentences (agreement 8.8, FRO-110). With `connected` or
 guest sees the reveal. The mock answers it for now: BAC-120 builds 8.8 in the service. The
 hook is `src/features/token/use-meeting.ts`, and the sentences are in
 `src/features/token/meeting-notice.tsx`.
-There are no GeekyKey admin screens: agreement section 13 says so, and FRO-21,
-which would have been one, was canceled.
+The one GeekyKey admin screen is Token kinds, at `/admin/token-kinds` (BAC-139), in
+`src/features/token-kinds/`. A GeekyKey admin pastes the token writer's log there, and the browser
+reads it by `db:token-kinds`' rules (`read-writer-log.ts`) before anything is written. The account
+menu links to it for a GeekyKey admin only. Its two calls are ahead of the agreement's next version, so
+BAC-139's pull request lists them. FRO-21, an admin console, stays canceled.
 
 `src/api/create-client.ts` decides which client the app runs on. A live build sends every
 method to the GeekyKey Service: the session, the token lookup, claiming and releasing

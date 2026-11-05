@@ -353,3 +353,38 @@ const statusFor: Record<ErrorCode, number> = {
   service_unavailable: 503,
   internal_error: 500,
 };
+
+describe("the token kinds calls", () => {
+  it("reads the list's totals from the admin route", async () => {
+    const { calls } = stubFetch(() => json({ kinds: [{ kind: "E", tokens: 12 }] }));
+    const api = createHttpClient();
+
+    await expect(api.getTokenKinds()).resolves.toEqual([{ kind: "E", tokens: 12 }]);
+    expect(calls[0]?.url).toBe("/api/v1/admin/token-kinds");
+  });
+
+  it("posts a load and answers what it did", async () => {
+    const { calls } = stubFetch(() => json({ new: 1, changed: 0, unchanged: 2 }));
+    const api = createHttpClient();
+
+    await expect(api.loadTokenKinds([{ uid: "04E45150324189", kind: "E" }])).resolves.toEqual({
+      new: 1,
+      changed: 0,
+      unchanged: 2,
+    });
+    expect(calls[0]?.url).toBe("/api/v1/admin/token-kinds");
+    expect(calls[0]?.init?.method).toBe("POST");
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
+      tokens: [{ uid: "04E45150324189", kind: "E" }],
+    });
+  });
+
+  it("treats an answer of the wrong shape as a failure", async () => {
+    stubFetch(() => json({ new: 1 }));
+    const api = createHttpClient();
+
+    await expect(api.loadTokenKinds([{ uid: "04E45150324189", kind: "E" }])).rejects.toThrow(
+      "unexpected load",
+    );
+  });
+});

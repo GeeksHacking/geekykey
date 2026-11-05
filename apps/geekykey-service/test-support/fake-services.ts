@@ -26,14 +26,16 @@ type Answer = (request: SentRequest) => Promise<Response>;
  * The services the Worker calls, faked behind `fetch` (its `send`): each of
  * `config`'s Event Services, with the four requests in the API agreement's
  * section 11, and the claims stand-in's `POST /owners`,
- * `POST /tokens/{uid}/claim`, `POST /tokens/{uid}/release` and
- * `GET /users/{id}/tokens`. Each checks the
+ * `POST /tokens/{uid}/claim`, `POST /tokens/{uid}/release`,
+ * `GET /users/{id}/tokens`, `GET /token-kinds` and `POST /token-kinds`. Each
+ * checks the
  * key the Worker sends, as the real ones do, and answers what a test sets:
  *
  * - `stations`, each Event Service's registered stations, by its ID;
  * - `owners`, who owns each token, by its normalised UID;
  * - `kinds`, each token's kind in the list beside the stand-in, by its
- *   normalised UID. The owners' answer gives it, or null;
+ *   normalised UID. The owners' answer gives it, or null. A load writes to it,
+ *   and the totals count it;
  * - `tokens`, each user's tokens, by user ID, in the order the stand-in
  *   gives them: oldest claim first;
  * - `now`, when a claim the fake takes is made. A claim of a token nobody
@@ -59,7 +61,16 @@ export function fakeServices(config: Config) {
     meetingStatusOf: (_meeting: MeetingsRequest, _eventServiceId: string): string => "waiting",
     answers: {} as Partial<
       Record<
-        "stations" | "taps" | "heartbeats" | "meetings" | "owners" | "claim" | "release" | "tokens",
+        | "stations"
+        | "taps"
+        | "heartbeats"
+        | "meetings"
+        | "owners"
+        | "claim"
+        | "release"
+        | "tokens"
+        | "kindTotals"
+        | "loadKinds",
         Answer
       >
     >,
@@ -121,6 +132,29 @@ export function fakeServices(config: Config) {
           (fake.tokens.get(ownerId) ?? []).filter((token) => token.uid !== uid),
         );
         return Response.json({ result: "released" });
+      }
+      if (request.method === "GET" && path === "/token-kinds") {
+        if (fake.answers.kindTotals) return fake.answers.kindTotals(request);
+        const totals = new Map<string, number>();
+        for (const kind of fake.kinds.values()) totals.set(kind, (totals.get(kind) ?? 0) + 1);
+        return Response.json({
+          kinds: [...totals]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([kind, tokens]) => ({ kind, tokens })),
+        });
+      }
+      if (request.method === "POST" && path === "/token-kinds") {
+        if (fake.answers.loadKinds) return fake.answers.loadKinds(request);
+        const { tokens } = body as { tokens: { uid: string; kind: string }[] };
+        const counts = { new: 0, changed: 0, unchanged: 0 };
+        for (const { uid, kind } of tokens) {
+          const before = fake.kinds.get(uid);
+          if (before === undefined) counts.new++;
+          else if (before === kind) counts.unchanged++;
+          else counts.changed++;
+          fake.kinds.set(uid, kind);
+        }
+        return Response.json(counts);
       }
       if (request.method !== "POST" || path !== "/owners") {
         return Response.json({ error: "not_found" }, { status: 404 });
