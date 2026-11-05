@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAdminTokenKindsRouteImport } from './routes/_app/admin.token-kinds'
 import { Route as AppTUidRouteImport } from './routes/_app/t.$uid'
 
 const AppRoute = AppRouteImport.update({
@@ -28,6 +29,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminTokenKindsRoute = AppAdminTokenKindsRouteImport.update({
+  id: '/admin/token-kinds',
+  path: '/admin/token-kinds',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTUidRoute = AppTUidRouteImport.update({
   id: '/t/$uid',
   path: '/t/$uid',
@@ -37,11 +43,13 @@ const AppTUidRoute = AppTUidRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/admin/token-kinds': typeof AppAdminTokenKindsRoute
   '/t/$uid': typeof AppTUidRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
+  '/admin/token-kinds': typeof AppAdminTokenKindsRoute
   '/t/$uid': typeof AppTUidRoute
 }
 export interface FileRoutesById {
@@ -49,14 +57,21 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/token-kinds': typeof AppAdminTokenKindsRoute
   '/_app/t/$uid': typeof AppTUidRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/t/$uid'
+  fullPaths: '/' | '/login' | '/admin/token-kinds' | '/t/$uid'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/t/$uid'
-  id: '__root__' | '/_app' | '/login' | '/_app/' | '/_app/t/$uid'
+  to: '/login' | '/' | '/admin/token-kinds' | '/t/$uid'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/'
+    | '/_app/admin/token-kinds'
+    | '/_app/t/$uid'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/token-kinds': {
+      id: '/_app/admin/token-kinds'
+      path: '/admin/token-kinds'
+      fullPath: '/admin/token-kinds'
+      preLoaderRoute: typeof AppAdminTokenKindsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/t/$uid': {
       id: '/_app/t/$uid'
       path: '/t/$uid'
@@ -99,11 +121,13 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminTokenKindsRoute: typeof AppAdminTokenKindsRoute
   AppTUidRoute: typeof AppTUidRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppAdminTokenKindsRoute: AppAdminTokenKindsRoute,
   AppTUidRoute: AppTUidRoute,
 }
 

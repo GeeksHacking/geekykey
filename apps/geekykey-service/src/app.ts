@@ -13,6 +13,7 @@ import type { Send } from "./service-request.ts";
 import type { SessionCheck, SessionOptions } from "./session.ts";
 import { heartbeatRoutes, tapsRoutes } from "./station-routes.ts";
 import { StationsCopy } from "./stations-copy.ts";
+import { tokenKindRoutes } from "./token-kind-routes.ts";
 import { tokenRoutes } from "./token-routes.ts";
 
 /** What the GeekyKey Service reaches outside itself. Tests fake each. */
@@ -127,6 +128,8 @@ export function createApp(
   const deadlineMs = config.tapDeadlineMs;
   // Checked on every request by the user routes that need it.
   const geekykeyAdmins = new Set(config.geekykeyAdmins);
+  // A GeekyKey admin can always read what they load.
+  const tokenKindViewers = new Set([...config.geekykeyAdmins, ...config.tokenKindViewers]);
   app.route(
     "/api/v1/taps",
     tapsRoutes({
@@ -147,6 +150,7 @@ export function createApp(
       session: sessionCheck,
       claims,
       geekykeyAdmins,
+      tokenKindViewers,
       eventServices: config.eventServices,
       deadlineMs: claimsDeadlineMs,
     }),
@@ -162,6 +166,16 @@ export function createApp(
       tokenLimit,
       // In EVENT_SERVICES' order, as /me's `events` are.
       meetingServices: eventServices.filter((_, i) => config.eventServices[i]!.meetings),
+    }),
+  );
+  app.route(
+    "/api/v1/admin/token-kinds",
+    tokenKindRoutes({
+      session: sessionCheck,
+      claims,
+      geekykeyAdmins,
+      tokenKindViewers,
+      deadlineMs: claimsDeadlineMs,
     }),
   );
   app.route(

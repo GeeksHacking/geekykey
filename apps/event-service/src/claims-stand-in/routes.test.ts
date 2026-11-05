@@ -215,3 +215,126 @@ test("a user with no tokens has an empty list", async () => {
   const res = await standIn("GET", "/users/user-1/tokens");
   assert.deepEqual(await res.json(), { tokens: [] });
 });
+
+test("the kinds' totals count the tokens on the list, by kind in order", async () => {
+  await testDb()
+    .insert(tokenKinds)
+    .values([
+      { uid: "04A1B2C3D4E5F6", kind: "E" },
+      { uid: "04C9E1A27B3080", kind: "B" },
+      { uid: "04D00D00D00D00", kind: "E" },
+    ]);
+
+  const res = await standIn("GET", "/token-kinds");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    kinds: [
+      { kind: "B", tokens: 1 },
+      { kind: "E", tokens: 2 },
+    ],
+  });
+});
+
+test("the kinds' totals are empty before anything is loaded", async () => {
+  const res = await standIn("GET", "/token-kinds");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { kinds: [] });
+});
+
+test("a load adds new tokens, changes kinds, and says how many of each", async () => {
+  await testDb()
+    .insert(tokenKinds)
+    .values([
+      { uid: "04A1B2C3D4E5F6", kind: "E" },
+      { uid: "04C9E1A27B3080", kind: "B" },
+    ]);
+
+  const res = await standIn("POST", "/token-kinds", {
+    tokens: [
+      { uid: "04A1B2C3D4E5F6", kind: "H" },
+      { uid: "04C9E1A27B3080", kind: "B" },
+      { uid: "04D00D00D00D00", kind: "V" },
+      { uid: "04D00D00D00D01", kind: "V" },
+    ],
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { new: 2, changed: 1, unchanged: 1 });
+
+  const rows = await testDb().select().from(tokenKinds);
+  assert.deepEqual(
+    rows.sort((a, b) => a.uid.localeCompare(b.uid)),
+    [
+      { uid: "04A1B2C3D4E5F6", kind: "H" },
+      { uid: "04C9E1A27B3080", kind: "B" },
+      { uid: "04D00D00D00D00", kind: "V" },
+      { uid: "04D00D00D00D01", kind: "V" },
+    ],
+  );
+});
+
+test("a load removes nothing: a token not in it keeps its kind", async () => {
+  await testDb().insert(tokenKinds).values({ uid: "04A1B2C3D4E5F6", kind: "E" });
+
+  const res = await standIn("POST", "/token-kinds", {
+    tokens: [{ uid: "04C9E1A27B3080", kind: "B" }],
+  });
+  assert.equal(res.status, 200);
+
+  const rows = await testDb().select().from(tokenKinds);
+  assert.deepEqual(
+    rows.sort((a, b) => a.uid.localeCompare(b.uid)),
+    [
+      { uid: "04A1B2C3D4E5F6", kind: "E" },
+      { uid: "04C9E1A27B3080", kind: "B" },
+    ],
+  );
+});
+
+test("a load naming a UID twice takes the later kind, and counts the token once", async () => {
+  const res = await standIn("POST", "/token-kinds", {
+    tokens: [
+      { uid: "04A1B2C3D4E5F6", kind: "E" },
+      { uid: "04A1B2C3D4E5F6", kind: "B" },
+    ],
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { new: 1, changed: 0, unchanged: 0 });
+  assert.deepEqual(await testDb().select().from(tokenKinds), [
+    { uid: "04A1B2C3D4E5F6", kind: "B" },
+  ]);
+});
+
+test("up to 500 tokens can be loaded at once, and no more", async () => {
+  const tokens = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      uid: `04${i.toString(16).padStart(12, "0").toUpperCase()}`,
+      kind: "E",
+    }));
+
+  const res = await standIn("POST", "/token-kinds", { tokens: tokens(500) });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { new: 500, changed: 0, unchanged: 0 });
+
+  const tooMany = await standIn("POST", "/token-kinds", { tokens: tokens(501) });
+  assert.equal(tooMany.status, 400);
+  assert.equal(((await tooMany.json()) as { error: string }).error, "validation_failed");
+});
+
+test("a load is refused for a UID or a kind that isn't one", async () => {
+  for (const token of [
+    { uid: "04:A1:B2:C3", kind: "E" },
+    { uid: "04A1B2C3D4E5F6", kind: "e" },
+    { uid: "04A1B2C3D4E5F6", kind: "EE" },
+  ]) {
+    const res = await standIn("POST", "/token-kinds", { tokens: [token] });
+    assert.equal(res.status, 400);
+  }
+  assert.deepEqual(await testDb().select().from(tokenKinds), []);
+});
+
+test("the token kinds' routes refuse a request without the stand-in's key", async () => {
+  const totals = await standIn("GET", "/token-kinds", undefined, null);
+  assert.equal(totals.status, 401);
+  const load = await standIn("POST", "/token-kinds", { tokens: [] }, "Bearer wrong");
+  assert.equal(load.status, 401);
+});

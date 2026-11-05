@@ -9,6 +9,8 @@ export interface MeRouteDeps {
   claims: Claims;
   /** From config.geekykeyAdmins, checked on every request. */
   geekykeyAdmins: ReadonlySet<string>;
+  /** Who may read the token kinds' totals, GeekyKey admins included, checked on every request. */
+  tokenKindViewers: ReadonlySet<string>;
   /** From config.eventServices. Only those with a public address are listed. */
   eventServices: readonly Pick<EventServiceEntry, "id" | "name" | "publicUrl">[];
   /** Milliseconds the claims stand-in has to answer (section 8's opening). */
@@ -26,6 +28,7 @@ export function meRoutes({
   session,
   claims,
   geekykeyAdmins,
+  tokenKindViewers,
   eventServices,
   deadlineMs,
 }: MeRouteDeps) {
@@ -42,7 +45,11 @@ export function meRoutes({
         const { userId } = c.var;
         const tokens = await claims.tokensOf(userId, signal);
         return c.json({
-          user: { id: userId, is_geekykey_admin: geekykeyAdmins.has(userId) },
+          user: {
+            id: userId,
+            is_geekykey_admin: geekykeyAdmins.has(userId),
+            can_view_token_kinds: tokenKindViewers.has(userId),
+          },
           tokens: tokens.map(({ uid, claimedAt }) => ({ uid, claimed_at: claimedAt })),
           events,
         });

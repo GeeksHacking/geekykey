@@ -29,6 +29,13 @@ export interface Claims {
   release(uid: string, ownerId: string, signal: AbortSignal): Promise<"released" | "not_owner">;
   /** The user's tokens, oldest claim first. */
   tokensOf(userId: string, signal: AbortSignal): Promise<ClaimedToken[]>;
+  /** How many tokens each kind has on the list of token kinds, by kind in order. */
+  kindTotals(signal: AbortSignal): Promise<KindTotal[]>;
+  /**
+   * Puts up to 500 tokens on the list of token kinds, each taking the kind given.
+   * Removes nothing, so a token not named keeps its kind.
+   */
+  loadKinds(tokens: TokenKind[], signal: AbortSignal): Promise<KindsLoaded>;
 }
 
 /** Who owns a token, and the token's kind (ADR 0006): null for a token with none. */
@@ -41,6 +48,25 @@ export interface TokenOwner {
 export interface ClaimedToken {
   uid: string;
   claimedAt: string;
+}
+
+/** One token on the list of token kinds, and its kind. */
+export interface TokenKind {
+  uid: string;
+  kind: string;
+}
+
+/** How many tokens on the list of token kinds have one kind. */
+export interface KindTotal {
+  kind: string;
+  tokens: number;
+}
+
+/** What a load did: tokens new to the list, ones whose kind changed, and ones that had it already. */
+export interface KindsLoaded {
+  new: number;
+  changed: number;
+  unchanged: number;
 }
 
 /**
@@ -71,6 +97,14 @@ const claimAnswer = z.union([
 const releaseAnswer = z.object({ result: z.enum(["released", "not_owner"]) });
 const tokensAnswer = z.object({
   tokens: z.array(z.object({ uid: z.string(), claimed_at: z.string() })),
+});
+const kindTotalsAnswer = z.object({
+  kinds: z.array(z.object({ kind: z.string(), tokens: z.number() })),
+});
+const kindsLoadedAnswer = z.object({
+  new: z.number(),
+  changed: z.number(),
+  unchanged: z.number(),
 });
 
 /**
@@ -114,6 +148,15 @@ export class StandInClaims implements Claims {
     const path = `/users/${encodeURIComponent(userId)}/tokens`;
     const { tokens } = await this.#call("GET", path, undefined, tokensAnswer, signal);
     return tokens.map((token) => ({ uid: token.uid, claimedAt: token.claimed_at }));
+  }
+
+  async kindTotals(signal: AbortSignal) {
+    const { kinds } = await this.#call("GET", "/token-kinds", undefined, kindTotalsAnswer, signal);
+    return kinds;
+  }
+
+  async loadKinds(tokens: TokenKind[], signal: AbortSignal) {
+    return await this.#call("POST", "/token-kinds", { tokens }, kindsLoadedAnswer, signal);
   }
 
   /**

@@ -40,11 +40,17 @@ export interface Config {
     key: string;
   };
   /**
-   * The GeekyKey admins, by user ID, who may release someone else's token.
-   * GET /api/v1/me says whether the user is one, the lookup gives them the
-   * owner's ID, and the release lets them name it.
+   * The GeekyKey admins, by user ID, who may release someone else's token and
+   * load token kinds. GET /api/v1/me says whether the user is one, the lookup
+   * gives them the owner's ID, and the release lets them name it.
    */
   geekykeyAdmins: string[];
+  /**
+   * Who else, by user ID, may read how many tokens each kind has: the Event
+   * Services' organizers. The GeekyKey Service can't read an Event Service's
+   * organizer list, so it keeps its own. A GeekyKey admin may read them anyway.
+   */
+  tokenKindViewers: string[];
   /**
    * The most tokens one user may hold, 3 for the showcase. A claim past it
    * answers `409 token_limit_reached` (the API agreement's 8.2), and nobody
@@ -246,6 +252,11 @@ export function loadConfig(settings: object): Config {
       "GEEKYKEY_ADMINS",
       userIdsSetting,
       jsonSetting(env, "GEEKYKEY_ADMINS"),
+    ),
+    tokenKindViewers: checkedSetting(
+      "TOKEN_KIND_VIEWERS",
+      userIdsSetting,
+      jsonSetting(env, "TOKEN_KIND_VIEWERS"),
     ),
     maxTokensPerUser: positiveIntFromEnv(env, "MAX_TOKENS_PER_USER"),
     maxTapsPerRequest: positiveIntFromEnv(env, "MAX_TAPS_PER_REQUEST"),

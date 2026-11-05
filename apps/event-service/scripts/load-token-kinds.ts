@@ -1,6 +1,9 @@
 /**
  * Loads the token writer's log into the list of token kinds beside the claims
- * stand-in (ADR 0006), so each tap by those tokens hands off their kind.
+ * stand-in (ADR 0006), so each tap by those tokens hands off their kind. A
+ * GeekyKey admin does this on the Token kinds screen (BAC-139), which reads a log
+ * by these same rules. Change the two together. Use this script to try a log on
+ * geekykey_dev, or on production if the screen is down.
  *
  *   cd apps/event-service
  *   mise exec -- pnpm db:token-kinds --production --env-file ~/.config/geekykey/tidb-migration.env <log file>...

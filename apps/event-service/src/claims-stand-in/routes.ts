@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
@@ -8,7 +8,7 @@ import { UID_PATTERN } from "../lib/token-uid.ts";
 import { jsonBody, pathParams } from "../lib/validate.ts";
 import { tokenKinds, tokens } from "./schema.ts";
 
-/** The most UIDs one request may ask about: a station's largest batch. */
+/** The most UIDs one request may name: a station's largest batch, or one load of token kinds. */
 const MAX_UIDS = 500;
 
 /** Only the GeekyKey Service calls the stand-in, and it normalises every UID first. */
@@ -16,6 +16,8 @@ const uid = z.string().regex(UID_PATTERN, "uid must be 4 to 10 hex bytes, normal
 /** As long as the columns allow. */
 const userId = z.string().min(1).max(128);
 const tokenPath = pathParams(z.object({ uid }));
+/** The token writer's one capital letter (firmware/README.md, "Writing tokens"). */
+const kind = z.string().regex(/^[A-Z]$/, "kind must be one capital letter");
 
 /**
  * The claims stand-in's routes (mounted at /claims-stand-in/v1): who owns
@@ -93,5 +95,50 @@ export function claimsStandInRoutes({ key }: { key: string }) {
         .where(eq(tokens.userId, user_id))
         .orderBy(asc(tokens.claimedAt), asc(tokens.uid));
       return c.json({ tokens: theirs.map((t) => ({ uid: t.uid, claimed_at: t.claimedAt })) });
-    });
+    })
+    .get("/token-kinds", async (c) => {
+      const totals = await c.var.db
+        .select({ kind: tokenKinds.kind, tokens: count() })
+        .from(tokenKinds)
+        .groupBy(tokenKinds.kind)
+        .orderBy(asc(tokenKinds.kind));
+      return c.json({ kinds: totals });
+    })
+    .post(
+      "/token-kinds",
+      jsonBody(z.object({ tokens: z.array(z.object({ uid, kind })).max(MAX_UIDS) })),
+      async (c) => {
+        const { db } = c.var;
+        // A UID named twice takes its later kind, as the token writer's log reads.
+        const kindOf = new Map(c.req.valid("json").tokens.map((t) => [t.uid, t.kind]));
+        const uids = [...kindOf.keys()];
+        const existing =
+          uids.length === 0
+            ? []
+            : await db
+                .select({ uid: tokenKinds.uid, kind: tokenKinds.kind })
+                .from(tokenKinds)
+                .where(inArray(tokenKinds.uid, uids));
+        const current = new Map(existing.map((t) => [t.uid, t.kind]));
+
+        const writes = [...kindOf]
+          .filter(([token, newKind]) => current.get(token) !== newKind)
+          .map(([token, newKind]) => ({ uid: token, kind: newKind }));
+        // One statement, so a load goes in whole or not at all. It never deletes, so a
+        // token not in the load keeps its kind.
+        if (writes.length > 0) {
+          await db
+            .insert(tokenKinds)
+            .values(writes)
+            .onDuplicateKeyUpdate({ set: { kind: sql`VALUES(kind)` } });
+        }
+
+        const added = writes.filter((t) => !current.has(t.uid)).length;
+        return c.json({
+          new: added,
+          changed: writes.length - added,
+          unchanged: kindOf.size - writes.length,
+        });
+      },
+    );
 }

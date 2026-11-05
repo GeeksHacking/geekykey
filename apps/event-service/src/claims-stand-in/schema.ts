@@ -24,9 +24,9 @@ export const tokens = mysqlTable(
 export type Token = typeof tokens.$inferSelect;
 
 /**
- * Each token's kind (ADR 0006), from the token writer's log: `pnpm
- * db:token-kinds` loads it. The kind is the one letter the writer wrote into
- * the token's address, such as `E`. Each event decides what a kind means; this
+ * Each token's kind (ADR 0006), from the token writer's log: a GeekyKey admin
+ * loads it on the Token kinds screen. The kind is the one letter the writer
+ * wrote into the token's address, such as `E`. Each event decides what a kind means; this
  * list only says which token carries which. A token not in it has no kind.
  *
  * The kind belongs to the token, not to one event, so clearing an event's data

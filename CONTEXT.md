@@ -57,8 +57,8 @@ GeekyKey admin releases them.
 _Avoid_: anonymous user, visitor
 
 **GeekyKey admin**:
-A GeeksHacking person who can release other people's tokens, by tapping them. Not a role at any
-one event, and not in charge of stations, which belong to each event's Event Service.
+A GeeksHacking person who can release other people's tokens, by tapping them, and load token
+kinds. Not a role at any one event, and not in charge of stations, which belong to each event's Event Service.
 _Avoid_: admin, organizer
 
 **Token**:

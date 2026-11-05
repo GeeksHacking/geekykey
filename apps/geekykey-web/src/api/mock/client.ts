@@ -6,7 +6,7 @@ import {
   type MockData,
   type MockToken,
 } from "@/api/mock/fixtures";
-import { MOCK_LATENCY_MS } from "@/lib/constants";
+import { MAX_TOKENS_PER_LOAD, MOCK_LATENCY_MS } from "@/lib/constants";
 import { isValidUid, normalizeUid } from "@/lib/token-uid";
 import type {
   ApiIssue,
@@ -17,6 +17,8 @@ import type {
   MeetingStatus,
   MeResponse,
   Token,
+  TokenKindsLoaded,
+  TokenKindTotal,
   TokenLookup,
 } from "@/api/types";
 
@@ -129,6 +131,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return userId !== null && userId !== undefined && data.admins.includes(userId);
   }
 
+  function canViewTokenKinds(userId: string): boolean {
+    return isAdmin(userId) || data.token_kind_viewers.includes(userId);
+  }
+
   function tokenByUid(uid: string): MockToken | undefined {
     return data.tokens.find((token) => token.uid === uid);
   }
@@ -170,7 +176,11 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call((): MeResponse => {
         const userId = currentUserId();
         return {
-          user: { id: userId, is_geekykey_admin: isAdmin(userId) },
+          user: {
+            id: userId,
+            is_geekykey_admin: isAdmin(userId),
+            can_view_token_kinds: canViewTokenKinds(userId),
+          },
           tokens: ownedTokens(userId).map(toToken),
           events: events(),
         };
@@ -261,8 +271,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
     // Agreement 8.6: a link to one event's screens, for the session's own user. The
     // event has to be one /me offers, or the service answers not_found. The token page
-    // also names its token, in any separator style; the mock's link carries no kind,
-    // because the mock keeps no token kinds.
+    // also names its token, in any separator style; the mock's link carries no kind.
     createLoginLink: (eventId, uid) =>
       call((): LoginLink => {
         currentUserId();
@@ -295,6 +304,39 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return data.event_services
           .filter((service) => service.in_settings && service.takes_meetings)
           .map((service) => ({ event_id: service.id, status: meetingStatus }));
+      }),
+
+    // BAC-139. GeekyKey admins and organizers, and the service's counts, by kind in order.
+    getTokenKinds: () =>
+      call((): TokenKindTotal[] => {
+        if (!canViewTokenKinds(currentUserId())) fail("forbidden");
+        const counts = new Map<string, number>();
+        for (const { kind } of data.token_kinds) counts.set(kind, (counts.get(kind) ?? 0) + 1);
+        return [...counts]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([kind, tokens]) => ({ kind, tokens }));
+      }),
+
+    // BAC-139. Checked for an admin before the body, as the service does. Nothing is
+    // ever removed, so a token not named keeps its kind.
+    loadTokenKinds: (tokens) =>
+      call((): TokenKindsLoaded => {
+        if (!isAdmin(currentUserId())) fail("forbidden");
+        if (tokens.length < 1 || tokens.length > MAX_TOKENS_PER_LOAD) fail("validation_failed");
+        const loaded: TokenKindsLoaded = { new: 0, changed: 0, unchanged: 0 };
+        for (const { uid, kind } of tokens) {
+          const onList = data.token_kinds.find((token) => token.uid === uid);
+          if (!onList) {
+            data.token_kinds.push({ uid, kind });
+            loaded.new++;
+          } else if (onList.kind === kind) {
+            loaded.unchanged++;
+          } else {
+            onList.kind = kind;
+            loaded.changed++;
+          }
+        }
+        return loaded;
       }),
   };
 

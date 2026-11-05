@@ -8,8 +8,8 @@ import { isSafeReturnTo } from "@/features/auth/paths";
  * After sign-in, go back to where the user was, or to My tokens.
  *
  * There is no `role` on the GeekyKey Service's /me (agreement 8.4), so there is no
- * role-specific home to branch on. Agreement 13 says there are no GeekyKey admin screens,
- * so both roles land on My tokens.
+ * role-specific home to branch on, so both roles land on My tokens. A GeekyKey admin
+ * reaches their one screen, Token kinds, from the account menu.
  */
 export function useGoAfterLogin() {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ export function useGoAfterLogin() {
         // one the router's types know, which is what isSafeReturnTo is for.
         router.history.replace(returnTo);
       } else {
-        // Both roles land on My tokens: there are no GeekyKey admin screens (13).
+        // Both roles land on My tokens.
         void navigate({ to: HOME_PATH, replace: true });
       }
     },

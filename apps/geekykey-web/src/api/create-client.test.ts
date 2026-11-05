@@ -179,6 +179,8 @@ describe("createAppClient", () => {
         "devLogin",
         "firebaseLogin",
         "getToken",
+        "getTokenKinds",
+        "loadTokenKinds",
         "logout",
         "me",
         "meetToken",

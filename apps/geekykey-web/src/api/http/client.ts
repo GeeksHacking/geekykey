@@ -5,6 +5,8 @@ import {
   parseLoginLinkResponse,
   parseMeetingResponse,
   parseMeResponse,
+  parseTokenKindsLoaded,
+  parseTokenKindsResponse,
   parseTokenLookupResponse,
 } from "@/api/schemas";
 import type { ApiIssue, ErrorCode } from "@/api/types";
@@ -139,8 +141,16 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     // One item for each Event Service that takes meetings, in /me's order.
     meetToken: (uid) =>
       sendJson<unknown>(`${tokenPath(uid)}/meet`, { method: "POST" }).then(parseMeetingResponse),
+
+    // BAC-139. /me says who may call them, and the screen checks before it does.
+    getTokenKinds: () => sendJson<unknown>(TOKEN_KINDS_PATH).then(parseTokenKindsResponse),
+
+    loadTokenKinds: (tokens) =>
+      sendJson<unknown>(TOKEN_KINDS_PATH, postJson({ tokens })).then(parseTokenKindsLoaded),
   };
 }
+
+const TOKEN_KINDS_PATH = "/api/v1/admin/token-kinds";
 
 const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "validation_failed",
