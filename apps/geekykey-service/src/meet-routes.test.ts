@@ -175,6 +175,13 @@ test("only the Event Services that take meetings get the half, all of them, in t
   );
 });
 
+test("an Event Service connecting across groups can answer no_group, which is passed on", async () => {
+  const { fake, logIn, meet } = harness({ eventServices: [showcase()] });
+  fake.meetingStatusOf = () => "no_group";
+  const res = await meet(UID, await logIn("tapper"));
+  assert.deepEqual(await res.json(), { meetings: [{ event_id: "showcase", status: "no_group" }] });
+});
+
 test("with no Event Service taking meetings, the list is empty, and the owner is still checked", async () => {
   const { logIn, meet, handedOff } = harness({ eventServices: [showcase({ meetings: false })] });
   const cookie = await logIn("tapper");

@@ -141,6 +141,13 @@
       "when": 1793773599106,
       "tag": "0019_organizers_split_participants_into_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1793837738933,
+      "tag": "0020_connections_across_groups",
+      "breakpoints": true
     }
   ]
 }

@@ -25,6 +25,8 @@ const MEETING_STATUSES = [
   "connected",
   "already_connected",
   "same_kind",
+  "same_group",
+  "no_group",
   "unavailable",
 ] as const;
 

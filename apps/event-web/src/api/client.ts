@@ -1,4 +1,5 @@
 import type {
+  ConnectionRule,
   CreateGroupRequest,
   CreateStationRequest,
   EventGroup,
@@ -180,4 +181,11 @@ export interface ApiClient {
    * again. `not_found` when they haven't joined.
    */
   removeGroupMember(userId: string): Promise<void>;
+
+  /**
+   * PUT /api/v1/admin/connections/rule (BAC-140, draft for the agreement's next version). Sets
+   * whether a connection needs two token kinds or two groups, from the next tap on, and answers
+   * with the setting. Connections already made stay.
+   */
+  setConnectionRule(input: ConnectionRule): Promise<ConnectionRule>;
 }

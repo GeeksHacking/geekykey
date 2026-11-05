@@ -2128,3 +2128,10 @@
     writer's log, checking what it found and pressing Load, instead of asking Adam to run a script.
     The screen also shows how many tokens each kind has, and organisers can open it to read those
     totals.
+- id: connections-across-groups
+  date: 2026-11-05
+  area: backend
+  change: >-
+    On the Groups screen, an organizer can switch connections from "Connect across token kinds"
+    to "Connect across groups". Then two people in different groups connect whatever their
+    tokens, and the token page tells anyone in the same group, or not in one, why they didn't.

@@ -178,11 +178,18 @@ move booth without becoming a different station.
 _Avoid_: location, which is the text a participant reads in the passport; spot
 
 **Connection**:
-A link between two participants of different kinds. Since 2 Nov it's made when each taps their
-phone on the other's token within 2 minutes, and a connection point may make one too, if it's
-built. It joins two users, never two tokens, so nobody connects to themselves, and a pair connects
-once however often they tap.
+A link between two participants of different kinds, or, when organizers choose it, of different
+groups (BAC-140). Since 2 Nov it's made when each taps their phone on the other's token within 2
+minutes, and a connection point may make one too, if it's built. It joins two users, never two
+tokens, so nobody connects to themselves, and a pair connects once however often they tap.
 _Avoid_: dual tap, link between tags
+
+**Connection rule**:
+What two participants need to connect, which organizers switch on the Groups screen during an
+event: different token kinds, which a new event starts on, or different groups, whatever their
+tokens. The Event Service judges each tap by the rule and the groups at that tap. Across groups, someone not
+placed in a group connects with nobody.
+_Avoid_: mode, game type
 
 **Half**:
 One of the two taps that make a connection by phone: one participant's phone on the other's token.

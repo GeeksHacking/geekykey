@@ -8,9 +8,11 @@
         "waiting",
         "connected",
         "already_connected",
-        "same_kind"
+        "same_kind",
+        "same_group",
+        "no_group"
       ],
-      "description": "waiting: the half is kept for 2 minutes. connected: it met the owner's half. already_connected: the two were connected before. same_kind: the two aren't of different kinds, so nothing is kept"
+      "description": "waiting: the half is kept for 2 minutes. connected: it met the owner's half. already_connected: the two were connected before. same_kind: the two aren't of different kinds, so nothing is kept. same_group: connecting across groups, the two are in the same group, so nothing is kept. no_group: connecting across groups, and either isn't in a group, so nothing is kept"
     }
   },
   "required": [

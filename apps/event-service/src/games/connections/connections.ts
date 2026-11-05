@@ -1,7 +1,9 @@
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import type { Answers, Question } from "../../event/answers.ts";
+import { loadConnectAcross } from "../../event/connect-across.ts";
 import type { Connection, ConnectionsGame, ConnectionsWeb } from "../../event/connections.ts";
 import type { Tx } from "../../event/games.ts";
+import { groupsOf } from "../../event/groups.ts";
 import { userKinds } from "../../event/schema.ts";
 import { keepKinds } from "../../event/user-kinds.ts";
 import type { ConnectionsAnswers } from "./answers.ts";
@@ -53,7 +55,9 @@ async function lockKind(tx: Tx, userId: string, given: string | null): Promise<s
  * The connections game, with the event's answers game, or null for an event
  * with none, whose connections then have no match.
  *
- * A connection joins two users of different kinds, once. Each tap of one
+ * A connection joins two users once, and they must be of different kinds, or,
+ * when organizers have chosen it, placed in different groups (BAC-140). Each
+ * tap is judged by the setting and the groups as they are at that tap. Each tap of one
  * person's phone on the other's token is a half, and the second half within
  * HALF_WAITS_MS of the first makes the connection. Both people's answers are
  * fixed then, in the same transaction, and the match is worked out from them
@@ -65,6 +69,11 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
 
     meet: (db, { userId, userKind, ownerId, ownerKind }, now) =>
       db.transaction(async (tx) => {
+        // Read before any lock, so they're as they were at this tap: on TiDB a plain read sees
+        // the transaction's start, and on MySQL its first read (groups.ts, at lockAllocation).
+        const across = await loadConnectAcross(tx);
+        const groups = across === "groups" ? await groupsOf(tx, [userId, ownerId]) : null;
+
         // Every lock here is taken in one order: each user's kind, by ID, then the pair's row,
         // then each user's answers, by ID. So no two halves, of one pair or of two that share
         // someone, can each hold a lock the other waits for.
@@ -77,7 +86,11 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
         // One user at a time, so a half with no kind for one of them takes the same order.
         const kindA = await lockKind(tx, userA, given.get(userA) ?? null);
         const kindB = await lockKind(tx, userB, given.get(userB) ?? null);
-        if (kindA === null || kindB === null || kindA === kindB) return "same_kind";
+        if (groups) {
+          const [groupA, groupB] = [groups.get(userA), groups.get(userB)];
+          if (groupA === undefined || groupB === undefined) return "no_group";
+          if (groupA === groupB) return "same_group";
+        } else if (kindA === null || kindB === null || kindA === kindB) return "same_kind";
 
         // The pair's row, made if it isn't there, and locked until the transaction ends, so
         // two halves at once, even on two instances, take turns and can't miss each other.

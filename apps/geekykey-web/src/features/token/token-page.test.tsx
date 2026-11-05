@@ -346,6 +346,9 @@ describe("TokenPage", () => {
       connected: "You're connected!",
       already_connected: "You're already connected.",
       same_kind: "You're in the same group. Find someone from another group.",
+      // Connecting across groups (BAC-140, approved for the agreement's next version).
+      same_group: "You're in the same group. Find someone from another group.",
+      no_group: "You both need to be in a group to connect. Ask an organiser.",
       unavailable: "Couldn't connect. Tap their token again.",
     };
     const STATUSES = Object.keys(SENTENCES) as MeetingStatus[];
@@ -388,7 +391,7 @@ describe("TokenPage", () => {
       },
     );
 
-    it.each(["waiting", "same_kind", "unavailable"] as const)(
+    it.each(["waiting", "same_kind", "same_group", "no_group", "unavailable"] as const)(
       "offers no event button on %s, which has nothing to open yet",
       async (status) => {
         api.mock.setSession(SEEDED_PARTICIPANT_ID);

@@ -46,6 +46,9 @@ const LOG_LINES = {
   // and the group, or null for waiting.
   group_member_moved: "INFO",
   group_member_removed: "INFO",
+  // An organizer switched what connections need, token kinds or groups (BAC-140): who, and to
+  // which.
+  connection_rule_changed: "INFO",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

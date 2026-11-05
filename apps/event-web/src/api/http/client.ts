@@ -4,6 +4,7 @@ import type { ApiIssue, ErrorCode, ListTapsQuery } from "@/api/types";
 import {
   parseEventGroup,
   parseEventStationBoardResponse,
+  parseConnectionRule,
   parseGroupBoardResponse,
   parseFallbackTapResponse,
   parseListTapsResponse,
@@ -221,6 +222,9 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
         `/api/v1/admin/groups/members/${encodeURIComponent(userId)}`,
         jsonBody({ group_id: groupId }, "PUT"),
       ).then(parseGroupBoardResponse),
+
+    setConnectionRule: (input) =>
+      sendJson("/api/v1/admin/connections/rule", jsonBody(input, "PUT")).then(parseConnectionRule),
 
     removeGroupMember: async (userId) => {
       await send(`/api/v1/admin/groups/members/${encodeURIComponent(userId)}`, {

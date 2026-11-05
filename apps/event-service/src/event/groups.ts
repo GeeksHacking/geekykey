@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
+import { loadConnectAcross } from "./connect-across.ts";
 import type { Tx } from "./games.ts";
 import { groupAllocation, groupMembers, participantGroups, users } from "./schema.ts";
 
@@ -458,6 +459,19 @@ export const shuffleAtRandom: Shuffle = (items) => {
   return shuffled;
 };
 
+/**
+ * Each user's group as it is now, by user ID, for the connections game (BAC-140). Someone
+ * who hasn't joined, or is waiting, has none, and isn't in the map. A plain read, so in a
+ * transaction it must come before any lock to see the groups as they were at its start.
+ */
+export async function groupsOf(db: Db | Tx, userIds: readonly string[]) {
+  const rows = await db
+    .select({ userId: groupMembers.userId, groupId: groupMembers.groupId })
+    .from(groupMembers)
+    .where(inArray(groupMembers.userId, [...userIds]));
+  return new Map(rows.flatMap(({ userId, groupId }) => (groupId ? [[userId, groupId]] : [])));
+}
+
 /** When allocation started, or null before it has. */
 async function allocationStartedAt(db: Db): Promise<string | null> {
   const [row] = await db
@@ -469,8 +483,9 @@ async function allocationStartedAt(db: Db): Promise<string | null> {
 
 /** Everything the organizers' Groups screen shows, groups oldest first. */
 export async function loadGroupBoard(db: Db, organizers: Organizers) {
-  const [startedAt, groups, members] = await Promise.all([
+  const [startedAt, connectAcross, groups, members] = await Promise.all([
     allocationStartedAt(db),
+    loadConnectAcross(db),
     db
       .select({
         id: participantGroups.id,
@@ -497,6 +512,7 @@ export async function loadGroupBoard(db: Db, organizers: Organizers) {
   ]);
   return {
     startedAt,
+    connectAcross,
     joinedCount: members.length,
     groups: groups.map((group) => ({
       ...group,

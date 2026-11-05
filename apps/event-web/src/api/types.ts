@@ -46,8 +46,11 @@ export interface Question {
  */
 export interface Connection {
   connected_at: string;
-  /** The other person's kind. */
-  kind: string;
+  /**
+   * The other person's kind, or null for none, which only a connection across groups has
+   * (BAC-140, draft for the agreement's next version).
+   */
+  kind: string | null;
   /** A whole percent, or null when no question was answered by both. */
   match: number | null;
   /** IDs of the questions both answered the same. Null until `shared_at`, then maybe empty. */
@@ -327,9 +330,24 @@ export interface GroupWaitingMember {
   joined_at: string;
 }
 
+/**
+ * Who may connect (BAC-140, draft for the agreement's next version): two people of different
+ * token kinds, which a new event starts on, or two people in different groups.
+ */
+export const CONNECT_ACROSS = ["token_kinds", "groups"] as const;
+
+export type ConnectAcross = (typeof CONNECT_ACROSS)[number];
+
+/** PUT /api/v1/admin/connections/rule, its request and its answer (BAC-140). */
+export interface ConnectionRule {
+  connect_across: ConnectAcross;
+}
+
 /** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate (draft for agreement 0.14). */
 export interface GroupBoardResponse {
   allocation_started_at: string | null;
+  /** What connections need now, which the Groups screen's switch sets (BAC-140). */
+  connect_across: ConnectAcross;
   joined_count: number;
   groups: EventGroup[];
   waiting: GroupWaitingMember[];

@@ -1,6 +1,7 @@
 import type { MySqlTable } from "drizzle-orm/mysql-core";
 import { tokenKinds, tokens } from "../src/claims-stand-in/schema.ts";
 import {
+  eventSettings,
   groupAllocation,
   groupMembers,
   participantGroups,
@@ -49,4 +50,6 @@ export const keptTables: readonly MySqlTable[] = [
   usedLoginLinks,
   // The event's groups, with its other settings. Their members are cleared.
   participantGroups,
+  // The connection rule, which organizers set with the groups (BAC-140).
+  eventSettings,
 ];

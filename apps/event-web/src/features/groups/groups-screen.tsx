@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { Button } from "@/components/ui/button";
 import { AddGroupDialog } from "@/features/groups/add-group-dialog";
+import { ConnectionRuleSwitch } from "@/features/groups/connection-rule-switch";
 import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
@@ -88,6 +89,7 @@ export function GroupsScreen() {
             <p className="mt-3 text-sm text-muted-foreground">Nobody is waiting.</p>
           )}
         </section>
+        <ConnectionRuleSwitch value={data.connect_across} />
         <ExportGroupsButton />
       </div>
     );

@@ -7,6 +7,7 @@ import {
   eventStationBoardResponseSchema,
   meResponseSchema,
   parseEventStationBoardResponse,
+  parseGroupBoardResponse,
   parseFallbackTapResponse,
   parseListTapsResponse,
   parseMeResponse,
@@ -66,6 +67,36 @@ describe("me response contract", () => {
 
     expect(parsed.questions).toBeNull();
     expect(parsed.connections).toEqual([]);
+  });
+
+  it("reads a connection with no kind, made across groups (BAC-140)", () => {
+    const parsed = parseMeResponse({
+      ...makeMe(),
+      connections: [
+        {
+          connected_at: "2026-11-05T09:12:30.000Z",
+          kind: null,
+          match: null,
+          shared: null,
+          shared_at: "2026-11-05T09:14:30.000Z",
+        },
+      ],
+    });
+    expect(parsed.connections[0]?.kind).toBeNull();
+  });
+
+  it("reads the board's connection setting, and refuses one it doesn't know (BAC-140)", () => {
+    const board = {
+      allocation_started_at: null,
+      connect_across: "groups",
+      joined_count: 0,
+      groups: [],
+      waiting: [],
+    };
+    expect(parseGroupBoardResponse(board).connect_across).toBe("groups");
+    expect(() => parseGroupBoardResponse({ ...board, connect_across: "houses" })).toThrow(
+      NetworkError,
+    );
   });
 
   it("refuses a question without choices and a match outside 0 to 100", () => {
