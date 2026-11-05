@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import type { MeetingStatus } from "@geekykey/handoff";
 import { and, asc, desc, eq, inArray, isNotNull, or, type SQL, sql } from "drizzle-orm";
 import type { Answers, Question } from "../../event/answers.ts";
@@ -160,7 +161,10 @@ const NO_REQUEST = { requestId: null, aMetAt: null, bMetAt: null };
  * A half sends the token's owner a connection request, which waits with no time limit,
  * and a half back accepts it (the API agreement's section 4, "Connections").
  */
-export function connectionsGame(answers: ConnectionsAnswers | null): ConnectionsGame {
+export function connectionsGame(
+  answers: ConnectionsAnswers | null,
+  rollDie: () => number = () => randomInt(1, 7),
+): ConnectionsGame {
   /**
    * The one place a connection is made. Both people's answers are fixed here, in the
    * same transaction, and the match is worked out from them and kept, so a later
@@ -183,6 +187,8 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
       kindB,
       connectedAt: now.toISOString(),
       matchPercent: match,
+      rollA: rollDie(),
+      rollB: rollDie(),
       shared,
     });
     await tx.update(meetingHalves).set(NO_REQUEST).where(where);
@@ -313,6 +319,8 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
         .orderBy(desc(connections.connectedAt), desc(connections.userA), desc(connections.userB));
       return rows.map(({ row, displayName, bio, contactLine }): Connection => {
         const sharedAt = new Date(Date.parse(row.connectedAt) + SHARED_AFTER_MS).toISOString();
+        const [yourRoll, theirRoll] =
+          row.userA === userId ? [row.rollA, row.rollB] : [row.rollB, row.rollA];
         return {
           connectedAt: row.connectedAt,
           displayName,
@@ -320,6 +328,15 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
           contactLine,
           kind: row.userA === userId ? row.kindB : row.kindA,
           match: row.matchPercent,
+          dice:
+            yourRoll === null || theirRoll === null
+              ? null
+              : {
+                  yourRoll,
+                  theirRoll,
+                  // Equal rolls win for both (the API agreement's 8.1, BAC-150, approved for the next version).
+                  result: yourRoll >= theirRoll ? "win" : "loss",
+                },
           shared: now.toISOString() >= sharedAt ? row.shared : null,
           sharedAt,
         };

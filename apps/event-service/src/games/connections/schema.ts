@@ -82,6 +82,9 @@ export const connections = mysqlTable(
     connectedAt: isoTimestamp("connected_at").notNull(),
     /** The questions both answered the same, out of those both answered, as a whole percent, or null for none in common. */
     matchPercent: int("match_percent"),
+    /** Each person's die, kept at connection time (the API agreement's 8.1, BAC-150). Null before dice. */
+    rollA: int("roll_a"),
+    rollB: int("roll_b"),
     /** The IDs of the questions both answered the same, in the questions' order. */
     shared: json("shared").$type<string[]>().notNull(),
   },

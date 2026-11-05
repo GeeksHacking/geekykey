@@ -84,6 +84,48 @@ beforeEach(() => {
 });
 
 describe("the reveal (agreement 0.13 draft, section 13)", () => {
+  it.each([
+    { your_roll: 1, their_roll: 6, result: "loss" as const, wording: "They win!" },
+    { your_roll: 4, their_roll: 4, result: "win" as const, wording: "You both win!" },
+  ])("shows $wording with both rolls on the dashboard", async ({ wording, ...dice }) => {
+    renderScreen(setUp([connection(0, { dice })]), <DashboardScreen />);
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    const list = screen.getByRole("list", { name: "Connections" });
+    for (const section of [reveal, list]) {
+      expect(within(section).getByText(wording)).toBeInTheDocument();
+      expect(section).toHaveTextContent(
+        `You rolled ${dice.your_roll}. They rolled ${dice.their_roll}.`,
+      );
+    }
+  });
+
+  it.each([undefined, null])("keeps an older connection visible with dice %s", async (dice) => {
+    renderScreen(setUp([connection(0, { dice })]));
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    const list = screen.getByRole("list", { name: "Connections" });
+    for (const section of [reveal, list]) {
+      expect(section).toHaveTextContent("Mei Lin");
+      expect(section).toHaveTextContent("60% match");
+      expect(within(section).queryByText(/rolled|win!/)).not.toBeInTheDocument();
+    }
+  });
+
+  it("shows both dice and the result in the reveal and the list, alongside the match", async () => {
+    renderScreen(
+      setUp([
+        connection(0, {
+          dice: { your_roll: 6, their_roll: 1, result: "win" },
+        }),
+      ]),
+    );
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    const list = screen.getByRole("list", { name: "Connections" });
+    for (const section of [reveal, list]) {
+      expect(within(section).getByText("You rolled 6. They rolled 1.")).toBeInTheDocument();
+      expect(within(section).getByText("You win!")).toBeInTheDocument();
+      expect(section).toHaveTextContent("60% match");
+    }
+  });
   it("shows the match when a poll brings a new connection", async () => {
     const api = setUp([]);
     const { poll } = renderScreen(api);

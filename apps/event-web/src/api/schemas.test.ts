@@ -600,6 +600,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
         contact_line: null,
         kind: "B",
         match: 50,
+        dice: { your_roll: 5, their_roll: 2, result: "win" },
         shared: null,
         shared_at: "2026-11-12T08:14:30.000Z",
       },
@@ -612,12 +613,31 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
         match: null,
         shared: [],
         shared_at: "2026-11-12T08:02:00.000Z",
+        dice: null,
       },
     ],
   };
 
   it("keeps the questions, the answers and each connection's fields", () => {
     expect(parseMeResponse(me)).toEqual(me);
+  });
+
+  it("reads a connection from a service before dice as no rolls", () => {
+    const { dice: _dice, ...connection } = me.connections[0]!;
+    expect(parseMeResponse({ ...me, connections: [connection] }).connections[0]?.dice).toBeNull();
+  });
+
+  it.each([
+    { your_roll: 0, their_roll: 2, result: "loss" },
+    { your_roll: 7, their_roll: 2, result: "win" },
+    { your_roll: 2, their_roll: 0, result: "win" },
+    { your_roll: 2, their_roll: 7, result: "loss" },
+    { your_roll: 2.5, their_roll: 2, result: "win" },
+    { your_roll: 2, their_roll: 2, result: "draw" },
+    { your_roll: 2, result: "win" },
+  ])("refuses invalid dice %j", (dice) => {
+    const connection = { ...me.connections[0], dice };
+    expect(() => parseMeResponse({ ...me, connections: [connection] })).toThrow(NetworkError);
   });
 
   it("takes an event with no answers game", () => {
