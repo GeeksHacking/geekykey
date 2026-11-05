@@ -411,8 +411,18 @@ describe("geekykey-web mock client", () => {
       const api = setup();
 
       expect(await api.meetToken(SOMEONE_ELSES)).toEqual([
-        { event_id: "showcase", status: "waiting" },
+        { event_id: "showcase", status: "waiting", owner_name: null },
       ]);
+    });
+
+    it("answers the owner's name it was given, and none with unavailable", async () => {
+      const api = setup();
+      api.mock.setMeetingOwnerName("Sam");
+
+      expect((await api.meetToken(SOMEONE_ELSES))[0]?.owner_name).toBe("Sam");
+
+      api.mock.setMeetingStatus("unavailable");
+      expect((await api.meetToken(SOMEONE_ELSES))[0]?.owner_name).toBeNull();
     });
 
     it.each(MEETING_STATUSES)("answers %s when the Event Service does", async (status) => {

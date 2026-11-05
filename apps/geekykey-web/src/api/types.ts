@@ -38,6 +38,11 @@ export interface Meeting {
   /** The Event Service's id, one of the events in /me (8.4). */
   event_id: string;
   status: MeetingStatus;
+  /**
+   * The owner's current name, or null when they have no name of their own, the Event
+   * Service never saw them or it was `unavailable` (BAC-143, approved for the next version).
+   */
+  owner_name: string | null;
 }
 
 /**

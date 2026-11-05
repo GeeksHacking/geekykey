@@ -40,6 +40,17 @@ beforeEach(() => {
 });
 
 describe("the name prompt (agreement 8.1, 8.7 and 13)", () => {
+  it("says who sees the name", async () => {
+    // BAC-143: a token page shows it to anyone who taps, before they connect.
+    renderPassport(SEEDED_GUEST_ID);
+
+    expect(
+      await screen.findByText(
+        "The organisers, your group, and anyone who taps your token or whose token you tap see it.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("asks a user with no name of their own what to call them", async () => {
     renderPassport(SEEDED_GUEST_ID);
 

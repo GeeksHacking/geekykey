@@ -405,6 +405,71 @@ describe("TokenPage", () => {
       },
     );
 
+    describe("the owner's name", () => {
+      const NAMED = "This token belongs to Sam.";
+      const SWAP_BACK = "If you're carrying this token, it isn't yours. Swap it back with Sam.";
+      const UNNAMED = "This token belongs to someone else.";
+      const ANSWERS_WITH_A_NAME = STATUSES.filter((status) => status !== "unavailable");
+
+      it.each(ANSWERS_WITH_A_NAME)("shows both sentences with the name on %s", async (status) => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingStatus(status);
+        api.mock.setMeetingOwnerName("Sam");
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(NAMED)).toBeInTheDocument();
+        expect(screen.getByText(SWAP_BACK)).toBeInTheDocument();
+        expect(screen.queryByText(UNNAMED)).not.toBeInTheDocument();
+        // What the tap came to stays, under the name.
+        expect(screen.getByText(SENTENCES[status])).toBeInTheDocument();
+      });
+
+      it("keeps the plain sentence when the owner has no name", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingOwnerName(null);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(SENTENCES.waiting)).toBeInTheDocument();
+        expect(screen.getByText(UNNAMED)).toBeInTheDocument();
+        expect(screen.queryByText(/Swap it back/)).not.toBeInTheDocument();
+      });
+
+      it("keeps the plain sentence and the usual line on unavailable", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingStatus("unavailable");
+        api.mock.setMeetingOwnerName("Sam");
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(SENTENCES.unavailable)).toBeInTheDocument();
+        expect(screen.getByText(UNNAMED)).toBeInTheDocument();
+        expect(screen.queryByText(/Swap it back/)).not.toBeInTheDocument();
+        expect(document.body.textContent).not.toMatch(/Sam/);
+      });
+
+      it("takes the name from whichever Event Service gave one", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        vi.spyOn(api, "meetToken").mockResolvedValue([
+          { event_id: "other", status: "unavailable", owner_name: null },
+          { event_id: "showcase", status: "waiting", owner_name: "Sam" },
+        ]);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(NAMED)).toBeInTheDocument();
+        expect(screen.getByText(SWAP_BACK)).toBeInTheDocument();
+      });
+
+      it("shows an admin no name, since their page sends no half", async () => {
+        const meet = vi.spyOn(api, "meetToken");
+        api.mock.setSession(SEEDED_ADMIN_ID);
+        api.mock.setMeetingOwnerName("Sam");
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(UNNAMED)).toBeInTheDocument();
+        expect(meet).not.toHaveBeenCalled();
+        expect(document.body.textContent).not.toMatch(/Sam/);
+      });
+    });
+
     it("shows nothing new when no Event Service takes meetings", async () => {
       // 8.8: "empty when none takes them", so the owner sentence is the whole answer.
       const meet = vi.spyOn(api, "meetToken");

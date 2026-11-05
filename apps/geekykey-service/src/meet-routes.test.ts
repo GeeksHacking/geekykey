@@ -102,7 +102,9 @@ test("tapping someone else's token hands the half on, with both kinds, and answe
   const res = await meet("04:a1:b2:c3:d4:e5:f6", await logIn("tapper"));
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(await res.json(), { meetings: [{ event_id: "showcase", status: "connected" }] });
+  assert.deepEqual(await res.json(), {
+    meetings: [{ event_id: "showcase", status: "connected", owner_name: null }],
+  });
   assert.deepEqual(handedOff(), [
     {
       url: "https://event-api.geekshacking.com/geekykey/v1/meetings",
@@ -110,6 +112,41 @@ test("tapping someone else's token hands the half on, with both kinds, and answe
       body: { user_id: "tapper", user_kind: "E", owner_id: "owner", owner_kind: "B" },
     },
   ]);
+});
+
+test("the owner's name in the Event Service's answer is passed on, with no ID or UID", async () => {
+  const { fake, logIn, meet } = harness();
+  fake.answers.meetings = async () => Response.json({ status: "waiting", owner_name: "Sam" });
+  const res = await meet(UID, await logIn("tapper"));
+  const body = await res.text();
+  assert.deepEqual(JSON.parse(body), {
+    meetings: [{ event_id: "showcase", status: "waiting", owner_name: "Sam" }],
+  });
+  assert.ok(!body.includes(`"owner"`) && !body.includes(UID), body);
+});
+
+test("each Event Service's item carries the name that service answered", async () => {
+  const { fake, logIn, meet } = harness({ eventServices: [showcase(), bingo()] });
+  fake.answers.meetings = async ({ url }) =>
+    url.startsWith("https://bingo")
+      ? Response.json({ status: "waiting", owner_name: null })
+      : Response.json({ status: "connected", owner_name: "Sam" });
+  const res = await meet(UID, await logIn("tapper"));
+  assert.deepEqual(await res.json(), {
+    meetings: [
+      { event_id: "showcase", status: "connected", owner_name: "Sam" },
+      { event_id: "bingo", status: "waiting", owner_name: null },
+    ],
+  });
+});
+
+test("an Event Service from before names, which sends none, reads as null", async () => {
+  const { fake, logIn, meet } = harness();
+  fake.answers.meetings = async () => Response.json({ status: "waiting" });
+  const res = await meet(UID, await logIn("tapper"));
+  assert.deepEqual(await res.json(), {
+    meetings: [{ event_id: "showcase", status: "waiting", owner_name: null }],
+  });
 });
 
 test("the tapper's kind is their first-claimed token's, or null with no token or no kind", async () => {
@@ -162,8 +199,8 @@ test("only the Event Services that take meetings get the half, all of them, in t
   const res = await meet(UID, await logIn("tapper"));
   assert.deepEqual(await res.json(), {
     meetings: [
-      { event_id: "bingo", status: "same_kind" },
-      { event_id: "tea", status: "waiting" },
+      { event_id: "bingo", status: "same_kind", owner_name: null },
+      { event_id: "tea", status: "waiting", owner_name: null },
     ],
   });
   assert.deepEqual(
@@ -179,7 +216,9 @@ test("an Event Service connecting across groups can answer no_group, which is pa
   const { fake, logIn, meet } = harness({ eventServices: [showcase()] });
   fake.meetingStatusOf = () => "no_group";
   const res = await meet(UID, await logIn("tapper"));
-  assert.deepEqual(await res.json(), { meetings: [{ event_id: "showcase", status: "no_group" }] });
+  assert.deepEqual(await res.json(), {
+    meetings: [{ event_id: "showcase", status: "no_group", owner_name: null }],
+  });
 });
 
 test("with no Event Service taking meetings, the list is empty, and the owner is still checked", async () => {
@@ -197,7 +236,9 @@ test("an Event Service from before meetings answers 404, and is left out", async
       ? Response.json({ error: "not_found" }, { status: 404 })
       : Response.json({ status: "waiting" });
   const res = await meet(UID, await logIn("tapper"));
-  assert.deepEqual(await res.json(), { meetings: [{ event_id: "showcase", status: "waiting" }] });
+  assert.deepEqual(await res.json(), {
+    meetings: [{ event_id: "showcase", status: "waiting", owner_name: null }],
+  });
 });
 
 test("an Event Service that fails or answers wrongly is unavailable, logged, and not asked again", async () => {
@@ -218,7 +259,7 @@ test("an Event Service that fails or answers wrongly is unavailable, logged, and
     assert.equal(res.status, 200, what);
     assert.deepEqual(
       await res.json(),
-      { meetings: [{ event_id: "showcase", status: "unavailable" }] },
+      { meetings: [{ event_id: "showcase", status: "unavailable", owner_name: null }] },
       what,
     );
     assert.equal(handedOff().length, 1, what);
@@ -249,7 +290,7 @@ test("the claims and the hand-off share the 4 seconds, and a late Event Service 
   const res = await meet(UID, cookie);
   const took = Date.now() - startedAt;
   assert.deepEqual(await res.json(), {
-    meetings: [{ event_id: "showcase", status: "unavailable" }],
+    meetings: [{ event_id: "showcase", status: "unavailable", owner_name: null }],
   });
   assert.ok(took < 700, `took ${took} ms, not cut short at the deadline`);
 });

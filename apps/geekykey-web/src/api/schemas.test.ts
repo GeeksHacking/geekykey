@@ -148,6 +148,24 @@ describe("geekykey-web schemas", () => {
     }
   });
 
+  it("reads the owner's name, a null one, and a missing one as null", () => {
+    // BAC-143: a previous GeekyKey Service sends no name.
+    const read = (item: object) =>
+      parseMeetingResponse({ meetings: [{ event_id: "showcase", status: "waiting", ...item }] })[0];
+
+    expect(read({ owner_name: "Sam" })?.owner_name).toBe("Sam");
+    expect(read({ owner_name: null })?.owner_name).toBeNull();
+    expect(read({})?.owner_name).toBeNull();
+  });
+
+  it("rejects an owner's name that isn't a string", () => {
+    expect(() =>
+      parseMeetingResponse({
+        meetings: [{ event_id: "showcase", status: "waiting", owner_name: 7 }],
+      }),
+    ).toThrow(NetworkError);
+  });
+
   it("keeps an empty meetings list, which is every service left out", () => {
     // 8.8: empty when no Event Service takes meetings.
     expect(parseMeetingResponse({ meetings: [] })).toEqual([]);

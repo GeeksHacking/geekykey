@@ -81,6 +81,9 @@ with section 13's sentences (agreement 8.8, FRO-110). With `waiting`, `connected
 other person accepts a request and the guest sees the reveal (BAC-149). The mock answers it for
 now: BAC-120 builds 8.8 in the service. The hook is `src/features/token/use-meeting.ts`, and the
 sentences are in `src/features/token/meeting-notice.tsx`.
+When the answer gives the owner's name, the page names them and asks whoever is carrying the token
+to swap it back, so people notice swapped tokens (BAC-143, wording approved for the agreement's next version). The mock
+gives no name unless a test calls `setMeetingOwnerName`.
 The one GeekyKey admin screen is Token kinds, at `/admin/token-kinds` (BAC-139), in
 `src/features/token-kinds/`. A GeekyKey admin pastes the token writer's log there, and the browser
 reads it by `db:token-kinds`' rules (`read-writer-log.ts`) before anything is written. An organizer

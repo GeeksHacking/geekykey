@@ -74,7 +74,11 @@ export function DisplayNameForm({
               <FormControl>
                 <Input {...field} autoComplete="nickname" className="sm:max-w-sm" />
               </FormControl>
-              <FormDescription>Only you and the organisers see it.</FormDescription>
+              {/* Approved for the agreement's next version (BAC-143, and FRO-127 for the group). */}
+              <FormDescription>
+                The organisers, your group, and anyone who taps your token or whose token you tap
+                see it.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

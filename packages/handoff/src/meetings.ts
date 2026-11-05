@@ -48,6 +48,18 @@ export const meetingsAnswer = z.object({
         "are in the same group, so nothing is kept. no_group: connecting across groups, and " +
         "either isn't in a group, so nothing is kept",
     ),
+  // No longest length: 8.7's limit is on a name the user sets, and a name from a login can be
+  // longer. A previous Event Service sends no name, so it reads as null.
+  owner_name: z
+    .string()
+    .min(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "The owner's current name, which the token page shows so that people notice swapped " +
+        "tokens, or null when they have no name of their own or this Event Service has never " +
+        "seen them",
+    ),
 });
 
 export type MeetingsRequest = z.infer<typeof meetingsRequest>;

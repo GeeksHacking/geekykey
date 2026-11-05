@@ -12,6 +12,7 @@ import { requireBearerKey } from "../lib/bearer-key.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, validationFailed } from "../lib/validate.ts";
 import type { ConnectionsGame } from "./connections.ts";
+import { ownNameOf } from "./display-names.ts";
 import type { GameOnStations } from "./games.ts";
 import { stations } from "./schema.ts";
 import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
@@ -127,12 +128,14 @@ export function handoffRoutes({
   return app.post("/meetings", jsonBody(meetingsRequest), async (c) => {
     // One half of a connection: a user tapped their phone on someone else's token (11.10).
     const { user_id, user_kind, owner_id, owner_kind } = c.req.valid("json");
+    // Read first, so a failed read leaves no half behind a "tap their token again".
+    const ownerName = await ownNameOf(c.var.db, owner_id);
     const status = await connections.meet(
       c.var.db,
       { userId: user_id, userKind: user_kind, ownerId: owner_id, ownerKind: owner_kind },
       now(),
     );
     log("meeting_handled", { user_id, owner_id, status });
-    return c.json({ status } satisfies MeetingsAnswer);
+    return c.json({ status, owner_name: ownerName } satisfies MeetingsAnswer);
   });
 }

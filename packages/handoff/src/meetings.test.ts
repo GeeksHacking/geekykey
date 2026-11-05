@@ -20,7 +20,27 @@ test("the agreement's meeting hand-off and its answer pass", () => {
     "same_group",
     "no_group",
   ]) {
-    assert.deepEqual(meetingsAnswer.parse({ status }), { status });
+    const answer = { status, owner_name: "Sam" };
+    assert.deepEqual(meetingsAnswer.parse(answer), answer);
+  }
+});
+
+test("an owner with no name answers null", () => {
+  const answer = { status: "waiting", owner_name: null };
+  assert.deepEqual(meetingsAnswer.parse(answer), answer);
+});
+
+test("an answer from an Event Service without owner_name reads as null", () => {
+  assert.deepEqual(meetingsAnswer.parse({ status: "waiting" }), {
+    status: "waiting",
+    owner_name: null,
+  });
+});
+
+test("a name the owner set in any script, or a long login name, passes whole", () => {
+  for (const owner_name of ["陈小明", "A".repeat(100)]) {
+    const answer = { status: "connected", owner_name };
+    assert.deepEqual(meetingsAnswer.parse(answer), answer);
   }
 });
 
@@ -39,8 +59,15 @@ test("a meeting hand-off the agreement doesn't allow is rejected", () => {
   }
 });
 
-test("an answer with a status the agreement doesn't list is rejected", () => {
-  for (const body of [{}, { status: "accepted" }, { status: "" }, { status: null }]) {
+test("an answer the agreement doesn't allow is rejected", () => {
+  for (const body of [
+    {},
+    { status: "accepted" },
+    { status: "" },
+    { status: null },
+    { status: "waiting", owner_name: "" },
+    { status: "waiting", owner_name: 7 },
+  ]) {
     assert.equal(meetingsAnswer.safeParse(body).success, false, JSON.stringify(body));
   }
 });

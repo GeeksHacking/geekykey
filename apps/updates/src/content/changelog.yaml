@@ -2182,3 +2182,12 @@
     The connections list on the dashboard and the passport shows each person's current name above
     the match, or Guest for someone with no name. The map and the memory card still name nobody you
     connected with.
+
+- id: token-names-owner
+  date: 2026-11-05
+  area: backend
+  change: >-
+    Tapping someone's token now names its owner and asks whoever is carrying it to swap it back, so
+    two people holding each other's tokens can see the wrong name. The name shows before anyone
+    connects, and the name prompt says so. The trade-offs we accept: anyone who taps a token sees
+    the name its owner uses at the event.
