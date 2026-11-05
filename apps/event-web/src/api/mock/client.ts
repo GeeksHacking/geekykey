@@ -55,6 +55,7 @@ import {
   isGroupText,
   PEOPLE_PER_GROUP_MIN,
   splitGroupCount,
+  GROUP_COUNT_MIN,
 } from "@/lib/group-fields";
 import { BIO_MAX, CONTACT_LINE_MAX, fitsLimit } from "@/lib/profile";
 
@@ -416,18 +417,34 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   }
 
   /**
-   * The split's fields as the Event Service checks them: a whole number, 2 or more, and each
-   * location trimmed with a blank one as none, or `validation_failed` at the first that breaks a
-   * rule.
+   * The split's fields as the Event Service checks them: exactly one of the two numbers, each a
+   * whole number, 2 or more per group and 1 or more groups, and each location trimmed with a blank
+   * one as none, or `validation_failed` at the first that breaks a rule.
    */
   function checkSplitRequest(input: SplitGroupsRequest) {
-    const peoplePerGroup = input.people_per_group;
-    if (!(Number.isInteger(peoplePerGroup) && peoplePerGroup >= PEOPLE_PER_GROUP_MIN)) {
+    const { people_per_group: peoplePerGroup, group_count: groupCount } = input;
+    if ((peoplePerGroup === undefined) === (groupCount === undefined)) {
+      fail("validation_failed", [
+        { path: [], message: "send exactly one of people_per_group and group_count" },
+      ]);
+    }
+    if (
+      peoplePerGroup !== undefined &&
+      !(Number.isInteger(peoplePerGroup) && peoplePerGroup >= PEOPLE_PER_GROUP_MIN)
+    ) {
       fail("validation_failed", [
         {
           path: ["people_per_group"],
           message: `people_per_group must be ${PEOPLE_PER_GROUP_MIN} or more`,
         },
+      ]);
+    }
+    if (
+      groupCount !== undefined &&
+      !(Number.isInteger(groupCount) && groupCount >= GROUP_COUNT_MIN)
+    ) {
+      fail("validation_failed", [
+        { path: ["group_count"], message: `group_count must be ${GROUP_COUNT_MIN} or more` },
       ]);
     }
     const locations = (input.locations ?? []).map((location) => location?.trim() || null);
@@ -440,7 +457,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         },
       ]);
     }
-    return { peoplePerGroup, locations };
+    return { peoplePerGroup, groupCount, locations };
   }
 
   function toMyGroup(userId: string): MyGroupResponse {
@@ -1044,22 +1061,25 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return toGroupBoard();
       }),
 
-    // Works out the number of groups from who has joined, makes "Group 1", "Group 2" and so on,
-    // then allocates as above, or makes nothing. It refuses while any group exists, then with
-    // fewer than 2 joined, as the Event Service does.
+    // Makes "Group 1", "Group 2" and so on, in place of any groups with nobody in them, then
+    // allocates as above, or makes nothing. It refuses with anyone placed, then with fewer than 2
+    // joined for each group, as the Event Service does.
     splitGroups: (input: SplitGroupsRequest) =>
       call(() => {
         currentOrganizer();
-        const { peoplePerGroup, locations } = checkSplitRequest(input);
-        if (data.groups.length > 0) fail("groups_exist");
-        refuseTooFew(1);
-        const groupCount = splitGroupCount(data.groupMembers.length, peoplePerGroup);
-        data.groups = Array.from({ length: groupCount }, (_, i) => ({
+        const { peoplePerGroup, groupCount, locations } = checkSplitRequest(input);
+        if (data.groupMembers.some((member) => member.group_id !== null)) fail("groups_exist");
+        const count =
+          peoplePerGroup === undefined
+            ? groupCount!
+            : splitGroupCount(data.groupMembers.length, peoplePerGroup);
+        refuseTooFew(Math.max(count, 1));
+        data.groups = Array.from({ length: count }, (_, i) => ({
           id: `g_${randomBase62(8)}`,
           name: `Group ${i + 1}`,
           tags: [],
           location: locations[i] ?? null,
-          capacity: peoplePerGroup,
+          capacity: peoplePerGroup ?? null,
         }));
         placeWaiting();
         return toGroupBoard();

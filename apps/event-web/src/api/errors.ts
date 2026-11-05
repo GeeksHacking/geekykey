@@ -57,8 +57,7 @@ function morePeople(needed: number | null): string {
 
 /**
  * What too_few_participants says, ending with the button to press again: Allocate under the
- * header, or Split in the Split into groups dialog, where pressing Allocate next would find no
- * groups.
+ * header, or Split in the Make groups dialog, where pressing Allocate next would find no groups.
  */
 export function tooFewParticipantsMessage(needed: number | null, button: "Allocate" | "Split") {
   return `Each group needs at least 2 people. Wait for ${morePeople(needed)} to join, then press ${button} again.`;
@@ -88,11 +87,11 @@ export function describeError(error: unknown): string {
       case "name_taken":
         return "Another group has this name. Choose a different one.";
       case "no_groups":
-        return "Create a group first, then press Allocate.";
+        return "Make groups first, then press Allocate.";
       case "too_few_participants":
         return tooFewParticipantsMessage(error.needed, "Allocate");
       case "groups_exist":
-        return "There are groups already. Delete them first, or press Allocate to fill them.";
+        return "People are in groups already, so nothing changed. Press Reset to empty the groups, then make groups again.";
       case "rate_limited":
         return "Too many requests. Wait a minute and try again.";
       case "invalid_event_service_key":
