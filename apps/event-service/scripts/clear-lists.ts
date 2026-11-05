@@ -37,8 +37,6 @@ export const clearedTables: readonly MySqlTable[] = [
   // Who has joined and where they went, and whether allocation has started.
   groupMembers,
   groupAllocation,
-  // Who may connect, so the next event starts connecting across token kinds (BAC-140).
-  eventSettings,
 ];
 
 /** The settings and the people, which both events share. */
@@ -52,4 +50,6 @@ export const keptTables: readonly MySqlTable[] = [
   usedLoginLinks,
   // The event's groups, with its other settings. Their members are cleared.
   participantGroups,
+  // The connection rule, which organizers set with the groups (BAC-140).
+  eventSettings,
 ];

@@ -181,7 +181,7 @@ test("across groups, two people in different groups connect whatever their kinds
   );
 });
 
-test("across groups, two people in one group get same_kind, as the token page's same group", async () => {
+test("across groups, two people in one group get same_group", async () => {
   const { connectAcross, createGroup, place, meet, connectionsOf } = await harness();
   const red = await createGroup("Red");
   await place("alex", red);
@@ -189,8 +189,8 @@ test("across groups, two people in one group get same_kind, as the token page's 
   await connectAcross("groups");
 
   // Their kinds differ, and still don't connect them.
-  assert.equal(await meet("alex", "E", "bea", "B"), "same_kind");
-  assert.equal(await meet("bea", "B", "alex", "E"), "same_kind");
+  assert.equal(await meet("alex", "E", "bea", "B"), "same_group");
+  assert.equal(await meet("bea", "B", "alex", "E"), "same_group");
   assert.deepEqual(await connectionsOf("alex"), []);
 });
 
@@ -224,7 +224,7 @@ test("each tap is judged by the setting and the groups at that tap", async () =>
   assert.equal(await meet("alex", "E", "bea", "E"), "waiting");
   await place("bea", red);
   clock.advanceSeconds(10);
-  assert.equal(await meet("bea", "E", "alex", "E"), "same_kind");
+  assert.equal(await meet("bea", "E", "alex", "E"), "same_group");
 
   // Back across token kinds, their one kind keeps them apart, whatever their groups.
   await place("bea", blue);

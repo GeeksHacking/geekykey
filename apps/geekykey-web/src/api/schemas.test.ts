@@ -129,8 +129,8 @@ describe("geekykey-web schemas", () => {
     }
   });
 
-  it("accepts each of the six statuses an Event Service can answer with", () => {
-    // Agreement 11.10's four, BAC-140's draft `no_group`, and 8.8's own `unavailable` for a service that misses
+  it("accepts each of the seven statuses an Event Service can answer with", () => {
+    // Agreement 11.10's four, BAC-140's `same_group` and `no_group`, and 8.8's own `unavailable` for a service that misses
     // the deadline. A status the screens cannot word would reach them as a NetworkError,
     // so each one has to parse.
     for (const status of [
@@ -138,6 +138,7 @@ describe("geekykey-web schemas", () => {
       "connected",
       "already_connected",
       "same_kind",
+      "same_group",
       "no_group",
       "unavailable",
     ] as const) {

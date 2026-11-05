@@ -151,8 +151,8 @@ Adam agreed these rules on 5 Nov (BAC-138).
 Adam asked for this on 5 Nov (BAC-140). Variation 1, the token game, keeps its rule, and variation 2 can use the new one. Kinds stay, since Julian asked for them (ADR 0006).
 
 - The Groups screen has two choices: "Connect across token kinds", which a new event starts on, and "Connect across groups". Only organizers change it.
-- The choice is one row in `event_settings`, so every instance reads the same one and a restart keeps it. The evening-before clear empties it, so the next event starts on token kinds.
-- Across groups, two people placed in different groups connect, whatever their tokens' kinds, including tokens with no kind. Two in the same group get `same_kind`, which the token page already words as "You're in the same group". Someone not placed, because they haven't joined or are waiting, gets the new `no_group`, and no half is kept.
+- The choice is one row in `event_settings`, so every instance reads the same one and a restart keeps it. The evening-before clear keeps it, as it keeps the groups.
+- Across groups, two people placed in different groups connect, whatever their tokens' kinds, including tokens with no kind. Two in the same group get the new `same_group`, which the token page words as it does `same_kind`. Someone not placed, because they haven't joined or are waiting, gets the new `no_group`. Neither keeps a half.
 - Each tap reads the choice and both people's groups at the start of its transaction, before any lock, so it's judged as things were at that tap.
 - Connections already made stay when the choice changes, when someone moves, and after a Reset. A connection's kinds may be null, which only a connection across groups has.
 
@@ -193,7 +193,7 @@ Organizer:
 - `GET /api/v1/admin/groups/export.csv` gives each member's group, join time, placed time and how they were placed.
 
 - `PUT /api/v1/admin/connections/rule` takes `{ "connect_across": "token_kinds" | "groups" }` and answers 200 with it (BAC-140). The board gains `connect_across`.
-- The meeting hand-off gains the status `no_group`, and `/me`'s `connections[].kind` may be null (BAC-140).
+- The meeting hand-off gains the statuses `same_group` and `no_group`, and `/me`'s `connections[].kind` may be null (BAC-140).
 
 Errors otherwise follow the agreement: `unauthenticated`, `forbidden`, `validation_failed` and `rate_limited`.
 
@@ -232,7 +232,7 @@ The backend tests cover the brief's scenarios:
 | Shortcut, groups there | 1 group, 6 people | `409 groups_exist`, nothing made or placed |
 | Shortcut, at once | Two presses on two instances | One `201`, one `409 groups_exist`, one set of groups |
 | Across groups | Two people in different groups, tokens with no kind | Connected, and `/me` lists it with `kind` null |
-| Across groups, same group | Two people in one group, different kinds | `same_kind`, no connection |
+| Across groups, same group | Two people in one group, different kinds | `same_group`, no connection |
 | Across groups, no group | One person waiting or not joined | `no_group`, no half kept |
 | Switch mid-session | A move between the two halves | Judged by the groups at the second half |
 

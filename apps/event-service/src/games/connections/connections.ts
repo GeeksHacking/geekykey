@@ -89,8 +89,7 @@ export function connectionsGame(answers: ConnectionsAnswers | null): Connections
         if (groups) {
           const [groupA, groupB] = [groups.get(userA), groups.get(userB)];
           if (groupA === undefined || groupB === undefined) return "no_group";
-          // The token page says "You're in the same group" for this as for two kinds alike.
-          if (groupA === groupB) return "same_kind";
+          if (groupA === groupB) return "same_group";
         } else if (kindA === null || kindB === null || kindA === kindB) return "same_kind";
 
         // The pair's row, made if it isn't there, and locked until the transaction ends, so

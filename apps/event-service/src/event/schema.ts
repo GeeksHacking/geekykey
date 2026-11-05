@@ -233,8 +233,9 @@ export const CONNECT_ACROSS = ["token_kinds", "groups"] as const;
 
 /**
  * The event's settings that organizers change on the day, one row, made by
- * the first change. With no row, an event connects across token kinds, so
- * the evening-before clear empties it and the next event starts there.
+ * the first change. With no row, as in a new event's database, it connects
+ * across token kinds. The event's settings, which the evening-before clear
+ * keeps, as it keeps the groups.
  */
 export const eventSettings = mysqlTable("event_settings", {
   id: int("id").primaryKey(),

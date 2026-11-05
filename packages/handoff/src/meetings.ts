@@ -30,6 +30,7 @@ export const MEETING_STATUSES = [
   "connected",
   "already_connected",
   "same_kind",
+  "same_group",
   "no_group",
 ] as const;
 
@@ -42,9 +43,9 @@ export const meetingsAnswer = z.object({
     .describe(
       "waiting: the half is kept for 2 minutes. connected: it met the owner's half. " +
         "already_connected: the two were connected before. same_kind: the two aren't of " +
-        "different kinds, or, connecting across groups, are in the same group, so nothing is " +
-        "kept. no_group: connecting across groups, and either isn't in a group, so nothing is " +
-        "kept",
+        "different kinds, so nothing is kept. same_group: connecting across groups, the two " +
+        "are in the same group, so nothing is kept. no_group: connecting across groups, and " +
+        "either isn't in a group, so nothing is kept",
     ),
 });
 
