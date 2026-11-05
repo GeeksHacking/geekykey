@@ -39,7 +39,13 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     capacity: null,
     members: [],
   };
-  const board = { allocation_started_at: null, joined_count: 0, groups: [group], waiting: [] };
+  const board = {
+    allocation_started_at: null,
+    connect_across: "token_kinds",
+    joined_count: 0,
+    groups: [group],
+    waiting: [],
+  };
 
   it("reads and joins at /api/v1/me/group", async () => {
     fetchMock.mockImplementation(() => Promise.resolve(response(myGroup)));
@@ -182,6 +188,22 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/v1/admin/groups/members/user%3A1",
       expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("sets what connections need at /api/v1/admin/connections/rule (BAC-140)", async () => {
+    const api = createHttpClient();
+    fetchMock.mockResolvedValueOnce(response({ connect_across: "groups" }));
+
+    await expect(api.setConnectionRule({ connect_across: "groups" })).resolves.toEqual({
+      connect_across: "groups",
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/connections/rule",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ connect_across: "groups" }),
+      }),
     );
   });
 

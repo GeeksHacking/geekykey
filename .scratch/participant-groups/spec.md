@@ -105,6 +105,12 @@ The shortcut (BAC-138):
 54. As an organizer, I want the shortcut refused while any group exists, so that it can't overwrite a live board.
 55. As an organizer, I want a refused shortcut to leave nothing behind, so that I can send the same form again once enough people have joined.
 
+Connections across groups (BAC-140):
+
+56. As an organizer, I want to choose whether a connection needs different token kinds or different groups, so that being placed in a group decides who participants go and meet.
+57. As an organizer, I want to change that choice during a session with no deploy, so that one trial can try both.
+58. As a participant, I want to be told when someone is in my own group, or when one of us has no group yet, so that I know why we didn't connect.
+
 ## Implementation decisions
 
 ### Modules
@@ -139,6 +145,16 @@ Adam agreed these rules on 5 Nov (BAC-138).
 - The service also refuses it, making nothing, when fewer than 2 have joined for each group, with Allocate's `too_few_participants`. So people join before anyone uses it. The dialog's sentence ends "then press Split again", since pressing Allocate after a refused split would find no groups.
 - The service does the whole step in one transaction under the allocation lock. A refusal leaves nothing behind, so a retry can't fail on group names that already exist. Of two organizers pressing at once, the second finds the first's groups and is refused.
 - The screen shows locations for up to 30 groups. The rest get theirs from each group's menu afterwards, so a mistyped large number doesn't draw hundreds of fields.
+
+### Connections across groups
+
+Adam asked for this on 5 Nov (BAC-140). Variation 1, the token game, keeps its rule, and variation 2 can use the new one. Kinds stay, since Julian asked for them (ADR 0006).
+
+- The Groups screen has two choices: "Connect across token kinds", which a new event starts on, and "Connect across groups". Only organizers change it.
+- The choice is one row in `event_settings`, so every instance reads the same one and a restart keeps it. The evening-before clear empties it, so the next event starts on token kinds.
+- Across groups, two people placed in different groups connect, whatever their tokens' kinds, including tokens with no kind. Two in the same group get `same_kind`, which the token page already words as "You're in the same group". Someone not placed, because they haven't joined or are waiting, gets the new `no_group`, and no half is kept.
+- Each tap reads the choice and both people's groups at the start of its transaction, before any lock, so it's judged as things were at that tap.
+- Connections already made stay when the choice changes, when someone moves, and after a Reset. A connection's kinds may be null, which only a connection across groups has.
 
 ### Concurrency
 
@@ -176,6 +192,9 @@ Organizer:
 - `POST /api/v1/admin/groups/split` takes `{ "group_count": integer, "people_per_group": integer, "locations"?: (string | null)[] }`, with at most one location for each group, and a missing or blank one as none. It makes the groups and allocates, and answers `201` with the board. It answers `409 groups_exist` while any group exists, or `409 too_few_participants` with `needed`, and makes nothing either way.
 - `GET /api/v1/admin/groups/export.csv` gives each member's group, join time, placed time and how they were placed.
 
+- `PUT /api/v1/admin/connections/rule` takes `{ "connect_across": "token_kinds" | "groups" }` and answers 200 with it (BAC-140). The board gains `connect_across`.
+- The meeting hand-off gains the status `no_group`, and `/me`'s `connections[].kind` may be null (BAC-140).
+
 Errors otherwise follow the agreement: `unauthenticated`, `forbidden`, `validation_failed` and `rate_limited`.
 
 ### Screens
@@ -212,6 +231,10 @@ The backend tests cover the brief's scenarios:
 | Shortcut, too few | 3 people, 2 groups | `409 too_few_participants`, `needed` 1, no groups; the same form works after a fourth joins |
 | Shortcut, groups there | 1 group, 6 people | `409 groups_exist`, nothing made or placed |
 | Shortcut, at once | Two presses on two instances | One `201`, one `409 groups_exist`, one set of groups |
+| Across groups | Two people in different groups, tokens with no kind | Connected, and `/me` lists it with `kind` null |
+| Across groups, same group | Two people in one group, different kinds | `same_kind`, no connection |
+| Across groups, no group | One person waiting or not joined | `no_group`, no half kept |
+| Switch mid-session | A move between the two halves | Judged by the groups at the second half |
 
 The rest of the backend tests cover roles (a participant is refused every organizer route), privacy (a participant's answer has no user IDs and only their own group), manual moves past capacity, deleting a group, and the CSV.
 
@@ -221,7 +244,7 @@ The end-to-end test is a run with real phones and tokens on the deployed service
 
 ## Out of scope
 
-- The game a group plays, including anything further on connections and the answers game (point 3 of the message).
+- The game a group plays, including anything further on connections and the answers game (point 3 of the message), apart from connecting across groups (BAC-140).
 - Other token uses Julian suggested: voting, leaving a contact and sponsor booths.
 - Showing a group on a station's screen. HAR-28, the firmware's two lines, is still in the backlog.
 - Grouping by token kind. ADR 0006 lets an event decide what a kind means, so this can come later, but allocation here ignores kind.

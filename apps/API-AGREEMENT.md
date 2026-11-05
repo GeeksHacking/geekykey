@@ -388,14 +388,24 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 
 ### Connections
 
-Added in 0.12, at `Checkpoint 7`. A connection joins two users of different kinds, and the Event
-Service keeps it as the connections game's own record. The rules, from CONTEXT.md:
+Added in 0.12, at `Checkpoint 7`. A connection joins two users of different kinds, or, when
+organizers choose it, of different groups, and the Event Service keeps it as the connections
+game's own record. The rules, from CONTEXT.md:
 
 - A connection joins two users, never two tokens, so nobody connects to themselves, and a pair
   connects once.
-- The two must be of different kinds. Each side's kind is the user's kind in 8.1, or, for a user
-  with none yet, the kind of the token named in the meeting (11.10). A user with no kind at all
-  connects with nobody.
+- Organizers choose on the Groups screen what the two must have (BAC-140, a draft for the next
+  version). A new event starts on across token kinds, and the other choice is across groups. The
+  Event Service judges each tap by the choice and the groups at that tap, so organizers can
+  change it during a session with no deploy. Connections already made stay when it changes, when
+  someone moves group, and after the groups' Reset.
+- **Across token kinds.** The two must be of different kinds. Each side's kind is the user's kind
+  in 8.1, or, for a user with none yet, the kind of the token named in the meeting (11.10). A
+  user with no kind at all connects with nobody.
+- **Across groups.** The two must be placed in different groups, whatever their tokens' kinds,
+  and a token with no kind connects too. Two people in the same group don't connect, and nor
+  does anyone who isn't placed in a group: not joined, or waiting. The connection keeps each
+  side's kind, or none.
 - **The phone's way** (8.8, 11.10). Two users each tap their phone on the other's token. Each tap
   is a **half**. The connection is made when the second half arrives within 2 minutes of the
   first, timed by the Event Service's own clock. A half on its own expires after the 2 minutes,

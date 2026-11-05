@@ -715,4 +715,30 @@ describe("GroupsScreen", () => {
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
     expect(api.mock.data.groups.map(({ location }) => location)).toEqual([null, "Lobby"]);
   });
+
+  it("shows what connections need, token kinds for a new event, and switches it to groups", async () => {
+    const { api, user } = renderScreen();
+    const kinds = await screen.findByRole("radio", { name: "Connect across token kinds" });
+    const groups = screen.getByRole("radio", { name: "Connect across groups" });
+    expect(kinds).toBeChecked();
+    expect(groups).not.toBeChecked();
+
+    await user.click(groups);
+
+    await waitFor(() => expect(groups).toBeChecked());
+    expect(kinds).not.toBeChecked();
+    expect(api.mock.data.connectAcross).toBe("groups");
+  });
+
+  it("keeps the setting when a change fails, and says why", async () => {
+    const { api, user } = renderScreen();
+    const groups = await screen.findByRole("radio", { name: "Connect across groups" });
+    api.mock.failNext("internal_error");
+
+    await user.click(groups);
+
+    expect(await screen.findByText(/Couldn't change what connections need\./)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Connect across token kinds" })).toBeChecked();
+    expect(api.mock.data.connectAcross).toBe("token_kinds");
+  });
 });

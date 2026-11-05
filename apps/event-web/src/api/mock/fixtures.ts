@@ -1,4 +1,12 @@
-import type { Connection, GroupPlacedHow, Question, Role, TapSource, TapStatus } from "@/api/types";
+import type {
+  ConnectAcross,
+  Connection,
+  GroupPlacedHow,
+  Question,
+  Role,
+  TapSource,
+  TapStatus,
+} from "@/api/types";
 
 /*
   Seed data for the mock client. Deterministic (seeded PRNG) so tests are stable,
@@ -93,6 +101,8 @@ export interface MockData {
   groupMembers: MockGroupMember[];
   /** When an organizer first pressed Allocate, or null before that. */
   groupAllocationStartedAt: string | null;
+  /** What connections need, which a new event starts as token kinds (BAC-140). */
+  connectAcross: ConnectAcross;
 }
 
 /**
@@ -475,5 +485,6 @@ export function createFixtures(now: number = Date.now()): MockData {
     groups,
     groupMembers,
     groupAllocationStartedAt: null,
+    connectAcross: "token_kinds",
   };
 }

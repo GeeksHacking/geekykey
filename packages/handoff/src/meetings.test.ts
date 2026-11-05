@@ -12,7 +12,7 @@ test("the agreement's meeting hand-off and its answer pass", () => {
     user_kind: null,
     owner_kind: null,
   });
-  for (const status of ["waiting", "connected", "already_connected", "same_kind"]) {
+  for (const status of ["waiting", "connected", "already_connected", "same_kind", "no_group"]) {
     assert.deepEqual(meetingsAnswer.parse({ status }), { status });
   }
 });

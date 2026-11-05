@@ -15,6 +15,8 @@ import {
   GROUPS_EXPORT_CSV_COLUMNS,
   type AdminTap,
   type ApiIssue,
+  CONNECT_ACROSS,
+  type ConnectionRule,
   type CreateGroupRequest,
   type SplitGroupsRequest,
   type CreateStationRequest,
@@ -299,6 +301,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   function toGroupBoard(): GroupBoardResponse {
     return {
       allocation_started_at: data.groupAllocationStartedAt,
+      connect_across: data.connectAcross,
       joined_count: data.groupMembers.length,
       groups: data.groups.map(toEventGroup),
       waiting: data.groupMembers
@@ -980,6 +983,19 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         }));
         placeWaiting();
         return toGroupBoard();
+      }),
+
+    // Each tap after this is judged by the new setting, and connections already made stay.
+    setConnectionRule: (input: ConnectionRule) =>
+      call(() => {
+        currentOrganizer();
+        if (!CONNECT_ACROSS.includes(input.connect_across)) {
+          fail("validation_failed", [
+            { path: ["connect_across"], message: "connect_across must be token_kinds or groups" },
+          ]);
+        }
+        data.connectAcross = input.connect_across;
+        return { connect_across: data.connectAcross };
       }),
 
     // Everyone has to join again and allocation hasn't started, as before the first trial. The

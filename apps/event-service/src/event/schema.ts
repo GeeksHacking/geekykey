@@ -228,6 +228,20 @@ export const groupAllocation = mysqlTable("group_allocation", {
   startedAt: isoTimestamp("started_at"),
 });
 
+/** Who may connect (BAC-140): two people of different token kinds, or in different groups. */
+export const CONNECT_ACROSS = ["token_kinds", "groups"] as const;
+
+/**
+ * The event's settings that organizers change on the day, one row, made by
+ * the first change. With no row, an event connects across token kinds, so
+ * the evening-before clear empties it and the next event starts there.
+ */
+export const eventSettings = mysqlTable("event_settings", {
+  id: int("id").primaryKey(),
+  /** What the connections game needs of the two people in a connection. */
+  connectAcross: mysqlEnum("connect_across", CONNECT_ACROSS).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Station = typeof stations.$inferSelect;
 export type PassportStation = typeof passportStations.$inferSelect;

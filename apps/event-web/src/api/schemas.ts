@@ -1,7 +1,9 @@
 import * as z from "zod/mini";
 
 import { NetworkError } from "@/api/errors";
+import { CONNECT_ACROSS } from "@/api/types";
 import type {
+  ConnectionRule,
   EventGroup,
   EventStationBoardResponse,
   FallbackTapResponse,
@@ -45,7 +47,7 @@ const questionSchema = z.object({
 
 const connectionSchema = z.object({
   connected_at: isoTimestamp,
-  kind: z.string(),
+  kind: z.nullable(z.string()),
   match: z.nullable(z.int().check(z.gte(0), z.lte(100))),
   shared: z.nullable(z.array(z.string())),
   shared_at: isoTimestamp,
@@ -222,6 +224,14 @@ export const myGroupResponseSchema: z.ZodMiniType<MyGroupResponse> = z.object({
   ),
 });
 
+/** Who may connect (BAC-140, draft for the agreement's next version). */
+const connectAcrossSchema = z.enum(CONNECT_ACROSS);
+
+/** PUT /api/v1/admin/connections/rule's answer (BAC-140, draft for the agreement's next version). */
+export const connectionRuleSchema: z.ZodMiniType<ConnectionRule> = z.object({
+  connect_across: connectAcrossSchema,
+});
+
 /** A group on the organizers' board, and POST /api/v1/admin/groups's answer. */
 export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
   id: z.string(),
@@ -243,6 +253,7 @@ export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
 /** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate. */
 export const groupBoardResponseSchema: z.ZodMiniType<GroupBoardResponse> = z.object({
   allocation_started_at: z.nullable(isoTimestamp),
+  connect_across: connectAcrossSchema,
   joined_count: z.int(),
   groups: z.array(eventGroupSchema),
   waiting: z.array(
@@ -311,3 +322,6 @@ export const parseEventGroup = (input: unknown) => parseOrganizerResponse(eventG
 
 export const parseGroupBoardResponse = (input: unknown) =>
   parseOrganizerResponse(groupBoardResponseSchema, input);
+
+export const parseConnectionRule = (input: unknown) =>
+  parseOrganizerResponse(connectionRuleSchema, input);

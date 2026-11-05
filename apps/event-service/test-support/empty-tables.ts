@@ -6,6 +6,7 @@ import { beforeEach } from "vitest";
 import { tokenKinds, tokens } from "../src/claims-stand-in/schema.ts";
 import { answers, connections, meetingHalves } from "../src/games/connections/schema.ts";
 import {
+  eventSettings,
   groupAllocation,
   groupMembers,
   participantGroups,
@@ -35,6 +36,7 @@ beforeEach(async () => {
     groupMembers,
     groupAllocation,
     participantGroups,
+    eventSettings,
   ]) {
     await testDb().delete(table);
   }

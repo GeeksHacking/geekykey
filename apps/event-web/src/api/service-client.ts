@@ -59,6 +59,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       deleteGroup: api.deleteGroup.bind(api),
       placeGroupMember: api.placeGroupMember.bind(api),
       removeGroupMember: api.removeGroupMember.bind(api),
+      setConnectionRule: api.setConnectionRule.bind(api),
     },
   };
 }

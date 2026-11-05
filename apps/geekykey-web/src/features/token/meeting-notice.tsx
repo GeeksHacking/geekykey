@@ -3,9 +3,9 @@ import { EventButtons } from "@/components/event-buttons";
 
 /*
   What came of the half a tap sent (agreement 8.8), under the sentence that says the token
-  belongs to someone else. Section 13 fixes the wording for all five answers, so the
-  sentences are here as the agreement writes them; a status added to the union fails the
-  type check until it has one.
+  belongs to someone else. Section 13 fixes the wording for every answer but `no_group`, whose
+  sentence is a draft for the agreement's next version (BAC-140), so the sentences are here as
+  the agreement writes them; a status added to the union fails the type check until it has one.
 */
 
 /** Section 13's words, one per status an Event Service can answer with (11.10). */
@@ -14,6 +14,8 @@ const SENTENCE: Record<MeetingStatus, string> = {
   connected: "You're connected!",
   already_connected: "You're already connected.",
   same_kind: "You're in the same group. Find someone from another group.",
+  // A draft for the agreement's next version, which Ethan approves (BAC-140).
+  no_group: "You both need to be in a group to connect. Ask an organiser.",
   unavailable: "Couldn't connect. Tap their token again.",
 };
 

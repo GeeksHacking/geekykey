@@ -5,6 +5,7 @@ import type { AppEnv } from "../app.ts";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, queryParams } from "../lib/validate.ts";
+import { setConnectAcross } from "./connect-across.ts";
 import type { GameOnStations, Tx } from "./games.ts";
 import {
   requireRole,
@@ -13,6 +14,7 @@ import {
   type SessionOptions,
 } from "./session-auth.ts";
 import {
+  CONNECT_ACROSS,
   COUNTED_TAP_STATUSES,
   PASSPORT_GAME_ID,
   passportStations,
@@ -40,6 +42,9 @@ export interface AdminRouteDeps {
   /** For the groups' Allocate, at random unless given. */
   shuffle?: Shuffle;
 }
+
+/** Who may connect (BAC-140, draft for the API agreement's next version). */
+const connectionRuleSchema = z.object({ connect_across: z.enum(CONNECT_ACROSS) });
 
 /** A new station's label, the device's name. */
 const createStationSchema = z.object({ label: organizerText("label") });
@@ -194,6 +199,15 @@ export function adminRoutes({ session, games, now = () => new Date(), shuffle }:
   app.use(requireSession(session), requireRole("organizer"));
 
   app.route("/groups", adminGroupRoutes({ organizers: session.organizers, now, shuffle }));
+
+  // The Groups screen's switch: whether a connection needs different token kinds or different
+  // groups. Each tap is judged by the setting at that tap, and connections already made stay.
+  app.put("/connections/rule", jsonBody(connectionRuleSchema), async (c) => {
+    const { connect_across } = c.req.valid("json");
+    await setConnectAcross(c.var.db, connect_across);
+    log("connection_rule_changed", { user_id: c.var.user.id, connect_across });
+    return c.json({ connect_across });
+  });
 
   /** The games organizers choose a station's from, in the settings' order (9.2). */
   const gameChoices = games.flatMap((onStations) =>

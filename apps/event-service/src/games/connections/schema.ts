@@ -55,8 +55,12 @@ export const connections = mysqlTable(
   {
     userA: userId("user_a").notNull(),
     userB: userId("user_b").notNull(),
-    kindA: varchar("kind_a", { length: TOKEN_KIND_MAX }).notNull(),
-    kindB: varchar("kind_b", { length: TOKEN_KIND_MAX }).notNull(),
+    /**
+     * Each one's kind when they connected, or null for none, which only a connection across
+     * groups can have (BAC-140).
+     */
+    kindA: varchar("kind_a", { length: TOKEN_KIND_MAX }),
+    kindB: varchar("kind_b", { length: TOKEN_KIND_MAX }),
     connectedAt: isoTimestamp("connected_at").notNull(),
     /** The questions both answered the same, out of those both answered, as a whole percent, or null for none in common. */
     matchPercent: int("match_percent"),

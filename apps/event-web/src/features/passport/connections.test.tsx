@@ -189,6 +189,14 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
     expect(list).not.toHaveTextContent(SEEDED_GUEST_ID);
   });
 
+  it("lists a connection made across groups, which has no kind (BAC-140)", async () => {
+    renderScreen(setUp([connection(3, { kind: null, match: null })]));
+
+    const list = await screen.findByRole("list", { name: "Connections" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+    expect(list).toHaveTextContent("Connected");
+  });
+
   it("says what to do while there are none, in an event with the answers game", async () => {
     renderScreen(setUp([]));
 

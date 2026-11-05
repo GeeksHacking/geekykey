@@ -62,6 +62,8 @@ test("the meeting hand-off's JSON Schemas keep the agreement's rules", () => {
     "connected",
     "already_connected",
     "same_kind",
+    // Connecting across groups, someone not in one (BAC-140).
+    "no_group",
   ]);
 });
 

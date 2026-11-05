@@ -23,8 +23,8 @@ export interface Meeting {
 /** One of a user's connections, as /me lists it, with nothing that names the other person. */
 export interface Connection {
   connectedAt: string;
-  /** The other person's kind. */
-  kind: string;
+  /** The other person's kind, or null for none, which only a connection across groups has. */
+  kind: string | null;
   /**
    * The questions both answered the same, out of those both answered, as a
    * whole percent. Null when they have no answered question in common.

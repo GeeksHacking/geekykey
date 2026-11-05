@@ -1,6 +1,7 @@
 import type { MySqlTable } from "drizzle-orm/mysql-core";
 import { tokenKinds, tokens } from "../src/claims-stand-in/schema.ts";
 import {
+  eventSettings,
   groupAllocation,
   groupMembers,
   participantGroups,
@@ -36,6 +37,8 @@ export const clearedTables: readonly MySqlTable[] = [
   // Who has joined and where they went, and whether allocation has started.
   groupMembers,
   groupAllocation,
+  // Who may connect, so the next event starts connecting across token kinds (BAC-140).
+  eventSettings,
 ];
 
 /** The settings and the people, which both events share. */

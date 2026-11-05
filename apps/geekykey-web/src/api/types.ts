@@ -51,6 +51,9 @@ export const MEETING_STATUSES = [
   "connected",
   "already_connected",
   "same_kind",
+  // Connecting across groups, either person isn't in a group yet (BAC-140, a draft for the
+  // agreement's next version).
+  "no_group",
   "unavailable",
 ] as const;
 

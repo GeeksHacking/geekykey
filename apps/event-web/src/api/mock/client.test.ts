@@ -1036,6 +1036,19 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     );
   });
 
+  it("starts connecting across token kinds, and only an organizer changes it (BAC-140)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await expectApiError(api.setConnectionRule({ connect_across: "groups" }), "forbidden", 403);
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    expect((await api.groupBoard()).connect_across).toBe("token_kinds");
+    expect(await api.setConnectionRule({ connect_across: "groups" })).toEqual({
+      connect_across: "groups",
+    });
+    expect((await api.groupBoard()).connect_across).toBe("groups");
+  });
+
   it("refuses a participant on the organizer's edits and moves", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);
