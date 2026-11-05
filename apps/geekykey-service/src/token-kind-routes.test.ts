@@ -8,13 +8,18 @@ import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 
 // GET and POST /api/v1/admin/token-kinds on the GeekyKey Service: what the
-// token kinds screen shows and loads (BAC-139). Only a GeekyKey admin gets in,
-// and the list is only ever reached through the claims stand-in.
+// token kinds screen shows and loads (BAC-139). A GeekyKey admin does both, an
+// organizer only reads the totals, and the list is only ever reached through
+// the claims stand-in.
 
 const google = await fakeGoogle(env.FIREBASE_PROJECT_ID);
 
 function harness({ claimsDeadlineMs = 4000 } = {}) {
-  const config = loadConfig({ ...env, GEEKYKEY_ADMINS: ["admin-1"] });
+  const config = loadConfig({
+    ...env,
+    GEEKYKEY_ADMINS: ["admin-1"],
+    TOKEN_KIND_VIEWERS: ["organizer-1"],
+  });
   const fake = fakeServices(config);
   const app = createApp(config, {
     send: fake.send,
@@ -81,7 +86,7 @@ test("nobody without a session gets the totals or loads", async () => {
   assert.deepEqual(fake.sent, []);
 });
 
-test("someone who isn't a GeekyKey admin is refused, whatever they send", async () => {
+test("someone on neither list is refused, whatever they send", async () => {
   const { fake, logIn, totals, load } = harness();
   const cookie = await logIn("user-1");
 
@@ -115,6 +120,31 @@ test("a GeekyKey admin sees how many tokens each kind has", async () => {
       { kind: "E", tokens: 2 },
     ],
   });
+});
+
+test("an organizer sees how many tokens each kind has", async () => {
+  const { fake, logIn, totals } = harness();
+  fake.kinds.set("04A1B2C3D4E5F6", "E");
+
+  const res = await totals(await logIn("organizer-1"));
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { kinds: [{ kind: "E", tokens: 1 }] });
+});
+
+test("an organizer can't load, whatever they send", async () => {
+  const { fake, logIn, load } = harness();
+  const cookie = await logIn("organizer-1");
+
+  const loaded = await load({ tokens: [{ uid: "04A1B2C3D4E5F6", kind: "E" }] }, cookie);
+  assert.equal(loaded.status, 403);
+  assert.deepEqual(await loaded.json(), { error: "forbidden" });
+
+  const malformed = await load({ nonsense: true }, cookie);
+  assert.equal(malformed.status, 403);
+
+  assert.deepEqual(fake.sent, []);
+  assert.equal(fake.kinds.size, 0);
 });
 
 test("a GeekyKey admin's load says what was new and what changed kind, and logs who did it", async () => {

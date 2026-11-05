@@ -55,6 +55,7 @@ export function SessionFrame({ children }: { children: ReactNode }) {
         <AccountMenu
           userId={me.user.id}
           isGeekyKeyAdmin={me.user.is_geekykey_admin}
+          canViewTokenKinds={me.user.can_view_token_kinds}
           onSignOut={() => void chooseSignOut()}
         />
         <GuestSignOutDialog

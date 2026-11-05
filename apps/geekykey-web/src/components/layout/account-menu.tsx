@@ -16,6 +16,8 @@ interface AccountMenuProps {
   /** The user ID. The GeekyKey Service keeps no display name (agreement 8.4). */
   userId: string;
   isGeekyKeyAdmin: boolean;
+  /** A GeekyKey admin or an organizer, from /me: they get a link to Token kinds. */
+  canViewTokenKinds?: boolean;
   onSignOut: () => void;
 }
 
@@ -24,7 +26,12 @@ interface AccountMenuProps {
  * because the GeekyKey Service has no display name to show: /me returns
  * { id, is_geekykey_admin } and nothing else (agreement 8.4).
  */
-export function AccountMenu({ userId, isGeekyKeyAdmin, onSignOut }: AccountMenuProps) {
+export function AccountMenu({
+  userId,
+  isGeekyKeyAdmin,
+  canViewTokenKinds = false,
+  onSignOut,
+}: AccountMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -50,7 +57,7 @@ export function AccountMenu({ userId, isGeekyKeyAdmin, onSignOut }: AccountMenuP
             My tokens
           </Link>
         </DropdownMenuItem>
-        {isGeekyKeyAdmin ? (
+        {canViewTokenKinds ? (
           <DropdownMenuItem asChild>
             <Link to="/admin/token-kinds">
               <ListNumbers aria-hidden />

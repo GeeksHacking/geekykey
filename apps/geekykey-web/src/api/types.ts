@@ -59,7 +59,15 @@ export type MeetingStatus = (typeof MEETING_STATUSES)[number];
 /** GET /api/v1/me on the GeekyKey Service (agreement 8.4). */
 export interface MeResponse {
   /** No display name: the GeekyKey Service keeps no users. */
-  user: { id: string; is_geekykey_admin: boolean };
+  user: {
+    id: string;
+    is_geekykey_admin: boolean;
+    /**
+     * Whether they may open the token kinds screen: a GeekyKey admin or an organizer
+     * (BAC-139). A service from before it leaves it out, and has no such screen either.
+     */
+    can_view_token_kinds?: boolean;
+  };
   /** The user's tokens, oldest claim first. */
   tokens: Token[];
   /** Each Event Service with a public address, for links such as "Open Capstone Showcase". */

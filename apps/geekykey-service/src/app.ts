@@ -128,6 +128,8 @@ export function createApp(
   const deadlineMs = config.tapDeadlineMs;
   // Checked on every request by the user routes that need it.
   const geekykeyAdmins = new Set(config.geekykeyAdmins);
+  // A GeekyKey admin can always read what they load.
+  const tokenKindViewers = new Set([...config.geekykeyAdmins, ...config.tokenKindViewers]);
   app.route(
     "/api/v1/taps",
     tapsRoutes({
@@ -148,6 +150,7 @@ export function createApp(
       session: sessionCheck,
       claims,
       geekykeyAdmins,
+      tokenKindViewers,
       eventServices: config.eventServices,
       deadlineMs: claimsDeadlineMs,
     }),
@@ -171,6 +174,7 @@ export function createApp(
       session: sessionCheck,
       claims,
       geekykeyAdmins,
+      tokenKindViewers,
       deadlineMs: claimsDeadlineMs,
     }),
   );

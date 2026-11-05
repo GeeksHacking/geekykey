@@ -442,6 +442,7 @@ describe("SessionProvider", () => {
     expect(result.current.me?.user).toEqual({
       id: SEEDED_PARTICIPANT_ID,
       is_geekykey_admin: false,
+      can_view_token_kinds: false,
     });
     await act(async () => {
       await result.current.signOut();

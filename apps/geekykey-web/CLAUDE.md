@@ -82,9 +82,10 @@ hook is `src/features/token/use-meeting.ts`, and the sentences are in
 `src/features/token/meeting-notice.tsx`.
 The one GeekyKey admin screen is Token kinds, at `/admin/token-kinds` (BAC-139), in
 `src/features/token-kinds/`. A GeekyKey admin pastes the token writer's log there, and the browser
-reads it by `db:token-kinds`' rules (`read-writer-log.ts`) before anything is written. The account
-menu links to it for a GeekyKey admin only. Its two calls are ahead of the agreement's next version, so
-BAC-139's pull request lists them. FRO-21, an admin console, stays canceled.
+reads it by `db:token-kinds`' rules (`read-writer-log.ts`) before anything is written. An organizer
+on `TOKEN_KIND_VIEWERS`, in the service's settings, sees the totals and no paste box. The account
+menu links to it for whoever `/me` says can see it. Its calls are ahead of the agreement's next
+version, so BAC-139's pull request lists them. FRO-21, an admin console, stays canceled.
 
 `src/api/create-client.ts` decides which client the app runs on. A live build sends every
 method to the GeekyKey Service: the session, the token lookup, claiming and releasing

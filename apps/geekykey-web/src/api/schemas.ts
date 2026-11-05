@@ -35,7 +35,11 @@ const tokenLookupSchema: z.ZodMiniType<TokenLookup> = z.object({
 
 /** The GeekyKey Service's /me (agreement 8.4). Note: no display name and no points. */
 const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
-  user: z.object({ id: z.string(), is_geekykey_admin: z.boolean() }),
+  user: z.object({
+    id: z.string(),
+    is_geekykey_admin: z.boolean(),
+    can_view_token_kinds: z.optional(z.boolean()),
+  }),
   tokens: z.array(tokenSchema),
   events: z.array(eventServiceLinkSchema),
 });

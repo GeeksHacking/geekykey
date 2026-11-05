@@ -227,8 +227,10 @@ Event Service's key. The Event screens send the link to the Event Service's
 link's ID in `used_login_links`, so the link works once, then sets `event_session` for the same
 user. The link lasts 60 seconds, and neither service logs it.
 
-A GeekyKey admin loads token kinds with `POST /api/v1/admin/token-kinds`, and reads how many
-tokens each kind has with `GET` on the same path. The Worker passes both to the claims stand-in,
+A GeekyKey admin loads token kinds with `POST /api/v1/admin/token-kinds`. A GeekyKey admin or an
+organizer on `TOKEN_KIND_VIEWERS` reads how many tokens each kind has with `GET` on the same path.
+That list is the Worker's own setting, because it can't read an Event Service's `ORGANIZERS`.
+The Worker passes both to the claims stand-in,
 which keeps the list, so a UID never goes to an Event Service's own routes. A load takes up to
 500 tokens and removes none. The Worker writes a `token_kinds_loaded` log line for each load.
 
@@ -681,7 +683,8 @@ The comment at the top of each script in `scripts/` says what it does.
 
 A GeekyKey admin loads token kinds from a screen, at `/admin/token-kinds` on the GeekyKey
 screens. They paste the token writer's log, check what it found and press Load. The screen also
-shows how many tokens each kind has. `db:token-kinds` reads a log by the same rules. Use it to
+shows how many tokens each kind has, and organizers on `TOKEN_KIND_VIEWERS` can open it to see
+those totals. `db:token-kinds` reads a log by the same rules. Use it to
 try a log on `geekykey_dev`. Adam can also use it on production if the screen is down.
 
 ### The image

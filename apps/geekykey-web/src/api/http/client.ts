@@ -142,7 +142,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     meetToken: (uid) =>
       sendJson<unknown>(`${tokenPath(uid)}/meet`, { method: "POST" }).then(parseMeetingResponse),
 
-    // BAC-139. GeekyKey admins only, and the screen says so before it calls either.
+    // BAC-139. /me says who may call them, and the screen checks before it does.
     getTokenKinds: () => sendJson<unknown>(TOKEN_KINDS_PATH).then(parseTokenKindsResponse),
 
     loadTokenKinds: (tokens) =>

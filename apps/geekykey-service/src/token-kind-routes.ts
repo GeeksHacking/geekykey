@@ -12,6 +12,8 @@ export interface TokenKindRouteDeps {
   claims: Claims;
   /** From config.geekykeyAdmins, checked on every request. */
   geekykeyAdmins: ReadonlySet<string>;
+  /** Who may read the totals, GeekyKey admins included, checked on every request. */
+  tokenKindViewers: ReadonlySet<string>;
   /** Milliseconds the claims stand-in has to answer. */
   deadlineMs: number;
 }
@@ -45,28 +47,32 @@ const loadBody = z.object({
  * `claims_unavailable` may still have been made, and sending it again does no
  * harm.
  *
- * Only a GeekyKey admin gets in, checked before the body is read. Every request
- * counts toward the user's USER_LIMIT (src/session.ts).
+ * A GeekyKey admin does both. `tokenKindViewers`, the Event Services' organizers,
+ * only read the totals, which carry no UIDs. Who's asking is checked before the
+ * body is read. Every request counts toward the user's USER_LIMIT (src/session.ts).
  */
 export function tokenKindRoutes({
   session,
   claims,
   geekykeyAdmins,
+  tokenKindViewers,
   deadlineMs,
 }: TokenKindRouteDeps) {
-  const requireAdmin: MiddlewareHandler<SessionEnv> = async (c, next) => {
-    if (!geekykeyAdmins.has(c.var.userId)) return c.json({ error: "forbidden" }, 403);
-    return await next();
-  };
+  const requireOn =
+    (allowed: ReadonlySet<string>): MiddlewareHandler<SessionEnv> =>
+    async (c, next) => {
+      if (!allowed.has(c.var.userId)) return c.json({ error: "forbidden" }, 403);
+      return await next();
+    };
 
   return new Hono<SessionEnv>()
-    .use(requireSession(session), requireAdmin)
-    .get("/", async (c) =>
+    .use(requireSession(session))
+    .get("/", requireOn(tokenKindViewers), async (c) =>
       withClaimsDeadline(c, deadlineMs, async (signal) => {
         return c.json({ kinds: await claims.kindTotals(signal) });
       }),
     )
-    .post("/", jsonBody(loadBody), async (c) => {
+    .post("/", requireOn(geekykeyAdmins), jsonBody(loadBody), async (c) => {
       const { tokens } = c.req.valid("json");
       return await withClaimsDeadline(c, deadlineMs, async (signal) => {
         const loaded = await claims.loadKinds(tokens, signal);

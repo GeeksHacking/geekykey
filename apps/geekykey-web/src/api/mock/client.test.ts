@@ -2,7 +2,11 @@ import { describe, expect, it, onTestFinished } from "vitest";
 
 import { ApiError, AUTH_ERROR_EVENT } from "@/api/errors";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
-import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import {
+  SEEDED_ADMIN_ID,
+  SEEDED_PARTICIPANT_ID,
+  SEEDED_TOKEN_KIND_VIEWER_ID,
+} from "@/api/mock/fixtures";
 import type { ErrorCode } from "@/api/types";
 
 function setup(userId: string = SEEDED_PARTICIPANT_ID): MockApiClient {
@@ -257,7 +261,11 @@ describe("geekykey-web mock client", () => {
     it("lists the user's tokens oldest claim first, and says who they are", async () => {
       const api = setup();
       const me = await api.me();
-      expect(me.user).toEqual({ id: SEEDED_PARTICIPANT_ID, is_geekykey_admin: false });
+      expect(me.user).toEqual({
+        id: SEEDED_PARTICIPANT_ID,
+        is_geekykey_admin: false,
+        can_view_token_kinds: false,
+      });
       expect(me.tokens.map((token) => token.uid)).toEqual(["04A1B2C3D4E5F6", "04B7C9E1F3A5"]);
     });
 
@@ -536,7 +544,20 @@ describe("geekykey-web mock client", () => {
   });
 
   describe("token kinds", () => {
-    it("refuses anyone who isn't a GeekyKey admin", async () => {
+    it("lets an organiser read the totals but not load", async () => {
+      const api = setup(SEEDED_TOKEN_KIND_VIEWER_ID);
+      expect((await api.me()).user).toEqual({
+        id: SEEDED_TOKEN_KIND_VIEWER_ID,
+        is_geekykey_admin: false,
+        can_view_token_kinds: true,
+      });
+      await expect(api.getTokenKinds()).resolves.toHaveLength(3);
+      await expect(
+        api.loadTokenKinds([{ uid: "04E45150324189", kind: "E" }]),
+      ).rejects.toMatchObject({ code: "forbidden" });
+    });
+
+    it("refuses anyone on neither list", async () => {
       const api = setup();
       await expect(api.getTokenKinds()).rejects.toMatchObject({ code: "forbidden" });
       await expect(

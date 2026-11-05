@@ -42,10 +42,13 @@ export interface MockData {
    * to the Event screens.
    */
   admins: string[];
+  /** Who else may read the token kinds' totals: the Event Services' organizers. */
+  token_kind_viewers: string[];
 }
 
 export const SEEDED_PARTICIPANT_ID = "dev-user-1";
 export const SEEDED_ADMIN_ID = "dev-organizer-1";
+export const SEEDED_TOKEN_KIND_VIEWER_ID = "dev-organizer-2";
 
 /** The showcase, the one Event Service in the settings. */
 const SHOWCASE_ID = "showcase";
@@ -112,5 +115,11 @@ export function createFixtures(now: number = Date.now()): MockData {
     { uid: "04E5F7091B3D", kind: "E" },
   ];
 
-  return { event_services, tokens, token_kinds, admins: [SEEDED_ADMIN_ID] };
+  return {
+    event_services,
+    tokens,
+    token_kinds,
+    admins: [SEEDED_ADMIN_ID],
+    token_kind_viewers: [SEEDED_TOKEN_KIND_VIEWER_ID],
+  };
 }

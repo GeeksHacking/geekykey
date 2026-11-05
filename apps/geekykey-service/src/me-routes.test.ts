@@ -21,7 +21,12 @@ const google = await fakeGoogle(env.FIREBASE_PROJECT_ID);
  * then ask for /me with the cookie, as a browser would.
  */
 function harness(changes: Record<string, unknown> = {}, { claimsDeadlineMs = 4000 } = {}) {
-  const config = loadConfig({ ...env, GEEKYKEY_ADMINS: ["admin-1"], ...changes });
+  const config = loadConfig({
+    ...env,
+    GEEKYKEY_ADMINS: ["admin-1"],
+    TOKEN_KIND_VIEWERS: ["organizer-1"],
+    ...changes,
+  });
   const fake = fakeServices(config);
   const app = createApp(config, {
     send: fake.send,
@@ -66,7 +71,7 @@ test("a user gets their ID, their tokens oldest claim first, and the showcase to
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("Cache-Control"), "no-store");
   assert.deepEqual(await res.json(), {
-    user: { id: "firebase-uid-1", is_geekykey_admin: false },
+    user: { id: "firebase-uid-1", is_geekykey_admin: false, can_view_token_kinds: false },
     tokens: [
       { uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:00:00.000Z" },
       { uid: "DEADBEEF", claimed_at: "2026-11-18T05:30:00.000Z" },
@@ -93,7 +98,21 @@ test("a user on GEEKYKEY_ADMINS is a GeekyKey admin", async () => {
   const res = await me(await logIn("admin-1"));
   assert.equal(res.status, 200);
   const { user } = (await res.json()) as { user: unknown };
-  assert.deepEqual(user, { id: "admin-1", is_geekykey_admin: true });
+  assert.deepEqual(user, { id: "admin-1", is_geekykey_admin: true, can_view_token_kinds: true });
+});
+
+test("/me says an organizer can see the token kinds, and isn't a GeekyKey admin", async () => {
+  const { logIn, me } = harness();
+
+  const res = await me(await logIn("organizer-1"));
+
+  assert.equal(res.status, 200);
+  const { user } = (await res.json()) as { user: unknown };
+  assert.deepEqual(user, {
+    id: "organizer-1",
+    is_geekykey_admin: false,
+    can_view_token_kinds: true,
+  });
 });
 
 test("a guest gets their ID and the tokens claimed for it, like any other user", async () => {
@@ -104,7 +123,11 @@ test("a guest gets their ID and the tokens claimed for it, like any other user",
   const res = await me(await logIn("firebase-guest-1", { guest: true }));
   assert.equal(res.status, 200);
   const { user, tokens } = (await res.json()) as { user: unknown; tokens: unknown };
-  assert.deepEqual(user, { id: "firebase-guest-1", is_geekykey_admin: false });
+  assert.deepEqual(user, {
+    id: "firebase-guest-1",
+    is_geekykey_admin: false,
+    can_view_token_kinds: false,
+  });
   assert.deepEqual(tokens, [{ uid: "04A1B2C3D4E5F6", claimed_at: "2026-11-18T05:00:00.000Z" }]);
 });
 

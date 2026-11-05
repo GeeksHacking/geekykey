@@ -117,9 +117,14 @@ describe("AccountMenu", () => {
     expect(screen.getByText("GeekyKey admin")).toBeInTheDocument();
   });
 
-  it("offers a GeekyKey admin the token kinds screen", async () => {
+  it("offers the token kinds screen to someone who can see it", async () => {
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_ADMIN_ID}
+        isGeekyKeyAdmin={false}
+        canViewTokenKinds
+        onSignOut={() => {}}
+      />,
     );
 
     await openMenu(user);
@@ -129,7 +134,7 @@ describe("AccountMenu", () => {
     );
   });
 
-  it("doesn't offer the token kinds screen to a participant", async () => {
+  it("doesn't offer the token kinds screen to anyone else", async () => {
     const { user } = await renderMenu(
       <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
     );

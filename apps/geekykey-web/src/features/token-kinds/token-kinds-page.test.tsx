@@ -13,7 +13,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
-import { createFixtures, SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import {
+  createFixtures,
+  SEEDED_ADMIN_ID,
+  SEEDED_PARTICIPANT_ID,
+  SEEDED_TOKEN_KIND_VIEWER_ID,
+} from "@/api/mock/fixtures";
 import { ApiProvider } from "@/api/provider";
 import { RequireSession } from "@/features/auth/require-session";
 import { TokenKindsPage } from "@/features/token-kinds/token-kinds-page";
@@ -94,16 +99,38 @@ function loadLines(count: number) {
 }
 
 describe("who can open it", () => {
-  it("refuses someone who isn't a GeekyKey admin, and calls nothing", async () => {
+  it("refuses someone on neither list, and calls nothing", async () => {
     const getTokenKinds = vi.spyOn(api, "getTokenKinds");
 
     await renderPage(SEEDED_PARTICIPANT_ID);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Only GeekyKey admins can load token kinds.",
+      "Only GeekyKey admins and organisers can see token kinds.",
     );
     expect(screen.queryByLabelText("Token writer's log")).not.toBeInTheDocument();
     expect(getTokenKinds).not.toHaveBeenCalled();
+  });
+
+  it("shows an organiser the totals, with no way to load", async () => {
+    const loadTokenKinds = vi.spyOn(api, "loadTokenKinds");
+
+    await renderPage(SEEDED_TOKEN_KIND_VIEWER_ID);
+
+    const list = await screen.findByRole("region", { name: "On the list" });
+    await waitFor(() => expect(totalIn(list, "E")).toBe("2"));
+    expect(totalIn(list, "B")).toBe("1");
+    expect(screen.queryByLabelText("Token writer's log")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load" })).not.toBeInTheDocument();
+    expect(loadTokenKinds).not.toHaveBeenCalled();
+  });
+
+  it("doesn't tell an organiser to paste a log when the list is empty", async () => {
+    api.mock.data.token_kinds.length = 0;
+
+    await renderPage(SEEDED_TOKEN_KIND_VIEWER_ID);
+
+    expect(await screen.findByText(/A GeekyKey admin loads them/)).toBeInTheDocument();
+    expect(screen.queryByText(/Paste the token writer's log/)).not.toBeInTheDocument();
   });
 
   it("says so when the service refuses someone it no longer lists", async () => {

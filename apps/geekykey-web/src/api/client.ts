@@ -81,8 +81,8 @@ export interface ApiClient {
   meetToken(uid: string): Promise<Meeting[]>;
 
   /**
-   * GET /api/v1/admin/token-kinds, GeekyKey admins only (BAC-139). How many tokens each
-   * kind has on the list, by kind in order.
+   * GET /api/v1/admin/token-kinds, GeekyKey admins and organizers (BAC-139). How many
+   * tokens each kind has on the list, by kind in order.
    */
   getTokenKinds(): Promise<TokenKindTotal[]>;
 

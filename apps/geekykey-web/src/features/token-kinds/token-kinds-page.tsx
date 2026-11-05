@@ -53,24 +53,24 @@ const mayHaveLoaded = (error: unknown) => !isApiError(error) || error.status >= 
  * organizer's, because a kind belongs to the token across events (ADR 0006) and the log
  * is full of UIDs, which an Event Service never sees (agreement 11.8).
  *
- * Someone who isn't a GeekyKey admin gets a refusal and no calls. The service refuses
- * them as well, so this is only what they see.
+ * An organizer sees the totals, which carry no UIDs, and can't load. Anyone else gets a
+ * refusal and no calls. The service refuses them as well, so this is only what they see.
  */
 export function TokenKindsPage() {
   const { me } = useMe();
   return (
     <main className="flex flex-col">
       <h1 className="text-3xl font-semibold tracking-heading">Token kinds</h1>
-      {me.user.is_geekykey_admin ? (
+      {me.user.can_view_token_kinds ? (
         <>
-          <ListTotals />
-          <LoadForm />
+          <ListTotals canLoad={me.user.is_geekykey_admin} />
+          {me.user.is_geekykey_admin ? <LoadForm /> : null}
         </>
       ) : (
         <div className="mt-6">
           <ErrorState
             error={null}
-            title="Only GeekyKey admins can load token kinds."
+            title="Only GeekyKey admins and organisers can see token kinds."
             description={null}
           />
         </div>
@@ -80,7 +80,7 @@ export function TokenKindsPage() {
 }
 
 /** The list as it stands, when the screen opens and again after each load. */
-function ListTotals() {
+function ListTotals({ canLoad }: { canLoad: boolean }) {
   const totals = useTokenKinds();
 
   let body: ReactNode;
@@ -96,7 +96,10 @@ function ListTotals() {
   } else if (totals.data.length === 0) {
     body = (
       <p className="text-base text-muted-foreground">
-        No tokens on the list yet. Paste the token writer's log below to load some.
+        No tokens on the list yet.{" "}
+        {canLoad
+          ? "Paste the token writer's log below to load some."
+          : "A GeekyKey admin loads them from the token writer's log."}
       </p>
     );
   } else {

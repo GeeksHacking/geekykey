@@ -131,6 +131,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return userId !== null && userId !== undefined && data.admins.includes(userId);
   }
 
+  function canViewTokenKinds(userId: string): boolean {
+    return isAdmin(userId) || data.token_kind_viewers.includes(userId);
+  }
+
   function tokenByUid(uid: string): MockToken | undefined {
     return data.tokens.find((token) => token.uid === uid);
   }
@@ -172,7 +176,11 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call((): MeResponse => {
         const userId = currentUserId();
         return {
-          user: { id: userId, is_geekykey_admin: isAdmin(userId) },
+          user: {
+            id: userId,
+            is_geekykey_admin: isAdmin(userId),
+            can_view_token_kinds: canViewTokenKinds(userId),
+          },
           tokens: ownedTokens(userId).map(toToken),
           events: events(),
         };
@@ -298,10 +306,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           .map((service) => ({ event_id: service.id, status: meetingStatus }));
       }),
 
-    // BAC-139. GeekyKey admins only, and the service's counts, by kind in order.
+    // BAC-139. GeekyKey admins and organizers, and the service's counts, by kind in order.
     getTokenKinds: () =>
       call((): TokenKindTotal[] => {
-        if (!isAdmin(currentUserId())) fail("forbidden");
+        if (!canViewTokenKinds(currentUserId())) fail("forbidden");
         const counts = new Map<string, number>();
         for (const { kind } of data.token_kinds) counts.set(kind, (counts.get(kind) ?? 0) + 1);
         return [...counts]
