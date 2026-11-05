@@ -10,8 +10,17 @@ import { SplitGroupsForm } from "@/features/groups/split-groups-form";
  * press. The service refuses while any group exists, so it can't overwrite a live board, and the
  * refusal shows in the dialog. The dialog covers Allocate and Reset while a split is sent, and
  * `disabled` covers the other way, so the boards they answer with can't arrive out of order.
+ * `joined` and `groupsExist` come from the screen's poll, which keeps running behind the dialog.
  */
-export function SplitGroupsDialog({ disabled }: { disabled: boolean }) {
+export function SplitGroupsDialog({
+  disabled,
+  joined,
+  groupsExist,
+}: {
+  disabled: boolean;
+  joined: number;
+  groupsExist: boolean;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -22,7 +31,7 @@ export function SplitGroupsDialog({ disabled }: { disabled: boolean }) {
       </DialogTrigger>
       <DialogContent>
         <CornerBrackets />
-        <SplitGroupsForm onSplit={() => setOpen(false)} />
+        <SplitGroupsForm joined={joined} groupsExist={groupsExist} onSplit={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );

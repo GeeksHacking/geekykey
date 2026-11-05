@@ -23,7 +23,7 @@ GeekyKey's token has no part in this today. Mr Tan's brief doesn't give it one.
 
 Organizers get a Groups screen in the existing organizer console. They create groups, each with a name, tags, a location and an optional capacity. When they're ready, they press Allocate, and the app splits everyone who has joined into those groups at random. From then on, each latecomer goes straight into the smallest group with room. Organizers can move or remove anyone by hand.
 
-There's also a shortcut, which Adam suggested to the team on 5 Nov (BAC-138). Once people have joined, an organizer opens a form on the Groups screen and enters the number of groups, the people per group and a location for each group. One press makes the groups and allocates everyone who has joined. It works only while there are no groups.
+There's also a shortcut, which Adam suggested to the team on 5 Nov (BAC-138, BAC-141). Once people have joined, an organizer opens a form on the Groups screen and enters the people per group and a location for each group. The service works out the number of groups from how many people have joined, and the form shows the result before anyone presses Split. One press makes the groups and allocates everyone who has joined. It works only while there are no groups.
 
 A participant taps their token with their phone and presses the event's button on the token page, as they do today. That logs them in to the event and joins them. The dashboard then shows that they're waiting, and after allocation shows their group, its location and the other members' names.
 
@@ -99,11 +99,12 @@ Participants:
 51. As a participant, I want to see only my own group's members, so that the screen stays simple and other people's details stay private.
 52. As an organizer account, I want to be kept out of allocation, so that staff don't take up a participant's place.
 
-The shortcut (BAC-138):
+The shortcut (BAC-138, BAC-141):
 
-53. As an organizer, I want to enter a number of groups, the people per group and a location for each group, and have the groups made and filled in one press, so that splitting a room takes one form.
+53. As an organizer, I want to enter only the people per group and a location for each group, and have the groups worked out, made and filled in one press, so that splitting a room takes one form.
 54. As an organizer, I want the shortcut refused while any group exists, so that it can't overwrite a live board.
 55. As an organizer, I want a refused shortcut to leave nothing behind, so that I can send the same form again once enough people have joined.
+56. As an organizer, I want the form to show how many have joined and the groups a press would make, updating as people join, so that I can see when I'm pressing too early.
 
 Connections across groups (BAC-140):
 
@@ -136,15 +137,18 @@ Connections across groups (BAC-140):
 
 ### The shortcut
 
-Adam agreed these rules on 5 Nov (BAC-138).
+Adam agreed these rules on 5 Nov (BAC-138, BAC-141).
 
-- The form takes the number of groups and the people per group, each a whole number above 0, and an optional location for each group, which follows a group's location rule.
+- The form takes the people per group, a whole number of 2 or more, and an optional location for each group, which follows a group's location rule. Entering 1 would only make pairs marked Over capacity.
+- The organizer doesn't enter the number of groups. The service works it out as `min(ceil(joined / people per group), floor(joined / 2))`, and leaves organizer accounts out of the count, as it does from placement. Rounding up means a split puts nobody over the number entered. The `floor(joined / 2)` cap stops anyone being alone in a group when the organizer enters 2 and an odd number of people has joined.
+- Before anyone presses Split, the form shows how many have joined and the groups a press would make, for example "12 have joined. This makes 3 groups of 4." The line updates as people join. While there are groups already, it says only how many have joined, because a press would make none.
+- The form draws one location field for each group its line shows, up to 30, so a big room split into pairs doesn't draw hundreds of fields. A group with no location field gets none, which also happens when the count changes before the press, and an organizer sets it from the group's menu. The service leaves any extra locations unused rather than refusing them, though each must still follow the location rule.
 - It makes the groups named "Group 1", "Group 2" and so on, oldest first in that order. Each has the people per group as its capacity and no tags.
-- It then allocates by the placement rules above, so 5 joined in 2 groups of 2 gives sizes 3 and 2, and the board shows the first over capacity.
+- It then allocates by the placement rules above. So 5 joined at 2 per group gives sizes 3 and 2, and 3 joined at 2 per group gives one group of 3. The board shows each of those over capacity.
 - The service refuses it while any group exists, and makes nothing. Changing the numbers between trials means deleting the groups first, because Reset keeps them.
-- The service also refuses it, making nothing, when fewer than 2 have joined for each group, with Allocate's `too_few_participants`. So people join before anyone uses it. The dialog's sentence ends "then press Split again", since pressing Allocate after a refused split would find no groups.
-- The service does the whole step in one transaction under the allocation lock. A refusal leaves nothing behind, so a retry can't fail on group names that already exist. Of two organizers pressing at once, the second finds the first's groups and is refused.
-- The screen shows locations for up to 30 groups. The rest get theirs from each group's menu afterwards, so a mistyped large number doesn't draw hundreds of fields.
+- The service also refuses it, making nothing, when fewer than 2 have joined, with Allocate's `too_few_participants` and `needed`. The dialog's sentence ends "then press Split again", since pressing Allocate after a refused split would find no groups.
+- The service does the whole step in one transaction under the allocation lock, and counts the joined people inside it. A refusal leaves nothing behind, so a retry can't fail on group names that already exist. Of two organizers pressing at once, the second finds the first's groups and is refused.
+- The latecomer rule doesn't change. A latecomer goes to the smallest group with room, or the smallest group when all are full, and never starts a new group. If a crowd arrives after a split, an organizer adds a group by hand, and the next latecomers fill it.
 
 ### Connections across groups
 
@@ -189,7 +193,7 @@ Organizer:
 - `PUT /api/v1/admin/groups/members/{user_id}` takes `{ "group_id": string | null }`, where null means waiting, and adds the user if they haven't joined. It answers `404 not_found` when the group or the user doesn't exist.
 - `DELETE /api/v1/admin/groups/members/{user_id}` removes them. They can join again.
 - `POST /api/v1/admin/groups/reset` empties the members and un-starts allocation, and keeps the groups.
-- `POST /api/v1/admin/groups/split` takes `{ "group_count": integer, "people_per_group": integer, "locations"?: (string | null)[] }`, with at most one location for each group, and a missing or blank one as none. It makes the groups and allocates, and answers `201` with the board. It answers `409 groups_exist` while any group exists, or `409 too_few_participants` with `needed`, and makes nothing either way.
+- `POST /api/v1/admin/groups/split` takes `{ "people_per_group": integer, "locations"?: (string | null)[] }`, with `people_per_group` at least 2. A missing or blank location is none. Each must follow the location rule, and any past the last group goes unused. It works out the number of groups, makes them and allocates, and answers `201` with the board. It answers `409 groups_exist` while any group exists, or `409 too_few_participants` with `needed` when fewer than 2 have joined, and makes nothing either way.
 - `GET /api/v1/admin/groups/export.csv` gives each member's group, join time, placed time and how they were placed.
 
 - `PUT /api/v1/admin/connections/rule` takes `{ "connect_across": "token_kinds" | "groups" }` and answers 200 with it (BAC-140). The board gains `connect_across`.
@@ -226,11 +230,14 @@ The backend tests cover the brief's scenarios:
 | Allocate again | After deleting a group | Its members placed, others unmoved |
 | Rush | 20 joins at once after allocation, 3 groups with capacity 5 | Nobody in two groups, nobody waiting, sizes 7, 7, 6 |
 | Reset | After allocation | Groups kept, nobody joined, status `not_joined` |
-| Shortcut, even | 4 people, 2 groups of 2 | "Group 1" and "Group 2", sizes 2, 2 |
-| Shortcut, over capacity | 5 people, 2 groups of 2 | Sizes 3, 2, the first over capacity |
-| Shortcut, too few | 3 people, 2 groups | `409 too_few_participants`, `needed` 1, no groups; the same form works after a fourth joins |
+| Shortcut, even | 4 people, 2 per group | "Group 1" and "Group 2", sizes 2, 2 |
+| Shortcut, over capacity | 5 people, 2 per group | Sizes 3, 2, the first over capacity |
+| Shortcut, nobody alone | 3 people, 2 per group | One group of 3, over capacity |
+| Shortcut, rounded up | 7 people, 3 per group; 13 people, 4 per group | Sizes 3, 2, 2; sizes 4, 3, 3, 3 |
+| Shortcut, too few | 1 person, 2 per group | `409 too_few_participants`, `needed` 1, no groups; the same form works after a second joins |
 | Shortcut, groups there | 1 group, 6 people | `409 groups_exist`, nothing made or placed |
 | Shortcut, at once | Two presses on two instances | One `201`, one `409 groups_exist`, one set of groups |
+| Shortcut, organizer | An organizer account with a joined row, 3 people, 3 per group | One group of 3 |
 | Across groups | Two people in different groups, tokens with no kind | Connected, and `/me` lists it with `kind` null |
 | Across groups, same group | Two people in one group, different kinds | `same_group`, no connection |
 | Across groups, no group | One person waiting or not joined | `no_group`, no half kept |

@@ -94,9 +94,9 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     );
   });
 
-  it("splits with the form's numbers and locations, and keeps its refusals", async () => {
+  it("splits with the form's people per group and locations, and keeps its refusals", async () => {
     const api = createHttpClient();
-    const input = { group_count: 2, people_per_group: 3, locations: ["Hall", null] };
+    const input = { people_per_group: 3, locations: ["Hall", null] };
 
     fetchMock.mockResolvedValueOnce(response(board, 201));
     await expect(api.splitGroups(input)).resolves.toEqual(board);

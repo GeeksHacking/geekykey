@@ -1029,11 +1029,7 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     await expectApiError(api.groupBoard(), "forbidden", 403);
     await expectApiError(api.createGroup({ name: "Mine" }), "forbidden", 403);
     await expectApiError(api.allocateGroups(), "forbidden", 403);
-    await expectApiError(
-      api.splitGroups({ group_count: 2, people_per_group: 2 }),
-      "forbidden",
-      403,
-    );
+    await expectApiError(api.splitGroups({ people_per_group: 2 }), "forbidden", 403);
   });
 
   it("starts connecting across token kinds, and only an organizer changes it (BAC-140)", async () => {
@@ -1207,15 +1203,15 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     expect(board.groups.map((group) => group.members.length)).toEqual([3, 2]);
   });
 
-  it("splits into numbered groups with the form's capacity and locations, and places everyone", async () => {
+  it("splits into numbered groups worked out from who has joined, with the form's capacity and locations, and places everyone", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     api.mock.data.groups = [];
 
+    // 5 have joined, and the third location has no group.
     const board = await api.splitGroups({
-      group_count: 2,
       people_per_group: 2,
-      locations: [" Hall ", ""],
+      locations: [" Hall ", "", "Lobby"],
     });
 
     expect(board.groups.map(({ name, capacity, location }) => [name, capacity, location])).toEqual([
@@ -1227,30 +1223,19 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     expect(board.allocation_started_at).not.toBeNull();
   });
 
-  it("refuses a split with groups there, then with too few joined, and makes nothing", async () => {
+  it("refuses a split with groups there, with too few joined, or below 2 per group, and makes nothing", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
 
-    await expectApiError(
-      api.splitGroups({ group_count: 3, people_per_group: 2 }),
-      "groups_exist",
-      409,
-    );
+    await expectApiError(api.splitGroups({ people_per_group: 2 }), "groups_exist", 409);
     api.mock.data.groups = [];
+    await expectApiError(api.splitGroups({ people_per_group: 1 }), "validation_failed", 400);
+    await expectApiError(api.splitGroups({ people_per_group: 2.5 }), "validation_failed", 400);
+    api.mock.data.groupMembers = api.mock.data.groupMembers.slice(0, 1);
     const tooFew = await api
-      .splitGroups({ group_count: 3, people_per_group: 2 })
+      .splitGroups({ people_per_group: 2 })
       .catch((error: unknown) => error as ApiError);
     expect(tooFew).toMatchObject({ code: "too_few_participants", needed: 1 });
-    await expectApiError(
-      api.splitGroups({ group_count: 0, people_per_group: 2 }),
-      "validation_failed",
-      400,
-    );
-    await expectApiError(
-      api.splitGroups({ group_count: 1, people_per_group: 2, locations: ["Hall", "Lobby"] }),
-      "validation_failed",
-      400,
-    );
     expect(api.mock.data.groups).toEqual([]);
     expect(api.mock.data.groupAllocationStartedAt).toBeNull();
   });
