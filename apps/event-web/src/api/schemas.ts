@@ -187,11 +187,16 @@ export const fallbackTapResponseSchema: z.ZodMiniType<FallbackTapResponse> = z.o
  * one-off removals (API-AGREEMENT.md:58-61), and the backend stopped sending
  * them at checkpoint 3. A user's tokens are on the GeekyKey Service's /me
  * (API-AGREEMENT.md:8.4), which is a different service and a different session.
+ *
+ * `tapped_you` is a draft for the agreement's next version (FRO-116): the number of people
+ * waiting for a return tap. It reads a missing field as 0, so a screens build can run against
+ * a service that hasn't shipped it yet.
  */
 export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   user: userSchema,
   questions: z.nullable(z.array(questionSchema)),
   points: z.int().check(z.nonnegative()),
+  tapped_you: z.prefault(z.int().check(z.nonnegative()), 0),
   stamps: z.array(stampSchema),
   recent_taps: z.array(meTapSchema),
   connections: z.array(connectionSchema),

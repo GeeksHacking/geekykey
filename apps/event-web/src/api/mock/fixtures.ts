@@ -18,6 +18,11 @@ export interface MockUser {
   display_name: string | null;
   role: Role;
   has_name: boolean;
+  /**
+   * How many people are waiting for this user to tap back, for the mock's /me (agreement 8.1,
+   * a draft for the next version). Absent reads as 0.
+   */
+  tapped_you?: number;
   answers?: Record<string, string>;
   /**
    * Newest first. `shared` holds what the pair share from the start, and the mock's /me hides it
@@ -194,6 +199,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       display_name: "Alex Tan",
       role: "participant",
       has_name: true,
+      tapped_you: 1,
       answers: {
         drink: "tea",
         hours: "night_owl",

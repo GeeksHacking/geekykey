@@ -1398,3 +1398,17 @@ describe("mock groups export", () => {
     expect((await groupExportLines(api)).join("\n")).toContain('u_7f3a,"Chong, Wei Lin",');
   });
 });
+
+describe("the count of taps waiting for you (FRO-116)", () => {
+  it("gives the seeded participant 1, so the line shows in pnpm dev", async () => {
+    const api = client();
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    await expect(api.me()).resolves.toMatchObject({ tapped_you: 1 });
+  });
+
+  it("gives 0 when nobody is waiting for the user", async () => {
+    const api = client();
+    api.mock.setSession(SEEDED_GUEST_ID);
+    await expect(api.me()).resolves.toMatchObject({ tapped_you: 0 });
+  });
+});
