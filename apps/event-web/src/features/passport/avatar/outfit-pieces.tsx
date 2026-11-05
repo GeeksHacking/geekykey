@@ -29,7 +29,7 @@ interface OutfitPiecesProps {
 }
 
 /**
- * The six piece icons, and under them the caption that replaced the points and stamp count
+ * The four piece icons, and under them the caption that replaced the points and stamp count
  * (FRO-105). A piece not yet worn shows as a grey shape, and says so to a screen reader. The
  * `data-changed` marks are the dashboard's usual ones (use-passport-changes.ts): a phone pops
  * the new piece's icon, and a desktop counts the points up.
@@ -41,7 +41,7 @@ export function OutfitPieces({ outfit, points, arriving, pointsRose }: OutfitPie
         {outfit.slots.map((slot) => (
           <li
             key={slot.piece.key}
-            title={`${slot.piece.label}, from ${slot.stamp.name}`}
+            title={slot.piece.label}
             data-changed={arriving.includes(slot.piece.key) ? "piece" : undefined}
             className="flex flex-col items-center gap-1.5 phone-change:animate-in phone-change:zoom-in-50 phone-change:duration-200"
           >
@@ -54,7 +54,7 @@ export function OutfitPieces({ outfit, points, arriving, pointsRose }: OutfitPie
               )}
             />
             <span className="sr-only">
-              {slot.piece.label}, from {slot.stamp.name}: {slot.worn ? "wearing" : "not yet"}
+              {slot.piece.label}: {slot.worn ? "wearing" : "not yet"}
             </span>
           </li>
         ))}

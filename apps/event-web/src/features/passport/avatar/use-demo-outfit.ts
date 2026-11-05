@@ -6,18 +6,18 @@ import type { PieceKey } from "@/features/passport/avatar/art";
 const ARRIVING_LASTS_MS = 2_000;
 
 export interface DemoOutfit {
-  /** The pieces put on by hand, or `null` while the avatar follows the stamps. */
+  /** The pieces put on by hand, or `null` while the avatar follows the connections. */
   on: readonly PieceKey[] | null;
-  /** The piece just put on, which flies in as a new stamp's does. */
+  /** The piece just put on, which flies in as a new connection's does. */
   arriving: readonly PieceKey[];
   toggle: (key: PieceKey) => void;
   reset: () => void;
 }
 
 /*
-  The demo toggle (FRO-105), for showing the avatar at the meeting on Thu 5 Nov without tapping
-  a station for each piece. Organizers only. It stays in this browser tab: nothing is saved or
-  sent, and reloading the page goes back to the stamps.
+  The demo toggle (FRO-105), for showing the avatar without making a connection for each piece.
+  Organizers only. It stays in this browser tab: nothing is saved or sent, and reloading the
+  page goes back to the connections.
 */
 export function useDemoOutfit(): DemoOutfit {
   const [on, setOn] = useState<readonly PieceKey[] | null>(null);

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
-import type { MeResponse, Stamp } from "@/api/types";
+import type { Connection, MeResponse, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { PassportScreen } from "@/features/passport/passport-screen";
 import { createTestProviders } from "@/test/providers";
@@ -42,6 +42,30 @@ const lounge: Stamp = {
 };
 
 const before = makeMe({ points: 2, stamps: [printing, lounge] });
+
+const met: Connection = {
+  connected_at: "2026-11-17T02:40:00.000Z",
+  kind: "B",
+  match: 60,
+  shared: null,
+  shared_at: "2026-11-17T02:45:00.000Z",
+};
+
+function connections(count: number): Connection[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...met,
+    connected_at: `2026-11-17T02:${String(40 + index).padStart(2, "0")}:00.000Z`,
+    shared_at: `2026-11-17T02:${String(45 + index).padStart(2, "0")}:00.000Z`,
+  }));
+}
+
+const withConnection: MeResponse = { ...before, points: 3, connections: [met] };
+const withFourConnections: MeResponse = { ...before, points: 6, connections: connections(4) };
+const afterFifthConnection: MeResponse = {
+  ...withFourConnections,
+  points: 7,
+  connections: connections(5),
+};
 
 const afterPrinting: MeResponse = {
   ...before,
@@ -114,6 +138,7 @@ function changed() {
 
 beforeEach(() => {
   state.me = before;
+  localStorage.clear();
 });
 
 describe("the passport marks what a poll changed", () => {
@@ -246,25 +271,54 @@ describe("the passport offers the new stamp's group page", () => {
 });
 
 describe("the dashboard marks what a poll changed", () => {
-  it("marks the points and the piece the new stamp gave", () => {
+  it("marks the points, and not a piece, when a stamp fills", () => {
     const { poll } = renderScreen(DashboardScreen);
     expect(changed()).toEqual([]);
 
     poll(afterPrinting);
 
+    expect(changed().map((element) => element.getAttribute("data-changed"))).toEqual(["points"]);
     const avatar = screen.getByRole("region", { name: "Your avatar" });
     expect(within(avatar).getByText("5")).toHaveAttribute("data-changed", "points");
+  });
+
+  it("marks the piece a new connection gave, and the point", () => {
+    const { poll } = renderScreen(DashboardScreen);
+    expect(changed()).toEqual([]);
+
+    poll(withConnection);
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(within(avatar).getByText("3")).toHaveAttribute("data-changed", "points");
     const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
-    expect(
-      within(pieces)
-        .getByText(/from 3D Printing Booth/)
-        .closest("li"),
-    ).toHaveAttribute("data-changed", "piece");
-    expect(
-      within(pieces)
-        .getByText(/from Hardware Lounge/)
-        .closest("li"),
-    ).not.toHaveAttribute("data-changed");
+    expect(within(pieces).getByText("Hat: wearing").closest("li")).toHaveAttribute(
+      "data-changed",
+      "piece",
+    );
+    expect(within(pieces).getByText("Monocle: not yet").closest("li")).not.toHaveAttribute(
+      "data-changed",
+    );
+  });
+
+  it("marks nothing for a fifth connection, though the points still rise", () => {
+    state.me = withFourConnections;
+    const { poll } = renderScreen(DashboardScreen);
+    expect(changed()).toEqual([]);
+
+    poll(afterFifthConnection);
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("4 of 4 pieces · 7 points");
+    expect(changed().map((element) => element.getAttribute("data-changed"))).toEqual(["points"]);
+  });
+
+  it("marks nothing on the first read, as after a login link", () => {
+    state.me = withConnection;
+    renderScreen(DashboardScreen);
+
+    expect(changed()).toEqual([]);
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("1 of 4 pieces · 3 points");
   });
 
   it("marks nothing on a poll that changed nothing", () => {

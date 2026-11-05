@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
-import type { MeResponse, Stamp } from "@/api/types";
+import type { Connection, MeResponse, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { makeMe } from "@/test/make-me";
@@ -124,7 +124,28 @@ const robotics: Stamp = {
   earned_at: null,
 };
 
-const dressing: MeResponse = { ...baseMe, points: 5, stamps: [cloud, robotics] };
+const met: Connection = {
+  connected_at: "2026-11-12T08:20:00.000Z",
+  kind: "B",
+  match: 60,
+  shared: null,
+  shared_at: "2026-11-12T08:22:00.000Z",
+};
+
+function connections(count: number): Connection[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...met,
+    connected_at: `2026-11-12T08:${String(20 + index).padStart(2, "0")}:00.000Z`,
+    shared_at: `2026-11-12T08:${String(22 + index).padStart(2, "0")}:00.000Z`,
+  }));
+}
+
+const dressing: MeResponse = {
+  ...baseMe,
+  points: 5,
+  stamps: [cloud, robotics],
+  connections: [met],
+};
 
 describe("DashboardScreen's avatar", () => {
   beforeEach(() => localStorage.clear());
@@ -136,9 +157,29 @@ describe("DashboardScreen's avatar", () => {
     const avatar = screen.getByRole("region", { name: "Your avatar" });
     expect(within(avatar).getByRole("heading", { level: 1, name: "Alex Tan" })).toBeInTheDocument();
     const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
-    expect(within(pieces).getByText("Hat, from Cloud Sponsor: wearing")).toBeInTheDocument();
-    expect(within(pieces).getByText("Monocle, from Robotics Club: not yet")).toBeInTheDocument();
-    expect(avatar).toHaveTextContent("1 of 2 pieces · 5 points");
+    expect(within(pieces).getByText("Hat: wearing")).toBeInTheDocument();
+    expect(within(pieces).getByText("Monocle: not yet")).toBeInTheDocument();
+    expect(avatar).toHaveTextContent("1 of 4 pieces · 5 points");
+  });
+
+  it("gives a guest with no connections four empty pieces and a count of 0", () => {
+    state.me = makeMe({ points: 0 });
+    renderDashboard();
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("0 of 4 pieces · 0 points");
+    expect(within(avatar).getByText("Hat: not yet")).toBeInTheDocument();
+    expect(within(avatar).getByText("Glass: not yet")).toBeInTheDocument();
+  });
+
+  it("stays at four pieces after more connections, and still shows the points", () => {
+    state.me = makeMe({ points: 12, connections: connections(5) });
+    renderDashboard();
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("4 of 4 pieces · 12 points");
+    expect(within(avatar).getByText("Hat: wearing")).toBeInTheDocument();
+    expect(within(avatar).getByText("Glass: wearing")).toBeInTheDocument();
   });
 
   it("says the picture can be added as a sticker in WhatsApp", () => {
@@ -188,8 +229,8 @@ describe("DashboardScreen's avatar", () => {
     expect(within(look).getByRole("radio", { name: "Emerald" })).toBeChecked();
     await user.keyboard("{Escape}");
     const pieces = screen.getByRole("list", { name: "Your outfit" });
-    expect(within(pieces).getByText("Feather, from Cloud Sponsor: wearing")).toBeInTheDocument();
-    expect(within(pieces).getByText("Pearls, from Robotics Club: not yet")).toBeInTheDocument();
+    expect(within(pieces).getByText("Feather: wearing")).toBeInTheDocument();
+    expect(within(pieces).getByText("Pearls: not yet")).toBeInTheDocument();
   });
 
   it("doesn't offer the demo toggle to a participant", () => {
@@ -199,7 +240,7 @@ describe("DashboardScreen's avatar", () => {
     expect(screen.queryByRole("region", { name: "Demo" })).not.toBeInTheDocument();
   });
 
-  it("lets an organizer put every piece on and take it off, then go back to the stamps", async () => {
+  it("lets an organizer put every piece on and take it off, then go back to the connections", async () => {
     const user = userEvent.setup();
     state.me = { ...dressing, user: { ...dressing.user, role: "organizer" } };
     renderDashboard();
@@ -213,17 +254,17 @@ describe("DashboardScreen's avatar", () => {
       "true",
     );
     const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
-    expect(within(pieces).getByText("Monocle, from Robotics Club: wearing")).toBeInTheDocument();
-    // The demo shows every piece, even past the event's two stamp slots, and ignores the stamps.
-    expect(within(pieces).getByText("Hat, from Cloud Sponsor: not yet")).toBeInTheDocument();
-    expect(within(pieces).getByText("Glass, from the demo: not yet")).toBeInTheDocument();
+    expect(within(pieces).getByText("Monocle: wearing")).toBeInTheDocument();
+    // The demo shows every piece, even past the guest's one connection, and ignores the connections.
+    expect(within(pieces).getByText("Hat: not yet")).toBeInTheDocument();
+    expect(within(pieces).getByText("Glass: not yet")).toBeInTheDocument();
     expect(avatar).toHaveTextContent("1 of 4 pieces");
 
     await user.click(within(demo).getByRole("button", { name: "Monocle" }));
     expect(avatar).toHaveTextContent("0 of 4 pieces");
 
-    await user.click(within(demo).getByRole("button", { name: "Back to my stamps" }));
-    expect(avatar).toHaveTextContent("1 of 2 pieces · 5 points");
+    await user.click(within(demo).getByRole("button", { name: "Back to my connections" }));
+    expect(avatar).toHaveTextContent("1 of 4 pieces · 5 points");
   });
 
   it("shows the memory card with the guest's name, and says so when the picture can't be made", async () => {
