@@ -74,12 +74,13 @@ several tokens (FRO-106). The buttons are in
 `src/components/event-buttons.tsx`, and the hook that opens the link is in
 `src/lib/use-login-link.ts`.
 A token someone else holds sends half a connection by itself once the lookup answers
-`someone_else`, except for a GeekyKey admin, and the page words the Event Service's answer
+`someone_else`, except for a GeekyKey admin, or when the browser says the page load is a reload
+or a move back or forward, which isn't a tap (BAC-149). The page words the Event Service's answer
 with section 13's sentences (agreement 8.8, FRO-110). With `waiting`, `connected` or
 `already_connected`, the event's button opens the dashboard through a login link, where the
-other person accepts a request and the guest sees the reveal (BAC-149). The mock answers it for now: BAC-120 builds 8.8 in the service. The
-hook is `src/features/token/use-meeting.ts`, and the sentences are in
-`src/features/token/meeting-notice.tsx`.
+other person accepts a request and the guest sees the reveal (BAC-149). The mock answers it for
+now: BAC-120 builds 8.8 in the service. The hook is `src/features/token/use-meeting.ts`, and the
+sentences are in `src/features/token/meeting-notice.tsx`.
 The one GeekyKey admin screen is Token kinds, at `/admin/token-kinds` (BAC-139), in
 `src/features/token-kinds/`. A GeekyKey admin pastes the token writer's log there, and the browser
 reads it by `db:token-kinds`' rules (`read-writer-log.ts`) before anything is written. An organizer

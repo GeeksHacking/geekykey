@@ -1107,8 +1107,10 @@ rule changes neither.
 
 The current user tapped their phone on someone else's token: one half of a connection, which
 sends the owner a connection request or accepts theirs ([Connections](#connections)). The token
-page calls it by itself once its lookup (8.5) answers
-`someone_else`, except for a GeekyKey admin, who may be holding a lost token.
+page calls it by itself once its lookup (8.5) answers `someone_else`, except for a GeekyKey admin,
+who may be holding a lost token, and except when the browser says the page load is a reload or a
+move back or forward, which isn't a tap (BAC-149, a draft for the next version). Then the page
+shows only the sentence that the token belongs to someone else.
 
 **Auth:** `gk_session`, any user.
 
