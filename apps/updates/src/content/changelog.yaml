@@ -2143,3 +2143,11 @@
     The Split into groups form now asks only for the people per group and a location for each
     group. The service works out the number of groups from how many people have joined, and the
     form shows the result before the press, for example "12 have joined. This makes 3 groups of 4."
+
+- id: avatar-pieces-from-connections
+  date: 2026-11-05
+  area: frontend
+  change: >-
+    The dashboard's avatar wears one piece for each person a guest connects with, up to its
+    four pieces, and the fourth connection completes the outfit. A new connection's piece flies
+    in on the poll that brings it, and a stamp gives points and no piece.
