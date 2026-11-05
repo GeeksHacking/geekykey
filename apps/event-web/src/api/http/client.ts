@@ -198,6 +198,9 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     allocateGroups: () =>
       sendJson("/api/v1/admin/groups/allocate", { method: "POST" }).then(parseGroupBoardResponse),
 
+    splitGroups: (input) =>
+      sendJson("/api/v1/admin/groups/split", postJson(input)).then(parseGroupBoardResponse),
+
     resetGroups: () =>
       sendJson("/api/v1/admin/groups/reset", { method: "POST" }).then(parseGroupBoardResponse),
 
@@ -240,6 +243,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "name_taken",
   "no_groups",
   "too_few_participants",
+  "groups_exist",
   "rate_limited",
   "invalid_event_service_key",
   "event_service_unavailable",

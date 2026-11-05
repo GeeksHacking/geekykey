@@ -2110,3 +2110,11 @@
     An organizer can press Reset on the Groups screen and confirm it, to run another timed trial
     with the same groups. Everyone leaves their group and has to join again, and the next Allocate
     starts the trial afresh.
+
+- id: groups-split-in-one-step
+  date: 2026-11-05
+  area: backend
+  change: >-
+    On the Groups screen, an organizer can enter a number of groups, the people per group and a
+    location for each, and one press makes "Group 1", "Group 2" and so on and places everyone. It
+    makes nothing while there are groups already, or with too few people joined.

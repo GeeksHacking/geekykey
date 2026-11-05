@@ -39,6 +39,9 @@ const LOG_LINES = {
   group_deleted: "INFO",
   groups_allocated: "INFO",
   groups_reset: "INFO",
+  // An organizer made the groups and allocated in one step, with the Groups screen's form: who,
+  // and how many groups.
+  groups_split: "INFO",
   // An organizer put someone in a group or sent them back to waiting, or removed them: who, whom,
   // and the group, or null for waiting.
   group_member_moved: "INFO",

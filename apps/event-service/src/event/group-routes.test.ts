@@ -193,6 +193,13 @@ async function harness({
       groupBoardResponseSchema,
     );
 
+  /**
+   * The Groups screen's one-step form: makes the groups and allocates everyone who has joined.
+   * Gives the raw answer, since a refusal is part of what these tests check.
+   */
+  const split = async (body: unknown, instance = 0) =>
+    send(ORGANIZER, "POST", "/api/v1/admin/groups/split", body, instance);
+
   /** Empties every group and the waiting list, and un-starts allocation, keeping the groups. */
   const reset = async () =>
     read<BoardBody>(
@@ -242,6 +249,7 @@ async function harness({
     deleteGroup,
     place,
     allocate,
+    split,
     reset,
     exportLines,
   };
@@ -597,6 +605,7 @@ const ORGANIZER_ROUTES = [
   ["DELETE", "/api/v1/admin/groups/some-group"],
   ["POST", "/api/v1/admin/groups/allocate"],
   ["POST", "/api/v1/admin/groups/reset"],
+  ["POST", "/api/v1/admin/groups/split"],
   ["GET", "/api/v1/admin/groups/export.csv"],
   ["PUT", "/api/v1/admin/groups/members/user-2"],
   ["DELETE", "/api/v1/admin/groups/members/user-2"],
@@ -1420,4 +1429,225 @@ test("after a reset, participants join and wait again, and Allocate starts the n
   assert.equal(placed.how, "allocated");
   assert.equal(placed.joined_at, nextTrial);
   assert.deepEqual(await board(), after);
+});
+
+test("split: 4 joined in 2 groups of 2 makes Group 1 and Group 2, with their locations, and fills them 2, 2", async () => {
+  const { clock, joinCrowd, split, read, board } = await harness();
+  await joinCrowd(4);
+  clock.advanceSeconds(60);
+  const placedAt = clock.now().toISOString();
+
+  const after = await read<BoardBody>(
+    await split({ group_count: 2, people_per_group: 2, locations: ["Room 3A", "Lobby"] }),
+    groupBoardResponseSchema,
+    201,
+  );
+
+  assert.deepEqual(
+    after.groups.map(({ name, tags, location, capacity }) => ({ name, tags, location, capacity })),
+    [
+      { name: "Group 1", tags: [], location: "Room 3A", capacity: 2 },
+      { name: "Group 2", tags: [], location: "Lobby", capacity: 2 },
+    ],
+  );
+  assert.deepEqual(sizes(after), [2, 2]);
+  assert.deepEqual(after.waiting, []);
+  assert.equal(after.allocation_started_at, placedAt);
+  for (const member of after.groups.flatMap((group) => group.members)) {
+    assert.equal(member.how, "allocated");
+    assert.equal(member.placed_at, placedAt);
+  }
+  assert.deepEqual(await board(), after);
+});
+
+test("split: 5 joined in 2 groups of 2 gives 3, 2, the first over its capacity", async () => {
+  const { joinCrowd, split, read } = await harness();
+  await joinCrowd(5);
+
+  const after = await read<BoardBody>(
+    await split({ group_count: 2, people_per_group: 2 }),
+    groupBoardResponseSchema,
+    201,
+  );
+
+  // The board shows the first past its capacity, which the Groups screen flags.
+  assert.deepEqual(
+    after.groups.map(({ capacity, members }) => [members.length, capacity]),
+    [
+      [3, 2],
+      [2, 2],
+    ],
+  );
+  assert.deepEqual(after.waiting, []);
+});
+
+test("split: 3 joined in 2 groups makes nothing and needs 1 more, and the same form works once they join", async () => {
+  const { joinCrowd, split, read, board } = await harness();
+  await joinCrowd(3);
+  const form = { group_count: 2, people_per_group: 2, locations: ["Room 3A", null] };
+
+  const refused = await split(form);
+
+  assert.equal(refused.status, 409);
+  assert.deepEqual(await refused.json(), { error: "too_few_participants", needed: 1 });
+  const before = await board();
+  assert.deepEqual(before.groups, []);
+  assert.equal(before.allocation_started_at, null);
+  assert.equal(before.waiting.length, 3);
+
+  await joinCrowd(1);
+  const after = await read<BoardBody>(await split(form), groupBoardResponseSchema, 201);
+  assert.deepEqual(
+    after.groups.map(({ name }) => name),
+    ["Group 1", "Group 2"],
+  );
+  assert.deepEqual(sizes(after), [2, 2]);
+});
+
+test("split with any group already there answers 409 groups_exist and makes or places nothing", async () => {
+  const { createGroup, joinCrowd, split, board } = await harness();
+  const existing = await createGroup("Mixer A");
+  await joinCrowd(6);
+
+  const refused = await split({ group_count: 2, people_per_group: 3 });
+
+  assert.equal(refused.status, 409);
+  assert.deepEqual(await refused.json(), { error: "groups_exist" });
+  const after = await board();
+  assert.deepEqual(after.groups, [existing]);
+  assert.equal(after.allocation_started_at, null);
+  assert.equal(after.waiting.length, 6);
+});
+
+test("two organizers sending the form at once, to two instances, leave one set of groups", async () => {
+  const { joinCrowd, split, board } = await harness({ instances: 2 });
+  await joinCrowd(6);
+  const form = { group_count: 3, people_per_group: 2 };
+
+  const answers = await Promise.all([split(form, 0), split(form, 1)]);
+
+  assert.deepEqual(answers.map(({ status }) => status).sort(), [201, 409]);
+  const refused = answers.find(({ status }) => status === 409)!;
+  assert.deepEqual(await refused.json(), { error: "groups_exist" });
+  const after = await board();
+  assert.deepEqual(
+    after.groups.map(({ name }) => name),
+    ["Group 1", "Group 2", "Group 3"],
+  );
+  assert.deepEqual(sizes(after), [2, 2, 2]);
+});
+
+test("after a split, a latecomer is placed as usual, and their phone shows the form's location", async () => {
+  const { clock, joinCrowd, split, read, join } = await harness();
+  await joinCrowd(5);
+  const after = await read<BoardBody>(
+    await split({ group_count: 2, people_per_group: 3, locations: ["Room 3A", "Lobby"] }),
+    groupBoardResponseSchema,
+    201,
+  );
+  assert.deepEqual(sizes(after), [3, 2]);
+  clock.advanceSeconds(120);
+
+  const mine = await join("user-1");
+
+  assert.equal(mine.status, "placed");
+  assert.equal(mine.group!.id, after.groups[1]!.id);
+  assert.equal(mine.group!.name, "Group 2");
+  assert.equal(mine.group!.location, "Lobby");
+});
+
+test("a participant placed by a split sees the location entered for their group", async () => {
+  const { joinCrowd, split, read, myGroup } = await harness();
+  const crowd = await joinCrowd(4);
+  const after = await read<BoardBody>(
+    await split({ group_count: 2, people_per_group: 2, locations: ["Room 3A"] }),
+    groupBoardResponseSchema,
+    201,
+  );
+
+  for (const userId of crowd) {
+    const mine = await myGroup(userId);
+    const theirs = placedOn(after, userId)!.group_id;
+    assert.equal(mine.group!.id, theirs);
+    // Only the first was given a location, so the second has none.
+    assert.equal(mine.group!.location, theirs === after.groups[0]!.id ? "Room 3A" : null);
+  }
+});
+
+test("after deleting the groups, a split makes new ones and places everyone waiting", async () => {
+  const { joinCrowd, split, read, deleteGroup } = await harness();
+  await joinCrowd(6);
+  const first = await read<BoardBody>(
+    await split({ group_count: 2, people_per_group: 3 }),
+    groupBoardResponseSchema,
+    201,
+  );
+  for (const group of first.groups) await deleteGroup(group.id);
+
+  const second = await read<BoardBody>(
+    await split({ group_count: 3, people_per_group: 2 }),
+    groupBoardResponseSchema,
+    201,
+  );
+
+  assert.deepEqual(
+    second.groups.map(({ name, capacity }) => [name, capacity]),
+    [
+      ["Group 1", 2],
+      ["Group 2", 2],
+      ["Group 3", 2],
+    ],
+  );
+  assert.deepEqual(sizes(second), [2, 2, 2]);
+  assert.deepEqual(second.waiting, []);
+});
+
+test("split's numbers are whole numbers above 0, and its locations follow a group's location rule", async () => {
+  const { joinCrowd, split, read, board } = await harness();
+  await joinCrowd(4);
+
+  for (const body of [
+    {},
+    { group_count: 2 },
+    { group_count: 0, people_per_group: 2 },
+    { group_count: 2, people_per_group: 0 },
+    { group_count: 1.5, people_per_group: 2 },
+    { group_count: 2, people_per_group: -1 },
+    { group_count: "2", people_per_group: 2 },
+    { group_count: 2, people_per_group: 2, locations: ["a".repeat(81)] },
+    { group_count: 2, people_per_group: 2, locations: ["Room 3A", "Lobby", "Hall"] },
+  ]) {
+    const response = await split(body);
+    assert.equal(response.status, 400, JSON.stringify(body));
+    assert.equal(((await response.json()) as { error: string }).error, "validation_failed");
+  }
+  assert.deepEqual((await board()).groups, []);
+
+  // Trimmed, a blank one is none, and 80 code points is allowed.
+  const longest = "🙂".repeat(80);
+  const after = await read<BoardBody>(
+    await split({ group_count: 2, people_per_group: 2, locations: ["  Room 3A ", longest] }),
+    groupBoardResponseSchema,
+    201,
+  );
+  assert.deepEqual(
+    after.groups.map(({ location }) => location),
+    ["Room 3A", longest],
+  );
+});
+
+test("a blank location in a split is none", async () => {
+  const { joinCrowd, split, read } = await harness();
+  await joinCrowd(4);
+
+  const after = await read<BoardBody>(
+    await split({ group_count: 2, people_per_group: 2, locations: ["   ", ""] }),
+    groupBoardResponseSchema,
+    201,
+  );
+
+  assert.deepEqual(
+    after.groups.map(({ location }) => location),
+    [null, null],
+  );
 });

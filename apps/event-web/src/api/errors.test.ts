@@ -9,6 +9,7 @@ const CODES: Record<ErrorCode, true> = {
   name_taken: true,
   no_groups: true,
   too_few_participants: true,
+  groups_exist: true,
   unauthenticated: true,
   invalid_token: true,
   invalid_login_link: true,

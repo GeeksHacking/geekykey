@@ -88,6 +88,24 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     );
   });
 
+  it("splits with the form's numbers and locations, and keeps its refusals", async () => {
+    const api = createHttpClient();
+    const input = { group_count: 2, people_per_group: 3, locations: ["Hall", null] };
+
+    fetchMock.mockResolvedValueOnce(response(board, 201));
+    await expect(api.splitGroups(input)).resolves.toEqual(board);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/groups/split",
+      expect.objectContaining({ method: "POST", body: JSON.stringify(input) }),
+    );
+
+    fetchMock.mockResolvedValueOnce(response({ error: "groups_exist" }, 409));
+    expect((await apiError(api.splitGroups(input))).code).toBe("groups_exist");
+
+    fetchMock.mockResolvedValueOnce(response({ error: "too_few_participants", needed: 1 }, 409));
+    expect((await apiError(api.splitGroups(input))).needed).toBe(1);
+  });
+
   it("fetches the groups CSV as a file", async () => {
     const api = createHttpClient();
 
@@ -610,6 +628,7 @@ const statusFor = {
   name_taken: 409,
   no_groups: 409,
   too_few_participants: 409,
+  groups_exist: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,

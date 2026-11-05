@@ -16,6 +16,7 @@ import {
   type AdminTap,
   type ApiIssue,
   type CreateGroupRequest,
+  type SplitGroupsRequest,
   type CreateStationRequest,
   type StationKeyResponse,
   type ErrorCode,
@@ -84,6 +85,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   name_taken: 409,
   no_groups: 409,
   too_few_participants: 409,
+  groups_exist: 409,
   validation_failed: 400,
   unauthenticated: 401,
   // Agreement 0.4 section 7.2, POST /auth/firebase, on both services.
@@ -370,6 +372,55 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       ]);
     }
     return { name, tags, location, capacity };
+  }
+
+  /** `too_few_participants` when fewer than 2 have joined for each of `groupCount` groups. */
+  function refuseTooFew(groupCount: number) {
+    const needed = 2 * groupCount - data.groupMembers.length;
+    if (needed > 0) fail("too_few_participants", [], needed);
+  }
+
+  /** Everyone waiting, shuffled, each to the group choosePlace() gives, and allocation started. */
+  function placeWaiting() {
+    const placedAt = iso(Date.now());
+    const waiting = data.groupMembers.filter((member) => member.group_id === null);
+    for (const member of shuffled(waiting)) {
+      const place = choosePlace()!;
+      member.group_id = place.id;
+      member.placed_at = placedAt;
+      member.how = "allocated";
+    }
+    data.groupAllocationStartedAt ??= placedAt;
+  }
+
+  /**
+   * The split's numbers and locations as the Event Service checks them: whole numbers above 0,
+   * at most one location for each group, each trimmed with a blank one as none, or
+   * `validation_failed` at the first that breaks a rule.
+   */
+  function checkSplitRequest(input: SplitGroupsRequest) {
+    for (const field of ["group_count", "people_per_group"] as const) {
+      const value = input[field];
+      if (!(Number.isInteger(value) && value > 0)) {
+        fail("validation_failed", [{ path: [field], message: "must be a whole number above 0" }]);
+      }
+    }
+    const locations = (input.locations ?? []).map((location) => location?.trim() || null);
+    if (locations.length > input.group_count) {
+      fail("validation_failed", [
+        { path: ["locations"], message: "locations must have at most one item for each group" },
+      ]);
+    }
+    const tooLong = locations.findIndex((location) => location !== null && !isGroupText(location));
+    if (tooLong >= 0) {
+      fail("validation_failed", [
+        {
+          path: ["locations", tooLong],
+          message: `location must be 0 to ${GROUP_TEXT_MAX} characters`,
+        },
+      ]);
+    }
+    return { group_count: input.group_count, people_per_group: input.people_per_group, locations };
   }
 
   function toMyGroup(userId: string): MyGroupResponse {
@@ -907,17 +958,27 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       call(() => {
         currentOrganizer();
         if (data.groups.length === 0) fail("no_groups");
-        const needed = 2 * data.groups.length - data.groupMembers.length;
-        if (needed > 0) fail("too_few_participants", [], needed);
-        const placedAt = iso(Date.now());
-        const waiting = data.groupMembers.filter((member) => member.group_id === null);
-        for (const member of shuffled(waiting)) {
-          const place = choosePlace()!;
-          member.group_id = place.id;
-          member.placed_at = placedAt;
-          member.how = "allocated";
-        }
-        data.groupAllocationStartedAt ??= placedAt;
+        refuseTooFew(data.groups.length);
+        placeWaiting();
+        return toGroupBoard();
+      }),
+
+    // Makes "Group 1", "Group 2" and so on, then allocates as above, or makes nothing. It
+    // refuses while any group exists, then with too few joined, as the Event Service does.
+    splitGroups: (input: SplitGroupsRequest) =>
+      call(() => {
+        currentOrganizer();
+        const fields = checkSplitRequest(input);
+        if (data.groups.length > 0) fail("groups_exist");
+        refuseTooFew(fields.group_count);
+        data.groups = Array.from({ length: fields.group_count }, (_, i) => ({
+          id: `g_${randomBase62(8)}`,
+          name: `Group ${i + 1}`,
+          tags: [],
+          location: fields.locations[i] ?? null,
+          capacity: fields.people_per_group,
+        }));
+        placeWaiting();
         return toGroupBoard();
       }),
 

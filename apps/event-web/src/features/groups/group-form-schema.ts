@@ -1,7 +1,7 @@
 import * as z from "zod/mini";
 
 import type { CreateGroupRequest, EventGroup } from "@/api/types";
-import { GROUP_TAGS_MAX, isGroupText } from "@/lib/group-fields";
+import { GROUP_TAGS_MAX, GROUP_TEXT_TOO_LONG, isGroupText } from "@/lib/group-fields";
 
 /** The tags typed as one line, split at commas, with blanks dropped. */
 export function splitTags(text: string): string[] {
@@ -11,17 +11,19 @@ export function splitTags(text: string): string[] {
     .filter((tag) => tag !== "");
 }
 
-const TOO_LONG = "Keep it under 80 characters.";
-
 export const groupFormSchema = z.object({
   name: z
     .string()
-    .check(z.trim(), z.minLength(1, "Give the group a name."), z.refine(isGroupText, TOO_LONG)),
+    .check(
+      z.trim(),
+      z.minLength(1, "Give the group a name."),
+      z.refine(isGroupText, GROUP_TEXT_TOO_LONG),
+    ),
   tags: z.string().check(
     z.refine((text) => splitTags(text).length <= GROUP_TAGS_MAX, "Use at most 5 tags."),
     z.refine((text) => splitTags(text).every(isGroupText), "Keep each tag under 80 characters."),
   ),
-  location: z.string().check(z.trim(), z.refine(isGroupText, TOO_LONG)),
+  location: z.string().check(z.trim(), z.refine(isGroupText, GROUP_TEXT_TOO_LONG)),
   // Kept as text so the input stays controlled, and converted on submit. Empty is any number.
   capacity: z.string().check(
     z.trim(),

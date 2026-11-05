@@ -291,34 +291,105 @@ export async function allocateWaiting(
 ): Promise<AllocateRefusal | null> {
   return db.transaction(async (tx) => {
     const { startedAt } = await lockAllocation(tx);
+    return placeWaiting(tx, startedAt, now, shuffle, organizers);
+  });
+}
+
+/**
+ * allocateWaiting()'s work, inside a transaction that already holds the allocation lock and
+ * knows when allocation `startedAt`.
+ */
+async function placeWaiting(
+  tx: Tx,
+  startedAt: string | null,
+  now: Date,
+  shuffle: Shuffle,
+  organizers: Organizers,
+): Promise<AllocateRefusal | null> {
+  const { places, members } = await loadPlacesAndMembers(tx, organizers);
+  if (places.length === 0) return { error: "no_groups" };
+  const refusal = tooFew(places.length, members.length);
+  if (refusal) return refusal;
+
+  const newcomers = new Map(places.map(({ id }) => [id, [] as string[]]));
+  const waiting = members.filter((member) => member.groupId === null);
+  for (const { userId } of shuffle(waiting)) {
+    const place = choosePlace(places)!;
+    place.size += 1;
+    newcomers.get(place.id)!.push(userId);
+  }
+
+  const placedAt = now.toISOString();
+  for (const [id, userIds] of newcomers) {
+    if (userIds.length === 0) continue;
+    await tx
+      .update(groupMembers)
+      .set({ groupId: id, placedAt, how: "allocated" })
+      .where(inArray(groupMembers.userId, userIds));
+  }
+  if (startedAt === null) {
+    await tx
+      .update(groupAllocation)
+      .set({ startedAt: placedAt })
+      .where(eq(groupAllocation.id, ALLOCATION_ROW));
+  }
+  return null;
+}
+
+/** Allocate's refusal when `joined` is fewer than 2 for each of `groupCount` groups. */
+function tooFew(groupCount: number, joined: number): AllocateRefusal | null {
+  const needed = MIN_PER_GROUP * groupCount - joined;
+  return needed > 0 ? { error: "too_few_participants", needed } : null;
+}
+
+/** What an organizer enters in the Groups screen's one-step form (BAC-138). */
+export interface SplitFields {
+  groupCount: number;
+  /** Each group's capacity. */
+  peoplePerGroup: number;
+  /** Group n's location is the nth, or none past the end. */
+  locations: (string | null)[];
+}
+
+/** Why the one-step form made nothing: Allocate's refusal, or groups already there. */
+export type SplitRefusal = AllocateRefusal | { error: "groups_exist" };
+
+/**
+ * The Groups screen's shortcut (BAC-138): makes `groupCount` groups named "Group 1",
+ * "Group 2" and so on, each with `peoplePerGroup` as its capacity, then allocates everyone who
+ * has joined, as allocateWaiting() does. It all happens in one transaction, so a refusal leaves
+ * nothing behind and the same form can be sent again.
+ *
+ * It refuses with `groups_exist` when any group is there, so it can't overwrite a live board,
+ * and with Allocate's `too_few_participants` when fewer than 2 have joined for each group.
+ * The allocation lock makes two at once take turns, so the second finds the first's groups.
+ */
+export async function splitIntoGroups(
+  db: Db,
+  fields: SplitFields,
+  now: Date,
+  shuffle: Shuffle,
+  organizers: Organizers,
+): Promise<SplitRefusal | null> {
+  return db.transaction(async (tx) => {
+    const { startedAt } = await lockAllocation(tx);
     const { places, members } = await loadPlacesAndMembers(tx, organizers);
-    if (places.length === 0) return { error: "no_groups" };
-    const needed = MIN_PER_GROUP * places.length - members.length;
-    if (needed > 0) return { error: "too_few_participants", needed };
+    if (places.length > 0) return { error: "groups_exist" };
+    const refusal = tooFew(fields.groupCount, members.length);
+    if (refusal) return refusal;
 
-    const newcomers = new Map(places.map(({ id }) => [id, [] as string[]]));
-    const waiting = members.filter((member) => member.groupId === null);
-    for (const { userId } of shuffle(waiting)) {
-      const place = choosePlace(places)!;
-      place.size += 1;
-      newcomers.get(place.id)!.push(userId);
-    }
-
-    const placedAt = now.toISOString();
-    for (const [id, userIds] of newcomers) {
-      if (userIds.length === 0) continue;
-      await tx
-        .update(groupMembers)
-        .set({ groupId: id, placedAt, how: "allocated" })
-        .where(inArray(groupMembers.userId, userIds));
-    }
-    if (startedAt === null) {
-      await tx
-        .update(groupAllocation)
-        .set({ startedAt: placedAt })
-        .where(eq(groupAllocation.id, ALLOCATION_ROW));
-    }
-    return null;
+    await tx.insert(participantGroups).values(
+      Array.from({ length: fields.groupCount }, (_, i) => ({
+        id: crypto.randomUUID(),
+        name: `Group ${i + 1}`,
+        tags: [],
+        location: fields.locations[i] ?? null,
+        capacity: fields.peoplePerGroup,
+        // A millisecond apart, so the board lists them in number order, oldest first.
+        createdAt: new Date(now.getTime() + i).toISOString(),
+      })),
+    );
+    return placeWaiting(tx, startedAt, now, shuffle, organizers);
   });
 }
 
