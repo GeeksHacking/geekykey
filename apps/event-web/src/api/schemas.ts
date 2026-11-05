@@ -1,8 +1,9 @@
 import * as z from "zod/mini";
 
 import { NetworkError } from "@/api/errors";
-import { CONNECT_ACROSS } from "@/api/types";
+import { ACCEPT_CONNECTION_REQUEST_STATUSES, CONNECT_ACROSS } from "@/api/types";
 import type {
+  AcceptConnectionRequestResponse,
   ConnectionRule,
   EventGroup,
   EventStationBoardResponse,
@@ -51,6 +52,12 @@ const connectionSchema = z.object({
   match: z.nullable(z.int().check(z.gte(0), z.lte(100))),
   shared: z.nullable(z.array(z.string())),
   shared_at: isoTimestamp,
+});
+
+const connectionRequestSchema = z.object({
+  id: z.string(),
+  display_name: z.string(),
+  requested_at: isoTimestamp,
 });
 
 const stampSchema = z.object({
@@ -190,7 +197,8 @@ export const fallbackTapResponseSchema: z.ZodMiniType<FallbackTapResponse> = z.o
  *
  * `tapped_you` is a draft for the agreement's next version (FRO-116): the number of people
  * waiting for a return tap. It reads a missing field as 0, so a screens build can run against
- * a service that hasn't shipped it yet.
+ * a service that hasn't shipped it yet. `connection_requests` is a draft too (BAC-149), and
+ * reads a missing field as none, for the same reason.
  */
 export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   user: userSchema,
@@ -199,8 +207,15 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   tapped_you: z.prefault(z.int().check(z.nonnegative()), 0),
   stamps: z.array(stampSchema),
   recent_taps: z.array(meTapSchema),
+  connection_requests: z.prefault(z.array(connectionRequestSchema), []),
   connections: z.array(connectionSchema),
 });
+
+/** Accepting a connection request's answer (BAC-149, draft for the agreement's next version). */
+export const acceptConnectionRequestResponseSchema: z.ZodMiniType<AcceptConnectionRequestResponse> =
+  z.object({
+    status: z.enum(ACCEPT_CONNECTION_REQUEST_STATUSES),
+  });
 
 /** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
 export const updateMeResponseSchema: z.ZodMiniType<UpdateMeResponse> = z.object({
@@ -330,3 +345,6 @@ export const parseGroupBoardResponse = (input: unknown) =>
 
 export const parseConnectionRule = (input: unknown) =>
   parseOrganizerResponse(connectionRuleSchema, input);
+
+export const parseAcceptConnectionRequestResponse = (input: unknown) =>
+  parseOrganizerResponse(acceptConnectionRequestResponseSchema, input);

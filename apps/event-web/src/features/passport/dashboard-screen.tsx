@@ -4,6 +4,7 @@ import { SectionHeading } from "@/components/layout/section-heading";
 import { ParticipantTapList } from "@/components/participant-tap-list";
 import { AvatarHero } from "@/features/passport/avatar/avatar-hero";
 import { ConnectionList } from "@/features/passport/connection-list";
+import { ConnectionRequests } from "@/features/passport/connection-requests";
 import { ConnectionReveal } from "@/features/passport/connection-reveal";
 import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
@@ -25,6 +26,7 @@ export function DashboardScreen() {
     <div ref={scope} className="space-y-10">
       {/* First, because the token page's login link lands on this screen (agreement 8.6). */}
       <ConnectionReveal me={me} />
+      <ConnectionRequests requests={me.connection_requests} />
       {/* An organizer sees this screen too, and is kept out of allocation. */}
       {me.user.role === "participant" ? <GroupCard /> : null}
       {/* The grad tea's dashboard leads with the avatar (FRO-105). The showcase's switch PR

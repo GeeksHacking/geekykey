@@ -179,22 +179,30 @@ _Avoid_: location, which is the text a participant reads in the passport; spot
 
 **Connection**:
 A link between two participants of different kinds, or, when organizers choose it, of different
-groups (BAC-140). Since 2 Nov it's made when each taps their phone on the other's token within 2
-minutes, and a connection point may make one too, if it's built. It joins two users, never two
-tokens, so nobody connects to themselves, and a pair connects once however often they tap.
+groups (BAC-140). Since 5 Nov it's made when one taps their phone on the other's token and the other
+accepts, with the Accept button or by tapping back (BAC-149), and a connection point may make one
+too, if it's built. It joins two users, never two tokens, so nobody connects to themselves, and a
+pair connects once however often they tap.
 _Avoid_: dual tap, link between tags
 
 **Connection rule**:
 What two participants need to connect, which organizers switch on the Groups screen during an
 event: different token kinds, which a new event starts on, or different groups, whatever their
-tokens. The Event Service judges each tap by the rule and the groups at that tap. Across groups, someone not
-placed in a group connects with nobody.
+tokens. The Event Service judges each tap and each accept by the rule and the groups at that
+moment. Across groups, someone not placed in a group connects with nobody.
 _Avoid_: mode, game type
 
 **Half**:
-One of the two taps that make a connection by phone: one participant's phone on the other's token.
-A half on its own expires after 2 minutes.
+One participant's phone tapped on the other's token. The first half sends a connection request, and
+a half back accepts it.
 _Avoid_: pending connection
+
+**Connection request**:
+What a half asks of the token's owner, who sees it on their dashboard with the tapper's name and
+accepts or declines it. It has no time limit, so it stays until they answer or the event is
+cleared. Declining is silent, and tapping again sends a new one (BAC-149). Viewing someone's profile
+needs no request.
+_Avoid_: invitation, friend request
 
 **Connection point**:
 Where participants tap together to connect: one station, or a few stations linked to act as one.

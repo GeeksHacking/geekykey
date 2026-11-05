@@ -47,6 +47,24 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     waiting: [],
   };
 
+  it("accepts and declines a connection request at its own path (BAC-149)", async () => {
+    fetchMock.mockImplementationOnce(() => Promise.resolve(response({ status: "same_group" })));
+    const api = createHttpClient();
+
+    await expect(api.acceptConnectionRequest("cr 1")).resolves.toEqual({ status: "same_group" });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/me/connection-requests/cr%201/accept",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    fetchMock.mockImplementationOnce(() => Promise.resolve(new Response(null, { status: 204 })));
+    await expect(api.declineConnectionRequest("cr_1")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/me/connection-requests/cr_1/decline",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("reads and joins at /api/v1/me/group", async () => {
     fetchMock.mockImplementation(() => Promise.resolve(response(myGroup)));
     const api = createHttpClient();

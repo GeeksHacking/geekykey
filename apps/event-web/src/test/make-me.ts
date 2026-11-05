@@ -21,6 +21,7 @@ export function makeMe({ user, ...rest }: MeOverrides = {}): MeResponse {
     tapped_you: 0,
     stamps: [],
     recent_taps: [],
+    connection_requests: [],
     connections: [],
     ...rest,
   };

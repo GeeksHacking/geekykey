@@ -4,13 +4,16 @@ import { EventButtons } from "@/components/event-buttons";
 /*
   What came of the half a tap sent (agreement 8.8), under the sentence that says the token
   belongs to someone else. Section 13 fixes the wording for every answer but `same_group` and
-  `no_group`, whose sentences are approved for the agreement's next version (BAC-140), so the sentences are here as
-  the agreement writes them; a status added to the union fails the type check until it has one.
+  `no_group`, whose sentences are approved for the agreement's next version (BAC-140), and
+  `waiting`, whose new sentence is a draft for Ethan to approve (BAC-149), so the sentences are
+  here as the agreement writes them; a status added to the union fails the type check until it
+  has one.
 */
 
 /** Section 13's words, one per status an Event Service can answer with (11.10). */
 const SENTENCE: Record<MeetingStatus, string> = {
-  waiting: "Now ask them to tap your token with their phone.",
+  // A draft for Ethan to approve (BAC-149).
+  waiting: "Request sent. Ask them to open their dashboard and accept.",
   connected: "You're connected!",
   already_connected: "You're already connected.",
   same_kind: "You're in the same group. Find someone from another group.",
@@ -46,9 +49,10 @@ export function MeetingNotice({
 }
 
 /**
- * Section 13 gives the pair's own event button to `connected` and `already_connected`,
- * because that button opens the passport through a login link (8.6) and the reveal is
- * there. Every other answer has nothing to open yet.
+ * Section 13 gives the pair's own event button to `waiting`, `connected` and
+ * `already_connected`, because that button opens the dashboard through a login link (8.6), and
+ * the reveal comes there, at once or after the other person accepts. Every other answer has
+ * nothing to open yet.
  */
 function MeetingLine({
   meeting,
@@ -59,13 +63,16 @@ function MeetingLine({
   events: EventServiceLink[];
   uid: string;
 }) {
-  const connected = meeting.status === "connected" || meeting.status === "already_connected";
+  const offersEvent =
+    meeting.status === "waiting" ||
+    meeting.status === "connected" ||
+    meeting.status === "already_connected";
   const event = events.find((item) => item.id === meeting.event_id);
 
   return (
     <div className="flex flex-col items-start gap-3">
       <p className="text-base">{SENTENCE[meeting.status]}</p>
-      {connected && event ? <EventButtons events={[event]} uid={uid} /> : null}
+      {offersEvent && event ? <EventButtons events={[event]} uid={uid} /> : null}
     </div>
   );
 }

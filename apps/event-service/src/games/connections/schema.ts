@@ -1,6 +1,14 @@
 import { TOKEN_KIND_MAX } from "@geekykey/handoff";
-import { index, int, json, mysqlTable, primaryKey, varchar } from "drizzle-orm/mysql-core";
-import { isoTimestamp, userId } from "../../db/columns.ts";
+import {
+  index,
+  int,
+  json,
+  mysqlTable,
+  primaryKey,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/mysql-core";
+import { connectionRequestId, isoTimestamp, userId } from "../../db/columns.ts";
 
 /**
  * The connections game's tables (spec section 6, "The answers game"). The
@@ -27,22 +35,32 @@ export const answers = mysqlTable("answers", {
 });
 
 /**
- * The halves of each pair's connection, one row per pair, by its two user
- * IDs, the smaller first. Each half is when one of them last tapped the
- * other's token, and goes when the two connect. The row stays, since every
- * half locks it, so two halves at once take turns.
+ * Each pair's connection request, one row per pair, by its two user IDs, the
+ * smaller first. A pair has one request waiting at most, because a tap back
+ * accepts it. The row stays when the request goes, since every tap locks it,
+ * so two taps at once take turns.
  */
 export const meetingHalves = mysqlTable(
   "meeting_halves",
   {
     userA: userId("user_a").notNull(),
     userB: userId("user_b").notNull(),
-    /** When `userA` last tapped a token of `userB`'s, or null for no half. */
+    /**
+     * When `userA` sent the request waiting for `userB`, or null. A time here with no
+     * `requestId` is a half from before requests (BAC-149), which counts for nothing.
+     */
     aMetAt: isoTimestamp("a_met_at"),
-    /** When `userB` last tapped a token of `userA`'s, or null for no half. */
+    /** When `userB` sent the request waiting for `userA`, or null, as for `aMetAt`. */
     bMetAt: isoTimestamp("b_met_at"),
+    /** The waiting request's own ID, since /me gives no other person's user ID, or null for none. */
+    requestId: connectionRequestId("request_id"),
   },
-  (t) => [primaryKey({ columns: [t.userA, t.userB] })],
+  (t) => [
+    primaryKey({ columns: [t.userA, t.userB] }),
+    uniqueIndex("meeting_halves_request_id_idx").on(t.requestId),
+    // /me reads the requests waiting for a user from either side.
+    index("meeting_halves_user_b_idx").on(t.userB),
+  ],
 );
 
 /**

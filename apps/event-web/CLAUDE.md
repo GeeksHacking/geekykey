@@ -296,7 +296,8 @@ Rules:
      only fix (`features/auth/login-link-notice.tsx`). The session the browser already had carries
      on, so the sentence sits above the screen it shows.
    - `forbidden`: render the 403 view in place. Do not redirect.
-   - `not_found`: inline message on the action that caused it.
+   - `not_found`: inline message on the action that caused it. Answering a connection request
+     says nothing, because the next `/me` takes the request away (draft in section 13, BAC-149).
    - `name_taken`: under the name in the Groups screen's dialog (draft for agreement 0.14).
    - `no_groups` / `too_few_participants`: under the Groups screen's header, where Allocate was
      pressed. `too_few_participants` also carries `needed`, which `ApiError.needed` keeps so the
