@@ -519,6 +519,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         });
         const connections = (user.connections ?? []).map((connection) => ({
           ...connection,
+          dice: connection.dice ?? null,
           shared: new Date(connection.shared_at).getTime() <= Date.now() ? connection.shared : null,
         }));
         // 0.13: each connection adds 1 point, whatever its match. The grad tea's game
@@ -561,6 +562,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const status = request.accept_answer ?? "connected";
         if (status === "connected") {
           const at = Date.now();
+          const yourRoll = Math.floor(Math.random() * 6) + 1;
+          const theirRoll = Math.floor(Math.random() * 6) + 1;
           user.connections = [
             {
               connected_at: new Date(at).toISOString(),
@@ -569,6 +572,11 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               contact_line: null,
               kind: "B",
               match: 40,
+              dice: {
+                your_roll: yourRoll,
+                their_roll: theirRoll,
+                result: yourRoll >= theirRoll ? "win" : "loss",
+              },
               shared: ["drink", "weekend"],
               shared_at: new Date(at + 120_000).toISOString(),
             },

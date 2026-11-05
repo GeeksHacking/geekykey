@@ -2,6 +2,7 @@ import type { MeResponse } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { ConnectionPerson } from "@/features/passport/connection-person";
+import { ConnectionDice } from "@/features/passport/connection-dice";
 import { useConnectionReveal } from "@/features/passport/use-connection-reveal";
 
 /**
@@ -27,6 +28,7 @@ export function ConnectionReveal({ me }: { me: MeResponse }) {
         <div className="mt-2">
           <ConnectionPerson connection={connection} />
         </div>
+        <ConnectionDice dice={connection.dice} />
         {connection.match === null ? null : (
           <p className="mt-2 text-sm text-muted-foreground">
             Talk to find out which answers you share.

@@ -71,7 +71,7 @@ function harness({ withGame = true } = {}) {
   const answers = answersGame(QUESTIONS);
   const app = testApp(
     {},
-    { now: clock.now, answers, connections: withGame ? connectionsGame(answers) : null },
+    { now: clock.now, answers, connections: withGame ? connectionsGame(answers, () => 4) : null },
   );
 
   /** One half: `userId` tapped the token of `ownerId`, as the GeekyKey Service hands it on. */
@@ -422,6 +422,7 @@ test("what the two share shows 2 minutes after they connect, and not before", as
     contact_line: null,
     kind: "E",
     match: 67,
+    dice: { your_roll: 4, their_roll: 4, result: "win" },
     shared: null,
     shared_at: "2026-11-12T08:02:00.000Z",
   });
@@ -480,6 +481,7 @@ test("each connection gives the other person's name, and not their ID or answers
       contact_line: null,
       kind: "B",
       match: 0,
+      dice: { your_roll: 4, their_roll: 4, result: "win" },
       shared: null,
       shared_at: "2026-11-12T08:02:00.000Z",
     },

@@ -34,6 +34,14 @@ function connectionBody(connection: Connection) {
     contact_line: connection.contactLine,
     kind: connection.kind,
     match: connection.match,
+    dice:
+      connection.dice === null
+        ? null
+        : {
+            your_roll: connection.dice.yourRoll,
+            their_roll: connection.dice.theirRoll,
+            result: connection.dice.result,
+          },
     shared: connection.shared,
     shared_at: connection.sharedAt,
   };

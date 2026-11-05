@@ -64,6 +64,8 @@ export interface Connection {
    * whole percent. Null when they have no answered question in common.
    */
   match: number | null;
+  /** The stored dice from this user's side, or null for a connection before dice (8.1). */
+  dice: { yourRoll: number; theirRoll: number; result: "win" | "loss" } | null;
   /** The IDs of the questions both answered the same, or null until `sharedAt`. */
   shared: string[] | null;
   /** When `shared` is given: a while after the connection, so the pair talk first. */

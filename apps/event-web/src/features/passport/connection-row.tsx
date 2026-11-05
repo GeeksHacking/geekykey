@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Connection, MeResponse } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { ConnectionPerson } from "@/features/passport/connection-person";
+import { ConnectionDice } from "@/features/passport/connection-dice";
 import { formatWhen } from "@/lib/format";
 
 /** Each question the two share, with the choice both picked. One no longer on the list drops out. */
@@ -31,6 +32,7 @@ export function ConnectionRow({ connection, me }: ConnectionRowProps) {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <ConnectionPerson connection={connection} />
+          <ConnectionDice dice={connection.dice} />
           <p className="text-sm">
             {connection.match === null ? "Connected" : `${connection.match}% match`}
           </p>

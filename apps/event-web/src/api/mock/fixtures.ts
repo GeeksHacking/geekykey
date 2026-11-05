@@ -228,6 +228,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       connections: [
         connection(47_000, {
           display_name: "Wei Lin Chong",
+          dice: { your_roll: 5, their_roll: 2, result: "win" },
           bio: "Looking for a hardware teammate. Ask me about sensors and sourdough.",
           contact_line: "@weilin_c on Telegram",
           kind: "B",
@@ -236,6 +237,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         }),
         connection(minutes(26), {
           display_name: "Farhan Iskandar",
+          dice: { your_roll: 3, their_roll: 6, result: "loss" },
           bio: null,
           contact_line: "farhan.i@example.com",
           kind: "G",

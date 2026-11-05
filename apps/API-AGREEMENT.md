@@ -916,6 +916,17 @@ Everything the participant dashboard and passport view need in one call.
   next version).
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
+**Dice (BAC-150, draft for Ethan to approve in the next version).** Each connection also gives
+`dice`: `{ "your_roll": 5, "their_roll": 2, "result": "win" }`, or `null` for a connection made
+before dice. Each roll is an integer from 1 to 6, chosen independently by the Event Service when
+the connection is made and stored with it. Accepting with the button or tapping back uses the
+same rule. Each pair plays once. Polling or tapping again never changes the rolls.
+`your_roll` is the current user's roll and `their_roll` is the other person's. `result` is `win`
+when `your_roll` is greater than or equal to `their_roll`, and `loss` otherwise. Equal rolls win
+for both people. Both see the same rolls from their own side, with no other person's user ID.
+A screen reads a missing `dice` as `null`, so it works with an Event Service from before dice.
+The answers, match, points, map and memory card stay as they are.
+
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 8.2 `POST /api/v1/tokens/{uid}/claim` on the GeekyKey Service (`Implemented`)
@@ -2143,6 +2154,10 @@ There are no GeekyKey admin screens.
 - The reveal and the list of connections show the other person's `display_name`, or **Guest** for
   `null`, then their `bio`, then **"Contact: {contact_line}"**. A field that's `null` takes no line
   (BAC-136 and BAC-147, approved for the next version; "Contact:" is a draft for Ethan to approve).
+- The reveal and the list of connections also show **"You rolled {your_roll}. They rolled
+  {their_roll}."**, then **"You win!"** for `win` or **"They win!"** for `loss`. Equal rolls say
+  **"You both win!"**. A connection with no `dice` shows no roll or result. The answers and match
+  stay visible (BAC-150, drafts for Ethan to approve).
 - The dashboard shows **"Your profile"**, with the user's `bio`, **"Contact: {contact_line}"** and an
   **Change profile** button, or **"No bio or contact line yet. Add them so people you connect with
   can reach you."** with neither. Change profile opens a form headed **"What people see once you connect."**, with **Bio** and **Contact line**, each with

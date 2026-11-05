@@ -34,7 +34,7 @@ let secondInstanceDb: ReturnType<typeof anotherTestDb> | undefined;
 /** The Event Service with a connections game and no answers game, on a clock the test moves. */
 async function harness() {
   const clock = fakeClock("2026-11-05T09:00:00.000Z");
-  const app = testApp({}, { now: clock.now, connections: connectionsGame(null) });
+  const app = testApp({}, { now: clock.now, connections: connectionsGame(null, () => 4) });
   await testDb()
     .insert(users)
     .values([ORGANIZER, "alex", "bea", "chen", "dewi"].map((id) => ({ id, displayName: id })));
@@ -188,6 +188,7 @@ test("across groups, two people in different groups connect whatever their kinds
       contact_line: null,
       kind: null,
       match: null,
+      dice: { your_roll: 4, their_roll: 4, result: "win" },
       shared: null,
       shared_at: "2026-11-05T09:02:20.000Z",
     },

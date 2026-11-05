@@ -162,6 +162,13 @@
       "when": 1793885174750,
       "tag": "0022_participants_write_a_bio_and_a_contact_line",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1793889415384,
+      "tag": "0023_connections_keep_their_dice",
+      "breakpoints": true
     }
   ]
 }
