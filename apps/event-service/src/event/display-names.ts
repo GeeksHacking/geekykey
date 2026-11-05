@@ -38,6 +38,19 @@ export function hasName(user: { displayName: string; nameSetAt: string | null })
 }
 
 /**
+ * The name a meeting hand-off answers for the token's owner (the API agreement's
+ * 11.10): their current name, or null when they have no name of their own
+ * (hasName) or have never logged in to this Event Service.
+ */
+export async function ownNameOf(db: Db, userId: string): Promise<string | null> {
+  const [user] = await db
+    .select({ displayName: users.displayName, nameSetAt: users.nameSetAt })
+    .from(users)
+    .where(eq(users.id, userId));
+  return user !== undefined && hasName(user) ? user.displayName : null;
+}
+
+/**
  * The name a station's screen greets each of `userIds` by (the API
  * agreement's 6.1), for those it has one for: the first word of the name the
  * event shows, with accents taken off, and only while they have a name of

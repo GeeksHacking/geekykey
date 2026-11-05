@@ -26,7 +26,11 @@ export interface TokenRouteDeps {
 }
 
 /** One Event Service's answer to a half, as the meeting answers it (8.8). */
-type MeetingView = { event_id: string; status: MeetingStatus | "unavailable" };
+type MeetingView = {
+  event_id: string;
+  status: MeetingStatus | "unavailable";
+  owner_name: string | null;
+};
 
 /** What the lookup answers: who owns the token, as the token page sees it. */
 type TokenView = {
@@ -68,9 +72,10 @@ type TokenView = {
  * itself once the lookup says `someone_else`. It asks `tokensOf` for the
  * user's first-claimed token, then `ownersOf` for the token's owner and the
  * kinds of both, and hands the half to each of `meetingServices` at once,
- * within what's left of the same deadline. Each answers its own status, or
- * `unavailable` when it doesn't answer properly in time, and is left out
- * when it answers `404`, as one from before meetings does.
+ * within what's left of the same deadline. Each answers its own status and
+ * the owner's name, which passes through unstored, or `unavailable` with no
+ * name when it doesn't answer properly in time, and is left out when it
+ * answers `404`, as one from before meetings does.
  *
  * Every request counts toward the user's USER_LIMIT (src/session.ts). The
  * lookup, the claim and the meeting count toward TOKEN_LIMIT as well, so nobody can work
@@ -167,7 +172,7 @@ export function tokenRoutes({
               try {
                 return {
                   event_id: service.id,
-                  status: await service.handOffMeeting(request, signal),
+                  ...(await service.handOffMeeting(request, signal)),
                 };
               } catch (err) {
                 if (!(err instanceof EventServiceUnavailable)) throw err;
@@ -179,7 +184,7 @@ export function tokenRoutes({
                   reason: err.reason,
                   status: err.status,
                 });
-                return { event_id: service.id, status: "unavailable" };
+                return { event_id: service.id, status: "unavailable", owner_name: null };
               }
             }),
           );

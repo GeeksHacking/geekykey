@@ -13,6 +13,19 @@
         "no_group"
       ],
       "description": "waiting: the owner has a connection request, which waits until they answer it. connected: the half accepted the owner's request. already_connected: the two were connected before. same_kind: the two aren't of different kinds, so nothing is kept. same_group: connecting across groups, the two are in the same group, so nothing is kept. no_group: connecting across groups, and either isn't in a group, so nothing is kept"
+    },
+    "owner_name": {
+      "default": null,
+      "description": "The owner's current name, which the token page shows so that people notice swapped tokens, or null when they have no name of their own or this Event Service has never seen them",
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [

@@ -108,8 +108,8 @@ async function harness() {
     assert.equal(response.status, 200);
   };
 
-  /** One half: `userId` tapped the token of `ownerId`, as the GeekyKey Service hands it on. */
-  const meet = async (
+  /** The answer to one half: `userId` tapped the token of `ownerId`, as the GeekyKey Service hands it on. */
+  const meetAnswer = async (
     userId: string,
     userKind: string | null,
     ownerId: string,
@@ -129,8 +129,11 @@ async function harness() {
       }),
     });
     assert.equal(response.status, 200);
-    return ((await response.json()) as { status: string }).status;
+    return (await response.json()) as { status: string; owner_name: string | null };
   };
+
+  /** One half's status. */
+  const meet = async (...half: Parameters<typeof meetAnswer>) => (await meetAnswer(...half)).status;
 
   /** The user's connections in /me, which the Event screens must accept. */
   const connectionsOf = async (userId: string) => {
@@ -141,7 +144,18 @@ async function harness() {
     return (body as { connections: ConnectionBody[] }).connections;
   };
 
-  return { app, clock, send, board, connectAcross, createGroup, place, meet, connectionsOf };
+  return {
+    app,
+    clock,
+    send,
+    board,
+    connectAcross,
+    createGroup,
+    place,
+    meet,
+    meetAnswer,
+    connectionsOf,
+  };
 }
 
 test("a new event connects across token kinds", async () => {
@@ -212,6 +226,24 @@ test("across groups, someone not in a group gets no_group, and no half is kept",
   await place("bea", blue);
   clock.advanceSeconds(10);
   assert.equal(await meet("bea", "B", "alex", "E"), "waiting");
+});
+
+test("across groups, a tap the rule refuses still answers the owner's name", async () => {
+  const { connectAcross, createGroup, place, meetAnswer } = await harness();
+  const red = await createGroup("Red");
+  await place("alex", red);
+  await place("bea", red);
+  await place("chen", null); // joined, and waiting
+  await connectAcross("groups");
+
+  assert.deepEqual(await meetAnswer("alex", "E", "bea", "B"), {
+    status: "same_group",
+    owner_name: "bea",
+  });
+  assert.deepEqual(await meetAnswer("alex", "E", "chen", "B"), {
+    status: "no_group",
+    owner_name: "chen",
+  });
 });
 
 test("each tap is judged by the setting and the groups at that tap", async () => {

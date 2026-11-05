@@ -73,6 +73,8 @@ export interface MockControls {
    * mock keeps no halves, so it cannot work out `connected` by itself.
    */
   setMeetingStatus(status: MeetingStatus): void;
+  /** The name the next meetings answer for the owner. No name until a test gives one. */
+  setMeetingOwnerName(name: string | null): void;
   readonly data: MockData;
 }
 
@@ -88,6 +90,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   let pendingFailure: MockFailure | null = null;
   // 11.10's `waiting` is what one half looks like on its own, so it is the demo's state.
   let meetingStatus: MeetingStatus = "waiting";
+  let meetingOwnerName: string | null = null;
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -303,7 +306,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         // for one from before 0.12, which would answer 404.
         return data.event_services
           .filter((service) => service.in_settings && service.takes_meetings)
-          .map((service) => ({ event_id: service.id, status: meetingStatus }));
+          .map((service) => ({
+            event_id: service.id,
+            status: meetingStatus,
+            // 8.8: an Event Service that didn't answer gave no name.
+            owner_name: meetingStatus === "unavailable" ? null : meetingOwnerName,
+          }));
       }),
 
     // BAC-139. GeekyKey admins and organizers, and the service's counts, by kind in order.
@@ -349,6 +357,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       setSession,
       setMeetingStatus: (status) => {
         meetingStatus = status;
+      },
+      setMeetingOwnerName: (name) => {
+        meetingOwnerName = name;
       },
       data,
     },

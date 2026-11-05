@@ -60,6 +60,8 @@ const meetingStatusSchema = z.enum(MEETING_STATUSES);
 const meetingSchema: z.ZodMiniType<Meeting> = z.object({
   event_id: z.string(),
   status: meetingStatusSchema,
+  // A previous GeekyKey Service sends no name (BAC-143).
+  owner_name: z.prefault(z.nullable(z.string()), null),
 });
 
 /** Agreement 8.8: one item for each Event Service that takes meetings, in /me's order. */

@@ -1012,7 +1012,7 @@ shows a login prompt and looks nothing up.
 |---|---|
 | `nobody` | **Claim** |
 | `you` | Your token, with **Release**, and a button for each event from `/me`, such as "Open Capstone Showcase", which opens a login link (8.6) |
-| `someone_else` | "This token belongs to someone else", with no name. A GeekyKey admin also sees **Release** |
+| `someone_else` | "This token belongs to someone else". This lookup gives no name, and the meeting's answer (8.8) can name the owner (BAC-143, approved for the next version). A GeekyKey admin also sees **Release** |
 
 - `{uid}` is a [Token UID](#token-uid) in any separator style, and `uid` in the answer is the
   normalised form.
@@ -1094,8 +1094,10 @@ rule changes neither.
 ```
 
 - From now on, logging in (7.2) and login links (7.4) no longer change the name.
-- Nothing checks what a name says. Until something shows names on a public screen, only the user
-  and the organizers see it.
+- Nothing checks what a name says. A station's screen greets the user by its first word (6.1). On
+  phones, the user's name shows to the organizers, to the user's group, to anyone who taps the
+  user's token, before the two connect, and to anyone whose token the user taps (8.8, BAC-143,
+  approved for the next version).
 - Nothing checks what an answer says either. Answers show only on phones, in the hunt (8.9) and
   in `connections` (8.1), and never on the map (9.10), since a unique answer can identify someone
   as a name can.
@@ -1119,7 +1121,7 @@ shows only the sentence that the token belongs to someone else.
 **Response `200`**
 
 ```json
-{ "meetings": [ { "event_id": "showcase", "status": "waiting" } ] }
+{ "meetings": [ { "event_id": "showcase", "status": "waiting", "owner_name": "Sam" } ] }
 ```
 
 - The GeekyKey Service asks who owns the token, then hands the half to each Event Service whose
@@ -1128,9 +1130,13 @@ shows only the sentence that the token belongs to someone else.
 - `status` is the Event Service's answer (11.10): `waiting`, `connected`, `already_connected` or
   `same_kind`. Section 13 has what the token page shows for each. A tap makes one request at most,
   so `waiting` can come again for the same pair.
+- `owner_name` is the Event Service's answer too (11.10): the owner's current name, or `null`. The
+  GeekyKey Service passes it on and stores no names. The answer gives no user ID, token UID or
+  answers. A screen that gets no `owner_name` reads it as `null` (BAC-143, approved for the next
+  version).
 - An Event Service that doesn't answer in time, or answers wrongly, gets the status
-  `unavailable` in its item. Nothing is retried. Tapping the token again sends the half again,
-  which does no harm.
+  `unavailable` in its item, with `owner_name` `null`. Nothing is retried. Tapping the token again
+  sends the half again, which does no harm.
 - An Event Service that answers `404`, as one from before 0.12 does, doesn't take meetings, and
   is left out of `meetings`.
 
@@ -1931,7 +1937,7 @@ hand-off's two are there, and so is the heartbeat hand-off's request. Its answer
   Event Service.
 - When the GeekyKey Service received the tap. The Event Service uses its own clock.
 - The user's name. An Event Service that needs one takes it from the login, or from a login
-  link (11.9).
+  link (11.9). Names go the other way only in the meeting hand-off's answer (11.10).
 
 ### 11.9 The login link
 
@@ -1986,8 +1992,13 @@ token (8.8), on each Event Service whose entry in its settings takes meetings. O
 **Response `200`**
 
 ```json
-{ "status": "waiting" }
+{ "status": "waiting", "owner_name": "Sam" }
 ```
+
+`owner_name` is the owner's current name, a string of at least 1 character, for every `status`. It
+is `null` when they have no name of their own (`has_name` in 8.1 would be `false`) or this Event
+Service has never seen them. The token page shows it so that two people notice they hold each
+other's tokens (BAC-143, approved for the next version).
 
 | `status` | Meaning |
 |---|---|
@@ -2007,7 +2018,8 @@ token (8.8), on each Event Service whose entry in its settings takes meetings. O
 - It works with either service's previous version: a GeekyKey Service from before 0.12 never
   calls it, and an Event Service from before answers `404`, which 8.8 reads as no meetings. The
   statuses don't change with connection requests (BAC-149): `waiting` only comes to mean a request
-  rather than a half that expires.
+  rather than a half that expires. A GeekyKey Service from before `owner_name` ignores the field.
+  A GeekyKey Service that knows the field reads an answer without it as `null`.
 - Like the tap hand-off, it leaves out the token's UID (11.8).
 - Its JSON Schemas join the others in `packages/handoff/json-schema/` (11.7).
 
@@ -2093,7 +2105,9 @@ There are no GeekyKey admin screens.
   get back in."
 - When `has_name` is `false`, the passport asks "What should we call you?", with **Save** and
   **Skip**. Skipping keeps `Guest`, and the passport keeps a way to set the name later. On
-  `validation_failed` it says "Use 1 to 30 characters."
+  `validation_failed` it says "Use 1 to 30 characters." Under the field it says **"The organisers,
+  your group, and anyone who taps your token or whose token you tap see it."** (BAC-143 and
+  FRO-127, approved for the next version).
 - When `question` isn't `null` and `answer` is (8.1), the passport asks the question in its own
   words, after the name, with **Save**. On `validation_failed` it says "Use 1 to 60 characters."
   The question can be answered later, and the hunt still works without it.
@@ -2112,8 +2126,10 @@ There are no GeekyKey admin screens.
   and on `no_group` **"You both need to be in a group to connect. Ask an organiser."**, each with
   **Dismiss**. On `not_found` it says nothing, since the read takes the request away. Declining
   says nothing.
-- After the meeting call (8.8), the token page shows, under "This token belongs to someone
-  else": for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149,
+- After the meeting call (8.8), when an item's `owner_name` isn't `null`, the token page replaces "This token belongs to someone else" with **"This token
+  belongs to {owner_name}."** and **"If you're carrying this token, it isn't yours. Swap it back
+  with {owner_name}."** (BAC-143, approved for the next version). Under that sentence or those two,
+  it shows: for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149,
   a draft for Ethan to approve); for `connected`,
   **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
   `same_kind`, **"You're in the same group. Find someone from another group."**; and for
@@ -2251,3 +2267,4 @@ Closed on 2026-10-10:
 | 2026-10-30 | Version 0.11, a draft for Ethan's review: after a passport tap, the station names the participant's next stop, and the passport gives the same one (BAC-98). **New, optional:** `next_stop` on the Event Service's `GET /api/v1/me` (8.1), the stamp slot without the participant's stamp that had the fewest taps made in the last 10 minutes, with its `station_id`, `name` and `booth`, or `null`. A disabled station and one with no booth are never the next stop, and a tie goes to the earlier slot. The passport's second line for the station (6.1) is now `Next: B3` while there is a next stop, in place of `Tap counted!` or `Already counted`, which it still says without one. The shape of `lines` is unchanged. Nothing is removed. |
 | 2026-11-02 | Version 0.12, a draft for Ethan's review: connections by phone, and the answers game on top (BAC-116, and the migration spec's section 6, "The answers game"). Two users connect when each taps their phone on the other's token within 2 minutes ([Connections](#connections), in section 4). **New, at `Checkpoint 7`:** `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (8.8), which the token page calls once its lookup says `someone_else`; the meeting hand-off, `POST /geekykey/v1/meetings` (11.10), taken by an Event Service whose entry in the GeekyKey Service's settings says so; and `GET /api/v1/hunt` and `POST /api/v1/hunt/skip` on the Event Service (8.9), with the new `409 skip_locked`. **New fields, at `Checkpoint 7`:** `user.question`, `user.answer` and `connections` in the Event Service's `/me` (8.1); `answer` in `PATCH /api/v1/me` (8.7), where `display_name` becomes optional; and `connections`, a count and anonymous links, in the map's data (9.10). The meeting counts toward the GeekyKey Service's 20 lookups a minute. Section 12 keeps connection points out of scope and lets connections by phone in. Section 13 adds the hunt's, the reveal's and the token page's sentences. No field is removed, and each service works with the other's previous version. |
 | 2026-11-05 | A draft for the next version, for Ethan's review: the other person accepts a connection with a button (BAC-149, from the 5 Nov meeting with Julian). A tap on someone's token sends them a connection request with no time limit, a tap back still connects, and the 2 minute limit on a half goes. **New:** `connection_requests` in `/me` (8.1) and 8.10's accept and decline, both at `Checkpoint 7`. **Changed:** what `waiting` means in 8.8 and 11.10, and section 13's `waiting` sentence, which also gets the event's button. No status is added, so either service works with the other's previous version. |
+| 2026-11-05 | For the next version, which Ethan approved: tapping a token says whose it is, so people notice when tokens are swapped (BAC-143, from the 5 Nov trial). **New, at `Checkpoint 7`:** `owner_name` in the meeting hand-off's answer (11.10) and in each item of 8.8's answer, the owner's current name or `null`. **Changed:** 8.7 says who sees a name, 8.5's row says only the lookup gives no name, and section 13 adds the token page's two sentences and the name prompt's line, which also covers FRO-127. No field is removed, and either service works with the other's previous version. |

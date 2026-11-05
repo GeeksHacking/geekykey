@@ -89,7 +89,8 @@ _Avoid_: holder
 **Token page**:
 The GeekyKey Service's page that a phone opens when it taps a token. It lets a user claim an
 unclaimed token, and shows the owner their own token with a way into each event. Anyone else sees
-only that the token is taken; a GeekyKey admin can also release it there.
+that the token is taken and, once the tap's half is answered, the owner's name if they have one of
+their own (BAC-143); a GeekyKey admin sees no name and can also release it there.
 
 **Login link**:
 A short-lived link from the GeekyKey Service's pages that logs a user in to an event's screens as

@@ -18,6 +18,13 @@ import { connectionsGame } from "./connections.ts";
 // match, and the map draws (9.10). connection-requests.test.ts covers accepting
 // and declining the request the first tap sends.
 
+/** The whole answer to a half, from a 200. */
+const answerOf = async (res: Response | Promise<Response>) => {
+  const answered = await res;
+  assert.equal(answered.status, 200);
+  return await answered.json();
+};
+
 /** The questions in the tests' answers game, so no test depends on the grad tea's list. */
 const QUESTIONS: readonly Question[] = [
   {
@@ -87,11 +94,8 @@ function harness({ withGame = true } = {}) {
     });
 
   /** The half's status, from a 200. */
-  const statusOf = async (res: Response | Promise<Response>) => {
-    const answered = await res;
-    assert.equal(answered.status, 200);
-    return ((await answered.json()) as { status: string }).status;
-  };
+  const statusOf = async (res: Response | Promise<Response>) =>
+    ((await answerOf(res)) as { status: string }).status;
 
   /** Signs in through dev-login, as a user it adds, and returns the cookie a browser would send back. */
   const signIn = async (userId: string): Promise<string> => {
@@ -241,6 +245,78 @@ test("a half needs the Event Service key, and a body the agreement allows", asyn
   const self = await meet("alex", "E", "alex", "B");
   assert.equal(self.status, 400);
   assert.equal(((await self.json()) as { error: string }).error, "validation_failed");
+});
+
+// The owner's name in the answer (BAC-143), so the token page can say whose token it is.
+
+test("a half answers the owner's name with its status, whatever the status", async () => {
+  const { meet, signIn } = harness();
+  await signIn("alex");
+  await signIn("bea");
+  await signIn("cal");
+  assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
+    status: "waiting",
+    owner_name: "bea",
+  });
+  assert.deepEqual(await answerOf(meet("bea", "B", "alex", "E")), {
+    status: "connected",
+    owner_name: "alex",
+  });
+  assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
+    status: "already_connected",
+    owner_name: "bea",
+  });
+  assert.deepEqual(await answerOf(meet("alex", "E", "cal", "E")), {
+    status: "same_kind",
+    owner_name: "cal",
+  });
+});
+
+/** `userId` sets their own name through PATCH /api/v1/me, as the passport does. */
+const setName = async (
+  { app, signIn }: ReturnType<typeof harness>,
+  userId: string,
+  name: string,
+) => {
+  const res = await app.request("/api/v1/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: await signIn(userId) },
+    body: JSON.stringify({ display_name: name }),
+  });
+  assert.equal(res.status, 200);
+};
+
+test("a name the owner changed before the tap is the name a half answers", async () => {
+  const service = harness();
+  const { meet } = service;
+  await setName(service, "bea", "Mei Lin");
+  assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
+    status: "waiting",
+    owner_name: "Mei Lin",
+  });
+});
+
+test("a half answers no name for an owner with only the default name, or who never logged in", async () => {
+  const { meet } = harness();
+  await testDb().insert(users).values({ id: "no-name", displayName: "Guest" });
+  assert.deepEqual(await answerOf(meet("alex", "E", "no-name", "B")), {
+    status: "waiting",
+    owner_name: null,
+  });
+  assert.deepEqual(await answerOf(meet("alex", "E", "never-seen", "B")), {
+    status: "waiting",
+    owner_name: null,
+  });
+});
+
+test("a half answers Guest for an owner who chose it as their name", async () => {
+  const service = harness();
+  const { meet } = service;
+  await setName(service, "bea", "Guest");
+  assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
+    status: "waiting",
+    owner_name: "Guest",
+  });
 });
 
 /** Pairs made by matchBetween() so far, so each call in one test has a pair of its own. */

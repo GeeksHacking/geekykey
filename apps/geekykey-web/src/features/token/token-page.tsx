@@ -16,6 +16,7 @@ import { useReleaseToken } from "@/lib/use-release-token";
 import type { EventServiceLink, TokenLookup } from "@/api/types";
 import { MeetingError } from "@/features/token/meeting-error";
 import { MeetingNotice } from "@/features/token/meeting-notice";
+import { OwnerSentences } from "@/features/token/owner-sentences";
 import { useMeeting } from "@/features/token/use-meeting";
 import { useToken } from "@/features/token/use-token";
 
@@ -25,10 +26,10 @@ import { useToken } from "@/features/token/use-token";
  * scroll past.
  *
  * What it shows is decided by `owner`: "nobody" for an unclaimed token, which gets Claim,
- * "you" for your own with when you claimed it and a Release, and "someone_else" with
- * nothing but the sentence unless the signed-in user is a GeekyKey admin, who also gets a
- * Release. The owner is never named: 8.5 gives `owner_id` only to a GeekyKey admin, and the
- * mock enforces that, so there is no name or ID on this screen to leak.
+ * "you" for your own with when you claimed it and a Release, and "someone_else" with whose
+ * it is and what the tap came to, unless the signed-in user is a GeekyKey admin, who gets the
+ * plain sentence and a Release. The lookup never names the owner: 8.5 gives `owner_id` only to a GeekyKey admin,
+ * and the mock enforces that. The only name here comes from the half's answer (8.8).
  *
  * Your own token carries a button for each event in /me as well, which opens that
  * event's screens as the same user through a login link (8.6). A token someone else holds
@@ -190,9 +191,10 @@ function YouOwnIt({
 
 /**
  * Agreement 8.5's table: "someone_else" reads "This token belongs to someone else", and
- * "A GeekyKey admin also sees Release". An ordinary user gets the sentence and, under it,
- * what the half (8.8) answered. An admin gets Release instead: they may be holding a lost
- * token, so their arrival is not a tap between two people, and the page sends no half.
+ * "A GeekyKey admin also sees Release". An ordinary user gets the sentence, with the owner's
+ * name once the half (8.8) answers one, and under it what the half answered. An admin gets
+ * Release instead: they may be holding a lost token, so their arrival is not a tap between two
+ * people, and the page sends no half.
  */
 function SomeoneElseHasIt({
   release,
@@ -209,10 +211,11 @@ function SomeoneElseHasIt({
 }) {
   // 8.8: no button. The page sends the half by itself, and skips it for an admin.
   const meeting = useMeeting(uid, !isAdmin);
+  const ownerName = meeting.data?.find((item) => item.owner_name !== null)?.owner_name ?? null;
 
   return (
     <div className="flex flex-col items-start gap-4">
-      <p className="text-base">This token belongs to someone else.</p>
+      <OwnerSentences name={ownerName} />
       {isAdmin ? (
         <ReleaseTokenBlock release={release} ownerId={ownerId} mine={false} />
       ) : (
