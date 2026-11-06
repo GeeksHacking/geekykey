@@ -56,7 +56,7 @@ it("a participant who skipped before must save a name and every answer before se
   const { user } = renderEvent();
   await screen.findByRole("heading", { name: "What should we call you?" });
   expect(screen.queryByText("Dashboard and group card")).not.toBeInTheDocument();
-  // The setup step hides the section tabs, not the header's site switch.
+  // The setup step hides the section tabs.
   expect(screen.queryByRole("navigation", { name: "Sections" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /skip/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "Tea or coffee?" })).not.toBeInTheDocument();
