@@ -43,7 +43,7 @@ async function openMenu(person: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("AccountMenu", () => {
-  it("puts My tokens first, opening the key screens in a new tab", async () => {
+  it("puts My tokens first, opening the key screens in the same tab", async () => {
     const person = userEvent.setup();
     renderMenu();
     const menu = await openMenu(person);
@@ -51,8 +51,7 @@ describe("AccountMenu", () => {
     const [first] = within(menu).getAllByRole("menuitem");
     expect(first).toHaveTextContent("My tokens");
     expect(first).toHaveAttribute("href", GEEKYKEY_SCREENS_URL);
-    expect(first).toHaveAttribute("target", "_blank");
-    expect(first).toHaveAttribute("rel", "noreferrer");
+    expect(first).not.toHaveAttribute("target");
   });
 
   it("leaves the key site to My tokens, with no second item", async () => {

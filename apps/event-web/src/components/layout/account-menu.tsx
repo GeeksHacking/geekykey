@@ -57,10 +57,10 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* FRO-141. My tokens is a GeekyKey screen, so the menu opens it in a new tab and
-            keeps the event screen where it was. The dashboard's own row is gone. */}
+        {/* FRO-141. My tokens is a GeekyKey screen. The menu is navigation, so it opens in the
+            same tab and Back returns to the event screen. The dashboard's own row is gone. */}
         <DropdownMenuItem asChild>
-          <a href={GEEKYKEY_SCREENS_URL} target="_blank" rel="noreferrer">
+          <a href={GEEKYKEY_SCREENS_URL}>
             <Stamp aria-hidden />
             My tokens
           </a>
