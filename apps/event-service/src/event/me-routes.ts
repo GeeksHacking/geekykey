@@ -26,6 +26,9 @@ export interface MeRouteDeps {
   now?: () => Date;
 }
 
+/** Ends PATCH /api/v1/me's transaction, so a refused name undoes the answers saved before it. */
+class NameTaken extends Error {}
+
 /** One of the user's connections, as /me lists it (8.1). */
 function connectionBody(connection: Connection) {
   return {
@@ -149,20 +152,31 @@ export function meRoutes({
   app.patch("/", requireSession(session), jsonBody(setMeSchema), async (c) => {
     const { display_name, answers: given, bio, contact_line: contactLine } = c.req.valid("json");
     const { db, user } = c.var;
-    // One transaction, so a request whose answers are refused changes nothing else.
-    const saved = await db.transaction(async (tx) => {
-      // With no game, answersSchema() lets through only an empty `answers`, which sets nothing.
-      const result = !game
-        ? {}
-        : given === undefined
-          ? await game.answersOf(tx, user.id)
-          : await game.setAnswers(tx, user.id, given);
-      if (result !== "fixed") {
-        if (display_name !== undefined) await setOwnName(tx, user.id, display_name);
-        await setProfile(tx, user.id, { bio, contactLine });
-      }
-      return result;
-    });
+    // One transaction, so a request whose answers or name is refused changes nothing else. The
+    // answers come first: a name locks every user's row, and holding those while waiting for a
+    // user's answers could deadlock against a request of theirs that saves answers and a bio.
+    const saved = await db
+      .transaction(async (tx) => {
+        // With no game, answersSchema() lets through only an empty `answers`, which sets nothing.
+        const result = !game
+          ? {}
+          : given === undefined
+            ? await game.answersOf(tx, user.id)
+            : await game.setAnswers(tx, user.id, given);
+        if (result !== "fixed") {
+          if (display_name !== undefined) {
+            const refusal = await setOwnName(tx, user.id, display_name);
+            if (refusal !== null) throw new NameTaken();
+          }
+          await setProfile(tx, user.id, { bio, contactLine });
+        }
+        return result;
+      })
+      .catch((err: unknown) => {
+        if (err instanceof NameTaken) return "name_taken" as const;
+        throw err;
+      });
+    if (saved === "name_taken") return c.json({ error: "name_taken" }, 409);
     if (saved === "fixed") return c.json({ error: "answers_fixed" }, 409);
     const updated = {
       ...user,

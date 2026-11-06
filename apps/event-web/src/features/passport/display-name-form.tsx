@@ -21,6 +21,9 @@ import { isDisplayName } from "@/lib/display-name";
 /** Agreement 13's sentence for a name the rule refuses, here or at the service. */
 const NAME_RULE = "Use 1 to 30 characters.";
 
+/** Agreement 13's sentence for a name someone else has (BAC-145). */
+const NAME_TAKEN = "Someone already has this name. Try another.";
+
 const schema = z.object({
   display_name: z.string().check(z.refine(isDisplayName, NAME_RULE)),
 });
@@ -56,6 +59,8 @@ export function DisplayNameForm({
       // The service has the last word on the rule, and section 13 words its answer.
       if (isApiErrorCode(error, "validation_failed")) {
         form.setError("display_name", { type: "server", message: NAME_RULE });
+      } else if (isApiErrorCode(error, "name_taken")) {
+        form.setError("display_name", { type: "server", message: NAME_TAKEN });
       } else {
         setFormError(describeError(error));
       }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import type { Question } from "../../event/answers.ts";
+import { users } from "../../event/schema.ts";
 import { screensSchemas, setupFixture, testApp, testDb } from "../../test-helpers.ts";
 import { answersGame } from "./answers.ts";
 
@@ -105,6 +106,29 @@ async function answersIn(res: Response): Promise<Record<string, string>> {
 
 /** What the connections game does to each person when it makes their connection. */
 const connect = (userId: string) => testDb().transaction((tx) => game.fixAnswers(tx, userId));
+
+test("a request with a taken name, an answer and a bio changes none of them", async () => {
+  const { db, signIn, patchMe, meAs, userId } = await harness();
+  await db.insert(users).values({ id: "mei", displayName: "Mei Lin" });
+  const res = await patchMe(
+    { display_name: "mei lin", answers: { drink: "tea" }, bio: "Building a robot arm" },
+    await signIn(userId),
+  );
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "name_taken" });
+  const { user } = await meAs(userId);
+  assert.equal(user.display_name, "Alex");
+  assert.deepEqual(user.answers, {});
+  assert.equal(user.bio, null);
+});
+
+test("saving an answer alone never asks whether a name is taken", async () => {
+  const { db, signIn, patchMe, userId } = await harness();
+  // The same name from before the rule, which the check would refuse if it ran.
+  await db.insert(users).values({ id: "alex-2", displayName: "Alex" });
+  const res = await patchMe({ answers: { drink: "tea" } }, await signIn(userId));
+  assert.deepEqual(await answersIn(res), { drink: "tea" });
+});
 
 test("/me gives the questions, and no answers before any", async () => {
   const { meAs, userId } = await harness();

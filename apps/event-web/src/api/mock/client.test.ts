@@ -333,6 +333,26 @@ describe("the name the event shows (agreement 8.7)", () => {
     });
   });
 
+  it("refuses a name someone else has, whatever its capitals, and leaves everything as it was", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    const before = (await api.me()).user;
+    await expectApiError(
+      api.updateMe({ display_name: " priya RAMAN ", bio: "Kept out" }),
+      "name_taken",
+      409,
+    );
+    await expect(api.me()).resolves.toMatchObject({ user: before });
+  });
+
+  it("lets a user save their own name again, with different capitals", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await expect(api.updateMe({ display_name: "ALEX TAN" })).resolves.toMatchObject({
+      user: { display_name: "ALEX TAN" },
+    });
+  });
+
   it("answers 401 when nobody is signed in", async () => {
     await expectApiError(client().updateMe({ display_name: "Alex" }), "unauthenticated", 401);
   });

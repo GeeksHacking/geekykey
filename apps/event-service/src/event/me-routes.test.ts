@@ -568,6 +568,92 @@ test("a name is trimmed, then must be 1 to 30 code points, in any script", async
   assert.equal(((await (await getMe(cookie)).json()) as MeBody).user.display_name, "陈美玲");
 });
 
+const CHOSEN_AT = "2026-11-05T01:00:00.000Z";
+
+/** An app of its own for each test, so these requests don't count toward the file's rate limit. */
+async function nameHarness() {
+  return { ...(await setupFixture()), ...meClient(testApp()) };
+}
+
+/** PATCH /api/v1/me's refusal of a name someone else has (BAC-145). */
+async function assertNameTaken(res: Response) {
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: "name_taken" });
+}
+
+test("saving a name someone else has gives name_taken and leaves the name as it was", async () => {
+  const { db, signIn, patchMe, meAs, userId } = await nameHarness();
+  await db.insert(users).values({ id: "mei", displayName: "Mei Lin", nameSetAt: CHOSEN_AT });
+  await assertNameTaken(await patchMe({ display_name: "Mei Lin" }, await signIn(userId)));
+  const { user } = await meAs(userId);
+  assert.equal(user.display_name, "Alex");
+});
+
+test("a name counts as taken whatever its capitals and spaces", async () => {
+  const { db, signIn, patchMe, meAs, userId } = await nameHarness();
+  await db.insert(users).values({ id: "mei", displayName: "Mei Lin", nameSetAt: CHOSEN_AT });
+  const cookie = await signIn(userId);
+  await assertNameTaken(await patchMe({ display_name: "  mei LIN  " }, cookie));
+  assert.equal((await meAs(userId)).user.display_name, "Alex");
+});
+
+test("a name that came from someone's login counts as taken", async () => {
+  const { db, signIn, patchMe, userId } = await nameHarness();
+  await db.insert(users).values({ id: "mei", displayName: "Mei Lin" });
+  await assertNameTaken(await patchMe({ display_name: "Mei Lin" }, await signIn(userId)));
+});
+
+test("saving your own name again works, with different capitals too", async () => {
+  const { signIn, patchMe, meAs, userId } = await nameHarness();
+  const cookie = await signIn(userId);
+  assert.equal((await patchMe({ display_name: "Alex" }, cookie)).status, 200);
+  assert.equal((await patchMe({ display_name: "ALEX" }, cookie)).status, 200);
+  assert.equal((await meAs(userId)).user.display_name, "ALEX");
+});
+
+test("two people with the same name from before the rule keep it until one changes it", async () => {
+  const { db, signIn, patchMe, meAs, userId } = await nameHarness();
+  await db.insert(users).values({ id: "alex-2", displayName: "Alex" });
+  const cookie = await signIn(userId);
+  assert.equal((await patchMe({ display_name: "alex" }, cookie)).status, 200);
+  assert.equal((await meAs("alex-2")).user.display_name, "Alex");
+  assert.equal((await patchMe({ display_name: "Ally" }, cookie)).status, 200);
+  await assertNameTaken(await patchMe({ display_name: "Alex" }, cookie));
+});
+
+test("the default Guest name is nobody's, until someone chooses it", async () => {
+  const { db, signIn, patchMe, meAs } = await nameHarness();
+  await db.insert(users).values([
+    { id: "guest-1", displayName: "Guest" },
+    { id: "guest-2", displayName: "Guest" },
+    { id: "guest-3", displayName: "Guest" },
+  ]);
+  assert.equal((await meAs("guest-1")).user.has_name, false);
+  assert.equal((await meAs("guest-2")).user.has_name, false);
+
+  const first = await patchMe({ display_name: "Guest" }, await signIn("guest-1"));
+  assert.equal(first.status, 200);
+  await assertNameTaken(await patchMe({ display_name: "guest" }, await signIn("guest-2")));
+  // Having the default doesn't count as already having the chosen name.
+  await assertNameTaken(await patchMe({ display_name: "Guest" }, await signIn("guest-3")));
+  assert.equal((await meAs("guest-3")).user.has_name, false);
+});
+
+test("two saves of one name at once leave exactly one person with it", async () => {
+  const { db, signIn, patchMe, meAs } = await nameHarness();
+  const ids = ["racer-1", "racer-2", "racer-3", "racer-4", "racer-5", "racer-6"];
+  await db.insert(users).values(ids.map((id) => ({ id, displayName: id })));
+  const cookies = await Promise.all(ids.map(signIn));
+
+  const answers = await Promise.all(
+    cookies.map((cookie) => patchMe({ display_name: "Same Name" }, cookie)),
+  );
+
+  assert.deepEqual(answers.map((res) => res.status).toSorted(), [200, 409, 409, 409, 409, 409]);
+  const names = await Promise.all(ids.map(async (id) => (await meAs(id)).user.display_name));
+  assert.equal(names.filter((name) => name === "Same Name").length, 1);
+});
+
 test("setting a name needs a session", async () => {
   const { patchMe } = await harness();
   const res = await patchMe({ display_name: "Ally" });
