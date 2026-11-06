@@ -2289,3 +2289,12 @@
     The event and key screens have an Event/Key switch that marks the current site and opens
     the other in the same tab. On the key screens, Event uses a login link, so a guest
     arrives signed in.
+- id: guest-sign-out-releases-tokens
+  date: 2026-11-06
+  area: frontend
+  change: >-
+    A guest who signs out now sees a warning, and going ahead releases their tokens so someone else
+    can claim them. Signing out of the Event screens passes through the GeekyKey screens, because
+    only they can tell a guest and release a token. The trade-offs we accept: anyone who came by
+    login link passes through those screens too, and a guest who has lost their login there keeps
+    their tokens until a GeekyKey admin releases them.

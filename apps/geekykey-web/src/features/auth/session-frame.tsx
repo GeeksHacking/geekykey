@@ -7,6 +7,8 @@ import { AccountMenu } from "@/components/layout/account-menu";
 import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
 import { SiteSwitch } from "@/components/layout/site-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
+import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
 import { useMe, useSession } from "@/lib/session";
 
 /**
@@ -17,23 +19,38 @@ export function SessionFrame({ children }: { children: ReactNode }) {
   const { me } = useMe();
   const session = useSession();
   const navigate = useNavigate();
-  const [askingGuest, setAskingGuest] = useState(false);
+  const release = useReleaseMyTokens();
+  // Who the warning is about. It closes if /me comes to name someone else while it's open.
+  const [warnedUserId, setWarnedUserId] = useState<string | null>(null);
+  const [checkFailed, setCheckFailed] = useState(false);
 
-  // A guest is asked first (agreement 13), and anyone else signs out straight away.
-  // Firebase is loaded only now, so a signed-in user's pages still don't load it.
+  // A guest is warned first (agreement 13), and anyone else signs out straight away.
   async function chooseSignOut() {
+    setCheckFailed(false);
     let guest: boolean;
     try {
-      const { isSignedInAsGuest } = await import("@/lib/firebase");
-      guest = await isSignedInAsGuest();
-    } catch (error) {
-      // Ask when Firebase can't say: an extra question costs a Google user one tap, and a
-      // missing one costs a guest their tokens.
-      console.error("Checking for a guest sign-in failed", error);
-      guest = true;
+      guest = await isGuest(me.user.id);
+    } catch {
+      setCheckFailed(true);
+      return;
     }
-    if (guest) setAskingGuest(true);
-    else await signOut();
+    if (!guest) {
+      await signOut();
+      return;
+    }
+    release.reset();
+    setWarnedUserId(me.user.id);
+    // So the warning says the right thing about a token claimed in another tab.
+    await session.refresh();
+  }
+
+  async function releaseAndSignOut(userId: string) {
+    try {
+      await release.mutateAsync(userId);
+    } catch {
+      return; // The dialog stays open and says why.
+    }
+    await signOut();
   }
 
   async function signOut() {
@@ -61,11 +78,20 @@ export function SessionFrame({ children }: { children: ReactNode }) {
           onSignOut={() => void chooseSignOut()}
         />
         <GuestSignOutDialog
-          open={askingGuest}
-          onOpenChange={setAskingGuest}
-          onSignOut={() => void signOut()}
+          open={warnedUserId === me.user.id}
+          hasTokens={me.tokens.length > 0}
+          isPending={release.isPending}
+          isSigningOut={release.isPending}
+          error={release.error}
+          onStay={() => setWarnedUserId(null)}
+          onSignOut={() => void releaseAndSignOut(me.user.id)}
         />
       </header>
+      {checkFailed ? (
+        <p role="alert" className="pb-4 text-sm text-destructive">
+          {COULD_NOT_CHECK_LOGIN}
+        </p>
+      ) : null}
       <div className="flex-1 pb-16">{children}</div>
     </div>
   );

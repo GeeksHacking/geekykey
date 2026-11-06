@@ -33,7 +33,11 @@ vi.mock("@firebase/auth", () => ({
 
 /** Firebase reports the user it remembers once, on a later tick, the way the SDK does. */
 function firebaseRemembers(
-  user: { getIdToken: (forceRefresh?: boolean) => Promise<string>; isAnonymous?: boolean } | null,
+  user: {
+    getIdToken: (forceRefresh?: boolean) => Promise<string>;
+    isAnonymous?: boolean;
+    uid?: string;
+  } | null,
 ) {
   const unsubscribe = vi.fn();
   onAuthStateChanged.mockImplementation((_auth: unknown, next: (u: typeof user) => void) => {
@@ -165,30 +169,41 @@ describe("the Firebase module", () => {
 
   it("says the user Firebase remembers is a guest when their sign-in was anonymous", async () => {
     const firebase = await loadModule();
-    const unsubscribe = firebaseRemembers({ getIdToken: vi.fn(), isAnonymous: true });
+    const unsubscribe = firebaseRemembers({
+      getIdToken: vi.fn(),
+      isAnonymous: true,
+      uid: "guest-1",
+    });
 
-    await expect(firebase.isSignedInAsGuest()).resolves.toBe(true);
+    await expect(firebase.isSignedInAsGuest("guest-1")).resolves.toBe(true);
     expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  it("doesn't call the session's user a guest when Firebase's guest is someone else", async () => {
+    const firebase = await loadModule();
+    firebaseRemembers({ getIdToken: vi.fn(), isAnonymous: true, uid: "guest-1" });
+
+    await expect(firebase.isSignedInAsGuest("google-user")).resolves.toBe(false);
   });
 
   it("says a Google user is not a guest", async () => {
     const firebase = await loadModule();
-    firebaseRemembers({ getIdToken: vi.fn(), isAnonymous: false });
+    firebaseRemembers({ getIdToken: vi.fn(), isAnonymous: false, uid: "google-user" });
 
-    await expect(firebase.isSignedInAsGuest()).resolves.toBe(false);
+    await expect(firebase.isSignedInAsGuest("google-user")).resolves.toBe(false);
   });
 
   it("says nobody is a guest when Firebase remembers nobody", async () => {
     const firebase = await loadModule();
     firebaseRemembers(null);
 
-    await expect(firebase.isSignedInAsGuest()).resolves.toBe(false);
+    await expect(firebase.isSignedInAsGuest("anyone")).resolves.toBe(false);
   });
 
   it("says nobody is a guest without touching Firebase when there is no config", async () => {
     const firebase = await loadModule(NO_CONFIG);
 
-    await expect(firebase.isSignedInAsGuest()).resolves.toBe(false);
+    await expect(firebase.isSignedInAsGuest("anyone")).resolves.toBe(false);
     expect(getAuth).not.toHaveBeenCalled();
   });
 

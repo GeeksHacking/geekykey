@@ -1,7 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
-
-import { describeError, isApiErrorCode } from "@/api/errors";
+import { isApiErrorCode } from "@/api/errors";
 import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
@@ -17,7 +14,7 @@ import { StationList } from "@/features/map/station-list";
 import { useMap } from "@/features/map/use-map";
 import { formatTimeWithSeconds } from "@/lib/format";
 import { showStaleNote } from "@/lib/rate-limit";
-import { useSession } from "@/lib/session";
+import { useSignOut } from "@/lib/use-sign-out";
 
 const plan = MPH_EXAMPLE_PLAN;
 
@@ -31,17 +28,7 @@ const LAYOUT =
 /** The map on the big screen at our booth: every station at its booth, pulsing as taps arrive. */
 export function MapScreen() {
   const map = useMap();
-  const session = useSession();
-  const navigate = useNavigate();
-
-  async function signOut() {
-    try {
-      await session.signOut();
-      await navigate({ to: "/login", search: { return_to: "/map" }, replace: true });
-    } catch (error) {
-      toast.error(describeError(error));
-    }
-  }
+  const signOut = useSignOut("/map");
 
   // A forbidden answer replaces the map even after it has loaded: polling stops on it, so
   // a frozen map with no way to log out would be all that's left.

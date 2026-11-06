@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SignOutRouteImport } from './routes/sign-out'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAdminTokenKindsRouteImport } from './routes/_app/admin.token-kinds'
 import { Route as AppTUidRouteImport } from './routes/_app/t.$uid'
@@ -22,6 +23,11 @@ const AppRoute = AppRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignOutRoute = SignOutRouteImport.update({
+  id: '/sign-out',
+  path: '/sign-out',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -43,11 +49,13 @@ const AppTUidRoute = AppTUidRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/sign-out': typeof SignOutRoute
   '/admin/token-kinds': typeof AppAdminTokenKindsRoute
   '/t/$uid': typeof AppTUidRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/sign-out': typeof SignOutRoute
   '/': typeof AppIndexRoute
   '/admin/token-kinds': typeof AppAdminTokenKindsRoute
   '/t/$uid': typeof AppTUidRoute
@@ -56,19 +64,21 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/sign-out': typeof SignOutRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/token-kinds': typeof AppAdminTokenKindsRoute
   '/_app/t/$uid': typeof AppTUidRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/admin/token-kinds' | '/t/$uid'
+  fullPaths: '/' | '/login' | '/sign-out' | '/admin/token-kinds' | '/t/$uid'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/admin/token-kinds' | '/t/$uid'
+  to: '/login' | '/sign-out' | '/' | '/admin/token-kinds' | '/t/$uid'
   id:
     | '__root__'
     | '/_app'
     | '/login'
+    | '/sign-out'
     | '/_app/'
     | '/_app/admin/token-kinds'
     | '/_app/t/$uid'
@@ -77,6 +87,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  SignOutRoute: typeof SignOutRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -93,6 +104,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-out': {
+      id: '/sign-out'
+      path: '/sign-out'
+      fullPath: '/sign-out'
+      preLoaderRoute: typeof SignOutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -136,6 +154,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  SignOutRoute: SignOutRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
