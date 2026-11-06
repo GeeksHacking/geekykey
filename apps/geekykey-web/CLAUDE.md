@@ -72,7 +72,10 @@ event's screens as the same user (FRO-31). The token page's buttons name its tok
 the link carries the token's kind (11.9, ADR 0006); My tokens sends none, since it shows
 several tokens (FRO-106). The buttons are in
 `src/components/event-buttons.tsx`, and the hook that opens the link is in
-`src/lib/use-login-link.ts`.
+`src/lib/use-login-link.ts`. The signed-in header also has an Event/Key switch. Key is the
+current site, and Event opens a login link; with one event it is a direct button, and with
+several it opens a menu of the event names. It is in
+`src/components/layout/site-switch.tsx`.
 A token someone else holds sends half a connection by itself once the lookup answers
 `someone_else`, except for a GeekyKey admin, or when the browser says the page load is a reload
 or a move back or forward, which isn't a tap (BAC-149). The page words the Event Service's answer
