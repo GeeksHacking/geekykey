@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useDeleteGroup } from "@/features/groups/use-delete-group";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 import { returnFocusOnClose } from "@/lib/dialog-focus";
 
 /** What happens to a deleted group's members, by how many there were at the last poll. */
@@ -53,13 +53,13 @@ export function DeleteGroupDialog({
 }
 
 function DeleteGroupConfirm({ group, onDeleted }: { group: EventGroup; onDeleted: () => void }) {
-  const deleteGroup = useDeleteGroup();
+  const deleteGroup = useGroupBoardChange();
   const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
     setError(null);
     try {
-      await deleteGroup.mutateAsync(group.id);
+      await deleteGroup.mutateAsync({ type: "delete", groupId: group.id });
       onDeleted();
     } catch (caught) {
       setError(describeError(caught));
@@ -78,11 +78,11 @@ function DeleteGroupConfirm({ group, onDeleted }: { group: EventGroup; onDeleted
         </p>
       ) : null}
       <AlertDialogFooter>
-        <AlertDialogCancel disabled={deleteGroup.isPending}>Cancel</AlertDialogCancel>
+        <AlertDialogCancel disabled={deleteGroup.busy}>Cancel</AlertDialogCancel>
         {/* AlertDialogAction is a Close, so preventDefault holds the alert open until the call
             has answered, and a refusal has somewhere to show. */}
         <AlertDialogAction
-          disabled={deleteGroup.isPending}
+          disabled={deleteGroup.busy}
           onClick={(event) => {
             event.preventDefault();
             void handleConfirm();

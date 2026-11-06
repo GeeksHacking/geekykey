@@ -24,7 +24,7 @@ import {
   toSplitGroupsRequest,
   type SplitGroupsFormValues,
 } from "@/features/groups/split-groups-schema";
-import { useSplitGroups } from "@/features/groups/use-split-groups";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 import { applyApiIssues } from "@/lib/form-errors";
 
 /**
@@ -42,7 +42,7 @@ export function SplitGroupsForm({
   groupsExist: boolean;
   onSplit: () => void;
 }) {
-  const split = useSplitGroups();
+  const split = useGroupBoardChange();
   // With groups there a press makes none, so the form draws no fields for them.
   const peopleToSplit = groupsExist ? 0 : joined;
   const form = useForm<SplitGroupsFormValues>({
@@ -57,7 +57,10 @@ export function SplitGroupsForm({
   async function onSubmit(values: SplitGroupsFormValues) {
     setFormError(null);
     try {
-      await split.mutateAsync(toSplitGroupsRequest(values, peopleToSplit));
+      await split.mutateAsync({
+        type: "split",
+        input: toSplitGroupsRequest(values, peopleToSplit),
+      });
       onSplit();
     } catch (error) {
       if (isApiError(error) && error.code === "too_few_participants") {
@@ -149,7 +152,7 @@ export function SplitGroupsForm({
           </p>
         ) : null}
         <DialogFooter>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={split.busy || form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Splitting" : "Split"}
           </Button>
         </DialogFooter>

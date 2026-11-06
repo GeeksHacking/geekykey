@@ -1,8 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { ApiError, NetworkError } from "@/api/errors";
+import type { GroupBoardResponse } from "@/api/types";
 import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
@@ -22,13 +24,16 @@ function renderScreen({
   }
   prepare?.(api);
   const { Providers, queryClient } = createTestProviders(api);
-  render(
+  const view = render(
     <Providers>
       <GroupsScreen />
     </Providers>,
   );
   return {
     api,
+    Providers,
+    queryClient,
+    ...view,
     user: userEvent.setup(),
     /** What the screen's 5-second poll does, without the wait. */
     poll: () => queryClient.invalidateQueries({ queryKey: queryKeys.groupBoard }),
@@ -893,5 +898,225 @@ describe("GroupsScreen", () => {
     expect(await screen.findByText(/Couldn't change what connections need\./)).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Connect across token kinds" })).toBeChecked();
     expect(api.mock.data.connectAcross).toBe("token_kinds");
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+describe("Groups board coordination", () => {
+  it("disables every other change while a move saves, keeps reads available, and queues nothing", async () => {
+    const { api, user, poll } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const held = deferred<GroupBoardResponse>();
+    const place = api.placeGroupMember.bind(api);
+    const move = vi.spyOn(api, "placeGroupMember").mockReturnValueOnce(held.promise);
+    const allocate = vi.spyOn(api, "allocateGroups");
+    const read = vi.spyOn(api, "groupBoard");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+
+    for (const name of ["Create group", "Allocate", "Split into groups", "Reset"]) {
+      expect(screen.getByRole("button", { name })).toBeDisabled();
+    }
+    for (const button of screen.getAllByRole("button", { name: /^Actions for / })) {
+      expect(button).toBeDisabled();
+    }
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download CSV" })).toBeEnabled();
+    await poll();
+    expect(read).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+    expect(allocate).not.toHaveBeenCalled();
+
+    const [userId, groupId] = move.mock.calls[0]!;
+    await act(async () => held.resolve(await place(userId, groupId)));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Allocate" })).toBeEnabled());
+    expect(namesIn("Members of Atrium mixer")).toContain("Kenji Ong");
+    expect(allocate).not.toHaveBeenCalled();
+  });
+
+  it("sends only one create when form submissions arrive before the controls disable", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const held = deferred<Awaited<ReturnType<typeof api.createGroup>>>();
+    const create = api.createGroup.bind(api);
+    const write = vi.spyOn(api, "createGroup").mockReturnValueOnce(held.promise);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await user.click(screen.getByRole("button", { name: "Create group" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "Garden mixer");
+    const form = within(dialog).getByRole("button", { name: "Create group" }).closest("form")!;
+
+    act(() => {
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+    });
+    await waitFor(() => expect(write).toHaveBeenCalledOnce());
+    // Both submissions have finished validation; the refused one must not close the dialog.
+    await within(dialog).findByRole("alert");
+    expect(write).toHaveBeenCalledOnce();
+    expect(within(dialog).getByRole("button", { name: /Creat/ })).toBeDisabled();
+
+    await act(async () => held.resolve(await create(write.mock.calls[0]![0])));
+    await screen.findByRole("heading", { name: "Garden mixer" });
+    expect(write).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a delayed poll from undoing a completed allocation", async () => {
+    const { api, user, poll } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const before = structuredClone(await api.groupBoard());
+    const held = deferred<GroupBoardResponse>();
+    vi.spyOn(api, "groupBoard").mockReturnValueOnce(held.promise);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    let polling!: Promise<void>;
+    act(() => {
+      polling = poll();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+    await act(async () => {
+      held.resolve(before);
+      await polling;
+    });
+
+    expect(screen.getByText("Nobody is waiting.")).toBeInTheDocument();
+    expect(namesIn("Members of Atrium mixer").length).toBeGreaterThan(0);
+  });
+
+  it("releases all controls after a refusal and keeps the error on the row", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const held = deferred<GroupBoardResponse>();
+    const move = vi.spyOn(api, "placeGroupMember").mockReturnValueOnce(held.promise);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+    expect(screen.getByRole("button", { name: "Allocate" })).toBeDisabled();
+
+    await act(async () => held.reject(new ApiError(404, "not_found")));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("That was not found.");
+    expect(namesIn("Waiting")).toContain("Kenji Ong");
+    expect(screen.getByRole("button", { name: "Allocate" })).toBeEnabled();
+    expect(screen.getByRole("radio", { name: "Connect across groups" })).toBeEnabled();
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toContain("Kenji Ong"));
+    expect(move).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps changes disabled across navigation until the original write updates the board", async () => {
+    const { api, user, Providers, rerender } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const held = deferred<GroupBoardResponse>();
+    const allocate = api.allocateGroups.bind(api);
+    vi.spyOn(api, "allocateGroups").mockReturnValueOnce(held.promise);
+    const setRule = vi.spyOn(api, "setConnectionRule");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+    rerender(
+      <Providers>
+        <p>Another screen</p>
+      </Providers>,
+    );
+    rerender(
+      <Providers>
+        <GroupsScreen />
+      </Providers>,
+    );
+
+    expect(await screen.findByRole("button", { name: "Allocate" })).toBeDisabled();
+    const groups = screen.getByRole("radio", { name: "Connect across groups" });
+    expect(groups).toBeDisabled();
+    await user.click(groups);
+    expect(setRule).not.toHaveBeenCalled();
+
+    await act(async () => held.resolve(await allocate()));
+
+    await screen.findByText("Nobody is waiting.");
+    await waitFor(() => expect(groups).toBeEnabled());
+    await user.click(groups);
+    await waitFor(() => expect(groups).toBeChecked());
+    expect(setRule).toHaveBeenCalledOnce();
+  });
+
+  it("waits for a fresh board after a rule change even when the screen unmounts", async () => {
+    const { api, user, Providers, rerender, queryClient } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const rule = deferred<Awaited<ReturnType<typeof api.setConnectionRule>>>();
+    const board = deferred<GroupBoardResponse>();
+    const readBoard = api.groupBoard.bind(api);
+    vi.spyOn(api, "setConnectionRule").mockReturnValueOnce(rule.promise);
+    const read = vi.spyOn(api, "groupBoard").mockReturnValueOnce(board.promise);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await user.click(screen.getByRole("radio", { name: "Connect across groups" }));
+    rerender(
+      <Providers>
+        <p>Another screen</p>
+      </Providers>,
+    );
+
+    await act(async () => {
+      api.mock.data.connectAcross = "groups";
+      rule.resolve({ connect_across: "groups" });
+    });
+    await waitFor(() => expect(read).toHaveBeenCalledOnce());
+    rerender(
+      <Providers>
+        <GroupsScreen />
+      </Providers>,
+    );
+    expect(await screen.findByRole("button", { name: "Allocate" })).toBeDisabled();
+
+    await act(async () => board.resolve(await readBoard()));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Allocate" })).toBeEnabled());
+    expect(screen.getByRole("radio", { name: "Connect across groups" })).toBeChecked();
+    expect(queryClient.getQueryData<GroupBoardResponse>(queryKeys.groupBoard)?.connect_across).toBe(
+      "groups",
+    );
+  });
+
+  it("reads back an uncertain write after a lost reply and never repeats it", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const allocate = api.allocateGroups.bind(api);
+    const write = vi.spyOn(api, "allocateGroups").mockImplementationOnce(async () => {
+      await allocate();
+      throw new NetworkError();
+    });
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+
+    await screen.findByText("Nobody is waiting.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not reach the server. Check the Wi-Fi and try again.",
+    );
+    expect(screen.getByRole("button", { name: "Allocate" })).toBeEnabled();
+    expect(write).toHaveBeenCalledOnce();
   });
 });
