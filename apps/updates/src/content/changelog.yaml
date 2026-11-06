@@ -2307,3 +2307,12 @@
     I'm ready and the box turns green after a random wait. The trade-offs we accept: each phone
     measures its own time, so someone could fake it, and a person who doesn't play within 2
     minutes of connecting loses.
+
+- id: docs-follow-3-4-nov-decisions
+  date: 2026-11-06
+  area: research
+  change: >-
+    The API agreement, the hosting plan and the glossary now say what the 3 and 4 Nov decisions
+    changed. The grad tea is out of the plan, the token game and participant groups are the two
+    variations Mr Johari asked for, and the agreement no longer offers finding one person at a
+    time.
