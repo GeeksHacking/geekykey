@@ -42,6 +42,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   token_taken: 409,
+  token_claimed: 409,
   token_limit_reached: 409,
   rate_limited: 429,
   internal_error: 500,
@@ -318,7 +319,32 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           }));
       }),
 
-    // BAC-139. GeekyKey admins and organizers, and the service's counts, by kind in order.
+    // Agreement 10.2 and 10.3: UIDs and claims stay with GeekyKey admins.
+    listKindTokens: () =>
+      call(() => {
+        if (!isAdmin(currentUserId())) fail("forbidden");
+        const kinds = new Map(data.token_kinds.map((t) => [t.uid, t.kind]));
+        const claims = new Map(
+          data.tokens.filter((t) => t.owner_id !== null).map((t) => [t.uid, t]),
+        );
+        return [...new Set([...kinds.keys(), ...claims.keys()])].sort().map((uid) => ({
+          uid,
+          kind: kinds.get(uid) ?? null,
+          owner_id: claims.get(uid)?.owner_id ?? null,
+          claimed_at: claims.get(uid)?.claimed_at ?? null,
+        }));
+      }),
+    removeTokenKind: (uid) =>
+      call(() => {
+        if (!isAdmin(currentUserId())) fail("forbidden");
+        const normalized = normalizeUid(uid);
+        if (!isValidUid(normalized)) fail("validation_failed");
+        if (tokenByUid(normalized)?.owner_id != null) fail("token_claimed");
+        const index = data.token_kinds.findIndex((t) => t.uid === normalized);
+        if (index < 0) fail("not_found");
+        data.token_kinds.splice(index, 1);
+      }),
+    // BAC-139: GeekyKey admins and organizers may read the counts, by kind in order.
     getTokenKinds: () =>
       call((): TokenKindTotal[] => {
         if (!canViewTokenKinds(currentUserId())) fail("forbidden");

@@ -7,7 +7,7 @@ const app = testApp();
 
 /** A request to one of the stand-in's routes, with the stand-in's key unless told otherwise. */
 function standIn(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "DELETE",
   path: string,
   body?: unknown,
   authorization: string | null = `Bearer ${TEST_CLAIMS_STAND_IN_KEY}`,
@@ -337,4 +337,84 @@ test("the token kinds' routes refuse a request without the stand-in's key", asyn
   assert.equal(totals.status, 401);
   const load = await standIn("POST", "/token-kinds", { tokens: [] }, "Bearer wrong");
   assert.equal(load.status, 401);
+});
+
+test("the admin list includes kinds and claims without kinds, once each in UID order", async () => {
+  await standIn("POST", "/token-kinds", {
+    tokens: [
+      { uid: "04A1B2C3D4E5F6", kind: "E" },
+      { uid: "04C9E1A27B3080", kind: "B" },
+    ],
+  });
+  const claimed = await claim("04A1B2C3D4E5F6", "user-1");
+  const noKind = await claim("DEADBEEF", "user-2");
+  const res = await standIn("GET", "/token-kinds/tokens");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    tokens: [
+      { uid: "04A1B2C3D4E5F6", kind: "E", owner_id: "user-1", claimed_at: claimed.claimed_at },
+      { uid: "04C9E1A27B3080", kind: "B", owner_id: null, claimed_at: null },
+      { uid: "DEADBEEF", kind: null, owner_id: "user-2", claimed_at: noKind.claimed_at },
+    ],
+  });
+});
+
+test("removal refuses a claim, then removes only the kind after release and allows reloading", async () => {
+  const uid = "04A1B2C3D4E5F6";
+  const load = () => standIn("POST", "/token-kinds", { tokens: [{ uid, kind: "E" }] });
+  await load();
+  await claim(uid, "user-1");
+  const refused = await standIn("DELETE", `/token-kinds/${uid}`);
+  assert.equal(refused.status, 200);
+  assert.deepEqual(await refused.json(), { result: "claimed" });
+  assert.deepEqual(await (await standIn("GET", "/token-kinds")).json(), {
+    kinds: [{ kind: "E", tokens: 1 }],
+  });
+  await release(uid, "user-1");
+  assert.deepEqual(await (await standIn("DELETE", `/token-kinds/${uid}`)).json(), {
+    result: "removed",
+  });
+  assert.deepEqual(await (await standIn("GET", "/token-kinds/tokens")).json(), { tokens: [] });
+  assert.deepEqual(await (await standIn("GET", "/token-kinds")).json(), { kinds: [] });
+  assert.deepEqual(await (await standIn("DELETE", `/token-kinds/${uid}`)).json(), {
+    result: "not_found",
+  });
+  assert.deepEqual(await (await load()).json(), { new: 1, changed: 0, unchanged: 0 });
+});
+
+test("the list returns 500 tokens without truncating or duplicating claims", async () => {
+  const tokens = Array.from({ length: 500 }, (_, i) => ({
+    uid: `04${i.toString(16).padStart(12, "0").toUpperCase()}`,
+    kind: "E",
+  }));
+  await standIn("POST", "/token-kinds", { tokens });
+  await claim("040000000001F3", "user-1");
+  const res = await standIn("GET", "/token-kinds/tokens");
+  assert.equal(res.status, 200);
+  const list = (await res.json()) as { tokens: { uid: string; owner_id: string | null }[] };
+  assert.equal(list.tokens.length, 500);
+  assert.equal(list.tokens[499]?.uid, "040000000001F3");
+  assert.equal(list.tokens[499]?.owner_id, "user-1");
+});
+
+test("a claim concurrent with removal either keeps its kind or starts after removal", async () => {
+  // Observe the two operations together through the routes, against TiDB's real locks.
+  for (let i = 0; i < 10; i++) {
+    const uid = `04${i.toString(16).padStart(12, "0").toUpperCase()}`;
+    await standIn("POST", "/token-kinds", { tokens: [{ uid, kind: "E" }] });
+    const [claimed, removed] = await Promise.all([
+      standIn("POST", `/tokens/${uid}/claim`, { user_id: "user-1" }),
+      standIn("DELETE", `/token-kinds/${uid}`),
+    ]);
+    assert.equal(claimed.status, 200);
+    assert.equal(removed.status, 200);
+    const result = (await removed.json()) as { result: string };
+    const list = (await (await standIn("GET", "/token-kinds/tokens")).json()) as {
+      tokens: { uid: string; kind: string | null; owner_id: string | null }[];
+    };
+    const token = list.tokens.find((t) => t.uid === uid);
+    assert.equal(token?.owner_id, "user-1");
+    assert.ok(result.result === "claimed" || result.result === "removed");
+    assert.equal(token?.kind, result.result === "claimed" ? "E" : null);
+  }
 });

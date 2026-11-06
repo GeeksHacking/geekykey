@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useApi } from "@/api/context";
 import { queryKeys } from "@/api/keys";
@@ -23,7 +24,38 @@ export function useLoadTokenKinds() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: queryKeys.tokenKinds,
     mutationFn: (tokens: TokenKind[]) => api.loadTokenKinds(tokens),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.tokenKinds }),
+    onSettled: () => refreshKinds(queryClient),
   });
+}
+
+export function useKindTokens() {
+  const api = useApi();
+  return useQuery({
+    queryKey: queryKeys.kindTokens,
+    queryFn: () => api.listKindTokens(),
+  });
+}
+
+/** Loads and removals share a pending state, including across navigation. */
+export function useKindsWritePending() {
+  return useIsMutating({ mutationKey: queryKeys.tokenKinds }) > 0;
+}
+
+export function useRemoveTokenKind() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.tokenKinds,
+    mutationFn: (uid: string) => api.removeTokenKind(uid),
+    retry: false,
+    // A lost reply may still have removed the kind. Cancel older reads before refreshing.
+    onSettled: () => refreshKinds(queryClient),
+  });
+}
+
+async function refreshKinds(queryClient: QueryClient) {
+  await queryClient.cancelQueries({ queryKey: queryKeys.tokenKinds });
+  await queryClient.invalidateQueries({ queryKey: queryKeys.tokenKinds });
 }

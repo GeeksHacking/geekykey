@@ -50,7 +50,7 @@ export async function askService<T>(
     signal,
     fail,
   }: {
-    method: "GET" | "POST";
+    method: "GET" | "POST" | "DELETE";
     url: string;
     key: string;
     body?: unknown;

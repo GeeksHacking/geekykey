@@ -55,6 +55,8 @@ export function describeError(error: unknown): string {
         return "Your account is not allowed to do that.";
       case "not_found":
         return "That was not found. It may have been removed.";
+      case "token_claimed":
+        return "This token is claimed. Release it first, then remove it from the kinds list.";
       case "token_taken":
         return "Someone else already claimed this token.";
       case "token_limit_reached":

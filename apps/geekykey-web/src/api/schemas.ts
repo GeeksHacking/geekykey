@@ -8,6 +8,7 @@ import type {
   MeResponse,
   Token,
   TokenKindsLoaded,
+  AdminKindToken,
   TokenKindTotal,
   TokenLookup,
 } from "@/api/types";
@@ -118,4 +119,19 @@ export function parseTokenKindsResponse(input: unknown): TokenKindTotal[] {
 
 export function parseTokenKindsLoaded(input: unknown): TokenKindsLoaded {
   return parse(tokenKindsLoadedSchema, input, "load");
+}
+
+const kindTokensResponseSchema: z.ZodMiniType<{ tokens: AdminKindToken[] }> = z.object({
+  tokens: z.array(
+    z.object({
+      uid: z.string(),
+      kind: z.nullable(z.string()),
+      owner_id: z.nullable(z.string()),
+      claimed_at: z.nullable(isoTimestamp),
+    }),
+  ),
+});
+
+export function parseKindTokensResponse(input: unknown): AdminKindToken[] {
+  return parse(kindTokensResponseSchema, input, "token list").tokens;
 }

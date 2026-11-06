@@ -348,6 +348,7 @@ const statusFor: Record<ErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   token_taken: 409,
+  token_claimed: 409,
   token_limit_reached: 409,
   rate_limited: 429,
   claims_unavailable: 503,
@@ -389,4 +390,25 @@ describe("the token kinds calls", () => {
       "unexpected load",
     );
   });
+});
+
+it("reads the admin token list and deletes a percent-encoded UID without a body", async () => {
+  const tokens = [
+    {
+      uid: "04A1B2C3D4E5F6",
+      kind: null,
+      owner_id: "user-1",
+      claimed_at: "2026-11-06T05:00:00.000Z",
+    },
+  ];
+  const { calls } = stubFetch((call) =>
+    call === 0 ? json({ tokens }) : new Response(null, { status: 204 }),
+  );
+  const api = createHttpClient();
+  await expect(api.listKindTokens()).resolves.toEqual(tokens);
+  await expect(api.removeTokenKind("04/a1/b2/c3/d4/e5/f6")).resolves.toBeUndefined();
+  expect(calls[0]?.url).toBe("/api/v1/admin/token-kinds/tokens");
+  expect(calls[1]?.url).toBe("/api/v1/admin/token-kinds/04%2Fa1%2Fb2%2Fc3%2Fd4%2Fe5%2Ff6");
+  expect(calls[1]?.init?.method).toBe("DELETE");
+  expect(calls[1]?.init?.body).toBeUndefined();
 });

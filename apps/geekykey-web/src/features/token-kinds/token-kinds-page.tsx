@@ -19,7 +19,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { readWriterLog, type WriterLog } from "@/features/token-kinds/read-writer-log";
-import { useLoadTokenKinds, useTokenKinds } from "@/features/token-kinds/use-token-kinds";
+import { KindTokenList } from "@/features/token-kinds/kind-token-list";
+import {
+  useKindsWritePending,
+  useLoadTokenKinds,
+  useTokenKinds,
+} from "@/features/token-kinds/use-token-kinds";
 import { MAX_TOKENS_PER_LOAD } from "@/lib/constants";
 import { useMe } from "@/lib/session";
 
@@ -64,7 +69,12 @@ export function TokenKindsPage() {
       {me.user.can_view_token_kinds ? (
         <>
           <ListTotals canLoad={me.user.is_geekykey_admin} />
-          {me.user.is_geekykey_admin ? <LoadForm /> : null}
+          {me.user.is_geekykey_admin ? (
+            <>
+              <KindTokenList />
+              <LoadForm />
+            </>
+          ) : null}
         </>
       ) : (
         <div className="mt-6">
@@ -115,6 +125,7 @@ function ListTotals({ canLoad }: { canLoad: boolean }) {
  */
 function LoadForm() {
   const load = useLoadTokenKinds();
+  const busy = useKindsWritePending();
   const form = useForm<LogValues>({
     resolver: zodResolver(schema),
     mode: "onChange",
@@ -167,7 +178,7 @@ function LoadForm() {
                 : null}
             </p>
           ) : null}
-          <Button type="submit" disabled={!form.formState.isValid || load.isPending}>
+          <Button type="submit" disabled={!form.formState.isValid || busy}>
             {load.isPending ? "Loading" : "Load"}
           </Button>
         </form>
