@@ -9,6 +9,7 @@ import { SiteSwitch } from "@/components/layout/site-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
 import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
+import { EVENT_SCREENS_URL } from "@/lib/constants";
 import { useMe, useSession } from "@/lib/session";
 
 /**
@@ -50,12 +51,20 @@ export function SessionFrame({ children }: { children: ReactNode }) {
     } catch {
       return; // The dialog stays open and says why.
     }
-    await signOut();
+    await signOut(userId);
   }
 
-  async function signOut() {
+  /**
+   * `guestId` sends a guest on to the Event screens, which end their session there too, so the next
+   * person on a shared phone doesn't find their passport (agreement section 3, FRO-144).
+   */
+  async function signOut(guestId?: string) {
     try {
       await session.signOut();
+      if (guestId !== undefined) {
+        window.location.replace(`${EVENT_SCREENS_URL}sign-out#user=${encodeURIComponent(guestId)}`);
+        return;
+      }
       await navigate({ to: "/login", replace: true });
     } catch (error) {
       // The provider has already cleared identity data; keep the failure visible without

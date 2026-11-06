@@ -272,6 +272,12 @@ to the Event screens' login and changes nothing: a user who isn't a guest, nobod
 or a different user from the one named. A guest with no sign-in left on `key.` can't release
 anything there, so a GeekyKey admin still releases their tokens.
 
+A guest who signs out on the GeekyKey screens is logged out of the Event screens too, so the next
+person on a shared phone doesn't find their passport (FRO-144, for the next version). The GeekyKey
+screens open `/sign-out#user=<user ID>` on the Event screens, which log out that user (7.3) and open
+the GeekyKey login. They leave a different user's session alone, so a link can't log anyone out. A
+Google or GeeksHacking user's Event session stays when they sign out on the GeekyKey screens.
+
 ### Station keys
 
 Each station belongs to one Event Service, which registers it and issues its one key. An
@@ -2164,6 +2170,7 @@ There are no GeekyKey admin screens.
 | Login | Firebase's web SDK, with Google or GeeksHacking's login, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development. No guest sign-in |
 | Arriving from a login link, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` |
 | Signing out after arriving from a login link | `POST /auth/logout`, then opens `/sign-out#user=<user ID>` on the GeekyKey screens (section 3, "Browser sessions") |
+| A guest who signed out on the GeekyKey screens, `/sign-out#user=<user ID>` | `GET /api/v1/me`, then `POST /auth/logout` when it names that user, then opens the GeekyKey login (section 3, "Browser sessions") |
 | Participant dashboard | `GET /api/v1/me`, with `connection_requests`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline`; `PATCH /api/v1/me` for the bio and the contact line |
 | Passport / stamp book | `GET /api/v1/me` (the `stamps` array, and `connections` for the reveal); `PATCH /api/v1/me` for the name and the answer |
 | The hunt, in the passport | `GET /api/v1/hunt`, polled every 15 seconds; `POST /api/v1/hunt/skip` |
@@ -2191,8 +2198,8 @@ There are no GeekyKey admin screens.
   afterwards: **"Sign out of this guest login?"**, with "You can't log back in as this guest, and
   your tokens will be released so anyone can claim them. Your connections and points stay as they
   are." under it, or "You can't log back in as this guest. Your connections and points stay as they
-  are." when they hold no tokens, and **Stay signed in** and **Sign out** (FRO-131, a draft for
-  Ethan's approval).
+  are." when they hold no tokens, and **Stay signed in** and **Sign out** (FRO-131, approved for the
+  next version, as Adam reported).
 - **Sign out** there reads a fresh `/me` (8.4) and releases each token (8.3), counting `not_found`
   as released, then signs out. If a release fails, the guest stays signed in, and the warning says
   "Couldn't release your tokens, so you're still signed in." above that error's own sentence. Some
@@ -2205,6 +2212,9 @@ There are no GeekyKey admin screens.
   user ID. When Firebase can't say, they
   release nothing and say "Couldn't check your login. Try again.", so a Google user can't lose a
   token that way. A Google or GeeksHacking user signs out without being asked and keeps their tokens.
+- When the Event screens' `/sign-out` can't log the user out, it says **"Couldn't log you out of the
+  event"** above that error's own sentence, with **Try again** and **Back to GeekyKey** (FRO-144, for
+  the next version).
 - On `station_has_taps`, the station board says "Taps here have already counted, so this
   station's game can't change until the data is cleared." It shows a station whose `game_fixed`
   is `true` with its game, and no way to change it.
@@ -2413,4 +2423,5 @@ Closed on 2026-10-10:
 | 2026-11-06 | For the next version, approved as Adam reported: participants give a name and every answer before opening the event (BAC-144). 8.1 and section 13 require setup without Skip and keep organizers on their current flow. 8.8 and 11.10 add `answers_needed`, checked before kinds and groups, with no half kept. The token page says "You both need to finish your names and answers in the event before connecting." and offers the event button. Older GeekyKey Services give `unavailable` for the new status. Names remain editable, and answers keep their first-connection lock, as Adam confirmed on 6 Nov. Adam also approved filling missing locked answers and checking an older request's sender before a tap back or accept completes it; 8.7 and 8.10 record those cases, and past matches stay unchanged. |
 | 2026-11-06 | For the next version, approved as Adam reported: two participants can't have the same name, since organisers call names out (BAC-145, from the 5 Nov trial). **New:** `409 name_taken` from 8.7 for a name someone else has, compared after trimming and whatever its capitals, with the default `Guest` not counting. Section 13 adds its sentence. No field changes. Names already the same stay until one person changes theirs. An older Event Service never refuses a name. A screen from before this shows the Groups screen's sentence for the code, so the screens deploy with the Event Service. |
 | 2026-11-06 | For the next version: tapping a token, and a connection request, show the person's bio (BAC-151, from the 5 Nov trial notes and the meeting with Julian). **New, at `Checkpoint 7`:** `owner_bio` in the meeting hand-off's answer (11.10) and in each item of 8.8's answer, and `bio` in each item of `connection_requests` (8.1), each the person's current bio or `null`. **Changed:** 8.7 says who sees a bio, 8.5's row says the lookup gives no bio either, and section 13 adds the bio on the token page and in a request, adds a second sentence to the name prompt's line, and changes the sentence under Bio and the profile form's heading. The contact line still shows only after the two connect. No field is removed, and either service works with the other's previous version, since a missing bio reads as `null`. |
-| 2026-11-06 | For the next version: a guest who signs out releases their tokens, after a warning, so a token can't stay stuck with a login nobody can use again (FRO-131, from the 5 Nov meeting). Section 13 replaces the warning FRO-62 set, which said the tokens stay with the guest, and the new wording is a draft for Ethan's approval. A failed release keeps the guest signed in and says why. When Firebase can't say whether the user is a guest, the screens used to ask, and now they release nothing and say so, because going ahead now releases tokens. Section 3 has the Event screens send a user whose session came from a login link to a new `/sign-out` page on the GeekyKey screens. No service changes, and no endpoint or field changes: the page uses 7.3, 8.3, 8.4 and 8.6. Connections, points and earlier taps don't change, as 8.3 already says of taps. |
+| 2026-11-06 | For the next version: a guest who signs out releases their tokens, after a warning, so a token can't stay stuck with a login nobody can use again (FRO-131, from the 5 Nov meeting). Section 13 replaces the warning FRO-62 set, which said the tokens stay with the guest, and Ethan approved the new wording, as Adam reported. A failed release keeps the guest signed in and says why. When Firebase can't say whether the user is a guest, the screens used to ask, and now they release nothing and say so, because going ahead now releases tokens. Section 3 has the Event screens send a user whose session came from a login link to a new `/sign-out` page on the GeekyKey screens. No service changes, and no endpoint or field changes: the page uses 7.3, 8.3, 8.4 and 8.6. Connections, points and earlier taps don't change, as 8.3 already says of taps. |
+| 2026-11-06 | For the next version: a guest who signs out on the GeekyKey screens is logged out of the Event screens too, so the next person on a shared phone doesn't find their passport (FRO-144). Section 3 has the GeekyKey screens open a new `/sign-out` page on the Event screens, which logs out only the user the address names, then opens the GeekyKey login. Section 13 adds the sentence for a failed log out, which Ethan hasn't seen. A Google or GeeksHacking user's Event session stays. No service changes, and no endpoint or field changes: the page uses 7.3 and 8.1. |

@@ -64,6 +64,9 @@ their tokens first, since nobody but a GeekyKey admin could afterwards (FRO-62, 
 release keeps them signed in. The Event screens can't do this themselves, so they send anyone who
 arrived by a login link to `/sign-out` here (`src/features/auth/event-sign-out-screen.tsx`), which
 warns a guest and sends anyone else back to the event's login.
+A guest who signs out here goes on to `/sign-out` on the Event screens, which end that session and
+come back to the login here, so the next person on a shared phone doesn't find their passport
+(FRO-144).
 A sign-out waits for that returning-user login to finish before it clears the cookie, so a
 login already in flight cannot set the cookie again (FRO-69). A sign-in waits for a
 returning-user login already running and stops a new one from starting, so the sign-in is

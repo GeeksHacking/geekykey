@@ -52,8 +52,9 @@ _Avoid_: portal user, account
 **Guest**:
 A user who logged in at the showcase with one tap and no account. Being a guest is how someone
 logged in, not a role: a guest can be a participant like anyone else. Their user ID lasts only as
-long as the browser keeps their login. Signing out warns them, releases their tokens and ends that
-login for good, and their connections and points stay as they are. A guest who loses their login
+long as the browser keeps their login. Signing out warns them, releases their tokens, logs them out
+of both sets of screens and ends that login for good, and their connections and points stay as they
+are. A guest who loses their login
 any other way can't get their tokens back, and a GeekyKey admin releases them.
 _Avoid_: anonymous user, visitor
 
