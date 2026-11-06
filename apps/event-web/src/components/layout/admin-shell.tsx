@@ -6,7 +6,6 @@ import type { User } from "@/api/types";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { NavLink } from "@/components/layout/nav-link";
-import { SiteSwitch } from "@/components/layout/site-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useRouteHeadingFocus } from "@/lib/use-route-heading-focus";
 import { Wordmark } from "@/components/layout/wordmark";
@@ -57,12 +56,9 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
             <NavLink key={item.to} variant="side" {...item} />
           ))}
         </nav>
-        <div className="border-t p-3">
-          <SiteSwitch className="mb-2" />
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
-            <ThemeToggle />
-          </div>
+        <div className="flex min-w-0 items-center justify-between gap-2 border-t p-3">
+          <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
+          <ThemeToggle />
         </div>
       </aside>
       {/* The look's grid sits behind the workspace only, so the sidebar stays plain. */}
@@ -73,7 +69,6 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
               <Wordmark />
             </Link>
             <div className="flex min-w-0 items-center gap-1">
-              <SiteSwitch />
               <ThemeToggle />
               <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
             </div>
