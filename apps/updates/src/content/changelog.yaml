@@ -2280,15 +2280,15 @@
   area: frontend
   change: >-
     My tokens is in the account menu on the participant and organiser screens, opening the
-    GeekyKey screens in a new tab. The dashboard no longer has its own My tokens row.
+    GeekyKey screens in the same tab. The dashboard no longer has its own My tokens row.
 
 - id: event-key-switch
   date: 2026-11-06
   area: frontend
   change: >-
     The account menu on each site offers the other site, and the header has no separate switch.
-    The event side's My tokens opens the key site, and the key side's Event screens opens a
-    login link, so a guest arrives signed in.
+    The event side's My tokens opens the key site in the same tab, and the key side's Event
+    screens opens a login link, so a guest arrives signed in.
 - id: guest-sign-out-releases-tokens
   date: 2026-11-06
   area: frontend

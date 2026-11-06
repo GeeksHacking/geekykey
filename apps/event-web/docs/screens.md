@@ -28,8 +28,9 @@ Neither export is a link: `components/csv-download-button.tsx` fetches the file 
 browser a Blob.
 
 The participant and organiser shells share the account menu. It offers My tokens, which opens
-the GeekyKey screens in a new tab, the console link when the user has another view, and Sign out.
-On the organiser desktop the menu sits in the sidebar footer.
+the GeekyKey screens in the same tab, the console link when the user has another view, and Sign
+out. There is no separate Key screens item, because My tokens opens the same page. On the
+organiser desktop the menu sits in the sidebar footer.
 
 Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens
 against `MVP` endpoints are still built now, against mocks.

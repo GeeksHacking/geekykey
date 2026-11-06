@@ -1,10 +1,17 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /**
  * The dev build's key address, from `src/lib/constants.ts`: the e2e suite runs the mock dev
  * server, so the production address is not the one the screens carry.
  */
 const KEY_URL = "http://localhost:5174/";
+
+/** The event menu's one key-site link, in the same tab. Both roles share the menu. */
+async function expectMyTokensLink(menu: Locator) {
+  const myTokens = menu.getByRole("menuitem", { name: "My tokens" });
+  await expect(myTokens).toHaveAttribute("href", KEY_URL);
+  await expect(myTokens).not.toHaveAttribute("target");
+}
 
 async function signInAsParticipant(page: Page) {
   await page.goto("/login");
@@ -25,9 +32,7 @@ for (const width of [360, 1280]) {
 
     await expect(menu.getByRole("menuitem", { name: "Key screens" })).toHaveCount(0);
 
-    const myTokens = menu.getByRole("menuitem", { name: "My tokens" });
-    await expect(myTokens).toHaveAttribute("href", KEY_URL);
-    await expect(myTokens).toHaveAttribute("target", "_blank");
+    await expectMyTokensLink(menu);
   });
 }
 
@@ -47,9 +52,6 @@ for (const width of [360, 1280]) {
     const menu = page.getByRole("menu");
 
     await expect(menu.getByRole("menuitem", { name: "Key screens" })).toHaveCount(0);
-    await expect(menu.getByRole("menuitem", { name: "My tokens" })).toHaveAttribute(
-      "href",
-      KEY_URL,
-    );
+    await expectMyTokensLink(menu);
   });
 }
