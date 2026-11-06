@@ -6,7 +6,6 @@ import { createMockClient } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { Connection, MeResponse, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
-import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { makeMe } from "@/test/make-me";
 import { createTestProviders } from "@/test/providers";
@@ -86,19 +85,15 @@ describe("DashboardScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the My tokens link before and after the first tap", () => {
+  it("leaves My tokens to the account menu, before and after the first tap", () => {
     state.me = baseMe;
     const first = renderDashboard();
-    expect(screen.getAllByRole("link", { name: "My tokens" })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "My tokens" })).toHaveAttribute(
-      "href",
-      GEEKYKEY_SCREENS_URL,
-    );
+    expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
     first.unmount();
 
     state.me = { ...baseMe, recent_taps: [firstTap] };
     renderDashboard();
-    expect(screen.getByRole("link", { name: "My tokens" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
   });
 
   it("leaves the way to the passport and the activity list to the tabs", () => {
@@ -120,7 +115,6 @@ describe("DashboardScreen", () => {
         name: "Tap your token at any station to start collecting stamps",
       }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "My tokens" })).toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
   });
 });

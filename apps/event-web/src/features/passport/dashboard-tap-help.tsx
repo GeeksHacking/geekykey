@@ -2,8 +2,8 @@ import { Key } from "@phosphor-icons/react";
 
 /*
   Shown only until the participant has their first tap. The Event Service's /me has no
-  token in it (agreement 8.1), so this says how to start. The dashboard's My tokens link
-  covers claiming and releasing (FRO-129), so this does not repeat it.
+  token in it (agreement 8.1), so this says how to start. The account menu's My tokens
+  covers claiming and releasing (FRO-141), so this does not repeat it.
 */
 export function DashboardTapHelp() {
   return (
