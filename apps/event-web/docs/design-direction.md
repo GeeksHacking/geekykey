@@ -41,7 +41,8 @@ text on it, and it needs two helpers on the light theme because yellow on the `#
 page is 1.07:1. `border-primary-edge` puts a `#1C1B1B` 1px edge on every yellow fill, as
 the kit outlines its own components, and `text-primary-text` is what links, icons, and
 active labels use: yellow on dark, `#706B00` on light. Never `text-primary` for text. The
-current nav item is a solid yellow segment (`components/layout/nav-link.tsx`). The kit has
+current nav item is a solid yellow segment (`components/layout/nav-link.tsx`), and hover on any
+other item fills it in `accent`, outlines it and turns its icon `text-primary-text`. The kit has
 no dark theme, and its secondary grey fails on light; `globals.css` says what was derived
 for each and the contrast it reaches. The ghost button is the app's own: the kit's
 half-transparent one looks disabled and fails contrast. No pure `#000` or `#fff`. No
@@ -72,6 +73,22 @@ large figures. No oversized display type. The wordmark is the kit's logo, unreco
 the secondary logo beside "GeekyKey" in the shells, and the primary logo over it on the
 login and loading pages (`components/layout/wordmark.tsx`, files in `public/brand/`). Do
 not add a display face to the app; spend that on the showcase poster if wanted.
+
+Every heading uses one of four utilities in `globals.css`, in place of its own mix of size and
+weight:
+
+| Utility | Size | Where |
+|---|---|---|
+| `type-title` | 24px | a screen's h1 |
+| `type-lead` | 20px | the one line a bracketed card exists to say, such as "60% match!" or the group's name |
+| `type-section` | 18px | a section of a screen, and a dialog's title |
+| `type-item` | 16px | what a row or a small panel is about, such as a person, a station or a group |
+
+Body text is `text-sm`, and small print and timestamps are `text-xs`. A section's title is a
+heading above its content (`SectionHeading`). A bracketed card has a `look-label` caption instead,
+then its lead line. The login page's larger h1 is the one exception. `globals.css` also sets a
+looser line height on `text-xs` and `text-sm`, for wrapped bios and reasons on a phone. It is
+identical in both apps, so the GeekyKey screens use the same four.
 
 **Shape:** one radius scale, from the kit's 12px corner. `rounded-lg` (12px) for cards,
 dialogs, and inputs; `rounded-md` (10px) for buttons and badges. Document any exception in

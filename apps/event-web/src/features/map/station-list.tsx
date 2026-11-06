@@ -22,7 +22,7 @@ export function StationList({
     <div className="space-y-8">
       <section aria-labelledby="map-stations-heading" className="space-y-3">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 id="map-stations-heading" className="text-lg font-semibold tracking-heading">
+          <h2 id="map-stations-heading" className="type-section">
             On the map
           </h2>
           <span className="look-label text-muted-foreground">People who tapped</span>
@@ -47,10 +47,7 @@ export function StationList({
       {unplaced.length > 0 ? (
         <section aria-labelledby="map-unplaced-heading" className="space-y-3">
           <div>
-            <h2
-              id="map-unplaced-heading"
-              className="flex items-center gap-2 text-lg font-semibold tracking-heading"
-            >
+            <h2 id="map-unplaced-heading" className="type-section flex items-center gap-2">
               <MapPinSimpleArea className="h-5 w-5 text-status-cooldown" aria-hidden />
               Not on the map
             </h2>

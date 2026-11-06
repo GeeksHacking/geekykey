@@ -25,7 +25,7 @@ export function ConnectionList({ me }: { me: MeResponse }) {
     <section>
       <SectionHeading title="Connections" />
       {me.connections.length > 0 ? (
-        <ul aria-label="Connections" className="divide-y rounded-lg border">
+        <ul aria-label="Connections" className="divide-y rounded-lg border bg-card">
           {me.connections.map((connection) => (
             <ConnectionRow
               key={connectionKey(connection)}

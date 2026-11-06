@@ -26,7 +26,7 @@ export function EmptyState({
       )}
     >
       <IconComponent className="h-8 w-8 text-muted-foreground" aria-hidden />
-      <h2 className="mt-4 text-base font-semibold">{title}</h2>
+      <h2 className="mt-4 type-item">{title}</h2>
       {description ? (
         <p className="mt-1 max-w-[40ch] text-sm text-muted-foreground">{description}</p>
       ) : null}

@@ -32,7 +32,12 @@ export function ParticipantFrame({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ParticipantShell user={me.user} onSignOut={() => void signOut()} showNavigation={!needsSetup}>
+    <ParticipantShell
+      user={me.user}
+      onSignOut={() => void signOut()}
+      showNavigation={!needsSetup}
+      connectionRequests={me.connection_requests.length}
+    >
       <LoginLinkNotice className="mb-6" />
       {session.me && session.error ? (
         <SessionErrorBanner error={session.error} onRetry={() => void session.refresh()} />

@@ -14,9 +14,7 @@ export function MapForbidden({ onSignOut }: { onSignOut: () => void }) {
       <div className="flex max-w-md flex-col items-center">
         <Wordmark />
         <Prohibit className="mt-8 h-10 w-10 text-muted-foreground" aria-hidden />
-        <h1 className="mt-4 text-2xl font-semibold tracking-heading">
-          This account can't show the map
-        </h1>
+        <h1 className="mt-4 type-title">This account can't show the map</h1>
         <p className="mt-2 text-muted-foreground">
           The map is for organisers and for the accounts set up as map screens. Log out, then log in
           as one of those.

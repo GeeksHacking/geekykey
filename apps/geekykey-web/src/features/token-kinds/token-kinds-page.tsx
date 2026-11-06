@@ -60,7 +60,7 @@ export function TokenKindsPage() {
   const { me } = useMe();
   return (
     <main className="flex flex-col">
-      <h1 className="text-3xl font-semibold tracking-heading">Token kinds</h1>
+      <h1 className="type-title">Token kinds</h1>
       {me.user.can_view_token_kinds ? (
         <>
           <ListTotals canLoad={me.user.is_geekykey_admin} />
@@ -182,7 +182,7 @@ function LogCheck({ found }: { found: WriterLog }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="rounded-lg border p-4">
-      <h2 id={headingId} className="text-base font-semibold">
+      <h2 id={headingId} className="type-item">
         In this log
       </h2>
       <div className="mt-3 space-y-3">
@@ -235,7 +235,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="mt-6">
-      <h2 id={headingId} className="mb-3 text-lg font-semibold">
+      <h2 id={headingId} className="type-section mb-3">
         {title}
       </h2>
       {children}

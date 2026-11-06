@@ -12,9 +12,6 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { createTestProviders } from "@/test/providers";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
-vi.mock("@/components/layout/section-heading", () => ({
-  SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
-}));
 
 const WHO_SEES_BIO = "Anyone who taps your token or whose token you tap sees this.";
 const WHO_SEES_CONTACT_LINE = "People you connect with see this.";

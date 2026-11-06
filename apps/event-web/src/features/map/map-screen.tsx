@@ -104,7 +104,7 @@ export function MapScreen() {
       <header className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Wordmark />
-          <h1 className="text-xl font-semibold whitespace-nowrap tracking-heading">Station map</h1>
+          <h1 className="type-title whitespace-nowrap">Station map</h1>
           <span className="look-label text-muted-foreground">{plan.name}</span>
         </div>
         {map.data ? (

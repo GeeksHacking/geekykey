@@ -28,13 +28,13 @@ export function AnswersSummary({
           ? "You can change these until your first connection."
           : "You've connected, so your answers are set."}
       </p>
-      <ul className="mt-3 divide-y rounded-md border">
+      <ul className="mt-3 divide-y rounded-lg border bg-card">
         {questions.map((question) => {
           const choice = question.choices.find(
             (candidate) => candidate.id === answers[question.id],
           );
           return (
-            <li key={question.id} className="flex items-start justify-between gap-3 px-4 py-3">
+            <li key={question.id} className="flex items-start justify-between gap-3 px-3 py-3">
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{question.text}</p>
                 <p

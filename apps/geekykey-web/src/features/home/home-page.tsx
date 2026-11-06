@@ -25,7 +25,7 @@ export function HomePage() {
 
   return (
     <main className="flex flex-col">
-      <h1 className="text-3xl font-semibold tracking-heading">My tokens</h1>
+      <h1 className="type-title">My tokens</h1>
       {me.tokens.length === 0 ? <NoTokensYet /> : null}
       <ClaimByCodeForm />
       {me.tokens.length > 0 ? <TokenList tokens={me.tokens} /> : null}

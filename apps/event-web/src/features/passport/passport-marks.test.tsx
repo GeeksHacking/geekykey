@@ -20,10 +20,6 @@ vi.mock("@/lib/session", () => ({
   useSession: () => ({ consumeLoginLinkArrival: () => false }),
 }));
 
-vi.mock("@/components/layout/section-heading", () => ({
-  SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
-}));
-
 const printing: Stamp = {
   station_id: "printing",
   name: "3D Printing Booth",

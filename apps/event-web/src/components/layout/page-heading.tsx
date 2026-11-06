@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 */
 export function PageHeading({ children }: { children: ReactNode }) {
   return (
-    <h1 tabIndex={-1} data-page-heading className="text-2xl font-semibold tracking-heading">
+    <h1 tabIndex={-1} data-page-heading className="type-title">
       {children}
     </h1>
   );

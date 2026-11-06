@@ -16,9 +16,6 @@ import { createTestProviders } from "@/test/providers";
 import type { DiceStageProps } from "@/features/passport/dice/dice-stage";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
-vi.mock("@/components/layout/section-heading", () => ({
-  SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
-}));
 
 /*
   jsdom has no WebGL, so the reveal shows the plain numbers unless a test turns it on. The 3D
@@ -68,7 +65,7 @@ function guestOf(api: MockApiClient) {
   return guest;
 }
 
-function renderScreen(api: MockApiClient, screenUnderTest: ReactNode = <PassportScreen />) {
+function renderScreen(api: MockApiClient, screenUnderTest: ReactNode = <DashboardScreen />) {
   const { Providers, queryClient } = createTestProviders(api, { session: true });
   const view = render(
     <Providers>
@@ -156,7 +153,7 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
   it("shows the match when a poll brings a new connection", async () => {
     const api = setUp([]);
     const { poll } = renderScreen(api);
-    await screen.findByRole("list", { name: "Stamps" });
+    await screen.findByRole("heading", { name: "Latest stamps" });
     expect(screen.queryByText(TALK)).not.toBeInTheDocument();
 
     guestOf(api).connections = [connection(0, { match: 67 })];
@@ -228,7 +225,7 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
 
     first.unmount();
     const second = renderScreen(api);
-    await screen.findByRole("list", { name: "Stamps" });
+    await screen.findByRole("heading", { name: "Latest stamps" });
     expect(screen.queryByText("67% match!")).not.toBeInTheDocument();
 
     guestOf(api).connections = [connection(0, { match: 33 }), ...(guestOf(api).connections ?? [])];
@@ -264,6 +261,16 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
     renderScreen(setUp([connection(0, { match: 67 })]), <DashboardScreen />);
 
     expect(await screen.findByText("67% match!")).toBeInTheDocument();
+  });
+});
+
+describe("the passport", () => {
+  it("has the reveal of a new connection, and leaves the list to the dashboard", async () => {
+    renderScreen(setUp([connection(0, { display_name: "Mei Lin" })]), <PassportScreen />);
+
+    expect(await screen.findByRole("status", { name: "New connection" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Connections" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Connections" })).not.toBeInTheDocument();
   });
 });
 
@@ -417,7 +424,7 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
     api.mock.data.questions = null;
     renderScreen(api);
 
-    await screen.findByRole("list", { name: "Stamps" });
+    await screen.findByRole("heading", { name: "Latest stamps" });
     expect(screen.queryByRole("heading", { name: "Connections" })).not.toBeInTheDocument();
     expect(screen.queryByText(/No connections yet/)).not.toBeInTheDocument();
   });

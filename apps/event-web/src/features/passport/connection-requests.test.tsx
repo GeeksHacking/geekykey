@@ -13,9 +13,6 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { createTestProviders } from "@/test/providers";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
-vi.mock("@/components/layout/section-heading", () => ({
-  SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
-}));
 
 const SAME_GROUP = "You're in the same group. Find someone from another group.";
 const NO_GROUP = "You both need to be in a group to connect. Ask an organiser.";
@@ -211,6 +208,11 @@ describe("connection requests on the dashboard (BAC-149)", () => {
 
     expect(row.getByRole("button", { name: "Accept" })).toBeDisabled();
     expect(row.getByRole("button", { name: "Decline" })).toBeDisabled();
+    // Only the button pressed says it's working.
+    expect(
+      row.getByRole("button", { name: "Accept" }).querySelector(".animate-spin"),
+    ).not.toBeNull();
+    expect(row.getByRole("button", { name: "Decline" }).querySelector(".animate-spin")).toBeNull();
     await act(async () => {
       finish();
       await blocked;

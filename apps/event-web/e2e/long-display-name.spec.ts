@@ -146,7 +146,7 @@ test("a long display name leaves the header's tabs clear", async ({ page }) => {
   await page.locator("header").getByRole("link", { name: "Passport" }).click();
   await changeName(page, LONG_NAME);
   // A link, not a reload: the mock keeps the new name in memory for this page only.
-  await page.locator("header").getByRole("link", { name: "Home", exact: true }).click();
+  await page.locator("header").getByRole("link", { name: /^Home/ }).click();
   await expect(page).toHaveURL(/\/$/);
 
   for (const theme of THEMES) {
@@ -244,7 +244,7 @@ test("the account menu shows a name with nowhere to wrap", async ({ page }) => {
   await signInAsParticipant(page);
   await page.locator("header").getByRole("link", { name: "Passport" }).click();
   await changeName(page, UNBROKEN_NAME);
-  await page.locator("header").getByRole("link", { name: "Home", exact: true }).click();
+  await page.locator("header").getByRole("link", { name: /^Home/ }).click();
   await expect(page).toHaveURL(/\/$/);
 
   await page.getByRole("button", { name: "Account menu" }).click();

@@ -2266,3 +2266,11 @@
     land on the rolls the Event Service kept, so both phones show the same result. The trade-offs
     we accept: a phone downloads three.js and GSAP when a roll waits, and a phone without WebGL or
     with reduced motion shows the plain numbers instead.
+- id: screens-type-scale-connections-flow
+  date: 2026-11-06
+  area: frontend
+  change: >-
+    Both sets of screens use one type scale, and the dashboard drops its Open passport and All
+    activity links because the tabs do the same job. The connections flow no longer jumps during a
+    roll, shows when Accept or Decline is working, counts waiting requests on the Home tab, lists
+    connections only on Home, and says "Your token" only on your own token.

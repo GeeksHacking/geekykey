@@ -37,11 +37,11 @@ export function UserIdRow({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="mt-1 flex items-center gap-2">
-      <p className="text-sm text-muted-foreground">
-        Your user ID: <code className="font-mono text-foreground">{userId}</code>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="min-w-0 text-sm text-muted-foreground">
+        Your user ID: <code className="font-mono break-all text-foreground">{userId}</code>
       </p>
-      <Button variant="outline" onClick={() => void copyUserId()}>
+      <Button size="sm" variant="outline" onClick={() => void copyUserId()}>
         {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
         {copied ? "Copied" : "Copy"}
       </Button>

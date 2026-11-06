@@ -10,7 +10,7 @@
 export function OwnerSentences({ name, bio }: { name: string | null; bio: string | null }) {
   return (
     <div className="flex flex-col gap-1 wrap-anywhere">
-      <p className="text-base">This token belongs to {name ?? "someone else"}.</p>
+      <p className="type-lead">This token belongs to {name ?? "someone else"}.</p>
       {bio ? <p className="text-sm">{bio}</p> : null}
       {name !== null ? (
         <p className="text-sm text-muted-foreground">

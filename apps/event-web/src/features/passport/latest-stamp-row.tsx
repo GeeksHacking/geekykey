@@ -10,7 +10,7 @@ export function LatestStampRow({ stamp }: { stamp: Stamp }) {
         <StationGlyph name={stamp.name} weight="fill" className="h-4 w-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{stamp.name}</p>
+        <p className="type-item truncate">{stamp.name}</p>
         {stamp.location ? <p className="text-xs text-muted-foreground">{stamp.location}</p> : null}
       </div>
       <div className="shrink-0 text-right font-mono text-xs text-muted-foreground">

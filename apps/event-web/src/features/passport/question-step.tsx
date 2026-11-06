@@ -56,7 +56,7 @@ export function QuestionStep({
       <h3
         ref={heading}
         tabIndex={-1}
-        className="mt-1 text-base font-semibold text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="type-item mt-1 text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {question.text}
       </h3>

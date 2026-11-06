@@ -59,13 +59,13 @@ test("the participant header lights one tab at a time", async ({ page }) => {
   const nav = 'header nav[aria-label="Sections"]';
   await signInAsParticipant(page);
   await page.goto("/");
-  await expect(page.locator(`${nav} a[data-status="active"]`)).toHaveText("Home");
+  await expect(page.locator(`${nav} a[data-status="active"]`)).toHaveText(/^Home/);
 
   for (const tab of ["Passport", "Activity", "Home"]) {
     await watchHighlights(page, nav);
     await page.locator(nav).getByRole("link", { name: tab }).click();
     expect(Math.max(...(await highlightCounts(page)))).toBe(1);
-    await expect(page.locator(`${nav} a[data-status="active"]`)).toHaveText(tab);
+    await expect(page.locator(`${nav} a[data-status="active"]`)).toHaveText(new RegExp(`^${tab}`));
   }
 });
 
@@ -81,4 +81,23 @@ test("the organiser sidebar lights one item at a time", async ({ page }) => {
     expect(Math.max(...(await highlightCounts(page)))).toBe(1);
     await expect(page.locator(`${nav} a[data-status="active"]`)).toHaveText(item);
   }
+});
+
+test("hover lights another tab and leaves the current one yellow", async ({ page }) => {
+  await signInAsParticipant(page);
+  await page.goto("/passport");
+  await page.locator("h1").first().waitFor();
+
+  const nav = page.locator('header nav[aria-label="Sections"]');
+  const fill = (name: string | RegExp) =>
+    nav.getByRole("link", { name }).evaluate((link) => getComputedStyle(link).backgroundColor);
+  const current = await fill("Passport");
+
+  await nav.getByRole("link", { name: "Activity" }).hover();
+  const hovered = await fill("Activity");
+  expect(hovered).not.toBe("rgba(0, 0, 0, 0)");
+  expect(hovered).not.toBe(current);
+
+  await nav.getByRole("link", { name: "Passport" }).hover();
+  expect(await fill("Passport")).toBe(current);
 });

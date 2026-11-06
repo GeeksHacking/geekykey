@@ -13,7 +13,7 @@ export function DashboardTapHelp() {
     >
       <div className="flex items-start gap-3">
         <Key className="mt-0.5 h-5 w-5 shrink-0 text-primary-text" aria-hidden />
-        <h2 id="tap-token-title" className="font-medium">
+        <h2 id="tap-token-title" className="type-item">
           Tap your token at any station to start collecting stamps
         </h2>
       </div>

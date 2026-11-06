@@ -87,9 +87,10 @@ export function QuestionsPrompt({
   return (
     <section
       aria-labelledby="answers-heading"
-      className="rounded-lg border bg-card p-4 text-card-foreground sm:p-5"
+      // Setup has nothing else on the page, so it's a card there. On a screen, it's one more section.
+      className={required ? "rounded-lg border bg-card p-4 text-card-foreground sm:p-5" : undefined}
     >
-      <h2 id="answers-heading" className="text-lg font-semibold tracking-heading">
+      <h2 id="answers-heading" className="type-section">
         Your answers
       </h2>
       {fixed ? (
