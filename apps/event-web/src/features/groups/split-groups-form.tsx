@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Warning } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { describeError, isApiError, tooFewParticipantsMessage } from "@/api/errors";
 import { Button } from "@/components/ui/button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -17,47 +18,66 @@ import { Input } from "@/components/ui/input";
 import {
   groupsAPressMakes,
   locationFieldCount,
+  replaceWarning,
   SPLIT_GROUPS_FORM_DEFAULTS,
   SPLIT_LOCATION_FIELDS_MAX,
   splitGroupsFormSchema,
   splitLine,
   toSplitGroupsRequest,
   type SplitGroupsFormValues,
+  type SplitWay,
 } from "@/features/groups/split-groups-schema";
-import { useSplitGroups } from "@/features/groups/use-split-groups";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 import { applyApiIssues } from "@/lib/form-errors";
 
+/** The number's label, and what the form says about it, for each way. */
+const NUMBER_FIELD: Record<SplitWay, { label: string; hint: string }> = {
+  people_per_group: {
+    label: "People per group",
+    hint: "People per group is each group's capacity. The number of groups comes from how many have joined when you press Split.",
+  },
+  group_count: {
+    label: "Number of groups",
+    hint: "Everyone who has joined is split evenly between them. The groups have no capacity.",
+  },
+};
+
 /**
- * The people per group, a line saying what a press would make of everyone who has joined, and a
+ * The way's number, a line saying what a press would make of everyone who has joined, and a
  * location field for each of those groups. `joined` comes from the screen's poll, so the line and
  * the fields follow as people arrive, and the service counts again at the press. A refusal stays
  * in the dialog, so the same form can be sent again.
  */
 export function SplitGroupsForm({
+  way,
   joined,
-  groupsExist,
+  groupsThere,
+  someonePlaced,
   onSplit,
 }: {
+  way: SplitWay;
   joined: number;
-  groupsExist: boolean;
+  /** How many groups are there now. */
+  groupsThere: number;
+  someonePlaced: boolean;
   onSplit: () => void;
 }) {
-  const split = useSplitGroups();
-  // With groups there a press makes none, so the form draws no fields for them.
-  const peopleToSplit = groupsExist ? 0 : joined;
+  const split = useGroupBoardChange();
+  const situation = { way, joined, someonePlaced };
   const form = useForm<SplitGroupsFormValues>({
-    resolver: zodResolver(splitGroupsFormSchema(peopleToSplit)),
+    resolver: zodResolver(splitGroupsFormSchema(situation)),
     defaultValues: SPLIT_GROUPS_FORM_DEFAULTS,
   });
-  const peoplePerGroup = useWatch({ control: form.control, name: "people_per_group" });
-  const groupCount = groupsAPressMakes(peopleToSplit, peoplePerGroup);
+  const typed = useWatch({ control: form.control, name: way });
+  const groupCount = groupsAPressMakes(situation, typed);
   const locationFields = locationFieldCount(groupCount);
+  const warning = replaceWarning(groupsThere, someonePlaced);
   const [formError, setFormError] = useState<string | null>(null);
 
   async function onSubmit(values: SplitGroupsFormValues) {
     setFormError(null);
     try {
-      await split.mutateAsync(toSplitGroupsRequest(values, peopleToSplit));
+      await split.mutateAsync({ type: "split", input: toSplitGroupsRequest(values, situation) });
       onSplit();
     } catch (error) {
       if (isApiError(error) && error.code === "too_few_participants") {
@@ -74,19 +94,12 @@ export function SplitGroupsForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <DialogHeader>
-          <DialogTitle>Split everyone into groups</DialogTitle>
-          <DialogDescription>
-            Makes the groups and places everyone who has joined, in one step. It works only while
-            there are no groups.
-          </DialogDescription>
-        </DialogHeader>
         <FormField
           control={form.control}
-          name="people_per_group"
+          name={way}
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="look-label">People per group</FormLabel>
+              <FormLabel className="look-label">{NUMBER_FIELD[way].label}</FormLabel>
               <FormControl>
                 <Input
                   {...field}
@@ -100,12 +113,9 @@ export function SplitGroupsForm({
           )}
         />
         <p aria-live="polite" className="text-sm">
-          {splitLine(joined, groupsExist, groupCount)}
+          {splitLine(situation, groupCount)}
         </p>
-        <p className="text-sm text-muted-foreground">
-          People per group is each group&apos;s capacity. The number of groups comes from how many
-          have joined when you press Split.
-        </p>
+        <p className="text-sm text-muted-foreground">{NUMBER_FIELD[way].hint}</p>
         {locationFields > 0 ? (
           <fieldset className="space-y-3">
             <legend className="look-label text-sm">Locations</legend>
@@ -118,7 +128,7 @@ export function SplitGroupsForm({
             {/* The list scrolls rather than the dialog, which would clip the corner brackets, so
                 Split stays on screen however many groups there are. The padding keeps focus
                 rings inside it. */}
-            <div className="-m-1 max-h-[40dvh] space-y-3 overflow-y-auto p-1">
+            <div className="-m-1 max-h-[30dvh] space-y-3 overflow-y-auto p-1">
               {Array.from({ length: locationFields }, (_, i) => (
                 <FormField
                   key={i}
@@ -143,13 +153,19 @@ export function SplitGroupsForm({
             </div>
           </fieldset>
         ) : null}
+        {warning ? (
+          <p className="flex items-start gap-2 text-sm font-medium">
+            <Warning aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
+            {warning}
+          </p>
+        ) : null}
         {formError ? (
           <p role="alert" className="text-sm text-destructive">
             {formError}
           </p>
         ) : null}
         <DialogFooter>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={split.busy || form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Splitting" : "Split"}
           </Button>
         </DialogFooter>

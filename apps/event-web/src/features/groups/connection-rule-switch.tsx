@@ -2,7 +2,7 @@ import { describeError } from "@/api/errors";
 import type { ConnectAcross } from "@/api/types";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useSetConnectionRule } from "@/features/groups/use-set-connection-rule";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 
 /** The two settings, in the order the screen lists them, the new event's first. */
 const CHOICES: { value: ConnectAcross; label: string; description: string }[] = [
@@ -24,8 +24,11 @@ const CHOICES: { value: ConnectAcross; label: string; description: string }[] = 
  * sent the screen shows the choice pressed, and a failure puts back the board's.
  */
 export function ConnectionRuleSwitch({ value }: { value: ConnectAcross }) {
-  const setRule = useSetConnectionRule();
-  const shown = setRule.isPending ? setRule.variables : value;
+  const setRule = useGroupBoardChange();
+  const shown =
+    setRule.isPending && setRule.variables?.type === "rule"
+      ? setRule.variables.connectAcross
+      : value;
   return (
     <section aria-labelledby="groups-connections" className="rounded-lg border p-4">
       <h2 id="groups-connections" className="font-semibold">
@@ -34,10 +37,11 @@ export function ConnectionRuleSwitch({ value }: { value: ConnectAcross }) {
       <RadioGroup
         aria-labelledby="groups-connections"
         value={shown}
-        disabled={setRule.isPending}
+        disabled={setRule.busy}
         onValueChange={(next) => {
           const choice = CHOICES.find((candidate) => candidate.value === next);
-          if (choice && choice.value !== value) setRule.mutate(choice.value);
+          if (choice && choice.value !== value)
+            setRule.mutate({ type: "rule", connectAcross: choice.value });
         }}
         className="mt-3 gap-3"
       >

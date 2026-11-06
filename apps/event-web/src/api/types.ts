@@ -415,15 +415,19 @@ export interface CreateGroupRequest {
 export type UpdateGroupRequest = CreateGroupRequest;
 
 /**
- * POST /api/v1/admin/groups/split (BAC-138, BAC-141, draft for agreement 0.14): works out the
- * number of groups from who has joined, makes "Group 1", "Group 2" and so on, each with
- * `people_per_group` (2 or more) as its capacity, then allocates everyone. Group n's location is
- * the nth of `locations`, a missing or blank one is none, and any past the last group is ignored.
+ * POST /api/v1/admin/groups/split (BAC-138, BAC-141, BAC-146, draft for agreement 0.14): takes
+ * exactly one of two numbers. By `people_per_group` (2 or more), which is each group's capacity,
+ * it works out the number of groups from who has joined. By `group_count` (1 or more), the groups
+ * have no capacity. It makes "Group 1", "Group 2" and so on, then allocates everyone. Group n's
+ * location is the nth of `locations`, a missing or blank one is none, and any past the last group
+ * is ignored.
  */
-export interface SplitGroupsRequest {
-  people_per_group: number;
+export type SplitGroupsRequest = {
   locations?: (string | null)[];
-}
+} & (
+  | { people_per_group: number; group_count?: never }
+  | { group_count: number; people_per_group?: never }
+);
 
 export type ErrorCode =
   | "validation_failed"

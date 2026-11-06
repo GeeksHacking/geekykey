@@ -4,7 +4,13 @@ import { useRef, useState } from "react";
 import type { EventGroup } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteGroupDialog } from "@/features/groups/delete-group-dialog";
-import { GroupForm } from "@/features/groups/group-form";
+import { GROUP_FORM_DESCRIPTION, GroupForm } from "@/features/groups/group-form";
+import { useGroupBoardBusy } from "@/features/groups/use-group-board";
 import { returnFocusOnClose } from "@/lib/dialog-focus";
 
 /**
@@ -23,6 +30,7 @@ import { returnFocusOnClose } from "@/lib/dialog-focus";
  */
 export function GroupActions({ group }: { group: EventGroup }) {
   const trigger = useRef<HTMLButtonElement>(null);
+  const busy = useGroupBoardBusy();
   const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
 
   return (
@@ -31,6 +39,7 @@ export function GroupActions({ group }: { group: EventGroup }) {
         <DropdownMenuTrigger asChild>
           <Button
             ref={trigger}
+            disabled={busy}
             type="button"
             variant="outline"
             size="sm"
@@ -42,9 +51,12 @@ export function GroupActions({ group }: { group: EventGroup }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onSelect={() => setDialog("edit")}>Edit group…</DropdownMenuItem>
+          <DropdownMenuItem disabled={busy} onSelect={() => setDialog("edit")}>
+            Edit group…
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
+            disabled={busy}
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
             onSelect={() => setDialog("delete")}
           >
@@ -55,6 +67,10 @@ export function GroupActions({ group }: { group: EventGroup }) {
       <Dialog open={dialog === "edit"} onOpenChange={(open) => setDialog(open ? "edit" : null)}>
         <DialogContent onCloseAutoFocus={(event) => returnFocusOnClose(event, trigger.current)}>
           <CornerBrackets />
+          <DialogHeader>
+            <DialogTitle>Edit group</DialogTitle>
+            <DialogDescription>{GROUP_FORM_DESCRIPTION}</DialogDescription>
+          </DialogHeader>
           <GroupForm group={group} onSaved={() => setDialog(null)} />
         </DialogContent>
       </Dialog>

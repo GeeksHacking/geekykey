@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { describeError, isApiError } from "@/api/errors";
 import type { EventGroup } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -22,17 +22,19 @@ import {
   toGroupRequest,
   type GroupFormValues,
 } from "@/features/groups/group-form-schema";
-import { useCreateGroup } from "@/features/groups/use-create-group";
-import { useUpdateGroup } from "@/features/groups/use-update-group";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 import { applyApiIssues } from "@/lib/form-errors";
+
+/** What the dialog around the form says, whichever dialog it is. */
+export const GROUP_FORM_DESCRIPTION =
+  "Participants see its name, tags and location when they're placed.";
 
 /**
  * Creates a group, or edits `group` when given one. An edit sends every field, as the PUT sets
- * them all, so the form starts from what the group has.
+ * them all, so the form starts from what the group has. The dialog around it gives the heading.
  */
 export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () => void }) {
-  const createGroup = useCreateGroup();
-  const updateGroup = useUpdateGroup();
+  const save = useGroupBoardChange();
   const form = useForm<GroupFormValues>({
     resolver: zodResolver(groupFormSchema),
     defaultValues: groupFormValues(group),
@@ -44,8 +46,8 @@ export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () 
     setFormError(null);
     try {
       const input = toGroupRequest(values);
-      if (group) await updateGroup.mutateAsync({ groupId: group.id, input });
-      else await createGroup.mutateAsync(input);
+      if (group) await save.mutateAsync({ type: "edit", groupId: group.id, input });
+      else await save.mutateAsync({ type: "create", input });
       onSaved();
     } catch (error) {
       if (isApiError(error) && error.code === "name_taken") {
@@ -62,12 +64,6 @@ export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <DialogHeader>
-          <DialogTitle>{group ? "Edit group" : "Create a group"}</DialogTitle>
-          <DialogDescription>
-            Participants see its name, tags and location when they&apos;re placed.
-          </DialogDescription>
-        </DialogHeader>
         <TextField form={form} name="name" label="Name" />
         <TextField
           form={form}
@@ -94,7 +90,7 @@ export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () 
           </p>
         ) : null}
         <DialogFooter>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={save.busy || form.formState.isSubmitting}>
             {form.formState.isSubmitting ? (group ? "Saving" : "Creating") : saveLabel}
           </Button>
         </DialogFooter>

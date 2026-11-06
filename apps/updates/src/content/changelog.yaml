@@ -2216,3 +2216,11 @@
     Participants give their name and every answer before opening the event, and an unfinished
     tap sends no connection request but offers the event button so they can finish. Organisers
     keep their current flow, and answers still lock at the first connection.
+- id: make-groups-button
+  date: 2026-11-06
+  area: backend
+  change: >-
+    The Groups screen now has one Make groups button, which splits everyone by people per group or
+    by number of groups, or makes each group by hand. After a Reset, it replaces the empty groups,
+    so a second trial can use different numbers. The trade-offs we accept: with anyone in a group
+    the split is refused, so an organiser has to press Reset first.
