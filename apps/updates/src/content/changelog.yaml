@@ -2316,3 +2316,12 @@
     changed. The grad tea is out of the plan, the token game and participant groups are the two
     variations Mr Johari asked for, and the agreement no longer offers finding one person at a
     time.
+
+- id: testing-now-and-then
+  date: 2026-11-06
+  area: research
+  change: >-
+    The team now tests now and then until the showcase, in place of one rehearsal by 7 Nov, and the
+    freeze starts at the last merge on 15 Nov, not on 11 Nov. The trade-offs we accept: with no
+    fixed rehearsal, nothing sets when each step gets tried, and backend changes can land up to two
+    days before the showcase.
