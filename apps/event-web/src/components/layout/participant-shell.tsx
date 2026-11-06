@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import type { User } from "@/api/types";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { NavLink } from "@/components/layout/nav-link";
+import { SiteSwitch } from "@/components/layout/site-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useRouteHeadingFocus } from "@/lib/use-route-heading-focus";
 import { Wordmark } from "@/components/layout/wordmark";
@@ -50,7 +51,7 @@ export function ParticipantShell({
         Skip to content
       </a>
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-4 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-3 px-4">
           {/* FRO-64. The wordmark never shrinks, so its text cannot run under the tabs; a long
               display name in the account menu gives way instead. */}
           <Link to="/" aria-label="GeekyKey home" className="shrink-0">
@@ -64,6 +65,7 @@ export function ParticipantShell({
             </nav>
           ) : null}
           <div className="flex min-w-0 items-center gap-1">
+            <SiteSwitch />
             <ThemeToggle />
             <AccountMenu
               user={user}
