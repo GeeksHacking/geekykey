@@ -115,6 +115,13 @@ export function useGroupBoardChange() {
             queryKey: queryKeys.groupBoard,
             refetchType: "all",
           });
+        } else if (change.type === "split") {
+          // A refused split can follow a changed board. Keep the refusal immediate while its
+          // line and replacement warning catch up (BAC-146).
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.groupBoard,
+            refetchType: "all",
+          });
         }
         throw error;
       } finally {

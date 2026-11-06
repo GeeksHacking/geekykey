@@ -300,12 +300,12 @@ Rules:
      says nothing, because the next `/me` takes the request away (draft in section 13, BAC-149).
    - `name_taken`: under the name in the Groups screen's dialog (draft for agreement 0.14).
    - `no_groups` / `too_few_participants`: under the Groups screen's header, where Allocate was
-     pressed. `too_few_participants` also carries `needed`, which `ApiError.needed` keeps so the
-     sentence can say how many more people to wait for (draft for agreement 0.14). From the
-     Split into groups dialog, `too_few_participants` shows in the dialog and says to press Split
-     again.
-   - `groups_exist`: in the Split into groups dialog, which works only while there are no groups
-     (draft for agreement 0.14).
+     pressed, for as long as Allocate shows. `too_few_participants` also carries `needed`, which
+     `ApiError.needed` keeps so the sentence can say how many more people to wait for (draft for
+     agreement 0.14). From the Make groups dialog, `too_few_participants` shows in the dialog and
+     says to press Split again.
+   - `groups_exist`: in the Make groups dialog, which replaces empty groups but not groups with
+     anyone in them, and says to press Reset first (draft for agreement 0.14).
    - `answers_fixed`: the passport shows the answers without a way to change them
      (agreement 8.7 and section 13).
    - `rate_limited`: show a wait-and-retry message; do not loop immediately.

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { describeError, isApiError } from "@/api/errors";
 import type { EventGroup } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -25,9 +25,13 @@ import {
 import { useGroupBoardChange } from "@/features/groups/use-group-board";
 import { applyApiIssues } from "@/lib/form-errors";
 
+/** What the dialog around the form says, whichever dialog it is. */
+export const GROUP_FORM_DESCRIPTION =
+  "Participants see its name, tags and location when they're placed.";
+
 /**
  * Creates a group, or edits `group` when given one. An edit sends every field, as the PUT sets
- * them all, so the form starts from what the group has.
+ * them all, so the form starts from what the group has. The dialog around it gives the heading.
  */
 export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () => void }) {
   const save = useGroupBoardChange();
@@ -60,12 +64,6 @@ export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <DialogHeader>
-          <DialogTitle>{group ? "Edit group" : "Create a group"}</DialogTitle>
-          <DialogDescription>
-            Participants see its name, tags and location when they&apos;re placed.
-          </DialogDescription>
-        </DialogHeader>
         <TextField form={form} name="name" label="Name" />
         <TextField
           form={form}

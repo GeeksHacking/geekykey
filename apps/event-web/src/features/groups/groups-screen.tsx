@@ -1,4 +1,5 @@
 import { UsersThree } from "@phosphor-icons/react";
+import { useEffect } from "react";
 
 import { describeError } from "@/api/errors";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -8,14 +9,13 @@ import { LiveStamp } from "@/components/layout/live-stamp";
 import { PageHeader } from "@/components/layout/page-header";
 import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { Button } from "@/components/ui/button";
-import { AddGroupDialog } from "@/features/groups/add-group-dialog";
 import { ConnectionRuleSwitch } from "@/features/groups/connection-rule-switch";
 import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
+import { MakeGroupsDialog } from "@/features/groups/make-groups-dialog";
 import { MemberRow } from "@/features/groups/member-row";
 import { ResetGroupsDialog } from "@/features/groups/reset-groups-dialog";
-import { SplitGroupsDialog } from "@/features/groups/split-groups-dialog";
 import { useGroupBoard, useGroupBoardChange } from "@/features/groups/use-group-board";
 import { showStaleNote } from "@/lib/rate-limit";
 
@@ -24,6 +24,14 @@ export function GroupsScreen() {
   const allocate = useGroupBoardChange();
   const refetch = () => void board.refetch();
   const data = board.data;
+  // There's nothing for Allocate to do otherwise, and pressing it again changes nothing.
+  const allocateUseful = (data?.groups.length ?? 0) > 0 && (data?.waiting.length ?? 0) > 0;
+  const { isError: allocateRefused, reset: forgetAllocate } = allocate;
+  // Its sentences say to press Allocate again, so they go when the button does, and don't come
+  // back with it for the next trial's crowd, by when they'd be untrue.
+  useEffect(() => {
+    if (allocateRefused && !allocateUseful) forgetAllocate();
+  }, [allocateRefused, allocateUseful, forgetAllocate]);
 
   let body;
   if (!data) {
@@ -66,7 +74,7 @@ export function GroupsScreen() {
           <EmptyState
             icon={UsersThree}
             title="No groups yet"
-            description="Once people have joined, press Split into groups to make the groups and place everyone at once. Or create the first group, then press Allocate."
+            description="Once people have joined, press Make groups to split them into groups at once. Or use it to make each group by hand, then press Allocate."
           />
         )}
         <section aria-labelledby="groups-waiting" className="rounded-lg border p-4">
@@ -98,26 +106,28 @@ export function GroupsScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Groups"
-        description="Create groups, then press Allocate to split everyone who has joined, or press Split into groups to do both at once. Move anyone from their menu. Reset empties the groups for another trial. Refreshes every 5 seconds."
+        description="Press Make groups to split everyone who has joined, by people per group or by number of groups, or to make each group by hand. Allocate places anyone waiting. Move anyone from their menu. Reset empties the groups for another trial. Refreshes every 5 seconds."
         actions={
           <>
-            <AddGroupDialog disabled={allocate.busy} />
-            <SplitGroupsDialog
+            <MakeGroupsDialog
               disabled={!data || allocate.busy}
               joined={data?.joined_count ?? 0}
-              groupsExist={(data?.groups.length ?? 0) > 0}
+              groupsThere={data?.groups.length ?? 0}
+              someonePlaced={data?.groups.some((group) => group.members.length > 0) ?? false}
             />
-            <Button
-              disabled={!data || allocate.busy}
-              onClick={() => allocate.mutate({ type: "allocate" })}
-            >
-              Allocate
-            </Button>
+            {allocateUseful ? (
+              <Button
+                disabled={allocate.busy}
+                onClick={() => allocate.mutate({ type: "allocate" })}
+              >
+                Allocate
+              </Button>
+            ) : null}
             <ResetGroupsDialog disabled={!data || allocate.busy} />
           </>
         }
       />
-      {allocate.isError ? (
+      {allocate.isError && allocateUseful ? (
         <p role="alert" className="text-sm text-destructive">
           {describeError(allocate.error)}
         </p>

@@ -151,10 +151,11 @@ export interface ApiClient {
   allocateGroups(): Promise<GroupBoardResponse>;
 
   /**
-   * POST /api/v1/admin/groups/split (BAC-138, BAC-141, draft for agreement 0.14). Works out the
-   * number of groups from who has joined, makes them and allocates everyone, in one step, and
-   * answers with the board. It makes nothing on a refusal: `groups_exist` while any group is
-   * there, or `too_few_participants` with fewer than 2 joined.
+   * POST /api/v1/admin/groups/split (BAC-138, BAC-141, BAC-146, draft for agreement 0.14). Takes
+   * exactly one of the people per group, from which it works out the number of groups, and the
+   * number of groups. It makes them and allocates everyone, in one step, and answers with the
+   * board. Groups with nobody in them are replaced. It makes nothing on a refusal: `groups_exist`
+   * with anyone placed, or `too_few_participants` with fewer than 2 joined for each group.
    */
   splitGroups(input: SplitGroupsRequest): Promise<GroupBoardResponse>;
 

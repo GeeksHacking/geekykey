@@ -40,25 +40,55 @@ function renderScreen({
   };
 }
 
+/** Opens the Make groups dialog and gives it. */
+async function openMakeGroups(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Make groups" }));
+  return screen.findByRole("dialog");
+}
+
+/** Opens the Make groups dialog on its way of making each group by hand. */
+async function openByHand(user: ReturnType<typeof userEvent.setup>) {
+  const dialog = await openMakeGroups(user);
+  await user.click(within(dialog).getByRole("radio", { name: "By hand" }));
+  return dialog;
+}
+
 async function createGroup(
   user: ReturnType<typeof userEvent.setup>,
   name: string,
   capacity?: string,
 ) {
-  await user.click(screen.getByRole("button", { name: "Create group" }));
-  const dialog = await screen.findByRole("dialog");
+  const dialog = await openByHand(user);
   await user.type(within(dialog).getByLabelText("Name"), name);
   if (capacity !== undefined) await user.type(within(dialog).getByLabelText("Capacity"), capacity);
   await user.click(within(dialog).getByRole("button", { name: "Create group" }));
 }
 
-/** Opens the Split into groups dialog and gives it. */
-async function openSplit(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "Split into groups" }));
-  return screen.findByRole("dialog");
+/** Opens the Make groups dialog by people per group, as it starts, and gives it. */
+const openSplit = openMakeGroups;
+
+/** Opens the Make groups dialog by number of groups and gives it. */
+async function openSplitByCount(user: ReturnType<typeof userEvent.setup>) {
+  const dialog = await openMakeGroups(user);
+  await user.click(within(dialog).getByRole("radio", { name: "By number of groups" }));
+  return dialog;
 }
 
-/** Fills the Split into groups dialog, as an organiser does, and presses Split. */
+/** Fills the Make groups dialog by number of groups, as an organiser does, and presses Split. */
+async function splitByCount(
+  user: ReturnType<typeof userEvent.setup>,
+  { count, locations = [] }: { count: string; locations?: string[] },
+) {
+  const dialog = await openSplitByCount(user);
+  await user.type(within(dialog).getByLabelText("Number of groups"), count);
+  for (const [i, location] of locations.entries()) {
+    await user.type(within(dialog).getByLabelText(`Group ${i + 1} location`), location);
+  }
+  await user.click(within(dialog).getByRole("button", { name: "Split" }));
+  return dialog;
+}
+
+/** Fills the Make groups dialog by people per group, as an organiser does, and presses Split. */
 async function split(
   user: ReturnType<typeof userEvent.setup>,
   { perGroup, locations = [] }: { perGroup: string; locations?: string[] },
@@ -185,14 +215,135 @@ describe("GroupsScreen", () => {
     expect(screen.getByRole("button", { name: "Download CSV" })).toBeEnabled();
   });
 
-  it("says what to do with no groups, and Allocate says why it can't run", async () => {
-    const { user } = renderScreen({ cleared: true });
+  it("says what to do with no groups, and offers one Make groups button and no Allocate", async () => {
+    renderScreen({ cleared: true });
 
     expect(await screen.findByRole("heading", { name: "No groups yet" })).toBeInTheDocument();
+    expect(screen.getByText(/press Make groups/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make groups" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reset" })).toBeEnabled();
+    for (const gone of ["Create group", "Split into groups", "Allocate"]) {
+      expect(screen.queryByRole("button", { name: gone })).not.toBeInTheDocument();
+    }
+  });
+
+  it("offers the three ways of making groups in one dialog, and keeps the way chosen", async () => {
+    const { user } = renderScreen({ cleared: true });
+    await screen.findByRole("heading", { name: "No groups yet" });
+
+    const dialog = await openMakeGroups(user);
+
+    expect(screen.getByRole("dialog", { name: "Make groups" })).toBe(dialog);
+    expect(within(dialog).getByRole("radiogroup", { name: "How to make groups" })).toBeVisible();
+    expect(within(dialog).getByRole("radio", { name: "By people per group" })).toBeChecked();
+    expect(within(dialog).getByRole("radio", { name: "By number of groups" })).not.toBeChecked();
+    expect(within(dialog).getByRole("radio", { name: "By hand" })).not.toBeChecked();
+    expect(within(dialog).getByLabelText("People per group")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Number of groups")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Name")).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("radio", { name: "By number of groups" }));
+    expect(within(dialog).getByLabelText("Number of groups")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("People per group")).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("radio", { name: "By hand" }));
+    expect(within(dialog).getByLabelText("Name")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Number of groups")).not.toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    const again = await openMakeGroups(user);
+    expect(within(again).getByRole("radio", { name: "By hand" })).toBeChecked();
+  });
+
+  it("makes a group by hand with its name, tags, location and capacity, and leaves the others", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const dialog = await openByHand(user);
+    expect(within(dialog).queryByText(/This replaces/)).not.toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText("Name"), "Mixer C");
+    await user.type(within(dialog).getByLabelText("Tags"), "Year 1, Mixer");
+    await user.type(within(dialog).getByLabelText("Location"), "Room 3A");
+    await user.type(within(dialog).getByLabelText("Capacity"), "6");
+    await user.click(within(dialog).getByRole("button", { name: "Create group" }));
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual([
+      "Foyer mixer",
+      "Atrium mixer",
+      "Mixer C",
+    ]);
+    expect(api.mock.data.groups.at(-1)).toMatchObject({
+      tags: ["Year 1", "Mixer"],
+      location: "Room 3A",
+      capacity: 6,
+    });
+  });
+
+  it("shows Allocate only with groups and someone waiting, and takes it away once they're placed", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+
+    await screen.findByText("Nobody is waiting.");
+    expect(screen.queryByRole("button", { name: "Allocate" })).not.toBeInTheDocument();
+    expect(api.mock.data.groupMembers.every(({ group_id }) => group_id !== null)).toBe(true);
+  });
+
+  it("brings Allocate back when someone waits again", async () => {
+    const { api, user, poll } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+
+    oneMoreJoins(api);
+    await poll();
+
+    expect(await screen.findByRole("button", { name: "Allocate" })).toBeEnabled();
+  });
+
+  it("shows no Allocate with people waiting and no groups", async () => {
+    renderScreen({ prepare: (api) => withJoined(api, 4) });
+
+    await screen.findByRole("list", { name: "Waiting" });
+
+    expect(screen.queryByRole("button", { name: "Allocate" })).not.toBeInTheDocument();
+  });
+
+  it("drops Allocate's refusal for good once there's nobody left to allocate", async () => {
+    const { api, user, poll } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    await createGroup(user, "Mixer C");
+    await screen.findByRole("heading", { name: "Mixer C" });
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+    await screen.findByRole("alert");
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    const alert = await screen.findByRole("alertdialog");
+    await user.click(within(alert).getByRole("button", { name: "Reset" }));
+
+    await screen.findByText("Nobody is waiting.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(api.mock.data.groupMembers).toEqual([]);
+
+    // The next trial's crowd brings the button back, without the old sentence.
+    for (let i = 0; i < 6; i++) oneMoreJoins(api);
+    await poll();
+    await screen.findByRole("button", { name: "Allocate" });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("says to make groups when another organiser deleted them just before Allocate", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    api.mock.data.groups = [];
+
     await user.click(screen.getByRole("button", { name: "Allocate" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Create a group first, then press Allocate.",
+      "Make groups first, then press Allocate.",
     );
   });
 
@@ -300,8 +451,7 @@ describe("GroupsScreen", () => {
   it("counts a name in characters, so 80 emoji are allowed and 81 are not", async () => {
     const { api, user } = renderScreen({ cleared: true });
     await screen.findByRole("heading", { name: "No groups yet" });
-    await user.click(screen.getByRole("button", { name: "Create group" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openByHand(user);
     const name = within(dialog).getByLabelText("Name");
     const submit = within(dialog).getByRole("button", { name: "Create group" });
 
@@ -432,8 +582,7 @@ describe("GroupsScreen", () => {
   it("gives a group tags and a location in the dialog, and shows them on its panel", async () => {
     const { api, user } = renderScreen({ cleared: true });
     await screen.findByRole("heading", { name: "No groups yet" });
-    await user.click(screen.getByRole("button", { name: "Create group" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openByHand(user);
     await user.type(within(dialog).getByLabelText("Name"), "Mixer A");
     await user.type(within(dialog).getByLabelText("Tags"), "Mixer, Year 1, ");
     await user.type(within(dialog).getByLabelText("Location"), "Room 3-01");
@@ -452,8 +601,7 @@ describe("GroupsScreen", () => {
   it("refuses a sixth tag, or a location past 80 characters, before sending", async () => {
     const { api, user } = renderScreen({ cleared: true });
     await screen.findByRole("heading", { name: "No groups yet" });
-    await user.click(screen.getByRole("button", { name: "Create group" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openByHand(user);
     await user.type(within(dialog).getByLabelText("Name"), "Mixer A");
     await user.type(within(dialog).getByLabelText("Tags"), "a, b, c, d, e, f");
     await user.click(within(dialog).getByLabelText("Location"));
@@ -666,16 +814,6 @@ describe("GroupsScreen", () => {
     ]);
   });
 
-  it("asks for the people per group and not the number of groups", async () => {
-    const { user } = renderScreen({ prepare: (api) => (api.mock.data.groups = []) });
-    await screen.findByRole("list", { name: "Waiting" });
-
-    const dialog = await openSplit(user);
-
-    expect(within(dialog).queryByLabelText("Number of groups")).not.toBeInTheDocument();
-    expect(within(dialog).getByLabelText("People per group")).toBeInTheDocument();
-  });
-
   it("puts 3 joined at 2 per group in one group of 3, which shows Over capacity", async () => {
     const { user } = renderScreen({ prepare: (api) => withJoined(api, 3) });
     await screen.findByRole("list", { name: "Waiting" });
@@ -771,36 +909,229 @@ describe("GroupsScreen", () => {
     expect(await screen.findByText("Nobody is waiting.")).toBeInTheDocument();
   });
 
-  it("promises no groups while there are groups, and says in the dialog why a split can't run", async () => {
+  it("splits by number of groups, with each group's location and no capacity", async () => {
+    const { api, user } = renderScreen({ prepare: (api) => withJoined(api, 10) });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const dialog = await splitByCount(user, { count: "3", locations: ["Room 3A", "Lobby"] });
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(namesIn("Members of Group 1")).toHaveLength(4);
+    expect(namesIn("Members of Group 2")).toHaveLength(3);
+    expect(namesIn("Members of Group 3")).toHaveLength(3);
+    expect(screen.queryByText("Over capacity")).not.toBeInTheDocument();
+    expect(api.mock.data.groups.map(({ capacity, location }) => [capacity, location])).toEqual([
+      [null, "Room 3A"],
+      [null, "Lobby"],
+      [null, null],
+    ]);
+  });
+
+  it.each([
+    [10, "3", "10 have joined. This makes 3 groups: 1 of 4 and 2 of 3."],
+    [12, "3", "12 have joined. This makes 3 groups of 4."],
+    [5, "1", "5 have joined. This makes 1 group of 5."],
+    [5, "3", "5 have joined. 3 groups need at least 6."],
+    [1, "1", "1 has joined. 1 group needs at least 2."],
+    [0, "2", "Nobody has joined yet. 2 groups need at least 4."],
+    [5, "", "5 have joined."],
+    [5, "0", "5 have joined."],
+    [1, "", "1 has joined. A split needs at least 2."],
+  ])("with %i joined into %j groups, the form says %j", async (count, groups, line) => {
+    const { user } = renderScreen({ prepare: (api) => withJoined(api, count) });
+    await screen.findByRole("heading", { name: "Waiting" });
+
+    const dialog = await openSplitByCount(user);
+    if (groups !== "") await user.type(within(dialog).getByLabelText("Number of groups"), groups);
+
+    expect(within(dialog).getByText(line)).toBeInTheDocument();
+  });
+
+  it("draws a location field for each group typed, even before enough have joined, and up to 30", async () => {
+    const { user } = renderScreen({ prepare: (api) => withJoined(api, 5) });
+    await screen.findByRole("list", { name: "Waiting" });
+    const dialog = await openSplitByCount(user);
+    const count = within(dialog).getByLabelText("Number of groups");
+
+    await user.type(count, "3");
+    expect(within(dialog).getAllByLabelText(/^Group \d+ location$/)).toHaveLength(3);
+
+    await user.clear(count);
+    await user.type(count, "31");
+    expect(within(dialog).getAllByLabelText(/^Group \d+ location$/)).toHaveLength(30);
+    expect(within(dialog).getByText(/Only the first 30 have a field here\./)).toBeInTheDocument();
+  });
+
+  it("says in the dialog that 1 more person is needed for 3 groups, and makes nothing, until they join", async () => {
+    const { api, user } = renderScreen({ prepare: (api) => withJoined(api, 5) });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const dialog = await splitByCount(user, { count: "3" });
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Each group needs at least 2 people. Wait for 1 more person to join, then press Split again.",
+    );
+    expect(api.mock.data.groups).toEqual([]);
+
+    oneMoreJoins(api);
+    await user.click(within(dialog).getByRole("button", { name: "Split" }));
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual(["Group 1", "Group 2", "Group 3"]);
+  });
+
+  it("refuses a number of groups below 1, or not whole, before sending", async () => {
+    const { api, user } = renderScreen({ prepare: (api) => withJoined(api, 4) });
+    await screen.findByRole("list", { name: "Waiting" });
+    const dialog = await openSplitByCount(user);
+    const count = within(dialog).getByLabelText("Number of groups");
+
+    await user.click(within(dialog).getByRole("button", { name: "Split" }));
+    expect(await within(dialog).findByText("Enter a whole number, 1 or more.")).toBeVisible();
+
+    for (const typed of ["0", "2.5", "two"]) {
+      await user.clear(count);
+      await user.type(count, typed);
+      expect(within(dialog).queryAllByLabelText(/^Group \d+ location$/)).toHaveLength(0);
+      await user.click(within(dialog).getByRole("button", { name: "Split" }));
+
+      expect(await within(dialog).findByText("Enter a whole number, 1 or more.")).toBeVisible();
+      expect(api.mock.data.groups).toEqual([]);
+    }
+  });
+
+  it.each([
+    ["by people per group", openSplit],
+    ["by number of groups", openSplitByCount],
+  ])("warns %s that it replaces empty groups, then replaces them", async (_, open) => {
+    // Foyer mixer and Atrium mixer, nobody placed and 5 waiting.
     const { api, user } = renderScreen();
     await screen.findByRole("list", { name: "Waiting" });
 
+    const dialog = await open(user);
+
+    expect(
+      within(dialog).getByText(
+        "This replaces the 2 empty groups, including their names and locations.",
+      ),
+    ).toBeInTheDocument();
+    const field = within(dialog).getByRole("textbox", {
+      name: /People per group|Number of groups/,
+    });
+    await user.type(field, "2");
+    await user.click(within(dialog).getByRole("button", { name: "Split" }));
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual(["Group 1", "Group 2"]);
+    expect(screen.queryByRole("region", { name: "Foyer mixer" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Nobody is waiting.")).toBeInTheDocument();
+  });
+
+  it("names one empty group in the singular when it warns", async () => {
+    const { user } = renderScreen({
+      prepare: (api) => (api.mock.data.groups = api.mock.data.groups.slice(0, 1)),
+    });
+    await screen.findByRole("list", { name: "Waiting" });
+
     const dialog = await openSplit(user);
+
+    expect(
+      within(dialog).getByText("This replaces the empty group, including its name and location."),
+    ).toBeInTheDocument();
+  });
+
+  it("gives no warning with no groups to replace", async () => {
+    const { user } = renderScreen({ prepare: (api) => withJoined(api, 4) });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const dialog = await openSplit(user);
+
+    expect(within(dialog).queryByText(/This replaces/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the empty groups when a split is refused for too few people", async () => {
+    const { api, user } = renderScreen({
+      prepare: (api) => (api.mock.data.groupMembers = api.mock.data.groupMembers.slice(0, 1)),
+    });
+    await screen.findByRole("heading", { name: "Waiting" });
+
+    const dialog = await split(user, { perGroup: "2" });
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Wait for 1 more person to join",
+    );
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual(["Foyer mixer", "Atrium mixer"]);
+  });
+
+  it("makes groups again after a split and a Reset, with different numbers", async () => {
+    const { api, user, poll } = renderScreen({ prepare: (api) => withJoined(api, 6) });
+    await screen.findByRole("list", { name: "Waiting" });
+    const first = await split(user, { perGroup: "3" });
+    await waitFor(() => expect(first).not.toBeInTheDocument());
+    expect(api.mock.data.groups).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    const alert = await screen.findByRole("alertdialog");
+    await user.click(within(alert).getByRole("button", { name: "Reset" }));
+    await waitFor(() => expect(alert).not.toBeInTheDocument());
+    for (let i = 0; i < 6; i++) oneMoreJoins(api);
+    await poll();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const second = await splitByCount(user, { count: "3" });
+
+    await waitFor(() => expect(second).not.toBeInTheDocument());
+    expect(api.mock.data.groups.map(({ capacity }) => capacity)).toEqual([null, null, null]);
+    expect(namesIn("Members of Group 3")).toHaveLength(2);
+  });
+
+  it("catches up after losing a race, so the dialog doesn't still promise groups", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const dialog = await openSplit(user);
+    await user.type(within(dialog).getByLabelText("People per group"), "2");
+    expect(within(dialog).getByText(/This replaces the 2 empty groups/)).toBeInTheDocument();
+
+    // Another organiser places someone, unseen by the screen until its next poll.
+    const [member] = api.mock.data.groupMembers;
+    member!.group_id = api.mock.data.groups[0]!.id;
+    member!.placed_at = new Date().toISOString();
+    member!.how = "organizer";
+    await user.click(within(dialog).getByRole("button", { name: "Split" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "People are in groups already",
+    );
+    await waitFor(() =>
+      expect(within(dialog).queryByText(/This replaces/)).not.toBeInTheDocument(),
+    );
+    expect(within(dialog).getByText("5 have joined.")).toBeInTheDocument();
+  });
+
+  it("with anyone placed, gives no warning, says why it refuses in the dialog, and changes nothing", async () => {
+    const { api, user } = renderScreen({
+      prepare: (api) => {
+        const [member] = api.mock.data.groupMembers;
+        member!.group_id = api.mock.data.groups[0]!.id;
+        member!.placed_at = new Date().toISOString();
+        member!.how = "organizer";
+      },
+    });
+    await screen.findByRole("list", { name: "Waiting" });
+    const before = structuredClone(api.mock.data.groupMembers);
+
+    const dialog = await openSplit(user);
+    expect(within(dialog).queryByText(/This replaces/)).not.toBeInTheDocument();
     await user.type(within(dialog).getByLabelText("People per group"), "2");
     expect(within(dialog).getByText("5 have joined.")).toBeInTheDocument();
     expect(within(dialog).queryAllByLabelText(/^Group \d+ location$/)).toHaveLength(0);
     await user.click(within(dialog).getByRole("button", { name: "Split" }));
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "There are groups already. Delete them first, or press Allocate to fill them.",
+      "People are in groups already, so nothing changed. Press Reset to empty the groups, then make groups again.",
     );
     expect(api.mock.data.groups.map(({ name }) => name)).toEqual(["Foyer mixer", "Atrium mixer"]);
-    expect(api.mock.data.groupMembers.every((member) => member.group_id === null)).toBe(true);
-  });
-
-  it.each([
-    [1, "1 has joined."],
-    [0, "Nobody has joined yet."],
-  ])("with groups there and %i joined, as after Reset, says only %j", async (count, line) => {
-    const { user } = renderScreen({
-      prepare: (api) => (api.mock.data.groupMembers = api.mock.data.groupMembers.slice(0, count)),
-    });
-    await screen.findByRole("heading", { name: "Waiting" });
-
-    const dialog = await openSplit(user);
-    await user.type(within(dialog).getByLabelText("People per group"), "2");
-
-    expect(within(dialog).getByText(line)).toBeInTheDocument();
+    expect(api.mock.data.groupMembers).toEqual(before);
   });
 
   it("refuses a people per group below 2, or not whole, before sending", async () => {
@@ -926,7 +1257,7 @@ describe("Groups board coordination", () => {
 
     await pick(user, "Kenji Ong", "Move to Atrium mixer");
 
-    for (const name of ["Create group", "Allocate", "Split into groups", "Reset"]) {
+    for (const name of ["Make groups", "Allocate", "Reset"]) {
       expect(screen.getByRole("button", { name })).toBeDisabled();
     }
     for (const button of screen.getAllByRole("button", { name: /^Actions for / })) {
@@ -956,8 +1287,7 @@ describe("Groups board coordination", () => {
     onTestFinished(() => {
       vi.restoreAllMocks();
     });
-    await user.click(screen.getByRole("button", { name: "Create group" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openByHand(user);
     await user.type(within(dialog).getByLabelText("Name"), "Garden mixer");
     const form = within(dialog).getByRole("button", { name: "Create group" }).closest("form")!;
 
@@ -1101,18 +1431,20 @@ describe("Groups board coordination", () => {
   it("reads back an uncertain write after a lost reply and never repeats it", async () => {
     const { api, user } = renderScreen();
     await screen.findByRole("list", { name: "Waiting" });
-    const allocate = api.allocateGroups.bind(api);
-    const write = vi.spyOn(api, "allocateGroups").mockImplementationOnce(async () => {
-      await allocate();
+    const setRule = api.setConnectionRule.bind(api);
+    const write = vi.spyOn(api, "setConnectionRule").mockImplementationOnce(async (input) => {
+      await setRule(input);
       throw new NetworkError();
     });
     onTestFinished(() => {
       vi.restoreAllMocks();
     });
 
-    await user.click(screen.getByRole("button", { name: "Allocate" }));
+    await user.click(screen.getByRole("radio", { name: "Connect across groups" }));
 
-    await screen.findByText("Nobody is waiting.");
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "Connect across groups" })).toBeChecked(),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not reach the server. Check the Wi-Fi and try again.",
     );
