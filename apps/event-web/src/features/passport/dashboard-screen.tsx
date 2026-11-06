@@ -10,7 +10,6 @@ import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
-import { MyTokensLink } from "@/features/passport/my-tokens-link";
 import { ProfileSection } from "@/features/passport/profile-section";
 import { QuestionsPrompt } from "@/features/passport/questions-prompt";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
@@ -87,9 +86,6 @@ export function DashboardScreen() {
           ) : null}
           <li className="px-3 py-3">
             <UserIdRow userId={me.user.id} />
-          </li>
-          <li className="px-3 py-3">
-            <MyTokensLink />
           </li>
         </ul>
       </section>

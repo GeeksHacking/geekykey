@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
 
 interface AccountMenuProps {
   user: User;
@@ -56,6 +57,14 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {/* FRO-141. My tokens is a GeekyKey screen, so the menu opens it in a new tab and
+            keeps the event screen where it was. The dashboard's own row is gone. */}
+        <DropdownMenuItem asChild>
+          <a href={GEEKYKEY_SCREENS_URL} target="_blank" rel="noreferrer">
+            <Stamp aria-hidden />
+            My tokens
+          </a>
+        </DropdownMenuItem>
         {consoleLink === "admin" ? (
           <DropdownMenuItem asChild>
             <Link to="/admin/stations">
