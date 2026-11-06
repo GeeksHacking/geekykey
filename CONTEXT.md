@@ -185,9 +185,8 @@ _Avoid_: location, which is the text a participant reads in the passport; spot
 **Connection**:
 A link between two participants of different kinds, or, when organizers choose it, of different
 groups (BAC-140). Since 5 Nov it's made when one taps their phone on the other's token and the other
-accepts, with the Accept button or by tapping back (BAC-149), and a connection point may make one
-too, if it's built. It joins two users, never two tokens, so nobody connects to themselves, and a
-pair connects once however often they tap. Each new connection keeps one die roll per person,
+accepts, with the Accept button or by tapping back (BAC-149). It joins two users, never two tokens,
+so nobody connects to themselves, and a pair connects once however often they tap. Each new connection keeps one die roll per person,
 chosen by the Event Service when they connect; the higher roll wins, and equal rolls win for
 both (BAC-150). Older connections have no rolls. Since BAC-156 the Event Service picks the dice
 or the reaction test at random for each new connection. In the reaction test each person taps
@@ -225,15 +224,32 @@ _Avoid_: invitation, friend request
 
 **Connection point**:
 Where participants tap together to connect: one station, or a few stations linked to act as one.
-Its stations count only for connections, not for the passport. Since 2 Nov it's built only if
-there's time before the grad tea.
+Its stations count only for connections, not for the passport. Since 4 Nov it isn't planned
+(BAC-83 was canceled).
 
 **Answers game**:
-The grad tea's game on top of connections. Each participant answers one short question, and their
-phone gives them a **target**: one other participant to find, shown only by that person's answer.
-Finding them and connecting gives a new target, and **Skip** gives one too, 10 minutes after the
-target was given.
+The game on top of connections. Since 4 Nov it's variation 1, the token game, of the two variations
+Mr Johari asked for. Each participant answers the event's multiple-choice questions, and a connection
+shows the pair their **match**, the share of the questions both answered where they picked the same
+choice. A participant's first connection fixes their answers. It was first planned for the grad tea,
+which was scrapped on 3 Nov. The hunt for one person to find was canceled on 4 Nov (BAC-121).
 _Avoid_: quiz, which was the dropped speakeasy game
+
+**Group**:
+A set of participants at one event, made by organizers. A participant is in at most one group. It
+isn't a hackathon team or a capstone group, which passport links also call a "group". Groups are
+variation 2 of the two Mr Johari asked for; variation 1 is the answers game.
+
+**Joining**:
+A participant telling the event they're here, so they can be put in a group. It doesn't replace the
+Portal's check-in.
+
+**Allocation**:
+Placing joined participants in groups, either all together when an organizer starts it, or one at a
+time after that.
+
+**Latecomer**:
+A participant who joins after allocation has started.
 
 **Accepted tap**:
 A tap that counts in at least one of the event's games, such as toward passport stamps and points.

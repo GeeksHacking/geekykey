@@ -24,6 +24,8 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 2 Nov 2026, later** (BAC-116). The answers game is written down. Answers are free text for now. Each guest hunts one person at a time, picked by the server, and changes target only by pressing Skip. Two guests connect by each tapping their phone on the other's token, so the phone path comes first and a connection point is added only if there's time. "The 2 Nov answers" in section 2 lists the calls, and section 6, "The answers game", has the design.
 
+> **Updated 6 Nov 2026** (BAC-126), for the decisions of 3 and 4 Nov. On 3 Nov Mr Tan and Mr Johari scrapped the grad tea pilot. This spec's plans for it, including "The grad tea" in section 6 and its dates in section 10, no longer apply, and they stay below as history. Mr Tan's brief asks for organizers to split participants into groups, with latecomers placed automatically. On 4 Nov Mr Johari asked for a few variations, and Adam set two. Variation 1 is the token game, which is the answers game with connections. Variation 2 is organizer-managed participant groups, which [their own spec](../participant-groups/spec.md) covers. The hunt was canceled the same day (BAC-121). Where this spec and the agreement differ, the agreement wins.
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
@@ -49,14 +51,14 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 ## 1. In short
 
-- **Three kinds of service.** The Portal, Qing Guan's, knows who every GeeksHacking user is. At the showcase, people log in through Firebase instead, with Google or with GeeksHacking's login (ADR 0004). The GeekyKey Service is what stations and tokens talk to: it checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. An Event Service runs one event's games and registers that event's stations. We build the GeekyKey Service, and one Event Service for the capstone showcase, whose first game is the passport. The same Event Service runs the grad tea first, as a pilot of the showcase's games (27 Oct, later). Adam copies its data and then clears it before the showcase (27 Oct).
+- **Three kinds of service.** The Portal, Qing Guan's, knows who every GeeksHacking user is. At the showcase, people log in through Firebase instead, with Google or with GeeksHacking's login (ADR 0004). The GeekyKey Service is what stations and tokens talk to: it checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. An Event Service runs one event's games and registers that event's stations. We build the GeekyKey Service, and one Event Service for the capstone showcase, whose first game is the passport. The grad tea, which the same Event Service was to run first as a pilot of the showcase's games (27 Oct, later), was scrapped on 3 Nov. Adam copies the Event Service's data and then clears it before the showcase (27 Oct).
 - **Two platforms.** The GeekyKey Service and both sets of screens are Cloudflare Workers in GeeksHacking's account, which Julian sets up, and the team has no access to it (1 Oct 2026). The Event Service is a Node server on Google Cloud Run, which GitHub Actions deploys on every merge to `main`, in a Google Cloud project of our own on GeeksHacking's billing account (8 Oct), which turned out to be our existing Firebase project, `geekykey-b035a` (9 Oct). Its resources are set up by hand for now, from written commands.
 - **One TiDB database,** reached only from Cloud Run through an ordinary `mysql2` connection pool. The GeekyKey Service keeps no database: it keeps a copy in memory of the registered stations, and asks for everything else.
 - **Claims stay on our side through the showcase,** in a claims stand-in on our Cloud Run server, behind one module, `Claims`, and the GeekyKey Service moves to the Portal's tag APIs after it (Julian agreed on 8 Oct). The showcase's claims are deleted with its data rather than copied, since its users are Firebase users (ADR 0004). The stand-in isn't part of the Event Service, so token IDs never reach one.
 - **Four addresses,** chosen by Julian on 1 Oct 2026. Stations call `https://key-api.geekshacking.com`. People open `https://key.geekshacking.com` for the token page and My tokens, and `https://event.geekshacking.com` for the passport and the organizers' screens. `https://event-api.geekshacking.com` is the Event Service's own, called by the GeekyKey Service and by the Event screens' Worker.
 - **Staging** is one copy of the Event Service, `event-service-staging`, beside it on Cloud Run, against its own database.
 - **Move first, split second.** Today's backend already runs on TiDB (checkpoint 1). It moves unchanged to Cloud Run and is deployed. Then the line between the two services is drawn inside it. Then the GeekyKey Service is cut out as a Worker, and stations move to it. Login, the new features and getting ready for the day come after that. The whole move is eight checkpoints (section 6).
-- **Dates.** The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov. The rehearsal on production is by Sat 7 Nov, the backend freezes from Wed 11 Nov, the grad tea is on Thu 12 Nov, and the last merge is on Sun 15 Nov (27 Oct). GeeksHacking's Cloudflare account stays on the free plan, which Adam accepts for the showcase (7 Oct), and the rehearsal checks it (section 11.1).
+- **Dates.** The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov. The rehearsal on production is by Sat 7 Nov, the backend freezes from Wed 11 Nov, the grad tea was to be on Thu 12 Nov until it was scrapped on 3 Nov, and the last merge is on Sun 15 Nov (27 Oct). GeeksHacking's Cloudflare account stays on the free plan, which Adam accepts for the showcase (7 Oct), and the rehearsal checks it (section 11.1).
 
 ## 2. For Adam's review
 
@@ -926,6 +928,8 @@ Connections, built after the map:
 
 ### The grad tea
 
+*Scrapped 3 Nov,* as the note of 6 Nov at the top of this spec says. The plans for the grad tea stay below as history. "The answers game" has its own notes on what still holds.
+
 Added 27 Oct (BAC-88). *Changed 27 Oct, later:* the grad tea is a pilot of the showcase's own games, not a contest between games, so no game is chosen there for our booth (section 2, "The 27 Oct answers, later"). It runs on Thu 12 Nov, from 3:30 to 6:30 pm in the MPH, with a Gatsby party look, while the showcase keeps its sci-fi look. It's the first real event on production, five days before the showcase, and it falls the day after the backend freezes. So every backend change it needs merges by Tue 10 Nov.
 
 #### What it measures
@@ -952,6 +956,8 @@ The problem both events test is that visitors stay with what they came for: gues
 The passport and connections are folders under `src/games/`, behind the game interface (`src/event/games.ts`). Find Gatsby would be a third, and only it needs the two calls that let the phone read a participant's state in a game and send their moves (BAC-91), so BAC-91 follows its go or no-go. *30 Oct:* Find Gatsby is dropped, and BAC-91 with it. The next stop is the passport's own, given in its lines for the station (BAC-111).
 
 #### The answers game
+
+*Changed 4 Nov (BAC-126):* the answers game is now variation 1, the token game, with no grad tea. The hunt below was canceled (BAC-121), and so was the connection point (BAC-83).
 
 *Changed 6 Nov (BAC-144):* participants give their name and every multiple-choice answer before
 opening the event's screens or sending a connection request. There is no Skip in setup. Organizers
