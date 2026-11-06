@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { describeError } from "@/api/errors";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
+import { SiteSwitch } from "@/components/layout/site-switch";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useMe, useSession } from "@/lib/session";
 
@@ -51,6 +52,7 @@ export function SessionFrame({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-3xl flex-col px-6">
       <header className="flex items-center justify-end gap-1 py-4">
+        <SiteSwitch events={me.events} />
         <ThemeToggle />
         <AccountMenu
           userId={me.user.id}
