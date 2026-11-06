@@ -70,7 +70,12 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>) {
 describe("AccountMenu", () => {
   it("shows the user ID, because the service keeps no display name", async () => {
     await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={() => {}}
+      />,
     );
 
     expect(screen.getByRole("button", { name: "Account menu" })).toHaveTextContent(
@@ -80,7 +85,12 @@ describe("AccountMenu", () => {
 
   it("keeps an icon showing when the user ID is hidden on a phone", async () => {
     await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={() => {}}
+      />,
     );
 
     const trigger = screen.getByRole("button", { name: "Account menu" });
@@ -97,7 +107,12 @@ describe("AccountMenu", () => {
   it("calls onSignOut when Sign out is chosen", async () => {
     const onSignOut = vi.fn();
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={onSignOut} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={onSignOut}
+      />,
     );
 
     await openMenu(user);
@@ -106,9 +121,28 @@ describe("AccountMenu", () => {
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 
-  it("offers a link to My tokens", async () => {
+  it("hides the My tokens link when the shell says so", async () => {
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens={false}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await openMenu(user);
+    expect(screen.queryByRole("menuitem", { name: /My tokens/ })).not.toBeInTheDocument();
+  });
+
+  it("shows My tokens when the shell says so", async () => {
+    const { user } = await renderMenu(
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={() => {}}
+      />,
     );
 
     await openMenu(user);
@@ -119,7 +153,7 @@ describe("AccountMenu", () => {
 
   it("marks a GeekyKey admin in the menu", async () => {
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin onSignOut={() => {}} />,
+      <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin showMyTokens onSignOut={() => {}} />,
     );
 
     await openMenu(user);
@@ -131,6 +165,7 @@ describe("AccountMenu", () => {
       <AccountMenu
         userId={SEEDED_ADMIN_ID}
         isGeekyKeyAdmin={false}
+        showMyTokens
         canViewTokenKinds
         onSignOut={() => {}}
       />,
@@ -145,7 +180,12 @@ describe("AccountMenu", () => {
 
   it("doesn't offer the token kinds screen to anyone else", async () => {
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={() => {}}
+      />,
     );
 
     await openMenu(user);
@@ -156,7 +196,7 @@ describe("AccountMenu", () => {
     // FRO-21, which would have added a console, is cancelled. A GeekyKey admin releases
     // someone else's token from the token page (8.5), and loads kinds on their own screen.
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin onSignOut={() => {}} />,
+      <AccountMenu userId={SEEDED_ADMIN_ID} isGeekyKeyAdmin showMyTokens onSignOut={() => {}} />,
     );
 
     await openMenu(user);
@@ -168,7 +208,12 @@ describe("AccountMenu", () => {
 
   it("does not offer the admin console to a plain participant", async () => {
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={() => {}}
+      />,
     );
 
     await openMenu(user);
@@ -179,7 +224,12 @@ describe("AccountMenu", () => {
   it("leaves the theme alone, so signing out cannot change the stored preference", async () => {
     localStorage.setItem(THEME_STORAGE_KEY, "light");
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={() => {}}
+      />,
     );
 
     await openMenu(user);
@@ -195,6 +245,7 @@ describe("AccountMenu", () => {
       <AccountMenu
         userId={SEEDED_PARTICIPANT_ID}
         isGeekyKeyAdmin={false}
+        showMyTokens
         events={EVENTS}
         onEvent={onEvent}
         onSignOut={() => {}}
@@ -213,6 +264,7 @@ describe("AccountMenu", () => {
       <AccountMenu
         userId={SEEDED_PARTICIPANT_ID}
         isGeekyKeyAdmin={false}
+        showMyTokens
         events={MORE_EVENTS}
         onEvent={onEvent}
         onSignOut={() => {}}
@@ -230,7 +282,12 @@ describe("AccountMenu", () => {
 
   it("hides Event screens when there are no events", async () => {
     const { user } = await renderMenu(
-      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        showMyTokens
+        onSignOut={() => {}}
+      />,
     );
 
     await openMenu(user);
@@ -242,6 +299,7 @@ describe("AccountMenu", () => {
       <AccountMenu
         userId={SEEDED_PARTICIPANT_ID}
         isGeekyKeyAdmin={false}
+        showMyTokens
         events={EVENTS}
         onEvent={() => {}}
         eventLinkPending

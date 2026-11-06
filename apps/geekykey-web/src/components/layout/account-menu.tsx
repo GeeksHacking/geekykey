@@ -29,6 +29,8 @@ interface AccountMenuProps {
   isGeekyKeyAdmin: boolean;
   /** A GeekyKey admin or an organizer, from /me: they get a link to Token kinds. */
   canViewTokenKinds?: boolean;
+  /** Whether the shell shows the My tokens home link. It is hidden on My tokens itself. */
+  showMyTokens: boolean;
   /** The events in /me, for the Event screens item. None hides it. */
   events?: EventServiceLink[];
   /** Opens the login link for one event (agreement 8.6). */
@@ -47,6 +49,7 @@ export function AccountMenu({
   userId,
   isGeekyKeyAdmin,
   canViewTokenKinds = false,
+  showMyTokens,
   events = [],
   onEvent,
   eventLinkPending = false,
@@ -71,12 +74,14 @@ export function AccountMenu({
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to={HOME_PATH}>
-            <Stamp aria-hidden />
-            My tokens
-          </Link>
-        </DropdownMenuItem>
+        {showMyTokens ? (
+          <DropdownMenuItem asChild>
+            <Link to={HOME_PATH}>
+              <Stamp aria-hidden />
+              My tokens
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         {events.length === 1 ? (
           <DropdownMenuItem disabled={eventLinkPending} onSelect={() => onEvent?.(events[0]!.id)}>
             <CalendarBlank aria-hidden />

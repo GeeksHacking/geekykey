@@ -2347,3 +2347,9 @@
   change: >-
     GeekyKey admins can search every token by UID, filter by kind and see its current claim.
     They can remove a UID loaded by mistake after releasing any claim, while organisers still see only totals.
+- id: my-tokens-home-link
+  date: 2026-11-06
+  area: frontend
+  change: >-
+    The GeekyKey screens' account menu hides My tokens while you are on My tokens, and keeps it
+    on the token page and Token kinds.

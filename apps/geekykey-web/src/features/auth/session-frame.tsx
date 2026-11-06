@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -9,7 +9,7 @@ import { EventLinkError } from "@/components/event-link-error";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
 import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
-import { EVENT_SCREENS_URL } from "@/lib/constants";
+import { EVENT_SCREENS_URL, HOME_PATH } from "@/lib/constants";
 import { useMe, useSession } from "@/lib/session";
 import { useLoginLink } from "@/lib/use-login-link";
 
@@ -21,6 +21,7 @@ export function SessionFrame({ children }: { children: ReactNode }) {
   const { me } = useMe();
   const session = useSession();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const release = useReleaseMyTokens();
   const openEvent = useLoginLink();
   // Who the warning is about. It closes if /me comes to name someone else while it's open.
@@ -86,6 +87,8 @@ export function SessionFrame({ children }: { children: ReactNode }) {
             userId={me.user.id}
             isGeekyKeyAdmin={me.user.is_geekykey_admin}
             canViewTokenKinds={me.user.can_view_token_kinds}
+            // My tokens is the home page, so its own link is hidden there.
+            showMyTokens={pathname !== HOME_PATH}
             events={me.events}
             onEvent={(eventId) => openEvent.mutate(eventId)}
             eventLinkPending={openEvent.isPending || openEvent.isSuccess}
