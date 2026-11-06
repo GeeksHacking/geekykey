@@ -4,7 +4,7 @@ import type { Claims } from "./claims.ts";
 import { withClaimsDeadline } from "./claims-deadline.ts";
 import { log } from "./lib/log.ts";
 import { tokenUid } from "./lib/token-uid.ts";
-import { jsonBody } from "./lib/validate.ts";
+import { jsonBody, pathParams } from "./lib/validate.ts";
 import { requireSession, type SessionCheck, type SessionEnv } from "./session.ts";
 
 export interface TokenKindRouteDeps {
@@ -47,6 +47,8 @@ const loadBody = z.object({
  * `claims_unavailable` may still have been made, and sending it again does no
  * harm.
  *
+ * Agreement 10.2 and 10.3 add an admin-only UID list and kind removal.
+ * Removal refuses a claim atomically in the stand-in and logs the admin and UID.
  * A GeekyKey admin does both. `tokenKindViewers`, the Event Services' organizers,
  * only read the totals, which carry no UIDs. Who's asking is checked before the
  * body is read. Every request counts toward the user's USER_LIMIT (src/session.ts).
@@ -71,6 +73,40 @@ export function tokenKindRoutes({
       withClaimsDeadline(c, deadlineMs, async (signal) => {
         return c.json({ kinds: await claims.kindTotals(signal) });
       }),
+    )
+    .get("/tokens", requireOn(geekykeyAdmins), async (c) =>
+      withClaimsDeadline(c, deadlineMs, async (signal) =>
+        c.json({
+          tokens: (await claims.listKindTokens(signal)).map(
+            ({ uid, kind, ownerId, claimedAt }) => ({
+              uid,
+              kind,
+              owner_id: ownerId,
+              claimed_at: claimedAt,
+            }),
+          ),
+        }),
+      ),
+    )
+    .delete(
+      "/:uid",
+      requireOn(geekykeyAdmins),
+      pathParams(z.object({ uid: tokenUid })),
+      async (c) => {
+        const { uid } = c.req.valid("param");
+        return await withClaimsDeadline(
+          c,
+          deadlineMs,
+          async (signal) => {
+            const result = await claims.removeKind(uid, signal);
+            if (result === "claimed") return c.json({ error: "token_claimed" }, 409);
+            if (result === "not_found") return c.json({ error: "not_found" }, 404);
+            log("token_kind_removed", { removed_by: c.var.userId, uid });
+            return c.body(null, 204);
+          },
+          { uid },
+        );
+      },
     )
     .post("/", requireOn(geekykeyAdmins), jsonBody(loadBody), async (c) => {
       const { tokens } = c.req.valid("json");

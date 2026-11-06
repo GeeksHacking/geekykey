@@ -2333,3 +2333,10 @@
     The draft API agreement now describes the answers game as built: multiple-choice questions, and
     a percentage match for two people who connect, with the answers they share shown 2 minutes
     later. A token's kind can also be its colour, so people can see who they can connect with.
+
+- id: token-kinds-admin-list
+  date: 2026-11-06
+  area: backend
+  change: >-
+    GeekyKey admins can search every token by UID, filter by kind and see its current claim.
+    They can remove a UID loaded by mistake after releasing any claim, while organisers still see only totals.

@@ -5,6 +5,7 @@ import type {
   Token,
   TokenKind,
   TokenKindsLoaded,
+  AdminKindToken,
   TokenKindTotal,
   TokenLookup,
 } from "@/api/types";
@@ -80,6 +81,9 @@ export interface ApiClient {
    */
   meetToken(uid: string): Promise<Meeting[]>;
 
+  /** Agreement 10.2 and 10.3: only GeekyKey admins may list UIDs and remove kinds. */
+  listKindTokens(): Promise<AdminKindToken[]>;
+  removeTokenKind(uid: string): Promise<void>;
   /**
    * GET /api/v1/admin/token-kinds, GeekyKey admins and organizers (BAC-139). How many
    * tokens each kind has on the list, by kind in order.

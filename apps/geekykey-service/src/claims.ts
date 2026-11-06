@@ -29,6 +29,9 @@ export interface Claims {
   release(uid: string, ownerId: string, signal: AbortSignal): Promise<"released" | "not_owner">;
   /** The user's tokens, oldest claim first. */
   tokensOf(userId: string, signal: AbortSignal): Promise<ClaimedToken[]>;
+  /** Every token with a kind or a claim (agreement 10.2). */
+  listKindTokens(signal: AbortSignal): Promise<KindToken[]>;
+  removeKind(uid: string, signal: AbortSignal): Promise<"removed" | "claimed" | "not_found">;
   /** How many tokens each kind has on the list of token kinds, by kind in order. */
   kindTotals(signal: AbortSignal): Promise<KindTotal[]>;
   /**
@@ -54,6 +57,14 @@ export interface ClaimedToken {
 export interface TokenKind {
   uid: string;
   kind: string;
+}
+
+/** The admin list (agreement 10.2): claims without kinds are included. */
+export interface KindToken {
+  uid: string;
+  kind: string | null;
+  ownerId: string | null;
+  claimedAt: string | null;
 }
 
 /** How many tokens on the list of token kinds have one kind. */
@@ -98,6 +109,17 @@ const releaseAnswer = z.object({ result: z.enum(["released", "not_owner"]) });
 const tokensAnswer = z.object({
   tokens: z.array(z.object({ uid: z.string(), claimed_at: z.string() })),
 });
+const kindTokensAnswer = z.object({
+  tokens: z.array(
+    z.object({
+      uid: z.string(),
+      kind: tokenKind,
+      owner_id: z.string().nullable(),
+      claimed_at: z.iso.datetime().nullable(),
+    }),
+  ),
+});
+const kindRemovedAnswer = z.object({ result: z.enum(["removed", "claimed", "not_found"]) });
 const kindTotalsAnswer = z.object({
   kinds: z.array(z.object({ kind: z.string(), tokens: z.number() })),
 });
@@ -150,6 +172,27 @@ export class StandInClaims implements Claims {
     return tokens.map((token) => ({ uid: token.uid, claimedAt: token.claimed_at }));
   }
 
+  async listKindTokens(signal: AbortSignal) {
+    const { tokens } = await this.#call(
+      "GET",
+      "/token-kinds/tokens",
+      undefined,
+      kindTokensAnswer,
+      signal,
+    );
+    return tokens.map(({ uid, kind, owner_id, claimed_at }) => ({
+      uid,
+      kind,
+      ownerId: owner_id,
+      claimedAt: claimed_at,
+    }));
+  }
+
+  async removeKind(uid: string, signal: AbortSignal) {
+    return (await this.#call("DELETE", `/token-kinds/${uid}`, undefined, kindRemovedAnswer, signal))
+      .result;
+  }
+
   async kindTotals(signal: AbortSignal) {
     const { kinds } = await this.#call("GET", "/token-kinds", undefined, kindTotalsAnswer, signal);
     return kinds;
@@ -165,7 +208,7 @@ export class StandInClaims implements Claims {
    * `signal` fires first.
    */
   async #call<T>(
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "DELETE",
     path: string,
     body: unknown,
     answer: ZodType<T>,

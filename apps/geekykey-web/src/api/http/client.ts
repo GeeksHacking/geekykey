@@ -6,6 +6,7 @@ import {
   parseMeetingResponse,
   parseMeResponse,
   parseTokenKindsLoaded,
+  parseKindTokensResponse,
   parseTokenKindsResponse,
   parseTokenLookupResponse,
 } from "@/api/schemas";
@@ -143,6 +144,11 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       sendJson<unknown>(`${tokenPath(uid)}/meet`, { method: "POST" }).then(parseMeetingResponse),
 
     // BAC-139. /me says who may call them, and the screen checks before it does.
+    listKindTokens: () =>
+      sendJson<unknown>(`${TOKEN_KINDS_PATH}/tokens`).then(parseKindTokensResponse),
+    removeTokenKind: async (uid) => {
+      await send(`${TOKEN_KINDS_PATH}/${encodeURIComponent(uid)}`, { method: "DELETE" });
+    },
     getTokenKinds: () => sendJson<unknown>(TOKEN_KINDS_PATH).then(parseTokenKindsResponse),
 
     loadTokenKinds: (tokens) =>
@@ -159,6 +165,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "forbidden",
   "not_found",
   "token_taken",
+  "token_claimed",
   "token_limit_reached",
   "rate_limited",
   "claims_unavailable",

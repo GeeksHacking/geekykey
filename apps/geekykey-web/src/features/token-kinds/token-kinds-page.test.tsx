@@ -113,6 +113,7 @@ describe("who can open it", () => {
 
   it("shows an organiser the totals, with no way to load", async () => {
     const loadTokenKinds = vi.spyOn(api, "loadTokenKinds");
+    const listKindTokens = vi.spyOn(api, "listKindTokens");
 
     await renderPage(SEEDED_TOKEN_KIND_VIEWER_ID);
 
@@ -122,6 +123,8 @@ describe("who can open it", () => {
     expect(screen.queryByLabelText("Token writer's log")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Load" })).not.toBeInTheDocument();
     expect(loadTokenKinds).not.toHaveBeenCalled();
+    expect(listKindTokens).not.toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: "Every token" })).not.toBeInTheDocument();
   });
 
   it("doesn't tell an organiser to paste a log when the list is empty", async () => {
@@ -334,4 +337,89 @@ describe("loading", () => {
     expect(screen.getByLabelText("Token writer's log")).toHaveValue("04D00D00D00D00,E");
     expect(screen.getByRole("button", { name: "Load" })).toBeEnabled();
   });
+});
+
+describe("the admin token list", () => {
+  it("shows claims without kinds, searches UIDs and filters by kind", async () => {
+    await renderPage();
+    const list = await screen.findByRole("region", { name: "Every token" });
+    await within(list).findByText("04A1B2C3D4E5F6");
+    expect(within(list).getAllByText(SEEDED_PARTICIPANT_ID).length).toBeGreaterThan(0);
+    expect(within(list).getAllByText("Unclaimed").length).toBeGreaterThan(0);
+    const noKind = within(list).getByText("04B7C9E1F3A5").closest("tr")!;
+    expect(within(noKind).getByText("No kind")).toBeInTheDocument();
+    expect(within(noKind).getByRole("time")).toHaveAttribute("datetime");
+    fireEvent.change(screen.getByLabelText("Search by UID"), { target: { value: "04:a1:b2" } });
+    expect(within(list).getByText("04A1B2C3D4E5F6")).toBeInTheDocument();
+    expect(within(list).queryByText("04C9E1A27B3080")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Search by UID"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Filter by kind"), { target: { value: "kind:B" } });
+    expect(within(list).getByText("04C9E1A27B3080")).toBeInTheDocument();
+    expect(within(list).queryByText("04A1B2C3D4E5F6")).not.toBeInTheDocument();
+  });
+});
+
+it("removes only after confirmation, refreshes totals and can load that UID again", async () => {
+  const remove = vi.spyOn(api, "removeTokenKind");
+  await renderPage();
+  await userEvent.click(await screen.findByRole("button", { name: "Remove 04C9E1A27B3080" }));
+  let dialog = await screen.findByRole("alertdialog");
+  expect(dialog).toHaveTextContent("04C9E1A27B3080");
+  expect(remove).not.toHaveBeenCalled();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  expect(remove).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Remove 04C9E1A27B3080" }));
+  dialog = await screen.findByRole("alertdialog");
+  await userEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Remove 04C9E1A27B3080" })).not.toBeInTheDocument();
+  expect(
+    within(screen.getByRole("region", { name: "On the list" })).getByText("2 tokens"),
+  ).toBeInTheDocument();
+  await paste("04C9E1A27B3080,B");
+  await userEvent.click(screen.getByRole("button", { name: "Load" }));
+  await screen.findByRole("button", { name: "Remove 04C9E1A27B3080" });
+});
+
+it("keeps a claimed token's kind and tells the admin to release it first", async () => {
+  await renderPage();
+  await userEvent.click(await screen.findByRole("button", { name: "Remove 04A1B2C3D4E5F6" }));
+  const dialog = await screen.findByRole("alertdialog");
+  await userEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    "This token is claimed. Release it first, then remove it from the kinds list.",
+  );
+  expect(api.mock.data.token_kinds).toContainEqual({ uid: "04A1B2C3D4E5F6", kind: "E" });
+});
+
+it("pages 500 tokens and searches across all pages", async () => {
+  api.mock.data.tokens.length = 0;
+  api.mock.data.token_kinds = Array.from({ length: 500 }, (_, i) => ({
+    uid: `04${i.toString(16).padStart(12, "0").toUpperCase()}`,
+    kind: i % 2 === 0 ? "E" : "B",
+  }));
+  await renderPage();
+  const list = await screen.findByRole("region", { name: "Every token" });
+  await within(list).findByText("500 tokens found");
+  expect(within(list).getAllByRole("row")).toHaveLength(51);
+  expect(within(list).getByText("Page 1 of 10")).toBeInTheDocument();
+  await userEvent.click(within(list).getByRole("button", { name: "Next" }));
+  expect(within(list).getByText("Page 2 of 10")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Search by UID"), { target: { value: "040000000001F3" } });
+  expect(within(list).getByText("040000000001F3")).toBeInTheDocument();
+  expect(within(list).getAllByRole("row")).toHaveLength(2);
+  expect(within(list).getByText("Page 1 of 1")).toBeInTheDocument();
+});
+
+it("distinguishes a stored kind named none from tokens without a kind", async () => {
+  api.mock.data.token_kinds.push({ uid: "DEADBEEF", kind: "none" });
+  await renderPage();
+  const list = await screen.findByRole("region", { name: "Every token" });
+  await within(list).findByText("DEADBEEF");
+  fireEvent.change(screen.getByLabelText("Filter by kind"), { target: { value: "kind:none" } });
+  expect(within(list).getByText("DEADBEEF")).toBeInTheDocument();
+  expect(within(list).queryByText("04B7C9E1F3A5")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Filter by kind"), { target: { value: "none" } });
+  expect(within(list).getByText("04B7C9E1F3A5")).toBeInTheDocument();
+  expect(within(list).queryByText("DEADBEEF")).not.toBeInTheDocument();
 });
