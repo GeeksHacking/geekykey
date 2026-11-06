@@ -49,6 +49,11 @@ export interface Question {
  * person's user ID or answers.
  */
 export interface Connection {
+  /**
+   * The connection's own ID, for the reaction test's play (BAC-156, for the agreement's next
+   * version, 8.11). Missing or null from a service before it.
+   */
+  id?: string | null;
   connected_at: string;
   /**
    * The other person's current name, so unlike the rest it can change after the connection. Null
@@ -69,10 +74,38 @@ export interface Connection {
   match: number | null;
   /** BAC-150, approved for the next agreement version, section 8.1. Missing or null for a connection before dice. */
   dice?: { your_roll: number; their_roll: number; result: "win" | "loss" } | null;
+  /** BAC-156, for the next agreement version, section 8.1. Missing or null unless the pair got the reaction test. */
+  reaction?: Reaction | null;
   /** IDs of the questions both answered the same. Null until `shared_at`, then maybe empty. */
   shared: string[] | null;
   shared_at: string;
 }
+
+/**
+ * Where one person stands in a reaction test (BAC-156). `played` with a time, `early` for a tap
+ * before the signal, `missed` once `play_by` passed with no play, and `not_played` until then.
+ */
+export type ReactionPlay = "not_played" | "played" | "early" | "missed";
+
+/**
+ * A connection's reaction test, from this user's side (BAC-156, for the agreement's next version,
+ * 8.1). Until `result` comes, `their_ms` is null and `their_play` says only whether they've had
+ * their go, so an early tap of theirs shows as `played`.
+ */
+export interface Reaction {
+  /** Two minutes after the connection. A person who hasn't played by then loses. */
+  play_by: string;
+  your_play: ReactionPlay;
+  /** Milliseconds from the signal to the tap, or null without a time. */
+  your_ms: number | null;
+  their_play: ReactionPlay;
+  their_ms: number | null;
+  /** Null until both have played or `play_by` has passed. Equal times win for both. */
+  result: "win" | "loss" | null;
+}
+
+/** POST /api/v1/me/connections/{id}/reaction's body (BAC-156, 8.11): a time, or a tap too soon. */
+export type ReactionPlayRequest = { ms: number } | { early: true };
 
 /**
  * A request waiting for this user to accept or decline it (BAC-149, draft for the agreement's
@@ -101,6 +134,11 @@ export const ACCEPT_CONNECTION_REQUEST_STATUSES = [
 ] as const;
 
 export type AcceptConnectionRequestStatus = (typeof ACCEPT_CONNECTION_REQUEST_STATUSES)[number];
+
+/** POST /api/v1/me/connections/{id}/reaction's answer (BAC-156, 8.11): the test from this user's side. */
+export interface PlayReactionResponse {
+  reaction: Reaction;
+}
 
 export interface AcceptConnectionRequestResponse {
   status: AcceptConnectionRequestStatus;
@@ -454,6 +492,10 @@ export type ErrorCode =
   | "no_groups"
   | "too_few_participants"
   | "groups_exist"
+  // BAC-156, for the agreement's next version, 8.11: a second play of a reaction test, and one
+  // after its 2 minutes.
+  | "already_played"
+  | "too_late"
   | "rate_limited"
   | "invalid_event_service_key"
   | "event_service_unavailable"

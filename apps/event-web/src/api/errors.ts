@@ -92,6 +92,11 @@ export function describeError(error: unknown): string {
         return tooFewParticipantsMessage(error.needed, "Allocate");
       case "groups_exist":
         return "People are in groups already, so nothing changed. Press Reset to empty the groups, then make groups again.";
+      // The reaction test reads /me again after either, which shows the play or the miss.
+      case "already_played":
+        return "You've already played this one.";
+      case "too_late":
+        return "The 2 minutes to play are up.";
       case "rate_limited":
         return "Too many requests. Wait a minute and try again.";
       case "invalid_event_service_key":

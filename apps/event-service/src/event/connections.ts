@@ -45,8 +45,42 @@ export type AcceptStatus = Exclude<MeetingStatus, "waiting">;
 /** What accepting a request gives. `fromId` is who sent it, for the log. */
 export type AcceptResult = { status: "not_found" } | { status: AcceptStatus; fromId: string };
 
+/**
+ * Where one person stands in a connection's reaction test (the API agreement's 8.1, BAC-156):
+ * `played` with a time, `early` for a tap before the signal, `missed` once the 2 minutes passed
+ * with no play, and `not_played` until then.
+ */
+export type ReactionPlay = "not_played" | "played" | "early" | "missed";
+
+/** A connection's reaction test from one user's side (8.1). */
+export interface Reaction {
+  /** When the 2 minutes to play end. */
+  playBy: string;
+  yourPlay: ReactionPlay;
+  yourMs: number | null;
+  /** Until `result` comes, an early tap shows as `played`, with no time, so nobody learns what to beat. */
+  theirPlay: ReactionPlay;
+  theirMs: number | null;
+  /** Null until both have played or the 2 minutes have passed. */
+  result: "win" | "loss" | null;
+}
+
+/** A user's play in a connection's reaction test (8.11). `ms` is null for a tap before the signal. */
+export interface ReactionPlayRequest {
+  connectionId: string;
+  userId: string;
+  ms: number | null;
+}
+
+/** What a play gives (8.11). */
+export type ReactionPlayResult =
+  | { status: "not_found" | "already_played" | "too_late" }
+  | { status: "played"; reaction: Reaction };
+
 /** One of a user's connections, as /me lists it, with no user ID and no answers of the other person's. */
 export interface Connection {
+  /** The connection's own ID, the same for both people, for a play (8.11). */
+  id: string;
   connectedAt: string;
   /**
    * The other person's current name, so unlike the rest it can change after the connection.
@@ -69,6 +103,8 @@ export interface Connection {
   match: number | null;
   /** The stored dice from this user's side, or null for a connection before dice (8.1). */
   dice: { yourRoll: number; theirRoll: number; result: "win" | "loss" } | null;
+  /** The reaction test from this user's side, or null when the pair got dice or connected before it. */
+  reaction: Reaction | null;
   /** The IDs of the questions both answered the same, or null until `sharedAt`. */
   shared: string[] | null;
   /** When `shared` is given: a while after the connection, so the pair talk first. */
@@ -104,6 +140,11 @@ export interface ConnectionsGame {
   accept(db: Db, answer: RequestAnswer, now: Date, isReady: ReadyToConnect): Promise<AcceptResult>;
   /** Declines a request, and gives false when no such request waits for the user. */
   decline(db: Db, answer: RequestAnswer): Promise<boolean>;
+  /**
+   * Keeps the user's one play in a connection's reaction test, at `now`. `not_found` when the
+   * connection isn't theirs or has no reaction test.
+   */
+  playReaction(db: Db, play: ReactionPlayRequest, now: Date): Promise<ReactionPlayResult>;
   /** The user's connections, newest first, as they stand at `now`. */
   connectionsOf(db: Db, userId: string, now: Date): Promise<Connection[]>;
   /** Every connection, for the map. */

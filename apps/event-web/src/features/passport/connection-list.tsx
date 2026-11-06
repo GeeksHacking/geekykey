@@ -2,6 +2,7 @@ import type { Connection, MeResponse } from "@/api/types";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ConnectionRow } from "@/features/passport/connection-row";
 import { useDiceWaiting } from "@/features/passport/dice/dice-shown";
+import { useConnectionReveal } from "@/features/passport/use-connection-reveal";
 
 /**
  * A connection has no ID, and two can share `connected_at`. The other fields that never
@@ -20,6 +21,8 @@ function connectionKey(connection: Connection): string {
 export function ConnectionList({ me }: { me: MeResponse }) {
   // The reveal's dice wait for a tap, so this list keeps their result back until they land.
   const waiting = useDiceWaiting(me);
+  // The reveal has its own reaction test, so a row offers one only for another connection.
+  const { connection: revealed } = useConnectionReveal(me);
   if (me.connections.length === 0 && me.questions === null) return null;
   return (
     <section>
@@ -32,6 +35,7 @@ export function ConnectionList({ me }: { me: MeResponse }) {
               connection={connection}
               me={me}
               showDice={connection !== waiting}
+              canPlay={connection !== revealed}
             />
           ))}
         </ul>

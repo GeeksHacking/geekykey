@@ -5,6 +5,7 @@ import {
   parseEventGroup,
   parseEventStationBoardResponse,
   parseAcceptConnectionRequestResponse,
+  parsePlayReactionResponse,
   parseConnectionRule,
   parseGroupBoardResponse,
   parseFallbackTapResponse,
@@ -198,6 +199,13 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       });
     },
 
+    // BAC-156, for the agreement's next version.
+    playReaction: (connectionId, play) =>
+      sendJson(
+        `/api/v1/me/connections/${encodeURIComponent(connectionId)}/reaction`,
+        postJson(play),
+      ).then(parsePlayReactionResponse),
+
     // Agreement 9.10. Not under /admin, because a map screen isn't an organizer.
     map: () => sendJson("/api/v1/map").then(parseMapResponse),
 
@@ -262,6 +270,8 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "no_groups",
   "too_few_participants",
   "groups_exist",
+  "already_played",
+  "too_late",
   "rate_limited",
   "invalid_event_service_key",
   "event_service_unavailable",

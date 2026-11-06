@@ -2298,3 +2298,12 @@
     site, because each set of screens can only end its own session. The trade-offs we accept: anyone
     who came by login link passes through the GeekyKey screens too, and a guest who has lost their
     login there keeps their tokens until a GeekyKey admin releases them.
+- id: reaction-test-game
+  date: 2026-11-06
+  area: backend
+  change: >-
+    Some new connections get a reaction test instead of the dice, and the faster tap of the two
+    wins. The reveal first says how to play, and nothing is timed until the participant presses
+    I'm ready and the box turns green after a random wait. The trade-offs we accept: each phone
+    measures its own time, so someone could fake it, and a person who doesn't play within 2
+    minutes of connecting loses.

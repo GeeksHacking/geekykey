@@ -151,6 +151,8 @@ only for `validation_failed` and follows Zod's issue format.
 | `token_taken` | 409 | Someone else has claimed this token |
 | `token_limit_reached` | 409 | The user already holds 3 tokens |
 | `skip_locked` | 409 | The hunt's target can't be skipped yet: 10 minutes haven't passed since it was given, and the target is still active (8.9) |
+| `already_played` | 409 | The user has already played this connection's reaction test (8.11) |
+| `too_late` | 409 | The 2 minutes to play this connection's reaction test have passed (8.11) |
 | `station_has_taps` | 409 | A game has counted or held back a tap at the station, so its game can't change until the data is cleared ([Games](#games)) |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
@@ -413,6 +415,14 @@ game's own record. The rules, from CONTEXT.md:
   A pair plays once, and polls and repeat taps never change the rolls. Older connections have
   no dice. The answers and match stay visible, and points, the map and the memory card stay as
   they are (BAC-150, approved for the next version; 8.1 and section 13).
+- Since BAC-156 (for the next version), the Event Service picks at random, when a connection is
+  made, whether the pair rolls the dice or plays the **reaction test**, and keeps the choice. Each
+  person waits for a signal on their own phone and taps, and the phone sends how many
+  milliseconds the tap took (8.11). The phones don't need to be in sync. Each person plays once,
+  within 2 minutes of the connection. The faster time wins, and equal times win for both. A tap
+  before the signal, or no play within the 2 minutes, has no time and loses to any time. With no
+  time on either side, nobody wins. The phone measures the time, so someone could fake it, which
+  is acceptable for a game with a cosmetic prize. A win counts as a dice win does.
 - Organizers choose on the Groups screen what the two must have (BAC-140, a draft for the next
   version). A new event starts on across token kinds, and the other choice is across groups. The
   Event Service judges each tap and each accept by the choice and the groups at that moment, so
@@ -496,6 +506,7 @@ them.
 | POST | `/api/v1/hunt/skip` | Participant, Organizer | `Checkpoint 7` | Swap the target for another |
 | POST | `/api/v1/me/connection-requests/{id}/accept` | Participant, Organizer | `Checkpoint 7` | Accept a connection request |
 | POST | `/api/v1/me/connection-requests/{id}/decline` | Participant, Organizer | `Checkpoint 7` | Decline a connection request |
+| POST | `/api/v1/me/connections/{id}/reaction` | Participant, Organizer | `Checkpoint 7` | Play a connection's reaction test |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Implemented` | Add or change a station's passport settings |
 | PUT | `/api/v1/admin/stations/{id}/game` | Organizer | `Implemented` | Set the game a station runs |
 | PUT | `/api/v1/admin/stations/{id}/booth` | Organizer | `Implemented` | Set the booth a station stands at |
@@ -875,7 +886,7 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
     { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "requested_at": "2026-11-12T08:12:00.000Z" }
   ],
   "connections": [
-    { "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
+    { "id": "0b7e4d2c-1f9a-4c3e-8a5d-6e2f1b9c7d40", "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
   ]
 }
 ```
@@ -953,6 +964,29 @@ when `your_roll` is greater than or equal to `their_roll`, and `loss` otherwise.
 for both people. Both see the same rolls from their own side, with no other person's user ID.
 A screen reads a missing `dice` as `null`, so it works with an Event Service from before dice.
 The answers, match, points, map and memory card stay as they are.
+
+**Reaction test (BAC-156, for the next version).** Each connection also gives its own `id`, the
+same for both people and never a user ID, for 8.11. Connections made before it get one too. Each
+connection also gives `reaction`, which is `null` unless the pair got the reaction test
+([Connections](#connections)). A reaction connection has `dice: null`.
+
+```json
+"reaction": { "play_by": "2026-11-12T08:14:30.000Z", "your_play": "played", "your_ms": 312, "their_play": "played", "their_ms": 287, "result": "loss" }
+```
+
+- `play_by` is 2 minutes after `connected_at`. Each person plays before it, or loses.
+- `your_play` is `not_played` until the user plays and while `play_by` hasn't passed, `played`
+  with a time, `early` for a tap before the signal, or `missed` once `play_by` passes with no play.
+  `your_ms` is the user's time in milliseconds, an integer from 1 to 120000, or `null` with no time.
+- `their_play` and `their_ms` are the same for the other person, except that until `result`
+  comes, an early tap shows as `played` and `their_ms` is `null`, so nobody learns the time to
+  beat before they play.
+- `result` is `null` until both have played or `play_by` has passed. Then it's `win` when the
+  user's time is less than or equal to the other's, or the user has a time and the other doesn't,
+  and `loss` otherwise. Equal times win for both. With no time on either side, both get `loss`,
+  and the screens say nobody wins.
+- A screen reads a missing `id` or `reaction` as `null`, so it works with an Event Service from
+  before them. An older Event Service gives every new connection dice.
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
 
@@ -1306,6 +1340,39 @@ Organizers remain exempt from setup. A request not waiting for this user still a
 
 **Errors:** `unauthenticated`, `not_found` for a request that doesn't wait for this user, which
 includes one already answered, and `rate_limited` ([Rate limits](#rate-limits)).
+
+### 8.11 `POST /api/v1/me/connections/{id}/reaction` on the Event Service (`Checkpoint 7`)
+
+BAC-156, for the next version. The user plays a connection's reaction test once
+([Connections](#connections)). The phone shows how to play, waits a random time once the user is
+ready, shows the signal, and sends how long the tap took. The Event Service keeps the first play
+and refuses any other.
+
+**Auth:** `event_session`, any role.
+
+**Request:** `{id}` is a connection's `id` from `/me` (8.1). The body is the time from the signal
+to the tap, in whole milliseconds from 1 to 120000:
+
+```json
+{ "ms": 312 }
+```
+
+or, for a tap before the signal, which counts as a loss:
+
+```json
+{ "early": true }
+```
+
+**Response `200`:** the connection's `reaction` from the user's side, as in 8.1.
+
+```json
+{ "reaction": { "play_by": "2026-11-12T08:14:30.000Z", "your_play": "played", "your_ms": 312, "their_play": "not_played", "their_ms": null, "result": null } }
+```
+
+**Errors:** `unauthenticated`, `validation_failed` for any other body, `not_found` for a
+connection that isn't the user's or has no reaction test, `already_played` (409) once the user has
+played, even after `play_by`, `too_late` (409) once `play_by` has passed without their play, and
+`rate_limited` ([Rate limits](#rate-limits)).
 
 ---
 
@@ -2252,6 +2319,24 @@ There are no GeekyKey admin screens.
   {their_roll}."**, then **"You win!"** for `win` or **"They win!"** for `loss`. Equal rolls say
   **"You both win!"**. A connection with no `dice` shows no roll or result. The answers and match
   stay visible (BAC-150, approved for the next version).
+- For a connection with `reaction` (BAC-156, wording a draft for Ethan), the reveal says how to
+  play before anything starts: **"Reaction test"**, **"When the box turns green, tap it as fast
+  as you can. Tap before then and you lose. The faster of you wins."** and **"You have 2 minutes
+  to play."**, with an **I'm ready** button. Nothing is timed until it's pressed. Then the box says
+  **"Wait for green…"**, and after a random wait of 1.5 to 4 seconds it turns green and says
+  **"Tap!"**. A tap sends the time (8.11). After playing, before the result, it says **"You took
+  {your_ms} ms."**, or **"Too soon! You tapped before green."** for an early tap, then **"Waiting
+  for them to play."**, in the reveal and the list. A failed send says **"Couldn't send your
+  result. Try again."** with a **Send again** button that sends the same play. A refused play reads
+  `/me` again instead. The list offers the same test, from its instructions, for a connection
+  whose test is still to play and that isn't in the reveal, so dismissing the reveal or making a
+  newer connection doesn't take the test away.
+- Once `result` comes, the reveal and the list say, for the user, **"You took {your_ms} ms."**,
+  **"You tapped too soon."** or **"You didn't play in time."**, and for the other person
+  **"They took {their_ms} ms."**, **"They tapped too soon."** or **"They didn't play in time."**
+  Then **"You win!"** or **"They win!"**, **"You both win!"** for equal times, or **"Nobody
+  wins."** when neither has a time. Before the result, a list row with nothing to play says
+  **"Reaction test in progress."** (BAC-156).
 - The dashboard shows **"Your profile"**, with the user's `bio`, **"Contact: {contact_line}"** and an
   **Change profile** button, or **"No bio or contact line yet. Add them so people you connect with
   can reach you."** with neither. Change profile opens a form headed **"What people see about you."**, with **Bio**, which has **"Anyone who taps your token
@@ -2422,6 +2507,7 @@ Closed on 2026-10-10:
 | 2026-11-06 | For the next version, which Ethan approved, as Adam confirmed on 6 Nov: each new connection keeps a die roll for each person (BAC-150). **New, at `Checkpoint 7`:** `connections[].dice` in 8.1, with `your_roll`, `their_roll` and `result` (`win` or `loss`), or `null` for an older connection. Section 4 records that the Event Service rolls independently from 1 to 6 once per pair, keeps the rolls, and gives both people a win on equal rolls. Section 13 adds the roll sentence and the win, loss and tie sentences for the reveal and the list. Ethan approved the fields and all four sentences. No field is removed, and a screen reads missing dice as `null` to work with the previous Event Service. |
 | 2026-11-06 | For the next version, approved as Adam reported: participants give a name and every answer before opening the event (BAC-144). 8.1 and section 13 require setup without Skip and keep organizers on their current flow. 8.8 and 11.10 add `answers_needed`, checked before kinds and groups, with no half kept. The token page says "You both need to finish your names and answers in the event before connecting." and offers the event button. Older GeekyKey Services give `unavailable` for the new status. Names remain editable, and answers keep their first-connection lock, as Adam confirmed on 6 Nov. Adam also approved filling missing locked answers and checking an older request's sender before a tap back or accept completes it; 8.7 and 8.10 record those cases, and past matches stay unchanged. |
 | 2026-11-06 | For the next version, approved as Adam reported: two participants can't have the same name, since organisers call names out (BAC-145, from the 5 Nov trial). **New:** `409 name_taken` from 8.7 for a name someone else has, compared after trimming and whatever its capitals, with the default `Guest` not counting. Section 13 adds its sentence. No field changes. Names already the same stay until one person changes theirs. An older Event Service never refuses a name. A screen from before this shows the Groups screen's sentence for the code, so the screens deploy with the Event Service. |
+| 2026-11-06 | For the next version: a reaction test as a second game when people connect (BAC-156, from the 5 Nov meeting with Julian). **New, at `Checkpoint 7`:** `connections[].id` and `connections[].reaction` in 8.1, the play at 8.11, and the errors `already_played` and `too_late`. Section 4 records that the Event Service picks the dice or the reaction test at random for each new connection, and how the faster time wins. Section 13 adds how the reveal explains the test before it starts, and the result sentences, as a draft for Ethan. No field is removed. A screen reads a missing `id` or `reaction` as `null`, and an older Event Service gives every connection dice, so either side works with the other's previous version. |
 | 2026-11-06 | For the next version: tapping a token, and a connection request, show the person's bio (BAC-151, from the 5 Nov trial notes and the meeting with Julian). **New, at `Checkpoint 7`:** `owner_bio` in the meeting hand-off's answer (11.10) and in each item of 8.8's answer, and `bio` in each item of `connection_requests` (8.1), each the person's current bio or `null`. **Changed:** 8.7 says who sees a bio, 8.5's row says the lookup gives no bio either, and section 13 adds the bio on the token page and in a request, adds a second sentence to the name prompt's line, and changes the sentence under Bio and the profile form's heading. The contact line still shows only after the two connect. No field is removed, and either service works with the other's previous version, since a missing bio reads as `null`. |
 | 2026-11-06 | For the next version: a guest who signs out releases their tokens, after a warning, so a token can't stay stuck with a login nobody can use again (FRO-131, from the 5 Nov meeting). Section 13 replaces the warning FRO-62 set, which said the tokens stay with the guest, and Ethan approved the new wording, as Adam reported. A failed release keeps the guest signed in and says why. When Firebase can't say whether the user is a guest, the screens used to ask, and now they release nothing and say so, because going ahead now releases tokens. Section 3 has the Event screens send a user whose session came from a login link to a new `/sign-out` page on the GeekyKey screens. No service changes, and no endpoint or field changes: the page uses 7.3, 8.3, 8.4 and 8.6. Connections, points and earlier taps don't change, as 8.3 already says of taps. |
 | 2026-11-06 | For the next version: a guest who signs out on the GeekyKey screens is logged out of the Event screens too, so the next person on a shared phone doesn't find their passport (FRO-144). Section 3 has the GeekyKey screens open a new `/sign-out` page on the Event screens, which logs out only the user the address names, then opens the GeekyKey login. Section 13 adds the sentence for a failed log out, which Ethan hasn't seen. A Google or GeeksHacking user's Event session stays. No service changes, and no endpoint or field changes: the page uses 7.3 and 8.1. |

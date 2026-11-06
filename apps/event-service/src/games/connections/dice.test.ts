@@ -23,7 +23,10 @@ function harness(realDice = false) {
     {
       now: clock.now,
       answers,
-      connections: realDice ? connectionsGame(answers) : connectionsGame(answers, rollDie),
+      connections: connectionsGame(
+        answers,
+        realDice ? { pickGame: () => "dice" } : { rollDie, pickGame: () => "dice" },
+      ),
     },
   );
   const cookies = new Map<string, string>();

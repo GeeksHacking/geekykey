@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ConnectionPerson } from "@/features/passport/connection-person";
 import { DiceRoll } from "@/features/passport/dice/dice-roll";
 import { markDiceShown, useDiceWaiting } from "@/features/passport/dice/dice-shown";
+import { ReactionTest } from "@/features/passport/reaction/reaction-test";
 import { useConnectionReveal } from "@/features/passport/use-connection-reveal";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +43,7 @@ export function ConnectionReveal({ me }: { me: MeResponse }) {
       <div
         className={cn(
           "mt-1 grid gap-4",
-          connection.dice && "sm:grid-cols-[minmax(0,1fr)_15rem] sm:gap-6",
+          (connection.dice || connection.reaction) && "sm:grid-cols-[minmax(0,1fr)_15rem] sm:gap-6",
         )}
       >
         <div className="min-w-0">
@@ -64,6 +65,13 @@ export function ConnectionReveal({ me }: { me: MeResponse }) {
           connection={connection}
           waiting={waiting === connection}
         />
+        {connection.reaction && connection.id ? (
+          <ReactionTest
+            key={connection.id}
+            connectionId={connection.id}
+            reaction={connection.reaction}
+          />
+        ) : null}
       </div>
     </section>
   );

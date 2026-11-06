@@ -8,7 +8,7 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core";
-import { connectionRequestId, isoTimestamp, userId } from "../../db/columns.ts";
+import { connectionId, connectionRequestId, isoTimestamp, userId } from "../../db/columns.ts";
 
 /**
  * The connections game's tables (spec section 6, "The answers game"). The
@@ -71,6 +71,10 @@ export const meetingHalves = mysqlTable(
 export const connections = mysqlTable(
   "connections",
   {
+    /** The connection's own ID, since /me gives no other person's user ID (BAC-156). */
+    id: connectionId("id")
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
     userA: userId("user_a").notNull(),
     userB: userId("user_b").notNull(),
     /**
@@ -85,11 +89,27 @@ export const connections = mysqlTable(
     /** Each person's die, kept at connection time (the API agreement's 8.1, BAC-150). Null before dice. */
     rollA: int("roll_a"),
     rollB: int("roll_b"),
+    /**
+     * The game the pair got, chosen when they connected (the API agreement's 8.1, BAC-156), or null for a connection from
+     * before the choice, which has dice if it has rolls.
+     */
+    game: varchar("game", { length: 8 }).$type<"dice" | "reaction">(),
+    /**
+     * Each person's reaction time in milliseconds, as their phone measured it, or null without
+     * one. A play with no time is a tap before the signal (BAC-156).
+     */
+    reactionAMs: int("reaction_a_ms"),
+    reactionBMs: int("reaction_b_ms"),
+    /** When each person's play reached the Event Service, or null until they play. */
+    reactionAAt: isoTimestamp("reaction_a_at"),
+    reactionBAt: isoTimestamp("reaction_b_at"),
     /** The IDs of the questions both answered the same, in the questions' order. */
     shared: json("shared").$type<string[]>().notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.userA, t.userB] }),
+    // A play finds its connection by ID (8.11).
+    uniqueIndex("connections_id_idx").on(t.id),
     // /me reads a user's connections from either side.
     index("connections_user_b_idx").on(t.userB),
     // The map reads them oldest first.

@@ -13,6 +13,9 @@ import {
 } from "@/api/mock/fixtures";
 import {
   type AcceptConnectionRequestResponse,
+  type Connection,
+  type PlayReactionResponse,
+  type Reaction,
   EXPORT_CSV_COLUMNS,
   GROUPS_EXPORT_CSV_COLUMNS,
   type AdminTap,
@@ -74,6 +77,40 @@ const MAP_CONNECTIONS: [number, number][] = Array.from({ length: 60 }, (_, index
 /** How many links the first map read shows. Each later read adds one, up to the list. */
 const MAP_LINKS_AT_FIRST_READ = 30;
 
+/** How long each person has to play a connection's reaction test (BAC-156, 8.1). */
+const REACTION_WINDOW_MS = 120_000;
+
+/**
+ * A reaction test from the user's side now, as the Event Service gives it: a play left too long
+ * is missed, the result comes once neither can still play, and until then the other person's
+ * time stays hidden and a tap too soon of theirs looks like any play (agreement 8.1, BAC-156).
+ */
+function reactionNow(kept: Reaction, theirMs: number | null | undefined): Reaction {
+  const over = Date.now() >= Date.parse(kept.play_by);
+  const yourPlay = kept.your_play === "not_played" && over ? "missed" : kept.your_play;
+  const theirPlay =
+    theirMs === undefined
+      ? over
+        ? "missed"
+        : "not_played"
+      : theirMs === null
+        ? "early"
+        : "played";
+  const base = { play_by: kept.play_by, your_play: yourPlay, your_ms: kept.your_ms };
+  if (yourPlay === "not_played" || theirPlay === "not_played") {
+    return {
+      ...base,
+      their_play: theirPlay === "early" ? "played" : theirPlay,
+      their_ms: null,
+      result: null,
+    };
+  }
+  const yours = yourPlay === "played" ? kept.your_ms : null;
+  const theirs = theirPlay === "played" ? (theirMs ?? null) : null;
+  const win = yours !== null && (theirs === null || yours <= theirs);
+  return { ...base, their_play: theirPlay, their_ms: theirs, result: win ? "win" : "loss" };
+}
+
 /*
   In-memory stand-in for apps/event-service. Same interface as the future HTTP
   client, same shapes as API-AGREEMENT.md, same status codes. It also mirrors
@@ -109,6 +146,8 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   answers_fixed: 409,
+  already_played: 409,
+  too_late: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,
@@ -534,11 +573,16 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             earned_at: first?.received_at ?? null,
           };
         });
-        const connections = (user.connections ?? []).map((connection) => ({
-          ...connection,
-          dice: connection.dice ?? null,
-          shared: new Date(connection.shared_at).getTime() <= Date.now() ? connection.shared : null,
-        }));
+        const connections = (user.connections ?? []).map(
+          ({ their_ms, ...connection }): Connection => ({
+            ...connection,
+            id: connection.id ?? null,
+            dice: connection.dice ?? null,
+            reaction: connection.reaction ? reactionNow(connection.reaction, their_ms) : null,
+            shared:
+              new Date(connection.shared_at).getTime() <= Date.now() ? connection.shared : null,
+          }),
+        );
         // 0.13: each connection adds 1 point, whatever its match. The grad tea's game
         // keeps that at 1, and the mock has no setting of its own.
         const points = accepted.reduce(
@@ -583,19 +627,35 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           const at = Date.now();
           const yourRoll = Math.floor(Math.random() * 6) + 1;
           const theirRoll = Math.floor(Math.random() * 6) + 1;
+          const reaction = request.accept_game === "reaction";
           user.connections = [
             {
+              id: `c_${at.toString(36)}`,
               connected_at: new Date(at).toISOString(),
               display_name: request.display_name,
               bio: request.bio,
               contact_line: null,
               kind: "B",
               match: 40,
-              dice: {
-                your_roll: yourRoll,
-                their_roll: theirRoll,
-                result: yourRoll >= theirRoll ? "win" : "loss",
-              },
+              dice: reaction
+                ? null
+                : {
+                    your_roll: yourRoll,
+                    their_roll: theirRoll,
+                    result: yourRoll >= theirRoll ? "win" : "loss",
+                  },
+              // The other person plays at once, so the result comes when the user plays.
+              ...(reaction && {
+                reaction: {
+                  play_by: new Date(at + REACTION_WINDOW_MS).toISOString(),
+                  your_play: "not_played",
+                  your_ms: null,
+                  their_play: "not_played",
+                  their_ms: null,
+                  result: null,
+                },
+                their_ms: 287,
+              }),
               shared: ["drink", "weekend"],
               shared_at: new Date(at + 120_000).toISOString(),
             },
@@ -608,6 +668,27 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     declineConnectionRequest: (requestId) =>
       call(() => {
         takeConnectionRequest(currentUser(), requestId);
+      }),
+
+    // BAC-156, for the agreement's next version, 8.11.
+    playReaction: (connectionId, play) =>
+      call((): PlayReactionResponse => {
+        const user = currentUser();
+        const connection = user.connections?.find(({ id }) => id === connectionId);
+        if (!connection?.reaction) fail("not_found");
+        const ms = "ms" in play ? play.ms : null;
+        if (ms !== null && (!Number.isInteger(ms) || ms < 1 || ms > REACTION_WINDOW_MS)) {
+          fail("validation_failed", [{ path: ["ms"], message: "ms must be from 1 to 120000" }]);
+        }
+        const now = reactionNow(connection.reaction, connection.their_ms);
+        if (now.your_play === "played" || now.your_play === "early") fail("already_played");
+        if (now.your_play === "missed") fail("too_late");
+        connection.reaction = {
+          ...connection.reaction,
+          your_play: ms === null ? "early" : "played",
+          your_ms: ms,
+        };
+        return { reaction: reactionNow(connection.reaction, connection.their_ms) };
       }),
 
     // Agreement 8.7. The name is trimmed and 1 to 30 code points, `answers` sets only the

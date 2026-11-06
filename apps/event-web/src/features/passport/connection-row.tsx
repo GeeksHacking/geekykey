@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConnectionDice } from "@/features/passport/connection-dice";
 import { ConnectionPerson } from "@/features/passport/connection-person";
+import { ConnectionReaction } from "@/features/passport/connection-reaction";
+import { ReactionTest } from "@/features/passport/reaction/reaction-test";
 import { formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +25,12 @@ interface ConnectionRowProps {
   me: MeResponse;
   /** False while the reveal's dice for this connection wait for a tap (FRO-133). */
   showDice: boolean;
+  /**
+   * Whether the row offers the reaction test still to play: false for the connection in the
+   * reveal, which offers it there. A dismissed reveal or a newer connection leaves it here, so
+   * nobody loses their 2 minutes to a press of Dismiss (BAC-156).
+   */
+  canPlay: boolean;
 }
 
 /**
@@ -31,7 +39,7 @@ interface ConnectionRowProps {
  * footer with the time. `shared` arrives a couple of minutes after the connection, and its button
  * takes a place the footer already has, so the row doesn't move when it comes.
  */
-export function ConnectionRow({ connection, me, showDice }: ConnectionRowProps) {
+export function ConnectionRow({ connection, me, showDice, canPlay }: ConnectionRowProps) {
   const [showShared, setShowShared] = useState(false);
   const shared = connection.shared === null ? null : sharedAnswers(connection.shared, me);
   return (
@@ -45,6 +53,16 @@ export function ConnectionRow({ connection, me, showDice }: ConnectionRowProps) 
         </Badge>
       </div>
       {showDice ? <ConnectionDice dice={connection.dice} layout="line" className="mt-2" /> : null}
+      {canPlay &&
+      connection.id &&
+      connection.reaction?.your_play === "not_played" &&
+      connection.reaction.result === null ? (
+        <div className="mt-2">
+          <ReactionTest connectionId={connection.id} reaction={connection.reaction} />
+        </div>
+      ) : (
+        <ConnectionReaction reaction={connection.reaction} layout="line" className="mt-2" />
+      )}
       <div className="mt-1 flex min-h-8 items-center justify-between gap-3">
         <time
           dateTime={connection.connected_at}

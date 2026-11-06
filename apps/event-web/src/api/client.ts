@@ -4,23 +4,25 @@ import type {
   CreateGroupRequest,
   CreateStationRequest,
   EventGroup,
-  GroupBoardResponse,
-  MyGroupResponse,
-  SplitGroupsRequest,
-  UpdateGroupRequest,
-  StationKeyResponse,
-  StationResponse,
   EventStationBoardResponse,
   FallbackTapRequest,
   FallbackTapResponse,
+  GroupBoardResponse,
   ListTapsQuery,
   ListTapsResponse,
   MapResponse,
   MeResponse,
+  MyGroupResponse,
+  PlayReactionResponse,
+  ReactionPlayRequest,
   SetStationBoothRequest,
   SetStationPassportRequest,
   SetStationPassportResponse,
+  SplitGroupsRequest,
+  StationKeyResponse,
+  StationResponse,
   StatsResponse,
+  UpdateGroupRequest,
   UpdateMeRequest,
   UpdateMeResponse,
 } from "@/api/types";
@@ -51,6 +53,13 @@ export interface ApiClient {
 
   /** POST /api/v1/me/connection-requests/{id}/decline (BAC-149). The tapper isn't told. */
   declineConnectionRequest(requestId: string): Promise<void>;
+
+  /**
+   * POST /api/v1/me/connections/{id}/reaction (BAC-156, for the agreement's next version, 8.11).
+   * The user's one play in a connection's reaction test. A second play answers `already_played`,
+   * and one after `play_by` answers `too_late`.
+   */
+  playReaction(connectionId: string, play: ReactionPlayRequest): Promise<PlayReactionResponse>;
 
   /** POST /auth/dev-login. Local development only. */
   devLogin(userId: string): Promise<void>;

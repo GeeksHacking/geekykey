@@ -56,7 +56,8 @@ apps/event-web/
                            # what a poll changed (passport-changes.ts), the new stamp's group link offer
                            # (new-stamp-banner.tsx, use-new-stamp-link.ts), the reveal and list of connections
                            # (connection-reveal.tsx, use-connection-reveal.ts, connection-list.tsx,
-                           # connection-row.tsx), the reveal's 3D dice (dice/, FRO-133), the group
+                           # connection-row.tsx), the reveal's 3D dice (dice/, FRO-133), the reaction
+                           # test and its result (reaction/, connection-reaction.tsx, BAC-156), the group
                            # card (group-card.tsx, use-my-group.ts, use-join-groups.ts), and its animations
                            # (desktop-motion.ts, passport-motion.ts)
       activity/             # participant tap history
