@@ -19,13 +19,15 @@ function sharedAnswers(shared: string[], me: MeResponse) {
 interface ConnectionRowProps {
   connection: Connection;
   me: MeResponse;
+  /** False while the reveal's dice for this connection wait for a tap (FRO-133). */
+  showDice: boolean;
 }
 
 /**
  * One connection: the other person above its match (BAC-136 and BAC-147, approved for the
  * agreement's next version).
  */
-export function ConnectionRow({ connection, me }: ConnectionRowProps) {
+export function ConnectionRow({ connection, me, showDice }: ConnectionRowProps) {
   const [showShared, setShowShared] = useState(false);
   const shared = connection.shared === null ? null : sharedAnswers(connection.shared, me);
   return (
@@ -33,8 +35,8 @@ export function ConnectionRow({ connection, me }: ConnectionRowProps) {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <ConnectionPerson connection={connection} />
-          <ConnectionDice dice={connection.dice} />
-          <p className={cn("text-sm", connection.dice && "mt-2")}>
+          {showDice ? <ConnectionDice dice={connection.dice} /> : null}
+          <p className={cn("text-sm", showDice && connection.dice && "mt-2")}>
             {connection.match === null ? "Connected" : `${connection.match}% match`}
           </p>
           <time

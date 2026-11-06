@@ -1,22 +1,47 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect, type ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { Connection } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
+import { loadDiceStage } from "@/features/passport/dice/load-dice-stage";
 import { PassportScreen } from "@/features/passport/passport-screen";
 import { useSession } from "@/lib/session";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { createTestProviders } from "@/test/providers";
+import type { DiceStageProps } from "@/features/passport/dice/dice-stage";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
 vi.mock("@/components/layout/section-heading", () => ({
   SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
 }));
+
+/*
+  jsdom has no WebGL, so the reveal shows the plain numbers unless a test turns it on. The 3D
+  dice are a download, replaced here by a stage that lands as soon as it is told to roll.
+*/
+const device = vi.hoisted(() => ({ webgl: false, downloadFails: false }));
+vi.mock("@/features/passport/avatar/webgl", () => ({ hasWebGL: () => device.webgl }));
+vi.mock("@/features/passport/avatar/voxel-stage", () => ({ VoxelStage: () => null }));
+vi.mock("@/features/passport/dice/load-dice-stage", () => ({
+  loadDiceStage: vi.fn(() =>
+    device.downloadFails
+      ? Promise.reject(new Error("offline"))
+      : Promise.resolve({ DiceStage: FakeDiceStage }),
+  ),
+}));
+
+function FakeDiceStage({ dice, rolling, onReady, onLanded }: DiceStageProps) {
+  useEffect(onReady, [onReady]);
+  useEffect(() => {
+    if (rolling) onLanded();
+  }, [rolling, onLanded]);
+  return <div data-testid="dice" data-rolls={`${dice.your_roll},${dice.their_roll}`} />;
+}
 
 const TALK = "Talk to find out which answers you share.";
 const SHOW = "Show what we share";
@@ -81,6 +106,8 @@ function connection(minutesAgo: number, fields: Partial<Connection> = {}): Conne
 beforeEach(() => {
   sessionStorage.clear();
   localStorage.clear();
+  device.webgl = false;
+  device.downloadFails = false;
 });
 
 describe("the reveal (agreement 0.13 draft, section 13)", () => {
@@ -463,5 +490,123 @@ describe("what you share (agreement 0.13 draft, section 13)", () => {
     expect(
       within(screen.getByRole("list", { name: "What you share" })).getAllByRole("listitem"),
     ).toHaveLength(1);
+  });
+});
+
+describe("the dice roll in 3D when tapped (FRO-133)", () => {
+  const ROLL = "Roll the dice";
+  const ROLLED = "You rolled 5. They rolled 2.";
+  const dice = { your_roll: 5, their_roll: 2, result: "win" as const };
+
+  beforeEach(() => {
+    device.webgl = true;
+    vi.mocked(loadDiceStage).mockClear();
+  });
+
+  const matchMedia = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = matchMedia;
+  });
+
+  /** A device that has asked for reduced motion. */
+  function preferReducedMotion() {
+    window.matchMedia = (query: string) => ({
+      ...matchMedia(query),
+      matches: query === "(prefers-reduced-motion: reduce)",
+    });
+  }
+
+  it("waits for a tap, then lands on the rolls /me gives and shows the result", async () => {
+    const { user } = renderScreen(setUp([connection(0, { dice })]), <DashboardScreen />);
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    const list = screen.getByRole("list", { name: "Connections" });
+
+    const roll = await within(reveal).findByRole("button", { name: ROLL });
+    expect(screen.getByTestId("dice")).toHaveAttribute("data-rolls", "5,2");
+    expect(within(reveal).queryByText(ROLLED)).not.toBeInTheDocument();
+    expect(within(list).queryByText(ROLLED)).not.toBeInTheDocument();
+
+    await user.click(roll);
+
+    expect(within(reveal).getByText(ROLLED)).toBeInTheDocument();
+    expect(within(reveal).getByText("You win!")).toBeInTheDocument();
+    expect(within(reveal).queryByRole("button", { name: ROLL })).not.toBeInTheDocument();
+    expect(within(list).getByText(ROLLED)).toBeInTheDocument();
+  });
+
+  it("shows the result without rolling again on a later visit", async () => {
+    const api = setUp([connection(0, { dice })]);
+    const first = renderScreen(api, <DashboardScreen />);
+    await first.user.click(await screen.findByRole("button", { name: ROLL }));
+    first.unmount();
+
+    renderScreen(api, <DashboardScreen />);
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+
+    expect(within(reveal).getByText(ROLLED)).toBeInTheDocument();
+    expect(within(reveal).queryByRole("button", { name: ROLL })).not.toBeInTheDocument();
+  });
+
+  it("shows the numbers straight away, and downloads no dice, with reduced motion", async () => {
+    preferReducedMotion();
+    renderScreen(setUp([connection(0, { dice })]), <DashboardScreen />);
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+
+    expect(within(reveal).getByText(ROLLED)).toBeInTheDocument();
+    expect(within(reveal).queryByRole("button", { name: ROLL })).not.toBeInTheDocument();
+    expect(loadDiceStage).not.toHaveBeenCalled();
+  });
+
+  it("shows the numbers, and downloads no dice, without WebGL", async () => {
+    device.webgl = false;
+    renderScreen(setUp([connection(0, { dice })]), <DashboardScreen />);
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+
+    expect(within(reveal).getByText(ROLLED)).toBeInTheDocument();
+    expect(loadDiceStage).not.toHaveBeenCalled();
+  });
+
+  it("shows the numbers in the reveal and the list when the dice fail to download", async () => {
+    device.downloadFails = true;
+    renderScreen(setUp([connection(0, { dice })]), <DashboardScreen />);
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+
+    expect(await within(reveal).findByText(ROLLED)).toBeInTheDocument();
+    expect(within(reveal).queryByRole("button", { name: ROLL })).not.toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Connections" });
+    expect(within(list).getByText(ROLLED)).toBeInTheDocument();
+  });
+
+  it("downloads no dice for a connection from before dice", async () => {
+    renderScreen(setUp([connection(0, { dice: null, match: 67 })]), <DashboardScreen />);
+    await screen.findByText("67% match!");
+
+    expect(loadDiceStage).not.toHaveBeenCalled();
+  });
+
+  it("puts the result in the list when the reveal is dismissed without rolling", async () => {
+    const { user } = renderScreen(setUp([connection(0, { dice })]), <DashboardScreen />);
+    await screen.findByRole("button", { name: ROLL });
+    const list = screen.getByRole("list", { name: "Connections" });
+    expect(within(list).queryByText(ROLLED)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(within(list).getByText(ROLLED)).toBeInTheDocument();
+  });
+
+  it("keeps the older connections' results in the list while the newest waits", async () => {
+    renderScreen(
+      setUp([
+        connection(0, { dice }),
+        connection(9, { dice: { your_roll: 3, their_roll: 6, result: "loss" } }),
+      ]),
+      <DashboardScreen />,
+    );
+    await screen.findByRole("button", { name: ROLL });
+    const list = screen.getByRole("list", { name: "Connections" });
+
+    expect(within(list).queryByText(ROLLED)).not.toBeInTheDocument();
+    expect(within(list).getByText("You rolled 3. They rolled 6.")).toBeInTheDocument();
   });
 });
