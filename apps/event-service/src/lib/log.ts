@@ -54,6 +54,8 @@ const LOG_LINES = {
   connection_request_accepted: "INFO",
   // Someone declined a connection request (8.10): who. The half that sent it is meeting_handled's.
   connection_request_declined: "INFO",
+  // Someone played a connection's reaction test (8.11): who, and their time, or null for early.
+  reaction_played: "INFO",
 } as const;
 
 export type LogName = keyof typeof LOG_LINES;

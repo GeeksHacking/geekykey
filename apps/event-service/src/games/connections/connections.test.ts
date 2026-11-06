@@ -56,6 +56,7 @@ const QUESTIONS: readonly Question[] = [
 
 /** A connection as /me lists it. */
 interface ConnectionBody {
+  id: string;
   connected_at: string;
   display_name: string | null;
   bio: string | null;
@@ -72,7 +73,13 @@ function harness({ withGame = true } = {}) {
   const answers = answersGame(QUESTIONS);
   const app = testApp(
     {},
-    { now: clock.now, answers, connections: withGame ? connectionsGame(answers, () => 4) : null },
+    {
+      now: clock.now,
+      answers,
+      connections: withGame
+        ? connectionsGame(answers, { rollDie: () => 4, pickGame: () => "dice" })
+        : null,
+    },
   );
 
   /** One half: `userId` tapped the token of `ownerId`, as the GeekyKey Service hands it on. */
@@ -507,7 +514,9 @@ test("what the two share shows 2 minutes after they connect, and not before", as
   await meet("bea", "B", "alex", "E");
 
   const before = (await meOf("bea")).connections[0]!;
+  assert.match(before.id, /^[0-9a-f-]{36}$/);
   assert.deepEqual(before, {
+    id: before.id,
     connected_at: "2026-11-12T08:00:00.000Z",
     display_name: "alex",
     bio: null,
@@ -515,6 +524,7 @@ test("what the two share shows 2 minutes after they connect, and not before", as
     kind: "E",
     match: 67,
     dice: { your_roll: 4, their_roll: 4, result: "win" },
+    reaction: null,
     shared: null,
     shared_at: "2026-11-12T08:02:00.000Z",
   });
@@ -567,6 +577,7 @@ test("each connection gives the other person's name, and not their ID or answers
   // The whole connection, so a new field has to be chosen here too.
   assert.deepEqual(alex.connections, [
     {
+      id: alex.connections[0]!.id,
       connected_at: "2026-11-12T08:00:00.000Z",
       display_name: "Mei Lin",
       bio: null,
@@ -574,6 +585,7 @@ test("each connection gives the other person's name, and not their ID or answers
       kind: "B",
       match: 67,
       dice: { your_roll: 4, their_roll: 4, result: "win" },
+      reaction: null,
       shared: null,
       shared_at: "2026-11-12T08:02:00.000Z",
     },

@@ -24,6 +24,7 @@ type ConnectAcross = "token_kinds" | "groups";
 
 /** A connection as /me lists it. */
 interface ConnectionBody {
+  id: string;
   connected_at: string;
   kind: string | null;
 }
@@ -34,7 +35,13 @@ let secondInstanceDb: ReturnType<typeof anotherTestDb> | undefined;
 /** The Event Service with a connections game and no answers game, on a clock the test moves. */
 async function harness() {
   const clock = fakeClock("2026-11-05T09:00:00.000Z");
-  const app = testApp({}, { now: clock.now, connections: connectionsGame(null, () => 4) });
+  const app = testApp(
+    {},
+    {
+      now: clock.now,
+      connections: connectionsGame(null, { rollDie: () => 4, pickGame: () => "dice" }),
+    },
+  );
   await testDb()
     .insert(users)
     .values([ORGANIZER, "alex", "bea", "chen", "dewi"].map((id) => ({ id, displayName: id })));
@@ -180,8 +187,10 @@ test("across groups, two people in different groups connect whatever their kinds
   assert.equal(await meet("dewi", "E", "chen", "E"), "connected");
 
   // The passport lists each without a kind, or with the other person's.
-  assert.deepEqual(await connectionsOf("alex"), [
+  const alexConnections = await connectionsOf("alex");
+  assert.deepEqual(alexConnections, [
     {
+      id: alexConnections[0]!.id,
       connected_at: "2026-11-05T09:00:20.000Z",
       display_name: "bea",
       bio: null,
@@ -189,6 +198,7 @@ test("across groups, two people in different groups connect whatever their kinds
       kind: null,
       match: null,
       dice: { your_roll: 4, their_roll: 4, result: "win" },
+      reaction: null,
       shared: null,
       shared_at: "2026-11-05T09:02:20.000Z",
     },

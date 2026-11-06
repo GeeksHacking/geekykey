@@ -189,7 +189,9 @@ accepts, with the Accept button or by tapping back (BAC-149), and a connection p
 too, if it's built. It joins two users, never two tokens, so nobody connects to themselves, and a
 pair connects once however often they tap. Each new connection keeps one die roll per person,
 chosen by the Event Service when they connect; the higher roll wins, and equal rolls win for
-both (BAC-150). Older connections have no rolls.
+both (BAC-150). Older connections have no rolls. Since BAC-156 the Event Service picks the dice
+or the reaction test at random for each new connection. In the reaction test each person taps
+their own phone when it turns green, within 2 minutes of connecting, and the faster time wins.
 _Avoid_: dual tap, link between tags
 
 **Bio**:

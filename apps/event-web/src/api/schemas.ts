@@ -13,6 +13,7 @@ import type {
   MapResponse,
   MeResponse,
   MyGroupResponse,
+  PlayReactionResponse,
   SetStationPassportResponse,
   StationKeyResponse,
   StationResponse,
@@ -49,7 +50,22 @@ const questionSchema = z.object({
   choices: z.array(z.object({ id: z.string(), text: z.string() })),
 });
 
+const reactionPlay = z.enum(["not_played", "played", "early", "missed"]);
+const reactionMs = z.nullable(z.int().check(z.gte(1), z.lte(120_000)));
+
+// BAC-156, for the next agreement version, sections 8.1 and 8.11.
+const reactionSchema = z.object({
+  play_by: isoTimestamp,
+  your_play: reactionPlay,
+  your_ms: reactionMs,
+  their_play: reactionPlay,
+  their_ms: reactionMs,
+  result: z.nullable(z.enum(["win", "loss"])),
+});
+
 const connectionSchema = z.object({
+  // BAC-156. A previous service sends no ID, and its connections have no reaction test to play.
+  id: z.prefault(z.nullable(z.string()), null),
   connected_at: isoTimestamp,
   // BAC-136. A missing name reads as none, so the screens work with a service from before it.
   display_name: z.prefault(z.nullable(z.string()), null),
@@ -68,6 +84,7 @@ const connectionSchema = z.object({
     ),
     null,
   ),
+  reaction: z.prefault(z.nullable(reactionSchema), null),
   shared: z.nullable(z.array(z.string())),
   shared_at: isoTimestamp,
 });
@@ -234,6 +251,11 @@ export const acceptConnectionRequestResponseSchema: z.ZodMiniType<AcceptConnecti
     status: z.enum(ACCEPT_CONNECTION_REQUEST_STATUSES),
   });
 
+/** A reaction test's play's answer (BAC-156, for the agreement's next version, 8.11). */
+export const playReactionResponseSchema: z.ZodMiniType<PlayReactionResponse> = z.object({
+  reaction: reactionSchema,
+});
+
 /** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
 export const updateMeResponseSchema: z.ZodMiniType<UpdateMeResponse> = z.object({
   user: userSchema,
@@ -365,3 +387,6 @@ export const parseConnectionRule = (input: unknown) =>
 
 export const parseAcceptConnectionRequestResponse = (input: unknown) =>
   parseOrganizerResponse(acceptConnectionRequestResponseSchema, input);
+
+export const parsePlayReactionResponse = (input: unknown) =>
+  parseOrganizerResponse(playReactionResponseSchema, input);

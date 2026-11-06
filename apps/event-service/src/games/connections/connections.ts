@@ -10,6 +10,8 @@ import type {
   ConnectionRequest,
   ConnectionsGame,
   ConnectionsWeb,
+  Reaction,
+  ReactionPlay,
   RequestAnswer,
 } from "../../event/connections.ts";
 import { DEFAULT_DISPLAY_NAME } from "../../event/display-names.ts";
@@ -25,6 +27,58 @@ export const SHARED_AFTER_MS = 2 * 60 * 1000;
 
 /** What each connection adds to a user's points, whatever the match. */
 export const POINTS_EACH = 1;
+
+/** How long after a connection each person has to play its reaction test (the API agreement's 8.1, BAC-156). */
+export const REACTION_WINDOW_MS = 2 * 60 * 1000;
+
+/** The game a pair plays when they connect (BAC-156). */
+export type GameKind = "dice" | "reaction";
+
+/** One person's side of a stored reaction test: their time, and when their play arrived. */
+interface ReactionSide {
+  ms: number | null;
+  at: string | null;
+}
+
+function playOf({ ms, at }: ReactionSide, over: boolean): ReactionPlay {
+  if (at !== null) return ms === null ? "early" : "played";
+  return over ? "missed" : "not_played";
+}
+
+/**
+ * A reaction test from one side at `now` (the API agreement's 8.1, BAC-156). The result comes
+ * once both have played or the 2 minutes have passed. A time beats an early tap or no play, the
+ * faster time wins, equal times win for both, and with no time on either side nobody wins.
+ */
+export function reactionFrom(
+  connectedAt: string,
+  you: ReactionSide,
+  them: ReactionSide,
+  now: Date,
+): Reaction {
+  const playBy = new Date(Date.parse(connectedAt) + REACTION_WINDOW_MS).toISOString();
+  const over = now.toISOString() >= playBy;
+  const yourPlay = playOf(you, over);
+  const theirPlay = playOf(them, over);
+  const yourMs = yourPlay === "played" ? you.ms : null;
+  const theirMs = theirPlay === "played" ? them.ms : null;
+  if (yourPlay === "not_played" || theirPlay === "not_played") {
+    // Until the result, an early tap looks like any play, and their time stays hidden.
+    return {
+      playBy,
+      yourPlay,
+      yourMs,
+      theirPlay: theirPlay === "early" ? "played" : theirPlay,
+      theirMs: null,
+      result: null,
+    };
+  }
+  const result =
+    yourMs !== null && (theirMs === null || yourMs <= theirMs)
+      ? ("win" as const)
+      : ("loss" as const);
+  return { playBy, yourPlay, yourMs, theirPlay, theirMs, result };
+}
 
 /**
  * The match between two people's answers: the questions both answered with
@@ -148,6 +202,16 @@ async function pairOfRequest(db: Db, { requestId, userId }: RequestAnswer): Prom
   return found ? pairOf(found.userA, found.userB) : null;
 }
 
+/** A connection's reaction test from `userId`'s side: their play first, then the other person's. */
+function sidesOf(
+  row: typeof connections.$inferSelect,
+  userId: string,
+): [you: ReactionSide, them: ReactionSide] {
+  const a = { ms: row.reactionAMs, at: row.reactionAAt };
+  const b = { ms: row.reactionBMs, at: row.reactionBAt };
+  return row.userA === userId ? [a, b] : [b, a];
+}
+
 /** A pair's row once it has no request waiting. */
 const NO_REQUEST = { requestId: null, aMetAt: null, bMetAt: null };
 
@@ -163,7 +227,11 @@ const NO_REQUEST = { requestId: null, aMetAt: null, bMetAt: null };
  */
 export function connectionsGame(
   answers: ConnectionsAnswers | null,
-  rollDie: () => number = () => randomInt(1, 7),
+  {
+    rollDie = () => randomInt(1, 7),
+    // Half the pairs get each game (BAC-156).
+    pickGame = () => (randomInt(2) === 0 ? "dice" : "reaction"),
+  }: { rollDie?: () => number; pickGame?: () => GameKind } = {},
 ): ConnectionsGame {
   /**
    * The one place a connection is made. Both people's answers are fixed here, in the
@@ -180,15 +248,18 @@ export function connectionsGame(
     const answersA = answers ? await answers.fixAnswers(tx, userA) : {};
     const answersB = answers ? await answers.fixAnswers(tx, userB) : {};
     const { match, shared } = matchOf(answers?.questions ?? [], answersA, answersB);
+    const game = pickGame();
     await tx.insert(connections).values({
+      id: crypto.randomUUID(),
       userA,
       userB,
       kindA,
       kindB,
       connectedAt: now.toISOString(),
       matchPercent: match,
-      rollA: rollDie(),
-      rollB: rollDie(),
+      game,
+      rollA: game === "dice" ? rollDie() : null,
+      rollB: game === "dice" ? rollDie() : null,
       shared,
     });
     await tx.update(meetingHalves).set(NO_REQUEST).where(where);
@@ -313,6 +384,40 @@ export function connectionsGame(
         });
     },
 
+    playReaction: (db, { connectionId, userId, ms }, now) =>
+      db.transaction(async (tx) => {
+        const [row] = await tx
+          .select()
+          .from(connections)
+          .where(
+            and(
+              eq(connections.id, connectionId),
+              or(eq(connections.userA, userId), eq(connections.userB, userId)),
+            ),
+          )
+          .for("update");
+        if (!row || row.game !== "reaction") return { status: "not_found" as const };
+        const isA = row.userA === userId;
+        const [you, them] = sidesOf(row, userId);
+        if (you.at !== null) return { status: "already_played" as const };
+        if (reactionFrom(row.connectedAt, you, them, now).yourPlay === "missed") {
+          return { status: "too_late" as const };
+        }
+        const played = { ms, at: now.toISOString() };
+        await tx
+          .update(connections)
+          .set(
+            isA
+              ? { reactionAMs: played.ms, reactionAAt: played.at }
+              : { reactionBMs: played.ms, reactionBAt: played.at },
+          )
+          .where(eq(connections.id, connectionId));
+        return {
+          status: "played" as const,
+          reaction: reactionFrom(row.connectedAt, played, them, now),
+        };
+      }),
+
     async connectionsOf(db, userId, now) {
       const otherId = sql`if(${connections.userA} = ${userId}, ${connections.userB}, ${connections.userA})`;
       const rows = await db
@@ -331,7 +436,9 @@ export function connectionsGame(
         const sharedAt = new Date(Date.parse(row.connectedAt) + SHARED_AFTER_MS).toISOString();
         const [yourRoll, theirRoll] =
           row.userA === userId ? [row.rollA, row.rollB] : [row.rollB, row.rollA];
+        const [you, them] = sidesOf(row, userId);
         return {
+          id: row.id,
           connectedAt: row.connectedAt,
           displayName,
           bio,
@@ -347,6 +454,7 @@ export function connectionsGame(
                   // Equal rolls win for both (the API agreement's 8.1, BAC-150, approved for the next version).
                   result: yourRoll >= theirRoll ? "win" : "loss",
                 },
+          reaction: row.game === "reaction" ? reactionFrom(row.connectedAt, you, them, now) : null,
           shared: now.toISOString() >= sharedAt ? row.shared : null,
           sharedAt,
         };

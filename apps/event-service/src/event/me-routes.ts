@@ -3,7 +3,7 @@ import { z } from "zod";
 import { log } from "../lib/log.ts";
 import { jsonBody } from "../lib/validate.ts";
 import { type Answers, type AnswersGame, answersSchema } from "./answers.ts";
-import type { Connection, ConnectionRequest, ConnectionsGame } from "./connections.ts";
+import type { Connection, ConnectionRequest, ConnectionsGame, Reaction } from "./connections.ts";
 import { displayNameSchema, setOwnName } from "./display-names.ts";
 import {
   requireSession,
@@ -26,12 +26,22 @@ export interface MeRouteDeps {
   now?: () => Date;
 }
 
+/**
+ * A reaction test's play (8.11): the milliseconds from the signal to the tap, within the 2
+ * minutes, or a tap before the signal.
+ */
+const reactionPlaySchema = z.union([
+  z.strictObject({ ms: z.int().min(1).max(120_000) }),
+  z.strictObject({ early: z.literal(true) }),
+]);
+
 /** Ends PATCH /api/v1/me's transaction, so a refused name undoes the answers saved before it. */
 class NameTaken extends Error {}
 
 /** One of the user's connections, as /me lists it (8.1). */
 function connectionBody(connection: Connection) {
   return {
+    id: connection.id,
     connected_at: connection.connectedAt,
     display_name: connection.displayName,
     bio: connection.bio,
@@ -46,8 +56,21 @@ function connectionBody(connection: Connection) {
             their_roll: connection.dice.theirRoll,
             result: connection.dice.result,
           },
+    reaction: connection.reaction === null ? null : reactionBody(connection.reaction),
     shared: connection.shared,
     shared_at: connection.sharedAt,
+  };
+}
+
+/** A connection's reaction test from the user's side, as /me and a play give it (8.1, 8.11). */
+function reactionBody(reaction: Reaction) {
+  return {
+    play_by: reaction.playBy,
+    your_play: reaction.yourPlay,
+    your_ms: reaction.yourMs,
+    their_play: reaction.theirPlay,
+    their_ms: reaction.theirMs,
+    result: reaction.result,
   };
 }
 
@@ -209,6 +232,30 @@ export function meRoutes({
     });
     return c.json({ status: result.status });
   });
+
+  // Agreement 8.11, for the next version (BAC-156). The phone measures the time, so it could be
+  // faked, which is acceptable for a game with a cosmetic prize.
+  app.post(
+    "/connections/:id/reaction",
+    requireSession(session),
+    jsonBody(reactionPlaySchema),
+    async (c) => {
+      const { db, user } = c.var;
+      const body = c.req.valid("json");
+      const play = {
+        connectionId: c.req.param("id"),
+        userId: user.id,
+        ms: "ms" in body ? body.ms : null,
+      };
+      const result = connectionsGame
+        ? await connectionsGame.playReaction(db, play, now())
+        : { status: "not_found" as const };
+      if (result.status === "not_found") return c.json({ error: "not_found" }, 404);
+      if (result.status !== "played") return c.json({ error: result.status }, 409);
+      log("reaction_played", { user_id: user.id, ms: play.ms });
+      return c.json({ reaction: reactionBody(result.reaction) });
+    },
+  );
 
   app.post("/connection-requests/:id/decline", requireSession(session), async (c) => {
     const { db, user } = c.var;

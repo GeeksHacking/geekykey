@@ -611,6 +611,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
     connection_requests: [],
     connections: [
       {
+        id: "c_1",
         connected_at: "2026-11-12T08:12:30.000Z",
         display_name: "Mei Lin",
         bio: null,
@@ -618,10 +619,12 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
         kind: "B",
         match: 50,
         dice: { your_roll: 5, their_roll: 2, result: "win" },
+        reaction: null,
         shared: null,
         shared_at: "2026-11-12T08:14:30.000Z",
       },
       {
+        id: "c_2",
         connected_at: "2026-11-12T08:00:00.000Z",
         display_name: null,
         bio: null,
@@ -631,6 +634,14 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
         shared: [],
         shared_at: "2026-11-12T08:02:00.000Z",
         dice: null,
+        reaction: {
+          play_by: "2026-11-12T08:02:00.000Z",
+          your_play: "early",
+          your_ms: null,
+          their_play: "played",
+          their_ms: 287,
+          result: "loss",
+        },
       },
     ],
   };
@@ -642,6 +653,29 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
   it("reads a connection from a service before dice as no rolls", () => {
     const { dice: _dice, ...connection } = me.connections[0]!;
     expect(parseMeResponse({ ...me, connections: [connection] }).connections[0]?.dice).toBeNull();
+  });
+
+  it("reads a connection from a service before BAC-156 as no ID and no reaction test", () => {
+    const { id: _id, reaction: _reaction, ...connection } = me.connections[1]!;
+    const [read] = parseMeResponse({ ...me, connections: [connection] }).connections;
+    expect(read?.id).toBeNull();
+    expect(read?.reaction).toBeNull();
+  });
+
+  it.each([
+    { your_ms: 0 },
+    { your_ms: 120_001 },
+    { your_ms: 2.5 },
+    { your_play: "skipped" },
+    { their_play: "waiting" },
+    { result: "draw" },
+    { play_by: "soon" },
+  ])("refuses an invalid reaction test %j", (change) => {
+    const connection = {
+      ...me.connections[1],
+      reaction: { ...me.connections[1]!.reaction, ...change },
+    };
+    expect(() => parseMeResponse({ ...me, connections: [connection] })).toThrow(NetworkError);
   });
 
   it.each([

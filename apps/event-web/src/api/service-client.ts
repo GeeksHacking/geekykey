@@ -49,6 +49,7 @@ export function createServiceClients(api: ApiClient): ServiceClientBundle {
       updateMe: api.updateMe.bind(api),
       acceptConnectionRequest: api.acceptConnectionRequest.bind(api),
       declineConnectionRequest: api.declineConnectionRequest.bind(api),
+      playReaction: api.playReaction.bind(api),
       myGroup: api.myGroup.bind(api),
       joinGroups: api.joinGroups.bind(api),
       groupBoard: api.groupBoard.bind(api),

@@ -18,6 +18,17 @@ import type {
 /** A request as the mock keeps it. `accept_answer` is what accepting it says: `connected` if absent. */
 export interface MockConnectionRequest extends ConnectionRequest {
   accept_answer?: AcceptConnectionRequestStatus;
+  /** The game accepting gives the pair: dice if absent (BAC-156). */
+  accept_game?: "dice" | "reaction";
+}
+
+/**
+ * A connection as the mock keeps it. In a reaction test, `reaction` holds this user's play as
+ * kept, and `their_ms` is the other person's, which the mock's /me hides until the result, as the
+ * Event Service does: a time, null for a tap too soon, or absent until they play (BAC-156).
+ */
+export interface MockConnection extends Connection {
+  their_ms?: number | null;
 }
 
 export interface MockUser {
@@ -35,7 +46,7 @@ export interface MockUser {
    * Newest first. `shared` holds what the pair share from the start, and the mock's /me hides it
    * until `shared_at`, as the Event Service does.
    */
-  connections?: Connection[];
+  connections?: MockConnection[];
 }
 
 /**
@@ -218,6 +229,8 @@ export function createFixtures(now: number = Date.now()): MockData {
       connection_requests: [
         {
           id: "cr_3f1a",
+          // Accepting her in pnpm dev starts a reaction test, so it can be tried (BAC-156).
+          accept_game: "reaction",
           display_name: "Mei Lin Koh",
           bio: "Into robotics and good coffee. Looking for someone to build with.",
           requested_at: new Date(now - 38_000).toISOString(),

@@ -65,6 +65,25 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     );
   });
 
+  it("sends a reaction test's play to the connection's own path (BAC-156)", async () => {
+    const reaction = {
+      play_by: "2026-11-12T08:02:00.000Z",
+      your_play: "played",
+      your_ms: 312,
+      their_play: "not_played",
+      their_ms: null,
+      result: null,
+    };
+    fetchMock.mockImplementationOnce(() => Promise.resolve(response({ reaction })));
+    const api = createHttpClient();
+
+    await expect(api.playReaction("c 1", { ms: 312 })).resolves.toEqual({ reaction });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/me/connections/c%201/reaction",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ ms: 312 }) }),
+    );
+  });
+
   it("reads and joins at /api/v1/me/group", async () => {
     fetchMock.mockImplementation(() => Promise.resolve(response(myGroup)));
     const api = createHttpClient();
@@ -673,6 +692,8 @@ const statusFor = {
   no_groups: 409,
   too_few_participants: 409,
   groups_exist: 409,
+  already_played: 409,
+  too_late: 409,
   rate_limited: 429,
   invalid_event_service_key: 401,
   event_service_unavailable: 503,

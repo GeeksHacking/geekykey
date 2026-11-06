@@ -1516,6 +1516,29 @@ describe("connection requests (BAC-149, a draft for the agreement's next version
     expect(after.connections).toEqual(before.connections);
   });
 
+  it("starts a reaction test on accepting the seeded request, played once (BAC-156)", async () => {
+    const api = client();
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    const [request] = (await api.me()).connection_requests;
+    await api.acceptConnectionRequest(request!.id);
+    const [connection] = (await api.me()).connections;
+    expect(connection?.dice).toBeNull();
+    expect(connection?.reaction).toMatchObject({
+      your_play: "not_played",
+      their_play: "played",
+      their_ms: null,
+      result: null,
+    });
+
+    await expectApiError(api.playReaction(connection!.id!, { ms: 0 }), "validation_failed", 400);
+    await expect(api.playReaction(connection!.id!, { ms: 240 })).resolves.toEqual({
+      reaction: expect.objectContaining({ your_ms: 240, their_ms: 287, result: "win" }),
+    });
+    await expectApiError(api.playReaction(connection!.id!, { early: true }), "already_played", 409);
+    expect((await api.me()).connections[0]?.reaction?.result).toBe("win");
+    await expectApiError(api.playReaction("gone", { ms: 240 }), "not_found", 404);
+  });
+
   it("answers not_found for a request that no longer waits", async () => {
     const api = client();
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
