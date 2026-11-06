@@ -127,18 +127,27 @@ const groupFieldsSchema = z.object({
 });
 
 /**
- * The Groups screen's one-step form (BAC-138, BAC-141, draft for the API agreement's 0.14): the
- * people per group, which is each group's capacity, and a location for each group, in order.
- * The service works out how many groups. Locations follow a group's location rule, a missing one
- * is none, and any past the last group are ignored.
+ * The Groups screen's one-step form (BAC-138, BAC-141, BAC-146, draft for the API agreement's
+ * 0.14): exactly one of the people per group, which is each group's capacity and from which the
+ * service works out how many groups, and the number of groups, which have no capacity. Then a
+ * location for each group, in order. Locations follow a group's location rule, a missing one is
+ * none, and any past the last group are ignored.
  */
-const splitSchema = z.object({
-  people_per_group: z
-    .number()
-    .int()
-    .min(MIN_PER_GROUP, `people_per_group must be ${MIN_PER_GROUP} or more`),
-  locations: z.array(optionalOrganizerText("location")).default([]),
-});
+const splitSchema = z
+  .object({
+    people_per_group: z
+      .number()
+      .int()
+      .min(MIN_PER_GROUP, `people_per_group must be ${MIN_PER_GROUP} or more`)
+      .optional(),
+    group_count: z.number().int().min(1, "group_count must be 1 or more").optional(),
+    locations: z.array(optionalOrganizerText("location")).default([]),
+  })
+  .refine(
+    ({ people_per_group, group_count }) =>
+      (people_per_group === undefined) !== (group_count === undefined),
+    { message: "send exactly one of people_per_group and group_count" },
+  );
 
 /** Where an organizer puts someone: a group by its ID, or waiting with null. */
 const placeMemberSchema = z.object({ group_id: z.string().nullable() });
@@ -220,10 +229,16 @@ export function adminGroupRoutes({
 
   // Makes the groups and allocates everyone who has joined, in one step, or makes nothing.
   app.post("/split", jsonBody(splitSchema), async (c) => {
-    const { people_per_group, locations } = c.req.valid("json");
+    const { people_per_group, group_count, locations } = c.req.valid("json");
     const refusal = await splitIntoGroups(
       c.var.db,
-      { peoplePerGroup: people_per_group, locations },
+      {
+        by:
+          group_count === undefined
+            ? { peoplePerGroup: people_per_group! }
+            : { groupCount: group_count },
+        locations,
+      },
       now(),
       shuffle,
       organizers,

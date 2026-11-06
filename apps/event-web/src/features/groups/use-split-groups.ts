@@ -15,5 +15,11 @@ export function useSplitGroups() {
       void queryClient.cancelQueries({ queryKey: queryKeys.groupBoard });
       queryClient.setQueryData(queryKeys.groupBoard, board);
     },
+    // A refusal can mean the board has moved on since the last poll, so the dialog's line and
+    // warning catch up at once rather than contradicting the refusal for up to 5 seconds.
+    onError: () => {
+      // Not returned, so the refusal shows without waiting for the board.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.groupBoard });
+    },
   });
 }

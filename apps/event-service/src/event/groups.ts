@@ -343,39 +343,43 @@ function tooFew(groupCount: number, joined: number): AllocateRefusal | null {
   return needed > 0 ? { error: "too_few_participants", needed } : null;
 }
 
-/** What an organizer enters in the Groups screen's one-step form (BAC-138, BAC-141). */
+/** What an organizer enters in the Groups screen's one-step form (BAC-138, BAC-141, BAC-146). */
 export interface SplitFields {
-  /** Each group's capacity, at least MIN_PER_GROUP. */
-  peoplePerGroup: number;
+  /** Either each group's capacity, at least MIN_PER_GROUP, or how many groups, which have none. */
+  by: { peoplePerGroup: number } | { groupCount: number };
   /** Group n's location is the nth, none past the end, and any past the last group is ignored. */
   locations: (string | null)[];
 }
 
-/** Why the one-step form made nothing: Allocate's refusal, or groups already there. */
+/** Why the one-step form made nothing: Allocate's refusal, or people already in groups. */
 export type SplitRefusal = AllocateRefusal | { error: "groups_exist" };
 
 /**
- * How many groups a split makes of `joined` people (BAC-141). Rounding up puts nobody over the
- * number entered, and the cap stops anyone being alone when 2 is entered and an odd number has
- * joined. The screen's line works this out as well, in event-web's lib/group-fields.ts.
+ * How many groups a split by people per group makes of `joined` people (BAC-141). Rounding up puts
+ * nobody over the number entered, and the cap stops anyone being alone when 2 is entered and an odd
+ * number has joined. The screen's line works this out as well, in event-web's lib/group-fields.ts.
  */
 function splitGroupCount(joined: number, peoplePerGroup: number): number {
   return Math.min(Math.ceil(joined / peoplePerGroup), Math.floor(joined / MIN_PER_GROUP));
 }
 
 /**
- * The Groups screen's shortcut (BAC-138, BAC-141): counts who has joined, makes as many groups
- * as splitGroupCount() says, named "Group 1", "Group 2" and so on, each with `peoplePerGroup` as
- * its capacity, then allocates everyone, as allocateWaiting() does. It all happens in one
- * transaction, so a refusal leaves nothing behind and the same form can be sent again.
+ * The Groups screen's shortcut (BAC-138, BAC-141, BAC-146): counts who has joined, makes the
+ * groups, named "Group 1", "Group 2" and so on, then allocates everyone, as allocateWaiting() does.
+ * By people per group, splitGroupCount() says how many, and each has that as its capacity. By
+ * number of groups, each has no capacity. It all happens in one transaction, so a refusal leaves
+ * nothing behind and the same form can be sent again.
  *
- * It refuses with `groups_exist` when any group is there, so it can't overwrite a live board,
- * and with Allocate's `too_few_participants` when fewer than 2 have joined, as for one group.
- * The allocation lock makes two at once take turns, so the second finds the first's groups.
+ * Groups already there with nobody in them, as after Reset, it replaces, names and locations
+ * included, so a second trial can use different numbers. With anyone placed it refuses with
+ * `groups_exist`, so it can't overwrite a live board. It also refuses with Allocate's
+ * `too_few_participants` when fewer than 2 have joined for each group it would make, counting one
+ * at the least. The allocation lock makes two at once take turns, and the second finds the first's
+ * groups with people in them.
  */
 export async function splitIntoGroups(
   db: Db,
-  fields: SplitFields,
+  { by, locations }: SplitFields,
   now: Date,
   shuffle: Shuffle,
   organizers: Organizers,
@@ -383,17 +387,30 @@ export async function splitIntoGroups(
   return db.transaction(async (tx) => {
     const { startedAt } = await lockAllocation(tx);
     const { places, members } = await loadPlacesAndMembers(tx, organizers);
-    if (places.length > 0) return { error: "groups_exist" };
-    const refusal = tooFew(1, members.length);
+    if (members.some((member) => member.groupId !== null)) return { error: "groups_exist" };
+    const [groupCount, capacity] =
+      "groupCount" in by
+        ? [by.groupCount, null]
+        : [splitGroupCount(members.length, by.peoplePerGroup), by.peoplePerGroup];
+    const refusal = tooFew(Math.max(groupCount, 1), members.length);
     if (refusal) return refusal;
 
+    if (places.length > 0) {
+      const replaced = places.map(({ id }) => id);
+      // No participant is in one. An organizer's row may be, from before they were made one.
+      await tx
+        .update(groupMembers)
+        .set({ groupId: null, placedAt: null, how: null })
+        .where(inArray(groupMembers.groupId, replaced));
+      await tx.delete(participantGroups).where(inArray(participantGroups.id, replaced));
+    }
     await tx.insert(participantGroups).values(
-      Array.from({ length: splitGroupCount(members.length, fields.peoplePerGroup) }, (_, i) => ({
+      Array.from({ length: groupCount }, (_, i) => ({
         id: crypto.randomUUID(),
         name: `Group ${i + 1}`,
         tags: [],
-        location: fields.locations[i] ?? null,
-        capacity: fields.peoplePerGroup,
+        location: locations[i] ?? null,
+        capacity,
         // A millisecond apart, so the board lists them in number order, oldest first.
         createdAt: new Date(now.getTime() + i).toISOString(),
       })),
