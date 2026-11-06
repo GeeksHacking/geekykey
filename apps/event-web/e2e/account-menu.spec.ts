@@ -23,10 +23,7 @@ for (const width of [360, 1280]) {
     await page.getByRole("button", { name: "Account menu" }).click();
     const menu = page.getByRole("menu");
 
-    const key = menu.getByRole("menuitem", { name: "Key screens" });
-    await expect(key).toBeVisible();
-    await expect(key).toHaveAttribute("href", KEY_URL);
-    await expect(key).not.toHaveAttribute("target");
+    await expect(menu.getByRole("menuitem", { name: "Key screens" })).toHaveCount(0);
 
     const myTokens = menu.getByRole("menuitem", { name: "My tokens" });
     await expect(myTokens).toHaveAttribute("href", KEY_URL);
@@ -49,9 +46,10 @@ for (const width of [360, 1280]) {
     await page.getByRole("button", { name: "Account menu" }).click();
     const menu = page.getByRole("menu");
 
-    const key = menu.getByRole("menuitem", { name: "Key screens" });
-    await expect(key).toBeVisible();
-    await expect(key).toHaveAttribute("href", KEY_URL);
-    await expect(key).not.toHaveAttribute("target");
+    await expect(menu.getByRole("menuitem", { name: "Key screens" })).toHaveCount(0);
+    await expect(menu.getByRole("menuitem", { name: "My tokens" })).toHaveAttribute(
+      "href",
+      KEY_URL,
+    );
   });
 }
