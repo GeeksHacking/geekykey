@@ -6,6 +6,7 @@ import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type { MeResponse } from "@/api/types";
 import { POLL_ME_MS } from "@/lib/constants";
+import { clearArrivedByLoginLink, markArrivedByLoginLink } from "@/lib/login-link-arrival";
 import { SessionContext, type SessionStatus } from "@/lib/session";
 
 /*
@@ -50,6 +51,7 @@ export function SessionProvider({
         unsentLoginLink.current = undefined;
         try {
           await api.loginLink(link);
+          markArrivedByLoginLink();
           loginLinkAccepted.current = true;
           setLoginLinkArrival(true);
         } catch (error) {
@@ -115,6 +117,7 @@ export function SessionProvider({
   }, [clearIdentityQueries, settleSession]);
 
   const clearForSignIn = useCallback(() => {
+    clearArrivedByLoginLink();
     // Drop a pre-login poll so its late response cannot overwrite the new identity, and
     // clear the session before the request so a failed sign-in cannot leave the old
     // account visible.
@@ -180,6 +183,7 @@ export function SessionProvider({
       clearIdentityQueries();
     },
     onSuccess: () => {
+      clearArrivedByLoginLink();
       settleSession(null);
       clearIdentityQueries();
     },

@@ -23,6 +23,7 @@ Read those files before adding screens. They are references, not documents to co
   (see the Forms row of the stack table in `apps/event-web/CLAUDE.md`).
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
+- `src/test/location.ts` is a copy of the Event screens' file. Change them together.
 - `src/components/ui/textarea.tsx` is the Event screens' copy, with `input.tsx`'s background and
   no shadow, so the two fields match.
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see `apps/event-web/docs/tailwind-4.md`).
@@ -58,7 +59,11 @@ The login screen signs in with Firebase's web SDK, through `src/lib/firebase.ts`
 When `/me` answers 401 and Firebase still remembers the user, `src/lib/session-provider.tsx`
 logs them in again without showing the login. A returning guest who saw the login instead
 would press "Continue as guest" and become a new guest, who doesn't own their tokens. For the
-same reason a guest is asked before signing out, in section 13's words (FRO-62).
+same reason a guest is warned before signing out, in section 13's words, and going ahead releases
+their tokens first, since nobody but a GeekyKey admin could afterwards (FRO-62, FRO-131). A failed
+release keeps them signed in. The Event screens can't do this themselves, so they send anyone who
+arrived by a login link to `/sign-out` here (`src/features/auth/event-sign-out-screen.tsx`), which
+warns a guest and sends anyone else back to the event's login.
 A sign-out waits for that returning-user login to finish before it clears the cookie, so a
 login already in flight cannot set the cookie again (FRO-69). A sign-in waits for a
 returning-user login already running and stops a new one from starting, so the sign-in is

@@ -95,13 +95,16 @@ export async function savedUserIdToken(): Promise<string | null> {
 }
 
 /**
- * Whether the user Firebase remembers in this browser signed in as a guest. A guest who signs
- * out can't sign in as the same guest again, so the GeekyKey screens ask them first (agreement
- * 13). A build with no config has no Firebase, so it has no guests either.
+ * Whether the session's user is the guest Firebase remembers in this browser. A guest who signs
+ * out can't sign in as the same guest again, so the GeekyKey screens warn them first and release
+ * their tokens (agreement 13). Firebase can remember a different user from the session's after a
+ * failed sign-out or login, and the release must not run against that user, so the two have to
+ * match: a Firebase UID is the user ID (7.2). A build with no config has no Firebase, so it has no
+ * guests either.
  */
-export async function isSignedInAsGuest(): Promise<boolean> {
+export async function isSignedInAsGuest(userId: string): Promise<boolean> {
   const user = await savedUser();
-  return user?.isAnonymous ?? false;
+  return user !== null && user.isAnonymous && user.uid === userId;
 }
 
 /** The user Firebase remembers in this browser, or null. */
