@@ -65,6 +65,15 @@ async function signInAsOrganiser(page: Page) {
   await page.addInitScript(() => sessionStorage.setItem("gk-mock-session", "dev-organizer-1"));
 }
 
+/**
+ * The dashboard has a Change name too. Until the passport's route has loaded, the press lands on
+ * that one, and its dialog goes with the dashboard when the passport arrives.
+ */
+async function openPassport(page: Page) {
+  await page.locator("header").getByRole("link", { name: "Passport" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Passport" })).toBeVisible();
+}
+
 /** Sets the name through the passport's Change name, the way a Google name arrives (agreement 8.7). */
 async function changeName(page: Page, name: string) {
   await page.getByRole("button", { name: "Change name" }).click();
@@ -143,7 +152,7 @@ function readConsole(page: Page) {
 test("a long display name leaves the header's tabs clear", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await signInAsParticipant(page);
-  await page.locator("header").getByRole("link", { name: "Passport" }).click();
+  await openPassport(page);
   await changeName(page, LONG_NAME);
   // A link, not a reload: the mock keeps the new name in memory for this page only.
   await page.locator("header").getByRole("link", { name: /^Home/ }).click();
@@ -242,7 +251,7 @@ test("the organiser console gives a long name the same room", async ({ page }) =
 test("the account menu shows a name with nowhere to wrap", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await signInAsParticipant(page);
-  await page.locator("header").getByRole("link", { name: "Passport" }).click();
+  await openPassport(page);
   await changeName(page, UNBROKEN_NAME);
   await page.locator("header").getByRole("link", { name: /^Home/ }).click();
   await expect(page).toHaveURL(/\/$/);
