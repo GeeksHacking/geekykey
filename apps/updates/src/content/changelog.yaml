@@ -2287,7 +2287,7 @@
   area: frontend
   change: >-
     The account menu on each site offers the other site, and the header has no separate switch.
-    The event side's Key screens opens the key site, and the key side's Event screens opens a
+    The event side's My tokens opens the key site, and the key side's Event screens opens a
     login link, so a guest arrives signed in.
 - id: guest-sign-out-releases-tokens
   date: 2026-11-06

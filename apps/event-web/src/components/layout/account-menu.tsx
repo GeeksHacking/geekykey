@@ -1,4 +1,4 @@
-import { Broadcast, CaretDown, Key, SignOut, Stamp } from "@phosphor-icons/react";
+import { Broadcast, CaretDown, SignOut, Stamp } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import type { User } from "@/api/types";
@@ -63,14 +63,6 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
           <a href={GEEKYKEY_SCREENS_URL} target="_blank" rel="noreferrer">
             <Stamp aria-hidden />
             My tokens
-          </a>
-        </DropdownMenuItem>
-        {/* FRO-141. The other site, in the same tab. The menu is where the account controls
-            live, so the header needs no separate switch. */}
-        <DropdownMenuItem asChild>
-          <a href={GEEKYKEY_SCREENS_URL}>
-            <Key aria-hidden />
-            Key screens
           </a>
         </DropdownMenuItem>
         {consoleLink === "admin" ? (

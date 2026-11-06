@@ -55,14 +55,12 @@ describe("AccountMenu", () => {
     expect(first).toHaveAttribute("rel", "noreferrer");
   });
 
-  it("offers the key screens in the same tab", async () => {
+  it("leaves the key site to My tokens, with no second item", async () => {
     const person = userEvent.setup();
     renderMenu();
     const menu = await openMenu(person);
 
-    const key = within(menu).getByRole("menuitem", { name: "Key screens" });
-    expect(key).toHaveAttribute("href", GEEKYKEY_SCREENS_URL);
-    expect(key).not.toHaveAttribute("target");
+    expect(within(menu).queryByRole("menuitem", { name: "Key screens" })).not.toBeInTheDocument();
   });
 
   it("keeps Sign out and the console link when there is another view", async () => {
