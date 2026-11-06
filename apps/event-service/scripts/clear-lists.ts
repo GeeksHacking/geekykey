@@ -23,7 +23,7 @@ import { answers, connections, meetingHalves } from "../src/games/connections/sc
   it's made.
 */
 
-/** The event's own data: the taps, every claim, and every game's records. */
+/** The event's own data: the taps, every claim, every game's records, and the people. */
 export const clearedTables: readonly MySqlTable[] = [
   taps,
   // The claims stand-in's claims, so a returned token is claimed afresh.
@@ -37,13 +37,14 @@ export const clearedTables: readonly MySqlTable[] = [
   // Who has joined and where they went, and whether allocation has started.
   groupMembers,
   groupAllocation,
+  // So a name from a trial is free at the next event (BAC-124, BAC-145). Everyone logs in afresh.
+  users,
 ];
 
-/** The settings and the people, which both events share. */
+/** The settings, which both events share. */
 export const keptTables: readonly MySqlTable[] = [
   stations,
   passportStations,
-  users,
   // A kind belongs to the token, which keeps it at the next event.
   tokenKinds,
   // Each row goes a minute after its link expires anyway, and emptying it could let a used link in again.
