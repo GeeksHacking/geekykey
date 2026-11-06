@@ -16,13 +16,12 @@ import { GroupPanel } from "@/features/groups/group-panel";
 import { MakeGroupsDialog } from "@/features/groups/make-groups-dialog";
 import { MemberRow } from "@/features/groups/member-row";
 import { ResetGroupsDialog } from "@/features/groups/reset-groups-dialog";
-import { useAllocateGroups } from "@/features/groups/use-allocate-groups";
-import { useGroupBoard } from "@/features/groups/use-group-board";
+import { useGroupBoard, useGroupBoardChange } from "@/features/groups/use-group-board";
 import { showStaleNote } from "@/lib/rate-limit";
 
 export function GroupsScreen() {
   const board = useGroupBoard();
-  const allocate = useAllocateGroups();
+  const allocate = useGroupBoardChange();
   const refetch = () => void board.refetch();
   const data = board.data;
   // There's nothing for Allocate to do otherwise, and pressing it again changes nothing.
@@ -110,21 +109,21 @@ export function GroupsScreen() {
         description="Press Make groups to split everyone who has joined, by people per group or by number of groups, or to make each group by hand. Allocate places anyone waiting. Move anyone from their menu. Reset empties the groups for another trial. Refreshes every 5 seconds."
         actions={
           <>
-            {/* Split answers with the board, as Allocate does, so the two take turns too. */}
             <MakeGroupsDialog
-              disabled={!data || allocate.isPending}
+              disabled={!data || allocate.busy}
               joined={data?.joined_count ?? 0}
               groupsThere={data?.groups.length ?? 0}
               someonePlaced={data?.groups.some((group) => group.members.length > 0) ?? false}
             />
             {allocateUseful ? (
-              <Button disabled={allocate.isPending} onClick={() => allocate.mutate()}>
+              <Button
+                disabled={allocate.busy}
+                onClick={() => allocate.mutate({ type: "allocate" })}
+              >
                 Allocate
               </Button>
             ) : null}
-            {/* Reset's alert covers Allocate while a reset is sent, and this covers the other way, so
-                the two can't answer out of order and leave the older board on the screen. */}
-            <ResetGroupsDialog disabled={!data || allocate.isPending} />
+            <ResetGroupsDialog disabled={!data || allocate.busy} />
           </>
         }
       />

@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useResetGroups } from "@/features/groups/use-reset-groups";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 
 /**
  * The header's Reset, for another timed trial with the same groups (the spec's user stories 37
@@ -40,13 +40,13 @@ export function ResetGroupsDialog({ disabled }: { disabled: boolean }) {
 }
 
 function ResetGroupsConfirm({ onDone }: { onDone: () => void }) {
-  const reset = useResetGroups();
+  const reset = useGroupBoardChange();
   const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
     setError(null);
     try {
-      await reset.mutateAsync();
+      await reset.mutateAsync({ type: "reset" });
       onDone();
     } catch (caught) {
       setError(describeError(caught));
@@ -68,11 +68,11 @@ function ResetGroupsConfirm({ onDone }: { onDone: () => void }) {
         </p>
       ) : null}
       <AlertDialogFooter>
-        <AlertDialogCancel disabled={reset.isPending}>Cancel</AlertDialogCancel>
+        <AlertDialogCancel disabled={reset.busy}>Cancel</AlertDialogCancel>
         {/* AlertDialogAction is a Close, so preventDefault holds the alert open until the call
             has answered, and a refusal has somewhere to show. */}
         <AlertDialogAction
-          disabled={reset.isPending}
+          disabled={reset.busy}
           onClick={(event) => {
             event.preventDefault();
             void handleConfirm();

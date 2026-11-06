@@ -9,8 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { usePlaceGroupMember } from "@/features/groups/use-place-group-member";
-import { useRemoveGroupMember } from "@/features/groups/use-remove-group-member";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 
 /**
  * One person on the Groups screen, in a group or on the waiting list, with the organiser's
@@ -28,11 +27,10 @@ export function MemberRow({
   /** Every group, oldest first, as the board lists them. */
   groups: { id: string; name: string }[];
 }) {
-  const place = usePlaceGroupMember();
-  const remove = useRemoveGroupMember();
-  const busy = place.isPending || remove.isPending;
-  const error = place.error ?? remove.error;
-  const move = (to: string | null) => place.mutate({ userId: member.user_id, groupId: to });
+  const change = useGroupBoardChange();
+  const { busy, error } = change;
+  const move = (to: string | null) =>
+    change.mutate({ type: "move", userId: member.user_id, groupId: to });
 
   return (
     <li>
@@ -55,19 +53,22 @@ export function MemberRow({
             {groups
               .filter(({ id }) => id !== groupId)
               .map((group) => (
-                <DropdownMenuItem key={group.id} onSelect={() => move(group.id)}>
+                <DropdownMenuItem disabled={busy} key={group.id} onSelect={() => move(group.id)}>
                   Move to {group.name}
                 </DropdownMenuItem>
               ))}
             {groupId !== null ? (
-              <DropdownMenuItem onSelect={() => move(null)}>Send back to waiting</DropdownMenuItem>
+              <DropdownMenuItem disabled={busy} onSelect={() => move(null)}>
+                Send back to waiting
+              </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />
             {/* For someone who has left, so they stop counting toward a group's size. They
                 can join again. */}
             <DropdownMenuItem
+              disabled={busy}
               className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-              onSelect={() => remove.mutate(member.user_id)}
+              onSelect={() => change.mutate({ type: "remove", userId: member.user_id })}
             >
               Remove
             </DropdownMenuItem>

@@ -27,7 +27,7 @@ import {
   type SplitGroupsFormValues,
   type SplitWay,
 } from "@/features/groups/split-groups-schema";
-import { useSplitGroups } from "@/features/groups/use-split-groups";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 import { applyApiIssues } from "@/lib/form-errors";
 
 /** The number's label, and what the form says about it, for each way. */
@@ -62,7 +62,7 @@ export function SplitGroupsForm({
   someonePlaced: boolean;
   onSplit: () => void;
 }) {
-  const split = useSplitGroups();
+  const split = useGroupBoardChange();
   const situation = { way, joined, someonePlaced };
   const form = useForm<SplitGroupsFormValues>({
     resolver: zodResolver(splitGroupsFormSchema(situation)),
@@ -77,7 +77,7 @@ export function SplitGroupsForm({
   async function onSubmit(values: SplitGroupsFormValues) {
     setFormError(null);
     try {
-      await split.mutateAsync(toSplitGroupsRequest(values, situation));
+      await split.mutateAsync({ type: "split", input: toSplitGroupsRequest(values, situation) });
       onSplit();
     } catch (error) {
       if (isApiError(error) && error.code === "too_few_participants") {
@@ -165,7 +165,7 @@ export function SplitGroupsForm({
           </p>
         ) : null}
         <DialogFooter>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={split.busy || form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Splitting" : "Split"}
           </Button>
         </DialogFooter>

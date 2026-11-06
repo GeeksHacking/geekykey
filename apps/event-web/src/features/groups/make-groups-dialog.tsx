@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { GROUP_FORM_DESCRIPTION, GroupForm } from "@/features/groups/group-form";
 import { SplitGroupsForm } from "@/features/groups/split-groups-form";
+import { useGroupBoardBusy } from "@/features/groups/use-group-board";
 import type { SplitWay } from "@/features/groups/split-groups-schema";
 
 type Way = SplitWay | "by_hand";
@@ -29,9 +30,8 @@ const WAYS: { value: Way; label: string; description: string }[] = [
 
 /**
  * The header's one way of making groups (BAC-146). The way chosen outlives the dialog, so an
- * organiser making several groups by hand doesn't choose it each time. The dialog covers Allocate
- * and Reset while a split is sent, and `disabled` covers the other way, so the boards they answer
- * with can't arrive out of order. `joined`, `groupsThere` and `someonePlaced` come from the screen's
+ * organiser making several groups by hand doesn't choose it each time. The Groups board coordinates
+ * this write with every other change. `joined`, `groupsThere` and `someonePlaced` come from the screen's
  * poll, which keeps running behind the dialog.
  */
 export function MakeGroupsDialog({
@@ -45,6 +45,7 @@ export function MakeGroupsDialog({
   groupsThere: number;
   someonePlaced: boolean;
 }) {
+  const busy = useGroupBoardBusy();
   const [open, setOpen] = useState(false);
   const [way, setWay] = useState<Way>("people_per_group");
   const close = () => setOpen(false);
@@ -68,6 +69,7 @@ export function MakeGroupsDialog({
           </DialogHeader>
           <RadioGroup
             aria-label="How to make groups"
+            disabled={busy}
             value={way}
             onValueChange={(next) => {
               const chosen = WAYS.find(({ value }) => value === next);

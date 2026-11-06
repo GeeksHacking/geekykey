@@ -22,8 +22,7 @@ import {
   toGroupRequest,
   type GroupFormValues,
 } from "@/features/groups/group-form-schema";
-import { useCreateGroup } from "@/features/groups/use-create-group";
-import { useUpdateGroup } from "@/features/groups/use-update-group";
+import { useGroupBoardChange } from "@/features/groups/use-group-board";
 import { applyApiIssues } from "@/lib/form-errors";
 
 /** What the dialog around the form says, whichever dialog it is. */
@@ -35,8 +34,7 @@ export const GROUP_FORM_DESCRIPTION =
  * them all, so the form starts from what the group has. The dialog around it gives the heading.
  */
 export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () => void }) {
-  const createGroup = useCreateGroup();
-  const updateGroup = useUpdateGroup();
+  const save = useGroupBoardChange();
   const form = useForm<GroupFormValues>({
     resolver: zodResolver(groupFormSchema),
     defaultValues: groupFormValues(group),
@@ -48,8 +46,8 @@ export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () 
     setFormError(null);
     try {
       const input = toGroupRequest(values);
-      if (group) await updateGroup.mutateAsync({ groupId: group.id, input });
-      else await createGroup.mutateAsync(input);
+      if (group) await save.mutateAsync({ type: "edit", groupId: group.id, input });
+      else await save.mutateAsync({ type: "create", input });
       onSaved();
     } catch (error) {
       if (isApiError(error) && error.code === "name_taken") {
@@ -92,7 +90,7 @@ export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () 
           </p>
         ) : null}
         <DialogFooter>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={save.busy || form.formState.isSubmitting}>
             {form.formState.isSubmitting ? (group ? "Saving" : "Creating") : saveLabel}
           </Button>
         </DialogFooter>

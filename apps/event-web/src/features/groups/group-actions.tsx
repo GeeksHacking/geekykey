@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteGroupDialog } from "@/features/groups/delete-group-dialog";
 import { GROUP_FORM_DESCRIPTION, GroupForm } from "@/features/groups/group-form";
+import { useGroupBoardBusy } from "@/features/groups/use-group-board";
 import { returnFocusOnClose } from "@/lib/dialog-focus";
 
 /**
@@ -29,6 +30,7 @@ import { returnFocusOnClose } from "@/lib/dialog-focus";
  */
 export function GroupActions({ group }: { group: EventGroup }) {
   const trigger = useRef<HTMLButtonElement>(null);
+  const busy = useGroupBoardBusy();
   const [dialog, setDialog] = useState<"edit" | "delete" | null>(null);
 
   return (
@@ -37,6 +39,7 @@ export function GroupActions({ group }: { group: EventGroup }) {
         <DropdownMenuTrigger asChild>
           <Button
             ref={trigger}
+            disabled={busy}
             type="button"
             variant="outline"
             size="sm"
@@ -48,9 +51,12 @@ export function GroupActions({ group }: { group: EventGroup }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onSelect={() => setDialog("edit")}>Edit group…</DropdownMenuItem>
+          <DropdownMenuItem disabled={busy} onSelect={() => setDialog("edit")}>
+            Edit group…
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
+            disabled={busy}
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
             onSelect={() => setDialog("delete")}
           >
