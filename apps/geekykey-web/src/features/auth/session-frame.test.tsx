@@ -210,4 +210,13 @@ describe("the signed-in shell", () => {
 
     expect(await screen.findByRole("button", { name: "Change theme" })).toBeInTheDocument();
   });
+
+  it("offers the event switch from the session's events", async () => {
+    signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("heading", { name: "My tokens" });
+
+    const sites = screen.getByRole("navigation", { name: "Sites" });
+    expect(within(sites).getByText("Key")).toHaveAttribute("aria-current", "page");
+    expect(within(sites).getByRole("button", { name: "Event" })).toBeInTheDocument();
+  });
 });
