@@ -22,7 +22,7 @@ export function NewStampBanner({ offer, onDismiss, onPress }: NewStampBannerProp
       <CornerBrackets />
       <div className="min-w-0">
         <p className="look-label text-muted-foreground">New stamp</p>
-        <p className="mt-1 font-medium">{offer.name}</p>
+        <p className="type-item mt-1">{offer.name}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button asChild>

@@ -31,7 +31,7 @@ export function ParticipantTapList({ taps, limit }: ParticipantTapListProps) {
       {groups.map((group) => (
         <section key={group.label} aria-label={group.label}>
           <h3 className="mb-2 text-xs font-medium text-muted-foreground">{group.label}</h3>
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y rounded-lg border bg-card">
             {group.taps.map((tap) => (
               <ParticipantTapRow key={tap.id} tap={tap} />
             ))}

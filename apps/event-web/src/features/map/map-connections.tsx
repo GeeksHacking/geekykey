@@ -21,7 +21,7 @@ export function MapConnections({ connections }: { connections: MapConnectionsDat
   return (
     <section aria-labelledby="map-connections-heading" className="space-y-3">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 id="map-connections-heading" className="text-lg font-semibold tracking-heading">
+        <h2 id="map-connections-heading" className="type-section">
           Connections
         </h2>
         <span className="look-label text-muted-foreground">Anonymous links</span>

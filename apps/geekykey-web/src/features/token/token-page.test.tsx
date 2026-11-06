@@ -136,7 +136,15 @@ describe("TokenPage", () => {
     renderAs(api, UNCLAIMED);
 
     expect(await screen.findByText("Nobody has claimed this token yet.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Your token" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Token" })).toBeInTheDocument();
+  });
+
+  it("calls a token someone else holds a token, not yours", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+    expect(await screen.findByText(/This token belongs to/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Token" })).toBeInTheDocument();
   });
 
   it("shows your own token, with nothing to claim", async () => {

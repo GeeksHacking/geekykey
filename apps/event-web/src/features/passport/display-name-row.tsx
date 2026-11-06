@@ -19,7 +19,7 @@ import { DisplayNameForm } from "@/features/passport/display-name-form";
 export function DisplayNameRow({ displayName }: { displayName: string | null }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="text-sm text-muted-foreground">
         Shown as <span className="font-medium text-foreground">{displayName ?? "Participant"}</span>
       </p>

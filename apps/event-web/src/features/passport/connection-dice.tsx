@@ -1,11 +1,15 @@
 import type { Connection } from "@/api/types";
+import { cn } from "@/lib/utils";
 
 interface ConnectionDiceProps {
   dice: Connection["dice"];
+  /** stack: the result on its own line, as the reveal's answer. line: one line in a list's row. */
+  layout: "stack" | "line";
+  className?: string;
 }
 
 /** The same stored dice in the reveal and the list (agreement 8.1 and 13, BAC-150 approved). */
-export function ConnectionDice({ dice }: ConnectionDiceProps) {
+export function ConnectionDice({ dice, layout, className }: ConnectionDiceProps) {
   if (!dice) return null;
   const result =
     dice.your_roll === dice.their_roll
@@ -14,11 +18,17 @@ export function ConnectionDice({ dice }: ConnectionDiceProps) {
         ? "You win!"
         : "They win!";
   return (
-    <div className="mt-2 space-y-1 text-sm">
+    <div
+      className={cn(
+        "text-sm",
+        layout === "line" ? "flex flex-wrap gap-x-2 gap-y-0.5" : "space-y-0.5",
+        className,
+      )}
+    >
       <p className="tabular-nums">
         You rolled {dice.your_roll}. They rolled {dice.their_roll}.
       </p>
-      <p className="font-semibold">{result}</p>
+      <p className={layout === "line" ? "font-semibold" : "type-item"}>{result}</p>
     </div>
   );
 }

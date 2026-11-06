@@ -18,10 +18,6 @@ vi.mock("@/lib/session", () => ({
   useSession: () => ({ consumeLoginLinkArrival: () => false }),
 }));
 
-vi.mock("@/components/layout/section-heading", () => ({
-  SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
-}));
-
 const baseMe = makeMe({ user: { id: "user-1" } });
 
 const firstTap: MeResponse["recent_taps"][number] = {
@@ -103,6 +99,16 @@ describe("DashboardScreen", () => {
     state.me = { ...baseMe, recent_taps: [firstTap] };
     renderDashboard();
     expect(screen.getByRole("link", { name: "My tokens" })).toBeInTheDocument();
+  });
+
+  it("leaves the way to the passport and the activity list to the tabs", () => {
+    state.me = { ...baseMe, recent_taps: [firstTap] };
+    renderDashboard();
+
+    expect(screen.getByRole("heading", { name: "Latest stamps" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Recent activity" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open passport" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "All activity" })).not.toBeInTheDocument();
   });
 
   it("keeps the user ID but removes the hint after the first tap", () => {

@@ -25,7 +25,7 @@ export function ProfileSection({ me }: { me: MeResponse }) {
   return (
     <section>
       <SectionHeading title="Your profile" />
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 rounded-lg border px-3 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 rounded-lg border bg-card px-3 py-3">
         <div className="min-w-0 space-y-1">
           {bio ? <p className="text-sm break-words">{bio}</p> : null}
           {contactLine ? <p className="text-sm break-words">Contact: {contactLine}</p> : null}

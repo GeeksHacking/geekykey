@@ -31,7 +31,7 @@ export function ConnectionRuleSwitch({ value }: { value: ConnectAcross }) {
       : value;
   return (
     <section aria-labelledby="groups-connections" className="rounded-lg border p-4">
-      <h2 id="groups-connections" className="font-semibold">
+      <h2 id="groups-connections" className="type-item">
         Connections
       </h2>
       <RadioGroup

@@ -1,3 +1,5 @@
+import { CircleNotch } from "@phosphor-icons/react";
+
 import { describeError, isApiErrorCode } from "@/api/errors";
 import type { AcceptConnectionRequestStatus, ConnectionRequest } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
@@ -27,6 +29,11 @@ function failureOf(error: unknown): string | null {
   return error === null || isApiErrorCode(error, "not_found") ? null : describeError(error);
 }
 
+/** On the button pressed, since the answer and the next /me can take a moment on venue wifi. */
+function Working() {
+  return <CircleNotch weight="bold" className="animate-spin" aria-hidden />;
+}
+
 /**
  * The requests waiting for this user, with the name and bio of the person asking (BAC-149, BAC-151). The mutations
  * live here and not on each row, because a row goes with its request and its answer has to stay.
@@ -43,7 +50,7 @@ export function ConnectionRequests({ requests }: { requests: ConnectionRequest[]
   return (
     <section
       aria-label="Connection requests"
-      className="relative space-y-3 rounded-lg border bg-card p-4"
+      className="relative animate-in space-y-3 rounded-lg border bg-card p-4 duration-200 fade-in-0 sm:p-5"
     >
       <CornerBrackets />
       <p className="look-label text-muted-foreground">Connection requests</p>
@@ -54,13 +61,14 @@ export function ConnectionRequests({ requests }: { requests: ConnectionRequest[]
               key={request.id}
               className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0 space-y-1">
-                <p className="font-medium break-words">{request.display_name} wants to connect.</p>
+              <div className="min-w-0 space-y-0.5">
+                <p className="type-item break-words">{request.display_name} wants to connect.</p>
                 {request.bio ? (
                   <p className="text-sm break-words text-muted-foreground">{request.bio}</p>
                 ) : null}
               </div>
-              <div className="flex shrink-0 gap-2">
+              {/* The two share the phone's width, so neither is a small target for a thumb. */}
+              <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
                 <Button
                   type="button"
                   disabled={answering}
@@ -69,6 +77,7 @@ export function ConnectionRequests({ requests }: { requests: ConnectionRequest[]
                     accept.mutate(request.id);
                   }}
                 >
+                  {accept.isPending && accept.variables === request.id ? <Working /> : null}
                   Accept
                 </Button>
                 <Button
@@ -80,6 +89,7 @@ export function ConnectionRequests({ requests }: { requests: ConnectionRequest[]
                     decline.mutate(request.id);
                   }}
                 >
+                  {decline.isPending && decline.variables === request.id ? <Working /> : null}
                   Decline
                 </Button>
               </div>

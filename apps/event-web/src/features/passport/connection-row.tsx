@@ -1,9 +1,11 @@
+import { CaretDown } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import type { Connection, MeResponse } from "@/api/types";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ConnectionPerson } from "@/features/passport/connection-person";
 import { ConnectionDice } from "@/features/passport/connection-dice";
+import { ConnectionPerson } from "@/features/passport/connection-person";
 import { formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -24,43 +26,56 @@ interface ConnectionRowProps {
 }
 
 /**
- * One connection: the other person above its match (BAC-136 and BAC-147, approved for the
- * agreement's next version).
+ * One connection (BAC-136 and BAC-147, approved for the agreement's next version). Every row has
+ * the same shape whatever it holds: the person with their match beside them, the dice, then a
+ * footer with the time. `shared` arrives a couple of minutes after the connection, and its button
+ * takes a place the footer already has, so the row doesn't move when it comes.
  */
 export function ConnectionRow({ connection, me, showDice }: ConnectionRowProps) {
   const [showShared, setShowShared] = useState(false);
   const shared = connection.shared === null ? null : sharedAnswers(connection.shared, me);
   return (
-    <li className="space-y-3 px-3 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
+    <li className="px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <ConnectionPerson connection={connection} />
-          {showDice ? <ConnectionDice dice={connection.dice} /> : null}
-          <p className={cn("text-sm", showDice && connection.dice && "mt-2")}>
-            {connection.match === null ? "Connected" : `${connection.match}% match`}
-          </p>
-          <time
-            dateTime={connection.connected_at}
-            className="font-mono text-xs text-muted-foreground"
-          >
-            {formatWhen(connection.connected_at)}
-          </time>
         </div>
+        <Badge variant={connection.match === null ? "muted" : "outline"} className="shrink-0">
+          {connection.match === null ? "Connected" : `${connection.match}% match`}
+        </Badge>
+      </div>
+      {showDice ? <ConnectionDice dice={connection.dice} layout="line" className="mt-2" /> : null}
+      <div className="mt-1 flex min-h-8 items-center justify-between gap-3">
+        <time
+          dateTime={connection.connected_at}
+          className="font-mono text-xs text-muted-foreground"
+        >
+          {formatWhen(connection.connected_at)}
+        </time>
         {shared ? (
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="ghost"
+            className="-mr-2"
             aria-expanded={showShared}
             onClick={() => setShowShared((shown) => !shown)}
           >
             Show what we share
+            <CaretDown
+              weight="bold"
+              className={cn("transition-transform duration-150", showShared && "rotate-180")}
+              aria-hidden
+            />
           </Button>
         ) : null}
       </div>
       {shared && showShared ? (
         shared.length > 0 ? (
-          <ul aria-label="What you share" className="space-y-2 rounded-lg bg-muted p-3 text-sm">
+          <ul
+            aria-label="What you share"
+            className="mt-2 space-y-2 rounded-lg bg-muted p-3 text-sm"
+          >
             {shared.map((answer) => (
               <li key={answer.id}>
                 <p className="text-muted-foreground">{answer.question}</p>
@@ -69,7 +84,7 @@ export function ConnectionRow({ connection, me, showDice }: ConnectionRowProps) 
             ))}
           </ul>
         ) : (
-          <p className="rounded-lg bg-muted p-3 text-sm">You don&apos;t share any answers.</p>
+          <p className="mt-2 rounded-lg bg-muted p-3 text-sm">You don&apos;t share any answers.</p>
         )
       ) : null}
     </li>

@@ -67,7 +67,7 @@ export function SummaryScreen() {
           </div>
         </div>
         <section className="space-y-3">
-          <h2 className="text-base font-semibold">By station</h2>
+          <h2 className="type-section">By station</h2>
           {data.total_taps === 0 ? (
             <EmptyState
               icon={HandTap}

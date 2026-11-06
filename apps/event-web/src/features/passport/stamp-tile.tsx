@@ -43,9 +43,7 @@ export function StampTile({ stamp, changed = false }: { stamp: Stamp; changed?: 
         </span>
         <span className="font-mono text-xs">{formatPoints(stamp.points)}</span>
       </div>
-      <p className={cn("mt-4 font-medium leading-snug", earned && "text-foreground")}>
-        {stamp.name}
-      </p>
+      <p className={cn("type-item mt-4", earned && "text-foreground")}>{stamp.name}</p>
       {stamp.location ? <p className="text-xs text-muted-foreground">{stamp.location}</p> : null}
       <div
         data-stamp-note

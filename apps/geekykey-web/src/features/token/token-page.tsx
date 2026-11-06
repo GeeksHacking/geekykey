@@ -44,7 +44,8 @@ export function TokenPage({ uid }: { uid: string }) {
 
   return (
     <main className="flex flex-col px-1 py-4">
-      <h1 className="text-2xl font-semibold tracking-heading">Your token</h1>
+      {/* Only your own is "your token" (8.5). The same page answers a tap on someone else's. */}
+      <h1 className="type-title">{query.data?.owner === "you" ? "Your token" : "Token"}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         <code className="font-mono text-foreground">{displayed}</code>
       </p>
@@ -223,6 +224,13 @@ function SomeoneElseHasIt({
         <ReleaseTokenBlock release={release} ownerId={ownerId} mine={false} />
       ) : (
         <>
+          {/* The page sends the half by itself, so without this the answer appears from nothing. */}
+          {meeting.isPending ? (
+            <div role="status" className="w-full">
+              <Skeleton className="h-14 w-full rounded-lg" />
+              <span className="sr-only">Loading</span>
+            </div>
+          ) : null}
           <MeetingNotice meetings={meeting.data ?? []} events={events} uid={uid} />
           <MeetingError error={meeting.error} />
         </>

@@ -78,7 +78,7 @@ export function GroupsScreen() {
           />
         )}
         <section aria-labelledby="groups-waiting" className="rounded-lg border p-4">
-          <h2 id="groups-waiting" className="font-semibold">
+          <h2 id="groups-waiting" className="type-item">
             Waiting
           </h2>
           {data.waiting.length > 0 ? (

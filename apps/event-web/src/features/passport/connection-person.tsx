@@ -8,12 +8,12 @@ import type { Connection } from "@/api/types";
 export function ConnectionPerson({ connection }: { connection: Connection }) {
   return (
     <>
-      <p className="font-medium break-words">{connection.display_name ?? "Guest"}</p>
+      <p className="type-item break-words">{connection.display_name ?? "Guest"}</p>
       {connection.bio ? (
-        <p className="text-sm break-words text-muted-foreground">{connection.bio}</p>
+        <p className="mt-0.5 text-sm break-words text-muted-foreground">{connection.bio}</p>
       ) : null}
       {connection.contact_line ? (
-        <p className="text-sm break-words">Contact: {connection.contact_line}</p>
+        <p className="mt-0.5 text-sm break-words">Contact: {connection.contact_line}</p>
       ) : null}
     </>
   );

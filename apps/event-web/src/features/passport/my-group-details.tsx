@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 export function MyGroupDetails({ group }: { group: MyGroup }) {
   return (
     <>
-      <h2 className="mt-1 text-xl font-semibold tracking-heading">{group.name}</h2>
+      <h2 className="type-lead mt-1">{group.name}</h2>
       {group.location ? (
         <p className="mt-1 flex items-center gap-1 text-sm font-medium">
           <MapPin className="h-4 w-4 shrink-0" aria-hidden />

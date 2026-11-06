@@ -30,7 +30,7 @@ export function GroupPanel({
     <section aria-labelledby={`group-${group.id}`} className="rounded-lg border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id={`group-${group.id}`} className="break-words font-semibold">
+          <h2 id={`group-${group.id}`} className="type-item break-words">
             {group.name}
           </h2>
           <p className="look-label mt-0.5 text-muted-foreground">

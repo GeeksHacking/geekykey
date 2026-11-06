@@ -20,6 +20,8 @@ interface ParticipantShellProps {
   onSignOut: () => void;
   children: ReactNode;
   showNavigation?: boolean;
+  /** Connection requests waiting on the dashboard, so another tab still says they're there. */
+  connectionRequests?: number;
 }
 
 /** Phone first: bottom tab bar under md, the same links move into the header above it. */
@@ -28,8 +30,16 @@ export function ParticipantShell({
   onSignOut,
   children,
   showNavigation = true,
+  connectionRequests = 0,
 }: ParticipantShellProps) {
   useRouteHeadingFocus();
+  const countFor = (to: string) =>
+    to === "/"
+      ? {
+          value: connectionRequests,
+          label: connectionRequests === 1 ? "connection request" : "connection requests",
+        }
+      : undefined;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-look-grid">
@@ -49,7 +59,7 @@ export function ParticipantShell({
           {showNavigation ? (
             <nav aria-label="Sections" className="hidden items-center gap-1 md:flex">
               {NAV.map((item) => (
-                <NavLink key={item.to} variant="top" {...item} />
+                <NavLink key={item.to} variant="top" count={countFor(item.to)} {...item} />
               ))}
             </nav>
           ) : null}
@@ -77,7 +87,7 @@ export function ParticipantShell({
         >
           <div className="mx-auto flex max-w-3xl px-2">
             {NAV.map((item) => (
-              <NavLink key={item.to} variant="bar" {...item} />
+              <NavLink key={item.to} variant="bar" count={countFor(item.to)} {...item} />
             ))}
           </div>
         </nav>

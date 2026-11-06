@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ComponentType } from "react";
 
 import type { Connection } from "@/api/types";
 import { buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectionDice } from "@/features/passport/connection-dice";
 import { markDiceShown } from "@/features/passport/dice/dice-shown";
 import type { DiceStageProps } from "@/features/passport/dice/dice-stage";
@@ -59,47 +60,64 @@ export function DiceRoll({ userId, connection, waiting }: DiceRollProps) {
 
   const { dice } = connection;
   if (!dice) return null;
-  if (!plays || phase === "failed") return <ConnectionDice dice={dice} />;
+  if (!plays || phase === "failed") {
+    return (
+      <ConnectionDice dice={dice} layout="stack" className="rounded-lg bg-muted p-3 text-center" />
+    );
+  }
 
   const tapToRoll = phase === "loading" || phase === "ready";
   return (
-    <div className="mt-3">
-      <div className={cn("relative w-full max-w-xs", tapToRoll && "pb-12")}>
-        <div className="h-36">
-          {Stage ? (
-            <Stage
-              dice={dice}
-              rolling={phase === "rolling" || phase === "landed"}
-              onReady={onReady}
-              onLanded={onLanded}
-              onFailed={fail}
-            />
-          ) : null}
-        </div>
-        <div className="grid grid-cols-2 text-center text-xs text-muted-foreground">
-          <span>You</span>
-          <span>Them</span>
-        </div>
-        {tapToRoll ? (
-          // It covers the dice too, so tapping them rolls them. Its label sits under them.
-          <button
-            type="button"
-            disabled={phase === "loading"}
-            onClick={() => setPhase("rolling")}
-            className="group absolute inset-0 flex items-end justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-progress"
-          >
-            <span
-              className={cn(
-                buttonVariants(),
-                "pointer-events-none group-active:scale-[0.98] group-disabled:opacity-60",
-              )}
-            >
-              Roll the dice
-            </span>
-          </button>
+    <div className="relative mx-auto w-full max-w-60">
+      <div className="h-36">
+        {Stage ? (
+          <Stage
+            dice={dice}
+            rolling={phase === "rolling" || phase === "landed"}
+            onReady={onReady}
+            onLanded={onLanded}
+            onFailed={fail}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center gap-6" aria-hidden="true">
+            <Skeleton className="size-16" />
+            <Skeleton className="size-16" />
+          </div>
+        )}
+      </div>
+      <div className="mx-auto grid w-52 grid-cols-2 text-center text-xs text-muted-foreground">
+        <span>You</span>
+        <span>Them</span>
+      </div>
+      {/* The button and the result take turns in one slot of one height, so the card doesn't
+          jump when the button goes and again when the result comes. */}
+      <div className="mt-2 grid min-h-14 place-items-center text-center">
+        {phase === "landed" ? (
+          <ConnectionDice
+            dice={dice}
+            layout="stack"
+            className="animate-in duration-200 fade-in-0"
+          />
         ) : null}
       </div>
-      {phase === "landed" ? <ConnectionDice dice={dice} /> : null}
+      {tapToRoll ? (
+        // It covers the dice too, so tapping them rolls them. Its label sits under them.
+        <button
+          type="button"
+          disabled={phase === "loading"}
+          onClick={() => setPhase("rolling")}
+          className="group absolute inset-0 flex items-end justify-center rounded-md pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-progress"
+        >
+          <span
+            className={cn(
+              buttonVariants(),
+              "pointer-events-none group-active:scale-[0.98] group-disabled:opacity-60",
+            )}
+          >
+            Roll the dice
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }

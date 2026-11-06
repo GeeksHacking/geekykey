@@ -1,7 +1,6 @@
 import { useRef } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { ConnectionList } from "@/features/passport/connection-list";
 import { ConnectionReveal } from "@/features/passport/connection-reveal";
 import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { NamePrompt } from "@/features/passport/name-prompt";
@@ -25,15 +24,22 @@ export function PassportScreen() {
       ? "Your stamp book for this event."
       : `${earned} of ${me.stamps.length} stamps collected. Tap your token at a station to fill the next slot.`;
   return (
-    <div ref={scope} className="space-y-6">
-      <div className="space-y-3">
-        <PageHeader title="Passport" description={description} />
-        <DisplayNameRow displayName={me.user.display_name} />
-      </div>
+    <div ref={scope} className="space-y-8">
+      <PageHeader title="Passport" description={description} />
       <ConnectionReveal me={me} />
       {!me.user.has_name && !namePrompt.skipped ? (
         <NamePrompt userId={me.user.id} onSkip={namePrompt.skip} />
       ) : null}
+      {newStamp.offer ? (
+        <NewStampBanner
+          offer={newStamp.offer}
+          onDismiss={newStamp.dismiss}
+          onPress={newStamp.press}
+        />
+      ) : null}
+      {/* The stamps are what this tab is for, so they come first. The list of connections is on
+          the dashboard, and only the reveal is here too, since a new one can land on either. */}
+      <StampGrid stamps={me.stamps} stamped={changes.stamped} />
       {me.questions ? (
         <QuestionsPrompt
           key={me.user.id}
@@ -43,15 +49,9 @@ export function PassportScreen() {
           onAnswersFixed={() => void refresh()}
         />
       ) : null}
-      {newStamp.offer ? (
-        <NewStampBanner
-          offer={newStamp.offer}
-          onDismiss={newStamp.dismiss}
-          onPress={newStamp.press}
-        />
-      ) : null}
-      <ConnectionList me={me} />
-      <StampGrid stamps={me.stamps} stamped={changes.stamped} />
+      <div className="rounded-lg border bg-card px-3 py-3">
+        <DisplayNameRow displayName={me.user.display_name} />
+      </div>
     </div>
   );
 }

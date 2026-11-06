@@ -116,7 +116,7 @@ function GroupCardBody() {
         </Frame>
       ) : status === "waiting" ? (
         <Frame label="Groups">
-          <p className="mt-1 text-lg font-semibold">You&apos;re waiting for a group.</p>
+          <p className="type-lead mt-1">You&apos;re waiting for a group.</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {/* After Allocate, someone waits only when there was no group to put them in, an
                 organiser sent them back, or their group was deleted. */}
