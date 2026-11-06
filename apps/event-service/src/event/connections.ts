@@ -27,6 +27,8 @@ export interface ConnectionRequest {
   id: string;
   /** The current name of the person asking, or `Guest` when they have none. */
   displayName: string;
+  /** Their current bio, or null for none. It never comes with their contact line (8.1). */
+  bio: string | null;
   requestedAt: string;
 }
 

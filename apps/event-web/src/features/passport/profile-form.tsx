@@ -25,7 +25,9 @@ const RULES = {
   contact_line: `Use at most ${CONTACT_LINE_MAX} characters.`,
 };
 
-const WHO_SEES = "People you connect with see this.";
+/** Section 13's sentences: the bio shows before the two connect, the contact line after (BAC-151). */
+const WHO_SEES_BIO = "Anyone who taps your token or whose token you tap sees this.";
+const WHO_SEES_CONTACT_LINE = "People you connect with see this.";
 
 const schema = z.object({
   bio: z.string().check(z.refine((text) => fitsLimit(text, BIO_MAX), RULES.bio)),
@@ -91,7 +93,7 @@ export function ProfileForm({
               <FormControl>
                 <Textarea {...field} rows={3} />
               </FormControl>
-              <FormDescription>{WHO_SEES}</FormDescription>
+              <FormDescription>{WHO_SEES_BIO}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -105,7 +107,7 @@ export function ProfileForm({
               <FormControl>
                 <Input {...field} autoComplete="off" placeholder="@yourhandle on Telegram" />
               </FormControl>
-              <FormDescription>{WHO_SEES}</FormDescription>
+              <FormDescription>{WHO_SEES_CONTACT_LINE}</FormDescription>
               <FormMessage />
             </FormItem>
           )}

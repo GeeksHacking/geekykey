@@ -56,6 +56,7 @@ function connectionRequestBody(request: ConnectionRequest) {
   return {
     id: request.id,
     display_name: request.displayName,
+    bio: request.bio,
     requested_at: request.requestedAt,
   };
 }

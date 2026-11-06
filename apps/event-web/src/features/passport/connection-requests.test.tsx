@@ -30,6 +30,7 @@ function request(id: string, name: string, fields: Partial<MockConnectionRequest
   return {
     id,
     display_name: name,
+    bio: null,
     requested_at: new Date(Date.now() - 30_000).toISOString(),
     ...fields,
   };
@@ -105,6 +106,21 @@ describe("connection requests on the dashboard (BAC-149)", () => {
     const row = await rowFor("Mei Lin");
     expect(row.getByRole("button", { name: "Accept" })).toBeInTheDocument();
     expect(row.getByRole("button", { name: "Decline" })).toBeInTheDocument();
+  });
+
+  it("shows the tapper's bio under their name, so the user sees who's asking (BAC-151)", async () => {
+    renderScreen(setUp([request("r-1", "Mei Lin", { bio: "Sensors and sourdough" })]));
+
+    const row = await rowFor("Mei Lin");
+    expect(row.getByText("Sensors and sourdough")).toBeInTheDocument();
+    expect(row.getByRole("button", { name: "Accept" })).toBeInTheDocument();
+  });
+
+  it("shows only the name for someone with no bio, with no empty line (BAC-151)", async () => {
+    renderScreen(setUp([request("r-1", "Mei Lin")]));
+
+    const text = await screen.findByText("Mei Lin wants to connect.");
+    expect(text.parentElement?.querySelectorAll("p")).toHaveLength(1);
   });
 
   it("accepting removes the request and shows the reveal", async () => {

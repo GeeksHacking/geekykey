@@ -27,6 +27,19 @@
           "type": "null"
         }
       ]
+    },
+    "owner_bio": {
+      "default": null,
+      "description": "The owner's current bio, which the token page shows under their name, or null when they have none or this Event Service has never seen them",
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [

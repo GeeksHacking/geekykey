@@ -564,7 +564,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           stamps,
           recent_taps,
           connection_requests: (user.connection_requests ?? []).map(
-            ({ id, display_name, requested_at }) => ({ id, display_name, requested_at }),
+            ({ id, display_name, bio, requested_at }) => ({ id, display_name, bio, requested_at }),
           ),
           connections,
         };
@@ -587,7 +587,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             {
               connected_at: new Date(at).toISOString(),
               display_name: request.display_name,
-              bio: null,
+              bio: request.bio,
               contact_line: null,
               kind: "B",
               match: 40,

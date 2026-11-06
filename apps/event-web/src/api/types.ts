@@ -82,6 +82,11 @@ export interface ConnectionRequest {
   id: string;
   /** The current name of the person asking, or `Guest` when they have none. */
   display_name: string;
+  /**
+   * Their current bio, or null for none, so the user can see who's asking before accepting
+   * (BAC-151, for the agreement's next version). Their contact line stays hidden until the two connect.
+   */
+  bio: string | null;
   requested_at: string;
 }
 

@@ -62,6 +62,18 @@ export const meetingsAnswer = z.object({
         "tokens, or null when they have no name of their own or this Event Service has never " +
         "seen them",
     ),
+  // No longest length: 8.7's limit is checked when the user writes a bio, and a bio this schema
+  // refused would turn every tap on that person into `unavailable`. A previous Event Service
+  // sends none, so it reads as null.
+  owner_bio: z
+    .string()
+    .min(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "The owner's current bio, which the token page shows under their name, or null when they " +
+        "have none or this Event Service has never seen them",
+    ),
 });
 
 export type MeetingsRequest = z.infer<typeof meetingsRequest>;

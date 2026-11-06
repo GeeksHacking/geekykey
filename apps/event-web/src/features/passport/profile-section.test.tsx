@@ -16,7 +16,8 @@ vi.mock("@/components/layout/section-heading", () => ({
   SectionHeading: ({ title }: { title: string }) => <h2>{title}</h2>,
 }));
 
-const WHO_SEES = "People you connect with see this.";
+const WHO_SEES_BIO = "Anyone who taps your token or whose token you tap sees this.";
+const WHO_SEES_CONTACT_LINE = "People you connect with see this.";
 
 function SignedIn({ children }: { children: ReactNode }) {
   const session = useSession();
@@ -71,7 +72,9 @@ describe("the profile on the dashboard (BAC-147)", () => {
     const { api, user } = renderDashboard();
     const dialog = await openForm(user);
 
-    expect(within(dialog).getAllByText(WHO_SEES)).toHaveLength(2);
+    // BAC-151: the bio shows before the two connect, and the contact line never does.
+    expect(within(dialog).getByText(WHO_SEES_BIO)).toBeInTheDocument();
+    expect(within(dialog).getByText(WHO_SEES_CONTACT_LINE)).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText("Bio"), "  Building a robot arm ");
     await user.type(within(dialog).getByLabelText("Contact line"), "@alex on Telegram");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));

@@ -858,7 +858,7 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   ],
   "next_stop": { "station_id": "…", "name": "Cloud Sponsor", "booth": "B3" },
   "connection_requests": [
-    { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "requested_at": "2026-11-12T08:12:00.000Z" }
+    { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "requested_at": "2026-11-12T08:12:00.000Z" }
   ],
   "connections": [
     { "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "question": "What's the best snack at a party?", "answer": "Kaya toast" }
@@ -908,7 +908,9 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   ([Connections](#connections)), newest first (BAC-149, a draft for the next version). `id` is the
   request's own, for 8.10, because this answer never gives another person's user ID.
   `display_name` is the tapper's current event name, so a name they change shows at the next poll,
-  or `Guest` when they have none. `requested_at` is when the tap reached the Event Service. The
+  or `Guest` when they have none. `bio` is the tapper's current bio, or `null` when they have none,
+  so the user can see who's asking before they accept. A screen reads a missing one as `null`
+  (BAC-151, for the next version). `requested_at` is when the tap reached the Event Service. The
   list is empty without a connections game, and a screen reads a missing list as empty, so it
   works with an Event Service from before it.
 - `user.bio` and `user.contact_line` are what the user wrote (8.7), or `null` for none (BAC-147,
@@ -1044,7 +1046,7 @@ shows a login prompt and looks nothing up.
 |---|---|
 | `nobody` | **Claim** |
 | `you` | Your token, with **Release**, and a button for each event from `/me`, such as "Open Capstone Showcase", which opens a login link (8.6) |
-| `someone_else` | "This token belongs to someone else". This lookup gives no name, and the meeting's answer (8.8) can name the owner (BAC-143, approved for the next version). A GeekyKey admin also sees **Release** |
+| `someone_else` | "This token belongs to someone else". This lookup gives no name or bio, and the meeting's answer (8.8) can give the owner's (BAC-143, approved for the next version, and BAC-151, for the next version). A GeekyKey admin also sees **Release** |
 
 - `{uid}` is a [Token UID](#token-uid) in any separator style, and `uid` in the answer is the
   normalised form.
@@ -1156,10 +1158,12 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
 - Nothing checks what an answer says either. Answers show only on phones, in the hunt (8.9) and
   in `connections` (8.1), and never on the map (9.10), since a unique answer can identify someone
   as a name can.
-- Nothing checks what a bio or a contact line says either. They show only to the user and to the
-  people they have connected with, in `connections` (8.1). The token page, a connection request,
-  the organizers' screens, the export, the map and the memory card never show them (BAC-147,
-  approved for the next version).
+- Nothing checks what a bio or a contact line says either. A contact line shows only to the user
+  and to the people they have connected with, in `connections` (8.1). A bio shows to them too, and
+  also to anyone who taps the user's token, before the two connect (8.8), and to anyone whose token
+  the user taps, in a connection request (8.1), because viewing a profile needs no accepting. The
+  organizers' screens, the export, the map and the memory card never show either one (BAC-147,
+  approved for the next version, and BAC-151, for the next version).
 
 **Errors:** `unauthenticated`, `validation_failed`, `name_taken` (BAC-145), and `rate_limited`
 ([Rate limits](#rate-limits)).
@@ -1180,7 +1184,7 @@ shows only the sentence that the token belongs to someone else.
 **Response `200`**
 
 ```json
-{ "meetings": [ { "event_id": "showcase", "status": "waiting", "owner_name": "Sam" } ] }
+{ "meetings": [ { "event_id": "showcase", "status": "waiting", "owner_name": "Sam", "owner_bio": "Building a robot arm" } ] }
 ```
 
 - The GeekyKey Service asks who owns the token, then hands the half to each Event Service whose
@@ -1193,8 +1197,11 @@ shows only the sentence that the token belongs to someone else.
   GeekyKey Service passes it on and stores no names. The answer gives no user ID, token UID or
   answers. A screen that gets no `owner_name` reads it as `null` (BAC-143, approved for the next
   version).
+- `owner_bio` comes the same way: the owner's current bio from the same answer (11.10), or `null`.
+  The GeekyKey Service passes it on and stores no bios. The answer never gives a contact line. A
+  screen that gets no `owner_bio` reads it as `null` (BAC-151, for the next version).
 - An Event Service that doesn't answer in time, or answers wrongly, gets the status
-  `unavailable` in its item, with `owner_name` `null`. Nothing is retried. Tapping the token again
+  `unavailable` in its item, with `owner_name` and `owner_bio` `null`. Nothing is retried. Tapping the token again
   sends the half again, which does no harm.
 - An Event Service that answers `404`, as one from before 0.12 does, doesn't take meetings, and
   is left out of `meetings`.
@@ -2056,13 +2063,18 @@ token (8.8), on each Event Service whose entry in its settings takes meetings. O
 **Response `200`**
 
 ```json
-{ "status": "waiting", "owner_name": "Sam" }
+{ "status": "waiting", "owner_name": "Sam", "owner_bio": "Building a robot arm" }
 ```
 
 `owner_name` is the owner's current name, a string of at least 1 character, for every `status`. It
 is `null` when they have no name of their own (`has_name` in 8.1 would be `false`) or this Event
 Service has never seen them. The token page shows it so that two people notice they hold each
 other's tokens (BAC-143, approved for the next version).
+
+`owner_bio` is the owner's current bio (8.7), a string of at least 1 character, for every `status`.
+It is `null` when they have none or this Event Service has never seen them. It doesn't depend on
+`owner_name`, so an owner with no name of their own can still have one. The token page shows it
+under their name, and the answer never gives a contact line (BAC-151, for the next version).
 
 | `status` | Meaning |
 |---|---|
@@ -2087,7 +2099,8 @@ other's tokens (BAC-143, approved for the next version).
   calls it, and an Event Service from before answers `404`, which 8.8 reads as no meetings. The
   statuses don't change with connection requests (BAC-149): `waiting` only comes to mean a request
   rather than a half that expires. A GeekyKey Service from before `owner_name` ignores the field.
-  A GeekyKey Service that knows the field reads an answer without it as `null`.
+  A GeekyKey Service that knows the field reads an answer without it as `null`. `owner_bio` works
+  the same way (BAC-151, for the next version).
   A GeekyKey Service from before `answers_needed` treats that unknown status as a malformed
   answer and gives `unavailable`, with no half kept by the Event Service. An older Event Service
   still gives its existing statuses, which the new GeekyKey Service accepts (BAC-144).
@@ -2180,7 +2193,8 @@ There are no GeekyKey admin screens.
   characters."** On `name_taken`, here and wherever the name changes, it says **"Someone already
   has this name. Try another."** under the field and keeps what was typed (BAC-145, approved for
   the next version). Under the field it says **"The organisers, your group, and anyone who taps your
-  token or whose token you tap see it."** (BAC-143 and FRO-127).
+  token or whose token you tap see it. Anyone who taps your token or whose token you tap also sees
+  your bio."** (BAC-143, FRO-127 and BAC-151; the second sentence is for the next version).
 - After the name, setup asks every unanswered question in the event's order, one at a time,
   with each choice as a button and no Skip. It says **"Your answers"**, **"Question {n} of
   {total}"** and **"Answer all {total} to get your match when you connect."** Saving the last
@@ -2207,14 +2221,17 @@ There are no GeekyKey admin screens.
   stay visible (BAC-150, approved for the next version).
 - The dashboard shows **"Your profile"**, with the user's `bio`, **"Contact: {contact_line}"** and an
   **Change profile** button, or **"No bio or contact line yet. Add them so people you connect with
-  can reach you."** with neither. Change profile opens a form headed **"What people see once you connect."**, with **Bio** and **Contact line**, each with
-  **"People you connect with see this."** under it, and **Save**. The contact line's placeholder is
+  can reach you."** with neither. Change profile opens a form headed **"What people see about you."**, with **Bio**, which has **"Anyone who taps your token
+  or whose token you tap sees this."** under it, **Contact line**, which has **"People you connect
+  with see this."** under it, and **Save** (BAC-151 changes the heading and the sentence under Bio,
+  for the next version). The contact line's placeholder is
   "@yourhandle on Telegram". Leaving one blank clears it. On `validation_failed` it says "Use at most
   160 characters." or "Use at most 80 characters." under that field. An event with no connections game
-  shows none of this (BAC-147, approved for the next version; the sentence about who sees it is the
-  ticket's, and the other wording is a draft for Ethan to approve).
+  shows none of this (BAC-147, approved for the next version; the sentence about who sees the contact
+  line is the ticket's, and the other wording BAC-147 added is a draft for Ethan to approve).
 - While `connection_requests` isn't empty, the dashboard lists each one under **"Connection
-  requests"** as **"{display_name} wants to connect."**, with **Accept** and **Decline** buttons,
+  requests"** as **"{display_name} wants to connect."**, then their `bio`, which takes no line when
+  it's `null` (BAC-151, for the next version), with **Accept** and **Decline** buttons,
   and reads `/me` again after a press (BAC-149, drafts for Ethan to approve). On a `same_kind` or
   `same_group` answer it says **"You're in the same group. Find someone from another group."**,
   and on `no_group` **"You both need to be in a group to connect. Ask an organiser."**, each with
@@ -2224,8 +2241,11 @@ There are no GeekyKey admin screens.
   (BAC-144).
 - After the meeting call (8.8), when an item's `owner_name` isn't `null`, the token page replaces "This token belongs to someone else" with **"This token
   belongs to {owner_name}."** and **"If you're carrying this token, it isn't yours. Swap it back
-  with {owner_name}."** (BAC-143, approved for the next version). Under that sentence or those two,
-  it shows: for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149,
+  with {owner_name}."** (BAC-143, approved for the next version). When an item's `owner_bio` isn't
+  `null`, the bio goes straight under "This token belongs to {owner_name}." or "This token belongs
+  to someone else", and when it's `null` it takes no line. The name and the bio come from one item:
+  the first with a name, or the first with a bio when none has a name (BAC-151, for the next
+  version). Under those sentences, it shows: for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149,
   a draft for Ethan to approve); for `connected`,
   **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
   `answers_needed`, **"You both need to finish your names and answers in the event before connecting."**; for
@@ -2369,3 +2389,4 @@ Closed on 2026-10-10:
 | 2026-11-06 | For the next version, which Ethan approved, as Adam confirmed on 6 Nov: each new connection keeps a die roll for each person (BAC-150). **New, at `Checkpoint 7`:** `connections[].dice` in 8.1, with `your_roll`, `their_roll` and `result` (`win` or `loss`), or `null` for an older connection. Section 4 records that the Event Service rolls independently from 1 to 6 once per pair, keeps the rolls, and gives both people a win on equal rolls. Section 13 adds the roll sentence and the win, loss and tie sentences for the reveal and the list. Ethan approved the fields and all four sentences. No field is removed, and a screen reads missing dice as `null` to work with the previous Event Service. |
 | 2026-11-06 | For the next version, approved as Adam reported: participants give a name and every answer before opening the event (BAC-144). 8.1 and section 13 require setup without Skip and keep organizers on their current flow. 8.8 and 11.10 add `answers_needed`, checked before kinds and groups, with no half kept. The token page says "You both need to finish your names and answers in the event before connecting." and offers the event button. Older GeekyKey Services give `unavailable` for the new status. Names remain editable, and answers keep their first-connection lock, as Adam confirmed on 6 Nov. Adam also approved filling missing locked answers and checking an older request's sender before a tap back or accept completes it; 8.7 and 8.10 record those cases, and past matches stay unchanged. |
 | 2026-11-06 | For the next version, approved as Adam reported: two participants can't have the same name, since organisers call names out (BAC-145, from the 5 Nov trial). **New:** `409 name_taken` from 8.7 for a name someone else has, compared after trimming and whatever its capitals, with the default `Guest` not counting. Section 13 adds its sentence. No field changes. Names already the same stay until one person changes theirs. An older Event Service never refuses a name. A screen from before this shows the Groups screen's sentence for the code, so the screens deploy with the Event Service. |
+| 2026-11-06 | For the next version: tapping a token, and a connection request, show the person's bio (BAC-151, from the 5 Nov trial notes and the meeting with Julian). **New, at `Checkpoint 7`:** `owner_bio` in the meeting hand-off's answer (11.10) and in each item of 8.8's answer, and `bio` in each item of `connection_requests` (8.1), each the person's current bio or `null`. **Changed:** 8.7 says who sees a bio, 8.5's row says the lookup gives no bio either, and section 13 adds the bio on the token page and in a request, adds a second sentence to the name prompt's line, and changes the sentence under Bio and the profile form's heading. The contact line still shows only after the two connect. No field is removed, and either service works with the other's previous version, since a missing bio reads as `null`. |

@@ -29,7 +29,7 @@ import { useToken } from "@/features/token/use-token";
  * "you" for your own with when you claimed it and a Release, and "someone_else" with whose
  * it is and what the tap came to, unless the signed-in user is a GeekyKey admin, who gets the
  * plain sentence and a Release. The lookup never names the owner: 8.5 gives `owner_id` only to a GeekyKey admin,
- * and the mock enforces that. The only name here comes from the half's answer (8.8).
+ * and the mock enforces that. The only name and bio here come from the half's answer (8.8).
  *
  * Your own token carries a button for each event in /me as well, which opens that
  * event's screens as the same user through a login link (8.6). A token someone else holds
@@ -192,7 +192,7 @@ function YouOwnIt({
 /**
  * Agreement 8.5's table: "someone_else" reads "This token belongs to someone else", and
  * "A GeekyKey admin also sees Release". An ordinary user gets the sentence, with the owner's
- * name once the half (8.8) answers one, and under it what the half answered. An admin gets
+ * name and bio once the half (8.8) answers them, and under it what the half answered. An admin gets
  * Release instead: they may be holding a lost token, so their arrival is not a tap between two
  * people, and the page sends no half.
  */
@@ -211,11 +211,14 @@ function SomeoneElseHasIt({
 }) {
   // 8.8: no button. The page sends the half by itself, and skips it for an admin.
   const meeting = useMeeting(uid, !isAdmin);
-  const ownerName = meeting.data?.find((item) => item.owner_name !== null)?.owner_name ?? null;
+  // One Event Service's answer, so a bio never sits under a name another event gave.
+  const ownerAnswer =
+    meeting.data?.find((item) => item.owner_name !== null) ??
+    meeting.data?.find((item) => item.owner_bio !== null);
 
   return (
     <div className="flex flex-col items-start gap-4">
-      <OwnerSentences name={ownerName} />
+      <OwnerSentences name={ownerAnswer?.owner_name ?? null} bio={ownerAnswer?.owner_bio ?? null} />
       {isAdmin ? (
         <ReleaseTokenBlock release={release} ownerId={ownerId} mine={false} />
       ) : (

@@ -219,6 +219,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         {
           id: "cr_3f1a",
           display_name: "Mei Lin Koh",
+          bio: "Into robotics and good coffee. Looking for someone to build with.",
           requested_at: new Date(now - 38_000).toISOString(),
         },
       ],

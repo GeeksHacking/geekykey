@@ -76,6 +76,7 @@ describe("me response contract", () => {
     const request = {
       id: "cr_3f1a",
       display_name: "Mei Lin Koh",
+      bio: null,
       requested_at: "2026-11-12T08:00:00.000Z",
     };
     expect(parseMeResponse(makeMe({ connection_requests: [request] })).connection_requests).toEqual(
@@ -87,6 +88,22 @@ describe("me response contract", () => {
     expect(() =>
       parseMeResponse({ ...makeMe(), connection_requests: [{ ...request, id: 7 }] }),
     ).toThrow(NetworkError);
+  });
+
+  it("reads a request's bio, and treats a missing one as none (BAC-151)", () => {
+    const request = {
+      id: "6f1c2a9e",
+      display_name: "Mei Lin",
+      requested_at: "2026-11-12T08:00:00.000Z",
+    };
+    const bioOf = (fields: object) =>
+      parseMeResponse({ ...makeMe(), connection_requests: [{ ...request, ...fields }] })
+        .connection_requests[0]?.bio;
+
+    expect(bioOf({ bio: "Sensors and sourdough" })).toBe("Sensors and sourdough");
+    expect(bioOf({ bio: null })).toBeNull();
+    expect(bioOf({})).toBeNull();
+    expect(() => bioOf({ bio: 7 })).toThrow(NetworkError);
   });
 
   it("reads a bio and a contact line, and treats missing ones as none (BAC-147)", () => {

@@ -28,7 +28,7 @@ function failureOf(error: unknown): string | null {
 }
 
 /**
- * The requests waiting for this user, with the name of the person asking (BAC-149). The mutations
+ * The requests waiting for this user, with the name and bio of the person asking (BAC-149, BAC-151). The mutations
  * live here and not on each row, because a row goes with its request and its answer has to stay.
  */
 export function ConnectionRequests({ requests }: { requests: ConnectionRequest[] }) {
@@ -54,9 +54,12 @@ export function ConnectionRequests({ requests }: { requests: ConnectionRequest[]
               key={request.id}
               className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
             >
-              <p className="min-w-0 font-medium break-words">
-                {request.display_name} wants to connect.
-              </p>
+              <div className="min-w-0 space-y-1">
+                <p className="font-medium break-words">{request.display_name} wants to connect.</p>
+                {request.bio ? (
+                  <p className="text-sm break-words text-muted-foreground">{request.bio}</p>
+                ) : null}
+              </div>
               <div className="flex shrink-0 gap-2">
                 <Button
                   type="button"

@@ -90,7 +90,8 @@ _Avoid_: holder
 The GeekyKey Service's page that a phone opens when it taps a token. It lets a user claim an
 unclaimed token, and shows the owner their own token with a way into each event. Anyone else sees
 that the token is taken and, once the tap's half is answered, the owner's name if they have one of
-their own (BAC-143); a GeekyKey admin sees no name and can also release it there.
+their own (BAC-143) and their bio if they have one (BAC-151); a GeekyKey admin sees neither and can
+also release it there.
 
 **Login link**:
 A short-lived link from the GeekyKey Service's pages that logs a user in to an event's screens as
@@ -189,6 +190,11 @@ chosen by the Event Service when they connect; the higher roll wins, and equal r
 both (BAC-150). Older connections have no rolls.
 _Avoid_: dual tap, link between tags
 
+**Bio**:
+A short piece of free text a user writes about themselves. The people they have connected with
+see it, and so does anyone who taps their token. Anyone whose token they tap sees it in the
+connection request. It's always the current value (BAC-147, BAC-151).
+
 **Contact line**:
 One line of free text a user writes so that people can reach them, such as a Telegram handle. It
 shows only to the people they have connected with, beside their bio, and always the current value
@@ -208,7 +214,7 @@ _Avoid_: pending connection
 
 **Connection request**:
 What a half asks of the token's owner, who sees it on their dashboard with the tapper's name and
-accepts or declines it. It has no time limit, so it stays until they answer or the event is
+bio and accepts or declines it. It has no time limit, so it stays until they answer or the event is
 cleared. Declining is silent, and tapping again sends a new one (BAC-149). Viewing someone's profile
 needs no request.
 _Avoid_: invitation, friend request

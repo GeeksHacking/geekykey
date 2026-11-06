@@ -38,9 +38,8 @@ export function hasName(user: { displayName: string; nameSetAt: string | null })
 }
 
 /**
- * The name a meeting hand-off answers for the token's owner (the API agreement's
- * 11.10): their current name, or null when they have no name of their own
- * (hasName) or have never logged in to this Event Service.
+ * The user's current name, or null when they have no name of their own (hasName)
+ * or have never logged in to this Event Service. Finishing setup needs one.
  */
 export async function ownNameOf(db: Db | Tx, userId: string): Promise<string | null> {
   const [user] = await db
