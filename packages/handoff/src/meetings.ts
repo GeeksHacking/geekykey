@@ -26,6 +26,7 @@ export const meetingsRequest = z
 
 /** What an Event Service answers a half with (the agreement's 11.10). */
 export const MEETING_STATUSES = [
+  "answers_needed",
   "waiting",
   "connected",
   "already_connected",
@@ -41,7 +42,8 @@ export const meetingsAnswer = z.object({
   status: z
     .enum(MEETING_STATUSES)
     .describe(
-      "waiting: the owner has a connection request, which waits until they answer it. " +
+      "answers_needed: the tapper, or the sender of an older request being accepted, must finish their name and answers; no new half is kept and an existing request stays. " +
+        "waiting: the owner has a connection request, which waits until they answer it. " +
         "connected: the half accepted the owner's request. " +
         "already_connected: the two were connected before. same_kind: the two aren't of " +
         "different kinds, so nothing is kept. same_group: connecting across groups, the two " +

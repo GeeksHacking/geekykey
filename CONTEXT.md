@@ -152,7 +152,8 @@ One activity inside an event that stations feed, such as the passport or a treas
 _Avoid_: experience
 
 **Participant**:
-A person attending the event who collects stamps by tapping a token at stations. At the showcase
+A person attending the event who gives a name and every answer before opening the event's screens
+or connecting (BAC-144), then collects stamps by tapping a token at stations. At the showcase
 that includes the parents and mentors who visit in the afternoon.
 _Avoid_: visitor
 

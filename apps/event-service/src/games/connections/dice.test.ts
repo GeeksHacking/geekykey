@@ -57,6 +57,7 @@ function harness(realDice = false) {
     };
   };
   const tap = async (back = false, other = "bea") => {
+    await signIn(back ? other : "alex");
     const res = await app.request("/geekykey/v1/meetings", {
       method: "POST",
       headers: {

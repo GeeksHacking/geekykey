@@ -14,6 +14,7 @@ import { EventButtons } from "@/components/event-buttons";
 const SENTENCE: Record<MeetingStatus, string> = {
   // A draft for Ethan to approve (BAC-149).
   waiting: "Request sent. Ask them to open their dashboard and accept.",
+  answers_needed: "You both need to finish your names and answers in the event before connecting.",
   connected: "You're connected!",
   already_connected: "You're already connected.",
   same_kind: "You're in the same group. Find someone from another group.",
@@ -64,6 +65,7 @@ function MeetingLine({
   uid: string;
 }) {
   const offersEvent =
+    meeting.status === "answers_needed" ||
     meeting.status === "waiting" ||
     meeting.status === "connected" ||
     meeting.status === "already_connected";

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import type { Question } from "../../event/answers.ts";
+import { connections } from "./schema.ts";
 import { users } from "../../event/schema.ts";
 import {
   fakeClock,
@@ -75,13 +76,26 @@ function harness({ withGame = true } = {}) {
   );
 
   /** One half: `userId` tapped the token of `ownerId`, as the GeekyKey Service hands it on. */
-  const meet = (
+  const prepared = new Set<string>();
+  /** Complete the participant setup once; these tests exercise connections after setup. */
+  const prepare = async (userId: string) => {
+    if (prepared.has(userId)) return;
+    const cookie = await signIn(userId);
+    const res = await app.request("/api/v1/me", { headers: { Cookie: cookie } });
+    const body = await res.json();
+    screensSchemas.meResponseSchema.parse(body);
+    const { user } = body as { user: { answers: Record<string, string> } };
+    await answer(userId, { drink: "tea", hours: "owl", superpower: "fly", ...user.answers });
+    prepared.add(userId);
+  };
+  const meet = async (
     userId: string,
     userKind: string | null,
     ownerId: string,
     ownerKind: string | null,
-  ) =>
-    app.request("/geekykey/v1/meetings", {
+  ) => {
+    await prepare(userId);
+    return app.request("/geekykey/v1/meetings", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}`,
@@ -94,6 +108,7 @@ function harness({ withGame = true } = {}) {
         owner_kind: ownerKind,
       }),
     });
+  };
 
   /** The half's status, from a 200. */
   const statusOf = async (res: Response | Promise<Response>) =>
@@ -367,16 +382,7 @@ test("a different choice on every question is a 0% match", async () => {
   );
 });
 
-test("the match counts only the questions both answered, rounded to a whole percent", async () => {
-  // Both answered drink and hours, and chose the same for drink.
-  assert.equal(
-    await matchBetween(
-      { drink: "tea", hours: "owl", superpower: "fly" },
-      { drink: "tea", hours: "bird" },
-    ),
-    50,
-  );
-  // 1 of 3 is 33%.
+test("the match is rounded to a whole percent", async () => {
   assert.equal(
     await matchBetween(
       { drink: "tea", hours: "owl", superpower: "fly" },
@@ -384,12 +390,6 @@ test("the match counts only the questions both answered, rounded to a whole perc
     ),
     33,
   );
-});
-
-test("someone who answered nothing has no match, and nor do two with no question in common", async () => {
-  assert.equal(await matchBetween({ drink: "tea" }, {}), null);
-  assert.equal(await matchBetween({}, {}), null);
-  assert.equal(await matchBetween({ drink: "tea" }, { hours: "owl" }), null);
 });
 
 test("the match is kept as it was made, since the connection fixes both people's answers", async () => {
@@ -449,7 +449,7 @@ test("/me lists connections newest first, and each adds the same point, whatever
   assert.deepEqual(
     alex.connections.map(({ kind, match }) => ({ kind, match })),
     [
-      { kind: "C", match: 0 },
+      { kind: "C", match: 67 },
       { kind: "B", match: 100 },
     ],
   );
@@ -480,7 +480,7 @@ test("each connection gives the other person's name, and not their ID or answers
       bio: null,
       contact_line: null,
       kind: "B",
-      match: 0,
+      match: 67,
       dice: { your_roll: 4, their_roll: 4, result: "win" },
       shared: null,
       shared_at: "2026-11-12T08:02:00.000Z",
@@ -496,7 +496,7 @@ test("a name set after connecting shows at the next /me, and the rest of the con
     .insert(users)
     .values([
       { id: "alex", displayName: "Alex Tan" },
-      { id: "bea", displayName: "Guest" },
+      { id: "bea", displayName: "Guest", nameSetAt: "2026-11-12T07:00:00.000Z" },
     ]);
   await meet("alex", "E", "bea", "B");
   await meet("bea", "B", "alex", "E");
@@ -550,10 +550,16 @@ test("an edit after connecting shows at the next /me, clearing hides it, and the
   ]);
 });
 
-test("someone who never logged in has no bio or contact line", async () => {
-  const { meet, meOf } = harness();
-  await meet("alex", "E", "never-logged-in", "B");
-  await meet("never-logged-in", "B", "alex", "E");
+test("an older connection to someone who never logged in has no bio or contact line", async () => {
+  const { meOf } = harness();
+  await testDb().insert(connections).values({
+    userA: "alex",
+    userB: "never-logged-in",
+    kindA: "E",
+    kindB: "B",
+    connectedAt: "2026-11-12T08:00:00.000Z",
+    shared: [],
+  });
   const [connection] = (await meOf("alex")).connections;
   assert.equal(connection!.bio, null);
   assert.equal(connection!.contact_line, null);
@@ -605,15 +611,29 @@ test("the map gives no bio or contact line of anyone connected", async () => {
   assert.ok(!body.includes("Sourdough") && !body.includes("@bea"), body);
 });
 
-test("someone with no users row has a null name, and someone with no name of their own has Guest", async () => {
-  const { clock, meet, meOf } = harness();
+test("older connections still show null or Guest when the other person has no name", async () => {
+  const { meOf } = harness();
   await testDb().insert(users).values({ id: "no-name", displayName: "Guest" });
-  await meet("alex", "E", "never-logged-in", "B");
-  await meet("never-logged-in", "B", "alex", "E");
-  clock.advanceSeconds(10);
-  await meet("alex", "E", "no-name", "B");
-  await meet("no-name", "B", "alex", "E");
-
+  await testDb()
+    .insert(connections)
+    .values([
+      {
+        userA: "alex",
+        userB: "never-logged-in",
+        kindA: "E",
+        kindB: "B",
+        connectedAt: "2026-11-12T08:00:00.000Z",
+        shared: [],
+      },
+      {
+        userA: "alex",
+        userB: "no-name",
+        kindA: "E",
+        kindB: "B",
+        connectedAt: "2026-11-12T08:00:10.000Z",
+        shared: [],
+      },
+    ]);
   assert.deepEqual(
     (await meOf("alex")).connections.map(({ display_name }) => display_name),
     ["Guest", null],

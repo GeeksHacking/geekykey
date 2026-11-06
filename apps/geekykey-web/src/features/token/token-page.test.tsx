@@ -344,6 +344,8 @@ describe("TokenPage", () => {
   describe("half a connection, when the token is someone else's", () => {
     /** Section 13's sentence for each status an Event Service can answer with (11.10). */
     const SENTENCES: Record<MeetingStatus, string> = {
+      answers_needed:
+        "You both need to finish your names and answers in the event before connecting.",
       waiting: "Request sent. Ask them to open their dashboard and accept.",
       connected: "You're connected!",
       already_connected: "You're already connected.",
@@ -379,7 +381,7 @@ describe("TokenPage", () => {
       expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
     });
 
-    it.each(["waiting", "connected", "already_connected"] as const)(
+    it.each(["answers_needed", "waiting", "connected", "already_connected"] as const)(
       "offers the event's button on %s, so the guest reaches the dashboard and the reveal",
       async (status) => {
         // Section 13: the button opens the event's screens through a login link (8.6).

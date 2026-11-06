@@ -80,8 +80,8 @@ type Refusal = Extract<MeetingStatus, "same_kind" | "same_group" | "no_group">;
 
 /**
  * Whether the rule lets the two connect, with each one's kind, locked until `tx`
- * ends. This comes first in a transaction, since it reads the rule and the groups
- * before any lock, so they're as they were at this half or accept: on TiDB a plain
+ * ends. It reads the rule and the groups before any lock, so they are as they
+ * were at this half or accept: on TiDB a plain
  * read sees the transaction's start, and on MySQL its first read (groups.ts, at
  * lockAllocation).
  *
@@ -198,8 +198,10 @@ export function connectionsGame(
   return {
     pointsEach: POINTS_EACH,
 
-    meet: (db, { userId, userKind, ownerId, ownerKind }, now) =>
+    meet: (db, { userId, userKind, ownerId, ownerKind }, now, isReady) =>
       db.transaction(async (tx) => {
+        // Setup precedes kinds and groups and keeps no half (agreement 11.10, BAC-144).
+        if (!(await isReady(tx, userId))) return "answers_needed";
         const pair = pairOf(userId, ownerId);
         const tapperIsA = userId === pair.userA;
         const given = new Map([
@@ -223,6 +225,8 @@ export function connectionsGame(
           ? [halves.aMetAt, halves.bMetAt]
           : [halves.bMetAt, halves.aMetAt];
         if (halves.requestId !== null && theirs !== null) {
+          // A request sent before BAC-144 may come from someone who skipped setup.
+          if (!(await isReady(tx, ownerId))) return "answers_needed";
           return connect(tx, pair, { kindA, kindB }, now);
         }
         // A half again while this person's request waits changes nothing.
@@ -240,12 +244,13 @@ export function connectionsGame(
         return "waiting";
       }),
 
-    async accept(db, answer, now) {
+    async accept(db, answer, now, isReady) {
       const pair = await pairOfRequest(db, answer);
       if (!pair) return { status: "not_found" };
       const fromId = pair.userA === answer.userId ? pair.userB : pair.userA;
 
       const status = await db.transaction(async (tx): Promise<AcceptStatus | "not_found"> => {
+        if (!(await isReady(tx, answer.userId))) return "answers_needed";
         // The kinds a half gave are the users' own by now, so an accept brings none.
         const { refusal, kindA, kindB } = await judge(tx, pair, new Map());
         if (refusal) {
@@ -259,6 +264,7 @@ export function connectionsGame(
         // Another accept or a half back got here first, and took the request with it.
         if (connected) return "already_connected";
         if (halves.requestId !== answer.requestId) return "not_found";
+        if (!(await isReady(tx, fromId))) return "answers_needed";
         return connect(tx, pair, { kindA, kindB }, now);
       });
       return status === "not_found" ? { status } : { status, fromId };

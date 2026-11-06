@@ -116,7 +116,7 @@ export function createApp(
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route(
     "/geekykey/v1",
-    handoffRoutes({ key: config.eventServiceKey, games: showcaseGames, connections, now }),
+    handoffRoutes({ key: config.eventServiceKey, games: showcaseGames, connections, answers, now }),
   );
 
   // The claims stand-in: who owns each token, for the GeekyKey Service only.

@@ -42,7 +42,7 @@ export function hasName(user: { displayName: string; nameSetAt: string | null })
  * 11.10): their current name, or null when they have no name of their own
  * (hasName) or have never logged in to this Event Service.
  */
-export async function ownNameOf(db: Db, userId: string): Promise<string | null> {
+export async function ownNameOf(db: Db | Tx, userId: string): Promise<string | null> {
   const [user] = await db
     .select({ displayName: users.displayName, nameSetAt: users.nameSetAt })
     .from(users)

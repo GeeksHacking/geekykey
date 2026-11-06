@@ -29,7 +29,7 @@ type NameValues = z.infer<typeof schema>;
 
 /**
  * The name the event shows (agreement 8.7). The prompt and the change-name dialog both use
- * it; `secondaryAction` is the prompt's Skip, which sits beside Save.
+ * it; `secondaryAction` sits beside Save when the caller offers one.
  */
 export function DisplayNameForm({
   defaultName = "",

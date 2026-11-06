@@ -14,6 +14,7 @@ import {
  * it has an entry.
  */
 const REFUSED: Record<AcceptConnectionRequestStatus, string | null> = {
+  answers_needed: "You both need to finish your names and answers in the event before connecting.",
   connected: null,
   already_connected: null,
   same_kind: "You're in the same group. Find someone from another group.",

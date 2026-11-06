@@ -305,3 +305,13 @@ test("a claims stand-in that doesn't answer gets claims_unavailable, and no half
   assert.deepEqual(await res.json(), { error: "claims_unavailable" });
   assert.deepEqual(handedOff(), []);
 });
+
+test("an unfinished participant's status is passed to the token page", async () => {
+  const { fake, logIn, meet } = harness();
+  fake.answers.meetings = async () =>
+    Response.json({ status: "answers_needed", owner_name: "Sam" });
+  const res = await meet(UID, await logIn("tapper"));
+  assert.deepEqual(await res.json(), {
+    meetings: [{ event_id: "showcase", status: "answers_needed", owner_name: "Sam" }],
+  });
+});

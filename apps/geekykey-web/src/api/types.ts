@@ -52,6 +52,7 @@ export interface Meeting {
  * Event Service that doesn't answer in time or answers wrongly.
  */
 export const MEETING_STATUSES = [
+  "answers_needed",
   "waiting",
   "connected",
   "already_connected",

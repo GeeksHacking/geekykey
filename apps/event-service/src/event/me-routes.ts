@@ -11,6 +11,7 @@ import {
   type SessionOptions,
   type SessionUser,
 } from "./session-auth.ts";
+import { participantIsReady } from "./participant-setup.ts";
 import { loadMe } from "./me.ts";
 import { bioSchema, contactLineSchema, setProfile } from "./profiles.ts";
 import type { AppEnv } from "../app.ts";
@@ -178,7 +179,12 @@ export function meRoutes({
     const { db, user } = c.var;
     const answer = { requestId: c.req.param("id"), userId: user.id };
     const result = connectionsGame
-      ? await connectionsGame.accept(db, answer, now())
+      ? await connectionsGame.accept(
+          db,
+          answer,
+          now(),
+          async (tx, id) => session.organizers.has(id) || (await participantIsReady(tx, id, game)),
+        )
       : { status: "not_found" as const };
     if (result.status === "not_found") return c.json({ error: "not_found" }, 404);
     log("connection_request_accepted", {

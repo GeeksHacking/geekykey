@@ -202,3 +202,19 @@ describe("connection requests on the dashboard (BAC-149)", () => {
     expect(await screen.findByRole("status", { name: "New connection" })).toBeInTheDocument();
   });
 });
+
+it("an unfinished sender's request stays available after Accept and can be retried", async () => {
+  const api = setUp([request("r-1", "Mei Lin", { accept_answer: "answers_needed" })]);
+  const { user } = renderScreen(api);
+  await user.click((await rowFor("Mei Lin")).getByRole("button", { name: "Accept" }));
+  expect(
+    await screen.findByText(
+      "You both need to finish your names and answers in the event before connecting.",
+    ),
+  ).toBeInTheDocument();
+  expect(await rowFor("Mei Lin")).toBeTruthy();
+  expect(screen.queryByRole("status", { name: "New connection" })).not.toBeInTheDocument();
+  guestOf(api).connection_requests![0]!.accept_answer = "connected";
+  await user.click((await rowFor("Mei Lin")).getByRole("button", { name: "Accept" }));
+  expect(await screen.findByRole("status", { name: "New connection" })).toBeInTheDocument();
+});

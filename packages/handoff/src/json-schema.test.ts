@@ -58,6 +58,7 @@ test("the meeting hand-off's JSON Schemas keep the agreement's rules", () => {
   assert.equal(request.properties.owner_id.maxLength, 128);
   const answer = JSON.parse(jsonSchemaFiles()["meetings-answer.schema.json"]!);
   assert.deepEqual(answer.properties.status.enum, [
+    "answers_needed",
     "waiting",
     "connected",
     "already_connected",

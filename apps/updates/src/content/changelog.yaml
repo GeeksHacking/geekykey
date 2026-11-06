@@ -2208,3 +2208,11 @@
     Connecting now rolls a die for each person and keeps both rolls with the connection. The
     reveal and connections list show the rolls and who won, with the higher roll winning.
     The trade-offs we accept: equal rolls give both people a win.
+
+- id: participants-finish-setup-first
+  date: 2026-11-06
+  area: backend
+  change: >-
+    Participants give their name and every answer before opening the event, and an unfinished
+    tap sends no connection request but offers the event button so they can finish. Organisers
+    keep their current flow, and answers still lock at the first connection.

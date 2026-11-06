@@ -38,6 +38,11 @@ function harness() {
     ownerId: string,
     ownerKind: string | null,
   ) => {
+    // Meetings now require a name; these request tests use an event without questions.
+    await testDb()
+      .insert(users)
+      .values({ id: userId, displayName: userId })
+      .onDuplicateKeyUpdate({ set: { id: userId } });
     const res = await app.request("/geekykey/v1/meetings", {
       method: "POST",
       headers: {
@@ -149,15 +154,11 @@ test("tapping a token sends its owner a request, with the tapper's name and an I
   assert.deepEqual((await meOf("alex")).connection_requests, []);
 });
 
-test("a request from someone with no name of their own, or who never logged in here, says Guest", async () => {
+test("someone with no name sends no request", async () => {
   const { tap, meOf } = harness();
   await named("no-name", "Guest");
-  assert.equal(await tap("no-name", "E", "bea", "B"), "waiting");
-  assert.equal(await tap("never-logged-in", "G", "bea", "B"), "waiting");
-  assert.deepEqual(
-    (await meOf("bea")).connection_requests.map(({ display_name }) => display_name),
-    ["Guest", "Guest"],
-  );
+  assert.equal(await tap("no-name", "E", "bea", "B"), "answers_needed");
+  assert.deepEqual((await meOf("bea")).connection_requests, []);
 });
 
 test("a request shows the tapper's current name, and the newest comes first", async () => {

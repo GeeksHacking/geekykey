@@ -3,12 +3,10 @@ import { AvatarColourPicker } from "@/features/passport/avatar/avatar-colour-pic
 import { DisplayNameForm } from "@/features/passport/display-name-form";
 
 /**
- * Agreement 13: when `has_name` is false the passport and the dashboard's group card ask for
- * a name, with Save and Skip. It sits above the stamps or the group card rather than in front
- * of them, so it never blocks the screen. Beside it, the guest picks their avatar's colours
- * (FRO-105), which apply at once and need no Save.
+ * The name step in participant setup (the API agreement's section 13, BAC-144).
+ * Organizers keep their existing inline prompt with Skip. Avatar colours apply without Save.
  */
-export function NamePrompt({ userId, onSkip }: { userId: string; onSkip: () => void }) {
+export function NamePrompt({ userId, onSkip }: { userId: string; onSkip?: () => void }) {
   return (
     <section
       aria-labelledby="name-prompt-heading"
@@ -20,9 +18,11 @@ export function NamePrompt({ userId, onSkip }: { userId: string; onSkip: () => v
       <div className="mt-3 grid gap-6 md:grid-cols-2">
         <DisplayNameForm
           secondaryAction={
-            <Button type="button" variant="ghost" onClick={onSkip}>
-              Skip
-            </Button>
+            onSkip ? (
+              <Button type="button" variant="ghost" onClick={onSkip}>
+                Skip
+              </Button>
+            ) : undefined
           }
         />
         <AvatarColourPicker userId={userId} />

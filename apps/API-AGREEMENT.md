@@ -835,6 +835,12 @@ already have been made.
 
 Everything the participant dashboard and passport view need in one call.
 
+BAC-144, approved for the next version as Adam reported: before showing any participant screen,
+the screens require `user.has_name` and an answer to every question in the event's `questions`.
+This uses the multiple-choice draft's `questions` and `user.answers`, where each question ID maps
+to its chosen choice ID. With `questions: null` or an empty list, only the name is needed.
+Organizers keep their current flow. No skip remembered by the browser bypasses this check.
+
 **Auth:** `event_session`, any role.
 
 **Response `200`**
@@ -863,7 +869,7 @@ Everything the participant dashboard and passport view need in one call.
 - `user.id` is the user's ID from the login (section 2). `user.role` is worked out from the
   organizer list.
 - `user.has_name` is `false` while `display_name` is the default, `Guest`, because neither a
-  login nor the user has given a name. Then the passport asks "What should we call you?" (8.7).
+  login nor the user has given a name. Then participant setup asks "What should we call you?" (8.7).
   A name the user sets counts, even `Guest`.
 - `user.kind` is the user's kind (ADR 0006), the first one the GeekyKey Service gave: in a tap's
   hand-off (11.2) or in a login link (11.9), from the kind of the user's token. A later one, from
@@ -1091,7 +1097,7 @@ token's UID, in any separator style ([Token UID](#token-uid)), and My tokens sen
 
 Sets the name the event shows for the current user: on the passport, the scan log and the
 export. From 0.12, at `Checkpoint 7`, it also sets the user's answer in the answers game, and it
-sets the user's bio and contact line (BAC-147, approved for the next version). The passport asks for it when `has_name` is `false` (8.1), and lets the user change it
+sets the user's bio and contact line (BAC-147, approved for the next version). Participant setup asks for the name when `has_name` is `false` (8.1), and the dashboard and passport let the user change it
 later. Anyone can set it, not only a guest. A Google user may not want their full Google name
 shown.
 
@@ -1117,6 +1123,12 @@ can change it at any time, and the hunt shows the newest.
 code points for `bio` and 80 for `contact_line`, with its issue under `["bio"]` or
 `["contact_line"]`. A blank string or `null` clears it, and `GET` then gives `null`. The contact
 line is free text, such as a Telegram handle (BAC-147, approved for the next version).
+
+BAC-144 keeps the multiple-choice draft's first-connection lock on existing answers. A user
+whose older connection fixed incomplete answers can fill a missing question, including a question
+added later, but cannot change an answer already on the current list. A mixed request that also
+tries to change a fixed answer still answers `409 answers_fixed` and changes nothing. A past
+connection keeps its stored match, including `null` for an older connection.
 
 A request where any field breaks its rule changes nothing.
 
@@ -1165,7 +1177,7 @@ shows only the sentence that the token belongs to someone else.
   settings take meetings (11.10), all at once within the 4 seconds. `meetings` has one item for
   each, in the order of `events` in `/me` (8.4), and is empty when none takes them.
 - `status` is the Event Service's answer (11.10): `waiting`, `connected`, `already_connected` or
-  `same_kind`. Section 13 has what the token page shows for each. A tap makes one request at most,
+  `same_kind`, or `answers_needed` (BAC-144, approved for the next version). Section 13 has what the token page shows for each. A tap makes one request at most,
   so `waiting` can come again for the same pair.
 - `owner_name` is the Event Service's answer too (11.10): the owner's current name, or `null`. The
   GeekyKey Service passes it on and stores no names. The answer gives no user ID, token UID or
@@ -1245,6 +1257,7 @@ BAC-149, a draft for the next version. The user answers a connection request tha
 
 | `status` | Meaning |
 |---|---|
+| `answers_needed` | Either person still needs their name or an answer. The request stays, and no connection is made (BAC-144, approved for the next version) |
 | `connected` | The two are connected, and both see the reveal at their next read of `/me` |
 | `already_connected` | Another accept or a tap back made the connection just before this one |
 | `same_kind` | Across token kinds, the two aren't of different kinds. There's no connection, and the request has gone |
@@ -1252,7 +1265,11 @@ BAC-149, a draft for the next version. The user answers a connection request tha
 | `no_group` | Across groups, either isn't in a group. There's no connection, and the request has gone |
 
 The Event Service fixes both people's answers and works out the match when it makes the
-connection, as it does for a tap back.
+connection, as it does for a tap back. Before checking kinds and groups, it checks the person
+accepting has finished setup. Before completing the connection, it also checks the sender, since
+an older request may have been sent before setup was required. The same sender check applies to
+a tap back. This is the exception Adam approved on 6 Nov to BAC-144's tapper-only rule.
+Organizers remain exempt from setup. A request not waiting for this user still answers `not_found`.
 
 **Response to `decline`, `204`**, with no body. The tapper isn't told.
 
@@ -2039,11 +2056,15 @@ other's tokens (BAC-143, approved for the next version).
 
 | `status` | Meaning |
 |---|---|
+| `answers_needed` | The tapper has no name or has not answered every question, or a tap back would complete an older request whose sender has not finished. No new half is kept, no request is sent, and no connection is made. An existing request stays (BAC-144, approved for the next version) |
 | `waiting` | The owner has a connection request from the user, which waits until they answer it. A request already waiting stays as it is |
 | `connected` | The user had a request from the owner, so this tap accepted it, and the two are connected |
 | `already_connected` | The two were connected before. Nothing changes |
 | `same_kind` | The two aren't of different kinds ([Connections](#connections)), so no request is sent |
 
+- The participant's name and every answer are checked before kinds and groups. An event without
+  an answers game needs only the name. Organizers keep their existing behaviour. Only the tapper
+  is checked when sending a request; the owner can finish setup before accepting it (BAC-144).
 - When the rule refuses the tap (`same_kind` above, and BAC-140's `same_group` and `no_group`), a
   request already waiting from the owner goes too, because a tap back counts as accepting it. A
   request the user sent stays.
@@ -2057,6 +2078,9 @@ other's tokens (BAC-143, approved for the next version).
   statuses don't change with connection requests (BAC-149): `waiting` only comes to mean a request
   rather than a half that expires. A GeekyKey Service from before `owner_name` ignores the field.
   A GeekyKey Service that knows the field reads an answer without it as `null`.
+  A GeekyKey Service from before `answers_needed` treats that unknown status as a malformed
+  answer and gives `unavailable`, with no half kept by the Event Service. An older Event Service
+  still gives its existing statuses, which the new GeekyKey Service accepts (BAC-144).
 - Like the tap hand-off, it leaves out the token's UID (11.8).
 - Its JSON Schemas join the others in `packages/handoff/json-schema/` (11.7).
 
@@ -2140,14 +2164,20 @@ There are no GeekyKey admin screens.
   is `true` with its game, and no way to change it.
 - On `invalid_login_link`, the Event screens say "That link has expired. Tap your token again to
   get back in."
-- When `has_name` is `false`, the passport asks "What should we call you?", with **Save** and
-  **Skip**. Skipping keeps `Guest`, and the passport keeps a way to set the name later. On
-  `validation_failed` it says "Use 1 to 30 characters." Under the field it says **"The organisers,
-  your group, and anyone who taps your token or whose token you tap see it."** (BAC-143 and
-  FRO-127, approved for the next version).
-- When `question` isn't `null` and `answer` is (8.1), the passport asks the question in its own
-  words, after the name, with **Save**. On `validation_failed` it says "Use 1 to 60 characters."
-  The question can be answered later, and the hunt still works without it.
+- Participants finish setup before the dashboard, passport, activity or group card can render
+  (BAC-144, approved for the next version). Setup is headed **"Your name and answers"**, or **"Your name"** without questions. When `has_name` is `false`, setup asks **"What should
+  we call you?"**, with **Save** and no Skip. On `validation_failed` it says **"Use 1 to 30
+  characters."** Under the field it says **"The organisers, your group, and anyone who taps your
+  token or whose token you tap see it."** (BAC-143 and FRO-127).
+- After the name, setup asks every unanswered question in the event's order, one at a time,
+  with each choice as a button and no Skip. It says **"Your answers"**, **"Question {n} of
+  {total}"** and **"Answer all {total} to get your match when you connect."** Saving the last
+  answer opens the event. Someone who skipped before sees setup on their next visit. Someone
+  who finished opens the dashboard directly. With no answers game, setup asks only for the
+  name. Organizers see no new step. The dashboard and passport keep **Change name** and the
+  answers summary; answers can be changed until the first connection, as Adam confirmed for
+  BAC-144. The name can always be changed. Someone whose older connection fixed incomplete
+  answers is asked only for the missing answers, and can fill them without changing past matches.
 - The hunt shows the target as **"Find the person who answered "{answer}" to "{question}"."**
   With no target it says **"Find someone from another group."** Its **Skip** button is greyed
   out until `can_skip`, with **"Skip in {n} min"** under it, rounded up. On `skip_locked` it
@@ -2177,16 +2207,19 @@ There are no GeekyKey admin screens.
   `same_group` answer it says **"You're in the same group. Find someone from another group."**,
   and on `no_group` **"You both need to be in a group to connect. Ask an organiser."**, each with
   **Dismiss**. On `not_found` it says nothing, since the read takes the request away. Declining
-  says nothing.
+  says nothing. On `answers_needed`, it says **"You both need to finish your names and answers
+  in the event before connecting."**, with **Dismiss**; the request stays for a retry after setup
+  (BAC-144).
 - After the meeting call (8.8), when an item's `owner_name` isn't `null`, the token page replaces "This token belongs to someone else" with **"This token
   belongs to {owner_name}."** and **"If you're carrying this token, it isn't yours. Swap it back
   with {owner_name}."** (BAC-143, approved for the next version). Under that sentence or those two,
   it shows: for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149,
   a draft for Ethan to approve); for `connected`,
   **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
+  `answers_needed`, **"You both need to finish your names and answers in the event before connecting."**; for
   `same_kind`, **"You're in the same group. Find someone from another group."**; and for
   `unavailable`, **"Couldn't connect. Tap their token again."** With `waiting`, `connected` or
-  `already_connected`, it offers the event's button, which opens the dashboard through a login
+  `already_connected` or `answers_needed`, it offers the event's button, which opens the dashboard through a login
   link (8.6), where the reveal comes.
 - When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
   shows the stamp's `name` with a button, **"Open their page?"**, which opens `link` in a new
@@ -2322,3 +2355,4 @@ Closed on 2026-10-10:
 | 2026-11-05 | For the next version, which Ethan approved: tapping a token says whose it is, so people notice when tokens are swapped (BAC-143, from the 5 Nov trial). **New, at `Checkpoint 7`:** `owner_name` in the meeting hand-off's answer (11.10) and in each item of 8.8's answer, the owner's current name or `null`. **Changed:** 8.7 says who sees a name, 8.5's row says only the lookup gives no name, and section 13 adds the token page's two sentences and the name prompt's line, which also covers FRO-127. No field is removed, and either service works with the other's previous version. |
 | 2026-11-05 | For the next version, whose fields Ethan approved: participants write a bio and a contact line, and people they connect with see both (BAC-147, from the 5 Nov meeting with Julian). **New, at `Checkpoint 7`:** `bio` and `contact_line` in 8.1's `user` and in 8.7's request and answer, and in each item of `connections`, which also gains `display_name` from BAC-136, all three the other person's current values. **Changed:** 8.1 no longer says a connection gives no name, 8.7 says who sees them, and section 13 adds the dashboard's profile and what the reveal and the list show. No field is removed. A screen reads a missing one as `null`, so it works with an Event Service from before them, and the Event Service goes first, since an older one refuses a request with only these two. Ethan's approval covers the fields and the ticket's rules. Section 13 marks the wording the ticket didn't set as a draft for him. |
 | 2026-11-06 | For the next version, which Ethan approved, as Adam confirmed on 6 Nov: each new connection keeps a die roll for each person (BAC-150). **New, at `Checkpoint 7`:** `connections[].dice` in 8.1, with `your_roll`, `their_roll` and `result` (`win` or `loss`), or `null` for an older connection. Section 4 records that the Event Service rolls independently from 1 to 6 once per pair, keeps the rolls, and gives both people a win on equal rolls. Section 13 adds the roll sentence and the win, loss and tie sentences for the reveal and the list. Ethan approved the fields and all four sentences. No field is removed, and a screen reads missing dice as `null` to work with the previous Event Service. |
+| 2026-11-06 | For the next version, approved as Adam reported: participants give a name and every answer before opening the event (BAC-144). 8.1 and section 13 require setup without Skip and keep organizers on their current flow. 8.8 and 11.10 add `answers_needed`, checked before kinds and groups, with no half kept. The token page says "You both need to finish your names and answers in the event before connecting." and offers the event button. Older GeekyKey Services give `unavailable` for the new status. Names remain editable, and answers keep their first-connection lock, as Adam confirmed on 6 Nov. Adam also approved filling missing locked answers and checking an older request's sender before a tap back or accept completes it; 8.7 and 8.10 record those cases, and past matches stay unchanged. |
