@@ -341,7 +341,12 @@ void setup() {
   showScreen("Connecting", "to WiFi...");
   const unsigned long wifiStartedAt = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - wifiStartedAt < WIFI_JOIN_WAIT_MS) {
-    delay(500);
+    // The serial port is read while waiting, so "setup" works straight after a
+    // restart, and a station that can't join its Wi-Fi can be given another.
+    for (int i = 0; i < 25; i++) {
+      pollSerial();
+      delay(20);
+    }
     Serial.print(".");
   }
   if (WiFi.status() == WL_CONNECTED) {

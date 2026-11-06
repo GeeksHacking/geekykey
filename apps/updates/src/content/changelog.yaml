@@ -2333,3 +2333,11 @@
     The draft API agreement now describes the answers game as built: multiple-choice questions, and
     a percentage match for two people who connect, with the answers they share shown 2 minutes
     later. A token's kind can also be its colour, so people can see who they can connect with.
+
+- id: setup-mode-during-wifi-wait
+  date: 2026-11-06
+  area: firmware
+  change: >-
+    A station now goes into its setup mode as soon as someone types setup, even while it's still
+    trying to join its Wi-Fi. Before, a station that couldn't join had to wait 20 seconds first,
+    and opening its USB port restarted that wait.

@@ -136,7 +136,9 @@ start-up prints, update the list at the bottom of `setup_page.html`. Its tests
      "No line ending" works).
    - **macOS terminal:** `screen /dev/cu.usbmodem* 115200`. To leave `screen`, press Ctrl-A, then
      K, then Y.
-3. Opening the port may restart the station. Wait until it prints `Ready`.
+3. Opening the port may restart the station. Wait until it prints `Connecting to WiFi`. You don't
+   need to wait for `Ready`, so a station that can't join its Wi-Fi can be given another one
+   straight away.
 4. Type `setup` and press Enter.
 
 The screen shows `Setup mode` / `Use USB serial`. The station takes no taps and sends no heartbeats
