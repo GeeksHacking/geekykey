@@ -13,7 +13,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AccountMenu } from "@/components/layout/account-menu";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
+import type { EventServiceLink } from "@/api/types";
 import { THEME_STORAGE_KEY } from "@/lib/theme";
+
+const EVENTS: EventServiceLink[] = [
+  { id: "showcase", name: "Capstone Showcase", url: "https://event.geekshacking.com" },
+];
+const MORE_EVENTS: EventServiceLink[] = [
+  ...EVENTS,
+  { id: "grad-tea", name: "Grad Tea", url: "https://event.geekshacking.com" },
+];
 
 /**
  * The menu uses Link, so it needs a router. The router's own outlet renders the menu,
@@ -178,5 +187,71 @@ describe("AccountMenu", () => {
 
     await waitFor(() => expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("light"));
     localStorage.clear();
+  });
+
+  it("offers Event screens when there is one event", async () => {
+    const onEvent = vi.fn();
+    const { user } = await renderMenu(
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        events={EVENTS}
+        onEvent={onEvent}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Event screens" }));
+
+    expect(onEvent).toHaveBeenCalledWith("showcase");
+  });
+
+  it("offers each event in a submenu when there are several", async () => {
+    const onEvent = vi.fn();
+    const { user } = await renderMenu(
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        events={MORE_EVENTS}
+        onEvent={onEvent}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await openMenu(user);
+    const trigger = screen.getByRole("menuitem", { name: "Event screens" });
+    trigger.focus();
+    await user.keyboard("{ArrowRight}");
+    await user.click(await screen.findByRole("menuitem", { name: "Grad Tea" }));
+
+    expect(onEvent).toHaveBeenCalledWith("grad-tea");
+  });
+
+  it("hides Event screens when there are no events", async () => {
+    const { user } = await renderMenu(
+      <AccountMenu userId={SEEDED_PARTICIPANT_ID} isGeekyKeyAdmin={false} onSignOut={() => {}} />,
+    );
+
+    await openMenu(user);
+    expect(screen.queryByRole("menuitem", { name: "Event screens" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Event screens off while the link is being made", async () => {
+    const { user } = await renderMenu(
+      <AccountMenu
+        userId={SEEDED_PARTICIPANT_ID}
+        isGeekyKeyAdmin={false}
+        events={EVENTS}
+        onEvent={() => {}}
+        eventLinkPending
+        onSignOut={() => {}}
+      />,
+    );
+
+    await openMenu(user);
+    expect(screen.getByRole("menuitem", { name: "Event screens" })).toHaveAttribute(
+      "data-disabled",
+    );
   });
 });

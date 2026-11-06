@@ -5,12 +5,13 @@ import { toast } from "sonner";
 import { describeError } from "@/api/errors";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
-import { SiteSwitch } from "@/components/layout/site-switch";
+import { EventLinkError } from "@/components/event-link-error";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
 import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
 import { EVENT_SCREENS_URL } from "@/lib/constants";
 import { useMe, useSession } from "@/lib/session";
+import { useLoginLink } from "@/lib/use-login-link";
 
 /**
  * Joins the session to a signed-in screen: the account menu, and the sign-out that
@@ -21,6 +22,7 @@ export function SessionFrame({ children }: { children: ReactNode }) {
   const session = useSession();
   const navigate = useNavigate();
   const release = useReleaseMyTokens();
+  const openEvent = useLoginLink();
   // Who the warning is about. It closes if /me comes to name someone else while it's open.
   const [warnedUserId, setWarnedUserId] = useState<string | null>(null);
   const [checkFailed, setCheckFailed] = useState(false);
@@ -77,15 +79,20 @@ export function SessionFrame({ children }: { children: ReactNode }) {
 
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-3xl flex-col px-6">
-      <header className="flex items-center justify-end gap-1 py-4">
-        <SiteSwitch events={me.events} />
-        <ThemeToggle />
-        <AccountMenu
-          userId={me.user.id}
-          isGeekyKeyAdmin={me.user.is_geekykey_admin}
-          canViewTokenKinds={me.user.can_view_token_kinds}
-          onSignOut={() => void chooseSignOut()}
-        />
+      <header className="flex flex-col gap-1 py-4">
+        <div className="flex items-center justify-end gap-1">
+          <ThemeToggle />
+          <AccountMenu
+            userId={me.user.id}
+            isGeekyKeyAdmin={me.user.is_geekykey_admin}
+            canViewTokenKinds={me.user.can_view_token_kinds}
+            events={me.events}
+            onEvent={(eventId) => openEvent.mutate(eventId)}
+            eventLinkPending={openEvent.isPending || openEvent.isSuccess}
+            onSignOut={() => void chooseSignOut()}
+          />
+        </div>
+        {openEvent.error ? <EventLinkError error={openEvent.error} /> : null}
         <GuestSignOutDialog
           open={warnedUserId === me.user.id}
           hasTokens={me.tokens.length > 0}

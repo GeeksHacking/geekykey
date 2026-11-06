@@ -1,6 +1,14 @@
-import { CaretDown, ListNumbers, SignOut, Stamp, UserCircle } from "@phosphor-icons/react";
+import {
+  CalendarBlank,
+  CaretDown,
+  ListNumbers,
+  SignOut,
+  Stamp,
+  UserCircle,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
+import type { EventServiceLink } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,6 +16,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HOME_PATH } from "@/lib/constants";
@@ -18,6 +29,12 @@ interface AccountMenuProps {
   isGeekyKeyAdmin: boolean;
   /** A GeekyKey admin or an organizer, from /me: they get a link to Token kinds. */
   canViewTokenKinds?: boolean;
+  /** The events in /me, for the Event screens item. None hides it. */
+  events?: EventServiceLink[];
+  /** Opens the login link for one event (agreement 8.6). */
+  onEvent?: (eventId: string) => void;
+  /** A link is being made, so the Event items stay off. */
+  eventLinkPending?: boolean;
   onSignOut: () => void;
 }
 
@@ -30,6 +47,9 @@ export function AccountMenu({
   userId,
   isGeekyKeyAdmin,
   canViewTokenKinds = false,
+  events = [],
+  onEvent,
+  eventLinkPending = false,
   onSignOut,
 }: AccountMenuProps) {
   return (
@@ -57,6 +77,31 @@ export function AccountMenu({
             My tokens
           </Link>
         </DropdownMenuItem>
+        {events.length === 1 ? (
+          <DropdownMenuItem disabled={eventLinkPending} onSelect={() => onEvent?.(events[0]!.id)}>
+            <CalendarBlank aria-hidden />
+            Event screens
+          </DropdownMenuItem>
+        ) : null}
+        {events.length > 1 ? (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger disabled={eventLinkPending}>
+              <CalendarBlank aria-hidden />
+              Event screens
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {events.map((event) => (
+                <DropdownMenuItem
+                  key={event.id}
+                  disabled={eventLinkPending}
+                  onSelect={() => onEvent?.(event.id)}
+                >
+                  {event.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        ) : null}
         {canViewTokenKinds ? (
           <DropdownMenuItem asChild>
             <Link to="/admin/token-kinds">
