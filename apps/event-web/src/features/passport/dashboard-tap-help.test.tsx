@@ -17,17 +17,8 @@ describe("DashboardTapHelp", () => {
   it("doesn't tell a reader who has claimed a token to claim it", () => {
     render(<DashboardTapHelp />);
 
-    expect(screen.queryByText(/with your phone to claim it/)).not.toBeInTheDocument();
-    expect(screen.getByText(/No token yet\?/)).toBeInTheDocument();
-  });
-
-  it("still reaches My tokens for someone without a token", () => {
-    render(<DashboardTapHelp />);
-
-    expect(screen.getByRole("link", { name: "My tokens" })).toHaveAttribute(
-      "href",
-      "http://localhost:5174/",
-    );
+    expect(screen.queryByText(/claim/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
   });
 
   it("no longer owns the user ID or its copy button", () => {

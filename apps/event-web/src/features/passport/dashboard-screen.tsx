@@ -10,8 +10,9 @@ import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
-import { QuestionsPrompt } from "@/features/passport/questions-prompt";
+import { MyTokensLink } from "@/features/passport/my-tokens-link";
 import { ProfileSection } from "@/features/passport/profile-section";
+import { QuestionsPrompt } from "@/features/passport/questions-prompt";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
 import { UserIdRow } from "@/features/passport/user-id-row";
 import { useMe } from "@/lib/session";
@@ -39,6 +40,7 @@ export function DashboardScreen() {
         <DisplayNameRow displayName={me.user.display_name} />
       ) : null}
       <UserIdRow userId={me.user.id} />
+      <MyTokensLink />
 
       {me.recent_taps.length === 0 ? <DashboardTapHelp /> : null}
 

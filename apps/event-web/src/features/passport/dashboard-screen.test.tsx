@@ -6,6 +6,7 @@ import { createMockClient } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { Connection, MeResponse, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
+import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { makeMe } from "@/test/make-me";
 import { createTestProviders } from "@/test/providers";
@@ -22,6 +23,16 @@ vi.mock("@/components/layout/section-heading", () => ({
 }));
 
 const baseMe = makeMe({ user: { id: "user-1" } });
+
+const firstTap: MeResponse["recent_taps"][number] = {
+  id: 1,
+  station_id: "station-1",
+  station_name: "Entry Arch",
+  status: "accepted",
+  source: "nfc",
+  tapped_at: null,
+  received_at: "2026-10-01T00:00:00.000Z",
+};
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -77,24 +88,25 @@ describe("DashboardScreen", () => {
         name: "Tap your token at any station to start collecting stamps",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("keeps the My tokens link before and after the first tap", () => {
+    state.me = baseMe;
+    const first = renderDashboard();
+    expect(screen.getAllByRole("link", { name: "My tokens" })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "My tokens" })).toHaveAttribute(
+      "href",
+      GEEKYKEY_SCREENS_URL,
+    );
+    first.unmount();
+
+    state.me = { ...baseMe, recent_taps: [firstTap] };
+    renderDashboard();
     expect(screen.getByRole("link", { name: "My tokens" })).toBeInTheDocument();
   });
 
   it("keeps the user ID but removes the hint after the first tap", () => {
-    state.me = {
-      ...baseMe,
-      recent_taps: [
-        {
-          id: 1,
-          station_id: "station-1",
-          station_name: "Entry Arch",
-          status: "accepted",
-          source: "nfc",
-          tapped_at: null,
-          received_at: "2026-10-01T00:00:00.000Z",
-        },
-      ],
-    };
+    state.me = { ...baseMe, recent_taps: [firstTap] };
     renderDashboard();
 
     expect(
@@ -102,7 +114,7 @@ describe("DashboardScreen", () => {
         name: "Tap your token at any station to start collecting stamps",
       }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "My tokens" })).toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
   });
 });
