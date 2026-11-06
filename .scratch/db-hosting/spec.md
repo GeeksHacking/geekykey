@@ -469,6 +469,15 @@ They aren't in the API agreement: nothing but the GeekyKey Service calls them, a
 
 **The token kinds** (ADR 0006, BAC-113) are a second table beside the stand-in, `token_kinds` (`uid`, `kind`). A GeekyKey admin fills it from the token writer's log at `key.geekshacking.com/admin/token-kinds` (BAC-139). That screen also shows how many tokens each kind has, which organizers can read too, from a list of their user IDs in the GeekyKey Service's settings, `TOKEN_KIND_VIEWERS`, since it can't read an Event Service's. It calls the GeekyKey Service, which calls two more stand-in routes with the same key: `GET /claims-stand-in/v1/token-kinds` answers `{ "kinds": [{ "kind", "tokens" }] }`, and `POST /claims-stand-in/v1/token-kinds` takes `{ "tokens": [{ "uid", "kind" }] }`, up to 500, and answers `{ "new", "changed", "unchanged" }`. A load removes nothing. `/owners` reads it with each owner, in the same query, so a tap makes no extra request. The clear between the grad tea and the showcase keeps it, since a kind belongs to the token. The Event Service keeps each user's first kind in its own `user_kinds`, which the clear empties with the users. At the switch, the list moves to the Portal or stays as GeekyKey's own. The switch is in section 6, "After the showcase".
 
+BAC-152 adds the admin list and removal behind the same `Claims` module. `listKindTokens`
+returns every UID with a kind or a claim, and `removeKind` returns `removed`, `claimed` or
+`not_found`. The stand-in's `GET /claims-stand-in/v1/token-kinds/tokens` answers
+`{ "tokens": [{ "uid", "kind", "owner_id", "claimed_at" }] }`, including claimed UIDs without
+kinds. `DELETE /claims-stand-in/v1/token-kinds/{uid}` answers `{ "result" }` with one of those
+three outcomes. Both require the stand-in's key. Claim and removal lock the kind row in the
+same order, so removal cannot take a kind from a claim already in progress. Organisers still
+read only totals; the public shapes and screen wording are in agreement section 10 and 13.
+
 Sources: [What does the GeekyKey Service need from the Portal's tag APIs?](issues/17-portal-tag-apis.md), [How do we protect our public addresses without blocking the stations?](issues/18-protecting-public-addresses.md), [Where do token owners live until the Portal's tag APIs exist, and what does the token page do?](issues/23-token-owners-before-portal.md), [Does a station wait for the Event Service's verdict?](issues/25-wait-for-the-verdict.md), [What does the GeekyKey Service cache, and in which store?](issues/26-what-to-cache.md)
 
 ---

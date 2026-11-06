@@ -70,7 +70,9 @@ export function fakeServices(config: Config) {
         | "release"
         | "tokens"
         | "kindTotals"
-        | "loadKinds",
+        | "loadKinds"
+        | "listKindTokens"
+        | "removeKind",
         Answer
       >
     >,
@@ -142,6 +144,34 @@ export function fakeServices(config: Config) {
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([kind, tokens]) => ({ kind, tokens })),
         });
+      }
+      if (request.method === "GET" && path === "/token-kinds/tokens") {
+        if (fake.answers.listKindTokens) return fake.answers.listKindTokens(request);
+        const uids = [...new Set([...fake.kinds.keys(), ...fake.owners.keys()])].sort();
+        return Response.json({
+          tokens: uids.map((uid) => {
+            const owner_id = fake.owners.get(uid) ?? null;
+            return {
+              uid,
+              kind: fake.kinds.get(uid) ?? null,
+              owner_id,
+              claimed_at:
+                owner_id === null
+                  ? null
+                  : (fake.tokens.get(owner_id)?.find((t) => t.uid === uid)?.claimed_at ?? fake.now),
+            };
+          }),
+        });
+      }
+      if (request.method === "DELETE" && path.startsWith("/token-kinds/")) {
+        if (fake.answers.removeKind) return fake.answers.removeKind(request);
+        const uid = path.slice("/token-kinds/".length);
+        const result = fake.owners.has(uid)
+          ? "claimed"
+          : fake.kinds.delete(uid)
+            ? "removed"
+            : "not_found";
+        return Response.json({ result });
       }
       if (request.method === "POST" && path === "/token-kinds") {
         if (fake.answers.loadKinds) return fake.answers.loadKinds(request);

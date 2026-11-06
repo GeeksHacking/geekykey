@@ -143,6 +143,7 @@ export interface TokenKindsLoaded {
  * 2). It is this app's own service being down, not GeeksHacking's claims.
  */
 export type ErrorCode =
+  | "token_claimed"
   | "validation_failed"
   | "unauthenticated"
   // Agreement 0.4 section 7.2: POST /auth/firebase, on both services.
@@ -166,4 +167,12 @@ export interface ApiIssue {
 export interface ErrorBody {
   error: ErrorCode;
   issues?: ApiIssue[];
+}
+
+/** The GeekyKey admin's token list (agreement 10.2, BAC-152). */
+export interface AdminKindToken {
+  uid: string;
+  kind: string | null;
+  owner_id: string | null;
+  claimed_at: string | null;
 }

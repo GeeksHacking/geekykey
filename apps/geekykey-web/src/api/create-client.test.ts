@@ -180,6 +180,8 @@ describe("createAppClient", () => {
         "firebaseLogin",
         "getToken",
         "getTokenKinds",
+        "listKindTokens",
+        "removeTokenKind",
         "loadTokenKinds",
         "logout",
         "me",

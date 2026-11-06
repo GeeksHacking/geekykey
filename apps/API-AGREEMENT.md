@@ -148,6 +148,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1` |
 | `forbidden` | 403 | Not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs |
 | `not_found` | 404 | |
+| `token_claimed` | 409 | A GeekyKey admin tried to remove the kind of a claimed token (10.3) |
 | `token_taken` | 409 | Someone else has claimed this token |
 | `token_limit_reached` | 409 | The user already holds 3 tokens |
 | `already_played` | 409 | The user has already played this connection's reaction test (8.11) |
@@ -230,7 +231,7 @@ the session cookie by default.
 | Organizer | `event_session`, with a user ID on the Event Service's organizer list (not `users.role`) | The Event Service, including its stations |
 | Map screen | `event_session`, with a user ID on the Event Service's map screen list | The Event Service, for the map's data (9.10) as well as what a participant calls |
 | User | `gk_session` | The GeekyKey Service: the token page and My tokens |
-| GeekyKey admin | `gk_session`, with a user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens |
+| GeekyKey admin | `gk_session`, with a user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens and manage token kinds (section 10) |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
 | GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
 
@@ -492,6 +493,10 @@ them.
 | GET | `/api/v1/tokens/{uid}` | User | `Implemented` | What the token page shows |
 | POST | `/api/v1/tokens/{uid}/claim` | User | `Implemented` | Claim a token |
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Implemented` | Release a token |
+| GET | `/api/v1/admin/token-kinds` | GeekyKey admin, organiser | `Checkpoint 7` | Totals by kind |
+| POST | `/api/v1/admin/token-kinds` | GeekyKey admin | `Checkpoint 7` | Load token kinds |
+| GET | `/api/v1/admin/token-kinds/tokens` | GeekyKey admin | `Checkpoint 7` | Every UID, kind and current claim |
+| DELETE | `/api/v1/admin/token-kinds/{uid}` | GeekyKey admin | `Checkpoint 7` | Remove an unclaimed UID from the kinds list |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
 | POST | `/api/v1/tokens/{uid}/meet` | User | `Implemented` | The user tapped someone else's token, which sends a connection request or accepts theirs |
 
@@ -1877,8 +1882,61 @@ Event Service didn't register, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ## 10. GeekyKey admin endpoints
 
-None since version 0.3. The station jobs moved to each Event Service's organizers (9.7 to 9.9).
-A GeekyKey admin's one job is releasing someone else's token, which is 8.3 with `owner_id`.
+The station jobs moved to each Event Service's organizers in version 0.3 (9.7 to 9.9).
+A GeekyKey admin releases someone else's token through 8.3 with `owner_id`, and manages
+GeekyKey's list of token kinds below. Station jobs remain with each Event Service.
+
+The additions below are a draft for the next agreement version (BAC-139 and BAC-152).
+The route shapes and wording here are what this branch builds against.
+
+### 10.1 Totals and loading: `GET` and `POST /api/v1/admin/token-kinds`
+
+**Auth:** `gk_session`. GET allows a GeekyKey admin or a user in `TOKEN_KIND_VIEWERS`, the
+organisers copied from the Event Services' settings. POST allows only a GeekyKey admin.
+`GET /api/v1/me` (8.4) adds optional `user.can_view_token_kinds`, true for either list;
+an older service omits it, meaning false. Admin status remains `user.is_geekykey_admin`.
+
+GET answers `200` with `{ "kinds": [{ "kind": "E", "tokens": 12 }] }`, sorted by kind.
+These totals count only UIDs on the kinds list, including claimed ones.
+POST takes `{ "tokens": [{ "uid": "04A1B2C3D4E5F6", "kind": "E" }] }`, from 1 to 500
+entries. UIDs follow section 4, and a loaded kind is one capital letter. A repeated UID
+takes its last kind. The response is `200` with `{ "new": 1, "changed": 0, "unchanged": 0 }`.
+Loading removes nothing. Each load logs `token_kinds_loaded` with `loaded_by` and the counts.
+
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed` (POST), `rate_limited`,
+`claims_unavailable`. A load whose reply is lost may still have happened.
+
+### 10.2 Every token: `GET /api/v1/admin/token-kinds/tokens`
+
+**Auth:** `gk_session`, GeekyKey admins only, checked before reading or validating the request.
+An organiser without GeekyKey admin access gets `403 forbidden` and no UIDs or owner IDs.
+
+Answers `200` with `{ "tokens": [...] }`, every UID on the kinds list or currently claimed,
+once each, in ascending UID order. There is no server pagination or filtering; the screen
+searches by UID, filters by kind (including no kind), and pages 50 rows at a time.
+Each item has `uid`, `kind` (string or null), `owner_id` (string or null) and `claimed_at`
+(UTC ISO timestamp or null). An unclaimed token has null for both claim fields. A claimed
+token without a kind is included with `kind: null`. A previously loaded kind may have up
+to 32 characters, as in 11.2; loading still takes one capital letter.
+
+**Errors:** `unauthenticated`, `forbidden`, `rate_limited`, `claims_unavailable`.
+The list has the same 4-second claims deadline as other GeekyKey screen requests.
+
+### 10.3 Remove a kind: `DELETE /api/v1/admin/token-kinds/{uid}`
+
+**Auth:** `gk_session`, GeekyKey admins only, checked before path validation.
+UIDs follow section 4, including normalisation and percent-encoding path separators.
+No request body. Success is `204` with no body. Only the kinds-list entry is removed;
+this never releases a claim. The UID can be loaded again through 10.1.
+
+A currently claimed UID answers `409 token_claimed`, including one with no kind.
+A UID with no claim and no kind answers `404 not_found`. The claims stand-in checks the
+claim and removes the kind in one transaction, serialised with claiming the same token.
+Each successful removal logs `token_kind_removed` with `removed_by` (the admin's user ID)
+and `uid`. A lost reply can mean the removal happened; refresh before trying again.
+
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found`, `token_claimed`,
+`rate_limited`, `claims_unavailable`.
 
 ---
 
@@ -2219,7 +2277,8 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form; `POST /api/v1/login-links` for the event buttons |
 | Signing out from the Event screens, `/sign-out#user=<user ID>` | `GET /api/v1/me`, then for a guest `DELETE /api/v1/tokens/{uid}` for each token and `POST /auth/logout`, or `POST /api/v1/login-links` if they stay (section 3, "Browser sessions") |
 
-There are no GeekyKey admin screens.
+The GeekyKey admin screen is Token kinds at `/admin/token-kinds`, described in section 10.
+Organisers can open it for totals only.
 
 **The Event screens** (`apps/event-web`, `event.geekshacking.com`)
 
@@ -2389,6 +2448,22 @@ on one set of screens leaves the other's alone.
 
 ---
 
+### Token kinds screen (BAC-152 draft)
+
+Only GeekyKey admins see the "Every token" list, with "UID", "Kind", "Owner ID" and
+"Claimed" columns. An unclaimed token says "Unclaimed" and "Not claimed". A missing kind
+says "No kind". Controls say "Search by UID", "Filter by kind", "All kinds", "Refresh",
+"Previous" and "Next". No matches says "No tokens match. Clear the search or choose another kind."
+Above the list: "Includes claimed tokens with no kind. Release a claimed token before removing its kind."
+
+"Remove" opens "Remove this UID from the kinds list?", names the UID and says
+"This removes its kind. You can load the UID again from the token writer's log. A claimed token must be released first."
+The buttons say "Cancel" and "Remove" ("Removing" while pending).
+`token_claimed` says "This token is claimed. Release it first, then remove it from the kinds list."
+A lost removal reply says to check the refreshed list before trying again. The list and totals
+refresh after a load or removal, including a failed request whose reply may have been lost.
+Organisers retain the totals from 10.1 and see no token list or removal controls.
+
 ## 14. Open questions
 
 | Question | Owner | Needed by |
@@ -2502,3 +2577,4 @@ Closed on 2026-10-10:
 | 2026-11-06 | For the next version: a guest who signs out on the GeekyKey screens is logged out of the Event screens too, so the next person on a shared phone doesn't find their passport (FRO-144). Section 3 has the GeekyKey screens open a new `/sign-out` page on the Event screens, which logs out only the user the address names, then opens the GeekyKey login. Section 13 adds the sentence for a failed log out, which Ethan hasn't seen. A Google or GeeksHacking user's Event session stays. No service changes, and no endpoint or field changes: the page uses 7.3 and 8.1. |
 | 2026-11-06 | For the next version: the agreement follows the decisions of 3 and 4 November (BAC-126). The grad tea was scrapped on 3 November, so the opening and sections 4 and 12 no longer plan for it. The hunt was canceled on 4 November (BAC-121), so 8.9 is empty, and `GET /api/v1/hunt`, `POST /api/v1/hunt/skip`, `tapped_you`, `409 skip_locked` and the hunt's lines in section 13 are removed. The export is now Joshua's analysis, not the A/B analysis, with its shape unchanged. Removing them is an exception to section 1's rule, as in the row of 2026-10-07: no service ever built the routes or sent the field, and no screen uses any of them now, since BAC-149 took `tapped_you` out of the passport. Nothing else is removed. |
 | 2026-11-06 | Version 0.13, a draft: the answers game's shapes as built (BAC-116, BAC-119, BAC-120, FRO-112). This replaces PR #235's text of 3 November, whose halves with a 2-minute limit BAC-149 has since replaced, and whose hunt was canceled (BAC-126). **Answers:** `/me` (8.1) gives `questions`, the answers game's list with each question's choices, or `null` without the game, and `user.answers`, a map from question ID to choice ID. `PATCH /api/v1/me` (8.7) takes a partial `answers` map, refuses an unknown question or choice under `["answers", "<question ID>"]`, and answers the new `409 answers_fixed` when a change would alter an answer the user's first connection fixed. **Connections:** each item in `/me`'s `connections` gives `match`, a whole percent or `null`, kept from when they connected; `shared`, the IDs of the questions both answered the same, `null` until `shared_at`; and `shared_at`, 2 minutes after the connection. Each connection adds 1 point (section 4). 8.8, 11.10 and 9.10's `connections` are `Implemented`: one 4-second deadline covers the claims calls and the hand-offs, `user_kind` is `null` if the tapper released their first token in between, a failed hand-off is logged as `meeting_handoff_failed`, and the map numbers a new pair by user ID. An `EVENT_SERVICES` entry takes meetings with `"meetings": true`. A token's kind can be its colour (HAR-30). Section 13 has the match's sentences as the screens show them. 0.12's `user.question`, `user.answer`, `answer` in 8.7 and the connection's `question` and `answer` are replaced; 0.12 was a draft and they were never built. |
+| 2026-11-06 | Draft additions for the next version: section 10 records BAC-139's token-kind totals and loading, and BAC-152's admin-only list and removal. New list fields are `uid`, `kind`, `owner_id` and `claimed_at`; new error `token_claimed` (409). Section 13 adds the list and removal wording. No fields or routes are removed. |

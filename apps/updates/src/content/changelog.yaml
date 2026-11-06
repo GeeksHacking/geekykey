@@ -2341,3 +2341,9 @@
     A station now goes into its setup mode as soon as someone types setup, even while it's still
     trying to join its Wi-Fi. Before, a station that couldn't join had to wait 20 seconds first,
     and opening its USB port restarted that wait.
+- id: token-kinds-admin-list
+  date: 2026-11-06
+  area: backend
+  change: >-
+    GeekyKey admins can search every token by UID, filter by kind and see its current claim.
+    They can remove a UID loaded by mistake after releasing any claim, while organisers still see only totals.

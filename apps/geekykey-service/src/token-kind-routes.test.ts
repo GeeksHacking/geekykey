@@ -55,7 +55,16 @@ function harness({ claimsDeadlineMs = 4000 } = {}) {
       body: JSON.stringify(body),
     });
 
-  return { config, fake, logIn, totals, load };
+  const list = (cookie?: string) =>
+    app.request("/api/v1/admin/token-kinds/tokens", {
+      headers: cookie === undefined ? {} : { Cookie: cookie },
+    });
+  const remove = (uid: string, cookie?: string) =>
+    app.request(`/api/v1/admin/token-kinds/${encodeURIComponent(uid)}`, {
+      method: "DELETE",
+      headers: cookie === undefined ? {} : { Cookie: cookie },
+    });
+  return { config, fake, logIn, totals, load, list, remove };
 }
 
 /** Captures the Worker's log lines for one test, as parsed JSON. */
@@ -262,6 +271,93 @@ test("when the stand-in doesn't answer, both answer claims_unavailable", async (
   assert.equal(lines.filter((l) => l.message === "claims_unavailable").length, 2);
   assert.equal(
     lines.some((l) => l.message === "token_kinds_loaded"),
+    false,
+  );
+});
+
+test("only a GeekyKey admin can list tokens and remove a kind", async () => {
+  const { fake, logIn, list, remove } = harness();
+  for (const user of [null, "organizer-1", "user-1"]) {
+    const cookie = user === null ? undefined : await logIn(user);
+    for (const res of [await list(cookie), await remove("bad-uid", cookie)]) {
+      assert.equal(res.status, user === null ? 401 : 403);
+      assert.deepEqual(await res.json(), {
+        error: user === null ? "unauthenticated" : "forbidden",
+      });
+    }
+  }
+  assert.deepEqual(fake.sent, []);
+});
+
+test("an admin lists claimed tokens without kinds and removes an unclaimed kind with an audit log", async () => {
+  const { fake, logIn, list, remove, totals, load } = harness();
+  const cookie = await logIn("admin-1");
+  fake.kinds.set("04A1B2C3D4E5F6", "E");
+  fake.owners.set("DEADBEEF", "user-1");
+  fake.tokens.set("user-1", [{ uid: "DEADBEEF", claimed_at: fake.now }]);
+  const res = await list(cookie);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    tokens: [
+      { uid: "04A1B2C3D4E5F6", kind: "E", owner_id: null, claimed_at: null },
+      { uid: "DEADBEEF", kind: null, owner_id: "user-1", claimed_at: fake.now },
+    ],
+  });
+  const lines = captureLogs();
+  const removed = await remove("04:a1:b2:c3:d4:e5:f6", cookie);
+  assert.equal(removed.status, 204);
+  assert.equal(await removed.text(), "");
+  assert.deepEqual(await (await totals(cookie)).json(), { kinds: [] });
+  assert.ok(
+    lines.some(
+      (line) =>
+        line.message === "token_kind_removed" &&
+        line.removed_by === "admin-1" &&
+        line.uid === "04A1B2C3D4E5F6",
+    ),
+  );
+  assert.equal((await remove("04A1B2C3D4E5F6", cookie)).status, 404);
+  assert.equal(
+    (await load({ tokens: [{ uid: "04A1B2C3D4E5F6", kind: "E" }] }, cookie)).status,
+    200,
+  );
+  const claimed = await remove("DEADBEEF", cookie);
+  assert.equal(claimed.status, 409);
+  assert.deepEqual(await claimed.json(), { error: "token_claimed" });
+});
+
+test("the admin list carries all 500 tokens through the claims response check", async () => {
+  const { fake, logIn, list } = harness();
+  for (let i = 0; i < 500; i++) {
+    fake.kinds.set(`04${i.toString(16).padStart(12, "0").toUpperCase()}`, "E");
+  }
+  const res = await list(await logIn("admin-1"));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { tokens: { uid: string }[] };
+  assert.equal(body.tokens.length, 500);
+  assert.equal(body.tokens[499]?.uid, "040000000001F3");
+});
+
+test("new routes reject malformed stand-in replies without logging a successful removal", async () => {
+  const { fake, logIn, list, remove } = harness();
+  const cookie = await logIn("admin-1");
+  fake.answers.listKindTokens = async () => Response.json({ tokens: [{ uid: "DEADBEEF" }] });
+  fake.answers.removeKind = async () => Response.json({ result: "not_an_outcome" });
+  const lines = captureLogs();
+  for (const res of [await list(cookie), await remove("DEADBEEF", cookie)]) {
+    assert.equal(res.status, 503);
+    assert.deepEqual(await res.json(), { error: "claims_unavailable" });
+  }
+  assert.ok(
+    lines.some(
+      (line) =>
+        line.message === "claims_unavailable" &&
+        line.uid === "DEADBEEF" &&
+        line.user_id === "admin-1",
+    ),
+  );
+  assert.equal(
+    lines.some((line) => line.message === "token_kind_removed"),
     false,
   );
 });

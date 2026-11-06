@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
@@ -53,24 +53,32 @@ export function claimsStandInRoutes({ key }: { key: string }) {
 
       // The first claim wins: the uid is the table's key, so of two claims
       // at once, one insert fails, and that claim reads who won.
-      const claimedAt = new Date().toISOString();
-      try {
-        await db.insert(tokens).values({ uid, userId: user_id, claimedAt });
-        return c.json({ result: "claimed", claimed_at: claimedAt });
-      } catch (err) {
-        if (errorCode(err) !== "ER_DUP_ENTRY") throw err;
-      }
-      const [current] = await db
-        .select({ userId: tokens.userId, claimedAt: tokens.claimedAt })
-        .from(tokens)
-        .where(eq(tokens.uid, uid))
-        .limit(1);
-      if (current?.userId === user_id) {
-        return c.json({ result: "already_yours", claimed_at: current.claimedAt });
-      }
-      // Nothing about someone else's claim, not even when. A token released
-      // since the insert failed is free again, and a second try claims it.
-      return c.json({ result: "taken", claimed_at: null });
+      return await db.transaction(async (tx) => {
+        // Share the kind row's lock with removal: a claim already in progress keeps its kind.
+        await tx
+          .select({ uid: tokenKinds.uid })
+          .from(tokenKinds)
+          .where(eq(tokenKinds.uid, uid))
+          .for("update");
+        const claimedAt = new Date().toISOString();
+        try {
+          await tx.insert(tokens).values({ uid, userId: user_id, claimedAt });
+          return c.json({ result: "claimed", claimed_at: claimedAt });
+        } catch (err) {
+          if (errorCode(err) !== "ER_DUP_ENTRY") throw err;
+        }
+        const [current] = await tx
+          .select({ userId: tokens.userId, claimedAt: tokens.claimedAt })
+          .from(tokens)
+          .where(eq(tokens.uid, uid))
+          .limit(1);
+        if (current?.userId === user_id) {
+          return c.json({ result: "already_yours", claimed_at: current.claimedAt });
+        }
+        // Nothing about someone else's claim, not even when. A token released
+        // since the insert failed is free again, and a second try claims it.
+        return c.json({ result: "taken", claimed_at: null });
+      });
     })
     .post(
       "/tokens/:uid/release",
@@ -103,6 +111,53 @@ export function claimsStandInRoutes({ key }: { key: string }) {
         .groupBy(tokenKinds.kind)
         .orderBy(asc(tokenKinds.kind));
       return c.json({ kinds: totals });
+    })
+    .get("/token-kinds/tokens", async (c) => {
+      // The union includes claimed tokens that were never on the kinds list (BAC-152).
+      const rows = await c.var.db
+        .select({
+          uid: tokenKinds.uid,
+          kind: sql<string | null>`${tokenKinds.kind}`.as("kind"),
+          owner_id: sql<string | null>`${tokens.userId}`.as("owner_id"),
+          claimed_at: sql<string | null>`${tokens.claimedAt}`.as("claimed_at"),
+        })
+        .from(tokenKinds)
+        .leftJoin(tokens, eq(tokens.uid, tokenKinds.uid))
+        .unionAll(
+          c.var.db
+            .select({
+              uid: tokens.uid,
+              kind: sql<string | null>`${tokenKinds.kind}`.as("kind"),
+              owner_id: sql<string | null>`${tokens.userId}`.as("owner_id"),
+              claimed_at: sql<string | null>`${tokens.claimedAt}`.as("claimed_at"),
+            })
+            .from(tokens)
+            .leftJoin(tokenKinds, eq(tokenKinds.uid, tokens.uid))
+            .where(isNull(tokenKinds.uid)),
+        )
+        .orderBy(sql`uid`);
+      return c.json({ tokens: rows });
+    })
+    .delete("/token-kinds/:uid", tokenPath, async (c) => {
+      const { uid } = c.req.valid("param");
+      const result = await c.var.db.transaction(async (tx) => {
+        // Lock in the same order as claiming. A separate owners lookup could race a claim.
+        const [listed] = await tx
+          .select({ uid: tokenKinds.uid })
+          .from(tokenKinds)
+          .where(eq(tokenKinds.uid, uid))
+          .for("update");
+        const [owner] = await tx
+          .select({ uid: tokens.uid })
+          .from(tokens)
+          .where(eq(tokens.uid, uid))
+          .for("update");
+        if (owner) return "claimed";
+        if (!listed) return "not_found";
+        await tx.delete(tokenKinds).where(eq(tokenKinds.uid, uid));
+        return "removed";
+      });
+      return c.json({ result });
     })
     .post(
       "/token-kinds",
