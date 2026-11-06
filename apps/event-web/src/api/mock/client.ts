@@ -612,7 +612,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
     // Agreement 8.7. The name is trimmed and 1 to 30 code points, `answers` sets only the
     // questions it names, and blank or null clears the bio or the contact line. A request that
-    // breaks any rule changes nothing.
+    // breaks any rule, or whose name someone else has, changes nothing.
     updateMe: (input: UpdateMeRequest) =>
       call((): UpdateMeResponse => {
         const user = currentUser();
@@ -685,6 +685,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         }
 
         if (name !== undefined) {
+          // BAC-145: nobody chose the default name, and a name of your own can be saved again.
+          const sameNamed = data.users.filter(
+            (other) =>
+              other.has_name && other.display_name?.trim().toLowerCase() === name.toLowerCase(),
+          );
+          if (sameNamed.length > 0 && !sameNamed.includes(user)) fail("name_taken");
           user.display_name = name;
           user.has_name = true;
         }

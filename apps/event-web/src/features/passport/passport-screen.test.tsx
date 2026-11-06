@@ -146,6 +146,23 @@ describe("the name prompt (agreement 8.1, 8.7 and 13)", () => {
     expect(updateMe).not.toHaveBeenCalled();
   });
 
+  it("says a name someone else has is taken, under the field, and keeps what was typed", async () => {
+    const { api, user } = renderPassport(SEEDED_GUEST_ID);
+    await screen.findByRole("heading", { name: PROMPT });
+
+    await user.type(screen.getByLabelText("Name"), " priya RAMAN ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const refusal = await screen.findByText("Someone already has this name. Try another.");
+    expect(screen.getByLabelText("Name")).toHaveAccessibleDescription(
+      expect.stringContaining(refusal.textContent ?? ""),
+    );
+    expect(screen.getByLabelText("Name")).toHaveValue(" priya RAMAN ");
+    await expect(api.me()).resolves.toMatchObject({
+      user: { display_name: "Guest", has_name: false },
+    });
+  });
+
   it("takes 30 emoji, which are 30 characters though 60 UTF-16 units", async () => {
     const { api, user } = renderPassport(SEEDED_GUEST_ID);
     await screen.findByRole("heading", { name: PROMPT });

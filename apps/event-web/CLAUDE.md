@@ -298,7 +298,8 @@ Rules:
    - `forbidden`: render the 403 view in place. Do not redirect.
    - `not_found`: inline message on the action that caused it. Answering a connection request
      says nothing, because the next `/me` takes the request away (draft in section 13, BAC-149).
-   - `name_taken`: under the name in the Groups screen's dialog (draft for agreement 0.14).
+   - `name_taken`: under the name, in the Groups screen's dialog (draft for agreement 0.14) and in
+     the participant's name form, which has its own sentence (section 13, BAC-145).
    - `no_groups` / `too_few_participants`: under the Groups screen's header, where Allocate was
      pressed, for as long as Allocate shows. `too_few_participants` also carries `needed`, which
      `ApiError.needed` keeps so the sentence can say how many more people to wait for (draft for

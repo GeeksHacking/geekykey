@@ -1115,6 +1115,16 @@ Every field is optional, and a request needs at least one.
 script is allowed. A name that breaks the rule gets `validation_failed`, with its issue under the
 path `["display_name"]`, and leaves the name as it was.
 
+A name someone else in the event has gets `409 name_taken` and leaves the name as it was (BAC-145,
+approved for the next version). Names are compared after trimming, and names that differ only in
+capitals are the same, as group names are. The default `Guest` doesn't count while `has_name` is
+`false`, since nobody chose it. Saving your own current name again works, with different capitals
+too. Of two saves of one name at once, one gets it.
+
+The check runs only when a name is saved, so duplicates from before it stay until one of those
+people changes their name. A name that comes from a login isn't checked. It still counts when
+someone else saves it.
+
 `answer` follows the same rules, trimmed and then 1 to 60 code points, with its issue under
 `["answer"]`. A user whose `question` is `null` gets `validation_failed` for any `answer`. The user
 can change it at any time, and the hunt shows the newest.
@@ -1130,7 +1140,7 @@ added later, but cannot change an answer already on the current list. A mixed re
 tries to change a fixed answer still answers `409 answers_fixed` and changes nothing. A past
 connection keeps its stored match, including `null` for an older connection.
 
-A request where any field breaks its rule changes nothing.
+A request where any field breaks its rule, or whose name is taken, changes nothing.
 
 **Response `200`**, with the `user` object from 8.1:
 
@@ -1151,7 +1161,7 @@ A request where any field breaks its rule changes nothing.
   the organizers' screens, the export, the map and the memory card never show them (BAC-147,
   approved for the next version).
 
-**Errors:** `unauthenticated`, `validation_failed`, and `rate_limited`
+**Errors:** `unauthenticated`, `validation_failed`, `name_taken` (BAC-145), and `rate_limited`
 ([Rate limits](#rate-limits)).
 
 ### 8.8 `POST /api/v1/tokens/{uid}/meet` on the GeekyKey Service (`Checkpoint 7`)
@@ -2167,7 +2177,9 @@ There are no GeekyKey admin screens.
 - Participants finish setup before the dashboard, passport, activity or group card can render
   (BAC-144, approved for the next version). Setup is headed **"Your name and answers"**, or **"Your name"** without questions. When `has_name` is `false`, setup asks **"What should
   we call you?"**, with **Save** and no Skip. On `validation_failed` it says **"Use 1 to 30
-  characters."** Under the field it says **"The organisers, your group, and anyone who taps your
+  characters."** On `name_taken`, here and wherever the name changes, it says **"Someone already
+  has this name. Try another."** under the field and keeps what was typed (BAC-145, approved for
+  the next version). Under the field it says **"The organisers, your group, and anyone who taps your
   token or whose token you tap see it."** (BAC-143 and FRO-127).
 - After the name, setup asks every unanswered question in the event's order, one at a time,
   with each choice as a button and no Skip. It says **"Your answers"**, **"Question {n} of
@@ -2356,3 +2368,4 @@ Closed on 2026-10-10:
 | 2026-11-05 | For the next version, whose fields Ethan approved: participants write a bio and a contact line, and people they connect with see both (BAC-147, from the 5 Nov meeting with Julian). **New, at `Checkpoint 7`:** `bio` and `contact_line` in 8.1's `user` and in 8.7's request and answer, and in each item of `connections`, which also gains `display_name` from BAC-136, all three the other person's current values. **Changed:** 8.1 no longer says a connection gives no name, 8.7 says who sees them, and section 13 adds the dashboard's profile and what the reveal and the list show. No field is removed. A screen reads a missing one as `null`, so it works with an Event Service from before them, and the Event Service goes first, since an older one refuses a request with only these two. Ethan's approval covers the fields and the ticket's rules. Section 13 marks the wording the ticket didn't set as a draft for him. |
 | 2026-11-06 | For the next version, which Ethan approved, as Adam confirmed on 6 Nov: each new connection keeps a die roll for each person (BAC-150). **New, at `Checkpoint 7`:** `connections[].dice` in 8.1, with `your_roll`, `their_roll` and `result` (`win` or `loss`), or `null` for an older connection. Section 4 records that the Event Service rolls independently from 1 to 6 once per pair, keeps the rolls, and gives both people a win on equal rolls. Section 13 adds the roll sentence and the win, loss and tie sentences for the reveal and the list. Ethan approved the fields and all four sentences. No field is removed, and a screen reads missing dice as `null` to work with the previous Event Service. |
 | 2026-11-06 | For the next version, approved as Adam reported: participants give a name and every answer before opening the event (BAC-144). 8.1 and section 13 require setup without Skip and keep organizers on their current flow. 8.8 and 11.10 add `answers_needed`, checked before kinds and groups, with no half kept. The token page says "You both need to finish your names and answers in the event before connecting." and offers the event button. Older GeekyKey Services give `unavailable` for the new status. Names remain editable, and answers keep their first-connection lock, as Adam confirmed on 6 Nov. Adam also approved filling missing locked answers and checking an older request's sender before a tap back or accept completes it; 8.7 and 8.10 record those cases, and past matches stay unchanged. |
+| 2026-11-06 | For the next version, approved as Adam reported: two participants can't have the same name, since organisers call names out (BAC-145, from the 5 Nov trial). **New:** `409 name_taken` from 8.7 for a name someone else has, compared after trimming and whatever its capitals, with the default `Guest` not counting. Section 13 adds its sentence. No field changes. Names already the same stay until one person changes theirs. An older Event Service never refuses a name. A screen from before this shows the Groups screen's sentence for the code, so the screens deploy with the Event Service. |

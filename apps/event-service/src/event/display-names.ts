@@ -110,10 +110,40 @@ export async function saveLogin(db: Db, userId: string, loginName: string | null
     });
 }
 
-/** Sets the name the user chose, which a login never replaces from now on. */
-export async function setOwnName(db: Db | Tx, userId: string, name: string): Promise<void> {
-  await db
+/**
+ * Whether two names would confuse people: the same after trimming, whatever their capitals. It
+ * trims both, since a name from a login is stored as it came.
+ */
+function sameName(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * Sets the name the user chose, which a login never replaces from now on, or
+ * gives `"name_taken"` when someone else has it (the API agreement's 8.7). The
+ * default name is nobody's (hasName), and saving a name of their own again
+ * works even when someone had it before this rule.
+ *
+ * It locks every user's row, not only the ones with this name, since TiDB
+ * locks only the rows a read finds and two saves at once would find none. So
+ * of two at once, the second sees the first. The check is here rather than in
+ * a collation for the reason createGroup() gives (groups.ts).
+ */
+export async function setOwnName(
+  tx: Tx,
+  userId: string,
+  name: string,
+): Promise<"name_taken" | null> {
+  const everyone = await tx
+    .select({ id: users.id, displayName: users.displayName, nameSetAt: users.nameSetAt })
+    .from(users)
+    .for("update");
+  const sameNamed = everyone.filter((user) => hasName(user) && sameName(user.displayName, name));
+  const alreadyTheirs = sameNamed.some((user) => user.id === userId);
+  if (sameNamed.length > 0 && !alreadyTheirs) return "name_taken";
+  await tx
     .update(users)
     .set({ displayName: name, nameSetAt: isoNow() })
     .where(eq(users.id, userId));
+  return null;
 }
