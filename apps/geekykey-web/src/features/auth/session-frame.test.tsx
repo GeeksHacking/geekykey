@@ -402,12 +402,28 @@ describe("the signed-in shell", () => {
     expect(await screen.findByRole("button", { name: "Change theme" })).toBeInTheDocument();
   });
 
-  it("offers the event switch from the session's events", async () => {
+  it("offers Event screens from the session's events", async () => {
+    const user = userEvent.setup();
     signedInAs(SEEDED_PARTICIPANT_ID);
     await screen.findByRole("heading", { name: "My tokens" });
 
-    const sites = screen.getByRole("navigation", { name: "Sites" });
-    expect(within(sites).getByText("Key")).toHaveAttribute("aria-current", "page");
-    expect(within(sites).getByRole("button", { name: "Event" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Sites" })).not.toBeInTheDocument();
+
+    const menu = await openAccountMenu(user);
+    expect(within(menu).getByRole("menuitem", { name: "Event screens" })).toBeInTheDocument();
+  });
+
+  it("shows the login-link sentence under the header when Event screens fails", async () => {
+    const user = userEvent.setup();
+    const { api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("heading", { name: "My tokens" });
+    vi.spyOn(api, "createLoginLink").mockRejectedValueOnce(new ApiError(429, "rate_limited"));
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: "Event screens" }));
+
+    expect(
+      await screen.findByText("Too many tries. Wait a minute and try again."),
+    ).toBeInTheDocument();
   });
 });
