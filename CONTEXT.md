@@ -72,9 +72,14 @@ _Avoid_: tag, card
 **Token kind**:
 What sort of token a token is, written onto it with its address when it's made, such as one of
 the showcase's houses or a veteran token. GeekyKey keeps it with the token across events, and each
-event decides what a kind does there. All tokens look the same, so a kind shows only on screens
-and stations (ADR 0006).
+event decides what a kind does there. A token's kind can be its colour (HAR-30). Otherwise it shows
+only on screens and stations (ADR 0006).
 _Avoid_: class, type; "house" is the showcase's name for four of its kinds
+
+**Token design**:
+The printed shape around a token's NFC tag, such as the hexagon or a keychain. It can change from
+event to event, and it says nothing about the token's kind.
+_Avoid_: shell, form factor
 
 **Claim**:
 Binding an unclaimed token to yourself by tapping it with your phone, or typing its UID, and logging
@@ -91,10 +96,11 @@ _Avoid_: holder
 
 **Token page**:
 The GeekyKey Service's page that a phone opens when it taps a token. It lets a user claim an
-unclaimed token, and shows the owner their own token with a way into each event. Anyone else sees
-that the token is taken and, once the tap's half is answered, the owner's name if they have one of
-their own (BAC-143) and their bio if they have one (BAC-151); a GeekyKey admin sees neither and can
-also release it there.
+unclaimed token, and shows the owner their own token with a way into each event. When anyone else
+opens it, the page sends a half by itself and shows what came of it. They see that the token is
+taken and, once the half is answered, the owner's name if they have one of their own (BAC-143) and
+their bio if they have one (BAC-151). A GeekyKey admin sends no half, sees neither and can also
+release the token there.
 
 **Login link**:
 A short-lived link from the GeekyKey Service's pages that logs a user in to an event's screens as
@@ -193,6 +199,11 @@ both (BAC-150). Older connections have no rolls. Since BAC-156 the Event Service
 or the reaction test at random for each new connection. In the reaction test each person taps
 their own phone when it turns green, within 2 minutes of connecting, and the faster time wins.
 _Avoid_: dual tap, link between tags
+
+**Challenge**:
+What a new connection plays: the dice or the reaction test. The connection keeps its result, and a
+win or a tie can earn a reward. The API still calls this field `game`.
+_Avoid_: game, which is an activity that stations feed
 
 **Bio**:
 A short piece of free text a user writes about themselves. The people they have connected with
