@@ -1,6 +1,7 @@
 import type { Connection, MeResponse } from "@/api/types";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ConnectionRow } from "@/features/passport/connection-row";
+import { useDiceWaiting } from "@/features/passport/dice/dice-shown";
 
 /**
  * A connection has no ID, and two can share `connected_at`. The other fields that never
@@ -17,6 +18,8 @@ function connectionKey(connection: Connection): string {
  * the answers game only runs on top of connections.
  */
 export function ConnectionList({ me }: { me: MeResponse }) {
+  // The reveal's dice wait for a tap, so this list keeps their result back until they land.
+  const waiting = useDiceWaiting(me);
   if (me.connections.length === 0 && me.questions === null) return null;
   return (
     <section>
@@ -24,7 +27,12 @@ export function ConnectionList({ me }: { me: MeResponse }) {
       {me.connections.length > 0 ? (
         <ul aria-label="Connections" className="divide-y rounded-lg border">
           {me.connections.map((connection) => (
-            <ConnectionRow key={connectionKey(connection)} connection={connection} me={me} />
+            <ConnectionRow
+              key={connectionKey(connection)}
+              connection={connection}
+              me={me}
+              showDice={connection !== waiting}
+            />
           ))}
         </ul>
       ) : (

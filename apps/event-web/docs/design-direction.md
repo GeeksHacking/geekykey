@@ -90,7 +90,7 @@ on it, the old item fades out while the new one fades in, and both show half lit
 `src/test/highlight-motion.test.ts` fails on a file that has both, and
 `e2e/tab-highlight.spec.ts` checks the nav frame by frame. That is the rule on phones and on
 the organiser screens. The exceptions are on the big screens, apart from the grad tea's
-avatar:
+avatar and the reveal's dice:
 
 - The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
   reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back
@@ -102,6 +102,10 @@ avatar:
   piece's cubes fly in over about a second, the figure bobs and sways while nobody turns it, and
   with every piece on it turns round once while gold confetti falls for 1.5 s. The memory card
   sways in its dialog. With reduced motion the figure stands still and none of them play.
+- The reveal's dice (FRO-133), at every width, phones included. While they wait for a tap they
+  turn slowly and hover. A tap tumbles them for about 1.4 s onto the rolls, and the winner's die,
+  or both on equal rolls, pulses once. With reduced motion they never load, and the reveal shows
+  the plain numbers.
 
 Animate only a change, and never a poll that changed nothing. A plain, tested function
 decides what changed between two polls (`features/map/pulses.ts`,
@@ -121,3 +125,9 @@ so a phone never downloads it. The organiser screens never load it. Everywhere e
 passport's `features/passport/desktop-motion.ts`, which imports `passport-motion.ts` only when
 `matchMedia` matches. The passport can't use `useGSAP`, because a static import of
 `@gsap/react` brings GSAP with it. Both read reduced motion through `gsap.matchMedia()`.
+
+One exception on phones, which Ethan agreed on 5 Nov 2026 (FRO-133): the reveal's 3D dice. GSAP
+and three.js load through `import()` in `features/passport/dice/load-dice-stage.ts`, only when a
+new connection's dice wait for a tap, and never on a phone that asks for reduced motion or has
+no WebGL, which shows the plain numbers. The dice check reduced motion before the download
+rather than through `gsap.matchMedia()`, so a phone that asks for it never downloads GSAP at all.

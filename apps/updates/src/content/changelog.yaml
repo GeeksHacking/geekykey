@@ -2258,3 +2258,11 @@
   change: >-
     The dashboard has a My tokens link that stays before and after the first tap, saying it is
     where to see and release tokens. The tap help no longer repeats the claim line.
+- id: dice-roll-3d
+  date: 2026-11-06
+  area: frontend
+  change: >-
+    A new connection's reveal shows two 3D dice that roll when the participant taps them, and they
+    land on the rolls the Event Service kept, so both phones show the same result. The trade-offs
+    we accept: a phone downloads three.js and GSAP when a roll waits, and a phone without WebGL or
+    with reduced motion shows the plain numbers instead.
