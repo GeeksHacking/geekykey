@@ -1,4 +1,5 @@
 import type { MeetingStatus } from "@geekykey/handoff";
+import type { Tx } from "./games.ts";
 import type { Db } from "../db/pool.ts";
 
 /*
@@ -83,18 +84,22 @@ export interface ConnectionsWeb {
   links: [number, number][];
 }
 
+/** The base checks event names, answers and organizer roles; the game decides when to check. */
+export type ReadyToConnect = (db: Db | Tx, userId: string) => Promise<boolean>;
+
 export interface ConnectionsGame {
   /** What each connection adds to a user's points, the same whatever the match. */
   readonly pointsEach: number;
   /** Takes one half, at `now`, and gives the meeting hand-off's status. */
-  meet(db: Db, meeting: Meeting, now: Date): Promise<MeetingStatus>;
+  meet(db: Db, meeting: Meeting, now: Date, isReady: ReadyToConnect): Promise<MeetingStatus>;
   /** The requests waiting for the user, newest first. */
   requestsFor(db: Db, userId: string): Promise<ConnectionRequest[]>;
   /**
-   * Accepts a request at `now`. The rule runs again, and a refusal takes the request. It gives
+   * Accepts a request at `now`. The rule runs again; a kind/group refusal takes the request,
+   * while unfinished setup keeps it for a retry. It gives
    * `not_found` when no such request waits for the user.
    */
-  accept(db: Db, answer: RequestAnswer, now: Date): Promise<AcceptResult>;
+  accept(db: Db, answer: RequestAnswer, now: Date, isReady: ReadyToConnect): Promise<AcceptResult>;
   /** Declines a request, and gives false when no such request waits for the user. */
   decline(db: Db, answer: RequestAnswer): Promise<boolean>;
   /** The user's connections, newest first, as they stand at `now`. */

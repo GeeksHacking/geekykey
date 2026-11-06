@@ -19,10 +19,16 @@ interface ParticipantShellProps {
   user: User;
   onSignOut: () => void;
   children: ReactNode;
+  showNavigation?: boolean;
 }
 
 /** Phone first: bottom tab bar under md, the same links move into the header above it. */
-export function ParticipantShell({ user, onSignOut, children }: ParticipantShellProps) {
+export function ParticipantShell({
+  user,
+  onSignOut,
+  children,
+  showNavigation = true,
+}: ParticipantShellProps) {
   useRouteHeadingFocus();
 
   return (
@@ -40,11 +46,13 @@ export function ParticipantShell({ user, onSignOut, children }: ParticipantShell
           <Link to="/" aria-label="GeekyKey home" className="shrink-0">
             <Wordmark />
           </Link>
-          <nav aria-label="Sections" className="hidden items-center gap-1 md:flex">
-            {NAV.map((item) => (
-              <NavLink key={item.to} variant="top" {...item} />
-            ))}
-          </nav>
+          {showNavigation ? (
+            <nav aria-label="Sections" className="hidden items-center gap-1 md:flex">
+              {NAV.map((item) => (
+                <NavLink key={item.to} variant="top" {...item} />
+              ))}
+            </nav>
+          ) : null}
           <div className="flex min-w-0 items-center gap-1">
             <ThemeToggle />
             <AccountMenu
@@ -62,16 +70,18 @@ export function ParticipantShell({ user, onSignOut, children }: ParticipantShell
       >
         {children}
       </main>
-      <nav
-        aria-label="Sections"
-        className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
-      >
-        <div className="mx-auto flex max-w-3xl px-2">
-          {NAV.map((item) => (
-            <NavLink key={item.to} variant="bar" {...item} />
-          ))}
-        </div>
-      </nav>
+      {showNavigation ? (
+        <nav
+          aria-label="Sections"
+          className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
+        >
+          <div className="mx-auto flex max-w-3xl px-2">
+            {NAV.map((item) => (
+              <NavLink key={item.to} variant="bar" {...item} />
+            ))}
+          </div>
+        </nav>
+      ) : null}
     </div>
   );
 }

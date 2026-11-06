@@ -23,10 +23,13 @@ export function QuestionsPrompt({
   answers,
   answersFixed = false,
   onAnswersFixed,
+  required = false,
 }: {
   questions: Question[];
   answers: Record<string, string>;
   answersFixed?: boolean;
+  /** The participant setup step cannot leave a question for later. */
+  required?: boolean;
   /** Read /me again after a 409, so the connection that fixed the answers lands in the cache. */
   onAnswersFixed: () => void;
 }) {
@@ -38,11 +41,12 @@ export function QuestionsPrompt({
 
   if (questions.length === 0) return null;
 
-  const fixed = answersFixed || fixedByService;
+  const locked = answersFixed || fixedByService;
+  const fixed = !required && locked;
   const answeredQuestions = questions.filter((question) => Object.hasOwn(answers, question.id));
   const answered = answeredQuestions.length;
   const complete = answered === questions.length;
-  const current = nextQuestion(questions, answers, skipped);
+  const current = nextQuestion(questions, answers, required ? new Set() : skipped);
   const editing = editingId
     ? (questions.find((question) => question.id === editingId) ?? null)
     : null;
@@ -125,8 +129,9 @@ export function QuestionsPrompt({
               total={questions.length}
               pending={updateMe.isPending}
               error={error}
+              autoFocus={required}
               onAnswer={(choiceId) => void answer(current, choiceId)}
-              onSkip={skip}
+              onSkip={required ? undefined : skip}
             />
           ) : (
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -149,9 +154,9 @@ export function QuestionsPrompt({
             <AnswersSummary
               questions={answeredQuestions}
               answers={answers}
-              editable
+              editable={!locked}
               pending={updateMe.isPending}
-              onChange={startEditing}
+              onChange={locked ? undefined : startEditing}
             />
           ) : null}
         </>

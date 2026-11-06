@@ -570,11 +570,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         };
       }, false),
 
-    // BAC-149, a draft for the agreement's next version. Whatever accepting answers, the request
-    // goes, and only `connected` makes a connection.
+    // An unfinished pair keeps its request for a retry (agreement 8.10, BAC-144).
+    // Every other accept takes it, and only `connected` makes a connection.
     acceptConnectionRequest: (requestId) =>
       call((): AcceptConnectionRequestResponse => {
         const user = currentUser();
+        const waiting = user.connection_requests?.find(({ id }) => id === requestId);
+        if (waiting?.accept_answer === "answers_needed") return { status: "answers_needed" };
         const request = takeConnectionRequest(user, requestId);
         const status = request.accept_answer ?? "connected";
         if (status === "connected") {
@@ -671,9 +673,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
         if (issues.length) fail("validation_failed", issues);
 
-        // 0.13: the first connection fixes the answers, so any request with `answers` is
-        // refused, even an empty map. A name-only request still succeeds.
-        if (input.answers !== undefined && (user.connections?.length ?? 0) > 0) {
+        // The first connection fixes existing answers. BAC-144 lets older incomplete
+        // answers be filled, while an empty map or an existing question still gets 409.
+        if (
+          input.answers !== undefined &&
+          (user.connections?.length ?? 0) > 0 &&
+          (Object.keys(input.answers).length === 0 ||
+            Object.keys(input.answers).some((id) => Object.hasOwn(user.answers ?? {}, id)))
+        ) {
           fail("answers_fixed");
         }
 

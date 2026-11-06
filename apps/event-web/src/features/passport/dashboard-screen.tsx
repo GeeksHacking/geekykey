@@ -6,16 +6,18 @@ import { AvatarHero } from "@/features/passport/avatar/avatar-hero";
 import { ConnectionList } from "@/features/passport/connection-list";
 import { ConnectionRequests } from "@/features/passport/connection-requests";
 import { ConnectionReveal } from "@/features/passport/connection-reveal";
+import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
+import { QuestionsPrompt } from "@/features/passport/questions-prompt";
 import { ProfileSection } from "@/features/passport/profile-section";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
 import { UserIdRow } from "@/features/passport/user-id-row";
 import { useMe } from "@/lib/session";
 
 export function DashboardScreen() {
-  const { me } = useMe();
+  const { me, refresh } = useMe();
   const scope = useRef<HTMLDivElement>(null);
   const changes = usePassportChanges(scope, me);
   const latest = me.stamps
@@ -33,9 +35,22 @@ export function DashboardScreen() {
       {/* The grad tea's dashboard leads with the avatar (FRO-105). The showcase's switch PR
           swaps it for the spaceship (FRO-104) or puts the points summary back. */}
       <AvatarHero me={me} changes={changes} />
+      {me.user.role === "participant" ? (
+        <DisplayNameRow displayName={me.user.display_name} />
+      ) : null}
       <UserIdRow userId={me.user.id} />
 
       {me.recent_taps.length === 0 ? <DashboardTapHelp /> : null}
+
+      {me.user.role === "participant" && me.questions ? (
+        <QuestionsPrompt
+          key={me.user.id}
+          questions={me.questions}
+          answers={me.user.answers}
+          answersFixed={me.connections.length > 0}
+          onAnswersFixed={() => void refresh()}
+        />
+      ) : null}
 
       <ProfileSection me={me} />
 

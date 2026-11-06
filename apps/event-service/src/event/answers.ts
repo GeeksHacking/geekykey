@@ -36,7 +36,8 @@ export interface AnswersGame {
   /**
    * Sets the answers in `given`, which has passed answersSchema(), keeping the
    * user's others, and gives all their answers after. Once their first
-   * connection has fixed them, it changes nothing and gives `"fixed"`.
+   * connection has fixed them, a request containing an already answered question gives `"fixed"`.
+   * Missing answers from older connections can still be filled (agreement 8.7, BAC-144).
    */
   setAnswers(tx: Tx, userId: string, given: Answers): Promise<Answers | "fixed">;
 }

@@ -87,6 +87,7 @@ export interface ConnectionRequest {
 
 /** What accepting a connection request answers (BAC-149). One list, for the union and the schema. */
 export const ACCEPT_CONNECTION_REQUEST_STATUSES = [
+  "answers_needed",
   "connected",
   "already_connected",
   "same_kind",

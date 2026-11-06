@@ -13,6 +13,7 @@ test("the agreement's meeting hand-off and its answer pass", () => {
     owner_kind: null,
   });
   for (const status of [
+    "answers_needed",
     "waiting",
     "connected",
     "already_connected",

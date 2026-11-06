@@ -953,6 +953,14 @@ The passport and connections are folders under `src/games/`, behind the game int
 
 #### The answers game
 
+*Changed 6 Nov (BAC-144):* participants give their name and every multiple-choice answer before
+opening the event's screens or sending a connection request. There is no Skip in setup. Organizers
+keep their current flow. Names stay editable, and answers lock at the first connection. Older
+incomplete locked answers can be filled; past matches stay unchanged. An older request cannot be
+completed until its sender has finished too. Adam confirmed these rules on 6 Nov. The agreement's
+8.1, 8.7, 8.8, 8.10, 11.10 and section 13 set the current behaviour; the original design below is
+historical.
+
 Written 2 Nov (BAC-116), from Adam's calls that day ("The 2 Nov answers" in section 2). The parts marked *proposed* haven't been discussed yet, and go to the meeting on Thu 5 Nov. The shapes go into the agreement, for Ethan's approval. The game lives in the connections folder under `src/games/`, behind the game interface. The backend merges by Tue 10 Nov.
 
 **The question.** Each guest answers one short question in free text, from a list the group writes, the first time they open the passport. The passport already asks a guest with no name what to call them at that point (agreement 8.7), so the answer goes in the same step. The answer belongs to the event, and the Event Service keeps it, not the GeekyKey Service. *Proposed:* at most 60 characters, and the same question for every guest, or at most three. With one question, two guests who meet compare answers to the same thing, which gives them something to talk about. With a different question each, the reveal shows two questions side by side. Answers appear only on phones, in the hunt and the reveal, never on the projector. A unique answer can identify a person as well as a name can, so the PDPA rule that keeps names off the big screen covers answers too.

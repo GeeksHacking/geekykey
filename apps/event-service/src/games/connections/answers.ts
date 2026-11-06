@@ -50,7 +50,15 @@ export function answersGame(questions: readonly Question[]): ConnectionsAnswers 
 
     async setAnswers(tx, userId, given) {
       const row = await lockAnswers(tx, userId);
-      if (row.fixedAt !== null) return "fixed";
+      // Older connections could fix incomplete answers. Missing answers can be filled, but
+      // an already answered question stays fixed (agreement 8.7, BAC-144).
+      const current = shown(row.choices);
+      if (
+        row.fixedAt !== null &&
+        (Object.keys(given).length === 0 ||
+          Object.keys(given).some((id) => Object.hasOwn(current, id)))
+      )
+        return "fixed";
       if (Object.keys(given).length === 0) return shown(row.choices);
       const choices = { ...row.choices, ...given };
       await tx.update(answers).set({ choices }).where(eq(answers.userId, userId));

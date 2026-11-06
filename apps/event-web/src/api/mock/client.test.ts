@@ -446,15 +446,18 @@ describe("the answers game (agreement 0.13)", () => {
     await expect(api.me()).resolves.toMatchObject({ user: { answers: {} } });
   });
 
-  it("refuses any answers after the first connection, even an empty map", async () => {
+  it("keeps existing answers fixed after connecting, but lets missing answers be filled", async () => {
     const api = client();
     await api.devLogin(SEEDED_GUEST_ID);
     await api.updateMe({ answers: { drink: "tea" } });
     connect(api);
 
     await expectApiError(api.updateMe({ answers: {} }), "answers_fixed", 409);
-    await expectApiError(api.updateMe({ answers: { hours: "night_owl" } }), "answers_fixed", 409);
-    await expect(api.me()).resolves.toMatchObject({ user: { answers: { drink: "tea" } } });
+    await expectApiError(api.updateMe({ answers: { drink: "coffee" } }), "answers_fixed", 409);
+    await api.updateMe({ answers: { hours: "night_owl" } });
+    await expect(api.me()).resolves.toMatchObject({
+      user: { answers: { drink: "tea", hours: "night_owl" } },
+    });
   });
 
   it("still changes the name after a connection when the request has no answers", async () => {

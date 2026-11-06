@@ -190,9 +190,9 @@ test("after a connection the answers are fixed, and a change is refused with not
 
   for (const body of [
     { answers: { drink: "coffee" } },
-    { answers: { hours: "owl" } },
-    { display_name: "Sam", answers: { hours: "owl" } },
-    { bio: "Refused too", answers: { hours: "owl" } },
+    { answers: { drink: "coffee", hours: "owl" } },
+    { display_name: "Sam", answers: { drink: "coffee", hours: "owl" } },
+    { bio: "Refused too", answers: { drink: "coffee", hours: "owl" } },
   ]) {
     const res = await patchMe(body, cookie);
     assert.equal(res.status, 409, JSON.stringify(body));
@@ -209,12 +209,12 @@ test("after a connection the answers are fixed, and a change is refused with not
   assert.deepEqual(await connect(userId), { drink: "tea" });
 });
 
-test("a participant who connects before answering can't answer after", async () => {
+test("a participant whose older connection fixed empty answers can fill them later", async () => {
   const { signIn, patchMe, meAs, userId } = await harness();
   assert.deepEqual(await connect(userId), {});
   const res = await patchMe({ answers: { drink: "tea" } }, await signIn(userId));
-  assert.equal(res.status, 409);
-  assert.deepEqual((await meAs(userId)).user.answers, {});
+  assert.deepEqual(await answersIn(res), { drink: "tea" });
+  assert.deepEqual((await meAs(userId)).user.answers, { drink: "tea" });
 });
 
 test("answers sent at once, one question each, are all kept", async () => {

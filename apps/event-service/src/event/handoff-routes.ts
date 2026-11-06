@@ -11,6 +11,8 @@ import type { AppEnv } from "../app.ts";
 import { requireBearerKey } from "../lib/bearer-key.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, validationFailed } from "../lib/validate.ts";
+import type { AnswersGame } from "./answers.ts";
+import { participantIsReady } from "./participant-setup.ts";
 import type { ConnectionsGame } from "./connections.ts";
 import { ownNameOf } from "./display-names.ts";
 import type { GameOnStations } from "./games.ts";
@@ -30,11 +32,13 @@ export function handoffRoutes({
   key,
   games,
   connections,
+  answers,
   now = () => new Date(),
 }: {
   key: string;
   games: readonly GameOnStations[];
   connections: ConnectionsGame | null;
+  answers: AnswersGame | null;
   /** The clock a half is timed by. Tests pin it. */
   now?: () => Date;
 }) {
@@ -134,6 +138,8 @@ export function handoffRoutes({
       c.var.db,
       { userId: user_id, userKind: user_kind, ownerId: owner_id, ownerKind: owner_kind },
       now(),
+      async (db, id) =>
+        c.var.config.organizers.includes(id) || (await participantIsReady(db, id, answers)),
     );
     log("meeting_handled", { user_id, owner_id, status });
     return c.json({ status, owner_name: ownerName } satisfies MeetingsAnswer);
