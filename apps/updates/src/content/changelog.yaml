@@ -2286,9 +2286,9 @@
   date: 2026-11-06
   area: frontend
   change: >-
-    The event and key screens have an Event/Key switch that marks the current site and opens
-    the other in the same tab. On the key screens, Event uses a login link, so a guest
-    arrives signed in.
+    The account menu on each site offers the other site, and the header has no separate switch.
+    The event side's Key screens opens the key site, and the key side's Event screens opens a
+    login link, so a guest arrives signed in.
 - id: guest-sign-out-releases-tokens
   date: 2026-11-06
   area: frontend
