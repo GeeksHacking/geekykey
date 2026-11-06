@@ -413,6 +413,25 @@ describe("the signed-in shell", () => {
     expect(within(menu).getByRole("menuitem", { name: "Event screens" })).toBeInTheDocument();
   });
 
+  it("hides the My tokens home link on My tokens", async () => {
+    const user = userEvent.setup();
+    signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("heading", { name: "My tokens" });
+
+    const menu = await openAccountMenu(user);
+    expect(within(menu).queryByRole("menuitem", { name: /My tokens/ })).not.toBeInTheDocument();
+  });
+
+  it("offers My tokens from Token kinds", async () => {
+    const user = userEvent.setup();
+    const { router } = signedInAs(SEEDED_ADMIN_ID);
+    await router.navigate({ to: "/admin/token-kinds" });
+    await screen.findByRole("heading", { name: "Token kinds" });
+
+    const menu = await openAccountMenu(user);
+    expect(within(menu).getByRole("menuitem", { name: /My tokens/ })).toBeInTheDocument();
+  });
+
   it("shows the login-link sentence under the header when Event screens fails", async () => {
     const user = userEvent.setup();
     const { api } = signedInAs(SEEDED_PARTICIPANT_ID);

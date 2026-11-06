@@ -84,6 +84,8 @@ several tokens (FRO-106). The buttons are in
 login link; with one event it is a direct item, and with several it opens a submenu of the
 event names. The menu is in `src/components/layout/account-menu.tsx`, and the login link is
 opened in `src/features/auth/session-frame.tsx`.
+
+The My tokens item is hidden on My tokens itself and shown on the token page and Token kinds.
 A token someone else holds sends half a connection by itself once the lookup answers
 `someone_else`, except for a GeekyKey admin, or when the browser says the page load is a reload
 or a move back or forward, which isn't a tap (BAC-149). The page words the Event Service's answer
