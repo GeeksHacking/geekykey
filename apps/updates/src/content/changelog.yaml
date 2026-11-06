@@ -2353,3 +2353,13 @@
   change: >-
     The GeekyKey screens' account menu hides My tokens while you are on My tokens, and keeps it
     on the token page and Token kinds.
+
+- id: showcase-booth-and-session-planned
+  date: 2026-11-06
+  area: research
+  change: >-
+    The booth at the showcase runs a three-minute demo with connections across groups, then a second
+    game at a station with the same token. On 13 Nov nine people test NFC against QR codes and then
+    connect across groups, measured by how many connections are with people they didn't already know
+    and how many need no help. The trade-offs we accept: nine people can't show what happens at a
+    large event, and we build from parts in stock, so the compact scanner may be a prop.
