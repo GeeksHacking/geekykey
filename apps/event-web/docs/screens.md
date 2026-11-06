@@ -27,11 +27,10 @@ Each row says what a screen reads and writes, and the cases it must handle.
 Neither export is a link: `components/csv-download-button.tsx` fetches the file and hands the
 browser a Blob.
 
-The participant and organiser shells share the top-right account menu. It offers My tokens,
-which opens the GeekyKey screens in a new tab, the console link when the user has another view,
-and Sign out. Beside it, the Event/Key switch marks the current site with `aria-current="page"`
-and opens the other in the same tab. On the organiser desktop the switch and menu sit in the
-sidebar footer.
+The participant and organiser shells share the account menu. It offers My tokens, which opens
+the GeekyKey screens in a new tab, Key screens, which opens the key screens in the same tab, the
+console link when the user has another view, and Sign out. On the organiser desktop the menu sits
+in the sidebar footer.
 
 Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens
 against `MVP` endpoints are still built now, against mocks.
