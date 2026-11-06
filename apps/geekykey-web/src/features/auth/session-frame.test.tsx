@@ -3,15 +3,17 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/errors";
 import { ApiProvider } from "@/api/provider";
 import { createMockClient } from "@/api/mock/client";
+import { EVENT_SCREENS_URL } from "@/lib/constants";
 import { createQueryClient } from "@/lib/query-client";
 import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { routeTree } from "@/routeTree.gen";
+import { stubLocation } from "@/test/location";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 
 const { isSignedInAsGuest } = vi.hoisted(() => ({ isSignedInAsGuest: vi.fn() }));
@@ -26,13 +28,20 @@ vi.mock("@/lib/firebase", async (importOriginal) => ({
   isSignedInAsGuest,
 }));
 
+let location: ReturnType<typeof stubLocation>;
+
 beforeEach(() => {
+  location = stubLocation();
   vi.restoreAllMocks();
   isSignedInAsGuest.mockReset();
   isSignedInAsGuest.mockResolvedValue(false);
   // Sonner keeps its queue in module state, so a toast raised in one test would otherwise
   // be replayed into the Toaster mounted by the next one.
   toast.dismiss();
+});
+
+afterEach(() => {
+  location.restore();
 });
 
 /*
@@ -190,6 +199,42 @@ describe("the signed-in shell", () => {
     }
   });
 
+  it("sends a guest on to end their Event session, naming them, once they've signed out here", async () => {
+    const user = userEvent.setup();
+    const { api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+
+    const dialog = await askToSignOutAsGuest(user);
+    await user.click(within(dialog).getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() =>
+      expect(window.location.replace).toHaveBeenCalledWith(
+        `${EVENT_SCREENS_URL}sign-out#user=${SEEDED_PARTICIPANT_ID}`,
+      ),
+    );
+    await expect(api.me()).rejects.toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("doesn't go on to the Event screens when a guest stays, or when signing out here failed", async () => {
+    const user = userEvent.setup();
+    const { api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+
+    let dialog = await askToSignOutAsGuest(user);
+    await user.click(within(dialog).getByRole("button", { name: "Stay signed in" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(window.location.replace).not.toHaveBeenCalled();
+
+    dialog = await askToSignOutAsGuest(user);
+    vi.spyOn(api, "logout").mockRejectedValueOnce(new ApiError(503, "service_unavailable"));
+    await user.click(within(dialog).getByRole("button", { name: "Sign out" }));
+
+    expect(
+      await screen.findByText("A required service is unavailable. Try again shortly."),
+    ).toBeInTheDocument();
+    expect(window.location.replace).not.toHaveBeenCalled();
+  });
+
   it("releases a token claimed since the warning opened", async () => {
     const user = userEvent.setup();
     const { router, api } = signedInAs(SEEDED_PARTICIPANT_ID);
@@ -328,6 +373,7 @@ describe("the signed-in shell", () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
     expect(release).not.toHaveBeenCalled();
+    expect(window.location.replace).not.toHaveBeenCalled();
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     expect(await api.me()).toMatchObject({ tokens });
   });

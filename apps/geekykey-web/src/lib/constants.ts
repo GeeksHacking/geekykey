@@ -16,8 +16,8 @@ export const MAX_TOKENS_PER_LOAD = 500;
 export const MOCK_LATENCY_MS: readonly [number, number] = [180, 520];
 
 /**
- * Where the Event screens live, per API agreement 2 ("Base URLs"). The /sign-out page goes back
- * there when it may have no /me to read an event's address from, as the Event screens' own
+ * Where the Event screens live, per API agreement 2 ("Base URLs"). A sign-out goes there when
+ * there may be no /me left to read an event's address from, as the Event screens' own
  * GEEKYKEY_SCREENS_URL points here.
  */
 export const EVENT_SCREENS_URL = import.meta.env.PROD
