@@ -284,18 +284,22 @@ test("a half answers the owner's name with its status, whatever the status", asy
   assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
     status: "waiting",
     owner_name: "bea",
+    owner_bio: null,
   });
   assert.deepEqual(await answerOf(meet("bea", "B", "alex", "E")), {
     status: "connected",
     owner_name: "alex",
+    owner_bio: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
     status: "already_connected",
     owner_name: "bea",
+    owner_bio: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "cal", "E")), {
     status: "same_kind",
     owner_name: "cal",
+    owner_bio: null,
   });
 });
 
@@ -320,6 +324,7 @@ test("a name the owner changed before the tap is the name a half answers", async
   assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
     status: "waiting",
     owner_name: "Mei Lin",
+    owner_bio: null,
   });
 });
 
@@ -329,10 +334,12 @@ test("a half answers no name for an owner with only the default name, or who nev
   assert.deepEqual(await answerOf(meet("alex", "E", "no-name", "B")), {
     status: "waiting",
     owner_name: null,
+    owner_bio: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "never-seen", "B")), {
     status: "waiting",
     owner_name: null,
+    owner_bio: null,
   });
 });
 
@@ -343,6 +350,91 @@ test("a half answers Guest for an owner who chose it as their name", async () =>
   assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
     status: "waiting",
     owner_name: "Guest",
+    owner_bio: null,
+  });
+});
+
+/** `userId` writes their own bio and contact line through PATCH /api/v1/me, as the dashboard does. */
+const setProfileOf = async (
+  { app, signIn }: ReturnType<typeof harness>,
+  userId: string,
+  profile: { bio: string | null; contact_line: string | null },
+) => {
+  const res = await app.request("/api/v1/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: await signIn(userId) },
+    body: JSON.stringify(profile),
+  });
+  assert.equal(res.status, 200);
+};
+
+// The owner's bio in the answer (BAC-151): viewing a profile needs no accepting.
+
+test("a half answers the owner's bio and never their contact line, whatever the status", async () => {
+  const service = harness();
+  const { meet, signIn } = service;
+  await signIn("alex");
+  await signIn("cal");
+  await setProfileOf(service, "bea", {
+    bio: "Sensors and sourdough",
+    contact_line: "@bea on Telegram",
+  });
+  await setProfileOf(service, "cal", { bio: "Robot arms", contact_line: "@cal on Telegram" });
+
+  assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
+    status: "waiting",
+    owner_name: "bea",
+    owner_bio: "Sensors and sourdough",
+  });
+  assert.deepEqual(await answerOf(meet("bea", "B", "alex", "E")), {
+    status: "connected",
+    owner_name: "alex",
+    owner_bio: null,
+  });
+  assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
+    status: "already_connected",
+    owner_name: "bea",
+    owner_bio: "Sensors and sourdough",
+  });
+  assert.deepEqual(await answerOf(meet("alex", "E", "cal", "E")), {
+    status: "same_kind",
+    owner_name: "cal",
+    owner_bio: "Robot arms",
+  });
+});
+
+test("a half answers the bio as it is now, so a changed or cleared one shows", async () => {
+  const service = harness();
+  const { meet } = service;
+  await setProfileOf(service, "bea", { bio: "First bio", contact_line: null });
+  const bioAnswered = async () =>
+    ((await answerOf(meet("alex", "E", "bea", "B"))) as { owner_bio: string | null }).owner_bio;
+  assert.equal(await bioAnswered(), "First bio");
+
+  await setProfileOf(service, "bea", { bio: "Second bio", contact_line: null });
+  assert.equal(await bioAnswered(), "Second bio");
+
+  await setProfileOf(service, "bea", { bio: null, contact_line: null });
+  assert.equal(await bioAnswered(), null);
+});
+
+test("a half answers no bio for an owner this Event Service has never seen", async () => {
+  const { meet } = harness();
+  assert.deepEqual(await answerOf(meet("alex", "E", "never-seen", "B")), {
+    status: "waiting",
+    owner_name: null,
+    owner_bio: null,
+  });
+});
+
+test("a half answers the bio of an owner with no name of their own", async () => {
+  const service = harness();
+  const { meet } = service;
+  await testDb().insert(users).values({ id: "no-name", displayName: "Guest", bio: "Robot arms" });
+  assert.deepEqual(await answerOf(meet("alex", "E", "no-name", "B")), {
+    status: "waiting",
+    owner_name: null,
+    owner_bio: "Robot arms",
   });
 });
 

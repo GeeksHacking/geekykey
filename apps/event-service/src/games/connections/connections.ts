@@ -289,8 +289,8 @@ export function connectionsGame(
         fromId: row.userA === userId ? row.userB : row.userA,
         requestedAt: (row.userA === userId ? row.bMetAt : row.aMetAt)!,
       }));
-      const names = await db
-        .select({ id: users.id, displayName: users.displayName })
+      const people = await db
+        .select({ id: users.id, displayName: users.displayName, bio: users.bio })
         .from(users)
         .where(
           inArray(
@@ -298,15 +298,19 @@ export function connectionsGame(
             asking.map(({ fromId }) => fromId),
           ),
         );
-      const nameOf = new Map(names.map(({ id, displayName }) => [id, displayName]));
+      const personOf = new Map(people.map((person) => [person.id, person]));
       return asking
         .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
-        .map(({ id, fromId, requestedAt }): ConnectionRequest => ({
-          id,
+        .map(({ id, fromId, requestedAt }): ConnectionRequest => {
           // A meeting's user may never have logged in here, so may have no row.
-          displayName: nameOf.get(fromId) ?? DEFAULT_DISPLAY_NAME,
-          requestedAt,
-        }));
+          const person = personOf.get(fromId);
+          return {
+            id,
+            displayName: person?.displayName ?? DEFAULT_DISPLAY_NAME,
+            bio: person?.bio ?? null,
+            requestedAt,
+          };
+        });
     },
 
     async connectionsOf(db, userId, now) {

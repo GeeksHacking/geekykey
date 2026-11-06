@@ -21,13 +21,13 @@ test("the agreement's meeting hand-off and its answer pass", () => {
     "same_group",
     "no_group",
   ]) {
-    const answer = { status, owner_name: "Sam" };
+    const answer = { status, owner_name: "Sam", owner_bio: null };
     assert.deepEqual(meetingsAnswer.parse(answer), answer);
   }
 });
 
 test("an owner with no name answers null", () => {
-  const answer = { status: "waiting", owner_name: null };
+  const answer = { status: "waiting", owner_name: null, owner_bio: null };
   assert.deepEqual(meetingsAnswer.parse(answer), answer);
 });
 
@@ -35,12 +35,24 @@ test("an answer from an Event Service without owner_name reads as null", () => {
   assert.deepEqual(meetingsAnswer.parse({ status: "waiting" }), {
     status: "waiting",
     owner_name: null,
+    owner_bio: null,
   });
+});
+
+test("an answer with the owner's bio keeps it, and a null one stays null", () => {
+  for (const owner_bio of ["Building a robot arm", null]) {
+    const answer = { status: "waiting", owner_name: "Sam", owner_bio };
+    assert.deepEqual(meetingsAnswer.parse(answer), answer);
+  }
+});
+
+test("an answer from an Event Service without owner_bio reads as null", () => {
+  assert.equal(meetingsAnswer.parse({ status: "waiting", owner_name: "Sam" }).owner_bio, null);
 });
 
 test("a name the owner set in any script, or a long login name, passes whole", () => {
   for (const owner_name of ["陈小明", "A".repeat(100)]) {
-    const answer = { status: "connected", owner_name };
+    const answer = { status: "connected", owner_name, owner_bio: null };
     assert.deepEqual(meetingsAnswer.parse(answer), answer);
   }
 });
@@ -68,6 +80,8 @@ test("an answer the agreement doesn't allow is rejected", () => {
     { status: null },
     { status: "waiting", owner_name: "" },
     { status: "waiting", owner_name: 7 },
+    { status: "waiting", owner_bio: "" },
+    { status: "waiting", owner_bio: 7 },
   ]) {
     assert.equal(meetingsAnswer.safeParse(body).success, false, JSON.stringify(body));
   }

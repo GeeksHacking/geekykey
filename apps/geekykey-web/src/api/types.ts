@@ -43,6 +43,11 @@ export interface Meeting {
    * Service never saw them or it was `unavailable` (BAC-143, approved for the next version).
    */
   owner_name: string | null;
+  /**
+   * The owner's current bio, or null when they have none, the Event Service never saw them or
+   * it was `unavailable` (BAC-151, for the agreement's next version).
+   */
+  owner_bio: string | null;
 }
 
 /**

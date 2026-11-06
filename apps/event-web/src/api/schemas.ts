@@ -75,6 +75,8 @@ const connectionSchema = z.object({
 const connectionRequestSchema = z.object({
   id: z.string(),
   display_name: z.string(),
+  // BAC-151. A missing bio reads as none, so the screens work with a service from before it.
+  bio: z.prefault(z.nullable(z.string()), null),
   requested_at: isoTimestamp,
 });
 

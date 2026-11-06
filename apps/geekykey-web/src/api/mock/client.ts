@@ -75,6 +75,8 @@ export interface MockControls {
   setMeetingStatus(status: MeetingStatus): void;
   /** The name the next meetings answer for the owner. No name until a test gives one. */
   setMeetingOwnerName(name: string | null): void;
+  /** The bio the next meetings answer for the owner. No bio until a test gives one. */
+  setMeetingOwnerBio(bio: string | null): void;
   readonly data: MockData;
 }
 
@@ -91,6 +93,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   // 11.10's `waiting` is what one half looks like on its own, so it is the demo's state.
   let meetingStatus: MeetingStatus = "waiting";
   let meetingOwnerName: string | null = null;
+  let meetingOwnerBio: string | null = null;
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -309,8 +312,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           .map((service) => ({
             event_id: service.id,
             status: meetingStatus,
-            // 8.8: an Event Service that didn't answer gave no name.
+            // 8.8: an Event Service that didn't answer gave no name or bio.
             owner_name: meetingStatus === "unavailable" ? null : meetingOwnerName,
+            owner_bio: meetingStatus === "unavailable" ? null : meetingOwnerBio,
           }));
       }),
 
@@ -360,6 +364,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       },
       setMeetingOwnerName: (name) => {
         meetingOwnerName = name;
+      },
+      setMeetingOwnerBio: (bio) => {
+        meetingOwnerBio = bio;
       },
       data,
     },

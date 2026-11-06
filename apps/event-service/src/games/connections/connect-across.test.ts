@@ -242,10 +242,12 @@ test("across groups, a tap the rule refuses still answers the owner's name", asy
   assert.deepEqual(await meetAnswer("alex", "E", "bea", "B"), {
     status: "same_group",
     owner_name: "bea",
+    owner_bio: null,
   });
   assert.deepEqual(await meetAnswer("alex", "E", "chen", "B"), {
     status: "no_group",
     owner_name: "chen",
+    owner_bio: null,
   });
 });
 

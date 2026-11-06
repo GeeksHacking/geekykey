@@ -40,13 +40,13 @@ beforeEach(() => {
 });
 
 describe("the name prompt (agreement 8.1, 8.7 and 13)", () => {
-  it("says who sees the name", async () => {
-    // BAC-143: a token page shows it to anyone who taps, before they connect.
+  it("says who sees the name and the bio", async () => {
+    // BAC-143 and BAC-151: a token page and a request show them before the two connect.
     renderPassport(SEEDED_GUEST_ID);
 
     expect(
       await screen.findByText(
-        "The organisers, your group, and anyone who taps your token or whose token you tap see it.",
+        "The organisers, your group, and anyone who taps your token or whose token you tap see it. Anyone who taps your token or whose token you tap also sees your bio.",
       ),
     ).toBeInTheDocument();
   });

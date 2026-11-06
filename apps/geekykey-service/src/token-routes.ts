@@ -30,6 +30,7 @@ type MeetingView = {
   event_id: string;
   status: MeetingStatus | "unavailable";
   owner_name: string | null;
+  owner_bio: string | null;
 };
 
 /** What the lookup answers: who owns the token, as the token page sees it. */
@@ -73,9 +74,9 @@ type TokenView = {
  * user's first-claimed token, then `ownersOf` for the token's owner and the
  * kinds of both, and hands the half to each of `meetingServices` at once,
  * within what's left of the same deadline. Each answers its own status and
- * the owner's name, which passes through unstored, or `unavailable` with no
- * name when it doesn't answer properly in time, and is left out when it
- * answers `404`, as one from before meetings does.
+ * the owner's name and bio, which pass through unstored, or `unavailable`
+ * with neither when it doesn't answer properly in time, and is left out when
+ * it answers `404`, as one from before meetings does.
  *
  * Every request counts toward the user's USER_LIMIT (src/session.ts). The
  * lookup, the claim and the meeting count toward TOKEN_LIMIT as well, so nobody can work
@@ -184,7 +185,12 @@ export function tokenRoutes({
                   reason: err.reason,
                   status: err.status,
                 });
-                return { event_id: service.id, status: "unavailable", owner_name: null };
+                return {
+                  event_id: service.id,
+                  status: "unavailable",
+                  owner_name: null,
+                  owner_bio: null,
+                };
               }
             }),
           );

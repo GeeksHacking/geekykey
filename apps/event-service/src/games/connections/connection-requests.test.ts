@@ -22,6 +22,7 @@ import { meetingHalves } from "./schema.ts";
 interface RequestBody {
   id: string;
   display_name: string;
+  bio: string | null;
   requested_at: string;
 }
 
@@ -138,6 +139,35 @@ function harness() {
 /** A user whose name the event shows. */
 const named = (id: string, displayName: string) =>
   testDb().insert(users).values({ id, displayName });
+
+test("a request gives the tapper's current bio, and no contact line, user ID or answers", async () => {
+  const { tap, meOf } = harness();
+  await testDb().insert(users).values({
+    id: "alex",
+    displayName: "Alex Tan",
+    bio: "Building a robot arm",
+    contactLine: "@alex on Telegram",
+  });
+  assert.equal(await tap("alex", "E", "bea", "B"), "waiting");
+
+  const [request] = (await meOf("bea")).connection_requests;
+  assert.deepEqual(Object.keys(request!).sort(), ["bio", "display_name", "id", "requested_at"]);
+  assert.equal(request!.bio, "Building a robot arm");
+  assert.equal(JSON.stringify(request).includes("@alex"), false);
+
+  // It's the current one, read at each poll, so a change or a clear shows.
+  await testDb().update(users).set({ bio: "Sensors now" }).where(eq(users.id, "alex"));
+  assert.equal((await meOf("bea")).connection_requests[0]!.bio, "Sensors now");
+  await testDb().update(users).set({ bio: null }).where(eq(users.id, "alex"));
+  assert.equal((await meOf("bea")).connection_requests[0]!.bio, null);
+});
+
+test("a request from someone with no bio gives null", async () => {
+  const { tap, meOf } = harness();
+  await named("alex", "Alex Tan");
+  await tap("alex", "E", "bea", "B");
+  assert.equal((await meOf("bea")).connection_requests[0]!.bio, null);
+});
 
 test("tapping a token sends its owner a request, with the tapper's name and an ID of its own", async () => {
   const { clock, tap, meOf } = harness();

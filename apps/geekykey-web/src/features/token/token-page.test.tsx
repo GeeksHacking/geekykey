@@ -451,8 +451,8 @@ describe("TokenPage", () => {
       it("takes the name from whichever Event Service gave one", async () => {
         api.mock.setSession(SEEDED_PARTICIPANT_ID);
         vi.spyOn(api, "meetToken").mockResolvedValue([
-          { event_id: "other", status: "unavailable", owner_name: null },
-          { event_id: "showcase", status: "waiting", owner_name: "Sam" },
+          { event_id: "other", status: "unavailable", owner_name: null, owner_bio: null },
+          { event_id: "showcase", status: "waiting", owner_name: "Sam", owner_bio: null },
         ]);
         renderAs(api, OWNED_BY_SOMEONE_ELSE);
 
@@ -460,15 +460,74 @@ describe("TokenPage", () => {
         expect(screen.getByText(SWAP_BACK)).toBeInTheDocument();
       });
 
+      it("shows the owner's bio under their name and above the swap sentence (BAC-151)", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingOwnerName("Sam");
+        api.mock.setMeetingOwnerBio("Building a robot arm");
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        const bio = await screen.findByText("Building a robot arm");
+        const named = screen.getByText(NAMED);
+        const swap = screen.getByText(SWAP_BACK);
+        expect(named.compareDocumentPosition(bio)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(bio.compareDocumentPosition(swap)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        // What the tap came to stays, under all of it.
+        expect(screen.getByText(SENTENCES.waiting)).toBeInTheDocument();
+      });
+
+      it("shows only the name for an owner with no bio, with no empty line (BAC-151)", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingOwnerName("Sam");
+        api.mock.setMeetingOwnerBio(null);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        const named = await screen.findByText(NAMED);
+        expect(named.parentElement?.querySelectorAll("p")).toHaveLength(2);
+      });
+
+      it("shows the bio of an owner with no name under the plain sentence (BAC-151)", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingOwnerName(null);
+        api.mock.setMeetingOwnerBio("Building a robot arm");
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText("Building a robot arm")).toBeInTheDocument();
+        expect(screen.getByText(UNNAMED)).toBeInTheDocument();
+        expect(screen.queryByText(/Swap it back/)).not.toBeInTheDocument();
+      });
+
+      it("takes the bio from the Event Service that gave the name (BAC-151)", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        vi.spyOn(api, "meetToken").mockResolvedValue([
+          { event_id: "other", status: "waiting", owner_name: null, owner_bio: "Another event's" },
+          { event_id: "showcase", status: "waiting", owner_name: "Sam", owner_bio: "This event's" },
+        ]);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText("This event's")).toBeInTheDocument();
+        expect(screen.queryByText("Another event's")).not.toBeInTheDocument();
+      });
+
+      it("shows no bio on unavailable (BAC-151)", async () => {
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingStatus("unavailable");
+        api.mock.setMeetingOwnerBio("Building a robot arm");
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(SENTENCES.unavailable)).toBeInTheDocument();
+        expect(document.body.textContent).not.toMatch(/robot arm/);
+      });
+
       it("shows an admin no name, since their page sends no half", async () => {
         const meet = vi.spyOn(api, "meetToken");
         api.mock.setSession(SEEDED_ADMIN_ID);
         api.mock.setMeetingOwnerName("Sam");
+        api.mock.setMeetingOwnerBio("Building a robot arm");
         renderAs(api, OWNED_BY_SOMEONE_ELSE);
 
         expect(await screen.findByText(UNNAMED)).toBeInTheDocument();
         expect(meet).not.toHaveBeenCalled();
-        expect(document.body.textContent).not.toMatch(/Sam/);
+        expect(document.body.textContent).not.toMatch(/Sam|robot arm/);
       });
     });
 

@@ -274,7 +274,9 @@ describe("geekykey-web http client", () => {
     expect(calls[0]?.url).toBe("/api/v1/tokens/04C3D5F70912/meet");
     expect(calls[0]?.init?.method).toBe("POST");
     expect(calls[0]?.init?.body).toBeUndefined();
-    expect(meetings).toEqual([{ event_id: "showcase", status: "waiting", owner_name: null }]);
+    expect(meetings).toEqual([
+      { event_id: "showcase", status: "waiting", owner_name: null, owner_bio: null },
+    ]);
   });
 
   it("turns a status the agreement does not name into a NetworkError", async () => {

@@ -43,7 +43,7 @@ export function ProfileSection({ me }: { me: MeResponse }) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Change profile</DialogTitle>
-              <DialogDescription>What people see once you connect.</DialogDescription>
+              <DialogDescription>What people see about you.</DialogDescription>
             </DialogHeader>
             <ProfileForm bio={bio} contactLine={contactLine} onSaved={() => setOpen(false)} />
           </DialogContent>

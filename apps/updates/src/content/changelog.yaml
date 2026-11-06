@@ -2239,3 +2239,11 @@
     The evening-before clear now empties the users as well, so a name from a trial is free at the
     next event. The trade-offs we accept: everyone logs in again after a clear and sets their name
     and bio again.
+- id: bio-on-tap
+  date: 2026-11-06
+  area: backend
+  change: >-
+    Tapping someone's token now shows their bio under their name, and a connection request shows
+    the tapper's bio, so people can see who is asking before they accept. The contact line still
+    shows only after the two connect. The trade-offs we accept: anyone who taps a token sees that
+    person's bio, so the name prompt and the profile form now say so.

@@ -158,6 +158,24 @@ describe("geekykey-web schemas", () => {
     expect(read({})?.owner_name).toBeNull();
   });
 
+  it("reads the owner's bio, a null one, and a missing one as null", () => {
+    // BAC-151: a previous GeekyKey Service sends no bio.
+    const read = (item: object) =>
+      parseMeetingResponse({ meetings: [{ event_id: "showcase", status: "waiting", ...item }] })[0];
+
+    expect(read({ owner_bio: "Robot arms" })?.owner_bio).toBe("Robot arms");
+    expect(read({ owner_bio: null })?.owner_bio).toBeNull();
+    expect(read({})?.owner_bio).toBeNull();
+  });
+
+  it("rejects an owner's bio that isn't a string", () => {
+    expect(() =>
+      parseMeetingResponse({
+        meetings: [{ event_id: "showcase", status: "waiting", owner_bio: 7 }],
+      }),
+    ).toThrow(NetworkError);
+  });
+
   it("rejects an owner's name that isn't a string", () => {
     expect(() =>
       parseMeetingResponse({

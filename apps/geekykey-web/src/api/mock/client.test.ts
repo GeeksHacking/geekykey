@@ -411,7 +411,7 @@ describe("geekykey-web mock client", () => {
       const api = setup();
 
       expect(await api.meetToken(SOMEONE_ELSES)).toEqual([
-        { event_id: "showcase", status: "waiting", owner_name: null },
+        { event_id: "showcase", status: "waiting", owner_name: null, owner_bio: null },
       ]);
     });
 
@@ -423,6 +423,16 @@ describe("geekykey-web mock client", () => {
 
       api.mock.setMeetingStatus("unavailable");
       expect((await api.meetToken(SOMEONE_ELSES))[0]?.owner_name).toBeNull();
+    });
+
+    it("answers the owner's bio it was given, and none with unavailable", async () => {
+      const api = setup();
+      api.mock.setMeetingOwnerBio("Robot arms");
+
+      expect((await api.meetToken(SOMEONE_ELSES))[0]?.owner_bio).toBe("Robot arms");
+
+      api.mock.setMeetingStatus("unavailable");
+      expect((await api.meetToken(SOMEONE_ELSES))[0]?.owner_bio).toBeNull();
     });
 
     it.each(MEETING_STATUSES)("answers %s when the Event Service does", async (status) => {
