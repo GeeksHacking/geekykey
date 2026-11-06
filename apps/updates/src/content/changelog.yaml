@@ -2216,6 +2216,7 @@
     Participants give their name and every answer before opening the event, and an unfinished
     tap sends no connection request but offers the event button so they can finish. Organisers
     keep their current flow, and answers still lock at the first connection.
+
 - id: make-groups-button
   date: 2026-11-06
   area: backend
@@ -2224,6 +2225,7 @@
     by number of groups, or makes each group by hand. After a Reset, it replaces the empty groups,
     so a second trial can use different numbers. The trade-offs we accept: with anyone in a group
     the split is refused, so an organiser has to press Reset first.
+
 - id: unique-names
   date: 2026-11-06
   area: backend
@@ -2232,6 +2234,7 @@
     Groups screen. The form says the name is taken and keeps what was typed. The trade-offs we
     accept: names that were already the same stay until someone changes theirs, and a name from
     signing in isn't checked.
+
 - id: clear-empties-users
   date: 2026-11-06
   area: backend
@@ -2239,6 +2242,7 @@
     The evening-before clear now empties the users as well, so a name from a trial is free at the
     next event. The trade-offs we accept: everyone logs in again after a clear and sets their name
     and bio again.
+
 - id: bio-on-tap
   date: 2026-11-06
   area: backend
@@ -2247,3 +2251,10 @@
     the tapper's bio, so people can see who is asking before they accept. The contact line still
     shows only after the two connect. The trade-offs we accept: anyone who taps a token sees that
     person's bio, so the name prompt and the profile form now say so.
+
+- id: dashboard-my-tokens-link
+  date: 2026-11-06
+  area: frontend
+  change: >-
+    The dashboard has a My tokens link that stays before and after the first tap, saying it is
+    where to see and release tokens. The tap help no longer repeats the claim line.
