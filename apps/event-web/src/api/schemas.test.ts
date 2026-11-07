@@ -164,6 +164,19 @@ describe("me response contract", () => {
     );
   });
 
+  it("reads the board's challenge, takes a board from before it, and refuses one it doesn't know (BAC-161)", () => {
+    const board = {
+      allocation_started_at: null,
+      connect_across: "token_kinds",
+      joined_count: 0,
+      groups: [],
+      waiting: [],
+    };
+    expect(parseGroupBoardResponse({ ...board, challenge: "dice" }).challenge).toBe("dice");
+    expect(parseGroupBoardResponse(board).challenge).toBeUndefined();
+    expect(() => parseGroupBoardResponse({ ...board, challenge: "coin" })).toThrow(NetworkError);
+  });
+
   it("refuses a question without choices and a match outside 0 to 100", () => {
     const base = makeMe();
     const connection = {

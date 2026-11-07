@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { setConnectAcross } from "../../event/connect-across.ts";
+import { setConnectAcross } from "../../event/event-settings.ts";
 import { groupMembers, participantGroups, userKinds, users } from "../../event/schema.ts";
 import {
   fakeClock,

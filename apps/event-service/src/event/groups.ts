@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { loadConnectAcross } from "./connect-across.ts";
+import { loadChallenge, loadConnectAcross } from "./event-settings.ts";
 import type { Tx } from "./games.ts";
 import { groupAllocation, groupMembers, participantGroups, users } from "./schema.ts";
 
@@ -508,9 +508,10 @@ async function allocationStartedAt(db: Db): Promise<string | null> {
 
 /** Everything the organizers' Groups screen shows, groups oldest first. */
 export async function loadGroupBoard(db: Db, organizers: Organizers) {
-  const [startedAt, connectAcross, groups, members] = await Promise.all([
+  const [startedAt, connectAcross, challenge, groups, members] = await Promise.all([
     allocationStartedAt(db),
     loadConnectAcross(db),
+    loadChallenge(db),
     db
       .select({
         id: participantGroups.id,
@@ -538,6 +539,7 @@ export async function loadGroupBoard(db: Db, organizers: Organizers) {
   return {
     startedAt,
     connectAcross,
+    challenge,
     joinedCount: members.length,
     groups: groups.map((group) => ({
       ...group,

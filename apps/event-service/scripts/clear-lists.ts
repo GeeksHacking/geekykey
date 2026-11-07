@@ -50,6 +50,6 @@ export const keptTables: readonly MySqlTable[] = [
   usedLoginLinks,
   // The event's groups, with its other settings. Their members are cleared.
   participantGroups,
-  // The connection rule, which organizers set with the groups (BAC-140).
+  // The connection rule and the challenge, which organizers set with the groups (BAC-140, BAC-161).
   eventSettings,
 ];

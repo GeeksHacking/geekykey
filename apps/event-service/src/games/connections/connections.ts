@@ -3,7 +3,7 @@ import type { MeetingStatus } from "@geekykey/handoff";
 import { and, asc, desc, eq, inArray, isNotNull, or, type SQL, sql } from "drizzle-orm";
 import type { Answers, Question } from "../../event/answers.ts";
 import type { Db } from "../../db/pool.ts";
-import { loadConnectAcross } from "../../event/connect-across.ts";
+import { loadChallenge, loadConnectAcross } from "../../event/event-settings.ts";
 import type {
   AcceptStatus,
   Connection,
@@ -229,7 +229,7 @@ export function connectionsGame(
   answers: ConnectionsAnswers | null,
   {
     rollDie = () => randomInt(1, 7),
-    // Half the pairs get each game (BAC-156).
+    // Random's coin: half the pairs get each challenge (BAC-156).
     pickGame = () => (randomInt(2) === 0 ? "dice" : "reaction"),
   }: { rollDie?: () => number; pickGame?: () => GameKind } = {},
 ): ConnectionsGame {
@@ -248,7 +248,9 @@ export function connectionsGame(
     const answersA = answers ? await answers.fixAnswers(tx, userA) : {};
     const answersB = answers ? await answers.fixAnswers(tx, userB) : {};
     const { match, shared } = matchOf(answers?.questions ?? [], answersA, answersB);
-    const game = pickGame();
+    // What the organizers' setting says now (BAC-161), with Random's coin only when it's Random.
+    const challenge = await loadChallenge(tx);
+    const game = challenge === "random" ? pickGame() : challenge;
     await tx.insert(connections).values({
       id: crypto.randomUUID(),
       userA,

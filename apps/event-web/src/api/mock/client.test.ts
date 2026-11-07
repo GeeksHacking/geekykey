@@ -1080,6 +1080,18 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     expect((await api.groupBoard()).connect_across).toBe("groups");
   });
 
+  it("starts each challenge at random, and only an organizer changes it (BAC-161)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await expectApiError(api.setConnectionChallenge({ challenge: "dice" }), "forbidden", 403);
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    expect((await api.groupBoard()).challenge).toBe("random");
+    expect(await api.setConnectionChallenge({ challenge: "dice" })).toEqual({ challenge: "dice" });
+    expect((await api.groupBoard()).challenge).toBe("dice");
+    expect((await api.groupBoard()).connect_across).toBe("token_kinds");
+  });
+
   it("refuses a participant on the organizer's edits and moves", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);

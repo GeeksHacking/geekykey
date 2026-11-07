@@ -20,7 +20,9 @@ import {
   GROUPS_EXPORT_CSV_COLUMNS,
   type AdminTap,
   type ApiIssue,
+  CHALLENGES,
   CONNECT_ACROSS,
+  type ConnectionChallenge,
   type ConnectionRule,
   type CreateGroupRequest,
   type SplitGroupsRequest,
@@ -361,6 +363,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return {
       allocation_started_at: data.groupAllocationStartedAt,
       connect_across: data.connectAcross,
+      challenge: data.challenge,
       joined_count: data.groupMembers.length,
       groups: data.groups.map(toEventGroup),
       waiting: data.groupMembers
@@ -1190,6 +1193,19 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         }
         data.connectAcross = input.connect_across;
         return { connect_across: data.connectAcross };
+      }),
+
+    // Each connection made after this plays what the setting says, and those already made keep theirs.
+    setConnectionChallenge: (input: ConnectionChallenge) =>
+      call(() => {
+        currentOrganizer();
+        if (!CHALLENGES.includes(input.challenge)) {
+          fail("validation_failed", [
+            { path: ["challenge"], message: "challenge must be random, dice or reaction" },
+          ]);
+        }
+        data.challenge = input.challenge;
+        return { challenge: data.challenge };
       }),
 
     // Everyone has to join again and allocation hasn't started, as before the first trial. The

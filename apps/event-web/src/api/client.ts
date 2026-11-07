@@ -1,5 +1,6 @@
 import type {
   AcceptConnectionRequestResponse,
+  ConnectionChallenge,
   ConnectionRule,
   CreateGroupRequest,
   CreateStationRequest,
@@ -209,4 +210,11 @@ export interface ApiClient {
    * with the setting. Connections already made stay.
    */
   setConnectionRule(input: ConnectionRule): Promise<ConnectionRule>;
+
+  /**
+   * PUT /api/v1/admin/connections/challenge (BAC-161, draft for the agreement's next version).
+   * Sets which challenge a new connection plays, at random or always one of them, from the next
+   * connection on, and answers with the setting. Connections already made keep theirs.
+   */
+  setConnectionChallenge(input: ConnectionChallenge): Promise<ConnectionChallenge>;
 }

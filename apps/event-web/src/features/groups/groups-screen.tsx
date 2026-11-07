@@ -9,6 +9,7 @@ import { LiveStamp } from "@/components/layout/live-stamp";
 import { PageHeader } from "@/components/layout/page-header";
 import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { Button } from "@/components/ui/button";
+import { ConnectionChallengeSwitch } from "@/features/groups/connection-challenge-switch";
 import { ConnectionRuleSwitch } from "@/features/groups/connection-rule-switch";
 import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
@@ -97,6 +98,8 @@ export function GroupsScreen() {
           )}
         </section>
         <ConnectionRuleSwitch value={data.connect_across} />
+        {/* An Event Service from before BAC-161 has no challenge to choose. */}
+        {data.challenge ? <ConnectionChallengeSwitch value={data.challenge} /> : null}
         <ExportGroupsButton />
       </div>
     );

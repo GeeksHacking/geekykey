@@ -5,7 +5,7 @@ import type { AppEnv } from "../app.ts";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, queryParams } from "../lib/validate.ts";
-import { setConnectAcross } from "./connect-across.ts";
+import { setChallenge, setConnectAcross } from "./event-settings.ts";
 import type { GameOnStations, Tx } from "./games.ts";
 import {
   requireRole,
@@ -14,6 +14,7 @@ import {
   type SessionOptions,
 } from "./session-auth.ts";
 import {
+  CHALLENGES,
   CONNECT_ACROSS,
   COUNTED_TAP_STATUSES,
   PASSPORT_GAME_ID,
@@ -45,6 +46,9 @@ export interface AdminRouteDeps {
 
 /** Who may connect (BAC-140, draft for the API agreement's next version). */
 const connectionRuleSchema = z.object({ connect_across: z.enum(CONNECT_ACROSS) });
+
+/** Which challenge a new connection plays (BAC-161, draft for the API agreement's next version). */
+const connectionChallengeSchema = z.object({ challenge: z.enum(CHALLENGES) });
 
 /** A new station's label, the device's name. */
 const createStationSchema = z.object({ label: organizerText("label") });
@@ -207,6 +211,15 @@ export function adminRoutes({ session, games, now = () => new Date(), shuffle }:
     await setConnectAcross(c.var.db, connect_across);
     log("connection_rule_changed", { user_id: c.var.user.id, connect_across });
     return c.json({ connect_across });
+  });
+
+  // The Groups screen's choice of challenge: at random, or always the dice or the reaction test.
+  // Each connection plays what the setting says when it's made, and connections already made keep theirs.
+  app.put("/connections/challenge", jsonBody(connectionChallengeSchema), async (c) => {
+    const { challenge } = c.req.valid("json");
+    await setChallenge(c.var.db, challenge);
+    log("connection_challenge_changed", { user_id: c.var.user.id, challenge });
+    return c.json({ challenge });
   });
 
   /** The games organizers choose a station's from, in the settings' order (9.2). */
