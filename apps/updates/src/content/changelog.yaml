@@ -2385,3 +2385,10 @@
     The token page and My tokens name the event Capstone Showcase. The Event Service's
     questions and the runbook no longer describe the cancelled pilot or an A/B analysis as
     current plans.
+
+- id: token-game-tap-hint
+  date: 2026-11-07
+  area: frontend
+  change: >-
+    The token game's dashboard says to tap someone's token with your phone to connect, and an
+    event without the answers game still says to tap a token at a station to collect stamps.
