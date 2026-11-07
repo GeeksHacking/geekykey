@@ -30,6 +30,8 @@ The hand-off spec for the map [Move GeekyKey to TiDB and Cloudflare](map.md), wr
 
 > **Updated 6 Nov 2026, later** (BAC-126). Adam's call, with the grad tea gone: there's no single rehearsal by Sat 7 Nov and no backend freeze from Wed 11 Nov. The team tests now and then instead. "The rehearsal" elsewhere in this spec now means those tests, which still cover its steps (section 10.1). The freeze starts at the last merge on Sun 15 Nov, and the showcase's dates don't change.
 
+> **Updated 7 Nov 2026** (BAC-160). `db:clear-test-data` runs on the evenings of Thu 12 Nov, before the session on Fri 13 Nov, and Mon 16 Nov, before the showcase. Checkpoint 8 and section 10.1 say so.
+
 - It says what we build, and in what order. Why we chose it, and what we turned down, is in the ticket each section links to.
 - **Provisional** marks a decision that can still change, and says what would change it. Everything else is decided.
 - **The spec's call** marks a gap that no ticket settled, which this spec had to fill to put the steps in order. Section 2 lists every one of them for review.
@@ -1009,7 +1011,7 @@ A target changes only when the hunter asks. A find, a connection with the curren
 - **Three tasks** in TypeScript with `mysql2`, run from Adam's laptop with the migration login, and tested in CI against the Docker TiDB:
   - `db:backup` writes every table, the stand-in's included, to a file on Adam's laptop, a few MB for the whole showcase;
   - `db:restore <file> --tables <names>` puts back chosen tables only, so restoring taps doesn't undo claims, key replacements or stations disabled since;
-  - `db:clear-test-data` takes a copy itself, prints the row counts, asks Adam to type the database name, empties `taps` and `tokens`, and prints the counts again, expecting 0 taps and 0 claims. It keeps `stations` and `passport_stations`. *Changed 6 Nov:* it also empties `users`, so a name from a trial is free at the next event, and everyone logs in afresh (BAC-124, BAC-145). *Changed 27 Oct:* it also empties every game's records, such as connections and, if it runs, Find Gatsby's finds, and keeps every setting, such as each station's game. It runs before the grad tea and again before the showcase (section 10.1).
+  - `db:clear-test-data` takes a copy itself, prints the row counts, asks Adam to type the database name, empties `taps` and `tokens`, and prints the counts again, expecting 0 taps and 0 claims. It keeps `stations` and `passport_stations`. *Changed 6 Nov:* it also empties `users`, so a name from a trial is free at the next event, and everyone logs in afresh (BAC-124, BAC-145). *Changed 27 Oct:* it also empties every game's records, such as connections and, if it runs, Find Gatsby's finds, and keeps every setting, such as each station's game. *Changed 7 Nov:* it runs on the evenings of Thu 12 Nov and Mon 16 Nov (section 10.1, BAC-160). It said before the grad tea and again before the showcase.
 - **Before the clear, every station shows 0 saved taps** on the station board (the spec's call). With no links left to restart, a test tap saved before the clear and sent after it would be judged afresh, usually as `unknown_token`, since the clear empties `tokens`.
 - **The saved queries.** In Cloud Logging, for the Event Service: errors in the last 15 minutes by name, and responses of 500 or above. In Workers Observability, for the GeekyKey Service, for whoever can open it (section 12): failed hand-offs and owner lookups by Event Service, responses of 500 or above, and `stations_copy_filled`.
 - **The lists for the day:** Adam, Ethan and Zi Tao in `ORGANIZERS` and `GEEKYKEY_ADMINS`, and the showcase's other organizers in `ORGANIZERS`. The passport shows each user's user ID, so a helper can send theirs to Adam.
@@ -1169,13 +1171,14 @@ Each change lands with the checkpoint that makes it true. Checkpoint 1's are don
 
 ## 10. Event day
 
-The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov. *Changed 27 Oct:* it said Wed 18 Nov, with setup on Tue 17 Nov. The grad tea on Thu 12 Nov runs the same way, with the steps below.
+The showcase is on Tue 17 Nov 2026 at Ngee Ann Polytechnic, with setup there on Mon 16 Nov. *Changed 27 Oct:* it said Wed 18 Nov, with setup on Tue 17 Nov. The grad tea on Thu 12 Nov was to run the same way, with the steps below, until it was scrapped on 3 Nov.
 
 ### 10.1 The run-up
 
 - **Now and then until the showcase, the team tests.** *Changed 6 Nov:* this was one rehearsal on production by Sat 7 Nov. Between them, the tests run on production, with the warm instance on, and cover the evening-before steps (the saved-taps check, a copy, the clear), the morning check, the team using passports and tapping stations for an hour, the one restore try, one rollback of the Event Service by revision and one of a screens Worker by reverting, and pulling one station's power to watch it turn red on the board. The watchers use the saved queries and the sheet as they would on the day. After each test, the data is cleared again, and the warm instance switched off. Their numbers decide the Cache API for the registered stations and whether the Workers free plan holds (section 11.1). They come out of November's TiDB allowance, which the showcase also draws on.
 - **The freeze:** nothing merges after Sun 15 Nov (section 8.1).
-- **The grad tea** (section 6, "The grad tea"):
+- **The evening of Thu 12 Nov,** before the session on Fri 13 Nov: every station shows 0 saved taps on the board, and Adam runs `db:clear-test-data`, which takes its own copy first. *Added 7 Nov* (BAC-160).
+- **The grad tea** (section 6, "The grad tea"). *Scrapped 3 Nov.* These steps stay as history, and their clear on Wed 11 Nov doesn't run:
   - **the evening of Wed 11 Nov:** every station shows 0 saved taps on the board, and Adam runs `db:clear-test-data`, which takes its own copy first;
   - **Thu 12 Nov:** Adam switches the warm instance on in the morning. The group sets up in the MPH before 3:30 pm and does the morning check below. The check looks at each station's game as well as its passport settings (BAC-90). The grad tea runs from 3:30 to 6:30 pm. Tokens go out after the first half hour, and observers count the people in each area every 15 minutes. Afterwards, Adam takes a copy, the source for Joshua's analysis, and switches the warm instance off;
   - **Fri 13 Nov:** the group shares the results at its meeting;
