@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { readWriterLog, type WriterLog } from "@/features/token-kinds/read-writer-log";
 import { KindTokenList } from "@/features/token-kinds/kind-token-list";
+import { SectionTitle } from "@/features/token-kinds/section-title";
 import {
   useKindsWritePending,
   useLoadTokenKinds,
@@ -66,6 +67,10 @@ export function TokenKindsPage() {
   return (
     <main className="flex flex-col">
       <h1 className="type-title">Token kinds</h1>
+      <span
+        aria-hidden
+        className="mt-2 h-1 w-12 rounded-full border border-primary-edge bg-primary"
+      />
       {me.user.can_view_token_kinds ? (
         <>
           <ListTotals canLoad={me.user.is_geekykey_admin} />
@@ -246,9 +251,9 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="mt-6">
-      <h2 id={headingId} className="type-section mb-3">
-        {title}
-      </h2>
+      <div className="mb-3">
+        <SectionTitle id={headingId}>{title}</SectionTitle>
+      </div>
       {children}
     </section>
   );

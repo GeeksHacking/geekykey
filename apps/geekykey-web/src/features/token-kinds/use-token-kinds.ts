@@ -55,6 +55,30 @@ export function useRemoveTokenKind() {
   });
 }
 
+/**
+ * DELETE /api/v1/tokens/{uid}?owner_id= (agreement 8.3), from the kinds list. The owner is
+ * the one the admin confirmed, so the service leaves a newer claim alone. It shares the
+ * kinds list's pending state, so no second write starts while one is in flight, and it is
+ * never retried: a lost reply may mean the claim has gone, and a second try would then
+ * answer not_found. Either way the list, /me and that token's lookup are read again.
+ */
+export function useReleaseKindToken() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: queryKeys.tokenKinds,
+    mutationFn: ({ uid, ownerId }: { uid: string; ownerId: string }) =>
+      api.releaseToken(uid, ownerId),
+    retry: false,
+    onSettled: (_data, _error, { uid }) =>
+      Promise.all([
+        refreshKinds(queryClient),
+        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.token(uid) }),
+      ]),
+  });
+}
+
 async function refreshKinds(queryClient: QueryClient) {
   await queryClient.cancelQueries({ queryKey: queryKeys.tokenKinds });
   await queryClient.invalidateQueries({ queryKey: queryKeys.tokenKinds });

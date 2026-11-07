@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -408,7 +408,8 @@ it("pages 500 tokens and searches across all pages", async () => {
   fireEvent.change(screen.getByLabelText("Search by UID"), { target: { value: "040000000001F3" } });
   expect(within(list).getByText("040000000001F3")).toBeInTheDocument();
   expect(within(list).getAllByRole("row")).toHaveLength(2);
-  expect(within(list).getByText("Page 1 of 1")).toBeInTheDocument();
+  expect(within(list).getByText("1 of 500 tokens found")).toBeInTheDocument();
+  expect(within(list).queryByRole("navigation", { name: "Token pages" })).not.toBeInTheDocument();
 });
 
 it("distinguishes a stored kind named none from tokens without a kind", async () => {
@@ -422,4 +423,248 @@ it("distinguishes a stored kind named none from tokens without a kind", async ()
   fireEvent.change(screen.getByLabelText("Filter by kind"), { target: { value: "none" } });
   expect(within(list).getByText("04B7C9E1F3A5")).toBeInTheDocument();
   expect(within(list).queryByText("DEADBEEF")).not.toBeInTheDocument();
+});
+
+describe("releasing a token", () => {
+  async function openRelease(uid: string) {
+    await userEvent.click(await screen.findByRole("button", { name: `Release ${uid}` }));
+    return screen.findByRole("alertdialog");
+  }
+
+  it("confirms with the UID and owner, and Cancel changes nothing", async () => {
+    const release = vi.spyOn(api, "releaseToken");
+    await renderPage();
+
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    expect(dialog).toHaveTextContent("04A1B2C3D4E5F6");
+    expect(dialog).toHaveTextContent(SEEDED_PARTICIPANT_ID);
+    expect(dialog).toHaveTextContent("Anyone will be able to claim it again.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(release).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("releases for the confirmed owner and keeps the token's kind", async () => {
+    const release = vi.spyOn(api, "releaseToken");
+    await renderPage();
+
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledWith("04A1B2C3D4E5F6", SEEDED_PARTICIPANT_ID);
+    const row = (await screen.findByText("04A1B2C3D4E5F6")).closest("tr")!;
+    await waitFor(() => expect(within(row).getByText("Unclaimed")).toBeInTheDocument());
+    expect(within(row).getByText("E")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Release 04A1B2C3D4E5F6" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("refuses to release a newer owner's claim, and shows who holds it now", async () => {
+    const release = vi.spyOn(api, "releaseToken");
+    await renderPage();
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    api.mock.data.tokens.find((t) => t.uid === "04A1B2C3D4E5F6")!.owner_id = "newer-owner";
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Someone else has claimed this token now, or it has already been released.",
+    );
+    await waitFor(() =>
+      expect(alert).toHaveTextContent("The refreshed list shows it claimed by newer-owner."),
+    );
+    expect(within(dialog).queryByRole("button", { name: "Release token" })).not.toBeInTheDocument();
+    expect(release).toHaveBeenCalledTimes(1);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    const fresh = await openRelease("04A1B2C3D4E5F6");
+    expect(fresh).toHaveTextContent("newer-owner");
+  });
+
+  it("asks for a new confirmation when the owner changes while it is open", async () => {
+    const release = vi.spyOn(api, "releaseToken");
+    await renderPage();
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    api.mock.data.tokens.find((t) => t.uid === "04A1B2C3D4E5F6")!.owner_id = "newer-owner";
+
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "This token's owner has changed since you opened this.",
+    );
+    expect(within(dialog).queryByRole("button", { name: "Release token" })).not.toBeInTheDocument();
+    expect(release).not.toHaveBeenCalled();
+    focusManager.setFocused(undefined);
+  });
+
+  it("says a release with a lost reply may have gone through, and never retries it", async () => {
+    const send = api.releaseToken.bind(api);
+    const release = vi.spyOn(api, "releaseToken").mockImplementationOnce(async (uid, owner) => {
+      await send(uid, owner);
+      throw new ApiError(503, "claims_unavailable");
+    });
+    await renderPage();
+
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert).toHaveTextContent("The release may have gone through.");
+    await waitFor(() => expect(alert).toHaveTextContent("The refreshed list shows it unclaimed."));
+    expect(within(dialog).queryByRole("button", { name: "Release token" })).not.toBeInTheDocument();
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a refusal without saying it may have gone through", async () => {
+    vi.spyOn(api, "releaseToken").mockRejectedValueOnce(new ApiError(429, "rate_limited"));
+    await renderPage();
+
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert).toHaveTextContent("Too many tries.");
+    expect(alert).not.toHaveTextContent("may have gone through");
+    await waitFor(() =>
+      expect(alert).toHaveTextContent(
+        `The refreshed list shows it claimed by ${SEEDED_PARTICIPANT_ID}.`,
+      ),
+    );
+  });
+
+  it("sends one release however often it is pressed", async () => {
+    const release = vi.spyOn(api, "releaseToken");
+    await renderPage();
+
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    const confirm = within(dialog).getByRole("button", { name: "Release token" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the user's own tokens again afterwards", async () => {
+    const me = vi.spyOn(api, "me");
+    await renderPage();
+    await screen.findByRole("button", { name: "Release 04A1B2C3D4E5F6" });
+    const before = me.mock.calls.length;
+
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    await waitFor(() => expect(me.mock.calls.length).toBeGreaterThan(before));
+  });
+
+  it("offers Release for a claimed token with no kind, which then leaves the list", async () => {
+    await renderPage();
+
+    const dialog = await openRelease("04B7C9E1F3A5");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    await waitFor(() => expect(screen.queryByText("04B7C9E1F3A5")).not.toBeInTheDocument());
+  });
+});
+
+describe("finding tokens", () => {
+  /** 120 tokens: kinds E and B in turn, every third one claimed. */
+  function seed() {
+    api.mock.data.tokens.length = 0;
+    api.mock.data.token_kinds = [];
+    for (let i = 0; i < 120; i++) {
+      const uid = `04${i.toString(16).padStart(12, "0").toUpperCase()}`;
+      api.mock.data.token_kinds.push({ uid, kind: i % 2 === 0 ? "E" : "B" });
+      if (i % 3 === 0) {
+        api.mock.data.tokens.push({
+          uid,
+          owner_id: `owner-${i}`,
+          claimed_at: "2026-11-06T09:00:00.000Z",
+        });
+      }
+    }
+  }
+
+  const firstUid = (list: HTMLElement) =>
+    within(list).getAllByRole("row")[1]!.querySelector("th")!.textContent;
+
+  it("combines ownership, kind and sorting, and starts again on page 1", async () => {
+    seed();
+    await renderPage();
+    const list = await screen.findByRole("region", { name: "Every token" });
+    await within(list).findByText("120 tokens found");
+    await userEvent.click(within(list).getByRole("button", { name: "Next" }));
+    expect(within(list).getByText("Page 2 of 3")).toBeInTheDocument();
+
+    await userEvent.click(within(list).getByRole("radio", { name: "Unclaimed" }));
+    expect(within(list).getByText("80 of 120 tokens found")).toBeInTheDocument();
+    expect(within(list).getByText("Page 1 of 2")).toBeInTheDocument();
+
+    fireEvent.change(within(list).getByLabelText("Filter by kind"), {
+      target: { value: "kind:E" },
+    });
+    fireEvent.change(within(list).getByLabelText("Sort by"), { target: { value: "uid-desc" } });
+    // Even and not a multiple of 3, highest first: 118 is 0x76.
+    expect(within(list).getByText("40 of 120 tokens found")).toBeInTheDocument();
+    expect(firstUid(list)).toBe("040000000000" + "76");
+    expect(within(list).queryByRole("navigation", { name: "Token pages" })).not.toBeInTheDocument();
+
+    await userEvent.click(within(list).getByRole("radio", { name: "Claimed" }));
+    fireEvent.change(within(list).getByLabelText("Filter by kind"), { target: { value: "" } });
+    fireEvent.change(within(list).getByLabelText("Sort by"), { target: { value: "kind-asc" } });
+    // B before E, each by UID: the first claimed B is 3.
+    expect(within(list).getByText("40 of 120 tokens found")).toBeInTheDocument();
+    expect(firstUid(list)).toBe("04000000000003");
+    expect(within(list).getByRole("columnheader", { name: "Kind" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+  });
+
+  it("says so when the filters together match nothing, and clears them", async () => {
+    await renderPage();
+    const list = await screen.findByRole("region", { name: "Every token" });
+    await within(list).findByText("04C9E1A27B3080");
+
+    fireEvent.change(within(list).getByLabelText("Filter by kind"), { target: { value: "none" } });
+    await userEvent.click(within(list).getByRole("radio", { name: "Unclaimed" }));
+
+    expect(within(list).getByText(/^0 of \d+ tokens found$/)).toBeInTheDocument();
+    expect(
+      within(list).getByText(
+        "No tokens match. Clear the search, choose another kind or show all owners.",
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(within(list).getByRole("button", { name: "Clear filters" }));
+    expect(within(list).getByRole("radio", { name: "All" })).toBeChecked();
+    expect(within(list).getByText("04C9E1A27B3080")).toBeInTheDocument();
+  });
+
+  it("keeps the page valid when a release shortens the list", async () => {
+    api.mock.data.token_kinds = [];
+    api.mock.data.tokens.length = 0;
+    for (let i = 0; i < 51; i++) {
+      api.mock.data.tokens.push({
+        uid: `04${i.toString(16).padStart(12, "0").toUpperCase()}`,
+        owner_id: `owner-${i}`,
+        claimed_at: "2026-11-06T09:00:00.000Z",
+      });
+    }
+    await renderPage();
+    const list = await screen.findByRole("region", { name: "Every token" });
+    await within(list).findByText("51 tokens found");
+    await userEvent.click(within(list).getByRole("button", { name: "Next" }));
+
+    await userEvent.click(within(list).getByRole("button", { name: "Release 04000000000032" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    await within(list).findByText("50 tokens found");
+    expect(within(list).getAllByRole("row")).toHaveLength(51);
+  });
 });

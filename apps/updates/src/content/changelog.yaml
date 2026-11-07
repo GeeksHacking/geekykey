@@ -2401,3 +2401,12 @@
     reaction test at random, or always the dice, or always the reaction test, so a guided demo runs
     the same way each time. A change needs no deploy and applies to connections made after it, and
     the event clear keeps it.
+
+- id: token-kinds-release-and-filters
+  date: 2026-11-07
+  area: frontend
+  change: >-
+    A GeekyKey admin can release a claimed token straight from the Token kinds list, after a
+    confirmation that names the token and its owner. The list also filters by claimed or
+    unclaimed and sorts by UID or kind, and the arrow in each filter menu no longer touches its
+    text.
