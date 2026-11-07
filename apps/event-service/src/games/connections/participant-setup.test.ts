@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { and, eq } from "drizzle-orm";
 import { test } from "vitest";
 import { answersGame } from "./answers.ts";
 import { connectionsGame } from "./connections.ts";
@@ -206,3 +207,35 @@ test.each(["tap", "accept"])(
     assert.equal((await me(bea)).connections[0]!.match, 50);
   },
 );
+
+test("a half that waited for the other's counts the setup they finished meanwhile", async () => {
+  const { tap, login, patch } = harness();
+  const alex = await login("alex");
+  const bea = await login("bea");
+  await patch(alex, { display_name: "Alex", answers: { drink: "tea", hours: "owl" } });
+  await patch(bea, { display_name: "Bea", answers: { drink: "tea" } });
+
+  // Bea's own half holds the pair's row while it runs.
+  const pair = and(eq(meetingHalves.userA, "alex"), eq(meetingHalves.userB, "bea"));
+  let finishBeasHalf!: () => void;
+  const beasHalfMayFinish = new Promise<void>((resolve) => (finishBeasHalf = resolve));
+  const beasHalf = testDb().transaction(async (tx) => {
+    await tx.insert(meetingHalves).values({ userA: "alex", userB: "bea" });
+    await tx.select().from(meetingHalves).where(pair).for("update");
+    await beasHalfMayFinish;
+    await tx
+      .update(meetingHalves)
+      .set({ bMetAt: new Date().toISOString(), requestId: crypto.randomUUID() })
+      .where(pair);
+  });
+
+  // Alex's half begins, then waits for that row. Bea finishes setup meanwhile.
+  const alexsHalf = tap("alex", "bea");
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await patch(bea, { answers: { hours: "owl" } });
+  finishBeasHalf();
+  await beasHalf;
+
+  // On TiDB a plain read after the wait would still see Bea unfinished (BAC-176).
+  assert.equal(await alexsHalf, "connected");
+});

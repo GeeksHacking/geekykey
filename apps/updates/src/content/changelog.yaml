@@ -2410,3 +2410,10 @@
     confirmation that names the token and its owner. The list also filters by claimed or
     unclaimed and sorts by UID or kind, and the arrow in each filter menu no longer touches its
     text.
+
+- id: connect-after-setup-race
+  date: 2026-11-07
+  area: backend
+  change: >-
+    Two people who tap each other's tokens while one of them is just finishing setup now connect,
+    instead of one being told to finish setup first.

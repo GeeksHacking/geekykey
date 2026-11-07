@@ -212,6 +212,16 @@ function sidesOf(
   return row.userA === userId ? [a, b] : [b, a];
 }
 
+/**
+ * For a half and an accept, which take the pair's lock and then read the other person's
+ * setup. On TiDB a plain read sees the database as it was when the transaction began,
+ * even after waiting on that lock, so a setup finished during the wait would read as
+ * unfinished. READ COMMITTED makes each read see what is committed by then, and takes no
+ * locks of its own (BAC-176). tap-pipeline.ts uses locking reads instead; here they would
+ * lock users' rows against PATCH /api/v1/me, which locks answers first.
+ */
+const READ_LATEST = { isolationLevel: "read committed" } as const;
+
 /** A pair's row once it has no request waiting. */
 const NO_REQUEST = { requestId: null, aMetAt: null, bMetAt: null };
 
@@ -315,7 +325,7 @@ export function connectionsGame(
             .where(pair.where);
         }
         return "waiting";
-      }),
+      }, READ_LATEST),
 
     async accept(db, answer, now, isReady) {
       const pair = await pairOfRequest(db, answer);
@@ -339,7 +349,7 @@ export function connectionsGame(
         if (halves.requestId !== answer.requestId) return "not_found";
         if (!(await isReady(tx, fromId))) return "answers_needed";
         return connect(tx, pair, { kindA, kindB }, now);
-      });
+      }, READ_LATEST);
       return status === "not_found" ? { status } : { status, fromId };
     },
 
