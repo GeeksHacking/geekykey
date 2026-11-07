@@ -11,6 +11,7 @@ import { createMockClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID, SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { ParticipantFrame } from "@/features/auth/participant-frame";
 import { RequireSession } from "@/features/auth/require-session";
+import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { createTestProviders } from "@/test/providers";
 
@@ -20,6 +21,7 @@ function renderEvent(
   organizer = false,
   noQuestions = false,
   setup?: (api: ReturnType<typeof createMockClient>) => void,
+  dashboard = false,
 ) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(organizer ? SEEDED_ORGANIZER_ID : SEEDED_GUEST_ID);
@@ -30,7 +32,7 @@ function renderEvent(
     component: () => (
       <RequireSession>
         <ParticipantFrame>
-          <p>Dashboard and group card</p>
+          {dashboard ? <DashboardScreen /> : <p>Dashboard and group card</p>}
         </ParticipantFrame>
       </RequireSession>
     ),
@@ -68,6 +70,23 @@ it("a participant who skipped before must save a name and every answer before se
     await user.click(await screen.findByRole("button", { name: choice }));
   }
   expect(await screen.findByText("Dashboard and group card")).toBeInTheDocument();
+});
+
+// FRO-138. After `answers_needed`, no half is kept, so the guest finishes setup and must
+// tap again. The dashboard's hint is the next step.
+it("a guest who finishes setup sees how to connect on the dashboard", async () => {
+  const { user } = renderEvent(false, false, undefined, true);
+  await user.type(await screen.findByRole("textbox", { name: "Name" }), "Mei Lin");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  for (const choice of ["Tea", "Night owl", "Friends", "Fly", "Out with friends"]) {
+    await user.click(await screen.findByRole("button", { name: choice }));
+  }
+
+  expect(
+    await screen.findByRole("heading", {
+      name: "Tap someone's token with your phone to connect.",
+    }),
+  ).toBeInTheDocument();
 });
 
 it("an event without answers needs only the participant's name", async () => {
