@@ -81,7 +81,7 @@ function loggedErrors() {
 
 const showcase = (extra: object = {}) => ({
   id: "showcase",
-  name: "Grad Tea",
+  name: "Capstone Showcase",
   url: "https://event-api.geekshacking.com",
   public_url: "https://event.geekshacking.com",
   meetings: true,

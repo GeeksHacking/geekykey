@@ -26,7 +26,7 @@ const answerOf = async (res: Response | Promise<Response>) => {
   return await answered.json();
 };
 
-/** The questions in the tests' answers game, so no test depends on the grad tea's list. */
+/** The questions in the tests' answers game, so no test depends on the showcase's list. */
 const QUESTIONS: readonly Question[] = [
   {
     id: "drink",

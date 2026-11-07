@@ -11,7 +11,7 @@
   // src/test-helpers.ts.
   //
   // The Event side is the base (src/event/), the games (src/games/) and each event's settings
-  // (src/showcase/ and src/grad-tea/). The base is what the GitHub template copies, so it imports
+  // (src/showcase/). The base is what the GitHub template copies, so it imports
   // none of the others: src/app.ts hands it the games and the answers game's questions the
   // settings name (spec, checkpoint 7).
   //
@@ -35,7 +35,7 @@
                 "message": "The Event side reaches the claims stand-in only through its requests."
               },
               {
-                "group": ["**/games/**", "**/showcase/**", "**/grad-tea/**"],
+                "group": ["**/games/**", "**/showcase/**"],
                 "message": "The base takes its games and questions from src/app.ts, so it works with any event's."
               }
             ]
@@ -44,7 +44,7 @@
       }
     },
     {
-      "files": ["src/games/**", "src/showcase/**", "src/grad-tea/**"],
+      "files": ["src/games/**", "src/showcase/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -77,7 +77,7 @@
                 "message": "The server's root brings in every area, so an area takes only its types."
               },
               {
-                "group": ["**/event/**", "**/games/**", "**/showcase/**", "**/grad-tea/**"],
+                "group": ["**/event/**", "**/games/**", "**/showcase/**"],
                 "message": "The claims stand-in reaches the Event side only through its requests."
               }
             ]
@@ -97,7 +97,7 @@
                 "message": "A test may read another area's tables, and nothing else of it."
               },
               {
-                "group": ["**/games/**", "**/showcase/**", "**/grad-tea/**"],
+                "group": ["**/games/**", "**/showcase/**"],
                 "message": "The base's tests take the showcase's games from src/test-helpers.ts, and give testApp() their own questions."
               }
             ]
@@ -106,7 +106,7 @@
       }
     },
     {
-      "files": ["src/games/**/*.test.ts", "src/showcase/**/*.test.ts", "src/grad-tea/**/*.test.ts"],
+      "files": ["src/games/**/*.test.ts", "src/showcase/**/*.test.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
