@@ -60,7 +60,8 @@ export function ConnectionChallengeSwitch({ value }: { value: Challenge }) {
               id={`challenge-${choice.value}`}
               value={choice.value}
               aria-describedby={`challenge-${choice.value}-description`}
-              className="mt-0.5"
+              // The label's line is 24px (leading-6) and the circle 16px, so 4px centres it on the first line.
+              className="mt-1"
             />
             <div className="min-w-0">
               <Label htmlFor={`challenge-${choice.value}`}>{choice.label}</Label>
