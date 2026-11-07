@@ -31,6 +31,8 @@ Whoever applies `ready-for-human`, whether the triage skill, a quick state overr
 
 An agent asked to implement a ticket labelled `ready-for-human`, through `/implement` or any other way, stops before changing code. It says the label is there, gives the reason the ticket's brief gives for keeping the work with a person, and asks whether to go ahead. When the brief gives no reason, it says that too. A yes covers that ticket in that session only.
 
+A `ready-for-agent` ticket keeps any check only a person can do, such as a run on real phones or on production, under its own `## Checks for a person` heading, naming who. An agent finishes the rest and reports those checks as still open.
+
 `Feature` is also a workspace label. Triage does not apply it; people use it by hand for new work.
 
 Edit the right-hand column to match whatever vocabulary you actually use.
