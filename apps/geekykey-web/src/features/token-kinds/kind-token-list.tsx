@@ -123,7 +123,7 @@ export function KindTokenList() {
         <ReleaseKindTokenDialog
           confirmed={releasing}
           current={all.find((token) => token.uid === releasing.uid)}
-          refreshing={tokens.isFetching}
+          listState={tokens.isFetching ? "refreshing" : tokens.isError ? "failed" : "fresh"}
           onClose={() => setReleasing(null)}
         />
       )}

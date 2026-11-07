@@ -32,12 +32,13 @@ const mayHaveReleased = (error: unknown) => !isApiError(error) || error.status >
 export function ReleaseKindTokenDialog({
   confirmed,
   current,
-  refreshing,
+  listState,
   onClose,
 }: {
   confirmed: ClaimedKindToken;
   current: AdminKindToken | undefined;
-  refreshing: boolean;
+  /** Whether the list is being read again, or its last read failed and `current` is old. */
+  listState: "fresh" | "refreshing" | "failed";
   onClose: () => void;
 }) {
   const release = useReleaseKindToken();
@@ -99,7 +100,9 @@ export function ReleaseKindTokenDialog({
                 : describeError(release.error)}
               {mayHaveReleased(release.error) ? " The release may have gone through." : null}
             </p>
-            <p>{refreshedOwnership(current, refreshing)}</p>
+            <p className="break-words [overflow-wrap:anywhere]">
+              {refreshedOwnership(current, listState)}
+            </p>
           </div>
         ) : null}
         <AlertDialogFooter>
@@ -118,8 +121,13 @@ export function ReleaseKindTokenDialog({
 }
 
 /** What the list says after a failed release, so the admin checks before another try. */
-function refreshedOwnership(current: AdminKindToken | undefined, refreshing: boolean) {
-  if (refreshing) return "Refreshing the list.";
+function refreshedOwnership(
+  current: AdminKindToken | undefined,
+  listState: "fresh" | "refreshing" | "failed",
+) {
+  if (listState === "refreshing") return "Refreshing the list.";
+  // TanStack keeps the last good list when a refetch fails, so it says nothing about now.
+  if (listState === "failed") return "Couldn't check the list. Refresh it before releasing again.";
   if (current === undefined) return "The refreshed list no longer shows this token.";
   if (current.owner_id === null) return "The refreshed list shows it unclaimed.";
   return `The refreshed list shows it claimed by ${current.owner_id}.`;

@@ -2474,7 +2474,8 @@ and "Release token" ("Releasing" while pending). `not_found` says "Someone else 
 token now, or it has already been released." A reply that may have been lost adds "The release
 may have gone through." After a failed release the list refreshes, the dialog says "The
 refreshed list shows it unclaimed.", "The refreshed list shows it claimed by <owner ID>." or
-"The refreshed list no longer shows this token." ("Refreshing the list." until it answers), and
+"The refreshed list no longer shows this token." ("Refreshing the list." until it answers, and "Couldn't check the list. Refresh it before
+releasing again." if that read fails), and
 offers only "Close", so another release
 starts from a new confirmation. If the list shows a new owner while the dialog is open, it
 says "This token's owner has changed since you opened this. Close it and check the list." A

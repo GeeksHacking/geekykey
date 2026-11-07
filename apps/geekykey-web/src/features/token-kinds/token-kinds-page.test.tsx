@@ -537,6 +537,27 @@ describe("releasing a token", () => {
     );
   });
 
+  it("doesn't pass off an old list as the refreshed one when the refresh fails", async () => {
+    const send = api.releaseToken.bind(api);
+    vi.spyOn(api, "releaseToken").mockImplementationOnce(async (uid, owner) => {
+      await send(uid, owner);
+      throw new ApiError(503, "claims_unavailable");
+    });
+    await renderPage();
+    const dialog = await openRelease("04A1B2C3D4E5F6");
+    vi.spyOn(api, "listKindTokens").mockRejectedValue(new ApiError(503, "claims_unavailable"));
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Release token" }));
+
+    const alert = await within(dialog).findByRole("alert");
+    await waitFor(() =>
+      expect(alert).toHaveTextContent(
+        "Couldn't check the list. Refresh it before releasing again.",
+      ),
+    );
+    expect(alert).not.toHaveTextContent("The refreshed list shows");
+  });
+
   it("sends one release however often it is pressed", async () => {
     const release = vi.spyOn(api, "releaseToken");
     await renderPage();
