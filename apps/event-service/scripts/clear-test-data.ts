@@ -13,7 +13,8 @@
  *   mise exec -- pnpm db:clear-test-data --production --env-file ~/.config/geekykey/tidb-migration.env
  *
  * Staging's env file clears geekykey_staging. Without --production it clears
- * geekykey_dev, to try it first.
+ * geekykey_dev, to try it first. Those two also take the name from a pipe, for
+ * testing. Production's needs a terminal.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +54,7 @@ try {
   const outcome = await clearEvent(connection, {
     copyDir: join(homedir(), ".config", "geekykey", "copies"),
     now: new Date(),
+    atTerminal: Boolean(stdin.isTTY),
     typeDatabaseName: ask,
     print: (line) => console.log(line),
   });

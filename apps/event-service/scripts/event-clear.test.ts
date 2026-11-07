@@ -28,7 +28,7 @@ import {
 } from "../src/test-helpers.ts";
 import { clearedTables, keptTables } from "./clear-lists.ts";
 import { type ClearOptions, clearEvent } from "./event-clear.ts";
-import { localDatabaseUrl } from "./local-tidb.ts";
+import { LOCAL_ROOT, localDatabaseUrl } from "./local-tidb.ts";
 
 const AT = "2026-11-12T12:00:00.000Z";
 
@@ -100,6 +100,7 @@ async function clear(overrides: Partial<ClearOptions> = {}) {
   const outcome = clearEvent(connection, {
     copyDir: await copyDir(),
     now: new Date(AT),
+    atTerminal: true,
     typeDatabaseName: async () => "geekykey_test",
     print: (line) => printed.push(line),
     ...overrides,
@@ -232,6 +233,37 @@ test("everyone logs in afresh after the clear, and a name used before is free ag
   const body = await returning.json();
   screensSchemas.meResponseSchema.parse(body);
   assert.equal((body as { user: { has_name: boolean } }).user.has_name, false);
+});
+
+test("production's clear refuses a name that doesn't come from a terminal", async () => {
+  const root = await createConnection(LOCAL_ROOT);
+  onTestFinished(async () => {
+    await root.query("DROP DATABASE IF EXISTS geekykey");
+    await root.end();
+  });
+  // Named as production's is. The refusal comes first, so it needs no tables.
+  await root.query("CREATE DATABASE IF NOT EXISTS geekykey");
+  await root.query("USE geekykey");
+  const dir = await copyDir();
+
+  await assert.rejects(
+    clearEvent(root, {
+      copyDir: dir,
+      now: new Date(AT),
+      atTerminal: false,
+      typeDatabaseName: async () => assert.fail("asked for the name with no terminal"),
+      print: () => {},
+    }),
+    /terminal/,
+  );
+
+  assert.deepEqual(await readdir(dir), []);
+});
+
+test("staging's clear and the local ones accept a name from a pipe", async () => {
+  await fillEveryTable();
+  const { outcome } = await clear({ atTerminal: false });
+  assert.equal(await outcome, "cleared");
 });
 
 test("if the copy fails, nothing is emptied and nobody is asked", async () => {

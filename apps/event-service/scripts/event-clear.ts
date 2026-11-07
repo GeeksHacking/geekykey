@@ -9,12 +9,15 @@ import type { MySqlTable } from "drizzle-orm/mysql-core";
 import type { Connection, RowDataPacket } from "mysql2/promise";
 import { clearedTables, keptTables } from "./clear-lists.ts";
 import { tableNames, writeCopy } from "./database-copy.ts";
+import { PRODUCTION } from "./logins.ts";
 
 export interface ClearOptions {
   /** The folder the copy goes in, made if it's missing. */
   copyDir: string;
   /** When the copy is taken, which names its file. */
   now: Date;
+  /** Whether a person can type the name, rather than a pipe sending it. */
+  atTerminal: boolean;
   /** Asks the person running the clear this question, and gives back what they typed. */
   typeDatabaseName: (question: string) => Promise<string>;
   print: (line: string) => void;
@@ -30,15 +33,22 @@ const names = (tables: readonly MySqlTable[]) => tables.map((table) => getTableN
  * having emptied nothing, if a table on the cleared list changed size while the
  * name was being typed, since the copy doesn't hold those rows. It answers
  * `rows_left` if the clear went through but something has written to a table
- * since. It throws, having emptied nothing, if a table is on neither list or
- * the copy fails.
+ * since. It throws, having emptied nothing, if a table is on neither list, the
+ * copy fails, or production's name would come from anywhere but a terminal, so
+ * a script can't clear production by mistake.
  */
 export async function clearEvent(
   connection: Connection,
-  { copyDir, now, typeDatabaseName, print }: ClearOptions,
+  { copyDir, now, atTerminal, typeDatabaseName, print }: ClearOptions,
 ): Promise<"cleared" | "not_confirmed" | "changed_since_copy" | "rows_left"> {
   const [rows] = await connection.query<RowDataPacket[]>("SELECT DATABASE() AS name");
   const database = rows[0]!.name as string;
+  if (database === PRODUCTION.database && !atTerminal) {
+    throw new Error(
+      `${database} is production's database, and its clear needs Adam at a terminal to type its ` +
+        "name. Nothing was emptied.",
+    );
+  }
   await refuseUnlistedTables(connection);
 
   const copy = await writeCopy(connection, database, copyDir, now).catch((cause: unknown) => {

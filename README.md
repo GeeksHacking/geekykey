@@ -1003,9 +1003,10 @@ mise exec -- pnpm db:clear-test-data --production --env-file ~/.config/geekykey/
 
 The command connects to the database the env file's login reaches, and takes a copy into
 `~/.config/geekykey/copies`. It prints each table's row count and asks you to type the
-database's name, `geekykey` on production. Any other answer stops it with nothing emptied, and
-so does a failed copy. So does a change to the row counts while you type, since the copy
-doesn't hold the new rows. Stop whatever is writing and run it again.
+database's name. On production that's `geekykey`, and you have to type it at a terminal: the
+command refuses it from a pipe. Any other answer stops it with nothing emptied, and so does a
+failed copy. So does a change to the row counts while you type, since the copy doesn't hold the
+new rows. Stop whatever is writing and run it again.
 
 It then empties the tables in one transaction and prints the counts again, expecting 0 taps, 0
 claims and 0 users. If a table has rows by then, the clear has still happened: something wrote
