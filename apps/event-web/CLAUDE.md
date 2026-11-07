@@ -11,8 +11,13 @@ Two audiences, two surfaces:
 - **Participants** on their own phones, mid-event, often under dim venue lighting. Mobile first.
 - **Organisers** on a laptop at the registration desk or a booth. Desktop first, denser.
 
-Key dates: the grad tea on 12 Nov 2026 is a pilot of the showcase's games, and the showcase is on
-17 Nov 2026. Scope down before adding features.
+Key dates: the team's test session is on Fri 13 Nov 2026, the last merge is on Sun 15 Nov, and the
+showcase is on Tue 17 Nov, with setup on Mon 16 Nov. The grad tea was scrapped on 3 Nov, so older
+notes that say "the grad tea's avatar" mean the dashboard's avatar. Scope down before adding
+features.
+
+[README.md](README.md) is the short guide for people new to this app. This file is the working
+agreement, and wins where the two differ.
 
 ## Sources of truth
 

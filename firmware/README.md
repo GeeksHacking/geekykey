@@ -32,6 +32,16 @@ How the station talks to the server is in [the API agreement](../apps/API-AGREEM
 
 `secrets.h` only gives the first settings. After that, the setup mode changes them.
 
+### The server address
+
+The server setting is a base URL: `https://key-api.geekshacking.com` in production, or
+`http://your-laptop.local:8000` for the GeekyKey Service running on a laptop
+([docs/getting-started.md](../docs/getting-started.md)). The station checks an `https://` address
+against the root certificates in `geekykey_station/ca_roots.h`. A plain `http://` address is for
+local development only: the station sends its key without encryption, so it allows `http://` only
+for a host ending in `.local`, on the network it is on. For a laptop, put the station on the same
+network and give it a throwaway key from `mise run seed`, never a production key.
+
 ## Testing the station's timing rules
 
 The station's rules about time are in `geekykey_station/tap_timing.h`: when the buzzer is on during

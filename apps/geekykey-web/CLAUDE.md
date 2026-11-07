@@ -9,6 +9,8 @@
 - This app's planned screens: section 13 of the API agreement
 
 Read those files before adding screens. They are references, not documents to copy into this file.
+[README.md](README.md) is the short guide for people new to this app; this file wins where the two
+differ.
 
 ## App rules
 
@@ -48,7 +50,7 @@ Read those files before adding screens. They are references, not documents to co
 ## Current scope
 
 The app is a routed shell with `/login`, a pathless signed-in layout, My tokens as the home
-page (still a placeholder until FRO-27), the data layer in `src/api/`, and sign-in and sign-out
+page, listing the user's tokens with Release (FRO-27), the data layer in `src/api/`, and sign-in and sign-out
 (FRO-19), and claiming a token from the token page (FRO-22). My tokens also claims a token by
 typing its UID, for the tokens a phone cannot read (FRO-30). The form is in
 `src/features/home/claim-by-code-form.tsx`, and the claim it makes goes through the hook in
