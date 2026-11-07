@@ -22,16 +22,16 @@ stations, 7 and 8 for the screens, 11 for what it sends an Event Service.
 `src/worker.ts` reads the settings once and hands each request to `src/app.ts`, which mounts the
 routes. Each file in `src/` is one area, with its test beside it:
 
-| File | What it does |
-|---|---|
-| `station-routes.ts`, `station-auth.ts`, `station-keys.ts` | `POST /api/v1/taps` and `POST /api/v1/stations/heartbeat`, and the key check |
-| `stations-copy.ts` | The in-memory copy of each Event Service's registered stations |
-| `claims.ts`, `claims-deadline.ts` | Calls to the claims stand-in, behind one module, `Claims`, so the switch to the Portal changes one file |
-| `event-service.ts`, `service-request.ts` | Calls to an Event Service |
-| `auth-routes.ts`, `session.ts` | Logging in with Firebase, and the `gk_session` cookie |
-| `me-routes.ts`, `token-routes.ts`, `login-link-routes.ts`, `token-kind-routes.ts` | The screens' endpoints |
-| `rate-limit.ts` | The three rate limits in `wrangler.jsonc` |
-| `config.ts` | Every setting, checked at start-up |
+| File                                                                              | What it does                                                                                            |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `station-routes.ts`, `station-auth.ts`, `station-keys.ts`                         | `POST /api/v1/taps` and `POST /api/v1/stations/heartbeat`, and the key check                            |
+| `stations-copy.ts`                                                                | The in-memory copy of each Event Service's registered stations                                          |
+| `claims.ts`, `claims-deadline.ts`                                                 | Calls to the claims stand-in, behind one module, `Claims`, so the switch to the Portal changes one file |
+| `event-service.ts`, `service-request.ts`                                          | Calls to an Event Service                                                                               |
+| `auth-routes.ts`, `session.ts`                                                    | Logging in with Firebase, and the `gk_session` cookie                                                   |
+| `me-routes.ts`, `token-routes.ts`, `login-link-routes.ts`, `token-kind-routes.ts` | The screens' endpoints                                                                                  |
+| `rate-limit.ts`                                                                   | The three rate limits in `wrangler.jsonc`                                                               |
+| `config.ts`                                                                       | Every setting, checked at start-up                                                                      |
 
 ## How a tap travels
 
@@ -99,17 +99,17 @@ as an Event Service from before connections does, is left out.
 `wrangler.jsonc` holds the settings, and Cloudflare holds the secrets. A deploy overwrites anything
 changed in the Cloudflare dashboard, so change settings in a pull request.
 
-| Setting | What it is |
-|---|---|
-| `EVENT_SERVICES` | The Event Services: each one's ID, name, address, public address for the screens' buttons, and whether it runs connections |
-| `GEEKYKEY_ADMINS` | User IDs who can release others' tokens and load token kinds |
-| `TOKEN_KIND_VIEWERS` | User IDs who can read the count of each kind. It is the Worker's own list, because it can't read an Event Service's `ORGANIZERS` |
-| `FIREBASE_PROJECT_ID` | `geekykey-b035a`, the same as the Event Service's |
-| `CLAIMS_STAND_IN_URL` | The claims stand-in's address, on the Event Service |
-| `TAP_DEADLINE_MS`, `MAX_TAPS_PER_REQUEST` | 4 seconds for a station's request, and 500 taps in one |
-| `MAX_TOKENS_PER_USER` | How many tokens one user may claim: 3 |
-| `STATION_LIMIT`, `USER_LIMIT`, `TOKEN_LIMIT` | Rate limits, a minute each: 60 requests per station, 60 per user, and 20 token lookups, claims and meetings per user. A request over a limit gets `429 rate_limited` |
-| Secrets: `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY_SHOWCASE` | Required. The Worker stops at start-up, naming the setting, if one is missing or malformed |
+| Setting                                                                        | What it is                                                                                                                                                           |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EVENT_SERVICES`                                                               | The Event Services: each one's ID, name, address, public address for the screens' buttons, and whether it runs connections                                           |
+| `GEEKYKEY_ADMINS`                                                              | User IDs who can release others' tokens and load token kinds                                                                                                         |
+| `TOKEN_KIND_VIEWERS`                                                           | User IDs who can read the count of each kind. It is the Worker's own list, because it can't read an Event Service's `ORGANIZERS`                                     |
+| `FIREBASE_PROJECT_ID`                                                          | `geekykey-b035a`, the same as the Event Service's                                                                                                                    |
+| `CLAIMS_STAND_IN_URL`                                                          | The claims stand-in's address, on the Event Service                                                                                                                  |
+| `TAP_DEADLINE_MS`, `MAX_TAPS_PER_REQUEST`                                      | 4 seconds for a station's request, and 500 taps in one                                                                                                               |
+| `MAX_TOKENS_PER_USER`                                                          | How many tokens one user may claim: 3                                                                                                                                |
+| `STATION_LIMIT`, `USER_LIMIT`, `TOKEN_LIMIT`                                   | Rate limits, a minute each: 60 requests per station, 60 per user, and 20 token lookups, claims and meetings per user. A request over a limit gets `429 rate_limited` |
+| Secrets: `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY_SHOWCASE` | Required. The Worker stops at start-up, naming the setting, if one is missing or malformed                                                                           |
 
 Locally, `mise run dev:geekykey-service` runs
 `wrangler dev --env-file dev.env --var DEV_AUTH_ENABLED:true`. The committed `dev.env` holds no real

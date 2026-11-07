@@ -78,23 +78,23 @@ checks the rule.
 One TiDB database holds both areas' tables. Each area keeps its tables in its own `schema.ts`, and
 no foreign key crosses between them. Drizzle writes one set of migrations from all of them.
 
-| Area | Tables |
-|---|---|
-| `src/event/schema.ts` | `users`, `user_kinds`, `stations`, `passport_stations`, `taps`, `used_login_links`, `participant_groups`, `group_members`, `group_allocation`, `event_settings` |
-| `src/games/connections/schema.ts` | `answers`, `meeting_halves`, `connections` |
-| `src/claims-stand-in/schema.ts` | `tokens`, `token_kinds` |
+| Area                              | Tables                                                                                                                                                          |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/event/schema.ts`             | `users`, `user_kinds`, `stations`, `passport_stations`, `taps`, `used_login_links`, `participant_groups`, `group_members`, `group_allocation`, `event_settings` |
+| `src/games/connections/schema.ts` | `answers`, `meeting_halves`, `connections`                                                                                                                      |
+| `src/claims-stand-in/schema.ts`   | `tokens`, `token_kinds`                                                                                                                                         |
 
 Locally, TiDB runs in Docker from the root `compose.yaml`, at the version GeeksHacking's cluster
 runs. It holds `geekykey_dev` for the dev server and the seed, and `geekykey_test` for the tests,
 so running the tests never wipes your data.
 
-| Task | What it does |
-|---|---|
-| `mise run db:up` | Start TiDB, then create and migrate both databases. Run it again after quitting Docker Desktop |
-| `mise run db:migrate` | Apply new migrations to both databases, after a pull |
-| `mise run db:down` | Stop TiDB and keep its data |
-| `mise run db:reset` | Throw away all data and start with empty, migrated databases. Seed again after |
-| `mise run seed` | Add a station and the two dev users to `geekykey_dev`. `-- --station "Name"` names it, `--outside-passport` leaves it out of the passport |
+| Task                  | What it does                                                                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `mise run db:up`      | Start TiDB, then create and migrate both databases. Run it again after quitting Docker Desktop                                            |
+| `mise run db:migrate` | Apply new migrations to both databases, after a pull                                                                                      |
+| `mise run db:down`    | Stop TiDB and keep its data                                                                                                               |
+| `mise run db:reset`   | Throw away all data and start with empty, migrated databases. Seed again after                                                            |
+| `mise run seed`       | Add a station and the two dev users to `geekykey_dev`. `-- --station "Name"` names it, `--outside-passport` leaves it out of the passport |
 
 ### Changing a table
 
@@ -126,16 +126,16 @@ winning over the one before:
 In production, `infra/production/settings.env` sets the settings and Secret Manager holds the
 secrets ([docs/operations.md](../../docs/operations.md#secrets)).
 
-| Setting | What it is |
-|---|---|
-| `DATABASE_URL` | The database's `mysql://` address. Required. It connects over TLS, checking the certificate and name, unless the host is on your laptop |
-| `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY` | Required unless dev sign-in is on, which gives them built-in values. Each key is 64 hex characters |
-| `FIREBASE_PROJECT_ID` | The Firebase project whose ID tokens `POST /auth/firebase` accepts: `geekykey-b035a`. Always required |
-| `DEV_AUTH_ENABLED` | `true` adds `POST /auth/dev-login`, which signs in a seeded user without a real login. Never on in production |
-| `ORGANIZERS` | User IDs who are organizers, separated by commas. Everyone else is a participant. With dev sign-in on, unset means `dev-organizer-1` |
-| `MAP_SCREENS` | User IDs that may read the map and nothing else an organizer can, for the screen at the booth |
-| `TAP_COOLDOWN_SECONDS` | `300`. Set it to `0` so repeat taps count while you test |
-| `PORT` | `8001` in `dev.env`, since the GeekyKey Service holds 8000. The Event screens' dev server and the GeekyKey Service's `dev.env` expect 8001 |
+| Setting                                                      | What it is                                                                                                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                                               | The database's `mysql://` address. Required. It connects over TLS, checking the certificate and name, unless the host is on your laptop    |
+| `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY` | Required unless dev sign-in is on, which gives them built-in values. Each key is 64 hex characters                                         |
+| `FIREBASE_PROJECT_ID`                                        | The Firebase project whose ID tokens `POST /auth/firebase` accepts: `geekykey-b035a`. Always required                                      |
+| `DEV_AUTH_ENABLED`                                           | `true` adds `POST /auth/dev-login`, which signs in a seeded user without a real login. Never on in production                              |
+| `ORGANIZERS`                                                 | User IDs who are organizers, separated by commas. Everyone else is a participant. With dev sign-in on, unset means `dev-organizer-1`       |
+| `MAP_SCREENS`                                                | User IDs that may read the map and nothing else an organizer can, for the screen at the booth                                              |
+| `TAP_COOLDOWN_SECONDS`                                       | `300`. Set it to `0` so repeat taps count while you test                                                                                   |
+| `PORT`                                                       | `8001` in `dev.env`, since the GeekyKey Service holds 8000. The Event screens' dev server and the GeekyKey Service's `dev.env` expect 8001 |
 
 The server reads `ORGANIZERS` and `MAP_SCREENS` at start-up, so a change takes a restart, or a
 deploy in production. Locally the server listens on your whole network, not only `localhost`, so
