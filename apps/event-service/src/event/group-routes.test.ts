@@ -43,6 +43,7 @@ interface MyGroupBody {
 interface BoardBody {
   allocation_started_at: string | null;
   connect_across: "token_kinds" | "groups";
+  challenge: "random" | "dice" | "reaction";
   joined_count: number;
   groups: {
     id: string;
@@ -272,6 +273,7 @@ test("a new group is on the board by its name, with nobody in it", async () => {
   assert.deepEqual(await board(), {
     allocation_started_at: null,
     connect_across: "token_kinds",
+    challenge: "random",
     joined_count: 0,
     groups: [group],
     waiting: [],
@@ -1388,6 +1390,7 @@ test("reset after Allocate keeps the groups, and nobody has joined", async () =>
   assert.deepEqual(after, {
     allocation_started_at: null,
     connect_across: "token_kinds",
+    challenge: "random",
     joined_count: 0,
     groups: [
       { ...first, members: [] },

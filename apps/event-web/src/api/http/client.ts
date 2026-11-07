@@ -6,6 +6,7 @@ import {
   parseEventStationBoardResponse,
   parseAcceptConnectionRequestResponse,
   parsePlayReactionResponse,
+  parseConnectionChallenge,
   parseConnectionRule,
   parseGroupBoardResponse,
   parseFallbackTapResponse,
@@ -247,6 +248,11 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     setConnectionRule: (input) =>
       sendJson("/api/v1/admin/connections/rule", jsonBody(input, "PUT")).then(parseConnectionRule),
+
+    setConnectionChallenge: (input) =>
+      sendJson("/api/v1/admin/connections/challenge", jsonBody(input, "PUT")).then(
+        parseConnectionChallenge,
+      ),
 
     removeGroupMember: async (userId) => {
       await send(`/api/v1/admin/groups/members/${encodeURIComponent(userId)}`, {

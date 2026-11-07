@@ -73,6 +73,8 @@ function groupBoardBody(board: Awaited<ReturnType<typeof loadGroupBoard>>) {
     allocation_started_at: board.startedAt,
     // The Groups screen's switch (BAC-140, draft for the API agreement's next version).
     connect_across: board.connectAcross,
+    // The Groups screen's choice of challenge (BAC-161, draft for the API agreement's next version).
+    challenge: board.challenge,
     joined_count: board.joinedCount,
     groups: board.groups.map(eventGroupBody),
     waiting: board.waiting.map((member) => ({

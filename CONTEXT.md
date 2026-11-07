@@ -196,13 +196,17 @@ accepts, with the Accept button or by tapping back (BAC-149). It joins two users
 so nobody connects to themselves, and a pair connects once however often they tap. Each new connection keeps one die roll per person,
 chosen by the Event Service when they connect; the higher roll wins, and equal rolls win for
 both (BAC-150). Older connections have no rolls. Since BAC-156 the Event Service picks the dice
-or the reaction test at random for each new connection. In the reaction test each person taps
+or the reaction test at random for each new connection, unless organizers have chosen one
+(BAC-161). In the reaction test each person taps
 their own phone when it turns green, within 2 minutes of connecting, and the faster time wins.
 _Avoid_: dual tap, link between tags
 
 **Challenge**:
 What a new connection plays: the dice or the reaction test. The connection keeps its result, and a
-win or a tie can earn a reward. The API still calls this field `game`.
+win or a tie can earn a reward. Organizers choose on the Groups screen whether each new connection
+gets one at random, which a new event starts on, or always the dice, or always the reaction test.
+A change applies to connections made after it (BAC-161). The API still calls the connection's
+field `game`.
 _Avoid_: game, which is an activity that stations feed
 
 **Bio**:

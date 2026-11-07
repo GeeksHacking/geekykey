@@ -40,6 +40,7 @@ export const screensSchemas = (await import(
   | "groupBoardResponseSchema"
   | "eventGroupSchema"
   | "connectionRuleSchema"
+  | "connectionChallengeSchema"
   | "acceptConnectionRequestResponseSchema"
   | "playReactionResponseSchema",
   ScreensSchema

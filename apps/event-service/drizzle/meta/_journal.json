@@ -176,6 +176,13 @@
       "when": 1793936792867,
       "tag": "0024_connections_play_a_reaction_test",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1794049670997,
+      "tag": "0025_connections_play_a_chosen_challenge",
+      "breakpoints": true
     }
   ]
 }

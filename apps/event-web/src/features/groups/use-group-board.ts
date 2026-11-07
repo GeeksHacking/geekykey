@@ -11,6 +11,7 @@ import { useApi } from "@/api/context";
 import { NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type {
+  Challenge,
   ConnectAcross,
   CreateGroupRequest,
   GroupBoardResponse,
@@ -32,7 +33,8 @@ type GroupBoardChange =
   | { type: "reset" }
   | { type: "move"; userId: string; groupId: string | null }
   | { type: "remove"; userId: string }
-  | { type: "rule"; connectAcross: ConnectAcross };
+  | { type: "rule"; connectAcross: ConnectAcross }
+  | { type: "challenge"; challenge: Challenge };
 
 async function sendChange(
   api: ApiClient,
@@ -62,6 +64,9 @@ async function sendChange(
     case "rule":
       await api.setConnectionRule({ connect_across: change.connectAcross });
       return null;
+    case "challenge":
+      await api.setConnectionChallenge({ challenge: change.challenge });
+      return null;
   }
 }
 
@@ -75,7 +80,10 @@ export function useGroupBoard() {
   });
 }
 
-/** Every write shares the board, including the connection rule carried by whole-board replies. */
+/**
+ * Every write shares the board, including the connection rule and the challenge carried by
+ * whole-board replies.
+ */
 export function useGroupBoardBusy() {
   return useIsMutating({ mutationKey: CHANGE_KEY }) > 0;
 }

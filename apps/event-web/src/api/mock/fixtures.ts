@@ -1,5 +1,6 @@
 import type {
   AcceptConnectionRequestStatus,
+  Challenge,
   ConnectAcross,
   Connection,
   ConnectionRequest,
@@ -126,6 +127,8 @@ export interface MockData {
   groupAllocationStartedAt: string | null;
   /** What connections need, which a new event starts as token kinds (BAC-140). */
   connectAcross: ConnectAcross;
+  /** What a new connection plays, which a new event starts as random (BAC-161). */
+  challenge: Challenge;
 }
 
 /**
@@ -540,5 +543,6 @@ export function createFixtures(now: number = Date.now()): MockData {
     groupMembers,
     groupAllocationStartedAt: null,
     connectAcross: "token_kinds",
+    challenge: "random",
   };
 }

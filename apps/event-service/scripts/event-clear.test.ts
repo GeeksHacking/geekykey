@@ -9,6 +9,12 @@ import { type Connection, createConnection, type RowDataPacket } from "mysql2/pr
 import { afterAll, beforeAll, onTestFinished, test } from "vitest";
 import { tokenKinds } from "../src/claims-stand-in/schema.ts";
 import {
+  loadChallenge,
+  loadConnectAcross,
+  setChallenge,
+  setConnectAcross,
+} from "../src/event/event-settings.ts";
+import {
   eventSettings,
   groupAllocation,
   groupMembers,
@@ -126,6 +132,17 @@ test("the right name empties the tables on the cleared list and keeps those on t
     assert.equal(count, 0, `${name} should be empty`);
   }
   assert.deepEqual(await rowCounts(keptTables), keptBefore);
+});
+
+test("the clear keeps the connection rule and the challenge organizers chose", async () => {
+  await setConnectAcross(testDb(), "groups");
+  await setChallenge(testDb(), "dice");
+
+  const { outcome } = await clear();
+  assert.equal(await outcome, "cleared");
+
+  assert.equal(await loadConnectAcross(testDb()), "groups");
+  assert.equal(await loadChallenge(testDb()), "dice");
 });
 
 test("a wrong database name changes nothing", async () => {

@@ -236,15 +236,26 @@ export const groupAllocation = mysqlTable("group_allocation", {
 export const CONNECT_ACROSS = ["token_kinds", "groups"] as const;
 
 /**
+ * Which challenge a new connection plays (BAC-161): one of the two at random,
+ * or always the dice, or always the reaction test.
+ */
+export const CHALLENGES = ["random", "dice", "reaction"] as const;
+
+/**
  * The event's settings that organizers change on the day, one row, made by
  * the first change. With no row, as in a new event's database, it connects
- * across token kinds. The event's settings, which the evening-before clear
- * keeps, as it keeps the groups.
+ * across token kinds and picks each challenge at random. The event's settings,
+ * which the evening-before clear keeps, as it keeps the groups.
  */
 export const eventSettings = mysqlTable("event_settings", {
   id: int("id").primaryKey(),
   /** What the connections game needs of the two people in a connection. */
   connectAcross: mysqlEnum("connect_across", CONNECT_ACROSS).notNull(),
+  /**
+   * What a new connection plays. It has a default so a row made by a version
+   * of the service from before it, which writes only `connect_across`, picks at random.
+   */
+  challenge: mysqlEnum("challenge", CHALLENGES).notNull().default("random"),
 });
 
 export type User = typeof users.$inferSelect;

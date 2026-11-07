@@ -2392,3 +2392,12 @@
   change: >-
     The token game's dashboard says to tap someone's token with your phone to connect, and an
     event without the answers game still says to tap a token at a station to collect stamps.
+
+- id: organizers-choose-the-challenge
+  date: 2026-11-07
+  area: backend
+  change: >-
+    Organisers choose on the Groups screen whether each new connection gets the dice or the
+    reaction test at random, or always the dice, or always the reaction test, so a guided demo runs
+    the same way each time. A change needs no deploy and applies to connections made after it, and
+    the event clear keeps it.

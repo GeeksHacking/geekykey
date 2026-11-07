@@ -244,6 +244,22 @@ describe("the groups' calls (draft for agreement 0.14)", () => {
     );
   });
 
+  it("sets which challenge a new connection plays at /api/v1/admin/connections/challenge (BAC-161)", async () => {
+    const api = createHttpClient();
+    fetchMock.mockResolvedValueOnce(response({ challenge: "reaction" }));
+
+    await expect(api.setConnectionChallenge({ challenge: "reaction" })).resolves.toEqual({
+      challenge: "reaction",
+    });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/admin/connections/challenge",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ challenge: "reaction" }),
+      }),
+    );
+  });
+
   it("sends a group's capacity", async () => {
     const api = createHttpClient();
     const group = {

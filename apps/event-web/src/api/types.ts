@@ -434,11 +434,29 @@ export interface ConnectionRule {
   connect_across: ConnectAcross;
 }
 
+/**
+ * Which challenge a new connection plays (BAC-161, draft for the agreement's next version): the
+ * dice or the reaction test at random, which a new event starts on, or always one of them.
+ */
+export const CHALLENGES = ["random", "dice", "reaction"] as const;
+
+export type Challenge = (typeof CHALLENGES)[number];
+
+/** PUT /api/v1/admin/connections/challenge, its request and its answer (BAC-161). */
+export interface ConnectionChallenge {
+  challenge: Challenge;
+}
+
 /** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate (draft for agreement 0.14). */
 export interface GroupBoardResponse {
   allocation_started_at: string | null;
   /** What connections need now, which the Groups screen's switch sets (BAC-140). */
   connect_across: ConnectAcross;
+  /**
+   * What a new connection plays now, which the Groups screen's choice sets (BAC-161). An Event
+   * Service from before it leaves it out, and the screen then doesn't offer the choice.
+   */
+  challenge?: Challenge;
   joined_count: number;
   groups: EventGroup[];
   waiting: GroupWaitingMember[];

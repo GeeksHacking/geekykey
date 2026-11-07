@@ -1,9 +1,10 @@
 import * as z from "zod/mini";
 
 import { NetworkError } from "@/api/errors";
-import { ACCEPT_CONNECTION_REQUEST_STATUSES, CONNECT_ACROSS } from "@/api/types";
+import { ACCEPT_CONNECTION_REQUEST_STATUSES, CHALLENGES, CONNECT_ACROSS } from "@/api/types";
 import type {
   AcceptConnectionRequestResponse,
+  ConnectionChallenge,
   ConnectionRule,
   EventGroup,
   EventStationBoardResponse,
@@ -291,6 +292,14 @@ export const connectionRuleSchema: z.ZodMiniType<ConnectionRule> = z.object({
   connect_across: connectAcrossSchema,
 });
 
+/** Which challenge a new connection plays (BAC-161, draft for the agreement's next version). */
+const challengeSchema = z.enum(CHALLENGES);
+
+/** PUT /api/v1/admin/connections/challenge's answer (BAC-161, draft for the agreement's next version). */
+export const connectionChallengeSchema: z.ZodMiniType<ConnectionChallenge> = z.object({
+  challenge: challengeSchema,
+});
+
 /** A group on the organizers' board, and POST /api/v1/admin/groups's answer. */
 export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
   id: z.string(),
@@ -313,6 +322,7 @@ export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
 export const groupBoardResponseSchema: z.ZodMiniType<GroupBoardResponse> = z.object({
   allocation_started_at: z.nullable(isoTimestamp),
   connect_across: connectAcrossSchema,
+  challenge: z.optional(challengeSchema),
   joined_count: z.int(),
   groups: z.array(eventGroupSchema),
   waiting: z.array(
@@ -384,6 +394,9 @@ export const parseGroupBoardResponse = (input: unknown) =>
 
 export const parseConnectionRule = (input: unknown) =>
   parseOrganizerResponse(connectionRuleSchema, input);
+
+export const parseConnectionChallenge = (input: unknown) =>
+  parseOrganizerResponse(connectionChallengeSchema, input);
 
 export const parseAcceptConnectionRequestResponse = (input: unknown) =>
   parseOrganizerResponse(acceptConnectionRequestResponseSchema, input);

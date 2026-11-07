@@ -1230,6 +1230,56 @@ describe("GroupsScreen", () => {
     expect(screen.getByRole("radio", { name: "Connect across token kinds" })).toBeChecked();
     expect(api.mock.data.connectAcross).toBe("token_kinds");
   });
+
+  it("shows which challenge a new connection plays, Random for a new event, and switches it to Dice", async () => {
+    const { api, user } = renderScreen();
+    const random = await screen.findByRole("radio", { name: "Random" });
+    const dice = screen.getByRole("radio", { name: "Dice" });
+    const reaction = screen.getByRole("radio", { name: "Reaction" });
+    expect(random).toBeChecked();
+
+    await user.click(dice);
+
+    await waitFor(() => expect(dice).toBeChecked());
+    expect(random).not.toBeChecked();
+    expect(reaction).not.toBeChecked();
+    expect(api.mock.data.challenge).toBe("dice");
+    // The connection rule stays as it was.
+    expect(screen.getByRole("radio", { name: "Connect across token kinds" })).toBeChecked();
+  });
+
+  it("keeps the challenge when a change fails, and says why", async () => {
+    const { api, user } = renderScreen();
+    const reaction = await screen.findByRole("radio", { name: "Reaction" });
+    api.mock.failNext("internal_error");
+
+    await user.click(reaction);
+
+    expect(await screen.findByText(/Couldn't change the challenge\./)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Random" })).toBeChecked();
+    expect(api.mock.data.challenge).toBe("random");
+  });
+
+  it("offers no choice of challenge when the Event Service is from before it", async () => {
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    renderScreen({
+      prepare: (api) => {
+        const readBoard = api.groupBoard.bind(api);
+        vi.spyOn(api, "groupBoard").mockImplementation(async () => {
+          const { challenge: _left, ...older } = await readBoard();
+          return older;
+        });
+      },
+    });
+
+    expect(
+      await screen.findByRole("radio", { name: "Connect across token kinds" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Random" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Challenge" })).not.toBeInTheDocument();
+  });
 });
 
 function deferred<T>() {
