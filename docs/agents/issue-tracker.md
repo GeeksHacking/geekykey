@@ -11,6 +11,7 @@ Work is split between two places:
 - **Project and milestone**: the Linear project for the effort (for example "Move to TiDB and Cloudflare"). Each spec checkpoint gets its own milestone, named like "Checkpoint 1: today's backend on workerd and TiDB".
 - **New tickets**: status `Todo`, assigned to the person driving the session, with the triage label from `triage-labels.md`.
 - **Blocking**: use Linear's native blocked-by relations (`save_issue` with `blockedBy`). Also list the blockers in the issue body, so someone reading only the text can see them.
+- **Search**: the `query` of `list_issues` matches loosely, so `db:backup` returns dozens of unrelated tickets. Before saying no ticket exists, give it a team and a limit, try a second word, and read the titles.
 - **Comment**: `save_comment` on the issue.
 - **Apply / remove labels**: `save_issue` with `addLabels` / `removeLabels`. If a label doesn't exist in the workspace yet, create it with `save_issue_label`.
 - **Close**: set the status to `Done` (or `Canceled` for `wontfix`), and add a comment saying why.

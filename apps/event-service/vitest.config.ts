@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { FailureLog } from "./test-support/failure-log.ts";
 
 // Every test runs on Node, as the server does, against the tests' own database
 // in the TiDB from `mise run db:up`.
@@ -12,9 +13,10 @@ export default defineConfig({
     ],
   },
   test: {
+    reporters: ["default", new FailureLog()],
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     environment: "node",
-    // Brings geekykey_test up to date once per run, before any test file.
+    // Stops the run if another is using geekykey_test, then brings it up to date.
     globalSetup: ["./test-support/global-setup.ts"],
     // Empties every table in geekykey_test before each test.
     setupFiles: ["./test-support/empty-tables.ts"],

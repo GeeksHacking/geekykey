@@ -41,8 +41,9 @@ export const clearedTables: readonly MySqlTable[] = [
 
 /** The settings, which both events share. */
 export const keptTables: readonly MySqlTable[] = [
-  stations,
+  // Before `stations`, which it points at, so test-support/empty-tables.ts can delete in this order.
   passportStations,
+  stations,
   // A kind belongs to the token, which keeps it at the next event.
   tokenKinds,
   // Each row goes a minute after its link expires anyway, and emptying it could let a used link in again.

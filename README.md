@@ -382,7 +382,7 @@ mise exec -- <command>        # run any command with the pinned tools, e.g. mise
 | `build:geekykey-web` | Typecheck the GeekyKey screens, then build them |
 | `format:geekykey-web` | Format the GeekyKey screens code in place with oxfmt |
 | `dev:event-service` | The Event Service on Node on http://localhost:8001, reloading when a file changes, with dev sign-in turned on |
-| `test:event-service` | Event Service tests (Vitest on Node) against `geekykey_test`, run once |
+| `test:event-service` | Event Service tests (Vitest on Node) against `geekykey_test`, run once. One run at a time across checkouts, and failed tests stay in `apps/event-service/test-results/failures.log` |
 | `format:event-service` | Format the Event Service code in place with oxfmt |
 | `dev:geekykey-service` | The GeekyKey Service in `wrangler dev` on http://localhost:8000, with its settings from `apps/geekykey-service/dev.env`, where dev sign-in is turned on |
 | `test:geekykey-service` | GeekyKey Service tests (Vitest inside workerd), run once. No database needed |
