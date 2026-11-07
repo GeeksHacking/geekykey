@@ -19,6 +19,7 @@
     "db:logins": "node scripts/create-logins.ts",
     "db:test-station": "node scripts/create-test-station.ts",
     "db:token-kinds": "node scripts/load-token-kinds.ts",
+    "db:clear-test-data": "node scripts/clear-test-data.ts",
     "seed": "node scripts/seed.ts"
   },
   "dependencies": {

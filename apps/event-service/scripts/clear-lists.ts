@@ -15,12 +15,10 @@ import {
 import { answers, connections, meetingHalves } from "../src/games/connections/schema.ts";
 
 /*
-  Which tables the evening-before clear empties, and which it keeps (spec,
-  checkpoint 8: `db:clear-test-data`, before the grad tea and again before
-  the showcase). The clear itself isn't written yet. When it is, it empties
-  `clearedTables`. clear-lists.test.ts fails while a table in the database is
-  on neither list, so a new table, such as a game's, gets a place here when
-  it's made.
+  Which tables the event clear empties, and which it keeps (spec, checkpoint
+  8: `db:clear-test-data`, in event-clear.ts). clear-lists.test.ts fails while
+  a table in the database is on neither list, so a new table, such as a game's,
+  gets a place here when it's made. event-clear.test.ts needs a row in it too.
 */
 
 /** The event's own data: the taps, every claim, every game's records, and the people. */

@@ -681,6 +681,8 @@ Three more set up GeeksHacking's production database: `db:logins`, `db:test-stat
 `geekykey_staging`. Only Adam runs them, since they need logins kept on his laptop.
 The comment at the top of each script in `scripts/` says what it does.
 
+`db:clear-test-data` empties an event's data, as [Clearing an event's data](#clearing-an-events-data) says.
+
 A GeekyKey admin loads token kinds from a screen, at `/admin/token-kinds` on the GeekyKey
 screens. They paste the token writer's log, check what it found and press Load. The screen also
 shows how many tokens each kind has, and organizers on `TOKEN_KIND_VIEWERS` can open it to see
@@ -982,6 +984,55 @@ Things to know:
   `no_game`.
 - **Its logs** are in Cloud Logging, which Adam and Ethan can read.
 
+### Clearing an event's data
+
+`db:clear-test-data` gives a session or a rehearsal a clean start. A pair connects only once
+and a name stays taken, so leftover data changes what the next session does. Adam runs it on
+production from the Mac:
+
+- on the evening of Thu 12 Nov, before the session on Fri 13 Nov
+- on the evening of Mon 16 Nov, before the showcase
+
+First, check that every station shows 0 saved taps on the station board. A tap saved before
+the clear and sent after it would be judged afresh. Then run:
+
+```bash
+cd apps/event-service
+mise exec -- pnpm db:clear-test-data --production --env-file ~/.config/geekykey/tidb-migration.env
+```
+
+The command connects to the database the env file's login reaches, and takes a copy into
+`~/.config/geekykey/copies`. It prints each table's row count and asks you to type the
+database's name, `geekykey` on production. Any other answer stops it with nothing emptied, and
+so does a failed copy. So does a change to the row counts while you type, since the copy
+doesn't hold the new rows. Stop whatever is writing and run it again.
+
+It then empties the tables in one transaction and prints the counts again, expecting 0 taps, 0
+claims and 0 users. If a table has rows by then, the clear has still happened: something wrote
+after it, such as someone logging in, and the command names the table and exits with an error.
+
+| Empties | Keeps |
+| --- | --- |
+| Taps and claims | Stations and passport settings |
+| Every game's records, including answers, connection requests and connections | Token kinds |
+| Group members and whether allocation has started | The groups themselves |
+| Users and their first kinds | The event's settings, including the connection rule |
+| | Used login links, which expire by themselves |
+
+`scripts/clear-lists.ts` holds the two lists. If they disagree with the database's tables, the
+command stops before it changes anything, so run it from an up-to-date `main`.
+
+Afterwards, the Event screens ask everyone to log in, participants claim their tokens again, and
+any name used before is free. The GeekyKey screens' session reads no database, so someone still
+signed in there stays signed in until it expires, up to 12 hours, and can reach the Event screens
+from there without logging in. A name from their login comes back with them.
+
+There is no `db:restore` yet. A copy is one JSON file of each table's rows, so Adam puts rows
+back by hand, with Ethan reading the query first as rule 8 below says.
+
+To try it first, use staging's env file, `tidb-staging-migration.env`. With no options it clears
+`geekykey_dev`.
+
 ### Secrets
 
 Secrets live in Google's Secret Manager. None is ever committed, kept in GitHub, or pasted
@@ -1038,7 +1089,7 @@ This says where each one is, never its value. Each is kept only where the table 
 | Station key | The station's gitignored `secrets.h`. The database keeps only its hash | Adam, with `db:test-station`, until organizers can make one on the station board (coming) | Tell Adam. Replacing a key while keeping the station's ID comes with the station board |
 | Wi-Fi details | Each station's `secrets.h`, until the station's setup mode can store them (coming, HAR-14) | Zi Tao | Change the password, and put the new one on each station |
 | Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, tokens can never be rewritten |
-| Our database copies | Adam's laptop, outside the repo. Never GitHub, a workflow's files or a chat | Adam | They hold user IDs, names and who tapped where |
+| Our database copies | `~/.config/geekykey/copies` on Adam's laptop, outside the repo. Never GitHub, a workflow's files or a chat | Adam | They hold user IDs, names and who tapped where |
 
 Still coming: the GeekyKey Service's own `SESSION_SECRET`, a Workers secret that Julian sets
 at checkpoint 4 with the two keys; the GeeksHacking login's client secret,
@@ -1071,8 +1122,9 @@ client secret, after the showcase. The migration spec, section 5.2, has the full
    services do. A change to it must work with the other service's previous version,
    because from then on the two deploy separately.
 7. **Copies.** Adam takes a copy of production's database before merging a migration, just
-   before the test data is cleared, and at the end of the event day. The `db:backup`
-   command that takes it is coming. Copies stay on his laptop, never in GitHub or a chat.
+   before the test data is cleared, and at the end of the event day. `db:clear-test-data`
+   takes its own. The `db:backup` command for the other two is coming. Copies stay on his
+   laptop, never in GitHub or a chat.
 8. **On the event day,** only Adam changes data, with a fresh copy first and Ethan reading
    the query before it runs. A counting or display bug is fixed by rolling back, not by
    changing data.
