@@ -36,7 +36,9 @@ export function DashboardScreen() {
           swaps it for the spaceship (FRO-104) or puts the points summary back. */}
       <AvatarHero me={me} changes={changes} />
 
-      {me.recent_taps.length === 0 ? <DashboardTapHelp /> : null}
+      {me.recent_taps.length === 0 ? (
+        <DashboardTapHelp answersGame={me.questions !== null} />
+      ) : null}
 
       {/* What happened at the event, then what's set up for it, which is rarely what someone
           opened the screen for. */}

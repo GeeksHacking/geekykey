@@ -29,6 +29,17 @@ const firstTap: MeResponse["recent_taps"][number] = {
   received_at: "2026-10-01T00:00:00.000Z",
 };
 
+const answersGame: MeResponse["questions"] = [
+  {
+    id: "drink",
+    text: "Tea or coffee?",
+    choices: [
+      { id: "tea", text: "Tea" },
+      { id: "coffee", text: "Coffee" },
+    ],
+  },
+];
+
 beforeEach(() => {
   sessionStorage.clear();
 });
@@ -74,13 +85,24 @@ describe("DashboardScreen", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows how to start collecting stamps before the first tap", () => {
+  it("shows how to start collecting stamps before the first tap without the answers game", () => {
     state.me = baseMe;
     renderDashboard();
 
     expect(
       screen.getByRole("heading", {
         name: "Tap your token at any station to start collecting stamps",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("says how to connect before the first tap when the event has the answers game", () => {
+    state.me = makeMe({ questions: answersGame });
+    renderDashboard();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Tap someone's token with your phone to connect.",
       }),
     ).toBeInTheDocument();
   });
@@ -116,6 +138,36 @@ describe("DashboardScreen", () => {
       }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
+  });
+
+  it("keeps the connect hint after a connection when there have been no station taps", () => {
+    state.me = makeMe({ questions: answersGame, connections: [met] });
+    renderDashboard();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Tap someone's token with your phone to connect.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("drops the connect hint after the first tap", () => {
+    state.me = makeMe({ questions: answersGame });
+    const first = renderDashboard();
+    expect(
+      screen.getByRole("heading", {
+        name: "Tap someone's token with your phone to connect.",
+      }),
+    ).toBeInTheDocument();
+    first.unmount();
+
+    state.me = { ...makeMe({ questions: answersGame }), recent_taps: [firstTap] };
+    renderDashboard();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Tap someone's token with your phone to connect.",
+      }),
+    ).not.toBeInTheDocument();
   });
 });
 
