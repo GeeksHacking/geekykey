@@ -258,6 +258,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Docs have no banned dashes
+        run: node scripts/check-dashes.ts
+
       - name: Install
         run: pnpm install --frozen-lockfile
 

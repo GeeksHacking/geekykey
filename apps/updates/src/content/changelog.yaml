@@ -2371,3 +2371,9 @@
     A command, db:clear-test-data, takes a copy, asks for the database's name, then empties an
     event's taps, claims, game records and users, and keeps its stations, token kinds, groups and
     connection rule. It runs on production before the session on 13 Nov and before the showcase.
+- id: docs-dash-check
+  date: 2026-11-07
+  area: tooling
+  change: >-
+    CI now fails on an em or en dash in the Markdown we write ourselves, which until now only the
+    updates site checked for its own pages.
