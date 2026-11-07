@@ -15,8 +15,8 @@ import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
 import { userLimit } from "./event/user-limit.ts";
-import { gradTeaAnswers, gradTeaConnections } from "./grad-tea/questions.ts";
 import { showcaseGames } from "./showcase/games.ts";
+import { showcaseAnswers, showcaseConnections } from "./showcase/questions.ts";
 
 export type AppEnv = {
   Variables: { config: Config; db: Db };
@@ -32,12 +32,12 @@ export interface AppDeps {
    */
   now?: () => Date;
   /**
-   * The event's answers game, the grad tea's unless given. Tests give their
+   * The event's answers game, the showcase's unless given. Tests give their
    * own, or null for an event without the game.
    */
   answers?: AnswersGame | null;
   /**
-   * The event's connections game, the grad tea's unless given. Tests give
+   * The event's connections game, the showcase's unless given. Tests give
    * their own, or null for an event without the game, which takes no
    * meetings.
    */
@@ -58,7 +58,7 @@ export interface AppDeps {
  *
  * The Event side's base takes the games this event runs from here, as its
  * settings name them (src/showcase/), since it imports no game itself, and
- * its answers game (src/grad-tea/).
+ * its answers game from the same settings.
  *
  * The settings are read once, before this runs, so that which routes exist
  * can depend on them: POST /auth/dev-login is only there when
@@ -71,8 +71,8 @@ export function createApp(
   {
     googleKeys,
     now,
-    answers = gradTeaAnswers,
-    connections = gradTeaConnections,
+    answers = showcaseAnswers,
+    connections = showcaseConnections,
     shuffle,
   }: AppDeps = {
     googleKeys: googleSigningKeys(),

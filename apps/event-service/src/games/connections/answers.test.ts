@@ -9,7 +9,7 @@ import { answersGame } from "./answers.ts";
 // and 8.7), and fixAnswers(), which the connections game calls when it makes
 // a connection.
 
-/** The questions in the tests' answers game, so no test depends on the grad tea's list. */
+/** The questions in the tests' answers game, so no test depends on the showcase's list. */
 const QUESTIONS: readonly Question[] = [
   {
     id: "drink",

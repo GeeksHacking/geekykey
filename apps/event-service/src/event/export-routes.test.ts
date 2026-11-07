@@ -33,9 +33,9 @@ const { EXPORT_CSV_COLUMNS } = (await import(/* @vite-ignore */ SCREENS_TYPES)) 
 };
 
 /**
- * Every test goes through GET /api/v1/admin/export.csv, the A/B analysis's
- * data feed (the API agreement's 9.6). Stations, users and taps are written
- * straight into the tables, so these tests depend only on what is stored.
+ * Every test goes through GET /api/v1/admin/export.csv (the API agreement's
+ * 9.6). Stations, users and taps are written straight into the tables, so
+ * these tests depend only on what is stored.
  */
 async function harness() {
   const app = testApp();

@@ -3,16 +3,15 @@ import { answersGame } from "../games/connections/answers.ts";
 import { connectionsGame } from "../games/connections/connections.ts";
 
 /**
- * The grad tea's questions in the answers game (spec section 6, "The answers
+ * The showcase's questions in the answers game (spec section 6, "The answers
  * game"), the same for every participant, each with 2 to 4 choices. The IDs are
  * stored with each answer, so keep them when rewording a question or a
  * choice. A question or choice taken off the list drops out of everyone's
  * answers.
  *
- * Placeholders from BAC-119. The grad tea team helps write the final ones
- * by Mon 9 Nov.
+ * Placeholders from BAC-119. BAC-162 replaces their wording for the showcase.
  */
-export const gradTeaQuestions: readonly Question[] = [
+export const showcaseQuestions: readonly Question[] = [
   {
     id: "drink",
     text: "Tea or coffee?",
@@ -61,8 +60,8 @@ export const gradTeaQuestions: readonly Question[] = [
   },
 ];
 
-/** The grad tea's answers game, which src/app.ts hands the base. */
-export const gradTeaAnswers = answersGame(gradTeaQuestions);
+/** The showcase's answers game, which src/app.ts hands the base. */
+export const showcaseAnswers = answersGame(showcaseQuestions);
 
-/** The grad tea's connections game, whose match compares the answers above. */
-export const gradTeaConnections = connectionsGame(gradTeaAnswers);
+/** The showcase's connections game, whose match compares the answers above. */
+export const showcaseConnections = connectionsGame(showcaseAnswers);

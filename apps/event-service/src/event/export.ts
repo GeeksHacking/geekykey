@@ -45,9 +45,9 @@ function csvFile(columns: readonly string[], rows: string[][]): string {
 }
 
 /**
- * Every stored tap as CSV, oldest first by ID, for the A/B analysis (the API
- * agreement's 9.6). No token ID: the Event side never sees one. A missing
- * value, such as the name of a station that isn't a stamp slot, is an empty cell.
+ * Every stored tap as CSV, oldest first by ID (the API agreement's 9.6).
+ * No token ID: the Event side never sees one. A missing value, such as the
+ * name of a station that isn't a stamp slot, is an empty cell.
  */
 export async function exportTapsCsv(db: Db): Promise<string> {
   const rows = await selectLoggedTaps(db).orderBy(asc(taps.id));

@@ -18,7 +18,7 @@ export interface ConnectionsAnswers extends AnswersGame {
 }
 
 /**
- * The answers game with `questions`, an event's settings (src/grad-tea/).
+ * The answers game with `questions`, an event's settings (src/showcase/).
  * A participant can change an answer until their first connection.
  */
 export function answersGame(questions: readonly Question[]): ConnectionsAnswers {
