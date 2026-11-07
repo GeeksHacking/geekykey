@@ -831,15 +831,12 @@ him away, the setting goes to Julian.
 | Google's return addresses | In the [Google Cloud console](https://console.cloud.google.com/apis/credentials?project=geekykey-b035a), APIs & Services, then Credentials, then the OAuth client "Web client (auto created by Google Service)" | Authorised redirect URIs `https://event.geekshacking.com/__/auth/handler` and `https://key.geekshacking.com/__/auth/handler`, beside the `firebaseapp.com` one Firebase added. Each screens' Worker forwards `/__/auth/*` to Firebase (agreement 7.2). Without them, Google refuses the sign-in with `redirect_uri_mismatch` | 22 Oct 2026 |
 | GeeksHacking's login | Sign-in method tab, then Add new provider, then OpenID Connect | Provider ID `oidc.geekshacking`, with the client Qing Guan issues for the two `/__/auth/handler` addresses above. Turned off again if Mr Pang says no | Not yet. Waits on Qing Guan's client |
 | Anonymous sign-in, for guests | Sign-in method tab | On | On by 21 Oct 2026, when BAC-58's check signed a guest in |
-| Automatic clean-up of guests | Settings tab, where Firebase calls it automatic clean-up of anonymous accounts | On, before the rehearsal. Firebase deletes each guest once they are 30 days old | 21 Oct 2026 |
-| Sign-up quota, for the grad tea | Sign-in method tab, below the list of providers | 800 an hour on Thu 12 Nov 2026 | Scheduled 21 Oct 2026 |
-| Sign-up quota, for the rehearsal on Sat 7 Nov 2026 | None | Not raised. The 12 Nov window holds Firebase's one scheduled quota, so the rehearsal has the usual 100 an hour from one address | Not needed |
-| Sign-up quota, for the showcase | Sign-in method tab, below the list of providers | From Tue 17 Nov 2026 00:00 to Wed 18 Nov 2026 00:00, Singapore time, the showcase's day. 800 an hour, as on 12 Nov, unless the A/B test shows it needs more | Not yet. Set on 13 Nov or later |
+| Automatic clean-up of guests | Settings tab, where Firebase calls it automatic clean-up of anonymous accounts | On. Firebase deletes each guest once they are 30 days old | 21 Oct 2026 |
+| Sign-up quota | Sign-in method tab, below the list of providers | The usual 100 new accounts an hour from one IP address. No increase is planned for the showcase | Adam accepts the usual limit, 7 Nov 2026. The live schedule has not been rechecked |
 
 **Automatic clean-up needs the Identity Platform upgrade.** If the Settings tab doesn't
 offer it, upgrade first. Once clean-up is on, Firebase doesn't count guests towards the
-upgrade's monthly users. It does count the guests made before clean-up was on, which is why
-it goes on before the rehearsal.
+upgrade's monthly users. It does count the guests made before clean-up was on.
 
 **Why the quota.** Firebase lets one IP address sign up 100 new users an hour. Everyone on
 the venue's Wi-Fi shares one address, so Firebase would turn away the 101st guest in an
@@ -847,10 +844,9 @@ hour. A raised quota is a number of sign-ups an hour from one address, over a wi
 schedule ahead of time. Pick a number above the most guests you expect in one hour. If the
 console caps it lower, use its highest. Write the number you set into the table.
 
-Firebase holds one scheduled quota at a time. So the showcase's goes in once the 12 Nov
-window has ended, on 13 Nov or later. If it needs more than the console allows, Firebase asks
-for two weeks' notice, which by then is too late. So if 800 may not be enough for the
-showcase, ask Firebase support by 3 Nov, before the grad tea can tell you.
+Firebase holds one scheduled quota at a time. An earlier window may still be scheduled,
+but it is no longer needed for the current plan. On 7 Nov Adam chose to leave the quota
+unchanged, expecting the usual limit to be enough. The live schedule has not been rechecked.
 
 **Checking what's set.** The console is the place to change these. This prints what the
 project has, for anyone signed in to `gcloud` who can read the project's settings:
@@ -889,8 +885,9 @@ the guest settings:
 ### The warm instance
 
 With no instance running, the first tap waits for one to start, about 1.3 to 2.0 seconds
-(measured 11 Oct 2026). On event days one instance is kept running: the rehearsal (by 7 Nov), the grad tea on 12 Nov,
-and from the morning of setup on 16 Nov to the end of the showcase on 17 Nov. This changes the service, not a revision, so a deploy doesn't undo it.
+(measured 11 Oct 2026). One instance is kept running during the team's tests,
+then from the morning of setup on 16 Nov to the end of the showcase on 17 Nov. Switch it
+off after each test. This changes the service, not a revision, so a deploy doesn't undo it.
 
 Switch it on:
 
@@ -968,7 +965,7 @@ Tried on `event-service-staging` on 12 Oct 2026: from revision `00007` back to `
 showed the old revision answering from the next request on. That request took 6.5 seconds,
 because the old revision had no instance running and had to start one, longer than the
 cold starts measured before. How the warm instance behaves during a rollback is checked
-at the rehearsal.
+during the team's tests.
 
 ### Adding a secret
 

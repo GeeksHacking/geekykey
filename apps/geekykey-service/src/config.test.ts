@@ -68,10 +68,10 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
     eventServices: [
       {
         id: "showcase",
-        name: "Grad Tea",
+        name: "Capstone Showcase",
         url: "https://event-api.geekshacking.com",
         publicUrl: "https://event.geekshacking.com",
-        // The grad tea's connections, by phone (the API agreement's 8.8).
+        // Connections by phone (the API agreement's 8.8).
         meetings: true,
         key: EVENT_SERVICE_KEY_SHOWCASE,
       },

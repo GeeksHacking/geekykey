@@ -294,7 +294,7 @@ export function adminRoutes({ session, games, now = () => new Date(), shuffle }:
   // The organizers' totals (9.5).
   app.get("/stats", async (c) => c.json(statsBody(await loadStats(c.var.db))));
 
-  // The stored taps as a file, for the A/B analysis (9.6).
+  // The stored taps as a file (the API agreement's 9.6).
   app.get("/export.csv", async (c) => {
     const csv = await exportTapsCsv(c.var.db);
     return c.body(csv, 200, {

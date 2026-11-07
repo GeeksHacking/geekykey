@@ -2371,3 +2371,11 @@
     A command, db:clear-test-data, takes a copy, asks for the database's name, then empties an
     event's taps, claims, game records and users, and keeps its stations, token kinds, groups and
     connection rule. It runs on production before the session on 13 Nov and before the showcase.
+
+- id: event-name-capstone-showcase
+  date: 2026-11-07
+  area: backend
+  change: >-
+    The token page and My tokens name the event Capstone Showcase. The Event Service's
+    questions and the runbook no longer describe the cancelled pilot or an A/B analysis as
+    current plans.
