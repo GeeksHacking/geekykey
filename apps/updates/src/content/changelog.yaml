@@ -2392,6 +2392,7 @@
   change: >-
     The token game's dashboard says to tap someone's token with your phone to connect, and an
     event without the answers game still says to tap a token at a station to collect stamps.
+
 - id: organizers-choose-the-challenge
   date: 2026-11-07
   area: backend
