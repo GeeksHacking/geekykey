@@ -26,6 +26,10 @@ differ.
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
 - `src/test/location.ts` is a copy of the Event screens' file. Change them together.
+- `src/components/ui/native-select.tsx` is this app's own, with no Event screens' copy: the
+  browser's `<select>` drawn like `input.tsx`, with room for its arrow (FRO-145). Token kinds'
+  ownership filter is native radios drawn as one segmented control, rather than a copy of the
+  Event screens' Radix `radio-group.tsx`, whose round dots don't read as a filter.
 - `src/components/ui/textarea.tsx` is the Event screens' copy, with `input.tsx`'s background and
   no shadow, so the two fields match.
 - `src/styles/globals.css` is identical to the Event screens'. Change both together (see `apps/event-web/docs/tailwind-4.md`).
@@ -105,7 +109,10 @@ The one GeekyKey admin screen is Token kinds, at `/admin/token-kinds` (BAC-139),
 reads it by `db:token-kinds`' rules (`read-writer-log.ts`) before anything is written. An organizer
 on `TOKEN_KIND_VIEWERS`, in the service's settings, sees the totals and no paste box. The account
 menu links to it for whoever `/me` says can see it. Its calls are ahead of the agreement's next
-version, so BAC-139's pull request lists them. FRO-21, an admin console, stays canceled.
+version, so BAC-139's pull request lists them. A GeekyKey admin also releases a claimed token
+from the list there (agreement 8.3, FRO-145), and finds tokens by ownership and sorts them by
+UID or kind. The filtering and sorting are in `kind-token-view.ts`, and the release in
+`release-kind-token-dialog.tsx`. FRO-21, an admin console, stays canceled.
 
 `src/api/create-client.ts` decides which client the app runs on. A live build sends every
 method to the GeekyKey Service: the session, the token lookup, claiming and releasing

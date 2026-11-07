@@ -1055,7 +1055,8 @@ claim. Taps made with the token before still count.
 
 **Auth:** `gk_session`. An owner releases their own token. A GeekyKey admin can release someone
 else's by adding `?owner_id=<user ID>`: the owner the token lookup (8.5) showed when the
-page loaded, so a late or double click can't release a newer claim.
+page loaded, so a late or double click can't release a newer claim. On the Token kinds screen it
+is the owner the list (10.2) showed (FRO-145, for the next version).
 
 **Request:** no body. `{uid}` is a [Token UID](#token-uid) in any separator style.
 
@@ -1913,7 +1914,8 @@ An organiser without GeekyKey admin access gets `403 forbidden` and no UIDs or o
 
 Answers `200` with `{ "tokens": [...] }`, every UID on the kinds list or currently claimed,
 once each, in ascending UID order. There is no server pagination or filtering; the screen
-searches by UID, filters by kind (including no kind), and pages 50 rows at a time.
+searches by UID, filters by kind (including no kind) and, for the next version, by ownership,
+sorts by UID or kind (FRO-145), and pages 50 rows at a time.
 Each item has `uid`, `kind` (string or null), `owner_id` (string or null) and `claimed_at`
 (UTC ISO timestamp or null). An unclaimed token has null for both claim fields. A claimed
 token without a kind is included with `kind: null`. A previously loaded kind may have up
@@ -2463,6 +2465,29 @@ The buttons say "Cancel" and "Remove" ("Removing" while pending).
 A lost removal reply says to check the refreshed list before trying again. The list and totals
 refresh after a load or removal, including a failed request whose reply may have been lost.
 Organisers retain the totals from 10.1 and see no token list or removal controls.
+
+For the next version (FRO-145): each claimed token, including one with no kind, also has
+"Release", which releases it through 8.3 with the `owner_id` the list showed. It opens
+"Release this token?", which names the UID and the "Owner ID" and says "Anyone will be able to
+claim it again. Its kind, earlier taps, connections and points stay." The buttons say "Cancel"
+and "Release token" ("Releasing" while pending). `not_found` says "Someone else has claimed this
+token now, or it has already been released." A reply that may have been lost adds "The release
+may have gone through." After a failed release the list refreshes, the dialog says "The
+refreshed list shows it unclaimed.", "The refreshed list shows it claimed by <owner ID>." or
+"The refreshed list no longer shows this token." ("Refreshing the list." until it answers, and "Couldn't check the list. Refresh it before
+releasing again." if that read fails), and
+offers only "Close", so another release
+starts from a new confirmation. If the list shows a new owner while the dialog is open, it
+says "This token's owner has changed since you opened this. Close it and check the list." A
+release is never retried by itself. A success shows "Released <UID>. Anyone can claim it now."
+The list also has "Sort by" with "UID, A to Z", "UID, Z to A", "Kind, A to Z" and "Kind, Z to A";
+kind sorting breaks ties by UID and puts "No kind" last either way. "Ownership" offers "All",
+"Claimed" and "Unclaimed". Filters and sorting combine and return to the first page. The count
+says "<n> tokens found" ("1 token found" for one), or "<n> of <total> tokens found" while a
+filter is set, and "Clear
+filters" resets the search, kind and ownership. With an ownership filter set, no matches says
+"No tokens match. Clear the search, choose another kind or show all owners." Paging shows only
+when there is more than one page. The last column is "Actions".
 
 ## 14. Open questions
 
