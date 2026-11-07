@@ -2363,3 +2363,11 @@
     connect across groups, measured by how many connections are with people they didn't already know
     and how many need no help. The trade-offs we accept: nine people can't show what happens at a
     large event, and we build from parts in stock, so the compact scanner may be a prop.
+
+- id: event-clear-command
+  date: 2026-11-07
+  area: backend
+  change: >-
+    A command, db:clear-test-data, takes a copy, asks for the database's name, then empties an
+    event's taps, claims, game records and users, and keeps its stations, token kinds, groups and
+    connection rule. It runs on production before the session on 13 Nov and before the showcase.
