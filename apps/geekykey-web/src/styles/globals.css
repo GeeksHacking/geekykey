@@ -294,3 +294,9 @@
     scroll-behavior: auto !important;
   }
 }
+
+@media (width >= 48rem) {
+  html {
+    scroll-padding-top: 8rem;
+  }
+}

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import type { User } from "@/api/types";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { DataSourceNotice } from "@/components/layout/data-source-notice";
+import { PlaceMenu } from "@/components/layout/place-menu";
 import { NavLink } from "@/components/layout/nav-link";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useRouteHeadingFocus } from "@/lib/use-route-heading-focus";
@@ -42,14 +43,12 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
       </a>
       <aside className="hidden border-r lg:sticky lg:top-0 lg:flex lg:h-[100dvh] lg:flex-col">
         <div className="flex h-14 items-center gap-2 border-b px-4">
-          {/* FRO-64. The wordmark keeps its width in the sidebar and in the phone header, and a
-              long display name in the account menu gives way instead. */}
           <Link to="/admin/stations" aria-label="Organiser console home" className="shrink-0">
             <Wordmark />
           </Link>
-          <span className="look-label rounded-md bg-secondary px-1 py-0.5 text-[10px] font-medium tracking-normal text-secondary-foreground">
-            Organiser
-          </span>
+        </div>
+        <div className="border-b p-3">
+          <PlaceMenu place="organiser" isOrganiser />
         </div>
         <nav aria-label="Console" className="flex flex-1 flex-col gap-1 p-3">
           {NAV.map((item) => (
@@ -57,21 +56,24 @@ export function AdminShell({ user, onSignOut, children }: AdminShellProps) {
           ))}
         </nav>
         <div className="flex min-w-0 items-center justify-between gap-2 border-t p-3">
-          <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
+          <AccountMenu user={user} onSignOut={onSignOut} />
           <ThemeToggle />
         </div>
       </aside>
       {/* The look's grid sits behind the workspace only, so the sidebar stays plain. */}
       <div className="flex min-h-[100dvh] min-w-0 flex-col bg-look-grid">
-        <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-sm lg:hidden">
+        <header className="border-b bg-background/90 backdrop-blur-sm md:sticky md:top-0 md:z-30 lg:hidden">
           <div className="flex h-14 items-center justify-between px-4">
             <Link to="/admin/stations" aria-label="Organiser console home" className="shrink-0">
               <Wordmark />
             </Link>
             <div className="flex min-w-0 items-center gap-1">
               <ThemeToggle />
-              <AccountMenu user={user} onSignOut={onSignOut} consoleLink="participant" />
+              <AccountMenu user={user} onSignOut={onSignOut} />
             </div>
+          </div>
+          <div className="border-t px-4 py-2">
+            <PlaceMenu place="organiser" isOrganiser />
           </div>
         </header>
         <main

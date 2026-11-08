@@ -15,11 +15,16 @@ vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
 
 const user = { id: "user-1", display_name: "Alex Tan", role: "participant" } as User;
 
-async function renderShell(connectionRequests: number) {
+async function renderShell(connectionRequests: number, showNavigation = true) {
   const rootRoute = createRootRoute({
     component: () => (
       <ThemeProvider>
-        <ParticipantShell user={user} onSignOut={() => {}} connectionRequests={connectionRequests}>
+        <ParticipantShell
+          user={user}
+          onSignOut={() => {}}
+          connectionRequests={connectionRequests}
+          showNavigation={showNavigation}
+        >
           <p>Screen</p>
         </ParticipantShell>
       </ThemeProvider>
@@ -49,4 +54,11 @@ describe("the Home tab", () => {
     await renderShell(0);
     expect(screen.getAllByRole("link", { name: "Home" })).toHaveLength(2);
   });
+});
+
+it("keeps account actions available during setup while hiding navigation", async () => {
+  await renderShell(0, false);
+  expect(screen.getByRole("button", { name: "Account menu" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Switch place/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 });

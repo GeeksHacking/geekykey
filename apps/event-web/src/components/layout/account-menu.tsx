@@ -1,5 +1,4 @@
-import { Broadcast, CaretDown, SignOut, Stamp } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { CaretDown, SignOut, UserCircle } from "@phosphor-icons/react";
 
 import type { User } from "@/api/types";
 import { Button } from "@/components/ui/button";
@@ -11,13 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
 
 interface AccountMenuProps {
   user: User;
   onSignOut: () => void;
-  /** Which other surface to offer a link to. Organisers can move between both. */
-  consoleLink?: "admin" | "participant";
 }
 
 function initialsOf(name: string | null): string {
@@ -28,7 +24,7 @@ function initialsOf(name: string | null): string {
   return (first + last).toUpperCase();
 }
 
-export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) {
+export function AccountMenu({ user, onSignOut }: AccountMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -37,9 +33,9 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
           a row with less room than a long name asks for. The button gives way first: min-w-0 here
           and on each flex parent, then the name truncates. The dropdown below has the whole name.
         */}
-        <Button variant="ghost" className="min-w-0 gap-2 px-2" aria-label="Account menu">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-secondary font-mono text-xs font-semibold text-secondary-foreground">
-            {initialsOf(user.display_name)}
+        <Button variant="ghost" className="min-w-0 max-w-48 gap-2 px-2" aria-label="Account menu">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-secondary font-mono text-xs font-semibold text-secondary-foreground">
+            {initialsOf(user.display_name) || <UserCircle aria-hidden />}
           </span>
           <span className="hidden min-w-0 truncate text-sm sm:block">
             {user.display_name ?? "Participant"}
@@ -47,41 +43,20 @@ export function AccountMenu({ user, onSignOut, consoleLink }: AccountMenuProps) 
           <CaretDown className="hidden sm:inline" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-64 max-w-[calc(100vw-2rem)]">
         <DropdownMenuLabel className="font-normal">
           {/* FRO-64. Agreement 8.7 allows 30 characters in any script, and some scripts do not
               put spaces in a name, so the label wraps rather than running past the menu. */}
-          <p className="text-sm font-medium break-words">{user.display_name ?? "Participant"}</p>
+          <p className="text-xs text-muted-foreground">Signed in as</p>
+          <p className="text-sm font-medium [overflow-wrap:anywhere]">
+            {user.display_name ?? "Participant"}
+          </p>
           <p className="text-xs text-muted-foreground">
             {user.role === "organizer" ? "Organiser" : "Participant"}
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* FRO-141. My tokens is a GeekyKey screen. The menu is navigation, so it opens in the
-            same tab and Back returns to the event screen. The dashboard's own row is gone. */}
-        <DropdownMenuItem asChild>
-          <a href={GEEKYKEY_SCREENS_URL}>
-            <Stamp aria-hidden />
-            My tokens
-          </a>
-        </DropdownMenuItem>
-        {consoleLink === "admin" ? (
-          <DropdownMenuItem asChild>
-            <Link to="/admin/stations">
-              <Broadcast aria-hidden />
-              Organiser console
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
-        {consoleLink === "participant" ? (
-          <DropdownMenuItem asChild>
-            <Link to="/">
-              <Stamp aria-hidden />
-              Participant view
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onSelect={onSignOut}>
+        <DropdownMenuItem className="min-h-11" onSelect={onSignOut}>
           <SignOut aria-hidden />
           Sign out
         </DropdownMenuItem>

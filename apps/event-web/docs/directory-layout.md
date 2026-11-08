@@ -75,7 +75,7 @@ apps/event-web/
       map/                  # the big screen's map: floor plan, placing stations, pulses (GSAP)
     components/
       ui/                   # shadcn generated and customised. No app logic here.
-      layout/               # shells, nav, page header, theme toggle, account menu, empty/error/loading views
+      layout/               # shells, nav, place switch, page header, theme toggle, account menu, empty/error/loading views
       look/                 # the sci-fi look's corner brackets; its grid and labels are utilities in globals.css
       tap-status.tsx        # shared by several features, alongside online-status and participant-tap-list
       csv-download-button.tsx # saves a CSV from the service; the summary and the Groups screen use it

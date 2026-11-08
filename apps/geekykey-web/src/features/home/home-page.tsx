@@ -24,13 +24,15 @@ export function HomePage() {
   const { me } = useMe();
 
   return (
-    <main className="flex flex-col">
-      <h1 className="type-title">My tokens</h1>
+    <div className="flex flex-col">
+      <h1 tabIndex={-1} className="type-title outline-hidden">
+        My tokens
+      </h1>
       {me.tokens.length === 0 ? <NoTokensYet /> : null}
       <ClaimByCodeForm />
       {me.tokens.length > 0 ? <TokenList tokens={me.tokens} /> : null}
       <EventButtons events={me.events} className="mt-8" />
-    </main>
+    </div>
   );
 }
 
