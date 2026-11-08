@@ -2417,3 +2417,10 @@
   change: >-
     Two people who tap each other's tokens while one of them is just finishing setup now connect,
     instead of one being told to finish setup first.
+
+- id: token-kinds-ownership-hover-contrast
+  date: 2026-11-08
+  area: frontend
+  change: >-
+    The selected Ownership filter on Token kinds keeps dark text on yellow when hovered,
+    and unselected options show a filled background and outline on hover in both themes.

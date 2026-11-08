@@ -113,7 +113,7 @@ export function KindTokenFilters({
                   onChange={() => onChange({ ownership: value })}
                   className="peer sr-only"
                 />
-                <span className="flex h-full items-center rounded-sm border border-transparent px-3 text-sm text-muted-foreground transition-colors peer-checked:border-primary-edge peer-checked:bg-primary peer-checked:font-medium peer-checked:text-primary-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 hover:text-foreground">
+                <span className="flex h-full items-center rounded-sm border border-transparent px-3 text-sm text-muted-foreground transition-colors peer-checked:border-primary-edge peer-checked:bg-primary peer-checked:font-medium peer-checked:text-primary-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 peer-not-checked:hover:border-primary-edge peer-not-checked:hover:bg-accent peer-not-checked:hover:text-accent-foreground">
                   {label}
                 </span>
               </label>
