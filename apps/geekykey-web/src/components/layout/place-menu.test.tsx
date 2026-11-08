@@ -47,7 +47,13 @@ describe("PlaceMenu", () => {
   it("shows every event directly and opens the chosen event", async () => {
     const { person, onEvent } = await renderMenu();
     await openMenu(person);
-    expect(screen.getByRole("menuitem", { name: "Capstone Showcase" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "My tokens" })).toHaveAttribute(
+      "data-current",
+      "true",
+    );
+    expect(screen.getByRole("menuitem", { name: "Capstone Showcase" })).not.toHaveAttribute(
+      "data-current",
+    );
     await person.click(screen.getByRole("menuitem", { name: "Hackomania" }));
     expect(onEvent).toHaveBeenCalledExactlyOnceWith("hackomania");
   });

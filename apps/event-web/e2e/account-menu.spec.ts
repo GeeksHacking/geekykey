@@ -49,3 +49,41 @@ for (const width of [360, 768, 1280]) {
     });
   }
 }
+
+for (const theme of ["light", "dark"] as const) {
+  test(`place-menu hover is immediate and the current place stays highlighted in ${theme}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.addInitScript(() => sessionStorage.setItem("gk-mock-session", "dev-user-1"));
+    await page.goto("/");
+    await page.getByRole("button", { name: "Switch place, Event screens" }).click();
+    const menu = page.getByRole("menu");
+    const other = menu.getByRole("menuitem", { name: "My tokens" });
+    const current = menu.getByRole("menuitem", { name: "Event screens", exact: true });
+    const activePage = page.locator('header nav a[data-status="active"]').first();
+    const selectedColor = await activePage.evaluate((el) => getComputedStyle(el).backgroundColor);
+    await other.hover();
+    await expect(other).toBeFocused();
+    await expect(current).toHaveCSS("background-color", selectedColor);
+    await page.waitForTimeout(200);
+    await current.hover();
+    await expect(current).toBeFocused();
+    const frames = await menu.evaluate(async (element) => {
+      const [other, current] = element.querySelectorAll<HTMLElement>('[role="menuitem"]');
+      const results: { other: string; current: string; property: string }[] = [];
+      for (let frame = 0; frame < 5; frame++) {
+        await new Promise(requestAnimationFrame);
+        results.push({
+          other: getComputedStyle(other!).backgroundColor,
+          current: getComputedStyle(current!).backgroundColor,
+          property: getComputedStyle(other!).transitionProperty,
+        });
+      }
+      return results;
+    });
+    expect(new Set(frames.map((frame) => frame.other)).size).toBe(1);
+    expect(frames.every((frame) => frame.property === "none")).toBe(true);
+    expect(frames.every((frame) => frame.current === selectedColor)).toBe(true);
+  });
+}

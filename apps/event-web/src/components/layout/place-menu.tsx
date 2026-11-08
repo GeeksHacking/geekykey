@@ -1,4 +1,4 @@
-import { CalendarBlank, CaretDown, Check, Key, SlidersHorizontal } from "@phosphor-icons/react";
+import { CalendarBlank, CaretDown, Key, SlidersHorizontal } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
+
+// Keep the current place yellow when pointer or keyboard focus moves to another row.
+const CURRENT_ITEM =
+  "min-h-11 data-[current=true]:bg-primary data-[current=true]:text-primary-foreground data-[current=true]:inset-ring data-[current=true]:inset-ring-primary-edge data-[current=true]:focus:bg-primary data-[current=true]:focus:text-primary-foreground data-[current=true]:focus-visible:outline data-[current=true]:focus-visible:outline-2 data-[current=true]:focus-visible:outline-offset-2 data-[current=true]:focus-visible:outline-ring";
 
 interface PlaceMenuProps {
   place: "event" | "organiser";
@@ -35,7 +39,10 @@ export function PlaceMenu({ place, isOrganiser }: PlaceMenuProps) {
           <CaretDown aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64 max-w-[calc(100vw-2rem)]">
+      <DropdownMenuContent
+        align="start"
+        className="w-64 max-w-[calc(100vw-2rem)] [&_[role=menuitem]]:transition-none"
+      >
         <DropdownMenuLabel>Go to</DropdownMenuLabel>
         <DropdownMenuItem asChild className="min-h-11">
           <a href={GEEKYKEY_SCREENS_URL}>
@@ -43,25 +50,23 @@ export function PlaceMenu({ place, isOrganiser }: PlaceMenuProps) {
             My tokens
           </a>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild className="min-h-11">
+        <DropdownMenuItem asChild data-current={place === "event"} className={CURRENT_ITEM}>
           <Link to="/" aria-current={place === "event" ? "location" : undefined}>
             <CalendarBlank aria-hidden />
             Event screens
-            {place === "event" ? <Check className="ml-auto" aria-hidden /> : null}
           </Link>
         </DropdownMenuItem>
         {isOrganiser ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Manage event</DropdownMenuLabel>
-            <DropdownMenuItem asChild className="min-h-11">
+            <DropdownMenuItem asChild data-current={place === "organiser"} className={CURRENT_ITEM}>
               <Link
                 to="/admin/stations"
                 aria-current={place === "organiser" ? "location" : undefined}
               >
                 <SlidersHorizontal aria-hidden />
                 Organiser console
-                {place === "organiser" ? <Check className="ml-auto" aria-hidden /> : null}
               </Link>
             </DropdownMenuItem>
           </>

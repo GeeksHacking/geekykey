@@ -1,4 +1,4 @@
-import { CalendarBlank, CaretDown, Check, Key, SpinnerGap } from "@phosphor-icons/react";
+import { CalendarBlank, CaretDown, Key, SpinnerGap } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import type { EventServiceLink } from "@/api/types";
@@ -11,6 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+// Keep the current place yellow when pointer or keyboard focus moves to another row.
+const CURRENT_ITEM =
+  "min-h-11 data-[current=true]:bg-primary data-[current=true]:text-primary-foreground data-[current=true]:inset-ring data-[current=true]:inset-ring-primary-edge data-[current=true]:focus:bg-primary data-[current=true]:focus:text-primary-foreground data-[current=true]:focus-visible:outline data-[current=true]:focus-visible:outline-2 data-[current=true]:focus-visible:outline-offset-2 data-[current=true]:focus-visible:outline-ring";
 
 interface PlaceMenuProps {
   events: EventServiceLink[];
@@ -50,13 +54,15 @@ export function PlaceMenu({ events, onEvent, eventLinkPending }: PlaceMenuProps)
       <span role="status" className="sr-only">
         {eventLinkPending ? "Opening event" : ""}
       </span>
-      <DropdownMenuContent align="start" className="w-64 max-w-[calc(100vw-2rem)]">
+      <DropdownMenuContent
+        align="start"
+        className="w-64 max-w-[calc(100vw-2rem)] [&_[role=menuitem]]:transition-none"
+      >
         <DropdownMenuLabel>Go to</DropdownMenuLabel>
-        <DropdownMenuItem asChild className="min-h-11">
+        <DropdownMenuItem asChild data-current="true" className={CURRENT_ITEM}>
           <Link to="/" aria-current="location">
             <Key aria-hidden />
             My tokens
-            <Check className="ml-auto" aria-hidden />
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

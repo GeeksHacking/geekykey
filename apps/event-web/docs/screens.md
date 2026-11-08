@@ -30,7 +30,7 @@ browser a Blob.
 The participant and organiser shells share an account menu for identity and Sign out. A separate
 place switch shows the current place and links to My tokens, Event screens and, for organisers,
 Organiser console. My tokens opens the GeekyKey screens in the same tab. The current place has a
-check mark. Page links stay in the participant tabs or console sidebar and bottom bar.
+yellow highlight. Page links stay in the participant tabs or console sidebar and bottom bar.
 The header separates identity controls from navigation so long names do not compete with tabs.
 On phones it scrolls away; from tablet width up it stays at the top.
 On the organiser desktop, the place switch sits below the wordmark and the account menu stays in
