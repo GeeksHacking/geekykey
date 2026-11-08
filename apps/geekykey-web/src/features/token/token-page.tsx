@@ -43,9 +43,11 @@ export function TokenPage({ uid }: { uid: string }) {
   const displayed = formatUid(uid);
 
   return (
-    <main className="flex flex-col px-1 py-4">
+    <div className="flex flex-col">
       {/* Only your own is "your token" (8.5). The same page answers a tap on someone else's. */}
-      <h1 className="type-title">{query.data?.owner === "you" ? "Your token" : "Token"}</h1>
+      <h1 tabIndex={-1} className="type-title outline-hidden">
+        {query.data?.owner === "you" ? "Your token" : "Token"}
+      </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         <code className="font-mono text-foreground">{displayed}</code>
       </p>
@@ -75,7 +77,7 @@ export function TokenPage({ uid }: { uid: string }) {
           />
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

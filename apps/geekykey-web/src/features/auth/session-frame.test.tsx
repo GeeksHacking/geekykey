@@ -90,9 +90,9 @@ describe("the signed-in shell", () => {
   it("shows the user ID from /me", async () => {
     signedInAs(SEEDED_PARTICIPANT_ID);
 
-    expect(await screen.findByRole("button", { name: "Account menu" })).toHaveTextContent(
-      SEEDED_PARTICIPANT_ID,
-    );
+    const user = userEvent.setup();
+    const menu = await openAccountMenu(user);
+    expect(within(menu).getByText(SEEDED_PARTICIPANT_ID)).toBeInTheDocument();
   });
 
   it("reads the GeekyKey admin flag from /me and labels the account, with no admin row", async () => {
@@ -118,7 +118,8 @@ describe("the signed-in shell", () => {
     const menu = await openAccountMenu(user);
 
     expect(within(menu).queryByRole("menuitem", { name: /Admin console/ })).not.toBeInTheDocument();
-    expect(within(menu).getByText("Participant")).toBeInTheDocument();
+    expect(within(menu).getByText(SEEDED_PARTICIPANT_ID)).toBeInTheDocument();
+    expect(within(menu).queryByText("GeekyKey admin")).not.toBeInTheDocument();
   });
 
   it("signs out from the menu, ending the session and landing on /login", async () => {
@@ -402,47 +403,57 @@ describe("the signed-in shell", () => {
     expect(await screen.findByRole("button", { name: "Change theme" })).toBeInTheDocument();
   });
 
-  it("offers Event screens from the session's events", async () => {
+  it("opens a session event through the places menu", async () => {
     const user = userEvent.setup();
-    signedInAs(SEEDED_PARTICIPANT_ID);
-    await screen.findByRole("heading", { name: "My tokens" });
-
-    expect(screen.queryByRole("navigation", { name: "Sites" })).not.toBeInTheDocument();
-
-    const menu = await openAccountMenu(user);
-    expect(within(menu).getByRole("menuitem", { name: "Event screens" })).toBeInTheDocument();
+    const { api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    const createLink = vi.spyOn(api, "createLoginLink");
+    const trigger = await screen.findByRole("button", { name: "Switch place, My tokens" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("menuitem", { name: "Capstone Showcase" }));
+    await waitFor(() => expect(createLink).toHaveBeenCalledWith("showcase", undefined));
+    expect(location.assign).toHaveBeenCalled();
+    expect(trigger).toHaveAttribute("aria-busy", "true");
+    expect(trigger).toHaveAccessibleName("Opening event");
   });
 
-  it("hides the My tokens home link on My tokens", async () => {
-    const user = userEvent.setup();
-    signedInAs(SEEDED_PARTICIPANT_ID);
-    await screen.findByRole("heading", { name: "My tokens" });
-
-    const menu = await openAccountMenu(user);
-    expect(within(menu).queryByRole("menuitem", { name: /My tokens/ })).not.toBeInTheDocument();
-  });
-
-  it("offers My tokens from Token kinds", async () => {
-    const user = userEvent.setup();
+  it("offers both token pages to a viewer and keeps the current page marked", async () => {
     const { router } = signedInAs(SEEDED_ADMIN_ID);
+    const nav = await screen.findByRole("navigation", { name: "Token pages" });
+    expect(within(nav).getByRole("link", { name: "My tokens" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     await router.navigate({ to: "/admin/token-kinds" });
     await screen.findByRole("heading", { name: "Token kinds" });
-
-    const menu = await openAccountMenu(user);
-    expect(within(menu).getByRole("menuitem", { name: /My tokens/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Token kinds" })).toHaveFocus());
+    expect(within(nav).getByRole("link", { name: "Token kinds" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(nav).getByRole("link", { name: "My tokens" })).toHaveAttribute("href", "/");
   });
 
-  it("shows the login-link sentence under the header when Event screens fails", async () => {
+  it("hides token management navigation from a participant", async () => {
+    signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("heading", { name: "My tokens" });
+    expect(screen.queryByRole("navigation", { name: "Token pages" })).not.toBeInTheDocument();
+  });
+
+  it("shows the login-link sentence under the header when opening an event fails", async () => {
     const user = userEvent.setup();
     const { api } = signedInAs(SEEDED_PARTICIPANT_ID);
     await screen.findByRole("heading", { name: "My tokens" });
     vi.spyOn(api, "createLoginLink").mockRejectedValueOnce(new ApiError(429, "rate_limited"));
-
-    const menu = await openAccountMenu(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "Event screens" }));
-
+    screen.getByRole("button", { name: "Switch place, My tokens" }).focus();
+    await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("menuitem", { name: "Capstone Showcase" }));
     expect(
       await screen.findByText("Too many tries. Wait a minute and try again."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch place, My tokens" })).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
   });
 });

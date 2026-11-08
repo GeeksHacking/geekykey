@@ -27,16 +27,20 @@ Each row says what a screen reads and writes, and the cases it must handle.
 Neither export is a link: `components/csv-download-button.tsx` fetches the file and hands the
 browser a Blob.
 
-The participant and organiser shells share the account menu. It offers My tokens, which opens
-the GeekyKey screens in the same tab, the console link when the user has another view, and Sign
-out. There is no separate Key screens item, because My tokens opens the same page. On the
-organiser desktop the menu sits in the sidebar footer.
+The participant and organiser shells share an account menu for identity and Sign out. A separate
+place switch shows the current place and links to My tokens, Event screens and, for organisers,
+Organiser console. My tokens opens the GeekyKey screens in the same tab. The current place has a
+yellow highlight. Page links stay in the participant tabs or console sidebar and bottom bar.
+The header separates identity controls from navigation so long names do not compete with tabs.
+On phones it scrolls away; from tablet width up it stays at the top.
+On the organiser desktop, the place switch sits below the wordmark and the account menu stays in
+the sidebar footer.
 
 Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens
 against `MVP` endpoints are still built now, against mocks.
 
 Participants share a setup check in `ParticipantFrame` (BAC-144, agreement sections 8.1 and 13).
 Until `user.has_name` and every question has an answer, the layout mounts only the current setup
-step and hides section navigation. Browser skip keys are ignored. With no questions only the name
+step and hides section navigation and the place switch. Browser skip keys are ignored. With no questions only the name
 is needed. Organizers keep their current screens. An older connection with incomplete locked
 answers can fill the missing ones, while already answered questions and past matches stay fixed.

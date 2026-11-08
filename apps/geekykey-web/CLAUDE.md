@@ -86,12 +86,15 @@ event's screens as the same user (FRO-31). The token page's buttons name its tok
 the link carries the token's kind (11.9, ADR 0006); My tokens sends none, since it shows
 several tokens (FRO-106). The buttons are in
 `src/components/event-buttons.tsx`, and the hook that opens the link is in
-`src/lib/use-login-link.ts`. The signed-in account menu also offers Event screens. It opens a
-login link; with one event it is a direct item, and with several it opens a submenu of the
-event names. The menu is in `src/components/layout/account-menu.tsx`, and the login link is
-opened in `src/features/auth/session-frame.tsx`.
+`src/lib/use-login-link.ts`. The signed-in header has a separate place switch for My tokens and
+Event screens. Event names appear directly in the menu and open login links without a token UID.
+The trigger says "Opening event" while a link is pending, and an error shows under the header.
+The account menu contains the user ID and Sign out; its trigger says "Account".
+The header scrolls away on phones and stays at the top from tablet width up. Event-link errors
+scroll with the page. Page navigation moves focus to the new heading.
 
-The My tokens item is hidden on My tokens itself and shown on the token page and Token kinds.
+Token pages have a My tokens back link. Users allowed to view Token kinds also get persistent
+My tokens and Token kinds page links, with the current page marked.
 A token someone else holds sends half a connection by itself once the lookup answers
 `someone_else`, except for a GeekyKey admin, or when the browser says the page load is a reload
 or a move back or forward, which isn't a tap (BAC-149). The page words the Event Service's answer
@@ -107,8 +110,8 @@ gives no name unless a test calls `setMeetingOwnerName`, and no bio unless a tes
 The one GeekyKey admin screen is Token kinds, at `/admin/token-kinds` (BAC-139), in
 `src/features/token-kinds/`. A GeekyKey admin pastes the token writer's log there, and the browser
 reads it by `db:token-kinds`' rules (`read-writer-log.ts`) before anything is written. An organizer
-on `TOKEN_KIND_VIEWERS`, in the service's settings, sees the totals and no paste box. The account
-menu links to it for whoever `/me` says can see it. Its calls are ahead of the agreement's next
+on `TOKEN_KIND_VIEWERS`, in the service's settings, sees the totals and no paste box. The header
+links to it for whoever `/me` says can see it. Its calls are ahead of the agreement's next
 version, so BAC-139's pull request lists them. A GeekyKey admin also releases a claimed token
 from the list there (agreement 8.3, FRO-145), and finds tokens by ownership and sorts them by
 UID or kind. The filtering and sorting are in `kind-token-view.ts`, and the release in

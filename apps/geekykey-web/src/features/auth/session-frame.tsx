@@ -1,12 +1,13 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { ArrowLeft } from "@phosphor-icons/react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { describeError } from "@/api/errors";
-import { AccountMenu } from "@/components/layout/account-menu";
-import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
 import { EventLinkError } from "@/components/event-link-error";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { useRouteHeadingFocus } from "@/lib/use-route-heading-focus";
+import { describeError } from "@/api/errors";
+import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
+import { TokenHeader } from "@/components/layout/token-header";
 import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
 import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
 import { EVENT_SCREENS_URL, HOME_PATH } from "@/lib/constants";
@@ -14,10 +15,11 @@ import { useMe, useSession } from "@/lib/session";
 import { useLoginLink } from "@/lib/use-login-link";
 
 /**
- * Joins the session to a signed-in screen: the account menu, and the sign-out that
+ * Joins the session to a signed-in screen, its navigation and the sign-out that
  * returns to /login. Route files stay one line.
  */
 export function SessionFrame({ children }: { children: ReactNode }) {
+  useRouteHeadingFocus();
   const { me } = useMe();
   const session = useSession();
   const navigate = useNavigate();
@@ -79,39 +81,56 @@ export function SessionFrame({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] w-full max-w-3xl flex-col px-6">
-      <header className="flex flex-col gap-1 py-4">
-        <div className="flex items-center justify-end gap-1">
-          <ThemeToggle />
-          <AccountMenu
-            userId={me.user.id}
-            isGeekyKeyAdmin={me.user.is_geekykey_admin}
-            canViewTokenKinds={me.user.can_view_token_kinds}
-            // My tokens is the home page, so its own link is hidden there.
-            showMyTokens={pathname !== HOME_PATH}
-            events={me.events}
-            onEvent={(eventId) => openEvent.mutate(eventId)}
-            eventLinkPending={openEvent.isPending || openEvent.isSuccess}
-            onSignOut={() => void chooseSignOut()}
-          />
+    <div className="flex min-h-[100dvh] flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2"
+      >
+        Skip to content
+      </a>
+      <TokenHeader
+        user={me.user}
+        events={me.events}
+        onSignOut={() => void chooseSignOut()}
+        onEvent={(eventId) => openEvent.mutate(eventId)}
+        eventLinkPending={openEvent.isPending || openEvent.isSuccess}
+      />
+      {openEvent.error ? (
+        <div className="mx-auto w-full max-w-3xl px-4 pt-3">
+          <EventLinkError error={openEvent.error} />
         </div>
-        {openEvent.error ? <EventLinkError error={openEvent.error} /> : null}
-        <GuestSignOutDialog
-          open={warnedUserId === me.user.id}
-          hasTokens={me.tokens.length > 0}
-          isPending={release.isPending}
-          isSigningOut={release.isPending}
-          error={release.error}
-          onStay={() => setWarnedUserId(null)}
-          onSignOut={() => void releaseAndSignOut(me.user.id)}
-        />
-      </header>
-      {checkFailed ? (
-        <p role="alert" className="pb-4 text-sm text-destructive">
-          {COULD_NOT_CHECK_LOGIN}
-        </p>
       ) : null}
-      <div className="flex-1 pb-16">{children}</div>
+      <GuestSignOutDialog
+        open={warnedUserId === me.user.id}
+        hasTokens={me.tokens.length > 0}
+        isPending={release.isPending}
+        isSigningOut={release.isPending}
+        error={release.error}
+        onStay={() => setWarnedUserId(null)}
+        onSignOut={() => void releaseAndSignOut(me.user.id)}
+      />
+
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-3xl flex-1 px-4 pt-6 pb-16 outline-hidden"
+      >
+        {pathname.startsWith("/t/") ? (
+          <Link
+            to={HOME_PATH}
+            className="mb-4 inline-flex min-h-10 items-center gap-2 text-sm text-primary-text underline-offset-4 hover:underline"
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            My tokens
+          </Link>
+        ) : null}
+        {checkFailed ? (
+          <p role="alert" className="pb-4 text-sm text-destructive">
+            {COULD_NOT_CHECK_LOGIN}
+          </p>
+        ) : null}
+        {children}
+      </main>
     </div>
   );
 }

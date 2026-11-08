@@ -65,8 +65,10 @@ const mayHaveLoaded = (error: unknown) => !isApiError(error) || error.status >= 
 export function TokenKindsPage() {
   const { me } = useMe();
   return (
-    <main className="flex flex-col">
-      <h1 className="type-title">Token kinds</h1>
+    <div className="flex flex-col">
+      <h1 tabIndex={-1} className="type-title outline-hidden">
+        Token kinds
+      </h1>
       <span
         aria-hidden
         className="mt-2 h-1 w-12 rounded-full border border-primary-edge bg-primary"
@@ -90,7 +92,7 @@ export function TokenKindsPage() {
           />
         </div>
       )}
-    </main>
+    </div>
   );
 }
 

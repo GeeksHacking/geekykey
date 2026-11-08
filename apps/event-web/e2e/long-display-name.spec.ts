@@ -1,13 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /*
-  FRO-64. The participant header is one row capped at max-w-3xl: the wordmark, the three tabs
-  from md up, and the theme toggle with the account menu. The account button shows the display
-  name from sm up, and agreement 8.7 allows 30 characters in any script, so a Google name is
-  often wider than the room the row has left for it. The row has to give way at the name, not at
-  the wordmark: a wordmark squeezed below its own text runs under the Home tab.
-
-  The organiser console has the same name in a sidebar row, which is narrower still.
+  FRO-64 and FRO-160. Long account names must fit without shrinking the wordmark or
+  overflowing either shell. Participant tabs now have their own row below the identity row.
+  The organiser console keeps the account in its sidebar footer on desktop.
 */
 
 /**
@@ -209,7 +205,7 @@ test("the organiser console gives a long name the same room", async ({ page }) =
   await page.goto("/passport");
   await expect(page.getByRole("button", { name: "Change name" })).toBeVisible();
   await changeName(page, LONG_NAME);
-  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Switch place, Event screens" }).click();
   await page.getByRole("menuitem", { name: "Organiser console" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
