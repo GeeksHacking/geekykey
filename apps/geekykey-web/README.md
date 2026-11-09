@@ -7,7 +7,7 @@ these are the first screens a phone opens when it taps a token.
 | Route | Screen |
 |---|---|
 | `/t/{uid}` | The token page. It claims an unclaimed token, shows the owner their own token with a button into each event, and sends half a connection when someone else opens it. A GeekyKey admin can release the token here |
-| `/` | My tokens: the user's tokens, releasing one, and claiming one by typing its UID |
+| `/` | My tokens: the user's tokens, releasing one, the event buttons, and claiming one by typing its UID behind "Claim a token manually" |
 | `/admin/token-kinds` | Token kinds, for a GeekyKey admin: paste the token writer's log, check it, and load it |
 | `/login` | Google sign-in, or "Continue as guest" |
 

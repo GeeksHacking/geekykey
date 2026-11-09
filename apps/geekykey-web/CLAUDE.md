@@ -56,7 +56,9 @@ differ.
 The app is a routed shell with `/login`, a pathless signed-in layout, My tokens as the home
 page, listing the user's tokens with Release (FRO-27), the data layer in `src/api/`, and sign-in and sign-out
 (FRO-19), and claiming a token from the token page (FRO-22). My tokens also claims a token by
-typing its UID, for the tokens a phone cannot read (FRO-30). The form is in
+typing its UID, for the tokens a phone cannot read (FRO-30). The page lists the tokens, then
+the event buttons, then the form behind "Claim a token manually", closed on load
+(`src/features/home/manual-claim.tsx`, FRO-155). The form is in
 `src/features/home/claim-by-code-form.tsx`, and the claim it makes goes through the hook in
 `src/lib/use-claim-token.ts`, which the token page uses too.
 The login screen signs in with Firebase's web SDK, through `src/lib/firebase.ts` and

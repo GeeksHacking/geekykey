@@ -1,7 +1,7 @@
 import type { Token } from "@/api/types";
 
 import { EventButtons } from "@/components/event-buttons";
-import { ClaimByCodeForm } from "@/features/home/claim-by-code-form";
+import { ManualClaim } from "@/features/home/manual-claim";
 import { TokenRow } from "@/features/home/token-row";
 import { useMe } from "@/lib/session";
 
@@ -13,12 +13,14 @@ import { useMe } from "@/lib/session";
  * the error state and the redirect to /login), so this page only renders with a
  * signed-in user.
  *
- * The buttons under the list open each event in /me, as the same user (FRO-31). They
- * do not depend on the user holding a token: the events are the ones the service
- * lists, whoever is asking.
+ * The page reads in the order most people need it (FRO-155): their tokens, then the
+ * buttons that open each event in /me as the same user (FRO-31), then the manual claim.
+ * The event buttons do not depend on the user holding a token: the events are the ones
+ * the service lists, whoever is asking. On a phone they fill the column, so the event is
+ * the page's one large, yellow action.
  *
- * The claim-by-code form sits above the list, and is there whenever the page is, so a
- * second token can be claimed without going back to the token page (FRO-30).
+ * The claim-by-code form (FRO-30) is there whenever the page is, behind "Claim a token
+ * manually", closed on load, for a token the phone cannot read.
  */
 export function HomePage() {
   const { me } = useMe();
@@ -29,21 +31,25 @@ export function HomePage() {
         My tokens
       </h1>
       {me.tokens.length === 0 ? <NoTokensYet /> : null}
-      <ClaimByCodeForm />
       {me.tokens.length > 0 ? <TokenList tokens={me.tokens} /> : null}
-      <EventButtons events={me.events} className="mt-8" />
+      <EventButtons events={me.events} className="mt-8 items-stretch sm:items-start" />
+      <div className="mt-10">
+        <ManualClaim />
+      </div>
     </div>
   );
 }
 
 /**
  * The empty state names both ways to claim a token, and it follows the screens' guide
- * that an empty state says what to do next.
+ * that an empty state says what to do next. It names the disclosure by its label, so
+ * someone whose phone can't read a token knows what to look for.
  */
 function NoTokensYet() {
   return (
-    <p className="mt-6 max-w-md text-base text-muted-foreground">
-      You haven't claimed a token yet. Tap one with your phone, or type its UID below.
+    <p className="mt-6 max-w-md rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+      You haven't claimed a token yet. Tap one with your phone to open its page, or use 'Claim a
+      token manually' below.
     </p>
   );
 }

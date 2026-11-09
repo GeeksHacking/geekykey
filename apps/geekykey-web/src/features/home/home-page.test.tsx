@@ -35,9 +35,10 @@ import { stubLocation } from "@/test/location";
   The event buttons (FRO-31) are the ones /me lists, and they open that event's
   screens, so the test presses one and watches the address the mock answers.
 
-  The claim-by-code form (FRO-30) sits above the list, and the form's own tests
-  are in claim-by-code-form.test.tsx. What the page decides is where the form
-  goes and what the empty state says about it.
+  The claim-by-code form (FRO-30) waits behind "Claim a token manually", after the
+  tokens and the event buttons (FRO-155), and the form's own tests are in
+  claim-by-code-form.test.tsx. What the page decides is where the form goes, when
+  it shows, and what the empty state says about it.
 */
 
 const OLDEST = "04 A1 B2 C3 D4 E5 F6";
@@ -93,6 +94,27 @@ function renderHome() {
   );
 }
 
+/**
+ * Gives the user exactly `count` tokens from the fixture, so a test can show an owner of
+ * none, one or three. The seeded participant holds two, and the unclaimed token makes three.
+ */
+function holdExactly(userId: string, count: number) {
+  const mine = api.mock.data.tokens.filter((token) => token.owner_id === userId);
+  const spare = api.mock.data.tokens.filter((token) => token.owner_id === null);
+  for (const token of mine.slice(count)) token.owner_id = null;
+  for (const token of spare.slice(0, Math.max(0, count - mine.length))) {
+    token.owner_id = userId;
+    token.claimed_at = "2026-11-07T09:30:00.000Z";
+  }
+  const held = api.mock.data.tokens.filter((token) => token.owner_id === userId);
+  if (held.length !== count) throw new Error(`the fixture can't give ${userId} ${count} tokens`);
+}
+
+/** Whether `later` comes after `earlier` in the page, the order a screen reader reads them. */
+function follows(earlier: Element, later: Element) {
+  return Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
 /** Locates a row by its displayed UID, so a click lands on the right token's Release. */
 function rowFor(displayedUid: string) {
   const li = screen.getByText(displayedUid).closest("li");
@@ -101,6 +123,45 @@ function rowFor(displayedUid: string) {
 }
 
 describe("My tokens", () => {
+  it.each([
+    [0, SEEDED_ADMIN_ID],
+    [1, SEEDED_PARTICIPANT_ID],
+    [3, SEEDED_PARTICIPANT_ID],
+  ])("hides the manual claim on load when the user holds %i tokens", async (count, userId) => {
+    holdExactly(userId, count);
+    api.mock.setSession(userId);
+    renderHome();
+
+    const disclosure = await screen.findByRole("button", { name: "Claim a token manually" });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Token UID")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Claim" })).not.toBeInTheDocument();
+  });
+
+  it("opens the manual claim from the keyboard and puts the cursor in the UID field", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+    const disclosure = await screen.findByRole("button", { name: "Claim a token manually" });
+
+    disclosure.focus();
+    await userEvent.keyboard("{Enter}");
+
+    expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    const field = screen.getByLabelText("Token UID");
+    await waitFor(() => expect(field).toHaveFocus());
+    // The control names the part it opens, for a screen reader's "controls" shortcut.
+    expect(disclosure.getAttribute("aria-controls")).toBeTruthy();
+    expect(document.getElementById(disclosure.getAttribute("aria-controls")!)).toContainElement(
+      field,
+    );
+
+    // Space closes it again, as for any button.
+    disclosure.focus();
+    await userEvent.keyboard(" ");
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Token UID")).not.toBeInTheDocument();
+  });
+
   it("opens each event in /me with a button under the tokens", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderHome();
@@ -156,41 +217,73 @@ describe("My tokens", () => {
     expect(screen.getAllByText(/^Claimed /)).toHaveLength(2);
   });
 
-  it("says what to do next when the user holds no tokens", async () => {
+  it("says how to open a token's page, and still offers the event and the manual claim", async () => {
     api.mock.setSession(SEEDED_ADMIN_ID);
     renderHome();
 
     const sentence = await screen.findByText(
-      "You haven't claimed a token yet. Tap one with your phone, or type its UID below.",
+      "You haven't claimed a token yet. Tap one with your phone to open its page, or use 'Claim a token manually' below.",
     );
-    expect(sentence).toBeInTheDocument();
-    // The sentence says "below", so the form follows it.
-    const input = screen.getByLabelText("Token UID");
-    expect(sentence.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const event = screen.getByRole("button", { name: "Open Capstone Showcase" });
+    const disclosure = screen.getByRole("button", { name: "Claim a token manually" });
+    // The sentence says "below", so the disclosure follows it, and the event sits between.
+    expect(follows(sentence, event)).toBe(true);
+    expect(follows(event, disclosure)).toBe(true);
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
   });
 
-  it("puts the claim form above the list, and keeps it when there are tokens", async () => {
+  it("opens the event for a user who holds no tokens", async () => {
+    api.mock.setSession(SEEDED_ADMIN_ID);
+    renderHome();
+    await screen.findByText(/You haven't claimed a token yet\./);
+
+    await userEvent.click(screen.getByRole("button", { name: "Open Capstone Showcase" }));
+
+    await waitFor(() =>
+      expect(location.assign).toHaveBeenCalledWith("http://localhost:5173/#login=mock"),
+    );
+  });
+
+  it("puts the tokens, then the event, before the manual claim", async () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     renderHome();
 
-    const input = await screen.findByLabelText("Token UID");
-    const oldest = screen.getByText(OLDEST);
-    // The form comes first, so a second token can be claimed without leaving the page.
-    expect(input.compareDocumentPosition(oldest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Claim" })).toBeInTheDocument();
+    const newest = await screen.findByText(NEWEST);
+    const event = screen.getByRole("button", { name: "Open Capstone Showcase" });
+    const disclosure = screen.getByRole("button", { name: "Claim a token manually" });
+    expect(follows(newest, event)).toBe(true);
+    expect(follows(event, disclosure)).toBe(true);
   });
 
   it("adds a token claimed by code to the list, because a claim changes what /me holds", async () => {
     api.mock.setSession(SEEDED_ADMIN_ID);
     renderHome();
-    await screen.findByText(/You haven't claimed a token yet\./);
+    await userEvent.click(await screen.findByRole("button", { name: "Claim a token manually" }));
 
     await userEvent.type(screen.getByLabelText("Token UID"), UNCLAIMED);
     await userEvent.click(screen.getByRole("button", { name: "Claim" }));
 
     expect(await screen.findByText(UNCLAIMED_DISPLAYED)).toBeInTheDocument();
+    // The form stays open and empty, ready for the next token.
+    expect(screen.getByLabelText("Token UID")).toHaveValue("");
+  });
+
+  it("keeps the manual claim open with the typed UID when the claim fails", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    vi.spyOn(api, "claimToken").mockRejectedValueOnce(new ApiError(503, "claims_unavailable"));
+    renderHome();
+    await userEvent.click(await screen.findByRole("button", { name: "Claim a token manually" }));
+
+    await userEvent.type(screen.getByLabelText("Token UID"), UNCLAIMED);
+    await userEvent.click(screen.getByRole("button", { name: "Claim" }));
+
+    expect(await screen.findByText("Couldn't reach GeeksHacking. Try again.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Claim a token manually" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByLabelText("Token UID")).toHaveValue(UNCLAIMED);
   });
 
   it("releases a token from its row, and the list drops it", async () => {
