@@ -586,7 +586,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               new Date(connection.shared_at).getTime() <= Date.now() ? connection.shared : null,
           }),
         );
-        // 0.13: each connection adds 1 point, whatever its match. The grad tea's game
+        // 0.13: each connection adds 1 point, whatever its match. The answers game
         // keeps that at 1, and the mock has no setting of its own.
         const points = accepted.reduce(
           (sum, t) => sum + (stationById(t.station_id)?.passport?.points ?? 0),

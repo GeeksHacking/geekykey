@@ -6,7 +6,7 @@ import {
 } from "@/features/passport/avatar/art-data";
 
 /*
-  The grad tea's avatar art (FRO-105): Joshua's two characters, one in a suit and one in a
+  The avatar art (FRO-105): Joshua's two characters, one in a suit and one in a
   dress, and each one's four pieces, one per connection. The PNGs are in art/avatar/, and
   scripts/avatar-art.ts turns them into art-data.ts. The flat avatar, the slot icons and the
   saved card read this file. The cubes come from each character's model.vox (voxel-model.ts),

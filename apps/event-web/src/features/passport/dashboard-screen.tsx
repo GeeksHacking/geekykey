@@ -32,8 +32,7 @@ export function DashboardScreen() {
       <ConnectionRequests requests={me.connection_requests} />
       {/* An organizer sees this screen too, and is kept out of allocation. */}
       {me.user.role === "participant" ? <GroupCard /> : null}
-      {/* The grad tea's dashboard leads with the avatar (FRO-105). The showcase's switch PR
-          swaps it for the spaceship (FRO-104) or puts the points summary back. */}
+      {/* The dashboard leads with the avatar (FRO-105). */}
       <AvatarHero me={me} changes={changes} />
 
       {me.recent_taps.length === 0 ? (

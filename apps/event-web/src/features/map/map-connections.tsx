@@ -4,7 +4,7 @@ import { placeWeb } from "@/features/map/place-web";
 import { formatCount } from "@/lib/format";
 
 /**
- * How much room the spiral takes, in plan units. It fits the crowd the grad tea expects, so a
+ * How much room the spiral takes, in plan units. It fits the crowd the showcase expects, so a
  * node keeps its place on screen as the web grows; a much larger event clips the outer nodes.
  */
 const WEB_RADIUS = 210;

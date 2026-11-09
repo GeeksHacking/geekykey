@@ -187,8 +187,8 @@
 /*
   The showcase's sci-fi look (FRO-77): thin borders, corner brackets, monospace labels and a
   faint grid. The look supplies colour, type and decoration only, and no animation moves any
-  of it, so another look (the grad tea's, FRO-85) can replace these utilities and the Event
-  screens' CornerBrackets without changing an animation.
+  of it, so another look can replace these utilities and the Event screens' CornerBrackets
+  without changing an animation.
 */
 
 /* A faint square grid behind a page, in the border colour, so it follows the theme. */
@@ -253,7 +253,7 @@
 }
 
 /*
-  The grad tea's avatar in the Event screens (FRO-105): confetti once every piece is on, which
+  The avatar in the Event screens (FRO-105): confetti once every piece is on, which
   sets --drift on each bit, the flat avatar's one turn then, and the memory card's sway while
   nobody tilts it. Here too because this file is the same in both apps.
 */
