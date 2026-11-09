@@ -33,6 +33,10 @@ test("the participant tabs fit, read and mark the current one at 360 px", async 
   await page.setViewportSize({ width: 360, height: 800 });
   await signInAsParticipant(page);
 
+  // The sign-in button sits where the Passport tab now is, so a pointer left there hovers it
+  // and adds the accent. Move it off the nav before checking the resting state.
+  await page.mouse.move(0, 0);
+
   const nav = page.locator('nav[aria-label="Sections"]:visible');
   await expect(nav).toBeVisible();
 

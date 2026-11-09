@@ -7,7 +7,7 @@ Each row says what a screen reads and writes, and the cases it must handle.
 
 | Route | Role | Reads | Writes | Must handle |
 |---|---|---|---|---|
-| `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed |
+| `/login` | anyone | | `POST /auth/dev-login` (dev), `POST /auth/firebase` (prod) | `not_found` on a bad dev user; a refused ID token says the sign-in failed; a guest who arrived without a login link is told to open GeekyKey and tap the event button, with Open GeekyKey linking there (FRO-90); the expired-link notice keeps its own sentence |
 | `/#login=<link>` | anyone | `GET /me` | `POST /auth/login-link`, before the first `/me` | lands on `/`, the dashboard, whatever the agreement calls it, and a poll comparison finds nothing new because the first `/me` is already up to date; the fragment gone at once; an expired link leaves the old session and says so |
 | `/sign-out#user=<user ID>` | anyone | `GET /me` | `POST /auth/logout` | where the GeekyKey screens send a guest who signed out there (agreement section 3, FRO-144); logs out only the user named and leaves anyone else logged in, then opens the GeekyKey login; a failed log out says so with Try again and Back to GeekyKey, and so does a failed `/me` |
 | Any signed-in route, on Sign out | anyone signed in | | `POST /auth/logout` | `lib/use-sign-out.ts`. Someone whose session came from a login link goes to `/sign-out` on the GeekyKey screens, which warns a guest and releases their tokens and sends anyone else back to `/login` (agreement section 3, FRO-131); someone who logged in here goes to `/login`; a failed log out stays here with a toast |
