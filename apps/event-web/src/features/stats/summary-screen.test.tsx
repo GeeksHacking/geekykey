@@ -31,6 +31,22 @@ function totalTaps() {
 }
 
 describe("SummaryScreen", () => {
+  it("says what the CSV holds without naming an analysis", async () => {
+    const { Providers } = setup();
+    render(
+      <Providers>
+        <SummaryScreen />
+      </Providers>,
+    );
+
+    expect(
+      await screen.findByText(
+        "Totals for this event so far. The CSV holds every tap with every status.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/A\/B/)).not.toBeInTheDocument();
+  });
+
   it("keeps the summary and shows a quiet note when a poll is rate limited", async () => {
     const { api, Providers, queryClient } = setup();
     render(

@@ -13,8 +13,8 @@ interface CsvCell {
 }
 
 /**
- * The export is the data feed for the A/B analysis, so the file the organiser saves is the file
- * the service sent. A value a spreadsheet could run as a formula gets an apostrophe in front of
+ * The export is the raw tap feed, so the file the organiser saves is the file the service
+ * sent. A value a spreadsheet could run as a formula gets an apostrophe in front of
  * it, and nothing else in the file moves (section 13). Any cell can hold one: names are typed,
  * a QR fallback's user_id is typed, and a station sends its own client_tap_id.
  */

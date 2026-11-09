@@ -55,9 +55,9 @@ function renderExportButton(configure?: (api: ReturnType<typeof createMockClient
 }
 
 describe("ExportButton", () => {
-  // The export is the feed for the A/B analysis, so the file the organiser gets is the
-  // file the service sent. Section 13 says the rule under the button, and says when a
-  // file was changed that it is not the service's own.
+  // The export is the raw tap feed, so the file the organiser gets is the file the
+  // service sent. Section 13 says the rule under the button, and says when a file was
+  // changed that it is not the service's own.
   it("hands the browser the file the service sent, and revokes its URL after the click", async () => {
     const { api, click } = renderExportButton();
 
