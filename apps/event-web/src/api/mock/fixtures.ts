@@ -133,8 +133,8 @@ export interface MockData {
 
 /**
  * The Event Service's placeholder questions (BAC-119). They mirror
- * apps/event-service/src/grad-tea/questions.ts, so the mock asks what the service asks.
- * The grad tea team replaces them by Mon 9 Nov; a reworded one keeps its IDs.
+ * apps/event-service/src/showcase/questions.ts, so the mock asks what the service asks.
+ * BAC-162 owns their new wording; a reworded one keeps its IDs.
  */
 const QUESTIONS: Question[] = [
   {
