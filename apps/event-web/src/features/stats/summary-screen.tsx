@@ -89,7 +89,7 @@ export function SummaryScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Summary"
-        description="Totals for this event so far. The CSV holds every tap with every status, which is the feed for the A/B analysis."
+        description="Totals for this event so far. The CSV holds every tap with every status."
         actions={<ExportButton />}
       />
       {body}

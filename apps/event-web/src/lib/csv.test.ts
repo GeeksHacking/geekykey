@@ -79,8 +79,8 @@ describe("escapeSpreadsheetFormulas", () => {
     });
   });
 
-  // The export is the feed for the A/B analysis, so the file the organiser saves
-  // is the file the service sent. Only the cell that needed an apostrophe changes.
+  // The export is the raw tap feed, so the file the organiser saves is the file
+  // the service sent. Only the cell that needed an apostrophe changes.
   it("changes only the cell that needed it", () => {
     const csv = 'tap_id,station_name,display_name\r\n1,"Printer, Lab",-Alex\r\n';
 
