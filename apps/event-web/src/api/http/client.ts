@@ -5,6 +5,7 @@ import {
   parseEventGroup,
   parseEventStationBoardResponse,
   parseAcceptConnectionRequestResponse,
+  parseGeekykeyLoginLinkResponse,
   parsePlayReactionResponse,
   parseConnectionChallenge,
   parseConnectionRule,
@@ -206,6 +207,10 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
         `/api/v1/me/connections/${encodeURIComponent(connectionId)}/reaction`,
         postJson(play),
       ).then(parsePlayReactionResponse),
+
+    // BAC-157, for the agreement's next version, 8.12. No body: the link names the session's user.
+    createGeekykeyLoginLink: () =>
+      sendJson("/api/v1/login-links", { method: "POST" }).then(parseGeekykeyLoginLinkResponse),
 
     // Agreement 9.10. Not under /admin, because a map screen isn't an organizer.
     map: () => sendJson("/api/v1/map").then(parseMapResponse),

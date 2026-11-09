@@ -8,10 +8,12 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/api/errors";
+import { createMockClient } from "@/api/mock/client";
 import { ParticipantFrame } from "@/features/auth/participant-frame";
 import { SessionContext, type SessionState } from "@/lib/session";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { makeMe } from "@/test/make-me";
+import { createTestProviders } from "@/test/providers";
 
 const me = makeMe({
   user: { id: "dev-organizer-1", display_name: "Priya Raman", role: "organizer" },
@@ -40,11 +42,15 @@ function renderFrame(loginLinkError: unknown) {
     routeTree: rootRoute,
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
+  // The place menu's My tokens asks the Event Service for a login link (BAC-157).
+  const { Providers } = createTestProviders(createMockClient({ latencyMs: [0, 0], storage: null }));
   render(
     <ThemeProvider>
-      <SessionContext.Provider value={session}>
-        <RouterProvider router={router} />
-      </SessionContext.Provider>
+      <Providers>
+        <SessionContext.Provider value={session}>
+          <RouterProvider router={router} />
+        </SessionContext.Provider>
+      </Providers>
     </ThemeProvider>,
   );
 }

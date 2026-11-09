@@ -7,9 +7,11 @@ import {
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { createMockClient } from "@/api/mock/client";
 import type { User } from "@/api/types";
 import { ParticipantShell } from "@/components/layout/participant-shell";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { createTestProviders } from "@/test/providers";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
 
@@ -34,7 +36,13 @@ async function renderShell(connectionRequests: number, showNavigation = true) {
     routeTree: rootRoute,
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
-  render(<RouterProvider router={router} />);
+  // The place menu's My tokens asks the Event Service for a login link (BAC-157).
+  const { Providers } = createTestProviders(createMockClient({ latencyMs: [0, 0], storage: null }));
+  render(
+    <Providers>
+      <RouterProvider router={router} />
+    </Providers>,
+  );
   await screen.findByText("Screen");
 }
 

@@ -9,6 +9,7 @@ import type {
   EventGroup,
   EventStationBoardResponse,
   FallbackTapResponse,
+  GeekykeyLoginLinkResponse,
   GroupBoardResponse,
   ListTapsResponse,
   MapResponse,
@@ -257,6 +258,12 @@ export const playReactionResponseSchema: z.ZodMiniType<PlayReactionResponse> = z
   reaction: reactionSchema,
 });
 
+/** A login link to the GeekyKey screens (BAC-157, for the agreement's next version, 8.12). */
+export const geekykeyLoginLinkResponseSchema: z.ZodMiniType<GeekykeyLoginLinkResponse> = z.object({
+  login_link: z.string().check(z.minLength(1)),
+  expires_at: isoTimestamp,
+});
+
 /** PATCH /api/v1/me's answer (agreement 8.7), which goes straight into the ["me"] cache. */
 export const updateMeResponseSchema: z.ZodMiniType<UpdateMeResponse> = z.object({
   user: userSchema,
@@ -400,6 +407,9 @@ export const parseConnectionChallenge = (input: unknown) =>
 
 export const parseAcceptConnectionRequestResponse = (input: unknown) =>
   parseOrganizerResponse(acceptConnectionRequestResponseSchema, input);
+
+export const parseGeekykeyLoginLinkResponse = (input: unknown) =>
+  parseOrganizerResponse(geekykeyLoginLinkResponseSchema, input);
 
 export const parsePlayReactionResponse = (input: unknown) =>
   parseOrganizerResponse(playReactionResponseSchema, input);

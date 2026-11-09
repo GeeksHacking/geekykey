@@ -135,6 +135,16 @@ export const ACCEPT_CONNECTION_REQUEST_STATUSES = [
 
 export type AcceptConnectionRequestStatus = (typeof ACCEPT_CONNECTION_REQUEST_STATUSES)[number];
 
+/**
+ * POST /api/v1/login-links on the Event Service (agreement 8.12, BAC-157, for the next
+ * version): a login link to the GeekyKey screens for the signed-in user, which works once and
+ * expires 60 seconds after it is made. My tokens opens it straight away and keeps nothing.
+ */
+export interface GeekykeyLoginLinkResponse {
+  login_link: string;
+  expires_at: string;
+}
+
 /** POST /api/v1/me/connections/{id}/reaction's answer (BAC-156, 8.11): the test from this user's side. */
 export interface PlayReactionResponse {
   reaction: Reaction;
