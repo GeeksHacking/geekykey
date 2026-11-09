@@ -2432,3 +2432,12 @@
     My tokens now leads with your tokens and the button that opens the event. The form for
     typing a token's UID is behind "Claim a token manually", closed when the page loads, for a
     token your phone can't read.
+
+- id: headings-yellow-accents
+  date: 2026-11-09
+  area: frontend
+  change: >-
+    Page titles on the GeekyKey and Event screens have the short yellow underline that Token kinds
+    introduced, and section headings have its yellow marker beside them. The organiser console, the
+    passport, activity, My tokens and the token page have the underline, and the dashboard's and the
+    summary's sections have the marker.
