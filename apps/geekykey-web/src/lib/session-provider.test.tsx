@@ -34,8 +34,8 @@ const SOME_UID = "04A1B2C3D4E5F6";
 const cachedToken = { uid: SOME_UID, owner: "you", claimed_at: null, owner_id: null };
 
 /** One page load: a fresh query cache and a fresh provider over the same service. */
-function mount(api: MockApiClient) {
-  const { Providers, queryClient } = createTestProviders(api, { session: true });
+function mount(api: MockApiClient, loginLink?: string) {
+  const { Providers, queryClient } = createTestProviders(api, { session: true, loginLink });
   // Every status the screens saw, so a test can tell that the login never showed.
   const statuses: string[] = [];
   const rendered = renderHook(
@@ -105,6 +105,77 @@ describe("SessionProvider", () => {
     expect(result.current.status).toBe("loading");
     await waitFor(() => expect(result.current.status).toBe("anonymous"));
     expect(result.current.me).toBeNull();
+  });
+
+  describe("arriving from a login link (agreement 7.5, BAC-157)", () => {
+    it("logs the link's user in before /me is read, without asking Firebase", async () => {
+      // Firebase remembers someone, and the link still wins.
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      const loginLink = vi.spyOn(api, "loginLink");
+      const me = vi.spyOn(api, "me");
+      vi.spyOn(api, "firebaseLogin");
+      const { result, statuses } = mount(api, "mock");
+
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+      expect(loginLink).toHaveBeenCalledExactlyOnceWith("mock");
+      expect(loginLink.mock.invocationCallOrder[0]).toBeLessThan(me.mock.invocationCallOrder[0]!);
+      expect(result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID);
+      expect(result.current.loginLinkError).toBeUndefined();
+      expect(api.firebaseLogin).not.toHaveBeenCalled();
+      expect(statuses).not.toContain("anonymous");
+    });
+
+    it("replaces the session the browser had with the link's user", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      await api.devLogin(SEEDED_ADMIN_ID);
+      const { result } = mount(api, "mock");
+
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+      expect(result.current.me?.user.id).toBe(SEEDED_PARTICIPANT_ID);
+    });
+
+    it("sends the link once, however often /me is read", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      const loginLink = vi.spyOn(api, "loginLink");
+      const { result } = mount(api, "mock");
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+
+      await act(() => result.current.refresh());
+      expect(loginLink).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the session the browser had when the link fails, and says why", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      await api.devLogin(SEEDED_ADMIN_ID);
+      const { result } = mount(api, "expired");
+
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+      expect(result.current.me?.user.id).toBe(SEEDED_ADMIN_ID);
+      expect(result.current.loginLinkError).toEqual(new ApiError(401, "invalid_login_link"));
+    });
+
+    it("falls back to Firebase's saved user when the link fails and nobody is signed in", async () => {
+      savedUserIdToken.mockResolvedValue("saved-id-token");
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      vi.spyOn(api, "firebaseLogin");
+      const { result } = mount(api, "expired");
+
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+      expect(api.firebaseLogin).toHaveBeenCalledWith("saved-id-token");
+      expect(result.current.loginLinkError).toBeInstanceOf(ApiError);
+    });
+
+    it("forgets the failed link once someone signs in", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      const { result } = mount(api, "expired");
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+      expect(result.current.loginLinkError).toBeDefined();
+
+      await act(() => result.current.signIn(SEEDED_PARTICIPANT_ID));
+      expect(result.current.loginLinkError).toBeUndefined();
+    });
   });
 
   describe("logging a returning user in again (agreement 7.2)", () => {

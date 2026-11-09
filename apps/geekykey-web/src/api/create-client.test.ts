@@ -183,6 +183,7 @@ describe("createAppClient", () => {
         "listKindTokens",
         "removeTokenKind",
         "loadTokenKinds",
+        "loginLink",
         "logout",
         "me",
         "meetToken",

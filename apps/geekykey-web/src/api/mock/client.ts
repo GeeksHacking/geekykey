@@ -34,11 +34,19 @@ const LOGIN_LINK_TTL_MS = 60_000;
  */
 const MOCK_LOGIN_LINK_URL = "http://localhost:5173/#login=mock";
 
+/**
+ * The one link the mock's POST /auth/login-link accepts, standing in for one from the Event
+ * screens: open `http://localhost:5174/#login=mock` to try it (agreement 7.5).
+ */
+const MOCK_LOGIN_LINK = "mock";
+
 const HTTP_STATUS: Record<ErrorCode, number> = {
   validation_failed: 400,
   unauthenticated: 401,
   // Agreement 0.4 section 7.2, POST /auth/firebase, on both services.
   invalid_token: 401,
+  // Agreement 7.5, POST /auth/login-link (BAC-157).
+  invalid_login_link: 401,
   forbidden: 403,
   not_found: 404,
   token_taken: 409,
@@ -51,6 +59,7 @@ const HTTP_STATUS: Record<ErrorCode, number> = {
   claims_unavailable: 503,
   login_unavailable: 503,
   service_unavailable: 503,
+  event_service_unavailable: 503,
 };
 
 export type MockFailure = ErrorCode | "network";
@@ -204,6 +213,15 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     // screens read GET /api/v1/me afterwards, as they do live.
     firebaseLogin: () =>
       call(() => {
+        setSession(SEEDED_PARTICIPANT_ID);
+      }),
+
+    // The mock has no Event Service to make a real link, so `mock` stands in for one, and
+    // logs in the seeded participant. Any other link has expired, and the session stays as
+    // it was, as it does live.
+    loginLink: (link) =>
+      call(() => {
+        if (link !== MOCK_LOGIN_LINK) fail("invalid_login_link");
         setSession(SEEDED_PARTICIPANT_ID);
       }),
 
