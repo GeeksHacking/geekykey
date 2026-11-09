@@ -4,6 +4,8 @@ import {
   meetingsRequest,
   type StationsAnswer,
   tapsRequest,
+  type UsedLoginLinksAnswer,
+  usedLoginLinksRequest,
 } from "@geekykey/handoff";
 import { eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
@@ -18,6 +20,7 @@ import type { GameOnStations } from "./games.ts";
 import { tokenOwnerOf } from "./profiles.ts";
 import { stations } from "./schema.ts";
 import { TapPipeline, UnknownStation } from "./tap-pipeline.ts";
+import { useLoginLink } from "./used-login-links.ts";
 
 /**
  * What the GeekyKey Service asks of this Event Service (mounted at
@@ -126,6 +129,13 @@ export function handoffRoutes({
         .where(eq(stations.id, station_id));
 
       return c.body(null, 204);
+    })
+    .post("/used-login-links", jsonBody(usedLoginLinksRequest), async (c) => {
+      // A login link this Event Service made has reached the GeekyKey screens, which keep
+      // no database, so its jti is kept here and it works once (11.11). Never logged.
+      const { jti, expires_at } = c.req.valid("json");
+      const firstUse = await useLoginLink(c.var.db, { jti, expiresAt: new Date(expires_at) });
+      return c.json({ first_use: firstUse } satisfies UsedLoginLinksAnswer);
     });
 
   if (connections === null) return app;

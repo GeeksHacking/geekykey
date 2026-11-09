@@ -155,3 +155,38 @@ test("each link has its own jti", async () => {
   }
   assert.equal(jtis.size, 20);
 });
+
+/**
+ * A link to the GeekyKey screens (BAC-157), built by hand outside this package as
+ * LINK_BUILT_BY_HAND is, with the info `geekykey login link to geekykey`.
+ */
+const LINK_TO_GEEKYKEY_BUILT_BY_HAND =
+  "eyJ2IjoxLCJzdWIiOiJmaXJlYmFzZS11aWQtMSIsIm5hbWUiOiJBZGEgTGltIiwiZXhwIjoxNzk1MDA2ODYwLCJqdGkiOiI5ZjJjNGUwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsImtpbmQiOm51bGx9" +
+  ".gKGG-GbSy4DbB8c8d7miZ0LBiZxOBPIQBwmg5WUFbwk";
+
+test("a link to the GeekyKey screens built by hand from the agreement's recipe reads as its payload says", async () => {
+  assert.deepEqual(
+    await loginLinks(KEY, { to: "geekykey" }).read(LINK_TO_GEEKYKEY_BUILT_BY_HAND, NOW),
+    {
+      userId: "firebase-uid-1",
+      name: "Ada Lim",
+      kind: null,
+      jti: "9f2c4e00000000000000000000000000",
+      expiresAt: new Date("2026-11-18T13:01:00.000Z"),
+    },
+  );
+});
+
+test("a link made for one way reads only on that way, so neither service takes the other's", async () => {
+  const toEvent = loginLinks(KEY);
+  const toGeekykey = loginLinks(KEY, { to: "geekykey" });
+  const user = { userId: "firebase-uid-1", name: "Ada Lim", now: NOW };
+
+  const forGeekykey = await toGeekykey.make(user);
+  assert.equal((await toGeekykey.read(forGeekykey.link, NOW))?.userId, "firebase-uid-1");
+  assert.equal(await toEvent.read(forGeekykey.link, NOW), null);
+
+  const forEvent = await toEvent.make(user);
+  assert.equal(await toGeekykey.read(forEvent.link, NOW), null);
+  assert.equal(await toGeekykey.read(LINK_BUILT_BY_HAND, NOW), null);
+});

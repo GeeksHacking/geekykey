@@ -104,7 +104,9 @@ release the token there.
 
 **Login link**:
 A short-lived link from the GeekyKey Service's pages that logs a user in to an event's screens as
-the same user, so they don't log in a second time. It is the only way a guest reaches an event.
+the same user, so they don't log in a second time. It is the only way a guest reaches an event. A
+link also goes the other way, from an event's My tokens to the GeekyKey screens, so a guest whose
+sign-in there is gone gets back to their own tokens (ADR 0007).
 _Avoid_: hand-over, pass, which reads like passport
 
 **My tokens**:

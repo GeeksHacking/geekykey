@@ -2448,3 +2448,13 @@
   change: >-
     db:backup copies every table to a file on Adam's laptop. db:restore puts back only the tables he
     names, as they are in a copy, so putting taps back doesn't undo the claims made since.
+
+- id: my-tokens-login-link-from-event
+  date: 2026-11-09
+  area: backend
+  change: >-
+    My tokens on the Event screens now logs you in on the GeekyKey screens as the same user, so a
+    guest who signed out there, or switched browsers, still sees their own tokens. The Event Service
+    makes a one-use link that lasts a minute, and marks it used when the GeekyKey Service checks it.
+    The trade-offs we accept: an Event Service trusted this way can log anyone in to GeekyKey, so
+    only ours is, and the link stops working if the Event Service doesn't answer.

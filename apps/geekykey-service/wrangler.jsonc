@@ -99,7 +99,9 @@
     // end. `public_url`, which may be left out, is where its screens are, for
     // the buttons on the token page and My tokens. `meetings`, which may be
     // left out for false, says it takes the halves of connections by phone
-    // (the API agreement's 8.8 and 11.10). Locally, dev.env points the
+    // (the API agreement's 8.8 and 11.10). `login_links_to_geekykey`, which
+    // may be left out for false, says its login links log a user in here
+    // (7.5). Locally, dev.env points the
     // showcase at http://localhost:8001, and its screens at 5173.
     "EVENT_SERVICES": [
       {
@@ -109,6 +111,9 @@
         "public_url": "https://event.geekshacking.com",
         // Connections by phone (the API agreement's 8.8 and 11.10).
         "meetings": true,
+        // Its login links log a user in here as the same user (7.5, BAC-157). Such a link can
+        // name any user, so only an Event Service trusted with every user's tokens says so.
+        "login_links_to_geekykey": true,
       },
     ],
     // Who owns each token, until the switch to the Portal's tag APIs.

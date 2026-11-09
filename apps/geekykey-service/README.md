@@ -9,8 +9,8 @@ It does five jobs:
 - checks each station's key, and hands the station's taps and heartbeats to the Event Service that
   registered it
 - asks the claims stand-in who owns each token, so an Event Service only ever sees users
-- logs users in to the GeekyKey screens (`apps/geekykey-web`), and makes login links into an
-  event's screens
+- logs users in to the GeekyKey screens (`apps/geekykey-web`), makes login links into an
+  event's screens, and takes login links from an event's My tokens
 - claims and releases tokens, and lets a GeekyKey admin load token kinds
 - passes one half of a connection to the events that run connections
 
@@ -80,6 +80,12 @@ address with a link in its fragment (`#login=`), signed with a key derived from 
 Service's key (`packages/login-link`). The Event Service checks it, uses it once, and signs in the
 same user. The link lasts 60 seconds, and neither service logs it. When the token page sends its
 token's UID and the user owns that token, the link also carries the token's kind.
+
+The other way (BAC-157), the Event screens' My tokens opens these screens with a link the Event
+Service made, signed with a second key derived from the same Event Service key. `POST
+/auth/login-link` checks it against each Event Service whose entry in `EVENT_SERVICES` says
+`login_links_to_geekykey`, then asks that Event Service to mark it used, since this Worker keeps no
+database. Only the first use signs anyone in.
 
 **Token kinds.** A GeekyKey admin loads kinds with `POST /api/v1/admin/token-kinds`, up to 500
 tokens at a time, which writes a `token_kinds_loaded` log line. A GeekyKey admin, or an organizer

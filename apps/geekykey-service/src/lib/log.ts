@@ -21,6 +21,9 @@ const LOG_LINES = {
   // A half of a connection its Event Service didn't take properly in time, so the token page
   // shows it as unavailable for that event.
   meeting_handoff_failed: "ERROR",
+  // A login link from an Event Service's screens logged nobody in, because that Event Service
+  // didn't mark it used properly in time (the API agreement's 7.5). The link itself is never logged.
+  login_link_unavailable: "ERROR",
   // The copy of the registered stations was filled on a station's request.
   stations_copy_filled: "INFO",
   // An Event Service's registered stations couldn't be had. Its last good list, if any, is kept.

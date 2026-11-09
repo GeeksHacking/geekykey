@@ -22,6 +22,14 @@ export interface EventServiceEntry {
    */
   meetings: boolean;
   /**
+   * Whether its login links log a user in on the GeekyKey screens (the API
+   * agreement's 7.5 and 11.9, BAC-157), from the entry's
+   * `login_links_to_geekykey`. False when the entry leaves it out, since
+   * such a link can name any user, so only an Event Service trusted with
+   * every user's tokens says so.
+   */
+  loginLinksToGeekykey: boolean;
+  /**
    * The Event Service key its requests carry, from the secret
    * EVENT_SERVICE_KEY_<ID>. 64 lower-case hex characters, as `openssl rand
    * -hex 32` writes them.
@@ -159,6 +167,7 @@ const eventServicesSetting = z
       // No key goes there, but it's where a browser is sent, so the same rule holds.
       public_url: address.optional(),
       meetings: z.boolean().optional(),
+      login_links_to_geekykey: z.boolean().optional(),
     }),
   )
   .min(1)
@@ -234,12 +243,13 @@ export function loadConfig(settings: object): Config {
     "EVENT_SERVICES",
     eventServicesSetting,
     jsonSetting(env, "EVENT_SERVICES"),
-  ).map(({ id, name, url, public_url, meetings }) => ({
+  ).map(({ id, name, url, public_url, meetings, login_links_to_geekykey }) => ({
     id,
     name,
     url,
     publicUrl: public_url ?? null,
     meetings: meetings ?? false,
+    loginLinksToGeekykey: login_links_to_geekykey ?? false,
     key: keyFromEnv(env, `EVENT_SERVICE_KEY_${id.toUpperCase()}`),
   }));
   return {

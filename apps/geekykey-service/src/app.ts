@@ -1,4 +1,5 @@
 import { type GoogleSigningKeys, googleSigningKeys } from "@geekykey/firebase-login";
+import { loginLinks } from "@geekykey/login-link";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { authRoutes } from "./auth-routes.ts";
@@ -106,18 +107,28 @@ export function createApp(
     c.json({ status: "ok", service: "geekykey-service", timestamp: new Date().toISOString() }),
   );
 
+  const claims = new StandInClaims({ ...config.claimsStandIn, send });
+  // Each Event Service with its entry, so what's built from both reads them together.
+  const eventServiceEntries = config.eventServices.map((entry) => ({
+    entry,
+    service: new EventService({ id: entry.id, url: entry.url, key: entry.key, send }),
+  }));
+  const eventServices = eventServiceEntries.map(({ service }) => service);
+
   app.route(
     "/auth",
     authRoutes({
       session,
       devAuthEnabled: config.devAuthEnabled,
       firebase: { projectId: config.firebaseProjectId, keys: googleKeys },
+      // Only the Event Services trusted to log a user in here (BAC-157), each with its own key.
+      loginLinkSenders: eventServiceEntries.flatMap(({ entry, service }) =>
+        entry.loginLinksToGeekykey
+          ? [{ service, links: loginLinks(entry.key, { to: "geekykey" }) }]
+          : [],
+      ),
+      markUsedDeadlineMs: claimsDeadlineMs,
     }),
-  );
-
-  const claims = new StandInClaims({ ...config.claimsStandIn, send });
-  const eventServices = config.eventServices.map(
-    ({ id, url, key }) => new EventService({ id, url, key, send }),
   );
   // Starts empty, and lives as long as the Worker's isolate.
   const stationsCopy = new StationsCopy({
@@ -165,7 +176,9 @@ export function createApp(
       maxTokensPerUser: config.maxTokensPerUser,
       tokenLimit,
       // In EVENT_SERVICES' order, as /me's `events` are.
-      meetingServices: eventServices.filter((_, i) => config.eventServices[i]!.meetings),
+      meetingServices: eventServiceEntries
+        .filter(({ entry }) => entry.meetings)
+        .map(({ service }) => service),
     }),
   );
   app.route(
