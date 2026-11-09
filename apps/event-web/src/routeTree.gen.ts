@@ -14,6 +14,7 @@ import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as SignOutRouteImport } from './routes/sign-out'
+import { Route as WhatStaysRouteImport } from './routes/what-stays'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
 import { Route as AppPassportRouteImport } from './routes/_app/passport'
@@ -46,6 +47,11 @@ const MapRoute = MapRouteImport.update({
 const SignOutRoute = SignOutRouteImport.update({
   id: '/sign-out',
   path: '/sign-out',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WhatStaysRoute = WhatStaysRouteImport.update({
+  id: '/what-stays',
+  path: '/what-stays',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
   '/sign-out': typeof SignOutRoute
+  '/what-stays': typeof WhatStaysRoute
   '/activity': typeof AppActivityRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
   '/sign-out': typeof SignOutRoute
+  '/what-stays': typeof WhatStaysRoute
   '/activity': typeof AppActivityRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
   '/sign-out': typeof SignOutRoute
+  '/what-stays': typeof WhatStaysRoute
   '/_app/activity': typeof AppActivityRoute
   '/_app/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/map'
     | '/sign-out'
+    | '/what-stays'
     | '/activity'
     | '/passport'
     | '/admin/fallback'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/map'
     | '/sign-out'
+    | '/what-stays'
     | '/activity'
     | '/passport'
     | '/admin/fallback'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/map'
     | '/sign-out'
+    | '/what-stays'
     | '/_app/activity'
     | '/_app/passport'
     | '/admin/fallback'
@@ -194,6 +206,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MapRoute: typeof MapRoute
   SignOutRoute: typeof SignOutRoute
+  WhatStaysRoute: typeof WhatStaysRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-out'
       fullPath: '/sign-out'
       preLoaderRoute: typeof SignOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/what-stays': {
+      id: '/what-stays'
+      path: '/what-stays'
+      fullPath: '/what-stays'
+      preLoaderRoute: typeof WhatStaysRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -341,6 +361,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MapRoute: MapRoute,
   SignOutRoute: SignOutRoute,
+  WhatStaysRoute: WhatStaysRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
