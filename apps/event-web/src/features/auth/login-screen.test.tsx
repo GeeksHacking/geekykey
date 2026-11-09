@@ -93,6 +93,13 @@ describe("LoginScreen", () => {
     expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
   });
 
+  it("tells a guest where to go when the sign-in buttons cannot help", () => {
+    renderLogin();
+
+    expect(screen.getByText(/Signed in as a guest\?/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open GeekyKey" })).toBeInTheDocument();
+  });
+
   it("points the local form at the buttons above it", () => {
     renderLogin();
 
