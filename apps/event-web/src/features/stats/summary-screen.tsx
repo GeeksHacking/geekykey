@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
 import { PageHeader } from "@/components/layout/page-header";
+import { SectionHeading } from "@/components/layout/section-heading";
 import { StaleDataNote } from "@/components/layout/stale-data-note";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -66,8 +67,8 @@ export function SummaryScreen() {
             />
           </div>
         </div>
-        <section className="space-y-3">
-          <h2 className="type-section">By station</h2>
+        <section>
+          <SectionHeading title="By station" />
           {data.total_taps === 0 ? (
             <EmptyState
               icon={HandTap}

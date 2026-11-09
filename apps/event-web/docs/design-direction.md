@@ -91,6 +91,15 @@ booth visual, below, has its own scale. `globals.css` also sets a
 looser line height on `text-xs` and `text-sm`, for wrapped bios and reasons on a phone. It is
 identical in both apps, so the GeekyKey screens use the same four.
 
+Two yellow accents mark headings, after the GeekyKey screens' Token kinds page (FRO-159). A short
+rounded underline sits under a screen's h1, in `PageHeader` here and `PageTitle` on the GeekyKey
+screens. A short vertical marker sits beside a section's h2, in `SectionHeading` here and
+`SectionTitle` there. Both are yellow fills with the `border-primary-edge` edge and are hidden from
+screen readers, so a heading's name is still its words. Headings inside a card or a dialog, the
+centred forbidden, not found, empty and error states, the dashboard's name over the avatar, the
+login pages, the map and the booth visual have neither. The two apps' copies use the same classes,
+so change them together.
+
 **Shape:** one radius scale, from the kit's 12px corner. `rounded-lg` (12px) for cards,
 dialogs, and inputs; `rounded-md` (10px) for buttons and badges. Document any exception in
 this file.

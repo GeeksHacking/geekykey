@@ -15,7 +15,7 @@ import {
 import { KindTokenTable } from "@/features/token-kinds/kind-token-table";
 import { ReleaseKindTokenDialog } from "@/features/token-kinds/release-kind-token-dialog";
 import { RemoveKindDialog } from "@/features/token-kinds/remove-kind-dialog";
-import { SectionTitle } from "@/features/token-kinds/section-title";
+import { SectionTitle } from "@/components/layout/section-title";
 import { useKindTokens, useKindsWritePending } from "@/features/token-kinds/use-token-kinds";
 import { cn } from "@/lib/utils";
 

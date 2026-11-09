@@ -26,6 +26,9 @@ differ.
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
 - `src/test/location.ts` is a copy of the Event screens' file. Change them together.
+- `src/components/layout/page-title.tsx` and `section-title.tsx` draw the same yellow underline
+  and marker as the Event screens' `page-header.tsx` and `section-heading.tsx` (FRO-159). Change
+  their classes together.
 - `src/components/ui/native-select.tsx` is this app's own, with no Event screens' copy: the
   browser's `<select>` drawn like `input.tsx`, with room for its arrow (FRO-145). Token kinds'
   ownership filter is native radios drawn as one segmented control, rather than a copy of the

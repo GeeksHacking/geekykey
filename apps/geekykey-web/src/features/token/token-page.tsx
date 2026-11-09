@@ -4,6 +4,7 @@ import { describeError, isApiErrorCode } from "@/api/errors";
 import { EventButtons } from "@/components/event-buttons";
 import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { ErrorState } from "@/components/layout/error-state";
+import { PageTitle } from "@/components/layout/page-title";
 import { ReleaseTokenBlock } from "@/components/release-token-block";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,9 +46,7 @@ export function TokenPage({ uid }: { uid: string }) {
   return (
     <div className="flex flex-col">
       {/* Only your own is "your token" (8.5). The same page answers a tap on someone else's. */}
-      <h1 tabIndex={-1} className="type-title outline-hidden">
-        {query.data?.owner === "you" ? "Your token" : "Token"}
-      </h1>
+      <PageTitle>{query.data?.owner === "you" ? "Your token" : "Token"}</PageTitle>
       <p className="mt-2 text-sm text-muted-foreground">
         <code className="font-mono text-foreground">{displayed}</code>
       </p>
