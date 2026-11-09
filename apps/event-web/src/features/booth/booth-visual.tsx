@@ -35,7 +35,7 @@ function Item({ item }: { item: BoothItem }) {
  */
 export function BoothVisual() {
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-[120rem] flex-col bg-look-grid px-6 py-6 lg:px-10 lg:py-8">
+    <main className="booth-print mx-auto flex min-h-[100dvh] max-w-[120rem] flex-col bg-look-grid px-6 py-6 lg:px-10 lg:py-8">
       <header className="mb-8">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <Wordmark />
@@ -51,7 +51,7 @@ export function BoothVisual() {
 
       <div className="grid gap-6 lg:grid-cols-[7fr_5fr] lg:gap-8">
         <section className="relative rounded-lg border bg-card p-6 lg:p-8">
-          <CornerBrackets />
+          <CornerBrackets className="booth-brackets" />
           <h2 className="mb-5 inline-block rounded-md border border-primary-edge bg-primary px-3 py-1 text-2xl font-semibold tracking-heading text-primary-foreground lg:text-3xl">
             {STAYS_HEADING}
           </h2>
@@ -75,7 +75,7 @@ export function BoothVisual() {
       </div>
 
       <section className="relative mt-6 rounded-lg border bg-card p-6 lg:mt-8 lg:p-8">
-        <CornerBrackets />
+        <CornerBrackets className="booth-brackets" />
         <h2 className="text-2xl font-semibold tracking-heading lg:text-3xl">{PASSPORT_HEADING}</h2>
         <p className="mt-3 max-w-[90ch] text-lg lg:text-xl 2xl:text-2xl">{PASSPORT_BODY}</p>
         <p className="mt-3 max-w-[90ch] text-sm text-muted-foreground lg:text-base">

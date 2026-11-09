@@ -300,3 +300,95 @@
     scroll-padding-top: 8rem;
   }
 }
+
+/*
+  The booth visual at /what-stays prints on one A3 landscape sheet, read from a step or two
+  away. Its screen type is larger than the app's scale, so print sets its own sizes in points.
+  The yellow "Stays" pill is the one fill; everything else is black on white for ink.
+*/
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 0;
+  }
+
+  body {
+    background: white;
+  }
+
+  html,
+  body {
+    height: auto;
+    min-height: 0;
+  }
+
+  .booth-print.booth-print {
+    max-width: none;
+    min-height: 0;
+    padding: 12mm;
+    background: white;
+    color: #1c1b1b;
+  }
+
+  .booth-print.booth-print.bg-look-grid {
+    background-image: none;
+  }
+
+  .booth-print .booth-brackets {
+    inset: 0;
+  }
+
+  .booth-print h1 {
+    font-size: 30pt;
+    line-height: 1.1;
+  }
+
+  .booth-print h2 {
+    font-size: 17pt;
+    line-height: 1.2;
+  }
+
+  .booth-print h3 {
+    font-size: 12pt;
+    line-height: 1.25;
+  }
+
+  .booth-print p,
+  .booth-print li {
+    font-size: 11pt;
+    line-height: 1.35;
+  }
+
+  .booth-print .look-label {
+    font-size: 8pt;
+  }
+
+  .booth-print .bg-card {
+    background: white;
+  }
+
+  .booth-print .bg-primary {
+    background: #fff200;
+    color: #1c1b1b;
+    border-color: #1c1b1b;
+  }
+
+  .booth-print .border,
+  .booth-print .border-t,
+  .booth-print .border-primary-text {
+    border-color: #1c1b1b;
+  }
+
+  .booth-print .text-primary-text {
+    color: #1c1b1b;
+  }
+
+  .booth-print section,
+  .booth-print li {
+    break-inside: avoid;
+  }
+
+  .booth-print header {
+    break-after: avoid;
+  }
+}
