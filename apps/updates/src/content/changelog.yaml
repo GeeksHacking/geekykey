@@ -2424,3 +2424,11 @@
   change: >-
     The selected Ownership filter on Token kinds keeps dark text on yellow when hovered,
     and unselected options show a filled background and outline on hover in both themes.
+
+- id: my-tokens-tokens-first
+  date: 2026-11-09
+  area: frontend
+  change: >-
+    My tokens now leads with your tokens and the button that opens the event. The form for
+    typing a token's UID is behind "Claim a token manually", closed when the page loads, for a
+    token your phone can't read.

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod/mini";
 
@@ -52,14 +52,22 @@ type ClaimValues = z.infer<typeof schema>;
  * section 13 sentence. A validation_failed issue goes on the field its path names, an
  * issue about something else goes on a form-level line, and a failure with no issues at
  * all falls back to the field, since the UID is the only field here.
+ *
+ * `autoFocus` puts the cursor in the field when the form mounts, for a host that shows the
+ * form on request, as My tokens' "Claim a token manually" does (FRO-155). Claim is an outline
+ * button, so the event's button stays the page's primary action.
  */
-export function ClaimByCodeForm() {
+export function ClaimByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) {
   const claim = useClaimToken();
   const form = useForm<ClaimValues>({
     resolver: zodResolver(schema),
     defaultValues: { uid: "" },
   });
   const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (autoFocus) form.setFocus("uid");
+  }, [autoFocus, form]);
 
   async function onSubmit(values: ClaimValues) {
     setFormError(null);
@@ -84,7 +92,7 @@ export function ClaimByCodeForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 space-y-4" noValidate>
         <FormField
           control={form.control}
           name="uid"
@@ -113,7 +121,7 @@ export function ClaimByCodeForm() {
             {formError}
           </p>
         ) : null}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" variant="outline" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Claiming" : "Claim"}
         </Button>
       </form>
