@@ -38,6 +38,13 @@ export interface ApiClient {
    */
   firebaseLogin(idToken: string): Promise<void>;
 
+  /**
+   * POST /auth/login-link (agreement 7.5, BAC-157). Logs in with a login link the Event
+   * screens' My tokens opened here, as the same user, and the service sets its own cookie.
+   * It replaces any session the browser had. The screens read GET /api/v1/me afterwards.
+   */
+  loginLink(link: string): Promise<void>;
+
   /** POST /auth/logout */
   logout(): Promise<void>;
 

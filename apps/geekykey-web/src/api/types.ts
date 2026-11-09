@@ -156,6 +156,9 @@ export type ErrorCode =
   | "claims_unavailable"
   | "login_unavailable"
   | "service_unavailable"
+  // Agreement 7.5 (BAC-157): POST /auth/login-link, a link from the Event screens.
+  | "invalid_login_link"
+  | "event_service_unavailable"
   | "internal_error";
 
 export interface ApiIssue {

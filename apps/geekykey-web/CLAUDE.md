@@ -26,6 +26,9 @@ differ.
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
 - `src/test/location.ts` is a copy of the Event screens' file. Change them together.
+- `src/lib/login-link.ts` and `src/features/auth/login-link-notice.tsx` are copies of the Event
+  screens' files of the same names, for a login link arriving here (agreement 7.5, BAC-157) rather
+  than there. Only the comments and the sentence differ. Change them together.
 - `src/components/layout/page-title.tsx` and `section-title.tsx` draw the same yellow underline
   and marker as the Event screens' `page-header.tsx` and `section-heading.tsx` (FRO-159). Change
   their classes together.
@@ -75,6 +78,12 @@ their tokens first, since nobody but a GeekyKey admin could afterwards (FRO-62, 
 release keeps them signed in. The Event screens can't do this themselves, so they send anyone who
 arrived by a login link to `/sign-out` here (`src/features/auth/event-sign-out-screen.tsx`), which
 warns a guest and sends anyone else back to the event's login.
+The Event screens' My tokens opens these screens at `/#login=<link>` with a login link the Event
+Service made (agreement 7.5, BAC-157). `src/lib/login-link.ts` takes it out of the address before
+the router starts, and the first `/me` read in `src/lib/session-provider.tsx` sends it first, so it
+wins over the session the browser had and over Firebase's saved user. A link that fails leaves both
+as they were, and `src/features/auth/login-link-notice.tsx` says so on the login and in the signed-in
+frame. On the mock, `http://localhost:5174/#login=mock` logs in as the seeded participant.
 A guest who signs out here goes on to `/sign-out` on the Event screens, which end that session and
 come back to the login here, so the next person on a shared phone doesn't find their passport
 (FRO-144).

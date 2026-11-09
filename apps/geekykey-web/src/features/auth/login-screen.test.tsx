@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import type { MeResponse } from "@/api/types";
 import { ApiProvider } from "@/api/provider";
@@ -36,8 +37,9 @@ const me: MeResponse = {
   events: [],
 };
 
-function session(status: SessionState["status"]): SessionState {
+function session(status: SessionState["status"], extra: Partial<SessionState> = {}): SessionState {
   return {
+    ...extra,
     status,
     me: status === "authenticated" ? me : null,
     error: undefined,
@@ -48,12 +50,12 @@ function session(status: SessionState["status"]): SessionState {
   };
 }
 
-function renderLogin(returnTo?: string) {
+function renderLogin(returnTo?: string, extra: Partial<SessionState> = {}) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   const view = (status: SessionState["status"]) => (
     <ThemeProvider>
       <ApiProvider client={api}>
-        <SessionContext.Provider value={session(status)}>
+        <SessionContext.Provider value={session(status, extra)}>
           <LoginScreen returnTo={returnTo} />
         </SessionContext.Provider>
       </ApiProvider>
@@ -78,6 +80,25 @@ describe("LoginScreen", () => {
     expect(goAfterLogin).toHaveBeenCalledWith("/t/04A1B2C3D4E5F6");
     rerender(view("authenticated"));
     expect(goAfterLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("says a login link from the event didn't work, whatever stopped it (agreement 7.5)", () => {
+    for (const code of [
+      "invalid_login_link",
+      "event_service_unavailable",
+      "internal_error",
+    ] as const) {
+      renderLogin(undefined, { loginLinkError: new ApiError(401, code) });
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "That link has expired. Open My tokens from the event again.",
+      );
+      cleanup();
+    }
+  });
+
+  it("says nothing about a link when the page came without one", () => {
+    renderLogin();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("says what signing in is for, without promising an account", () => {

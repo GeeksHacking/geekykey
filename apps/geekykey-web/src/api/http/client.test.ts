@@ -345,6 +345,8 @@ const statusFor: Record<ErrorCode, number> = {
   validation_failed: 400,
   unauthenticated: 401,
   invalid_token: 401,
+  // Agreement 7.5, POST /auth/login-link (BAC-157).
+  invalid_login_link: 401,
   forbidden: 403,
   not_found: 404,
   token_taken: 409,
@@ -354,6 +356,7 @@ const statusFor: Record<ErrorCode, number> = {
   claims_unavailable: 503,
   login_unavailable: 503,
   service_unavailable: 503,
+  event_service_unavailable: 503,
   internal_error: 500,
 };
 

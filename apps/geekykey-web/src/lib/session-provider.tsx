@@ -27,9 +27,21 @@ import {
   again, which makes a new guest who doesn't own their token. A sign-out whose Firebase
   call failed stops that login, across page loads, until someone signs in again (FRO-92).
 
+  `loginLink` is the link the page arrived with from the Event screens' My tokens, from
+  takeLoginLink() in lib/login-link.ts (agreement 7.5, BAC-157). The first /me sends it before
+  it reads, so nothing reads the session the browser had before the link replaces it, and
+  Firebase's saved user isn't logged in over it. A link that fails leaves that session, and
+  a returning login, as they would have been.
+
   Firebase is imported where it's used, so a signed-in user's pages don't load it.
 */
-export function SessionProvider({ children }: { children: ReactNode }) {
+export function SessionProvider({
+  children,
+  loginLink,
+}: {
+  children: ReactNode;
+  loginLink?: string;
+}) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [authorizationFailure, setAuthorizationFailure] = useState<{
@@ -56,9 +68,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // (FRO-91).
   const sessionVersion = useRef(0);
 
+  // A link works once, so it is sent once, however often /me is read afterwards.
+  const unsentLoginLink = useRef(loginLink);
+  const [loginLinkError, setLoginLinkError] = useState<unknown>();
+
   const me = useQuery({
     queryKey: queryKeys.me,
     queryFn: async (): Promise<MeResponse | null> => {
+      const link = unsentLoginLink.current;
+      if (link !== undefined) {
+        unsentLoginLink.current = undefined;
+        try {
+          await api.loginLink(link);
+        } catch (error) {
+          // The session the browser had carries on underneath, so /me is read as usual.
+          setLoginLinkError(error);
+        }
+      }
       const version = sessionVersion.current;
       try {
         return await api.me();
@@ -152,6 +178,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // Count the sign-in before the cancel below, so a 401 already on its way cannot
     // start a returning login during it (FRO-91).
     signInsInFlight.current += 1;
+    // A new sign-in answers for itself, so the failed link no longer needs saying.
+    setLoginLinkError(undefined);
     // Drop a pre-login poll so its late response cannot overwrite the new identity, and
     // clear the session before the request so a failed sign-in cannot leave the old
     // account visible.
@@ -236,6 +264,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     },
     onMutate: () => {
       mayLogInAgain.current = false;
+      setLoginLinkError(undefined);
       // Drop a poll that could otherwise restore the old identity after logout starts, and
       // hide cached identity data even if the network request later fails.
       settleSession(null);
@@ -284,8 +313,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signIn: signIn.mutateAsync,
       signInWithFirebase: signInWithFirebase.mutateAsync,
       signOut: signOut.mutateAsync,
+      loginLinkError,
     }),
     [
+      loginLinkError,
       status,
       me.data,
       me.error,

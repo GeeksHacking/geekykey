@@ -10,7 +10,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 /** The app's provider stack for tests, with retries off so a deliberate failure surfaces at once. */
 export function createTestProviders(
   api: ApiClient,
-  { session = false }: { session?: boolean } = {},
+  { session = false, loginLink }: { session?: boolean; loginLink?: string } = {},
 ) {
   const queryClient = createQueryClient({ retry: false });
   function Providers({ children }: { children: ReactNode }) {
@@ -20,7 +20,11 @@ export function createTestProviders(
           {/* Theme wraps everything: the login screen's toggle reads it, so a test that
               renders that screen needs the provider even without a session. */}
           <ThemeProvider>
-            {session ? <SessionProvider>{children}</SessionProvider> : children}
+            {session ? (
+              <SessionProvider loginLink={loginLink}>{children}</SessionProvider>
+            ) : (
+              children
+            )}
           </ThemeProvider>
         </QueryClientProvider>
       </ApiProvider>

@@ -33,6 +33,11 @@ export interface SessionState {
    */
   signInWithFirebase: (idToken: string) => Promise<MeResponse>;
   signOut: () => Promise<void>;
+  /**
+   * Why the login link the page arrived with logged nobody in (agreement 7.5), or undefined
+   * when there was none, it worked, or someone has signed in or out since.
+   */
+  loginLinkError?: unknown;
 }
 
 export const SessionContext = createContext<SessionState | null>(null);

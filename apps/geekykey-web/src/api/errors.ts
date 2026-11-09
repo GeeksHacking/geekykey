@@ -38,6 +38,13 @@ export function isApiErrorCode(error: unknown, code: ErrorCode): boolean {
   return isApiError(error) && error.code === code;
 }
 
+/**
+ * What the GeekyKey screens say when the login link they arrived with logged nobody in
+ * (agreement 7.5 and section 13, BAC-157), whatever the failure: the link works once, so
+ * only a new one from the Event screens helps.
+ */
+export const LOGIN_LINK_FAILED = "That link has expired. Open My tokens from the event again.";
+
 /** Plain-language fallback text for a generic error state. Screens override for specific codes. */
 export function describeError(error: unknown): string {
   if (isApiError(error)) {
@@ -73,6 +80,9 @@ export function describeError(error: unknown): string {
         // Section 13 sets no wording for it. Ethan settled it on 21 Oct: the Event screens'
         // sentence, which fits these screens too.
         return "A required service is unavailable. Try again shortly.";
+      case "invalid_login_link":
+      case "event_service_unavailable":
+        return LOGIN_LINK_FAILED;
       case "internal_error":
         return "Something went wrong on the server. Try again in a moment.";
     }

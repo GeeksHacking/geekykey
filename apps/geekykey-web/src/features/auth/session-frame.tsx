@@ -9,6 +9,7 @@ import { describeError } from "@/api/errors";
 import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
 import { TokenHeader } from "@/components/layout/token-header";
 import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
+import { LoginLinkNotice } from "@/features/auth/login-link-notice";
 import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
 import { EVENT_SCREENS_URL, HOME_PATH } from "@/lib/constants";
 import { useMe, useSession } from "@/lib/session";
@@ -124,6 +125,7 @@ export function SessionFrame({ children }: { children: ReactNode }) {
             My tokens
           </Link>
         ) : null}
+        <LoginLinkNotice className="mb-4" />
         {checkFailed ? (
           <p role="alert" className="pb-4 text-sm text-destructive">
             {COULD_NOT_CHECK_LOGIN}

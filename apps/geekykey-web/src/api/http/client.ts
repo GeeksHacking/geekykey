@@ -116,6 +116,12 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       await send("/auth/firebase", postJson({ id_token: idToken }));
     },
 
+    // Agreement 7.5. The link came from the address's fragment, and the service sets its own
+    // cookie, so there is nothing for the screens to keep.
+    loginLink: async (link) => {
+      await send("/auth/login-link", postJson({ login_link: link }));
+    },
+
     logout: () => sendNoContent("/auth/logout", { method: "POST" }),
 
     getToken: (uid) => sendJson<unknown>(tokenPath(uid)).then(parseTokenLookupResponse),
@@ -171,6 +177,8 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "claims_unavailable",
   "login_unavailable",
   "service_unavailable",
+  "invalid_login_link",
+  "event_service_unavailable",
   "internal_error",
 ]);
 
