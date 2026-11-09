@@ -2550,10 +2550,12 @@ Organisers can open it for totals only.
   a draft for Ethan to approve); for `connected`,
   **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
   `answers_needed`, **"You both need to finish your names and answers in the event before connecting."**; for
-  `same_kind`, **"You're in the same group. Find someone from another group."**; and for
-  `unavailable`, **"Couldn't connect. Tap their token again."** With `waiting`, `connected` or
-  `already_connected` or `answers_needed`, it offers the event's button, which opens the dashboard through a login
-  link (8.6), where the reveal comes.
+  `same_kind`, **"You're in the same group. Find someone from another group."**; for `no_group`,
+  **"You both need to be in a group to connect. Open the event to join a group, then tap again."**
+  (FRO-146); and for `unavailable`, **"Couldn't connect. Tap their token again."** With `waiting`,
+  `connected`, `already_connected` or `answers_needed`, it offers the event's button, which opens
+  the dashboard through a login link (8.6), where the reveal comes or setup is finished. `no_group`
+  offers it too, because opening the event joins the participant, and a latecomer is placed at once.
 - When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
   shows the stamp's `name` with a button, **"Open their page?"**, which opens `link` in a new
   tab. It never opens the page by itself, since a browser opens one only after a press. A stamp
@@ -2738,3 +2740,4 @@ Closed on 2026-10-10:
 | 2026-11-06 | Draft additions for the next version: section 10 records BAC-139's token-kind totals and loading, and BAC-152's admin-only list and removal. New list fields are `uid`, `kind`, `owner_id` and `claimed_at`; new error `token_claimed` (409). Section 13 adds the list and removal wording. No fields or routes are removed. |
 | 2026-11-09 | For the next version: a login link from the Event screens logs a user in on the GeekyKey screens as the same user, the reverse of 8.6 (BAC-157). A guest whose sign-in on `key.` is gone can still see their own tokens. **New, at `Checkpoint 7`:** `POST /auth/login-link` on the GeekyKey Service (7.5), `POST /api/v1/login-links` on the Event Service (8.12), and `POST /geekykey/v1/used-login-links` (11.11), since the GeekyKey Service keeps no database to make a link work once. 11.9 adds the key for links that way, derived from the Event Service key with its own info, so no new secret is set. The GeekyKey Service takes such links only from an Event Service whose entry says `"login_links_to_geekykey": true`. Section 13 adds the two screens' rows and one sentence for a failed link, which Ethan hasn't seen. No fields or routes are removed. |
 | 2026-11-09 | For the next version: the Event screens' login tells a guest who arrived without a login link where to go (FRO-90). Section 13 adds one line under the sign-in buttons, "Signed in as a guest? Open GeekyKey and tap your event button.", with **Open GeekyKey** linking to `https://key.geekshacking.com/`. The GeekyKey screens' login doesn't show it. No endpoint, field or error code changes. |
+| 2026-11-09 | For the next version: a tap with no group offers the event, where the participant joins one (FRO-146). Section 13 gives the token page's `no_group` answer its own sentence, "You both need to be in a group to connect. Open the event to join a group, then tap again.", and the event's button, because opening the event joins the participant and a latecomer is placed at once. The dashboard's answer after Accept keeps its own sentence, "You both need to be in a group to connect. Ask an organiser.", since the person is already in the event there. No endpoint, field or error code changes. |
