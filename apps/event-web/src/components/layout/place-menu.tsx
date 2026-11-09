@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GEEKYKEY_SCREENS_URL } from "@/lib/constants";
+import { useOpenMyTokens } from "@/lib/use-open-my-tokens";
 
 // Keep the current place yellow when pointer or keyboard focus moves to another row.
 const CURRENT_ITEM =
@@ -25,6 +26,7 @@ interface PlaceMenuProps {
 export function PlaceMenu({ place, isOrganiser }: PlaceMenuProps) {
   const label = place === "event" ? "Event screens" : "Organiser console";
   const Icon = place === "event" ? CalendarBlank : SlidersHorizontal;
+  const openMyTokens = useOpenMyTokens();
 
   return (
     <DropdownMenu>
@@ -45,7 +47,16 @@ export function PlaceMenu({ place, isOrganiser }: PlaceMenuProps) {
       >
         <DropdownMenuLabel>Go to</DropdownMenuLabel>
         <DropdownMenuItem asChild className="min-h-11">
-          <a href={GEEKYKEY_SCREENS_URL}>
+          <a
+            href={GEEKYKEY_SCREENS_URL}
+            aria-disabled={openMyTokens.isPending || undefined}
+            onClick={(event) => {
+              // A new tab or window keeps the plain address, where the usual login takes over.
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              if (!openMyTokens.isPending) openMyTokens.mutate();
+            }}
+          >
             <Key aria-hidden />
             My tokens
           </a>

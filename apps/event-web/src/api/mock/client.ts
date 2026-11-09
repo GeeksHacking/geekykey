@@ -14,6 +14,7 @@ import {
 import {
   type AcceptConnectionRequestResponse,
   type Connection,
+  type GeekykeyLoginLinkResponse,
   type PlayReactionResponse,
   type Reaction,
   EXPORT_CSV_COLUMNS,
@@ -671,6 +672,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     declineConnectionRequest: (requestId) =>
       call(() => {
         takeConnectionRequest(currentUser(), requestId);
+      }),
+
+    // BAC-157, for the agreement's next version, 8.12. The mock has no Event Service key to sign
+    // with, so it answers `mock`, the one link the GeekyKey screens' mock accepts.
+    createGeekykeyLoginLink: () =>
+      call((): GeekykeyLoginLinkResponse => {
+        currentUser();
+        return { login_link: "mock", expires_at: new Date(Date.now() + 60_000).toISOString() };
       }),
 
     // BAC-156, for the agreement's next version, 8.11.

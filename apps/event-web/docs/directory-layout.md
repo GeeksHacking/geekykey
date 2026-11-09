@@ -99,6 +99,7 @@ apps/event-web/
       login-link.ts         # takes agreement 7.4's #login=<link> out of the address at start-up
       login-link-arrival.ts # remembers that the session came from a login link (FRO-131)
       use-sign-out.ts       # every sign-out: to /login, or to the GeekyKey screens after a login link
+      use-open-my-tokens.ts # My tokens: opens the GeekyKey screens with a login link (BAC-157)
       firebase.ts           # Firebase's web SDK: the config from the build, the sign-in calls, the sign-out
       theme.ts              # system preference, dark fallback, manual override
       theme-provider.tsx

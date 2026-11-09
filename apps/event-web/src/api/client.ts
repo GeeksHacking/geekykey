@@ -14,6 +14,7 @@ import type {
   MapResponse,
   MeResponse,
   MyGroupResponse,
+  GeekykeyLoginLinkResponse,
   PlayReactionResponse,
   ReactionPlayRequest,
   SetStationBoothRequest,
@@ -78,6 +79,13 @@ export interface ApiClient {
    * session the browser had, and one that fails leaves that session as it was.
    */
   loginLink(link: string): Promise<void>;
+
+  /**
+   * POST /api/v1/login-links (agreement 8.12, BAC-157, for the next version). A login link to
+   * the GeekyKey screens for the signed-in user, which My tokens opens there so the same user
+   * is logged in, a guest included. It works once and expires after 60 seconds.
+   */
+  createGeekykeyLoginLink(): Promise<GeekykeyLoginLinkResponse>;
 
   /** POST /auth/logout */
   logout(): Promise<void>;
