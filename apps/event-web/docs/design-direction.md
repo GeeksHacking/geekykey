@@ -60,7 +60,7 @@ tap log's values. Brackets frame the station board, the scan log, the summary's 
 by-station table, the QR fallback's card and result, and each station dialog, never a table
 row or a form field. The console keeps `VISUAL_DENSITY 7`, so the look adds no padding between
 rows. The look supplies colour, type and decoration only, and no animation moves any of it, so
-the grad tea's look (FRO-85) replaces those three and every animation plays the same. The
+another look can replace those three and every animation plays the same. The
 brackets sit just outside their box, and a table's scroll region sits inside them, so a
 scrolling table never cuts a bracket off.
 
@@ -106,8 +106,8 @@ yellow segment, an active tab, a selected row) changes in one frame: with a colo
 on it, the old item fades out while the new one fades in, and both show half lit.
 `src/test/highlight-motion.test.ts` fails on a file that has both, and
 `e2e/tab-highlight.spec.ts` checks the nav frame by frame. That is the rule on phones and on
-the organiser screens. The exceptions are on the big screens, apart from the grad tea's
-avatar and the reveal's dice:
+the organiser screens. The exceptions are on the big screens, apart from the avatar and
+the reveal's dice:
 
 - The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
   reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back
@@ -115,7 +115,7 @@ avatar and the reveal's dice:
 - On the passport at 1024 px and up, a stamp earned is the one long animation (about a second:
   the seal presses in, then the note comes in), and points count up over 0.9 s. With reduced
   motion none of them play.
-- The grad tea's avatar on the dashboard (FRO-105), at every width, phones included. A new
+- The avatar on the dashboard (FRO-105), at every width, phones included. A new
   piece's cubes fly in over about a second, the figure bobs and sways while nobody turns it, and
   with every piece on it turns round once while gold confetti falls for 1.5 s. The memory card
   sways in its dialog. With reduced motion the figure stands still and none of them play.
