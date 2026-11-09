@@ -86,7 +86,8 @@ weight:
 
 Body text is `text-sm`, and small print and timestamps are `text-xs`. A section's title is a
 heading above its content (`SectionHeading`). A bracketed card has a `look-label` caption instead,
-then its lead line. The login page's larger h1 is the one exception. `globals.css` also sets a
+then its lead line. The login page's larger h1 is the one exception on the app's screens; the
+booth visual, below, has its own scale. `globals.css` also sets a
 looser line height on `text-xs` and `text-sm`, for wrapped bios and reasons on a phone. It is
 identical in both apps, so the GeekyKey screens use the same four.
 
@@ -98,6 +99,13 @@ this file.
 bottom or top nav, `min-h-[100dvh]` never `h-screen`. Organiser screens designed at
 1024 px and up with a sidebar and still usable at 768 px. `max-w-7xl mx-auto` containers.
 CSS grid, never flex percentage math.
+
+**Booth visual:** `/what-stays` is the one screen with its own type scale, because it is read
+from a step or two away and prints on one A3 landscape sheet. Its title runs from `text-4xl` to
+`text-6xl` and its body from `text-base` to `text-xl`, with the same families, colours and look.
+The print rules in `globals.css` set the A3 page, the 12 mm padding and the point sizes, and
+`e2e/booth-print.spec.ts` fails if the PDF needs more than one sheet. Yellow marks what stays,
+and nothing else on the page is filled with it.
 
 **Motion:** 150 to 250 ms on `transform` and `opacity` only, for feedback and state
 change. Respect `prefers-reduced-motion`. `:active` gets `scale-[0.98]`. Colour may ease on

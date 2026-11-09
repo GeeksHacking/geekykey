@@ -73,6 +73,7 @@ apps/event-web/
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
       map/                  # the big screen's map: floor plan, placing stations, pulses (GSAP)
+      booth/                # the booth visual at /what-stays: what stays, what changes, the passport as a second game, the honest costs
     components/
       ui/                   # shadcn generated and customised. No app logic here.
       layout/               # shells, nav, place switch, page header, theme toggle, account menu, empty/error/loading views

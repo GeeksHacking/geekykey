@@ -21,6 +21,7 @@ Each row says what a screen reads and writes, and the cases it must handle.
 | `/admin/fallback` | organiser | `GET /admin/stations` (Event board) | `POST /admin/taps` | `not_found`; result status shown after submit |
 | `/admin/summary` | organiser | `GET /admin/stats` | `GET /admin/export.csv`, fetched and saved as a file | zero-tap event |
 | `/map` | organiser, map screen | `GET /map` polled every 2 s | | every station at its booth; one with no booth or an unknown one listed beside the map; disabled marked in words, no pulse; a pulse only when `taps` rose; the connection count and an anonymous web of numbered nodes beside the plan, with no link marked new; `forbidden` shown in place, with Log out; no names |
+| `/what-stays` | anyone at the booth | | | the three groups, the quote, the passport as a second game and the honest costs; one A3 landscape sheet, readable at 360 and 1280 in light and dark; no sign-in and no data |
 
 `/admin/stations` and `/admin/fallback` both read the Event board, from
 `listStationBoard()`, which is the only call to `GET /api/v1/admin/stations` (9.2).
