@@ -92,8 +92,6 @@ Temporary by design, and planned to change after the showcase:
   GeeksHacking organisation, so another event can copy them as a template.
 - **Google Cloud is set up by hand** from the commands in `infra/README.md`, with no
   infrastructure as code yet.
-- **Database copies.** Only `db:clear-test-data` takes a copy, and nothing restores one:
-  `db:backup` and `db:restore` aren't built.
 
 Some steps can only be run from Adam's laptop, which holds the production database logins.
 [Operations](docs/operations.md#who-can-do-what) lists them.

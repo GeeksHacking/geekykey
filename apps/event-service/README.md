@@ -205,7 +205,10 @@ mise exec -- pnpm db:token-kinds     # load a token writer's log into geekykey_d
 Three scripts run against GeeksHacking's cluster with a login kept outside the repo: `db:logins`
 (makes the database logins), `db:test-station` (a station and a test participant), and
 `db:migrate --production`. `db:clear-test-data` empties an event's data before a session
-([docs/operations.md](../../docs/operations.md#clearing-an-events-data)). The comment at the top
+([docs/operations.md](../../docs/operations.md#clearing-an-events-data)). `db:backup` copies the
+database to a file on Adam's laptop, and `db:restore` puts chosen tables back from a copy, so each
+table holds exactly the copy's rows and the others stay as they are
+([docs/operations.md](../../docs/operations.md#copies-and-restores)). The comment at the top
 of each script in `scripts/` says what it does and which options it takes.
 
 CI's Event Service job (`.github/workflows/event-service.yml`) runs the lint, format, type and
