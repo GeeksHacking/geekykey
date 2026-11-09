@@ -10,6 +10,12 @@ interface PageHeaderProps {
   className?: string;
 }
 
+/**
+ * The short yellow underline lives here rather than in `PageHeading`, so it reaches every screen
+ * title but not the dashboard's name over the avatar (FRO-159, after the GeekyKey screens' Token
+ * kinds). It has the charcoal edge every yellow fill takes, and sits outside the h1 so the
+ * heading's name stays the title.
+ */
 export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
     <div
@@ -17,8 +23,13 @@ export function PageHeader({ title, description, actions, className }: PageHeade
     >
       <div className="min-w-0">
         <PageHeading>{title}</PageHeading>
+        <span
+          aria-hidden
+          data-title-underline
+          className="mt-2 block h-1 w-12 rounded-full border border-primary-edge bg-primary"
+        />
         {description ? (
-          <p className="mt-1 max-w-[65ch] text-sm text-muted-foreground">{description}</p>
+          <p className="mt-2 max-w-[65ch] text-sm text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

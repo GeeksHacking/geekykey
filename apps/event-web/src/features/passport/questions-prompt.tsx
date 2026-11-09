@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { describeError, isApiErrorCode } from "@/api/errors";
 import type { Question } from "@/api/types";
+import { SectionHeading } from "@/components/layout/section-heading";
 import { Button } from "@/components/ui/button";
 import { AnswersSummary } from "@/features/passport/answers-summary";
 import { answerAllSentence, nextQuestion, questionPosition } from "@/features/passport/answers";
@@ -90,9 +91,14 @@ export function QuestionsPrompt({
       // Setup has nothing else on the page, so it's a card there. On a screen, it's one more section.
       className={required ? "rounded-lg border bg-card p-4 text-card-foreground sm:p-5" : undefined}
     >
-      <h2 id="answers-heading" className="type-section">
-        Your answers
-      </h2>
+      {/* A card has its own edge, so only the section on a screen takes the marker. */}
+      {required ? (
+        <h2 id="answers-heading" className="type-section">
+          Your answers
+        </h2>
+      ) : (
+        <SectionHeading id="answers-heading" title="Your answers" className="mb-0" />
+      )}
       {fixed ? (
         <AnswersSummary questions={questions} answers={answers} editable={false} />
       ) : editing ? (

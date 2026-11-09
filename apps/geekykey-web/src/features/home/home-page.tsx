@@ -1,6 +1,7 @@
 import type { Token } from "@/api/types";
 
 import { EventButtons } from "@/components/event-buttons";
+import { PageTitle } from "@/components/layout/page-title";
 import { ManualClaim } from "@/features/home/manual-claim";
 import { TokenRow } from "@/features/home/token-row";
 import { useMe } from "@/lib/session";
@@ -27,9 +28,7 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col">
-      <h1 tabIndex={-1} className="type-title outline-hidden">
-        My tokens
-      </h1>
+      <PageTitle>My tokens</PageTitle>
       {me.tokens.length === 0 ? <NoTokensYet /> : null}
       {me.tokens.length > 0 ? <TokenList tokens={me.tokens} /> : null}
       <EventButtons events={me.events} className="mt-8 items-stretch sm:items-start" />

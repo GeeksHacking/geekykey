@@ -6,6 +6,7 @@ import * as z from "zod/mini";
 import { describeError, isApiError } from "@/api/errors";
 import type { TokenKindsLoaded, TokenKindTotal } from "@/api/types";
 import { ErrorState } from "@/components/layout/error-state";
+import { PageTitle } from "@/components/layout/page-title";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { readWriterLog, type WriterLog } from "@/features/token-kinds/read-writer-log";
 import { KindTokenList } from "@/features/token-kinds/kind-token-list";
-import { SectionTitle } from "@/features/token-kinds/section-title";
+import { SectionTitle } from "@/components/layout/section-title";
 import {
   useKindsWritePending,
   useLoadTokenKinds,
@@ -66,13 +67,7 @@ export function TokenKindsPage() {
   const { me } = useMe();
   return (
     <div className="flex flex-col">
-      <h1 tabIndex={-1} className="type-title outline-hidden">
-        Token kinds
-      </h1>
-      <span
-        aria-hidden
-        className="mt-2 h-1 w-12 rounded-full border border-primary-edge bg-primary"
-      />
+      <PageTitle>Token kinds</PageTitle>
       {me.user.can_view_token_kinds ? (
         <>
           <ListTotals canLoad={me.user.is_geekykey_admin} />
