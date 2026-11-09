@@ -21,8 +21,8 @@ interface AvatarHeroProps {
 }
 
 /**
- * The grad tea's dashboard lead (FRO-105): the guest's avatar, dressed one piece per
- * connection, then the pieces and a caption with the counts the points summary used to show.
+ * The dashboard's lead (FRO-105): the guest's avatar, dressed one piece per connection, then
+ * the pieces and a caption with the counts the points summary used to show.
  */
 export function AvatarHero({ me, changes }: AvatarHeroProps) {
   const { colours } = useAvatarColours(me.user.id);
@@ -57,7 +57,7 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
         flatUrl={flatUrl}
         title={
           <>
-            <p className="look-label text-primary-text">The grad tea</p>
+            <p className="look-label text-primary-text">GeekyKey at the showcase</p>
             <div className="mt-1">
               <PageHeading>{name}</PageHeading>
             </div>

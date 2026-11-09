@@ -62,7 +62,7 @@ export function TiltCard({
         >
           <div className="absolute inset-3 rounded-lg border border-[#d4af37]/40" />
           <p className="absolute inset-x-0 top-6 text-center text-[10px] tracking-[0.4em] text-[#d4af37]">
-            THE GRAD TEA
+            GEEKYKEY AT THE SHOWCASE
           </p>
           <p className="absolute inset-x-4 bottom-5 truncate text-center font-semibold tracking-wide text-[#f4f1e8]">
             {name}

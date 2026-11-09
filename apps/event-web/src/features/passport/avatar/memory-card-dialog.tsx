@@ -24,7 +24,7 @@ interface MemoryCardDialogProps {
 type Picture = { state: "drawing" } | { state: "ready"; blob: Blob } | { state: "failed" };
 
 /**
- * The guest's card from the grad tea, to keep (FRO-105). The picture is drawn as the dialog
+ * The guest's card from the showcase, to keep (FRO-105). The picture is drawn as the dialog
  * opens, so Save hands it to the phone's share sheet straight from the press: Safari opens
  * the sheet only while the press is fresh.
  */
@@ -57,7 +57,7 @@ export function MemoryCardDialog({ slots, colours, name }: MemoryCardDialogProps
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Your card from the grad tea</DialogTitle>
+          <DialogTitle>Your card from the showcase</DialogTitle>
           <DialogDescription>Save it as a picture to remember the evening.</DialogDescription>
         </DialogHeader>
         <TiltCard slots={slots} colours={colours} name={name} />
