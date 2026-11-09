@@ -20,6 +20,8 @@
     "db:test-station": "node scripts/create-test-station.ts",
     "db:token-kinds": "node scripts/load-token-kinds.ts",
     "db:clear-test-data": "node scripts/clear-test-data.ts",
+    "db:backup": "node scripts/backup.ts",
+    "db:restore": "node scripts/restore.ts",
     "seed": "node scripts/seed.ts"
   },
   "dependencies": {

@@ -31,7 +31,7 @@ down command by command in the runbook, while the architecture settles.
 | Read the Event Service's logs | Adam and Ethan | Logs Viewer on the project |
 | Grant roles, read secret values | Julian | Owner on the project |
 | Add secret versions, switch the warm instance | Adam | Editor on the project |
-| Run `db:logins`, `db:test-station`, `db:clear-test-data` and `db:migrate --production` | Adam | The TiDB logins in `~/.config/geekykey/` on his laptop |
+| Run `db:logins`, `db:test-station`, `db:backup`, `db:restore`, `db:clear-test-data` and `db:migrate --production` | Adam | The TiDB logins in `~/.config/geekykey/` on his laptop |
 
 At handover, each of Adam's jobs needs a new owner with the same access. `db:logins` makes the
 database's logins from the TiDB cluster's root login, which Julian gave Adam. So whoever takes over
@@ -148,9 +148,53 @@ Afterwards everyone logs in again and claims their tokens again, and any name us
 The GeekyKey screens' session reads no database, so someone still signed in there stays signed in
 for up to 12 hours, and can reach the Event screens from there.
 
-There is no `db:restore`. A copy is one JSON file of each table's rows, so rows go back by hand,
-with a second person reading the query first (rule 8). To try the clear first, use staging's env
-file. With no options it clears `geekykey_dev`.
+To put rows back from the clear's copy, use `db:restore` ([Copies and restores](#copies-and-restores)).
+To try the clear first, use staging's env file. With no options it clears `geekykey_dev`.
+
+## Copies and restores
+
+`db:backup` writes every table, the claims stand-in's included, to one JSON file in
+`~/.config/geekykey/copies` that only you can read, and prints each table's row count. It changes
+nothing in the database. Take one before a migration merges and at the end of an event day
+(rule 7). `db:clear-test-data` takes its own.
+
+```bash
+cd apps/event-service
+mise exec -- pnpm db:backup --production --env-file ~/.config/geekykey/tidb-migration.env
+```
+
+`db:restore` puts the tables you name back as they are in a copy, and leaves every other table as
+it is, so restoring `taps` doesn't undo the claims, key replacements or stations disabled since.
+`--tables` takes the names `db:backup` prints, separated by commas.
+
+```bash
+mise exec -- pnpm db:restore ~/.config/geekykey/copies/<file>.json --tables taps \
+  --production --env-file ~/.config/geekykey/tidb-migration.env
+```
+
+A restored table holds exactly the copy's rows afterwards. Rows written to it since the copy are
+deleted, and rows changed since go back to how they were in the copy. The `tap_stored` log lines
+hold every tap stored since, so lost taps can be rebuilt from them, with a tool written only if
+it's ever needed.
+
+Before it changes anything, the command takes a copy of the database as it is now, so you can undo
+a restore by restoring from that copy. It shows each table's count now and in the copy, then asks
+you to type the database's name at a terminal. It stops with nothing changed if:
+
+- the name is wrong;
+- the copy is of another database, or doesn't hold a table you named;
+- the copy has a column the table no longer has, because a migration changed the table since;
+- a row would point at one that isn't there, such as a tap at a station the copy doesn't hold.
+  Restore the two tables together;
+- a table's count changes while you type.
+
+It restores the tables in one transaction and prints the counts again. If a count differs from the
+copy's, something wrote to that table after the restore, and the command names the table and exits
+with an error.
+
+On an event day Ethan reads the command before it runs (rule 8). To try it first, use staging's env
+file. With no options it restores into `geekykey_dev`. Checkpoint 8 needs one try on production
+before the showcase, while the data is still test data: back up, restore, compare the counts.
 
 ## Secrets
 
@@ -198,7 +242,7 @@ Where each one is, never its value.
 | Station keys | Each station's setup mode, or its gitignored `secrets.h`. The database keeps only a hash | An organizer, on the station board | Replace the key on the station board, and give the station the new one with the setup mode |
 | Wi-Fi details | Each station's setup mode, or its `secrets.h` | Whoever sets up the station | Change the password, and set the new one on each station |
 | Token write password | `firmware/token_writer/secrets.h` (gitignored), and Adam's copy outside the repo | Zi Tao | Without it, written tokens can never be rewritten |
-| Database copies | `~/.config/geekykey/copies` on Adam's laptop. Never GitHub, a workflow or a chat | `db:clear-test-data`, or by hand | They hold user IDs, names and who tapped where |
+| Database copies | `~/.config/geekykey/copies` on Adam's laptop. Never GitHub, a workflow or a chat | `db:backup`, `db:restore` and `db:clear-test-data` | They hold user IDs, names and who tapped where |
 
 `CLAIMS_STAND_IN_KEY` is deleted on both sides after the switch to the Portal, and the Portal's
 client secret is added then. The spec's section 5.2 has the full list.
@@ -216,9 +260,8 @@ client secret is added then. The spec's section 5.2 has the full list.
 5. **Rolling back** follows [Rolling back](#rolling-back): the revision first, then the revert.
 6. **The hand-off.** A change to `packages/handoff` works with the other service's previous
    version, because the two deploy separately.
-7. **Copies.** Production's database should be copied before a migration merges, before a clear,
-   and at the end of an event day. Only `db:clear-test-data` takes a copy today. There is no
-   command that takes one on its own, and none that restores one: `db:backup` and `db:restore`
-   (spec, checkpoint 8, and BAC-174) aren't built. Copies stay off GitHub and out of chats.
+7. **Copies.** Adam copies production's database with `db:backup` before a migration merges and at
+   the end of an event day. `db:clear-test-data` takes its own before a clear. Copies stay off
+   GitHub and out of chats ([Copies and restores](#copies-and-restores)).
 8. **On an event day,** only Adam changes data, with a fresh copy first and Ethan reading the query
    before it runs. A counting or display bug is fixed by rolling back, not by changing data.

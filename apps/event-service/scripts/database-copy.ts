@@ -3,9 +3,34 @@
  * (spec, checkpoint 8). It holds user IDs, names and contact lines, so it stays
  * on that laptop, never in GitHub or a chat.
  */
-import { mkdir, open, rename } from "node:fs/promises";
+import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 import type { Connection, RowDataPacket } from "mysql2/promise";
+import { z } from "zod";
+
+/** What a copy file holds: each table's rows, by their column names. */
+const copySchema = z.object({
+  database: z.string(),
+  taken_at: z.string(),
+  tables: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))),
+});
+
+export type Copy = z.infer<typeof copySchema>;
+
+/** The copy in the file at `path`, or an error saying the file isn't one. */
+export async function readCopy(path: string): Promise<Copy> {
+  let json: unknown;
+  try {
+    json = JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    json = undefined;
+  }
+  const parsed = copySchema.safeParse(json);
+  if (!parsed.success) {
+    throw new Error(`${path} isn't a copy from db:backup or db:clear-test-data.`);
+  }
+  return parsed.data;
+}
 
 /** The tables in the connection's database. */
 export async function tableNames(connection: Connection): Promise<string[]> {
@@ -25,7 +50,7 @@ export async function writeCopy(
   database: string,
   dir: string,
   now: Date,
-): Promise<{ path: string; rows: number }> {
+): Promise<{ path: string; rows: number; counts: Record<string, number> }> {
   const tables: Record<string, RowDataPacket[]> = {};
   const takenAt = now.toISOString();
   await connection.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
@@ -49,5 +74,8 @@ export async function writeCopy(
     await file.close();
   }
   await rename(partial, path);
-  return { path, rows: Object.values(tables).reduce((sum, rows) => sum + rows.length, 0) };
+  const counts = Object.fromEntries(
+    Object.entries(tables).map(([name, rows]) => [name, rows.length]),
+  );
+  return { path, rows: Object.values(counts).reduce((sum, count) => sum + count, 0), counts };
 }

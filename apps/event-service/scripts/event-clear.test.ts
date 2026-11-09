@@ -7,31 +7,15 @@ import { getTableName } from "drizzle-orm";
 import type { MySqlTable } from "drizzle-orm/mysql-core";
 import { type Connection, createConnection, type RowDataPacket } from "mysql2/promise";
 import { afterAll, beforeAll, onTestFinished, test } from "vitest";
-import { tokenKinds } from "../src/claims-stand-in/schema.ts";
 import {
   loadChallenge,
   loadConnectAcross,
   setChallenge,
   setConnectAcross,
 } from "../src/event/event-settings.ts";
-import {
-  eventSettings,
-  groupAllocation,
-  groupMembers,
-  participantGroups,
-  taps,
-  usedLoginLinks,
-  userKinds,
-  users,
-} from "../src/event/schema.ts";
-import { answers, connections, meetingHalves } from "../src/games/connections/schema.ts";
-import {
-  screensSchemas,
-  setupFixture,
-  TEST_FIREBASE_PROJECT_ID,
-  testApp,
-  testDb,
-} from "../src/test-helpers.ts";
+import { users } from "../src/event/schema.ts";
+import { screensSchemas, TEST_FIREBASE_PROJECT_ID, testApp, testDb } from "../src/test-helpers.ts";
+import { fillEveryTable } from "../test-support/fill-every-table.ts";
 import { clearedTables, keptTables } from "./clear-lists.ts";
 import { type ClearOptions, clearEvent } from "./event-clear.ts";
 import { LOCAL_ROOT, localDatabaseUrl } from "./local-tidb.ts";
@@ -47,40 +31,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await connection.end();
 });
-
-/** A row in every table the lists name, as after a real session. */
-async function fillEveryTable() {
-  const db = testDb();
-  const { stationId, userId } = await setupFixture();
-  const other = "user-2";
-  await db.insert(taps).values({
-    stationId,
-    clientTapId: "tap-1",
-    userId,
-    status: "accepted",
-    receivedAt: AT,
-  });
-  await db.insert(userKinds).values({ userId, kind: "E" });
-  await db.insert(answers).values({ userId, choices: { q1: "a" } });
-  await db.insert(meetingHalves).values({ userA: userId, userB: other, aMetAt: AT });
-  await db.insert(connections).values({
-    userA: userId,
-    userB: other,
-    connectedAt: AT,
-    shared: ["q1"],
-  });
-  await db.insert(participantGroups).values({
-    id: "group-1",
-    name: "Group 1",
-    tags: [],
-    createdAt: AT,
-  });
-  await db.insert(groupMembers).values({ userId, groupId: "group-1", joinedAt: AT });
-  await db.insert(groupAllocation).values({ id: 1, startedAt: AT });
-  await db.insert(tokenKinds).values({ uid: "04A1B2C3D4E5F6", kind: "E" });
-  await db.insert(usedLoginLinks).values({ jti: "a".repeat(32), expiresAt: AT });
-  await db.insert(eventSettings).values({ id: 1, connectAcross: "groups" });
-}
 
 /** How many rows each table holds. */
 async function rowCounts(tables: readonly MySqlTable[]): Promise<Record<string, number>> {

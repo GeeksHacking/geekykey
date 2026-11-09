@@ -18,10 +18,10 @@
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { stdin, stdout } from "node:process";
-import { createInterface } from "node:readline/promises";
+import { stdin } from "node:process";
 import { parseArgs } from "node:util";
 import { createConnection } from "mysql2/promise";
+import { ask } from "./ask.ts";
 import { clearEvent } from "./event-clear.ts";
 import { localDatabaseUrl } from "./local-tidb.ts";
 import { migrationLogin } from "./production-tidb.ts";
@@ -32,19 +32,6 @@ const { values } = parseArgs({
     "env-file": { type: "string" },
   },
 });
-
-/** What the person types, or nothing if their input ends first, which stops the clear too. */
-async function ask(question: string): Promise<string> {
-  const prompt = createInterface({ input: stdin, output: stdout });
-  try {
-    return await Promise.race([
-      prompt.question(question),
-      new Promise<string>((resolve) => prompt.once("close", () => resolve(""))),
-    ]);
-  } finally {
-    prompt.close();
-  }
-}
 
 const connection = values.production
   ? await createConnection(migrationLogin(values["env-file"]))
