@@ -41,6 +41,9 @@ passport. So guests need a way across, and the login link is it.
 - A guest's user ID lasts as long as their browser keeps the sign-in. In private browsing, or
   after clearing site data, it's gone, and so is their claim. A GeekyKey admin at the desk releases
   that token so they can claim it again.
+  *Changed 9 Nov 2026 (BAC-157):* while their Event session lasts, My tokens on the Event screens
+  logs them back in on the GeekyKey screens with a login link the other way
+  ([ADR 0007](0007-an-event-service-logs-a-user-in-on-the-geekykey-screens.md)).
 - The GeekyKey screens log a returning user in again by themselves while Firebase still has them,
   because the login would otherwise make a new guest.
 - Guests start only on the GeekyKey screens. The Event screens don't offer a guest sign-in.

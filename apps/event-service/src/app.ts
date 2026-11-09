@@ -11,6 +11,7 @@ import { authRoutes } from "./event/auth-routes.ts";
 import { myGroupRoutes } from "./event/group-routes.ts";
 import type { Shuffle } from "./event/groups.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
+import { loginLinkRoutes } from "./event/login-link-routes.ts";
 import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
@@ -107,6 +108,14 @@ export function createApp(
       firebase: { projectId: config.firebaseProjectId, keys: googleKeys },
       // Signed with a key derived from the Event Service key (the API agreement's 11.9).
       loginLinks: loginLinks(config.eventServiceKey),
+    }),
+  );
+  app.route(
+    "/api/v1/login-links",
+    loginLinkRoutes({
+      session,
+      // To the GeekyKey screens, with their own key from the Event Service key (11.9).
+      links: loginLinks(config.eventServiceKey, { to: "geekykey" }),
     }),
   );
   app.route("/api/v1/me", meRoutes({ session, answers, connections, now }));

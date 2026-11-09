@@ -73,6 +73,8 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
         publicUrl: "https://event.geekshacking.com",
         // Connections by phone (the API agreement's 8.8).
         meetings: true,
+        // Its login links log a user in on the GeekyKey screens (7.5).
+        loginLinksToGeekykey: true,
         key: EVENT_SERVICE_KEY_SHOWCASE,
       },
     ],
@@ -153,6 +155,19 @@ test("an Event Service takes meetings only when its entry says so", () => {
   const meeting = loadConfig(settings({ EVENT_SERVICES: [{ ...showcase, meetings: true }] }));
   assert.equal(meeting.eventServices[0]!.meetings, true);
   assertRefused({ EVENT_SERVICES: [{ ...showcase, meetings: "true" }] }, "EVENT_SERVICES");
+});
+
+test("an Event Service's login links log a user in here only when its entry says so", () => {
+  const showcase = { id: "showcase", name: "Capstone Showcase", url: "https://event.test" };
+  assert.equal(loadConfig(settings()).eventServices[0]!.loginLinksToGeekykey, false);
+  const trusted = loadConfig(
+    settings({ EVENT_SERVICES: [{ ...showcase, login_links_to_geekykey: true }] }),
+  );
+  assert.equal(trusted.eventServices[0]!.loginLinksToGeekykey, true);
+  assertRefused(
+    { EVENT_SERVICES: [{ ...showcase, login_links_to_geekykey: "true" }] },
+    "EVENT_SERVICES",
+  );
 });
 
 test("a public address is checked like the others, and loses its / at the end", () => {

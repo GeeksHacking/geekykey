@@ -13,11 +13,18 @@ const KEEP_AFTER_EXPIRY_MS = 60_000;
 
 /**
  * Marks `link` used, and says whether this was its first use: false when
- * it's been used before (the API agreement's 7.4). The jti is the table's
+ * it's been used before. Both ways' links are kept here: those to this Event
+ * Service's screens (the API agreement's 7.4), and those to the GeekyKey
+ * screens, which the GeekyKey Service marks used for it (11.11). Each jti is
+ * 16 random bytes, so the two never meet. The jti is the table's
  * key, so of two uses at once, one insert fails. Rows of links long expired
  * go first, so the table holds only the last minute or two of links.
  */
-export async function useLoginLink(db: Db, link: LoginLink, now = new Date()): Promise<boolean> {
+export async function useLoginLink(
+  db: Db,
+  link: Pick<LoginLink, "jti" | "expiresAt">,
+  now = new Date(),
+): Promise<boolean> {
   const longExpired = new Date(now.getTime() - KEEP_AFTER_EXPIRY_MS).toISOString();
   await db.delete(usedLoginLinks).where(lt(usedLoginLinks.expiresAt, longExpired));
   try {

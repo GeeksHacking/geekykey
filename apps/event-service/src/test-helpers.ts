@@ -42,6 +42,7 @@ export const screensSchemas = (await import(
   | "connectionRuleSchema"
   | "connectionChallengeSchema"
   | "acceptConnectionRequestResponseSchema"
+  | "geekykeyLoginLinkResponseSchema"
   | "playReactionResponseSchema",
   ScreensSchema
 >;

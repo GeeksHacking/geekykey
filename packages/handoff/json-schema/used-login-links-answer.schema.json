@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "first_use": {
+      "type": "boolean",
+      "description": "True the first time a jti is marked used, false after"
+    }
+  },
+  "required": [
+    "first_use"
+  ],
+  "title": "The answer to marking a login link used: POST /geekykey/v1/used-login-links"
+}

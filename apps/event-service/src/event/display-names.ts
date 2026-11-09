@@ -50,6 +50,20 @@ export async function ownNameOf(db: Db | Tx, userId: string): Promise<string | n
 }
 
 /**
+ * The name the user's login gave them, which a login link to the GeekyKey
+ * screens carries (the API agreement's 8.12): their name while it still came
+ * from a login, or null once they set their own, while they have the default,
+ * as a guest does, or when they have never logged in to this Event Service.
+ */
+export async function loginNameOf(db: Db, userId: string): Promise<string | null> {
+  const [user] = await db
+    .select({ displayName: users.displayName, nameSetAt: users.nameSetAt })
+    .from(users)
+    .where(eq(users.id, userId));
+  return user !== undefined && user.nameSetAt === null && hasName(user) ? user.displayName : null;
+}
+
+/**
  * The name a station's screen greets each of `userIds` by (the API
  * agreement's 6.1), for those it has one for: the first word of the name the
  * event shows, with accents taken off, and only while they have a name of

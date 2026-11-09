@@ -8,7 +8,7 @@ job runs: `lint`, `format:check`, `typecheck` and `test`, for example
 ## handoff
 
 Zod schemas for what the GeekyKey Service sends an Event Service and what it answers: taps,
-heartbeats, meetings and the registered stations ([the API agreement](../apps/API-AGREEMENT.md),
+heartbeats, meetings, the registered stations and marking a login link used ([the API agreement](../apps/API-AGREEMENT.md),
 section 11).
 
 `json-schema/` holds the same shapes as JSON Schema, for teams writing an Event Service in
@@ -33,5 +33,7 @@ so a service's tests can log in without them.
 
 Makes and reads login links (agreement 11.9). The GeekyKey Service makes one for its session's
 user, signed with a key derived from the Event Service key, and the Event Service checks it and
-logs that user in. Both services bundle this one package, so they can't disagree on the format or
-the key.
+logs that user in. Links also go the other way (BAC-157): with `{ to: "geekykey" }`, the Event
+Service makes one for My tokens and the GeekyKey Service reads it, signed with a second key derived
+from the same Event Service key. Both services bundle this one package, so they can't disagree on
+the format or the keys.

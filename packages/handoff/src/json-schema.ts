@@ -3,6 +3,7 @@ import { heartbeatsRequest } from "./heartbeats.ts";
 import { meetingsAnswer, meetingsRequest } from "./meetings.ts";
 import { stationsAnswer } from "./stations.ts";
 import { tapsAnswer, tapsRequest } from "./taps.ts";
+import { usedLoginLinksAnswer, usedLoginLinksRequest } from "./used-login-links.ts";
 
 /** Each body's schema, by the file its JSON Schema goes in. */
 const SCHEMAS = {
@@ -28,6 +29,12 @@ const SCHEMAS = {
   }),
   "meetings-answer.schema.json": meetingsAnswer.meta({
     title: "The answer to the meeting hand-off: POST /geekykey/v1/meetings",
+  }),
+  "used-login-links-request.schema.json": usedLoginLinksRequest.meta({
+    title: "Marking a login link used: POST /geekykey/v1/used-login-links",
+  }),
+  "used-login-links-answer.schema.json": usedLoginLinksAnswer.meta({
+    title: "The answer to marking a login link used: POST /geekykey/v1/used-login-links",
   }),
 };
 

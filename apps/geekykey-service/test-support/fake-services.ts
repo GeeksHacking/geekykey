@@ -45,7 +45,10 @@ type Answer = (request: SentRequest) => Promise<Response>;
  * - `statusOf`, each handed-off tap's status, `accepted` unless a test says
  *   otherwise;
  * - `meetingStatusOf`, each half's status in the meeting hand-off, by the
- *   Event Service's ID, `waiting` unless a test says otherwise.
+ *   Event Service's ID, `waiting` unless a test says otherwise;
+ * - `usedJtis`, the jtis of the login links each Event Service has marked
+ *   used (11.11), by its ID. A jti's first use adds it, as the Event
+ *   Service's table would.
  *
  * A test can replace one kind of answer in `answers`, as a service that's
  * down or wrong would answer. Every request is in `sent`, in order.
@@ -59,12 +62,14 @@ export function fakeServices(config: Config) {
     now: "2026-11-18T06:00:00.000Z",
     statusOf: (_tap: HandedOffTap, _stationId: string): string => "accepted",
     meetingStatusOf: (_meeting: MeetingsRequest, _eventServiceId: string): string => "waiting",
+    usedJtis: new Map<string, Set<string>>(),
     answers: {} as Partial<
       Record<
         | "stations"
         | "taps"
         | "heartbeats"
         | "meetings"
+        | "usedLoginLinks"
         | "owners"
         | "claim"
         | "release"
@@ -229,6 +234,15 @@ export function fakeServices(config: Config) {
         return Response.json({
           status: fake.meetingStatusOf(body as MeetingsRequest, eventService.id),
         });
+      }
+      if (request.method === "POST" && path === "/geekykey/v1/used-login-links") {
+        if (fake.answers.usedLoginLinks) return fake.answers.usedLoginLinks(request);
+        const { jti } = body as { jti: string };
+        const used = fake.usedJtis.get(eventService.id) ?? new Set<string>();
+        fake.usedJtis.set(eventService.id, used);
+        const firstUse = !used.has(jti);
+        used.add(jti);
+        return Response.json({ first_use: firstUse });
       }
       return Response.json({ error: "not_found" }, { status: 404 });
     }

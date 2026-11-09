@@ -3,8 +3,19 @@ import { z } from "zod";
 /** How long a link works after it's made (the API agreement's 8.6). */
 const LIFETIME_SECONDS = 60;
 
-/** HKDF's `info` for the login link key (the API agreement's 11.9). */
-const KEY_INFO = "geekykey login link";
+/**
+ * HKDF's `info` for each way's login link key (the API agreement's 11.9): one
+ * for links to an event's screens, which the GeekyKey Service makes, and one
+ * for links to the GeekyKey screens, which an Event Service makes (BAC-157).
+ * Two keys, so a link made for one service never logs anyone in on the other.
+ */
+const KEY_INFO = {
+  event: "geekykey login link",
+  geekykey: "geekykey login link to geekykey",
+} as const;
+
+/** Which screens a link logs a user in to. */
+export type LoginLinkTo = keyof typeof KEY_INFO;
 
 /** The longest name a link carries, in Unicode code points (the API agreement's 11.9). */
 export const LOGIN_LINK_NAME_MAX = 100;
@@ -42,7 +53,10 @@ export interface LoginLink {
    * when it has none, the user doesn't own it, or the link came from no token's page.
    */
   kind: string | null;
-  /** `jti`: 32 lower-case hex characters, which the Event Service keeps so the link works once. */
+  /**
+   * `jti`: 32 lower-case hex characters, which the Event Service keeps so the link works
+   * once, whichever service it logs the user in on.
+   */
   jti: string;
   /** `exp`: when it stops working. */
   expiresAt: Date;
@@ -68,19 +82,25 @@ export interface LoginLinks {
   /**
    * What `link` says, or null when it can't be trusted: not signed with this
    * key, changed, expired, or not in the agreement's shape. Whether it has
-   * been used already is the Event Service's to check, by its `jti`.
+   * been used already is the Event Service's to keep, by its `jti`.
    */
   read(link: string, now?: Date): Promise<LoginLink | null>;
 }
 
 /**
  * Login links for one Event Service, signed with the key HKDF derives from
- * its Event Service key (the API agreement's 11.9). The GeekyKey Service
- * makes them, and the Event Service reads them.
+ * its Event Service key (the API agreement's 11.9). By default they log a
+ * user in to the event's screens: the GeekyKey Service makes them, and the
+ * Event Service reads them. With `to: "geekykey"` they log a user in to the
+ * GeekyKey screens: the Event Service makes them, and the GeekyKey Service
+ * reads them (BAC-157).
  */
-export function loginLinks(eventServiceKey: string): LoginLinks {
+export function loginLinks(
+  eventServiceKey: string,
+  { to = "event" }: { to?: LoginLinkTo } = {},
+): LoginLinks {
   // Derived once, on first use.
-  const key = loginLinkKey(eventServiceKey);
+  const key = loginLinkKey(eventServiceKey, KEY_INFO[to]);
 
   return {
     async make({ userId, name, kind = null, now = new Date() }) {
@@ -132,8 +152,8 @@ export function loginLinks(eventServiceKey: string): LoginLinks {
   };
 }
 
-/** HKDF-SHA256 of the Event Service key's 32 bytes, an empty salt, KEY_INFO, 32 bytes out. */
-async function loginLinkKey(eventServiceKey: string) {
+/** HKDF-SHA256 of the Event Service key's 32 bytes, an empty salt, `info`, 32 bytes out. */
+async function loginLinkKey(eventServiceKey: string, info: string) {
   const input = await crypto.subtle.importKey("raw", fromHex(eventServiceKey), "HKDF", false, [
     "deriveBits",
   ]);
@@ -142,7 +162,7 @@ async function loginLinkKey(eventServiceKey: string) {
       name: "HKDF",
       hash: "SHA-256",
       salt: new Uint8Array(),
-      info: new TextEncoder().encode(KEY_INFO),
+      info: new TextEncoder().encode(info),
     },
     input,
     256,

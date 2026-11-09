@@ -10,6 +10,8 @@ import {
   type TapsAnswer,
   tapsAnswerMatching,
   type TapsRequest,
+  usedLoginLinksAnswer,
+  type UsedLoginLinksRequest,
 } from "@geekykey/handoff";
 import { z } from "zod";
 import { askService, type Send, Unanswered } from "./service-request.ts";
@@ -118,6 +120,27 @@ export class EventService {
       signal,
       fail: EventServiceUnavailable,
     });
+  }
+
+  /**
+   * Marks a login link to the GeekyKey screens used (11.11), which only an
+   * Event Service whose entry says `login_links_to_geekykey` is sent. Gives
+   * true for the link's first use, and false after, which logs nobody in.
+   * Throws EventServiceUnavailable for anything else, or when `signal` fires
+   * first, and its reason `status` with 404 is an Event Service from before
+   * BAC-157. There's no retry: the screens ask the event for a new link.
+   */
+  async markLoginLinkUsed(request: UsedLoginLinksRequest, signal: AbortSignal): Promise<boolean> {
+    const { first_use } = await askService(this.#send, {
+      method: "POST",
+      url: `${this.#url}/geekykey/v1/used-login-links`,
+      key: this.#key,
+      body: request,
+      answer: usedLoginLinksAnswer,
+      signal,
+      fail: EventServiceUnavailable,
+    });
+    return first_use;
   }
 }
 

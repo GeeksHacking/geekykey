@@ -142,7 +142,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `validation_failed` | 400 | See `issues` |
 | `unauthenticated` | 401 | No valid session cookie |
 | `invalid_token` | 401 | The Firebase ID token sent to log in can't be trusted: not signed by Google, for another Firebase project, or expired. The screens say "Couldn't log you in. Try again." |
-| `invalid_login_link` | 401 | The login link sent to log in (7.4) has expired, has been used already, or was changed. The screens say "That link has expired. Tap your token again to get back in." |
+| `invalid_login_link` | 401 | The login link sent to log in (7.4, or 7.5 on the GeekyKey Service) has expired, has been used already, or was changed. The Event screens say "That link has expired. Tap your token again to get back in.", and the GeekyKey screens "That link has expired. Open My tokens from the event again." (section 13) |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
 | `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1` |
@@ -157,7 +157,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `station_has_taps` | 409 | A game has counted or held back a tap at the station, so its game can't change until the data is cleared ([Games](#games)) |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
-| `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them |
+| `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them. From 7.5, the Event Service that made a login link didn't mark it used properly in time (11.11), and the GeekyKey screens say what they say for `invalid_login_link` |
 | `login_unavailable` | 503 | Google's keys couldn't be fetched to check a Firebase ID token. The token may be fine; the screens say "Couldn't log you in. Try again." |
 | `claims_unavailable` | 503 | Who owns a token couldn't be found in time: from the claims stand-in until the switch after the showcase, then from the Portal. A station keeps its taps and resends them; the screens say "Couldn't reach GeeksHacking. Try again." |
 | `service_unavailable` | 503 | Sent by the Worker that serves a set of screens, under `/api` and `/auth`, when its service gave no answer at all: it was down, or failed before answering. Any answer the service does give, errors included, passes through unchanged |
@@ -255,8 +255,9 @@ Each service sets its own cookie, and the screens' code is identical whichever r
 - `POST /auth/firebase`, with the ID token the screens get from Firebase's web SDK after the
   user signs in with Google, with GeeksHacking's login, or as a guest. `Implemented` on both
   services, with guests at checkpoint 5.
-- `POST /auth/login-link`, on the Event Service only, with a login link made by the GeekyKey
-  Service (7.4). `Implemented`.
+- `POST /auth/login-link`, on the Event Service, with a login link made by the GeekyKey Service
+  (7.4). `Implemented`. And on the GeekyKey Service, with a login link made by an Event Service
+  (7.5), at `Checkpoint 7`, for the next version (BAC-157).
 - `POST /auth/dev-login`, in local development only. This exists so the screens can be built
   before the login lands, without any code that has to be removed later.
 
@@ -266,6 +267,11 @@ Firebase keeps its sign-in per hostname, so a sign-in on `key.` means nothing on
 reaches the Event screens from the GeekyKey screens' event buttons, which open a login link and
 log them in there as the same user, without a second login. A guest can only get there that way:
 a guest sign-in on `event.` would be a different guest, so the Event screens don't offer one.
+
+The way back works the same (BAC-157, for the next version). My tokens on the Event screens asks
+the Event Service for a login link (8.12) and opens it on the GeekyKey screens (7.5). So a guest
+whose sign-in on `key.` is gone, after a sign-out there, in another browser or after clearing site
+data, still sees their own tokens while their Event session lasts.
 
 A sign-out on the Event screens also goes through the GeekyKey screens (FRO-131, for the next version). Only the
 GeekyKey screens can tell a guest and release a token, so when the session came from a login link,
@@ -306,8 +312,8 @@ and only its hash is stored. Firmware sends it on every request to the GeekyKey 
 
 `Implemented`. Each Event Service shares one key with the GeekyKey Service, which sends
 it as `Authorization: Bearer <key>` on every request under `/geekykey/v1`: the registered
-stations, the hand-off and the heartbeat hand-off. Event Services never call the GeekyKey
-Service.
+stations, the hand-off, the heartbeat hand-off, the meeting hand-off and marking a login link used
+(11.11). Event Services never call the GeekyKey Service.
 
 - It is 32 random bytes, written as 64 lower-case hex characters, as `openssl rand -hex 32`
   makes them. Nobody picks one.
@@ -488,6 +494,7 @@ them.
 | POST | `/api/v1/stations/heartbeat` | Station | `Implemented` | Online light, clock, `reader_ok` |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `gk_session` for any user ID |
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `gk_session` |
+| POST | `/auth/login-link` | browser | `Checkpoint 7` | Log in with a login link from an Event Service's screens, set `gk_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `gk_session` |
 | GET | `/api/v1/me` | User | `Implemented` | The user, whether they're a GeekyKey admin, their tokens and the events to link to |
 | GET | `/api/v1/tokens/{uid}` | User | `Implemented` | What the token page shows |
@@ -509,12 +516,14 @@ them.
 | POST | `/geekykey/v1/taps` | GeekyKey Service | `Implemented` | The hand-off |
 | POST | `/geekykey/v1/heartbeats` | GeekyKey Service | `Implemented` | The heartbeat hand-off |
 | POST | `/geekykey/v1/meetings` | GeekyKey Service | `Implemented` | The meeting hand-off: a tap that sends a connection request or accepts one |
+| POST | `/geekykey/v1/used-login-links` | GeekyKey Service | `Checkpoint 7` | Mark a login link to the GeekyKey screens used, so it works once |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `event_session` for a seeded user |
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `event_session` |
 | POST | `/auth/login-link` | browser | `Implemented` | Log in with a login link, set `event_session` |
 | POST | `/auth/logout` | browser | `Implemented` | Clear `event_session` |
 | GET | `/api/v1/me` | Participant, Organizer | `Implemented` | Profile, stamps, points, history |
 | PATCH | `/api/v1/me` | Participant, Organizer | `Implemented` | Set the name the event shows, and the user's answers |
+| POST | `/api/v1/login-links` | Participant, Organizer | `Checkpoint 7` | A login link to the GeekyKey screens, for My tokens |
 | POST | `/api/v1/me/connection-requests/{id}/accept` | Participant, Organizer | `Checkpoint 7` | Accept a connection request |
 | POST | `/api/v1/me/connection-requests/{id}/decline` | Participant, Organizer | `Checkpoint 7` | Decline a connection request |
 | POST | `/api/v1/me/connections/{id}/reaction` | Participant, Organizer | `Checkpoint 7` | Play a connection's reaction test |
@@ -725,7 +734,8 @@ gets `401` whatever it sends, until it's over the limit.
 Each service has its own set, on its screens' hostname. The GeekyKey Service's set `gk_session`,
 the Event Service's set `event_session`. Both accept logins from the same Firebase project,
 `geekykey-b035a`, so a user has the same ID in both. The Event Service also accepts login links
-from the GeekyKey Service (7.4), which carry that same ID.
+from the GeekyKey Service (7.4), and the GeekyKey Service accepts them from an Event Service
+(7.5). Both carry that same ID.
 
 ### 7.1 `POST /auth/dev-login` (`Implemented`)
 
@@ -855,11 +865,51 @@ way a guest reaches the Event screens. The link's format is in 11.9.
 
 **Errors:** `validation_failed`; `invalid_login_link` (401).
 
+### 7.5 `POST /auth/login-link` on the GeekyKey Service (`Checkpoint 7`)
+
+Added for the next version (BAC-157). Logs the user in with a login link from an Event Service
+(8.12), so someone logged in on the Event screens is logged in on the GeekyKey screens as the same
+user. It's the reverse of 7.4, for a guest whose sign-in on the GeekyKey screens is gone: without
+it, the GeekyKey login offers "Continue as guest", which makes a new guest who owns none of their
+tokens. The link's format is in 11.9.
+
+**The screens' side.** My tokens on the Event screens opens `/#login=<link>` on the GeekyKey
+screens, as 8.12 says. On arrival, the GeekyKey screens:
+
+1. read the link from the fragment, and remove the fragment with `history.replaceState`;
+2. send it here, before anything reads `GET /api/v1/me`, so neither the session the browser had
+   nor Firebase's saved sign-in (7.2) is used over it;
+3. then call `GET /api/v1/me` as usual.
+
+**Request**, as `application/json`, for the same reason as 7.2:
+
+```json
+{ "login_link": "eyJ2IjoxLCJzdWIiOi…" }
+```
+
+**Response `204`** with `Set-Cookie` for `gk_session`.
+
+- The link must be signed with the login link key for the GeekyKey screens (11.9) of an Event
+  Service whose entry in the GeekyKey Service's settings says `"login_links_to_geekykey": true`,
+  and unexpired. A link that fails these checks asks no Event Service.
+- The GeekyKey Service keeps no database, so it asks the Event Service that made the link to mark
+  it used (11.11), within 4 seconds. Only the link's first use logs anyone in.
+- Its `sub` becomes the user ID, and its `name` the name the session holds, which a login link
+  to an event (8.6) then carries.
+- It replaces any `gk_session` the browser already has, so the link's user wins, as in 7.4.
+- A link that fails leaves the existing session as it was.
+- Nothing logs the link. A failed 11.11 writes the log line `login_link_unavailable`, with the
+  Event Service's ID, the user ID and why, and never the link.
+
+**Errors:** `validation_failed`; `invalid_login_link` (401) for a link that fails the checks or
+was used before; `event_service_unavailable` (503) when the Event Service didn't mark it used
+properly in time, so the link may be fine.
+
 ---
 
 ## 8. User endpoints
 
-8.1 and 8.7 are on the Event Service, for participants and organizers. 8.2 to 8.6 and 8.8
+8.1, 8.7 and 8.10 to 8.12 are on the Event Service, for participants and organizers. 8.2 to 8.6 and 8.8
 are on the GeekyKey Service, for any logged-in user, and are what the token page and My tokens
 call. Each of
 8.2 to 8.5 and 8.8, and 8.6 when it names a token, answers `503 claims_unavailable` when the claims
@@ -1369,6 +1419,37 @@ or, for a tap before the signal, which counts as a loss:
 connection that isn't the user's or has no reaction test, `already_played` (409) once the user has
 played, even after `play_by`, `too_late` (409) once `play_by` has passed without their play, and
 `rate_limited` ([Rate limits](#rate-limits)).
+
+### 8.12 `POST /api/v1/login-links` on the Event Service (`Checkpoint 7`)
+
+Added for the next version (BAC-157). A login link to the GeekyKey screens, for the current user,
+the reverse of 8.6. My tokens on the Event screens calls it, then opens the GeekyKey screens at
+`/#login=<login_link>` (7.5). Every user gets one, guests and Google users alike.
+
+**Auth:** `event_session`, any participant or organizer.
+
+**Request:** no body.
+
+**Response `201`**
+
+```json
+{ "login_link": "eyJ2IjoxLCJzdWIiOi…", "expires_at": "2026-11-18T13:01:00.000Z" }
+```
+
+- The link names only the session's own user ID, never anything from the request. Its `name` is
+  the name the user's login gave them, while they still have it. It's `null` once they set their
+  own name (8.7), and for a user with the default name `Guest`. Its `kind` is always `null`.
+- It expires 60 seconds after it's made, and works once (7.5 and 11.11). The screens open it
+  straight away and don't keep it.
+- The answer is the link, not an address, because the Event Service doesn't know where the
+  GeekyKey screens are. The Event screens put it in the fragment of their own address for them,
+  `https://key.geekshacking.com/`, which never reaches a server or a log.
+- When the call fails, My tokens opens the GeekyKey screens at `/` without a link, where the
+  user's session there, Firebase's saved sign-in or the login takes over, as before. So does My
+  tokens opened in a new tab or window, which keeps the plain address.
+- Nothing logs the link.
+
+**Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ---
 
@@ -1956,7 +2037,9 @@ Portal.
 Every Event Service serves three requests, all called by the GeekyKey Service with the Event
 Service key: its registered stations (11.1), the hand-off (11.2) and the heartbeat hand-off
 (11.3). An Event Service with a public address also accepts login links (11.9), since the event
-buttons on My tokens and the token page open one. One that plays connections can also take
+buttons on My tokens and the token page open one. One whose entry says
+`"login_links_to_geekykey": true` can also make login links to the GeekyKey screens (7.5), and
+marks them used when asked (11.11). One that plays connections can also take
 meetings (11.10), if its entry in the GeekyKey Service's settings says so. It also creates its own stations and issues their keys, in whatever way suits it; ours
 does it on the station board (9.7 to 9.9).
 
@@ -2115,7 +2198,7 @@ again when the station resends, and answers `duplicate`.
 ### 11.6 The Event Service key
 
 Both sides check it as [Event Service keys](#event-service-keys) in section 3 describes. The
-GeekyKey Service sends it on all three requests.
+GeekyKey Service sends it on every request under `/geekykey/v1`.
 
 ### 11.7 The JSON Schema
 
@@ -2171,6 +2254,17 @@ UTF-8, then the HMAC-SHA256 of that first part's characters with the login link 
 
 The Event Service compares the HMAC in constant time, then checks `v`, `exp` and `jti`, and
 answers `invalid_login_link` (401) if any check fails. It never logs a link.
+
+**The other way** (BAC-157, for the next version). A login link to the GeekyKey screens (7.5 and
+8.12) has the same format, and the Event Service makes it. Its key is derived the same way, with
+the info `geekykey login link to geekykey` in place of `geekykey login link`, so a link made for
+one service's screens never logs anyone in on the other's. Its `kind` is always `null`. The
+GeekyKey Service compares the HMAC with each trusted Event Service's key in turn, then checks `v`
+and `exp`, and has the Event Service that made it check `jti` (11.11).
+
+Such a link can name any user, so the GeekyKey Service accepts one only from an Event Service whose
+entry in its settings says `"login_links_to_geekykey": true`. An entry that leaves it out is
+`false`. At the showcase, ours is the only one, and says `true`.
 
 ### 11.10 The meeting hand-off: `POST /geekykey/v1/meetings` (`Implemented`)
 
@@ -2242,6 +2336,36 @@ under their name, and the answer never gives a contact line (BAC-151, for the ne
 
 **Errors:** `invalid_event_service_key`, `validation_failed`.
 
+### 11.11 Marking a login link used: `POST /geekykey/v1/used-login-links` (`Checkpoint 7`)
+
+Added for the next version (BAC-157). The GeekyKey Service calls this when a login link to its
+screens (7.5), made by this Event Service, checks out there. The GeekyKey Service keeps no
+database, so the Event Service keeps each link's `jti` until it expires, and a link works once.
+
+**Request**, with the Event Service key:
+
+```json
+{ "jti": "9f2c4e00000000000000000000000000", "expires_at": "2026-11-18T13:01:00.000Z" }
+```
+
+**Response `200`**
+
+```json
+{ "first_use": true }
+```
+
+- `first_use` is `true` the first time a `jti` is marked, and `false` every time after. Of two
+  requests for the same `jti` at once, one gets `true`.
+- `expires_at` is the link's `exp`, so the Event Service can forget the `jti` once the link can no
+  longer be used.
+- Our Event Service keeps these in the same table as the `jti`s of links to its own screens (7.4).
+  Each `jti` is 16 random bytes, so the two never meet.
+- An Event Service from before BAC-157 answers `404 not_found`, and the GeekyKey Service answers
+  the screens `event_service_unavailable`. Deploy the GeekyKey Service before the Event Service
+  starts making these links, or My tokens opens links nothing can check.
+
+**Errors:** `validation_failed`; `invalid_event_service_key` (401).
+
 ---
 
 ## 12. Out of scope for the showcase
@@ -2277,6 +2401,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | Login | Firebase's web SDK, with Google, GeeksHacking's login or as a guest, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
 | Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token; `POST /api/v1/login-links` with the token's `uid` for the event buttons; `POST /api/v1/tokens/{uid}/meet` once the lookup answers `someone_else` |
 | My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form; `POST /api/v1/login-links` for the event buttons |
+| Arriving from the Event screens' My tokens, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` (7.5, BAC-157, for the next version) |
 | Signing out from the Event screens, `/sign-out#user=<user ID>` | `GET /api/v1/me`, then for a guest `DELETE /api/v1/tokens/{uid}` for each token and `POST /auth/logout`, or `POST /api/v1/login-links` if they stay (section 3, "Browser sessions") |
 
 The GeekyKey admin screen is Token kinds at `/admin/token-kinds`, described in section 10.
@@ -2288,6 +2413,7 @@ Organisers can open it for totals only.
 |---|---|
 | Login | Firebase's web SDK, with Google or GeeksHacking's login, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development. No guest sign-in |
 | Arriving from a login link, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` |
+| My tokens, in the place menu | `POST /api/v1/login-links`, then opens the GeekyKey screens at `/#login=<link>`, or at `/` when that fails (8.12, BAC-157, for the next version) |
 | Signing out after arriving from a login link | `POST /auth/logout`, then opens `/sign-out#user=<user ID>` on the GeekyKey screens (section 3, "Browser sessions") |
 | A guest who signed out on the GeekyKey screens, `/sign-out#user=<user ID>` | `GET /api/v1/me`, then `POST /auth/logout` when it names that user, then opens the GeekyKey login (section 3, "Browser sessions") |
 | Participant dashboard | `GET /api/v1/me`, with `connection_requests`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline`; `PATCH /api/v1/me` for the bio and the contact line |
@@ -2338,6 +2464,9 @@ Organisers can open it for totals only.
   is `true` with its game, and no way to change it.
 - On `invalid_login_link`, the Event screens say "That link has expired. Tap your token again to
   get back in."
+- When `POST /auth/login-link` fails on the GeekyKey screens, whatever the error, they say "That
+  link has expired. Open My tokens from the event again." above whatever the session they had
+  shows: the login, or My tokens (BAC-157, for the next version, not yet seen by Ethan).
 - Participants finish setup before the dashboard, passport, activity or group card can render
   (BAC-144, approved for the next version). Setup is headed **"Your name and answers"**, or **"Your name"** without questions. When `has_name` is `false`, setup asks **"What should
   we call you?"**, with **Save** and no Skip. On `validation_failed` it says **"Use 1 to 30
@@ -2603,3 +2732,4 @@ Closed on 2026-10-10:
 | 2026-11-06 | For the next version: the agreement follows the decisions of 3 and 4 November (BAC-126). The grad tea was scrapped on 3 November, so the opening and sections 4 and 12 no longer plan for it. The hunt was canceled on 4 November (BAC-121), so 8.9 is empty, and `GET /api/v1/hunt`, `POST /api/v1/hunt/skip`, `tapped_you`, `409 skip_locked` and the hunt's lines in section 13 are removed. The export is now Joshua's analysis, not the A/B analysis, with its shape unchanged. Removing them is an exception to section 1's rule, as in the row of 2026-10-07: no service ever built the routes or sent the field, and no screen uses any of them now, since BAC-149 took `tapped_you` out of the passport. Nothing else is removed. |
 | 2026-11-06 | Version 0.13, a draft: the answers game's shapes as built (BAC-116, BAC-119, BAC-120, FRO-112). This replaces PR #235's text of 3 November, whose halves with a 2-minute limit BAC-149 has since replaced, and whose hunt was canceled (BAC-126). **Answers:** `/me` (8.1) gives `questions`, the answers game's list with each question's choices, or `null` without the game, and `user.answers`, a map from question ID to choice ID. `PATCH /api/v1/me` (8.7) takes a partial `answers` map, refuses an unknown question or choice under `["answers", "<question ID>"]`, and answers the new `409 answers_fixed` when a change would alter an answer the user's first connection fixed. **Connections:** each item in `/me`'s `connections` gives `match`, a whole percent or `null`, kept from when they connected; `shared`, the IDs of the questions both answered the same, `null` until `shared_at`; and `shared_at`, 2 minutes after the connection. Each connection adds 1 point (section 4). 8.8, 11.10 and 9.10's `connections` are `Implemented`: one 4-second deadline covers the claims calls and the hand-offs, `user_kind` is `null` if the tapper released their first token in between, a failed hand-off is logged as `meeting_handoff_failed`, and the map numbers a new pair by user ID. An `EVENT_SERVICES` entry takes meetings with `"meetings": true`. A token's kind can be its colour (HAR-30). Section 13 has the match's sentences as the screens show them. 0.12's `user.question`, `user.answer`, `answer` in 8.7 and the connection's `question` and `answer` are replaced; 0.12 was a draft and they were never built. |
 | 2026-11-06 | Draft additions for the next version: section 10 records BAC-139's token-kind totals and loading, and BAC-152's admin-only list and removal. New list fields are `uid`, `kind`, `owner_id` and `claimed_at`; new error `token_claimed` (409). Section 13 adds the list and removal wording. No fields or routes are removed. |
+| 2026-11-09 | For the next version: a login link from the Event screens logs a user in on the GeekyKey screens as the same user, the reverse of 8.6 (BAC-157). A guest whose sign-in on `key.` is gone can still see their own tokens. **New, at `Checkpoint 7`:** `POST /auth/login-link` on the GeekyKey Service (7.5), `POST /api/v1/login-links` on the Event Service (8.12), and `POST /geekykey/v1/used-login-links` (11.11), since the GeekyKey Service keeps no database to make a link work once. 11.9 adds the key for links that way, derived from the Event Service key with its own info, so no new secret is set. The GeekyKey Service takes such links only from an Event Service whose entry says `"login_links_to_geekykey": true`. Section 13 adds the two screens' rows and one sentence for a failed link, which Ethan hasn't seen. No fields or routes are removed. |
