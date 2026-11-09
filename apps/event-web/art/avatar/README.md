@@ -1,4 +1,4 @@
-# The grad tea avatar's art
+# The avatar's art
 
 Each folder holds one character (FRO-105):
 

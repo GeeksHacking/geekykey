@@ -17,7 +17,7 @@ apps/event-web/
     worker.test.ts          # runs the Worker in wrangler dev against a fake Event Service and a fake Firebase
   vitest.config.ts
   scripts/shot.ts           # pnpm shot: the definition of done's four screenshots of a route
-  scripts/avatar-art.ts     # pnpm avatar-art: the grad tea avatar's PNGs into avatar/art-data.ts
+  scripts/avatar-art.ts     # pnpm avatar-art: the avatar's PNGs into avatar/art-data.ts
   scripts/avatar-3d.ts      # its 3D half: model.vox in and out, .glb out, a cleaned-up shape in, voxel-data.ts
   art/avatar/               # the avatar's art (FRO-105): a folder per character, its PNGs and model.vox; README.md says how to edit
   avatar-lab.html           # the avatar lab, on the dev server only, for checking the 3D figures while editing them
@@ -52,7 +52,7 @@ apps/event-web/
       passport/             # dashboard, stamp grid, stamp tile, station glyph, the name prompt and Change name,
                            # the answers game's questions and their summary (questions-prompt.tsx,
                            # question-step.tsx, answers-summary.tsx, answers.ts),
-                           # the grad tea's avatar, its colours and memory card (avatar/, FRO-105),
+                           # the avatar, its colours and memory card (avatar/, FRO-105),
                            # what a poll changed (passport-changes.ts), the new stamp's group link offer
                            # (new-stamp-banner.tsx, use-new-stamp-link.ts), the reveal and list of connections
                            # (connection-reveal.tsx, use-connection-reveal.ts, connection-list.tsx,
