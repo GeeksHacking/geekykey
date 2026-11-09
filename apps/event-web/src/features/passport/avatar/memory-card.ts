@@ -51,7 +51,7 @@ function drawCard(ctx: CanvasRenderingContext2D, avatar: Pixels, name: string) {
   ctx.fillStyle = GOLD;
   ctx.textBaseline = "alphabetic";
   ctx.font = `600 34px ${FONT}`;
-  spaced(ctx, "THE GRAD TEA", 160, 14);
+  spaced(ctx, "GEEKYKEY AT THE SHOWCASE", 160, 14);
 
   const cell = 14;
   paintPixels(ctx, avatar, (WIDTH - SIZE * cell) / 2, 200, cell);
@@ -67,7 +67,7 @@ function drawCard(ctx: CanvasRenderingContext2D, avatar: Pixels, name: string) {
 
   ctx.fillStyle = GOLD;
   ctx.font = `400 30px ${FONT}`;
-  ctx.fillText("12 November 2026 · GeekyKey", WIDTH / 2, 1235);
+  ctx.fillText("17 November 2026 · GeekyKey", WIDTH / 2, 1235);
 }
 
 export async function drawMemoryCard(avatar: Pixels, name: string): Promise<Blob> {
@@ -91,12 +91,12 @@ function fileName(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return `grad-tea-${slug || "guest"}.png`;
+  return `showcase-${slug || "guest"}.png`;
 }
 
 /** The card as a file named after the guest, shared or downloaded by shareOrDownload. */
 export async function saveMemoryCard(blob: Blob, name: string): Promise<void> {
   await shareOrDownload(new File([blob], fileName(name), { type: "image/png" }), {
-    title: "The Grad Tea",
+    title: "GeekyKey at the showcase",
   });
 }

@@ -222,6 +222,7 @@ describe("DashboardScreen's avatar", () => {
     renderDashboard();
 
     const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(within(avatar).getByText("GeekyKey at the showcase")).toBeInTheDocument();
     expect(within(avatar).getByRole("heading", { level: 1, name: "Alex Tan" })).toBeInTheDocument();
     const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
     expect(within(pieces).getByText("Hat: wearing")).toBeInTheDocument();
@@ -341,8 +342,8 @@ describe("DashboardScreen's avatar", () => {
 
     await user.click(screen.getByRole("button", { name: "Show my card" }));
 
-    const card = screen.getByRole("dialog", { name: "Your card from the grad tea" });
-    expect(within(card).getByText("THE GRAD TEA")).toBeInTheDocument();
+    const card = screen.getByRole("dialog", { name: "Your card from the showcase" });
+    expect(within(card).getByText("GEEKYKEY AT THE SHOWCASE")).toBeInTheDocument();
     expect(within(card).getByText("Alex Tan")).toBeInTheDocument();
     // The card stays anonymous: it never names who the guest connected with.
     expect(card).not.toHaveTextContent(met.display_name!);

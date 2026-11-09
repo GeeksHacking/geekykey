@@ -35,9 +35,9 @@ describe("shareOrDownload", () => {
     Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
     Object.defineProperty(navigator, "share", { configurable: true, value: share });
 
-    await shareOrDownload(file, { title: "The Grad Tea" });
+    await shareOrDownload(file, { title: "GeekyKey at the showcase" });
 
-    expect(share).toHaveBeenCalledWith({ files: [file], title: "The Grad Tea" });
+    expect(share).toHaveBeenCalledWith({ files: [file], title: "GeekyKey at the showcase" });
   });
 
   it("downloads the file when the phone can't share it", async () => {
