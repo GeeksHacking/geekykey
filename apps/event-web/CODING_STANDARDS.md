@@ -57,8 +57,10 @@ the automated checks cannot fully enforce, design rules and the checks for a fin
   `@atlaskit/pragmatic-drag-and-drop-auto-scroll` to scroll the page during a drag, and
   `@atlaskit/pragmatic-drag-and-drop-unit-testing` for jsdom's missing drag events), chosen in
   FRO-140 over dnd-kit, React DnD and hand-written events. It uses the browser's own drag and
-  drop, so a phone starts a drag on a long press and a swipe still scrolls. It has no keyboard
-  dragging, so every drag needs a menu or button that does the same thing. Keep its imports in the
+  drop, which Android browsers break: Chrome fades the row on a long press and then drops the
+  drag, and Firefox has none. So drag only where `(pointer: coarse)` doesn't match, as
+  `member-drag.ts` does, and test it on a real phone before turning it on there. It has no keyboard
+  or phone dragging, so every drag needs a menu or button that does the same thing. Keep its imports in the
   feature that uses them, so it loads only on that route. `features/groups/member-drag.ts` shows
   the pattern, and the Groups tests show how to drag in jsdom.
 - Before adding GSAP or three.js imports, read [design direction](docs/design-direction.md) for

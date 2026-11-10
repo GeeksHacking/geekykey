@@ -15,9 +15,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * One person on the Groups screen, in a group or on the waiting list, with the organiser's
- * moves for them (the spec's user stories 30 to 35), from their menu or by dragging the row to
- * another place (FRO-140). A move may pass a group's capacity, and the panel then says it's over.
- * A move or removal that fails says why on the row.
+ * moves for them (the spec's user stories 30 to 35), from their menu or, with a mouse, by
+ * dragging the row to another place (FRO-140). A move may pass a group's capacity, and the panel
+ * then says it's over. A move or removal that fails says why on the row.
  */
 export function MemberRow({
   member,
@@ -44,7 +44,8 @@ export function MemberRow({
       ref={dragRef}
       data-dragging={dragging || undefined}
       className={cn(
-        "-mx-1 rounded-md px-1 select-none",
+        // A phone can't drag (member-drag.ts), so it keeps names selectable and shows no grip.
+        "-mx-1 rounded-md px-1 select-none pointer-coarse:select-auto",
         !busy && "cursor-grab active:cursor-grabbing",
         dragging && "opacity-50 outline-2 outline-offset-1 outline-dashed outline-border",
       )}
@@ -53,7 +54,7 @@ export function MemberRow({
         <span className="flex min-w-0 items-center gap-1">
           <DotsSixVertical
             weight="bold"
-            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground pointer-coarse:hidden"
             aria-hidden
           />
           {tick ? (

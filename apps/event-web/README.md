@@ -11,7 +11,7 @@ Event Service (`apps/event-service`) and nothing else. They have two audiences:
   is the map of the hall for the screen at the booth.
 
 The stack is React 19, Vite, TanStack Router and Query, Tailwind 4 and shadcn/ui. GSAP and three.js
-animate the map and the avatar. Pragmatic drag and drop moves people on the Groups screen.
+animate the map and the avatar. Pragmatic drag and drop moves people on the Groups screen with a mouse.
 
 [CLAUDE.md](CLAUDE.md) points to the guidance for a change.
 [CODING_STANDARDS.md](CODING_STANDARDS.md) holds the conventions, design rules and definition of

@@ -2495,10 +2495,10 @@
   date: 2026-11-10
   area: frontend
   change: >-
-    Organisers can drag a person on the Groups screen onto another group or back to Waiting, with
-    a mouse or a long press on a phone. A drop makes the same move as the person's menu, which
-    stays for keyboard users. The trade-offs we accept: the Groups page downloads about 10 KB more,
-    and dragging has no keyboard controls of its own.
+    Organisers can drag a person on the Groups screen onto another group or back to Waiting with a
+    mouse. A drop makes the same move as the person's menu, which stays for keyboard users. The
+    trade-offs we accept: the Groups page downloads about 10 KB more, and dragging has no keyboard
+    controls of its own.
 - id: groups-tick-several
   date: 2026-11-10
   area: frontend
@@ -2507,3 +2507,13 @@
     group with one press, as the 5 Nov trial asked for. Anyone who couldn't be placed is named and
     stays ticked. The trade-offs we accept: each person is one request, so about 40 at once can
     reach the Event Service's 60 requests a minute, and the rest then wait a minute.
+
+- id: groups-drag-mouse-only
+  date: 2026-11-10
+  area: frontend
+  change: >-
+    Dragging people on the Groups screen now works only with a mouse or a trackpad, and phones use
+    each person's menu. On Android Chrome a long press faded the row and then dropped the drag,
+    because the browser's own drag and drop is unreliable there. The trade-offs we accept: iPhones,
+    where dragging worked, lose it too, because the screen checks for a touch screen rather than
+    guessing the browser from its name.
