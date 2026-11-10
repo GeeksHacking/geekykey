@@ -2522,8 +2522,8 @@
   date: 2026-11-10
   area: frontend
   change: >-
-    My tokens opens faster from the Event screens' menu. Opening the menu now asks for the login
-    link and starts the connection to the GeekyKey screens, so the click doesn't wait for either.
+    My tokens opens faster from the Event screens' menu: opening the menu now asks for the login
+    link and starts the connection to the GeekyKey screens, so the click waits for neither.
     Both sites also tell the browser to keep their scripts, styles and fonts for a year, where it
     used to ask the server about every file on every visit. The trade-offs we accept: a menu
     opened and closed makes a login link nobody uses, which expires after 60 seconds, and those
