@@ -2529,3 +2529,10 @@
     opened and closed makes a login link nobody uses, which expires after 60 seconds, and those
     files now pass through each site's Worker, which counts as a request the first time a browser
     fetches one.
+- id: groups-join-placement-times
+  date: 2026-11-10
+  area: frontend
+  change: >-
+    The Groups screen now says when each person joined, and in a group when they were placed and
+    how: Allocated, Latecomer or Moved by an organiser. The times show the seconds, so the report
+    can measure how long each person waited for a group.
