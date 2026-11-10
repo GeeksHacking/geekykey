@@ -142,7 +142,11 @@ function harness({ withGame = true } = {}) {
     assert.equal(res.status, 200);
     const body = await res.json();
     screensSchemas.meResponseSchema.parse(body);
-    return body as { points: number; connections: ConnectionBody[] };
+    return body as {
+      points: number;
+      connections: ConnectionBody[];
+      connection_requests: unknown[];
+    };
   };
 
   /** The user's answers, set through PATCH /api/v1/me. */
@@ -207,13 +211,25 @@ test("a pair connects once, and their halves after it change nothing", async () 
   assert.equal((await meOf("bea")).connections.length, 1);
 });
 
-test("two of the same kind, or anyone with no kind, get same_kind, and nothing is kept", async () => {
+test("two of the same kind get same_kind, and nothing is kept", async () => {
   const { meet, statusOf, meOf } = harness();
   assert.equal(await statusOf(meet("alex", "E", "bea", "E")), "same_kind");
   assert.equal(await statusOf(meet("bea", "E", "alex", "E")), "same_kind");
-  assert.equal(await statusOf(meet("alex", "E", "nobody-kind", null)), "same_kind");
-  assert.equal(await statusOf(meet("nobody-kind", null, "alex", "E")), "same_kind");
   assert.deepEqual((await meOf("alex")).connections, []);
+});
+
+test("either person with no kind gets no_kind, and no request or connection is kept", async () => {
+  const { meet, statusOf, meOf } = harness();
+  assert.equal(await statusOf(meet("alex", "E", "bea", null)), "no_kind");
+  assert.equal(await statusOf(meet("bea", null, "alex", "E")), "no_kind");
+  assert.equal(await statusOf(meet("cai", null, "dan", null)), "no_kind");
+  for (const id of ["alex", "bea", "cai", "dan"]) {
+    const me = await meOf(id);
+    assert.deepEqual(me.connections, []);
+    assert.deepEqual(me.connection_requests, []);
+  }
+  // Once both have a kind, a tap back starts a request rather than completing one.
+  assert.equal(await statusOf(meet("bea", "B", "alex", "E")), "waiting");
 });
 
 test("each side's own kind wins over the hand-off's, which becomes the kind of someone with none", async () => {

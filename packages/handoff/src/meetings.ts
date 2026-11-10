@@ -31,6 +31,7 @@ export const MEETING_STATUSES = [
   "connected",
   "already_connected",
   "same_kind",
+  "no_kind",
   "same_group",
   "no_group",
 ] as const;
@@ -45,8 +46,9 @@ export const meetingsAnswer = z.object({
       "answers_needed: the tapper, or the sender of an older request being accepted, must finish their name and answers; no new half is kept and an existing request stays. " +
         "waiting: the owner has a connection request, which waits until they answer it. " +
         "connected: the half accepted the owner's request. " +
-        "already_connected: the two were connected before. same_kind: the two aren't of " +
-        "different kinds, so nothing is kept. same_group: connecting across groups, the two " +
+        "already_connected: the two were connected before. same_kind: connecting across token kinds, " +
+        "both have a kind and the kinds are equal, so no request is sent. no_kind: connecting " +
+        "across token kinds, either person has no kind, so no request is sent. same_group: connecting across groups, the two " +
         "are in the same group, so nothing is kept. no_group: connecting across groups, and " +
         "either isn't in a group, so nothing is kept",
     ),

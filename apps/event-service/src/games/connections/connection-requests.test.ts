@@ -116,7 +116,7 @@ function harness() {
     const at = clock.now().toISOString();
     await testDb()
       .insert(participantGroups)
-      .values({ id, name: "Group 1", tags: [], createdAt: at });
+      .values({ id, name: `Group for ${userIds.join(", ")}`, tags: [], createdAt: at });
     await testDb()
       .insert(groupMembers)
       .values(userIds.map((userId) => ({ userId, groupId: id, joinedAt: at })));
@@ -312,6 +312,28 @@ test("accepting across token kinds is refused when both have ended up with one k
   assert.deepEqual((await meOf("bea")).connection_requests, []);
   assert.deepEqual((await meOf("alex")).connections, []);
 });
+
+test.each([
+  [null, "B"],
+  ["E", null],
+  [null, null],
+] as const)(
+  "accepting with kinds %s and %s after switching from groups gives no_kind",
+  async (userKind, ownerKind) => {
+    const { tap, requestFor, accept, meOf, setRule, placeInGroups } = harness();
+    await setRule("groups");
+    await placeInGroups("alex");
+    await placeInGroups("bea");
+    assert.equal(await tap("alex", userKind, "bea", ownerKind), "waiting");
+    const { id } = await requestFor("bea");
+
+    await setRule("token_kinds");
+    assert.equal(await accept("bea", id), "no_kind");
+    assert.deepEqual((await meOf("bea")).connection_requests, []);
+    assert.deepEqual((await meOf("alex")).connections, []);
+    assert.deepEqual((await meOf("bea")).connections, []);
+  },
+);
 
 test("two accepts at once make one connection", async () => {
   const { tap, requestFor, answerRequest, meOf } = harness();

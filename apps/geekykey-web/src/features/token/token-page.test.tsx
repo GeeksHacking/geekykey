@@ -118,7 +118,7 @@ describe("TokenPage", () => {
     renderAs(api, OWNED_BY_SOMEONE_ELSE);
 
     expect(await screen.findByText("This token belongs to someone else.")).toBeInTheDocument();
-    expect(await screen.findByText(/same group/)).toBeInTheDocument();
+    expect(await screen.findByText(/same token kind/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
   });
 
@@ -357,7 +357,8 @@ describe("TokenPage", () => {
       waiting: "Request sent. Ask them to open their dashboard and accept.",
       connected: "You're connected!",
       already_connected: "You're already connected.",
-      same_kind: "You're in the same group. Find someone from another group.",
+      same_kind: "You have the same token kind. Find someone with a different kind.",
+      no_kind: "This token can't connect yet. Ask an organizer.",
       // Connecting across groups (BAC-140, approved for the agreement's next version).
       same_group: "You're in the same group. Find someone from another group.",
       // Section 13 (FRO-146): the event's button joins the participant, so the tapper is told
@@ -422,7 +423,7 @@ describe("TokenPage", () => {
       );
     });
 
-    it.each(["same_kind", "same_group", "unavailable"] as const)(
+    it.each(["same_kind", "no_kind", "same_group", "unavailable"] as const)(
       "offers no event button on %s, which has nothing to open yet",
       async (status) => {
         api.mock.setSession(SEEDED_PARTICIPANT_ID);

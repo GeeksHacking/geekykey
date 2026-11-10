@@ -1326,7 +1326,7 @@ shows only the sentence that the token belongs to someone else.
 - `meetings` has one item for each Event Service that takes meetings, in the order of `events` in
   `/me` (8.4), and is empty when none takes them.
 - `status` is the Event Service's answer (11.10): `waiting`, `connected`, `already_connected` or
-  `same_kind`, or `answers_needed` (BAC-144, approved for the next version). Section 13 has what the token page shows for each. A tap makes one request at most,
+  `same_kind`, `no_kind` (BAC-135), or `answers_needed` (BAC-144, approved for the next version). Section 13 has what the token page shows for each. A tap makes one request at most,
   so `waiting` can come again for the same pair.
 - `owner_name` is the Event Service's answer too (11.10): the owner's current name, or `null`. The
   GeekyKey Service passes it on and stores no names. The answer gives no user ID, token UID or
@@ -1371,7 +1371,8 @@ BAC-149, a draft for the next version. The user answers a connection request tha
 | `answers_needed` | Either person still needs their name or an answer. The request stays, and no connection is made (BAC-144, approved for the next version) |
 | `connected` | The two are connected, and both see the reveal at their next read of `/me` |
 | `already_connected` | Another accept or a tap back made the connection just before this one |
-| `same_kind` | Across token kinds, the two aren't of different kinds. There's no connection, and the request has gone |
+| `same_kind` | Across token kinds, both have a kind and the two kinds are equal. There's no connection, and the request has gone |
+| `no_kind` | Across token kinds, either person has no kind. There's no connection, and the request has gone (BAC-135) |
 | `same_group` | Across groups, the two are in one group. There's no connection, and the request has gone |
 | `no_group` | Across groups, either isn't in a group. There's no connection, and the request has gone |
 
@@ -2309,12 +2310,13 @@ under their name, and the answer never gives a contact line (BAC-151, for the ne
 | `waiting` | The owner has a connection request from the user, which waits until they answer it. A request already waiting stays as it is |
 | `connected` | The user had a request from the owner, so this tap accepted it, and the two are connected |
 | `already_connected` | The two were connected before. Nothing changes |
-| `same_kind` | The two aren't of different kinds ([Connections](#connections)), so no request is sent |
+| `same_kind` | Across token kinds, both have a kind and the two kinds are equal ([Connections](#connections)), so no request is sent |
+| `no_kind` | Across token kinds, either person has no kind, so no request is sent (BAC-135) |
 
 - The participant's name and every answer are checked before kinds and groups. An event without
   an answers game needs only the name. Organizers keep their existing behaviour. Only the tapper
   is checked when sending a request; the owner can finish setup before accepting it (BAC-144).
-- When the rule refuses the tap (`same_kind` above, and BAC-140's `same_group` and `no_group`), a
+- When the rule refuses the tap (`same_kind` or `no_kind` above, and BAC-140's `same_group` and `no_group`), a
   request already waiting from the owner goes too, because a tap back counts as accepting it. A
   request the user sent stays.
 - Ours uses its own kind for each user (8.1) when it has one, and the hand-off's otherwise, which
@@ -2331,6 +2333,12 @@ under their name, and the answer never gives a contact line (BAC-151, for the ne
   A GeekyKey Service from before `answers_needed` treats that unknown status as a malformed
   answer and gives `unavailable`, with no half kept by the Event Service. An older Event Service
   still gives its existing statuses, which the new GeekyKey Service accepts (BAC-144).
+- `no_kind` separates a missing kind from two equal kinds (BAC-135). Setup is still checked first,
+  and across groups a missing kind doesn't refuse a connection. A GeekyKey Service from before
+  this status treats it as a malformed answer and gives `unavailable`. A screen from before it
+  shows its existing failure message rather than making a connection. Deploy the screens before
+  the GeekyKey Service to show the specific sentence. An older Event Service still gives
+  `same_kind` for a missing kind, which the new GeekyKey Service and screens accept.
 - Like the tap hand-off, it leaves out the token's UID (11.8).
 - Its JSON Schemas join the others in `packages/handoff/json-schema/` (11.7).
 
@@ -2533,8 +2541,10 @@ Organisers can open it for totals only.
 - While `connection_requests` isn't empty, the dashboard lists each one under **"Connection
   requests"** as **"{display_name} wants to connect."**, then their `bio`, which takes no line when
   it's `null` (BAC-151, for the next version), with **Accept** and **Decline** buttons,
-  and reads `/me` again after a press (BAC-149, drafts for Ethan to approve). On a `same_kind` or
-  `same_group` answer it says **"You're in the same group. Find someone from another group."**,
+  and reads `/me` again after a press (BAC-149, drafts for Ethan to approve). On a `same_kind`
+  answer it says **"You have the same token kind. Find someone with a different kind."**; on
+  `no_kind`, **"This token can't connect yet. Ask an organizer."** (BAC-135); on
+  `same_group`, **"You're in the same group. Find someone from another group."**,
   and on `no_group` **"You both need to be in a group to connect. Ask an organiser."**, each with
   **Dismiss**. On `not_found` it says nothing, since the read takes the request away. Declining
   says nothing. On `answers_needed`, it says **"You both need to finish your names and answers
@@ -2550,7 +2560,9 @@ Organisers can open it for totals only.
   a draft for Ethan to approve); for `connected`,
   **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
   `answers_needed`, **"You both need to finish your names and answers in the event before connecting."**; for
-  `same_kind`, **"You're in the same group. Find someone from another group."**; for `no_group`,
+  `same_kind`, **"You have the same token kind. Find someone with a different kind."**; for
+  `no_kind`, **"This token can't connect yet. Ask an organizer."** (BAC-135); for
+  `same_group`, **"You're in the same group. Find someone from another group."**; for `no_group`,
   **"You both need to be in a group to connect. Open the event to join a group, then tap again."**
   (FRO-146); and for `unavailable`, **"Couldn't connect. Tap their token again."** With `waiting`,
   `connected`, `already_connected` or `answers_needed`, it offers the event's button, which opens
@@ -2741,3 +2753,4 @@ Closed on 2026-10-10:
 | 2026-11-09 | For the next version: a login link from the Event screens logs a user in on the GeekyKey screens as the same user, the reverse of 8.6 (BAC-157). A guest whose sign-in on `key.` is gone can still see their own tokens. **New, at `Checkpoint 7`:** `POST /auth/login-link` on the GeekyKey Service (7.5), `POST /api/v1/login-links` on the Event Service (8.12), and `POST /geekykey/v1/used-login-links` (11.11), since the GeekyKey Service keeps no database to make a link work once. 11.9 adds the key for links that way, derived from the Event Service key with its own info, so no new secret is set. The GeekyKey Service takes such links only from an Event Service whose entry says `"login_links_to_geekykey": true`. Section 13 adds the two screens' rows and one sentence for a failed link, which Ethan hasn't seen. No fields or routes are removed. |
 | 2026-11-09 | For the next version: the Event screens' login tells a guest who arrived without a login link where to go (FRO-90). Section 13 adds one line under the sign-in buttons, "Signed in as a guest? Open GeekyKey and tap your event button.", with **Open GeekyKey** linking to `https://key.geekshacking.com/`. The GeekyKey screens' login doesn't show it. No endpoint, field or error code changes. |
 | 2026-11-09 | For the next version: a tap with no group offers the event, where the participant joins one (FRO-146). Section 13 gives the token page's `no_group` answer its own sentence, "You both need to be in a group to connect. Open the event to join a group, then tap again.", and the event's button, because opening the event joins the participant and a latecomer is placed at once. The dashboard's answer after Accept keeps its own sentence, "You both need to be in a group to connect. Ask an organiser.", since the person is already in the event there. No endpoint, field or error code changes. |
+| 2026-11-10 | For the next version: a missing token kind has its own status, `no_kind`, in the meeting hand-off (11.10), the token page's answer (8.8) and Accept (8.10), under the across-token-kinds rule (BAC-135). `same_kind` now means two equal, present kinds. Section 13 gives each its own sentence on the token page and after Accept. Ethan's approval of `no_kind` and the ticket's sentence was confirmed in the implementation session on 10 Nov; the equal-kinds sentence follows his 10 Nov comment. No field is removed. An older GeekyKey Service turns `no_kind` into `unavailable`, and older screens show their existing failure message. New screens accept every older status. |
