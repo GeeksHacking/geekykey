@@ -254,6 +254,9 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     setConnectionRule: (input) =>
       sendJson("/api/v1/admin/connections/rule", jsonBody(input, "PUT")).then(parseConnectionRule),
 
+    setPhrase: (input) =>
+      sendJson("/api/v1/admin/groups/phrase", jsonBody(input, "PUT")).then(parseGroupBoardResponse),
+
     setConnectionChallenge: (input) =>
       sendJson("/api/v1/admin/connections/challenge", jsonBody(input, "PUT")).then(
         parseConnectionChallenge,

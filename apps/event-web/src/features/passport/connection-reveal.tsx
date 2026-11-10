@@ -2,6 +2,7 @@ import type { MeResponse } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { ConnectionPerson } from "@/features/passport/connection-person";
+import { ConnectionWordLine } from "@/features/passport/connection-word-line";
 import { DiceRoll } from "@/features/passport/dice/dice-roll";
 import { markDiceShown, useDiceWaiting } from "@/features/passport/dice/dice-shown";
 import { ReactionTest } from "@/features/passport/reaction/reaction-test";
@@ -53,6 +54,7 @@ export function ConnectionReveal({ me }: { me: MeResponse }) {
           <div className="mt-2">
             <ConnectionPerson connection={connection} />
           </div>
+          <ConnectionWordLine word={connection.word} className="mt-2" />
           {connection.match === null ? null : (
             <p className="mt-2 text-sm text-muted-foreground">
               Talk to find out which answers you share.

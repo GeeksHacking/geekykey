@@ -30,6 +30,12 @@ export interface MockConnectionRequest extends ConnectionRequest {
  */
 export interface MockConnection extends Connection {
   their_ms?: number | null;
+  /**
+   * The place in the phrase of the word the other person holds, from 0 (BAC-169). Absent when
+   * they hold none. The mock's connections don't say who the other person is, so their word is
+   * kept here, and a phrase with fewer words wraps it round.
+   */
+  gives_word?: number;
 }
 
 export interface MockUser {
@@ -135,6 +141,10 @@ export interface MockData {
    * `connections` don't say who the other person is, so the two aren't kept in step.
    */
   connectedPairs: [string, string][];
+  /** The phrase's words in order, or null for none, as a new event starts (BAC-169). */
+  phrase: string[] | null;
+  /** The place in the phrase of the word each placed participant holds, from 0, by user ID. */
+  phraseWords: Record<string, number>;
 }
 
 /**
@@ -214,7 +224,10 @@ export function createFixtures(now: number = Date.now()): MockData {
   const random = createRandom(20261010);
   const minutes = (n: number) => n * 60_000;
   /** What `shared_at` is for a connection made that long ago: 2 minutes after it (8.1). */
-  const connection = (msAgo: number, fields: Omit<Connection, "connected_at" | "shared_at">) => ({
+  const connection = (
+    msAgo: number,
+    fields: Omit<MockConnection, "connected_at" | "shared_at">,
+  ) => ({
     ...fields,
     connected_at: new Date(now - msAgo).toISOString(),
     shared_at: new Date(now - msAgo + minutes(2)).toISOString(),
@@ -257,6 +270,8 @@ export function createFixtures(now: number = Date.now()): MockData {
           kind: "B",
           match: 60,
           shared: ["drink", "school", "weekend"],
+          // "today".
+          gives_word: 3,
         }),
         connection(minutes(26), {
           display_name: "Farhan Iskandar",
@@ -266,6 +281,8 @@ export function createFixtures(now: number = Date.now()): MockData {
           kind: "G",
           match: 80,
           shared: ["drink", "hours", "superpower", "weekend"],
+          // "Strangers".
+          gives_word: 0,
         }),
         connection(minutes(58), {
           display_name: null,
@@ -539,6 +556,10 @@ export function createFixtures(now: number = Date.now()): MockData {
       how: null,
     }),
   );
+  // The seeded participant already holds "become", and their connections have given "Strangers"
+  // and "today". The phrase shows once they're in a group: Allocate as the organiser, then Join as
+  // the participant, who is placed at once as a latecomer and sees it part way through. Accepting
+  // the request that waits for them gives "friends", which completes it (BAC-169).
 
   return {
     users,
@@ -556,5 +577,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       ["u_7f3a", "u_2e8b"],
       ["u_9c21", "u_d0a9"],
     ],
+    phrase: ["Strangers", "become", "friends", "today"],
+    phraseWords: { [SEEDED_PARTICIPANT_ID]: 1 },
   };
 }

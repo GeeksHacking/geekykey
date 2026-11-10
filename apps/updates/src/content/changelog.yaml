@@ -2543,3 +2543,14 @@
     Connecting across token kinds now asks for an organiser when either person has no token
     kind, on the token page and after Accept. Two equal token kinds get a separate message
     asking for someone with a different kind.
+- id: phrase-one-word-each
+  date: 2026-11-10
+  area: backend
+  change: >-
+    Organisers can now type a phrase on the Groups screen, and each person in a group holds one
+    of its words. A connection gives both people the other's word, and the dashboard shows the
+    phrase with a blank for each word still to find. Finishing takes people from other groups:
+    when the event connects across token kinds, no group is dealt every word. It adds no points
+    and no avatar piece, and a blank phrase turns it off. The trade-off we accept: two groups
+    that connect only with each other each need as many people as the phrase has words, or some
+    people can't finish, and the Groups screen warns about it.

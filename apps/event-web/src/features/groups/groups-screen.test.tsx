@@ -1370,6 +1370,161 @@ describe("GroupsScreen", () => {
   });
 });
 
+describe("the Groups screen's phrase (BAC-169)", () => {
+  const phraseSection = () => screen.findByRole("region", { name: "Phrase" });
+
+  it("shows the phrase and how many people in groups have completed it", async () => {
+    renderScreen({
+      prepare: (api) => {
+        // Two people in a group, one of them with every word.
+        const { data } = api.mock;
+        for (const user_id of ["u_7f3a", "u_9c21"]) {
+          const member = data.groupMembers.find((each) => each.user_id === user_id)!;
+          Object.assign(member, {
+            group_id: "g_foyer",
+            placed_at: member.joined_at,
+            how: "organizer",
+          });
+        }
+        data.phrase = ["Hello", "there"];
+        data.phraseWords = { u_7f3a: 0, u_9c21: 1 };
+        data.users.find(({ id }) => id === "u_7f3a")!.connections = [
+          {
+            connected_at: "2026-11-13T09:00:00.000Z",
+            shared_at: "2026-11-13T09:02:00.000Z",
+            display_name: "Farhan Iskandar",
+            bio: null,
+            contact_line: null,
+            kind: "B",
+            match: null,
+            shared: [],
+            gives_word: 1,
+          },
+        ];
+      },
+    });
+    const section = await phraseSection();
+    expect(within(section).getByLabelText("Phrase")).toHaveValue("Hello there");
+    expect(within(section).getByRole("status")).toHaveTextContent(
+      "On. 1 of 2 people in groups has completed it.",
+    );
+    expect(within(section).getByText("2 words")).toBeInTheDocument();
+    // Nothing has been typed, so there's nothing to save.
+    expect(within(section).getByRole("button", { name: "Save phrase" })).toBeDisabled();
+  });
+
+  it("saves a phrase typed in, keeps it through a poll, and turns it off", async () => {
+    const { api, user, poll } = renderScreen({
+      prepare: (api) => {
+        api.mock.data.phrase = null;
+      },
+    });
+    const section = await phraseSection();
+    expect(within(section).getByRole("status")).toHaveTextContent("Off. Save a phrase to start.");
+    expect(within(section).queryByRole("button", { name: "Turn off" })).not.toBeInTheDocument();
+
+    const field = within(section).getByLabelText("Phrase");
+    await user.type(field, "Meet someone");
+    // A poll while typing leaves the field alone.
+    await act(() => poll());
+    expect(field).toHaveValue("Meet someone");
+    await user.type(field, " new");
+    expect(within(section).getByText("3 words")).toBeInTheDocument();
+    await user.click(within(section).getByRole("button", { name: "Save phrase" }));
+
+    await waitFor(() => expect(api.mock.data.phrase).toEqual(["Meet", "someone", "new"]));
+    expect(await within(section).findByText(/^On\./)).toBeInTheDocument();
+
+    await user.click(within(section).getByRole("button", { name: "Turn off" }));
+    await waitFor(() => expect(api.mock.data.phrase).toBeNull());
+    await waitFor(() => expect(field).toHaveValue(""));
+  });
+
+  it("says what's wrong with a phrase outside the limits, and sends nothing", async () => {
+    const { api, user } = renderScreen({
+      prepare: (api) => {
+        api.mock.data.phrase = null;
+      },
+    });
+    const setPhrase = vi.spyOn(api, "setPhrase");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    const section = await phraseSection();
+    const field = within(section).getByLabelText("Phrase");
+    const save = within(section).getByRole("button", { name: "Save phrase" });
+
+    await user.type(field, "Hello");
+    await user.click(save);
+    expect(within(section).getByRole("alert")).toHaveTextContent("Use 2 to 12 words.");
+
+    await user.clear(field);
+    await user.type(field, `Hello ${"x".repeat(21)}`);
+    await user.click(save);
+    expect(within(section).getByRole("alert")).toHaveTextContent(
+      "Use at most 20 characters in each word.",
+    );
+    expect(setPhrase).not.toHaveBeenCalled();
+  });
+
+  it("says why when the phrase can't be saved, and keeps what was typed", async () => {
+    const { api, user } = renderScreen();
+    const section = await phraseSection();
+    const field = within(section).getByLabelText("Phrase");
+    await user.clear(field);
+    await user.type(field, "Hello there");
+    api.mock.failNext("internal_error");
+    await user.click(within(section).getByRole("button", { name: "Save phrase" }));
+
+    expect(await within(section).findByRole("alert")).toHaveTextContent(
+      /^Couldn't save the phrase\./,
+    );
+    expect(field).toHaveValue("Hello there");
+    expect(api.mock.data.phrase).toEqual(["Strangers", "become", "friends", "today"]);
+  });
+
+  it("warns when two groups connecting only with each other have fewer people than the phrase has words", async () => {
+    const { user } = renderScreen({
+      prepare: (api) => {
+        const { data } = api.mock;
+        data.connectAcross = "groups";
+        data.groupMembers.forEach((member, index) => {
+          Object.assign(member, {
+            group_id: index % 2 === 0 ? "g_foyer" : "g_atrium",
+            placed_at: member.joined_at,
+            how: "organizer",
+          });
+        });
+      },
+    });
+    const section = await phraseSection();
+    const warning = /each group needs at least 4 people, one for each word/;
+    expect(within(section).getByText(warning)).toBeInTheDocument();
+
+    const field = within(section).getByLabelText("Phrase");
+    await user.clear(field);
+    await user.type(field, "Hello there");
+    expect(within(section).queryByText(warning)).not.toBeInTheDocument();
+  });
+
+  it("offers no phrase when the Event Service is from before it", async () => {
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    renderScreen({
+      prepare: (api) => {
+        const readBoard = api.groupBoard.bind(api);
+        vi.spyOn(api, "groupBoard").mockImplementation(async () => {
+          const { phrase: _left, ...older } = await readBoard();
+          return older;
+        });
+      },
+    });
+    expect(await screen.findByRole("heading", { name: "Challenge" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Phrase" })).not.toBeInTheDocument();
+  });
+});
+
 /** A person's row on the board, which is what an organiser drags. */
 function rowOf(name: string) {
   return screen.getByRole("button", { name: `Actions for ${name}` }).closest("li")!;

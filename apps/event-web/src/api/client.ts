@@ -17,6 +17,7 @@ import type {
   GeekykeyLoginLinkResponse,
   PlayReactionResponse,
   ReactionPlayRequest,
+  SetPhraseRequest,
   SetStationBoothRequest,
   SetStationPassportRequest,
   SetStationPassportResponse,
@@ -225,4 +226,12 @@ export interface ApiClient {
    * connection on, and answers with the setting. Connections already made keep theirs.
    */
   setConnectionChallenge(input: ConnectionChallenge): Promise<ConnectionChallenge>;
+
+  /**
+   * PUT /api/v1/admin/groups/phrase (BAC-169, draft for the agreement's next version). Sets the
+   * phrase participants complete, 2 to 12 words of at most 20 characters each, or turns the
+   * activity off with null or blank text. A phrase that differs from the one set deals every word
+   * again. Answers with the board. `validation_failed` for a phrase outside the limits.
+   */
+  setPhrase(input: SetPhraseRequest): Promise<GroupBoardResponse>;
 }

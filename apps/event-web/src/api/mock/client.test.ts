@@ -1092,6 +1092,82 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     expect((await api.groupBoard()).connect_across).toBe("token_kinds");
   });
 
+  it("shows the seeded participant the phrase part way through once they're in a group, then complete (BAC-169)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    // Not in a group, they see no phrase, and no connection says a word.
+    const before = await api.me();
+    expect("phrase" in before).toBe(false);
+    expect(before.connections.every((connection) => !("word" in connection))).toBe(true);
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    expect((await api.groupBoard()).phrase).toEqual({
+      text: "Strangers become friends today",
+      completed_count: 0,
+    });
+    await api.placeGroupMember(SEEDED_PARTICIPANT_ID, "g_foyer");
+
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    const partWay = await api.me();
+    expect(partWay.phrase).toEqual({ words: ["Strangers", "become", null, "today"], your_word: 1 });
+    expect(partWay.connections.map(({ word }) => word)).toEqual([
+      { text: "today", already_had: false },
+      { text: "Strangers", already_had: false },
+      null,
+    ]);
+
+    // Accepting the request that waits gives the missing word.
+    await api.acceptConnectionRequest(partWay.connection_requests[0]!.id);
+    const complete = await api.me();
+    expect(complete.phrase?.words).toEqual(["Strangers", "become", "friends", "today"]);
+    expect(complete.connections[0]!.word).toEqual({ text: "friends", already_had: false });
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    expect((await api.groupBoard()).phrase?.completed_count).toBe(1);
+  });
+
+  it("sets, changes and empties the phrase, for an organizer only (BAC-169)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    await expectApiError(api.setPhrase({ phrase: "Hello there" }), "forbidden", 403);
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    await expectApiError(api.setPhrase({ phrase: "Hello" }), "validation_failed", 400);
+    await expectApiError(
+      api.setPhrase({ phrase: "a b c d e f g h i j k l m" }),
+      "validation_failed",
+      400,
+    );
+    await expectApiError(
+      api.setPhrase({ phrase: `Hello ${"x".repeat(21)}` }),
+      "validation_failed",
+      400,
+    );
+    await api.placeGroupMember(SEEDED_PARTICIPANT_ID, "g_foyer");
+
+    // A different phrase deals every word again, and spaces only separate the words.
+    expect((await api.setPhrase({ phrase: "  Hello   there " })).phrase?.text).toBe("Hello there");
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    expect((await api.me()).phrase?.words).toHaveLength(2);
+
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    for (const empty of [null, "  "]) {
+      expect((await api.setPhrase({ phrase: empty })).phrase).toBeNull();
+    }
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    expect("phrase" in (await api.me())).toBe(false);
+  });
+
+  it("takes every word back at Reset (BAC-169)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    await api.placeGroupMember(SEEDED_PARTICIPANT_ID, "g_foyer");
+    await api.resetGroups();
+    expect(api.mock.data.phraseWords).toEqual({});
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    expect("phrase" in (await api.me())).toBe(false);
+  });
+
   it("refuses a participant on the organizer's edits and moves", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);

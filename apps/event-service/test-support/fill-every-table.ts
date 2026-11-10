@@ -9,6 +9,7 @@ import {
   groupAllocation,
   groupMembers,
   participantGroups,
+  phraseWords,
   taps,
   usedLoginLinks,
   userKinds,
@@ -48,6 +49,9 @@ export async function fillEveryTable() {
   await db.insert(groupAllocation).values({ id: 1, startedAt: AT });
   await db.insert(tokenKinds).values({ uid: "04A1B2C3D4E5F6", kind: "E" });
   await db.insert(usedLoginLinks).values({ jti: "a".repeat(32), expiresAt: AT });
-  await db.insert(eventSettings).values({ id: 1, connectAcross: "groups" });
+  await db.insert(phraseWords).values({ userId, position: 1 });
+  await db
+    .insert(eventSettings)
+    .values({ id: 1, connectAcross: "groups", phrase: "Strangers become friends" });
   return fixture;
 }

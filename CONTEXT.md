@@ -270,6 +270,18 @@ time after that.
 **Latecomer**:
 A participant who joins after allocation has started.
 
+**Phrase**:
+A few words an organizer types on the Groups screen for participants to complete. An event has one
+phrase or none, and with none the activity is off. Completing it adds no points and no avatar
+piece.
+
+**Word**:
+One place in the phrase, which a participant in a group holds. A participant has their own word
+and the word of each person they have a connection with. While the event connects across token kinds and has more than one group, no group's members hold
+every word between them, so completing the phrase takes people from other groups. While it
+connects across groups, that is so anyway, and a group may hold every word.
+_Avoid_: clue, piece, which is part of the avatar
+
 **Accepted tap**:
 A tap that counts in at least one of the event's games, such as toward passport stamps and points.
 

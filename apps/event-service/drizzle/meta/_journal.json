@@ -183,6 +183,13 @@
       "when": 1794049670997,
       "tag": "0025_connections_play_a_chosen_challenge",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1794319367667,
+      "tag": "0026_participants_hold_a_word_of_a_phrase",
+      "breakpoints": true
     }
   ]
 }

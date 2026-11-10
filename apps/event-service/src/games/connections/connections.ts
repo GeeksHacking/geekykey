@@ -452,6 +452,7 @@ export function connectionsGame(
         const [you, them] = sidesOf(row, userId);
         return {
           id: row.id,
+          withUserId: row.userA === userId ? row.userB : row.userA,
           connectedAt: row.connectedAt,
           displayName,
           bio,

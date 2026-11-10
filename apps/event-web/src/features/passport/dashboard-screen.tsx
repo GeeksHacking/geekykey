@@ -10,6 +10,7 @@ import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
+import { PhraseCard } from "@/features/passport/phrase-card";
 import { ProfileSection } from "@/features/passport/profile-section";
 import { QuestionsPrompt } from "@/features/passport/questions-prompt";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
@@ -32,6 +33,8 @@ export function DashboardScreen() {
       <ConnectionRequests requests={me.connection_requests} />
       {/* An organizer sees this screen too, and is kept out of allocation. */}
       {me.user.role === "participant" ? <GroupCard /> : null}
+      {/* Only someone in a group, while a phrase is set, has one to complete (BAC-169). */}
+      {me.phrase ? <PhraseCard phrase={me.phrase} /> : null}
       {/* The dashboard leads with the avatar (FRO-105). */}
       <AvatarHero me={me} changes={changes} />
 

@@ -87,6 +87,8 @@ const connectionSchema = z.object({
     null,
   ),
   reaction: z.prefault(z.nullable(reactionSchema), null),
+  // BAC-169, draft for the agreement's next version. Missing with no phrase to see.
+  word: z.optional(z.nullable(z.object({ text: z.string(), already_had: z.boolean() }))),
   shared: z.nullable(z.array(z.string())),
   shared_at: isoTimestamp,
 });
@@ -245,6 +247,16 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   recent_taps: z.array(meTapSchema),
   connection_requests: z.prefault(z.array(connectionRequestSchema), []),
   connections: z.array(connectionSchema),
+  // BAC-169, draft for the agreement's next version. Missing with no phrase to see.
+  phrase: z.optional(
+    z
+      .object({
+        words: z.array(z.nullable(z.string())).check(z.minLength(2)),
+        your_word: z.int().check(z.nonnegative()),
+      })
+      // Their own word is always one they have, which the card names.
+      .check(z.refine(({ words, your_word }) => typeof words[your_word] === "string")),
+  ),
 });
 
 /** Accepting a connection request's answer (BAC-149, draft for the agreement's next version). */
@@ -334,6 +346,10 @@ export const groupBoardResponseSchema: z.ZodMiniType<GroupBoardResponse> = z.obj
   allocation_started_at: z.nullable(isoTimestamp),
   connect_across: connectAcrossSchema,
   challenge: z.optional(challengeSchema),
+  // BAC-169, draft for the agreement's next version; an older Event Service leaves it out.
+  phrase: z.optional(
+    z.nullable(z.object({ text: z.string(), completed_count: z.int().check(z.nonnegative()) })),
+  ),
   joined_count: z.int(),
   groups: z.array(eventGroupSchema),
   waiting: z.array(

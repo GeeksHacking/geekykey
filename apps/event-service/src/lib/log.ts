@@ -52,6 +52,8 @@ const LOG_LINES = {
   // An organizer chose which challenge a new connection plays, random, dice or reaction
   // (BAC-161): who, and which.
   connection_challenge_changed: "INFO",
+  // An organizer set or emptied the phrase (BAC-169): who, and how many words, 0 for none.
+  phrase_changed: "INFO",
   // Someone accepted a connection request (8.10): who, who sent it, and the status, so with
   // meeting_handled the connections can be rebuilt after a restore, and counted.
   connection_request_accepted: "INFO",

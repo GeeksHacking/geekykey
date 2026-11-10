@@ -76,9 +76,43 @@ export interface Connection {
   dice?: { your_roll: number; their_roll: number; result: "win" | "loss" } | null;
   /** BAC-156, for the next agreement version, section 8.1. Missing or null unless the pair got the reaction test. */
   reaction?: Reaction | null;
+  /**
+   * The word of the phrase this connection gave, and whether the user had it before, or null
+   * when the other person holds none (BAC-169, draft for the agreement's next version). Missing
+   * with no phrase to see.
+   */
+  word?: ConnectionWord | null;
   /** IDs of the questions both answered the same. Null until `shared_at`, then maybe empty. */
   shared: string[] | null;
   shared_at: string;
+}
+
+/** The word of the phrase a connection gave (BAC-169, draft for the agreement's next version). */
+export interface ConnectionWord {
+  text: string;
+  /** True when it was the user's own word, or an earlier connection gave the same one. */
+  already_had: boolean;
+}
+
+/**
+ * The phrase as one participant sees it (BAC-169, draft for the agreement's next version): every
+ * word in order, null for one they don't have yet, and which is their own, counted from 0. With
+ * no null left, they have completed it.
+ */
+export interface MyPhrase {
+  words: (string | null)[];
+  your_word: number;
+}
+
+/** PUT /api/v1/admin/groups/phrase's request (BAC-169): the phrase, or null for none. */
+export interface SetPhraseRequest {
+  phrase: string | null;
+}
+
+/** The organizers' phrase, with how many participants in a group have every word (BAC-169). */
+export interface BoardPhrase {
+  text: string;
+  completed_count: number;
 }
 
 /**
@@ -207,6 +241,11 @@ export interface MeResponse {
   connection_requests: ConnectionRequest[];
   /** The user's connections, newest first. Empty without a connections game. */
   connections: Connection[];
+  /**
+   * Only for a participant placed in a group while a phrase is set (BAC-169, draft for the
+   * agreement's next version). Missing for anyone else.
+   */
+  phrase?: MyPhrase;
 }
 
 export interface EventStationPassport {
@@ -485,6 +524,11 @@ export interface GroupBoardResponse {
    * Service from before it leaves it out, and the screen then doesn't offer the choice.
    */
   challenge?: Challenge;
+  /**
+   * The phrase participants complete, or null for none (BAC-169). An Event Service from before
+   * it leaves it out, and the screen then doesn't offer it.
+   */
+  phrase?: BoardPhrase | null;
   joined_count: number;
   groups: EventGroup[];
   waiting: GroupWaitingMember[];
