@@ -20,11 +20,13 @@ import {
   placeMember,
   removeMember,
   resetAllocation,
+  setPhrase,
   type Shuffle,
   shuffleAtRandom,
   splitIntoGroups,
 } from "./groups.ts";
 import { optionalOrganizerText, organizerText } from "./organizer-text.ts";
+import { phraseSchema } from "./phrase.ts";
 import {
   requireRole,
   requireSession,
@@ -81,6 +83,11 @@ function groupBoardBody(board: Awaited<ReturnType<typeof loadGroupBoard>>) {
     connect_across: board.connectAcross,
     // The Groups screen's choice of challenge (BAC-161, draft for the API agreement's next version).
     challenge: board.challenge,
+    // The phrase and how many have completed it, or null for none (BAC-169, draft for the next version).
+    phrase: board.phrase && {
+      text: board.phrase.text,
+      completed_count: board.phrase.completedCount,
+    },
     joined_count: board.joinedCount,
     groups: board.groups.map(eventGroupBody),
     waiting: board.waiting.map((member) => ({
@@ -160,6 +167,12 @@ const splitSchema = z
     { message: "send exactly one of people_per_group and group_count" },
   );
 
+/**
+ * The Groups screen's phrase (BAC-169, draft for the API agreement's next version): 2 to 12 words
+ * of at most 20 characters each, or null or blank text for none.
+ */
+const setPhraseSchema = z.object({ phrase: phraseSchema });
+
 /** Where an organizer puts someone: a group by its ID, or waiting with null. */
 const placeMemberSchema = z.object({ group_id: z.string().nullable() });
 
@@ -193,6 +206,16 @@ export function adminGroupRoutes({
     if (group === "name_taken") return c.json({ error: "name_taken" }, 409);
     log("group_created", { user_id: c.var.user.id, group_id: group.id });
     return c.json(eventGroupBody(group), 201);
+  });
+
+  // Before /:id, which would take "phrase" for a group's ID.
+  app.put("/phrase", jsonBody(setPhraseSchema), async (c) => {
+    const { db, user } = c.var;
+    const words = c.req.valid("json").phrase;
+    await setPhrase(db, words, organizers);
+    // The word count, not the words, which participants are there to find out.
+    log("phrase_changed", { user_id: user.id, word_count: words?.length ?? 0 });
+    return c.json(groupBoardBody(await loadBoard(db)));
   });
 
   app.put("/:id", jsonBody(groupFieldsSchema), async (c) => {

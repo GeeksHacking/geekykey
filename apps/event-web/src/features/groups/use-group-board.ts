@@ -35,7 +35,8 @@ type GroupBoardChange =
   | { type: "place"; userIds: string[]; groupId: string }
   | { type: "remove"; userId: string }
   | { type: "rule"; connectAcross: ConnectAcross }
-  | { type: "challenge"; challenge: Challenge };
+  | { type: "challenge"; challenge: Challenge }
+  | { type: "phrase"; phrase: string | null };
 
 /** Someone who wasn't placed, and what the service or the connection said. */
 type FailedPlacement = { userId: string; error: unknown };
@@ -111,6 +112,8 @@ async function sendChange(
     case "challenge":
       await api.setConnectionChallenge({ challenge: change.challenge });
       return null;
+    case "phrase":
+      return api.setPhrase({ phrase: change.phrase });
   }
 }
 

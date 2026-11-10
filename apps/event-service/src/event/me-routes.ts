@@ -12,6 +12,7 @@ import {
   type SessionUser,
 } from "./session-auth.ts";
 import { participantIsReady } from "./participant-setup.ts";
+import { loadMyPhrase, type MyPhrase } from "./phrase.ts";
 import { loadMe } from "./me.ts";
 import { bioSchema, contactLineSchema, setProfile } from "./profiles.ts";
 import type { AppEnv } from "../app.ts";
@@ -38,9 +39,17 @@ const reactionPlaySchema = z.union([
 /** Ends PATCH /api/v1/me's transaction, so a refused name undoes the answers saved before it. */
 class NameTaken extends Error {}
 
-/** One of the user's connections, as /me lists it (8.1). */
-function connectionBody(connection: Connection) {
+/**
+ * One of the user's connections, as /me lists it (8.1). With a phrase to see, it has the word
+ * the connection gave, and whether they had it already, or null when the other person holds
+ * none (BAC-169, draft for the next version). With none, it has no `word` at all.
+ */
+function connectionBody(connection: Connection, phrase: MyPhrase | null) {
+  const word = phrase?.byConnection.get(connection.id);
   return {
+    ...(phrase && {
+      word: word ? { text: word.text, already_had: word.alreadyHad } : null,
+    }),
     id: connection.id,
     connected_at: connection.connectedAt,
     display_name: connection.displayName,
@@ -137,6 +146,7 @@ export function meRoutes({
       connectionsGame ? connectionsGame.connectionsOf(c.var.db, user.id, now()) : [],
       connectionsGame ? connectionsGame.requestsFor(c.var.db, user.id) : [],
     ]);
+    const phrase = await loadMyPhrase(c.var.db, user.id, session.organizers, connections);
     return c.json({
       user: userBody(user, answers),
       questions: game ? game.questions : null,
@@ -169,7 +179,10 @@ export function meRoutes({
               booth: me.nextStop.booth,
             },
       connection_requests: requests.map(connectionRequestBody),
-      connections: connections.map(connectionBody),
+      connections: connections.map((connection) => connectionBody(connection, phrase)),
+      // Only for a participant in a group while a phrase is set (BAC-169, draft for the next
+      // version). Anyone else's answer is as it was before the phrase.
+      ...(phrase && { phrase: { words: phrase.words, your_word: phrase.yourWord } }),
     });
   });
 

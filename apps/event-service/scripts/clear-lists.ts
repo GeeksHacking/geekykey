@@ -6,6 +6,7 @@ import {
   groupMembers,
   participantGroups,
   passportStations,
+  phraseWords,
   stations,
   taps,
   usedLoginLinks,
@@ -35,6 +36,8 @@ export const clearedTables: readonly MySqlTable[] = [
   // Who has joined and where they went, and whether allocation has started.
   groupMembers,
   groupAllocation,
+  // The word of the phrase each participant holds (BAC-169). The phrase stays, in event_settings.
+  phraseWords,
   // So a name from a trial is free at the next event (BAC-124, BAC-145). Everyone logs in afresh.
   users,
 ];
@@ -50,6 +53,7 @@ export const keptTables: readonly MySqlTable[] = [
   usedLoginLinks,
   // The event's groups, with its other settings. Their members are cleared.
   participantGroups,
-  // The connection rule and the challenge, which organizers set with the groups (BAC-140, BAC-161).
+  // The connection rule, the challenge and the phrase, which organizers set with the groups
+  // (BAC-140, BAC-161, BAC-169).
   eventSettings,
 ];

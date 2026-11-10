@@ -10,10 +10,12 @@ import { afterAll, beforeAll, onTestFinished, test } from "vitest";
 import {
   loadChallenge,
   loadConnectAcross,
+  loadPhrase,
   setChallenge,
   setConnectAcross,
 } from "../src/event/event-settings.ts";
-import { users } from "../src/event/schema.ts";
+import { createGroup, placeMember, setPhrase } from "../src/event/groups.ts";
+import { phraseWords, users } from "../src/event/schema.ts";
 import { screensSchemas, TEST_FIREBASE_PROJECT_ID, testApp, testDb } from "../src/test-helpers.ts";
 import { fillEveryTable } from "../test-support/fill-every-table.ts";
 import { clearedTables, keptTables } from "./clear-lists.ts";
@@ -93,6 +95,27 @@ test("the clear keeps the connection rule and the challenge organizers chose", a
 
   assert.equal(await loadConnectAcross(testDb()), "groups");
   assert.equal(await loadChallenge(testDb()), "dice");
+});
+
+test("the clear keeps the phrase and empties the words dealt from it", async () => {
+  const db = testDb();
+  const at = new Date("2026-11-12T12:00:00.000Z");
+  await db.insert(users).values({ id: "ann", displayName: "Ann" });
+  const group = await createGroup(
+    db,
+    { name: "Red", tags: [], location: null, capacity: null },
+    at,
+  );
+  assert.notEqual(group, "name_taken");
+  await placeMember(db, "ann", (group as { id: string }).id, at, new Set());
+  await setPhrase(db, ["Strangers", "become", "friends"], new Set());
+  assert.equal((await db.select().from(phraseWords)).length, 1);
+
+  const { outcome } = await clear();
+  assert.equal(await outcome, "cleared");
+
+  assert.deepEqual(await loadPhrase(testDb()), ["Strangers", "become", "friends"]);
+  assert.deepEqual(await testDb().select().from(phraseWords), []);
 });
 
 test("a wrong database name changes nothing", async () => {

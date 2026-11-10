@@ -14,6 +14,7 @@ import { ConnectionRuleSwitch } from "@/features/groups/connection-rule-switch";
 import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
+import { PhraseSetting } from "@/features/groups/phrase-setting";
 import { MakeGroupsDialog } from "@/features/groups/make-groups-dialog";
 import { useDragAutoScroll } from "@/features/groups/member-drag";
 import { ResetGroupsDialog } from "@/features/groups/reset-groups-dialog";
@@ -84,6 +85,15 @@ export function GroupsScreen() {
         <ConnectionRuleSwitch value={data.connect_across} />
         {/* An Event Service from before BAC-161 has no challenge to choose. */}
         {data.challenge ? <ConnectionChallengeSwitch value={data.challenge} /> : null}
+        {/* An Event Service from before BAC-169 has no phrase to set. */}
+        {data.phrase !== undefined ? (
+          <PhraseSetting
+            phrase={data.phrase}
+            placedCount={data.groups.reduce((sum, group) => sum + group.members.length, 0)}
+            groupsWithPeople={data.groups.filter((group) => group.members.length > 0).length}
+            connectAcross={data.connect_across}
+          />
+        ) : null}
         <ExportGroupsButton />
       </div>
     );

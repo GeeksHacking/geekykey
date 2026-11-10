@@ -1,8 +1,9 @@
 import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import type { ConnectionsGame } from "./connections.ts";
-import { loadChallenge, loadConnectAcross } from "./event-settings.ts";
+import { loadChallenge, loadConnectAcross, loadPhrase, savePhrase } from "./event-settings.ts";
 import type { Tx } from "./games.ts";
+import { countCompleted, dealWords, loadDealtWords, takeWordsBack } from "./phrase.ts";
 import { groupAllocation, groupMembers, participantGroups, users } from "./schema.ts";
 
 /*
@@ -145,8 +146,8 @@ export async function deleteGroup(db: Db, id: string): Promise<"not_found" | nul
 /**
  * Joins the user. Before allocation has started, they wait. After it has, they
  * are a latecomer, placed at once by the spec's "Placement rules" without the
- * shuffle, or left waiting when there's no group. Someone who has already
- * joined keeps their place. The allocation lock makes many joins at once take
+ * shuffle, or left waiting when there's no group, and given a word of the phrase
+ * if one is set (BAC-169). Someone who has already joined keeps their place. The allocation lock makes many joins at once take
  * turns, so each sees the sizes the one before left.
  */
 export async function joinGroups(
@@ -176,6 +177,7 @@ export async function joinGroups(
           ? { userId, joinedAt, groupId: place.id, placedAt: joinedAt, how: "latecomer" }
           : { userId, joinedAt },
       );
+    if (place) await dealWords(tx, organizers);
   });
 }
 
@@ -227,6 +229,8 @@ export async function placeMember(
     } else {
       await tx.insert(groupMembers).values({ userId, joinedAt: at, ...place });
     }
+    // Their first group gives them a word of the phrase, which they keep in any other (BAC-169).
+    if (groupId !== null) await dealWords(tx, organizers);
     return null;
   });
 }
@@ -253,12 +257,14 @@ export async function removeMember(db: Db, userId: string): Promise<"not_found" 
 /**
  * Readies the groups for another timed trial (the spec's user story 37): everyone leaves their
  * group and the waiting list, so each has to join again, and allocation goes back to not
- * started. The groups stay as they are.
+ * started. The groups stay as they are. Every word of the phrase is taken back, so it is dealt
+ * again as people are placed (BAC-169).
  */
 export async function resetAllocation(db: Db): Promise<void> {
   await db.transaction(async (tx) => {
     await lockAllocation(tx);
     await tx.delete(groupMembers);
+    await takeWordsBack(tx);
     await tx
       .update(groupAllocation)
       .set({ startedAt: null })
@@ -336,7 +342,29 @@ async function placeWaiting(
       .set({ startedAt: placedAt })
       .where(eq(groupAllocation.id, ALLOCATION_ROW));
   }
+  await dealWords(tx, organizers);
   return null;
+}
+
+/**
+ * Sets the phrase to `words`, or turns the activity off with null (BAC-169). A phrase that
+ * differs from the one set takes every word back and deals them again to everyone placed, and
+ * the same phrase again changes nothing. It takes the allocation lock, so a placement at the
+ * same moment deals from one phrase or the other, never both.
+ */
+export async function setPhrase(
+  db: Db,
+  words: readonly string[] | null,
+  organizers: Organizers,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await lockAllocation(tx);
+    const before = await loadPhrase(tx, { lock: true });
+    if (before?.join(" ") === words?.join(" ")) return;
+    await savePhrase(tx, words);
+    await takeWordsBack(tx);
+    await dealWords(tx, organizers);
+  });
 }
 
 /** Allocate's refusal when `joined` is fewer than 2 for each of `groupCount` groups. */
@@ -547,47 +575,60 @@ function groupByUser(members: readonly { userId: string; groupId: string | null 
 
 /**
  * Everything the organizers' Groups screen shows, groups oldest first. Each group's
- * `reachedGroupIds` are the other groups it has reached, in the board's order (BAC-167).
+ * `reachedGroupIds` are the other groups it has reached, in the board's order (BAC-167). The
+ * phrase comes with how many participants in a group have every word, or is null when none is
+ * set (BAC-169).
  */
 export async function loadGroupBoard(
   db: Db,
   organizers: Organizers,
   connections: ConnectionsGame | null,
 ) {
-  const [startedAt, connectAcross, challenge, pairs, groups, members] = await Promise.all([
-    allocationStartedAt(db),
-    loadConnectAcross(db),
-    loadChallenge(db),
-    pairsOrNone(db, connections),
-    db
-      .select({
-        id: participantGroups.id,
-        name: participantGroups.name,
-        tags: participantGroups.tags,
-        location: participantGroups.location,
-        capacity: participantGroups.capacity,
-      })
-      .from(participantGroups)
-      .orderBy(asc(participantGroups.createdAt), asc(participantGroups.id)),
-    db
-      .select({
-        userId: groupMembers.userId,
-        displayName: users.displayName,
-        groupId: groupMembers.groupId,
-        joinedAt: groupMembers.joinedAt,
-        placedAt: groupMembers.placedAt,
-        how: groupMembers.how,
-      })
-      .from(groupMembers)
-      .innerJoin(users, eq(users.id, groupMembers.userId))
-      .where(participantsOnly(organizers))
-      .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId)),
-  ]);
+  const [startedAt, connectAcross, challenge, words, dealt, pairs, groups, members] =
+    await Promise.all([
+      allocationStartedAt(db),
+      loadConnectAcross(db),
+      loadChallenge(db),
+      loadPhrase(db),
+      loadDealtWords(db, organizers),
+      pairsOrNone(db, connections),
+      db
+        .select({
+          id: participantGroups.id,
+          name: participantGroups.name,
+          tags: participantGroups.tags,
+          location: participantGroups.location,
+          capacity: participantGroups.capacity,
+        })
+        .from(participantGroups)
+        .orderBy(asc(participantGroups.createdAt), asc(participantGroups.id)),
+      db
+        .select({
+          userId: groupMembers.userId,
+          displayName: users.displayName,
+          groupId: groupMembers.groupId,
+          joinedAt: groupMembers.joinedAt,
+          placedAt: groupMembers.placedAt,
+          how: groupMembers.how,
+        })
+        .from(groupMembers)
+        .innerJoin(users, eq(users.id, groupMembers.userId))
+        .where(participantsOnly(organizers))
+        .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId)),
+    ]);
   const reached = groupsReached(pairs, groupByUser(members));
+  // The participants in a group now who hold a word. `members` already leaves organizers out.
+  const holders = members.flatMap(({ userId, groupId }) =>
+    groupId !== null && dealt.has(userId) ? [userId] : [],
+  );
   return {
     startedAt,
     connectAcross,
     challenge,
+    phrase: words && {
+      text: words.join(" "),
+      completedCount: countCompleted(words.length, holders, dealt, pairs),
+    },
     joinedCount: members.length,
     groups: groups.map((group) => ({
       ...group,

@@ -8,6 +8,7 @@ import {
   type MockGroup,
   type MockStation,
   type MockTap,
+  type MockConnection,
   type MockConnectionRequest,
   type MockUser,
 } from "@/api/mock/fixtures";
@@ -24,6 +25,7 @@ import {
   CHALLENGES,
   CONNECT_ACROSS,
   type ConnectionChallenge,
+  type ConnectionWord,
   type ConnectionRule,
   type CreateGroupRequest,
   type SplitGroupsRequest,
@@ -44,6 +46,7 @@ import {
   type MeResponse,
   type MyGroupResponse,
   type UpdateGroupRequest,
+  type SetPhraseRequest,
   type SetStationPassportResponse,
   type StationResponse,
   type StatsResponse,
@@ -63,6 +66,7 @@ import {
   splitGroupCount,
   GROUP_COUNT_MIN,
 } from "@/lib/group-fields";
+import { phraseProblem, phraseWords } from "@/lib/phrase";
 import { BIO_MAX, CONTACT_LINE_MAX, fitsLimit } from "@/lib/profile";
 
 /**
@@ -379,11 +383,74 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     };
   }
 
+  /** The participants in a group now, by user ID with their group's. */
+  function placedMembers() {
+    return data.groupMembers.flatMap(({ user_id, group_id }) =>
+      group_id ? [{ user_id, group_id }] : [],
+    );
+  }
+
+  /**
+   * Gives a word to everyone in a group who has none (BAC-169), roughly as the Event Service
+   * does: the word their group has fewest of, never the last one a group is missing while
+   * there's another group, and on a tie the word fewest hold across the event.
+   */
+  function dealWords() {
+    const words = data.phrase;
+    if (!words) return;
+    const placed = placedMembers();
+    const holders = (place: number, groupId?: string) =>
+      placed.filter(
+        (member) =>
+          data.phraseWords[member.user_id] === place &&
+          (groupId === undefined || member.group_id === groupId),
+      ).length;
+    for (const { user_id, group_id } of placed) {
+      if (data.phraseWords[user_id] !== undefined) continue;
+      const places = words.map((_, place) => place);
+      const held = places.filter((place) => holders(place, group_id) > 0);
+      const oneShort = data.groups.length > 1 && held.length === places.length - 1;
+      data.phraseWords[user_id] = (oneShort ? held : places).reduce((best, place) => {
+        const [mine, bests] = [holders(place, group_id), holders(best, group_id)];
+        return mine < bests || (mine === bests && holders(place) < holders(best)) ? place : best;
+      });
+    }
+  }
+
+  /**
+   * The phrase as `user` sees it, with the word each of their connections gave, oldest first, or
+   * null when they see none: no phrase is set, or they aren't in a group (BAC-169).
+   */
+  function phraseFor(user: MockUser) {
+    const words = data.phrase;
+    const yourWord = data.phraseWords[user.id];
+    const placed = placedMembers().some((member) => member.user_id === user.id);
+    if (!words || !placed || yourWord === undefined) return null;
+    const have = new Set([yourWord]);
+    const given = new Map<MockConnection, ConnectionWord | null>();
+    for (const connection of (user.connections ?? []).toReversed()) {
+      if (connection.gives_word === undefined) {
+        given.set(connection, null);
+        continue;
+      }
+      const place = connection.gives_word % words.length;
+      given.set(connection, { text: words[place]!, already_had: have.has(place) });
+      have.add(place);
+    }
+    return { words, yourWord, have, given };
+  }
+
   function toGroupBoard(): GroupBoardResponse {
     return {
       allocation_started_at: data.groupAllocationStartedAt,
       connect_across: data.connectAcross,
       challenge: data.challenge,
+      phrase: data.phrase && {
+        text: data.phrase.join(" "),
+        completed_count: data.users.filter(
+          (user) => phraseFor(user)?.have.size === data.phrase?.length,
+        ).length,
+      },
       joined_count: data.groupMembers.length,
       groups: data.groups.map(toEventGroup),
       waiting: data.groupMembers
@@ -476,6 +543,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       member.how = "allocated";
     }
     data.groupAllocationStartedAt ??= placedAt;
+    dealWords();
   }
 
   /**
@@ -604,9 +672,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             earned_at: first?.received_at ?? null,
           };
         });
+        // With no phrase to see, /me has no `phrase` and no connection has a `word` (BAC-169).
+        const phrase = phraseFor(user);
         const connections = (user.connections ?? []).map(
-          ({ their_ms, ...connection }): Connection => ({
+          ({ their_ms, gives_word: _gives, ...connection }, index): Connection => ({
             ...connection,
+            ...(phrase && { word: phrase.given.get(user.connections![index]!) ?? null }),
             id: connection.id ?? null,
             dice: connection.dice ?? null,
             reaction: connection.reaction ? reactionNow(connection.reaction, their_ms) : null,
@@ -642,6 +713,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             ({ id, display_name, bio, requested_at }) => ({ id, display_name, bio, requested_at }),
           ),
           connections,
+          ...(phrase && {
+            phrase: {
+              words: phrase.words.map((word, place) => (phrase.have.has(place) ? word : null)),
+              your_word: phrase.yourWord,
+            },
+          }),
         };
       }, false),
 
@@ -659,8 +736,12 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           const yourRoll = Math.floor(Math.random() * 6) + 1;
           const theirRoll = Math.floor(Math.random() * 6) + 1;
           const reaction = request.accept_game === "reaction";
+          // The first word they don't have yet, so accepting moves the phrase on (BAC-169).
+          const phrase = phraseFor(user);
+          const missing = phrase?.words.findIndex((_, place) => !phrase.have.has(place)) ?? -1;
           user.connections = [
             {
+              gives_word: Math.max(missing, 0),
               id: `c_${at.toString(36)}`,
               connected_at: new Date(at).toISOString(),
               display_name: request.display_name,
@@ -1108,6 +1189,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             placed_at: place ? joinedAt : null,
             how: place ? "latecomer" : null,
           });
+          dealWords();
         }
         return toMyGroup(user.id);
       }),
@@ -1173,6 +1255,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           member.placed_at = groupId === null ? null : at;
           member.how = groupId === null ? null : "organizer";
         }
+        dealWords();
         return toGroupBoard();
       }),
 
@@ -1244,6 +1327,23 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return { challenge: data.challenge };
       }),
 
+    // BAC-169, draft for the agreement's next version. A phrase that differs from the one set
+    // deals every word again, and the same one changes nothing.
+    setPhrase: (input: SetPhraseRequest) =>
+      call(() => {
+        currentOrganizer();
+        const words = phraseWords(input.phrase ?? "");
+        const problem = phraseProblem(words);
+        if (problem) fail("validation_failed", [{ path: ["phrase"], message: problem }]);
+        const next = words.length === 0 ? null : words;
+        if (next?.join(" ") !== data.phrase?.join(" ")) {
+          data.phrase = next;
+          data.phraseWords = {};
+          dealWords();
+        }
+        return toGroupBoard();
+      }),
+
     // Everyone has to join again and allocation hasn't started, as before the first trial. The
     // groups stay.
     resetGroups: () =>
@@ -1251,6 +1351,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         currentOrganizer();
         data.groupMembers = [];
         data.groupAllocationStartedAt = null;
+        // Every word is taken back, and dealt again as people are placed (BAC-169).
+        data.phraseWords = {};
         return toGroupBoard();
       }),
 

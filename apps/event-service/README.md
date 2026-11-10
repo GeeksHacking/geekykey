@@ -78,11 +78,11 @@ checks the rule.
 One TiDB database holds both areas' tables. Each area keeps its tables in its own `schema.ts`, and
 no foreign key crosses between them. Drizzle writes one set of migrations from all of them.
 
-| Area                              | Tables                                                                                                                                                          |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/event/schema.ts`             | `users`, `user_kinds`, `stations`, `passport_stations`, `taps`, `used_login_links`, `participant_groups`, `group_members`, `group_allocation`, `event_settings` |
-| `src/games/connections/schema.ts` | `answers`, `meeting_halves`, `connections`                                                                                                                      |
-| `src/claims-stand-in/schema.ts`   | `tokens`, `token_kinds`                                                                                                                                         |
+| Area                              | Tables                                                                                                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/event/schema.ts`             | `users`, `user_kinds`, `stations`, `passport_stations`, `taps`, `used_login_links`, `participant_groups`, `group_members`, `group_allocation`, `event_settings`, `phrase_words` |
+| `src/games/connections/schema.ts` | `answers`, `meeting_halves`, `connections`                                                                                                                                      |
+| `src/claims-stand-in/schema.ts`   | `tokens`, `token_kinds`                                                                                                                                                         |
 
 Locally, TiDB runs in Docker from the root `compose.yaml`, at the version GeeksHacking's cluster
 runs. It holds `geekykey_dev` for the dev server and the seed, and `geekykey_test` for the tests,

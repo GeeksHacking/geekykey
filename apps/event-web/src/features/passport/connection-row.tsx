@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ConnectionDice } from "@/features/passport/connection-dice";
 import { ConnectionPerson } from "@/features/passport/connection-person";
 import { ConnectionReaction } from "@/features/passport/connection-reaction";
+import { ConnectionWordLine } from "@/features/passport/connection-word-line";
 import { ReactionTest } from "@/features/passport/reaction/reaction-test";
 import { formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ export function ConnectionRow({ connection, me, showDice, canPlay }: ConnectionR
       ) : (
         <ConnectionReaction reaction={connection.reaction} layout="line" className="mt-2" />
       )}
+      <ConnectionWordLine word={connection.word} className="mt-2" />
       <div className="mt-1 flex min-h-8 items-center justify-between gap-3">
         <time
           dateTime={connection.connected_at}

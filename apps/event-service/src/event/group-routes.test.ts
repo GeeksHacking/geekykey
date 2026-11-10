@@ -281,6 +281,7 @@ test("a new group is on the board by its name, with nobody in it", async () => {
     challenge: "random",
     joined_count: 0,
     groups: [group],
+    phrase: null,
     waiting: [],
   });
 });
@@ -1402,6 +1403,7 @@ test("reset after Allocate keeps the groups, and nobody has joined", async () =>
       { ...first, members: [] },
       { ...second, members: [] },
     ],
+    phrase: null,
     waiting: [],
   });
   assert.deepEqual(await board(), after);

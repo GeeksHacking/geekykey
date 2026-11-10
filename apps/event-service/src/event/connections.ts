@@ -77,10 +77,15 @@ export type ReactionPlayResult =
   | { status: "not_found" | "already_played" | "too_late" }
   | { status: "played"; reaction: Reaction };
 
-/** One of a user's connections, as /me lists it, with no user ID and no answers of the other person's. */
+/** One of a user's connections, as /me lists it, with none of the other person's answers. */
 export interface Connection {
   /** The connection's own ID, the same for both people, for a play (8.11). */
   id: string;
+  /**
+   * The other person's user ID, which no answer gives. It's for the base to look up what else it
+   * keeps about them, such as their word of the phrase (BAC-169).
+   */
+  withUserId: string;
   connectedAt: string;
   /**
    * The other person's current name, so unlike the rest it can change after the connection.

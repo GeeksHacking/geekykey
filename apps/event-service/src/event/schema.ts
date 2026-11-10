@@ -244,7 +244,7 @@ export const CHALLENGES = ["random", "dice", "reaction"] as const;
 /**
  * The event's settings that organizers change on the day, one row, made by
  * the first change. With no row, as in a new event's database, it connects
- * across token kinds and picks each challenge at random. The event's settings,
+ * across token kinds, picks each challenge at random and has no phrase. The event's settings,
  * which the evening-before clear keeps, as it keeps the groups.
  */
 export const eventSettings = mysqlTable("event_settings", {
@@ -256,6 +256,22 @@ export const eventSettings = mysqlTable("event_settings", {
    * of the service from before it, which writes only `connect_across`, picks at random.
    */
   challenge: mysqlEnum("challenge", CHALLENGES).notNull().default("random"),
+  /**
+   * The phrase participants complete (BAC-169), its words one space apart, or null while the
+   * activity is off, as in a new event. phrase.ts sets its limits, which fit this column.
+   */
+  phrase: varchar("phrase", { length: 255 }),
+});
+
+/**
+ * The word of the phrase each placed participant holds (BAC-169), one row each, by the word's
+ * place in the phrase, from 0. The words a participant has collected aren't kept: they follow
+ * from these rows and the connections. The event's own data, which the evening-before clear
+ * empties, while the phrase itself stays in event_settings.
+ */
+export const phraseWords = mysqlTable("phrase_words", {
+  userId: userId("user_id").primaryKey(),
+  position: int("position").notNull(),
 });
 
 export type User = typeof users.$inferSelect;
