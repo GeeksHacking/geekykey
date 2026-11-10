@@ -2484,3 +2484,10 @@
     gives, so a guest who wins the dice or the reaction test finishes the outfit sooner. A tie
     counts as a win for both, older connections still give one piece, and the reveal says what
     the win earned.
+
+- id: csv-download-error-inline
+  date: 2026-11-10
+  area: frontend
+  change: >-
+    A failed CSV download on the Summary or Groups screen now says why under the Download CSV
+    button and keeps the message until the next press, instead of a toast that disappeared.
