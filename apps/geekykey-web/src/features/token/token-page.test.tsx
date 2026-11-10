@@ -360,7 +360,10 @@ describe("TokenPage", () => {
       same_kind: "You're in the same group. Find someone from another group.",
       // Connecting across groups (BAC-140, approved for the agreement's next version).
       same_group: "You're in the same group. Find someone from another group.",
-      no_group: "You both need to be in a group to connect. Ask an organiser.",
+      // Section 13 (FRO-146): the event's button joins the participant, so the tapper is told
+      // to open the event. The dashboard keeps its own sentence, since it answers a request.
+      no_group:
+        "You both need to be in a group to connect. Open the event to join a group, then tap again.",
       unavailable: "Couldn't connect. Tap their token again.",
     };
     const STATUSES = Object.keys(SENTENCES) as MeetingStatus[];
@@ -389,8 +392,8 @@ describe("TokenPage", () => {
       expect(screen.getByText("This token belongs to someone else.")).toBeInTheDocument();
     });
 
-    it.each(["answers_needed", "waiting", "connected", "already_connected"] as const)(
-      "offers the event's button on %s, so the guest reaches the dashboard and the reveal",
+    it.each(["answers_needed", "waiting", "connected", "already_connected", "no_group"] as const)(
+      "offers the event's button on %s, so the dashboard can take it from there",
       async (status) => {
         // Section 13: the button opens the event's screens through a login link (8.6).
         api.mock.setSession(SEEDED_PARTICIPANT_ID);
@@ -403,7 +406,23 @@ describe("TokenPage", () => {
       },
     );
 
-    it.each(["same_kind", "same_group", "no_group", "unavailable"] as const)(
+    it("opens the event through a login link on no_group, so the tapper can join", async () => {
+      // Section 13: the button opens the event's screens through a login link (8.6), which
+      // joins the participant on arrival and places a latecomer (FRO-118, FRO-146).
+      const create = vi.spyOn(api, "createLoginLink");
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      api.mock.setMeetingStatus("no_group");
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      await userEvent.click(await screen.findByRole("button", { name: "Open Capstone Showcase" }));
+
+      await waitFor(() => expect(create).toHaveBeenCalledWith("showcase", OWNED_BY_SOMEONE_ELSE));
+      await waitFor(() =>
+        expect(location.assign).toHaveBeenCalledWith("http://localhost:5173/#login=mock"),
+      );
+    });
+
+    it.each(["same_kind", "same_group", "unavailable"] as const)(
       "offers no event button on %s, which has nothing to open yet",
       async (status) => {
         api.mock.setSession(SEEDED_PARTICIPANT_ID);

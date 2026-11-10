@@ -11,11 +11,10 @@ import { EventButtons } from "@/components/event-buttons";
 
 /*
   What came of the half a tap sent (agreement 8.8), under the sentence that says the token
-  belongs to someone else. Section 13 fixes the wording for every answer but `same_group` and
-  `no_group`, whose sentences are approved for the agreement's next version (BAC-140), and
-  `waiting`, whose new sentence is a draft for Ethan to approve (BAC-149), so the sentences are
-  here as the agreement writes them; a status added to the union fails the type check until it
-  has one.
+  belongs to someone else. Section 13 fixes the wording for every answer but `same_group`, whose
+  sentence is approved for the agreement's next version (BAC-140), and `waiting`, whose new
+  sentence is a draft for Ethan to approve (BAC-149), so the sentences are here as the agreement
+  writes them; a status added to the union fails the type check until it has one.
 */
 
 /** Section 13's words, one per status an Event Service can answer with (11.10). */
@@ -28,7 +27,9 @@ const SENTENCE: Record<MeetingStatus, string> = {
   same_kind: "You're in the same group. Find someone from another group.",
   // Approved for the agreement's next version (BAC-140).
   same_group: "You're in the same group. Find someone from another group.",
-  no_group: "You both need to be in a group to connect. Ask an organiser.",
+  // Section 13 (FRO-146): the event's button joins the participant.
+  no_group:
+    "You both need to be in a group to connect. Open the event to join a group, then tap again.",
   unavailable: "Couldn't connect. Tap their token again.",
 };
 
@@ -70,10 +71,10 @@ export function MeetingNotice({
 }
 
 /**
- * Section 13 gives the pair's own event button to `waiting`, `connected` and
- * `already_connected`, because that button opens the dashboard through a login link (8.6), and
- * the reveal comes there, at once or after the other person accepts. Every other answer has
- * nothing to open yet.
+ * Section 13 gives the pair's own event button to `waiting`, `connected`, `already_connected`,
+ * `answers_needed` and `no_group`, because that button opens the dashboard through a login link
+ * (8.6). There the reveal comes, setup is finished, or, on `no_group`, the participant joins and
+ * a latecomer is placed. Every other answer has nothing to open yet.
  */
 function MeetingLine({
   meeting,
@@ -88,7 +89,8 @@ function MeetingLine({
     meeting.status === "answers_needed" ||
     meeting.status === "waiting" ||
     meeting.status === "connected" ||
-    meeting.status === "already_connected";
+    meeting.status === "already_connected" ||
+    meeting.status === "no_group";
   const event = events.find((item) => item.id === meeting.event_id);
   const { icon: StatusIcon, className } = STATE[meeting.status];
 
