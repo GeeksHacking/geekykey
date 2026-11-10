@@ -21,6 +21,7 @@ vi.mock("@/features/passport/avatar/voxel-stage", () => ({ VoxelStage: () => nul
 
 const READY = "I'm ready";
 const WAIT = "Wait for green…";
+const PIECE = "Winning adds an extra piece to your avatar.";
 
 function SignedIn({ children }: { children: ReactNode }) {
   return useSession().status === "authenticated" ? children : <p>Loading</p>;
@@ -235,6 +236,22 @@ describe("the reaction test's result, in the reveal and the list (BAC-156)", () 
       expect(within(section).getByText(times)).toBeInTheDocument();
       expect(within(section).getByText(result)).toBeInTheDocument();
     }
+  });
+
+  it.each([
+    [{ your_play: "played", your_ms: 240 }, 287, true],
+    [{ your_play: "played", your_ms: 301 }, 287, false],
+    [{ your_play: "played", your_ms: 287 }, 287, true],
+    [{ your_play: "early" }, 287, false],
+    [{ your_play: "played", your_ms: 350 }, null, true],
+    [{ your_play: "early" }, null, false],
+  ] as const)("says whether a win adds a piece, %j against %j", async (kept, theirMs, says) => {
+    const reveal = await renderDashboard(setUp(reactionConnection(30, kept, theirMs)));
+    const list = screen.getByRole("list", { name: "Connections" });
+
+    if (says) expect(within(reveal).getByText(PIECE)).toBeInTheDocument();
+    else expect(within(reveal).queryByText(PIECE)).not.toBeInTheDocument();
+    expect(within(list).queryByText(PIECE)).not.toBeInTheDocument();
   });
 
   it("says who didn't play in time once the 2 minutes are up", async () => {

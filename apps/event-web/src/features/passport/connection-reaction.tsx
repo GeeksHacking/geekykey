@@ -5,6 +5,7 @@ import {
   theirLine,
   yourLine,
 } from "@/features/passport/reaction/reaction-wording";
+import { WinPiece } from "@/features/passport/win-piece";
 import { cn } from "@/lib/utils";
 
 interface ConnectionReactionProps {
@@ -44,6 +45,7 @@ export function ConnectionReaction({ reaction, layout, className }: ConnectionRe
         {theirLine(reaction.their_play, reaction.their_ms)}
       </p>
       <p className={layout === "line" ? "font-semibold" : "type-item"}>{resultLine(reaction)}</p>
+      <WinPiece result={reaction.result} layout={layout} />
     </div>
   );
 }
