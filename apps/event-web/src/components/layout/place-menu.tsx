@@ -29,7 +29,9 @@ export function PlaceMenu({ place, isOrganiser }: PlaceMenuProps) {
   const openMyTokens = useOpenMyTokens();
 
   return (
-    <DropdownMenu>
+    // My tokens gets its login link and its connection ready while the menu is open, so the
+    // click doesn't wait for them (FRO-162).
+    <DropdownMenu onOpenChange={(open) => (open ? openMyTokens.prepare() : openMyTokens.discard())}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -54,7 +56,7 @@ export function PlaceMenu({ place, isOrganiser }: PlaceMenuProps) {
               // A new tab or window keeps the plain address, where the usual login takes over.
               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault();
-              if (!openMyTokens.isPending) openMyTokens.mutate();
+              if (!openMyTokens.isPending) openMyTokens.open();
             }}
           >
             <Key aria-hidden />
