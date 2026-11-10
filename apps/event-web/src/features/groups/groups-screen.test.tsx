@@ -11,6 +11,7 @@ import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { GroupsScreen } from "@/features/groups/groups-screen";
+import { formatTimeWithSeconds } from "@/lib/format";
 import { createTestProviders } from "@/test/providers";
 
 /** The organizer's screen on the mock, with the fixtures' groups and waiting list unless cleared. */
@@ -221,6 +222,85 @@ describe("GroupsScreen", () => {
 
     await waitFor(() => expect(saved.name).toMatch(/^geekykey-groups-\d{8}-\d{4}\.csv$/));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  describe("each person's times and how they were placed (FRO-124)", () => {
+    /** A person's row, by the menu button that names them. */
+    function rowFor(list: string, name: string) {
+      return within(screen.getByRole("list", { name: list }))
+        .getByRole("button", { name: `Actions for ${name}` })
+        .closest("li")!;
+    }
+
+    /** The event name the board shows for a user ID. */
+    function nameOf(api: MockApiClient, userId: string) {
+      return api.mock.data.users.find(({ id }) => id === userId)!.display_name ?? "Guest";
+    }
+
+    it("shows a waiting person's join time to the second, and no placement", async () => {
+      const { api } = renderScreen();
+      await screen.findByRole("list", { name: "Waiting" });
+      const member = api.mock.data.groupMembers[0]!;
+
+      const row = rowFor("Waiting", "Wei Lin Chong");
+
+      expect(within(row).getByText(formatTimeWithSeconds(member.joined_at))).toHaveAttribute(
+        "datetime",
+        member.joined_at,
+      );
+      expect(row).not.toHaveTextContent("Placed");
+      expect(row).not.toHaveTextContent("Allocated");
+    });
+
+    it("shows a member's join time, placement time and how, after Allocate", async () => {
+      const { api, user } = renderScreen();
+      await user.click(await screen.findByRole("button", { name: "Allocate" }));
+      await waitFor(() => expect(namesIn("Members of Foyer mixer")).toHaveLength(3));
+      const foyer = api.mock.data.groups[0]!;
+      const member = api.mock.data.groupMembers.find(
+        ({ group_id, how }) => group_id === foyer.id && how === "allocated",
+      )!;
+
+      const row = rowFor("Members of Foyer mixer", nameOf(api, member.user_id));
+
+      expect(row).toHaveTextContent(`Joined ${formatTimeWithSeconds(member.joined_at)}`);
+      expect(row).toHaveTextContent(`Placed ${formatTimeWithSeconds(member.placed_at!)}`);
+      expect(row).toHaveTextContent("Allocated");
+    });
+
+    it("says a latecomer was placed as they joined", async () => {
+      const { api, poll } = renderScreen();
+      await screen.findByRole("list", { name: "Waiting" });
+      const group = api.mock.data.groups[0]!;
+      const at = new Date().toISOString();
+      api.mock.data.groupMembers.push({
+        user_id: "u_44c7",
+        group_id: group.id,
+        joined_at: at,
+        placed_at: at,
+        how: "latecomer",
+      });
+
+      await poll();
+      await waitFor(() => expect(namesIn(`Members of ${group.name}`)).toContain("Aisyah Rahman"));
+
+      const row = rowFor(`Members of ${group.name}`, "Aisyah Rahman");
+
+      expect(row).toHaveTextContent(`Placed ${formatTimeWithSeconds(at)}`);
+      expect(row).toHaveTextContent("Latecomer");
+    });
+
+    it("says an organiser moved someone by hand", async () => {
+      const { user } = renderScreen();
+      await user.click(await screen.findByRole("button", { name: "Allocate" }));
+      await waitFor(() => expect(namesIn("Members of Foyer mixer")).toHaveLength(3));
+      const [mover] = namesIn("Members of Foyer mixer");
+
+      await pick(user, mover!, "Move to Atrium mixer");
+      await waitFor(() => expect(namesIn("Members of Atrium mixer")).toContain(mover));
+
+      expect(rowFor("Members of Atrium mixer", mover!)).toHaveTextContent("Moved by an organiser");
+    });
   });
 
   it("says what to do with no groups, and offers one Make groups button and no Allocate", async () => {
