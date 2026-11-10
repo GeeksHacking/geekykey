@@ -69,6 +69,7 @@ apps/event-web/
                            # its split (split-groups-form.tsx), create and edit a group (group-form.tsx), delete one,
                            # Allocate, each group's members and who is waiting (waiting-list.tsx), each
                            # person's moves (member-row.tsx), dragging people between groups (member-drag.ts),
+                           # putting several ticked waiting people in a group (place-ticked.tsx),
                            # the CSV, and shared write coordination and board updates (use-group-board.ts)
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result

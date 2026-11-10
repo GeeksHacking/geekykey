@@ -1539,6 +1539,165 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+describe("Putting several waiting people in a group (FRO-130)", () => {
+  /** Ticks each person on the waiting list by their name. */
+  async function tick(user: ReturnType<typeof userEvent.setup>, ...names: string[]) {
+    const list = await screen.findByRole("list", { name: "Waiting" });
+    for (const name of names) await user.click(within(list).getByRole("checkbox", { name }));
+  }
+
+  /** Presses Move ticked and picks the group. */
+  async function putIn(user: ReturnType<typeof userEvent.setup>, group: string) {
+    await user.click(screen.getByRole("button", { name: "Move ticked" }));
+    await user.click(await screen.findByRole("menuitem", { name: `Move to ${group}` }));
+  }
+
+  it("puts everyone ticked in the group chosen, as an organiser's placement, and unticks them", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const others = namesIn("Waiting").filter(
+      (name) => name !== "Kenji Ong" && name !== "Hui Min Loh",
+    );
+    expect(screen.getByRole("button", { name: "Move ticked" })).toBeDisabled();
+
+    await tick(user, "Kenji Ong", "Hui Min Loh");
+    expect(screen.getByText("2 ticked")).toBeInTheDocument();
+    await putIn(user, "Atrium mixer");
+
+    await waitFor(() =>
+      expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong", "Hui Min Loh"]),
+    );
+    expect(namesIn("Waiting")).toEqual(others);
+    expect(api.mock.data.groupMembers.filter(({ how }) => how === "organizer")).toHaveLength(2);
+    for (const box of screen.getAllByRole("checkbox")) expect(box).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Move ticked" })).toBeDisabled();
+  });
+
+  it("passes a group's capacity, and the group shows Over capacity", async () => {
+    const { user } = renderScreen({
+      prepare: (client) => {
+        client.mock.data.groups[1]!.capacity = 1;
+      },
+    });
+
+    await tick(user, "Kenji Ong", "Hui Min Loh");
+    await putIn(user, "Atrium mixer");
+
+    const atrium = screen.getByRole("region", { name: "Atrium mixer" });
+    expect(await within(atrium).findByText("Over capacity")).toBeInTheDocument();
+    expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong", "Hui Min Loh"]);
+  });
+
+  it("names who wasn't placed with the reason, keeps them ticked, and places the rest", async () => {
+    const { api, user } = renderScreen();
+    await tick(user, "Kenji Ong", "Hui Min Loh");
+
+    api.mock.failNext("not_found");
+    await putIn(user, "Atrium mixer");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Not placed: Kenji Ong. That was not found. It may have been removed.",
+    );
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Hui Min Loh"]));
+    const list = screen.getByRole("list", { name: "Waiting" });
+    expect(within(list).getByRole("checkbox", { name: "Kenji Ong" })).toBeChecked();
+    expect(screen.getByText("1 ticked")).toBeInTheDocument();
+
+    await putIn(user, "Atrium mixer");
+
+    await waitFor(() =>
+      expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong", "Hui Min Loh"]),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("sends nobody else once the rate limit refuses one, and names everyone left", async () => {
+    const { api, user } = renderScreen();
+    await tick(user, "Kenji Ong", "Hui Min Loh");
+    const move = vi.spyOn(api, "placeGroupMember");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    api.mock.failNext("rate_limited");
+    await putIn(user, "Atrium mixer");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Not placed: Kenji Ong, Hui Min Loh. Too many requests. Wait a minute and try again.",
+    );
+    expect(move).toHaveBeenCalledOnce();
+    expect(screen.getByText("2 ticked")).toBeInTheDocument();
+  });
+
+  it("stops at a failure that would refuse everyone, and shows those already placed", async () => {
+    const { api, user } = renderScreen();
+    await tick(user, "Kenji Ong", "Hui Min Loh", "Darren Koh");
+    const place = api.placeGroupMember.bind(api);
+    const move = vi
+      .spyOn(api, "placeGroupMember")
+      .mockImplementationOnce(place)
+      .mockRejectedValueOnce(new ApiError(401, "unauthenticated"));
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await putIn(user, "Atrium mixer");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Not placed: Hui Min Loh, Darren Koh. You are signed out. Sign in again to continue.",
+    );
+    expect(move).toHaveBeenCalledTimes(2);
+    expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]);
+  });
+
+  it("unticks someone who leaves the waiting list, so they aren't ticked when they come back", async () => {
+    const { user } = renderScreen();
+    await tick(user, "Kenji Ong", "Hui Min Loh");
+
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]));
+    await pick(user, "Kenji Ong", "Send back to waiting");
+
+    const list = await screen.findByRole("list", { name: "Waiting" });
+    await waitFor(() =>
+      expect(within(list).getByRole("checkbox", { name: "Kenji Ong" })).not.toBeChecked(),
+    );
+    expect(within(list).getByRole("checkbox", { name: "Hui Min Loh" })).toBeChecked();
+    expect(screen.getByText("1 ticked")).toBeInTheDocument();
+  });
+
+  it("disables the tick boxes and the button while another group change saves", async () => {
+    const { api, user } = renderScreen();
+    await tick(user, "Kenji Ong");
+    const held = deferred<GroupBoardResponse>();
+    vi.spyOn(api, "allocateGroups").mockReturnValueOnce(held.promise);
+    const read = api.groupBoard.bind(api);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Allocate" }));
+
+    expect(screen.getByRole("button", { name: "Move ticked" })).toBeDisabled();
+    for (const box of screen.getAllByRole("checkbox")) expect(box).toBeDisabled();
+
+    await act(async () => held.resolve(await read()));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Move ticked" })).toBeEnabled());
+  });
+
+  it("says to make a group when there is none to put people in", async () => {
+    const { user } = renderScreen({
+      prepare: (client) => {
+        client.mock.data.groups = [];
+      },
+    });
+    await tick(user, "Kenji Ong");
+
+    expect(screen.getByText("Make a group to move people to.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Move ticked" })).toBeDisabled();
+  });
+});
+
 describe("Groups board coordination", () => {
   it("disables every other change while a move saves, keeps reads available, and queues nothing", async () => {
     const { api, user, poll } = renderScreen();

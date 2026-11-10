@@ -23,12 +23,15 @@ export function MemberRow({
   member,
   groupId,
   groups,
+  tick,
 }: {
   member: { user_id: string; display_name: string };
   /** Their group, or null while they wait. */
   groupId: string | null;
   /** Every group, oldest first, as the board lists them. */
   groups: { id: string; name: string }[];
+  /** On the waiting list, a tick box to place them along with others (FRO-130). */
+  tick?: { checked: boolean; onChange: (checked: boolean) => void };
 }) {
   const change = useGroupBoardChange();
   const { busy, error } = change;
@@ -53,7 +56,21 @@ export function MemberRow({
             className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
             aria-hidden
           />
-          <span className="min-w-0 break-words">{member.display_name}</span>
+          {tick ? (
+            // The name labels the box, so a press on either ticks it.
+            <label className="flex min-w-0 items-center gap-2 pointer-coarse:min-h-11">
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 accent-primary"
+                checked={tick.checked}
+                disabled={busy}
+                onChange={(event) => tick.onChange(event.target.checked)}
+              />
+              <span className="min-w-0 break-words">{member.display_name}</span>
+            </label>
+          ) : (
+            <span className="min-w-0 break-words">{member.display_name}</span>
+          )}
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
