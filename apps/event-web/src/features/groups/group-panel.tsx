@@ -3,7 +3,9 @@ import { MapPin, WarningCircle } from "@phosphor-icons/react";
 import type { EventGroup } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { GroupActions } from "@/features/groups/group-actions";
+import { DROP_OVER, usePlaceDrop } from "@/features/groups/member-drag";
 import { MemberRow } from "@/features/groups/member-row";
+import { cn } from "@/lib/utils";
 
 /** The fewest members a group should have, as Allocate gives each at least (spec story 36). */
 const FEWEST_MEMBERS = 2;
@@ -13,6 +15,7 @@ const FEWEST_MEMBERS = 2;
  * capacity, and who. A group past its capacity says so in words, however it got there, and so
  * does one with fewer than 2 members once allocation has started, so nobody is left alone. The
  * groups it has reached go last, as the group's progress rather than its make-up (BAC-167).
+ * Someone from elsewhere on the board can be dropped on it, empty or full (FRO-140).
  */
 export function GroupPanel({
   group,
@@ -27,8 +30,17 @@ export function GroupPanel({
   const size = group.members.length;
   const overCapacity = group.capacity !== null && size > group.capacity;
   const tooSmall = allocationStarted && size < FEWEST_MEMBERS;
+  const { ref: dropRef, over } = usePlaceDrop({
+    place: group.id,
+    memberIds: group.members.map(({ user_id }) => user_id),
+  });
   return (
-    <section aria-labelledby={`group-${group.id}`} className="rounded-lg border bg-card p-4">
+    <section
+      ref={dropRef}
+      aria-labelledby={`group-${group.id}`}
+      data-drop-over={over || undefined}
+      className={cn("rounded-lg border bg-card p-4", DROP_OVER)}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id={`group-${group.id}`} className="type-item break-words">

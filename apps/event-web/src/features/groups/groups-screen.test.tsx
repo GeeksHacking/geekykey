@@ -1,3 +1,5 @@
+// jsdom has no drag events, which drag and drop on the board is made of (FRO-140).
+import "@atlaskit/pragmatic-drag-and-drop-unit-testing/drag-event-polyfill";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
@@ -1285,6 +1287,245 @@ describe("GroupsScreen", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "Random" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Challenge" })).not.toBeInTheDocument();
+  });
+});
+
+/** A person's row on the board, which is what an organiser drags. */
+function rowOf(name: string) {
+  return screen.getByRole("button", { name: `Actions for ${name}` }).closest("li")!;
+}
+
+/** A group's panel, or the waiting list's section, which a person is dropped on. */
+function place(name: string) {
+  return screen.getByRole("region", { name });
+}
+
+/** Picks up a person's row and holds it, as a mouse drag or a long press does. */
+async function pickUp(name: string) {
+  const row = rowOf(name);
+  fireEvent.dragStart(row);
+  // The drag begins on the next frame, after the browser has taken its picture of the row.
+  await act(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  return row;
+}
+
+/** Carries the held row over `target`, as the pointer does on its way to a drop. */
+function hoverOver(target: HTMLElement) {
+  fireEvent.dragEnter(target);
+  fireEvent.dragOver(target);
+}
+
+/**
+ * Drags a person's row onto `target` and lets go there. A browser fires `drop` only on a place
+ * that accepted the drag; anywhere else the drag just ends.
+ */
+async function dragTo(name: string, target: HTMLElement) {
+  const row = await pickUp(name);
+  hoverOver(target);
+  if (target.hasAttribute("data-drop-over")) fireEvent.drop(target);
+  else fireEvent.dragEnd(row);
+}
+
+describe("Dragging people between groups", () => {
+  it("drags someone waiting into an empty group, and the counts follow", async () => {
+    const { api } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const move = vi.spyOn(api, "placeGroupMember");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await dragTo("Kenji Ong", place("Atrium mixer"));
+
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]));
+    expect(namesIn("Waiting")).not.toContain("Kenji Ong");
+    expect(move).toHaveBeenCalledExactlyOnceWith("u_2e8b", "g_atrium");
+    expect(within(place("Atrium mixer")).getByText("1")).toBeInTheDocument();
+  });
+
+  it("drags someone from one group to another and back to waiting, and keeps it after a reload", async () => {
+    const { api, user } = renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+    const [mover] = namesIn("Members of Foyer mixer");
+
+    await dragTo(mover!, place("Atrium mixer"));
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toContain(mover));
+    expect(namesIn("Members of Foyer mixer")).not.toContain(mover);
+    // What a reload reads.
+    const saved = await api.groupBoard();
+    const atrium = saved.groups.find(({ name }) => name === "Atrium mixer")!;
+    expect(atrium.members.map(({ display_name }) => display_name)).toContain(mover);
+
+    await dragTo(mover!, place("Waiting"));
+    await waitFor(() => expect(namesIn("Waiting")).toEqual([mover]));
+  });
+
+  it("sends nothing for a drop on their own place, outside any place, or a cancelled drag", async () => {
+    const { api } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const move = vi.spyOn(api, "placeGroupMember");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await dragTo("Kenji Ong", place("Waiting"));
+    expect(place("Waiting")).not.toHaveAttribute("data-drop-over");
+
+    const row = await pickUp("Kenji Ong");
+    hoverOver(screen.getByRole("heading", { name: "Groups" }));
+    fireEvent.dragEnd(row);
+
+    const again = await pickUp("Kenji Ong");
+    hoverOver(place("Atrium mixer"));
+    // Escape, or letting go somewhere the browser won't drop, ends the drag with no drop.
+    fireEvent.dragEnd(again);
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(move).not.toHaveBeenCalled();
+    expect(namesIn("Waiting")).toContain("Kenji Ong");
+    expect(within(place("Atrium mixer")).getByText("Nobody here yet.")).toBeInTheDocument();
+  });
+
+  it("sends nothing for a drop on their own group, as it is at the latest poll", async () => {
+    const { api, user, poll } = renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Allocate" }));
+    await screen.findByText("Nobody is waiting.");
+    const [stayer] = namesIn("Members of Foyer mixer");
+    const move = vi.spyOn(api, "placeGroupMember");
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await dragTo(stayer!, place("Foyer mixer"));
+    expect(place("Foyer mixer")).not.toHaveAttribute("data-drop-over");
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(move).not.toHaveBeenCalled();
+
+    // Another organiser moves them while they're held: Atrium is now their place, and Foyer isn't.
+    const { groups } = await api.groupBoard();
+    const userId = groups
+      .flatMap(({ members }) => members)
+      .find(({ display_name }) => display_name === stayer)!.user_id;
+    await pickUp(stayer!);
+    await api.placeGroupMember(userId, "g_atrium");
+    move.mockClear();
+    await act(() => poll());
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toContain(stayer));
+    hoverOver(place("Atrium mixer"));
+    expect(place("Atrium mixer")).not.toHaveAttribute("data-drop-over");
+    fireEvent.dragLeave(place("Atrium mixer"));
+    hoverOver(place("Foyer mixer"));
+    expect(place("Foyer mixer")).toHaveAttribute("data-drop-over");
+
+    // Their row moved lists, so it's a new row, and the drop sends nothing rather than a move
+    // the organiser didn't see.
+    fireEvent.drop(place("Foyer mixer"));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(move).not.toHaveBeenCalled();
+    expect(namesIn("Members of Atrium mixer")).toContain(stayer);
+  });
+
+  it("marks the person being dragged and the group that would take them", async () => {
+    renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    const row = await pickUp("Kenji Ong");
+    expect(row).toHaveAttribute("data-dragging");
+    hoverOver(place("Atrium mixer"));
+    expect(place("Atrium mixer")).toHaveAttribute("data-drop-over");
+    expect(place("Foyer mixer")).not.toHaveAttribute("data-drop-over");
+
+    fireEvent.dragLeave(place("Atrium mixer"));
+    hoverOver(place("Foyer mixer"));
+    expect(place("Atrium mixer")).not.toHaveAttribute("data-drop-over");
+    expect(place("Foyer mixer")).toHaveAttribute("data-drop-over");
+
+    fireEvent.dragEnd(row);
+    await waitFor(() => expect(row).not.toHaveAttribute("data-dragging"));
+    expect(place("Foyer mixer")).not.toHaveAttribute("data-drop-over");
+  });
+
+  it("drops someone into a full group, which shows Over capacity", async () => {
+    renderScreen({
+      prepare: (client) => {
+        client.mock.data.groups[1]!.capacity = 1;
+      },
+    });
+    await screen.findByRole("list", { name: "Waiting" });
+
+    await dragTo("Kenji Ong", place("Atrium mixer"));
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]));
+    await dragTo("Hui Min Loh", place("Atrium mixer"));
+
+    expect(await within(place("Atrium mixer")).findByText("Over capacity")).toBeInTheDocument();
+    expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong", "Hui Min Loh"]);
+  });
+
+  it("says on the row why a drop failed, and leaves them where they're saved", async () => {
+    const { api } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+
+    api.mock.failNext("not_found");
+    await dragTo("Kenji Ong", place("Atrium mixer"));
+
+    expect(await within(rowOf("Kenji Ong")).findByRole("alert")).toHaveTextContent(
+      "That was not found. It may have been removed.",
+    );
+    expect(namesIn("Waiting")).toContain("Kenji Ong");
+    expect(within(place("Atrium mixer")).getByText("Nobody here yet.")).toBeInTheDocument();
+  });
+
+  it("starts no drag and takes no drop while another group change saves", async () => {
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const held = deferred<GroupBoardResponse>();
+    const placeMember = api.placeGroupMember.bind(api);
+    const move = vi.spyOn(api, "placeGroupMember").mockReturnValueOnce(held.promise);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+
+    const row = await pickUp("Hui Min Loh");
+    expect(row).not.toHaveAttribute("data-dragging");
+    hoverOver(place("Foyer mixer"));
+    expect(place("Foyer mixer")).not.toHaveAttribute("data-drop-over");
+    fireEvent.drop(place("Foyer mixer"));
+    fireEvent.dragEnd(row);
+
+    const [userId, groupId] = move.mock.calls[0]!;
+    await act(async () => held.resolve(await placeMember(userId, groupId)));
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]));
+    expect(move).toHaveBeenCalledOnce();
+    expect(within(place("Foyer mixer")).getByText("Nobody here yet.")).toBeInTheDocument();
+  });
+
+  it("keeps a drag going through a poll, and a delayed poll doesn't undo the drop", async () => {
+    const { api, poll } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const before = structuredClone(await api.groupBoard());
+    const held = deferred<GroupBoardResponse>();
+    vi.spyOn(api, "groupBoard").mockReturnValueOnce(held.promise);
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    await pickUp("Kenji Ong");
+    let polling!: Promise<void>;
+    act(() => {
+      polling = poll();
+    });
+    hoverOver(place("Atrium mixer"));
+    fireEvent.drop(place("Atrium mixer"));
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]));
+    await act(async () => {
+      held.resolve(before);
+      await polling;
+    });
+
+    expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]);
+    expect(namesIn("Waiting")).not.toContain("Kenji Ong");
   });
 });
 

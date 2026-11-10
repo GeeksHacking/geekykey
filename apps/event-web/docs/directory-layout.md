@@ -67,9 +67,9 @@ apps/event-web/
                            # each row's Actions menu
       groups/               # the organisers' Groups screen: the Make groups dialog (make-groups-dialog.tsx) with
                            # its split (split-groups-form.tsx), create and edit a group (group-form.tsx), delete one,
-                           # Allocate, each group's members and who is waiting, each person's moves
-                           # (member-row.tsx), the CSV, and shared write coordination and board updates
-                           # (use-group-board.ts)
+                           # Allocate, each group's members and who is waiting (waiting-list.tsx), each
+                           # person's moves (member-row.tsx), dragging people between groups (member-drag.ts),
+                           # the CSV, and shared write coordination and board updates (use-group-board.ts)
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
