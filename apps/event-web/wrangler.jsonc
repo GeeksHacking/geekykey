@@ -32,7 +32,11 @@
     // Without this, a page load under them would get index.html, such as opening the
     // organisers' CSV export, or the Portal's login redirect after the showcase. Under
     // /__/auth/* and at /__/firebase/init.json are Firebase's sign-in pages (agreement 7.2).
-    "run_worker_first": ["/api/*", "/auth/*", "/__/auth/*", "/__/firebase/init.json"],
+    // Under /assets/* are the build's hashed files, which the Worker serves to be kept for a
+    // year, and answers 404 where there is no file (worker/hashed-files.ts, FRO-162).
+    "run_worker_first": ["/api/*", "/auth/*", "/__/auth/*", "/__/firebase/init.json", "/assets/*"],
+    // How the Worker reads a hashed file.
+    "binding": "ASSETS",
   },
 
   // Logs every request, with its CPU time, to Workers Logs. The log check at checkpoint 5
