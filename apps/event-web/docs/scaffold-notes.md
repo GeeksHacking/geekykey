@@ -3,8 +3,6 @@
 Moved here from `apps/event-web/CLAUDE.md` on 30 Oct 2026. Only the links between sections
 changed.
 
-The TypeScript rule itself is in the stack table.
-
 ## TypeScript version
 
 TypeScript 6.0 is the target. Vite 8 transpiles with oxc and ignores the TS version.
@@ -33,6 +31,8 @@ Verified when the app was scaffolded:
   `getCoreRowModel`, and `<table.FlexRender cell={cell} />` replaces `flexRender`. Most
   tutorials and the shadcn data-table recipe still show v8; the package ships its own
   migration notes under `node_modules/@tanstack/react-table/skills`.
+  Row, cell and header methods live on prototypes: call them on the instance rather than
+  spreading it into a plain object.
 - Never redirect with a `<Navigate />` element from a component that re-renders. It
   navigates again whenever its props object changes, which is every render, and the router
   never commits, so the page freezes on the loading view. Redirect from a `useEffect` with

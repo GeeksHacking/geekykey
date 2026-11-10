@@ -1,10 +1,7 @@
 # Design direction
 
-Moved here from `apps/event-web/CLAUDE.md` on 30 Oct 2026. Only the links between sections
-changed.
-
-Three rules that every change follows stay in CLAUDE.md under "Design rules": status is never
-colour alone, the copy rules, and the four states.
+Read [the coding standards](../CODING_STANDARDS.md#design-rules) for status indicators, copy and
+the four data states. This file sets the visual and motion rules for the app.
 
 The skill is written for landing pages and says dashboards and data tables are outside
 its scope. GeekyKey is a product UI. Resolution:
@@ -13,7 +10,7 @@ its scope. GeekyKey is a product UI. Resolution:
 3.E responsiveness, 4.1 typography, 4.2 one accent and the colour lock, 4.4 shape lock,
 4.5 interactive states and contrast checks, 4.6 form rules, 6 performance and
 accessibility, 8 dark mode protocol, 9 AI tells including the em-dash ban, and the
-pre-flight check as adapted in CLAUDE.md's "Definition of done".
+pre-flight check as adapted in the [definition of done](../CODING_STANDARDS.md#definition-of-done-for-a-screen).
 
 **Do not apply:** hero rules, eyebrows, bento, marquee, GSAP scroll patterns, image
 generation requirements, and the Next.js and RSC defaults in 3.A. This is a Vite SPA on
