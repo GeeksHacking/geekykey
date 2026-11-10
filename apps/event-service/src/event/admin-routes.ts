@@ -6,6 +6,7 @@ import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, queryParams } from "../lib/validate.ts";
 import { setChallenge, setConnectAcross } from "./event-settings.ts";
+import type { ConnectionsGame } from "./connections.ts";
 import type { GameOnStations, Tx } from "./games.ts";
 import {
   requireRole,
@@ -38,6 +39,8 @@ export interface AdminRouteDeps {
   session: SessionOptions;
   /** The games this event runs, which judge a QR fallback tap as they judge a station's. */
   games: readonly GameOnStations[];
+  /** The event's connections game, for the groups each group has reached, or null for none. */
+  connections: ConnectionsGame | null;
   /** The clock the station board tells online stations by, and a QR fallback tap is received by. */
   now?: () => Date;
   /** For the groups' Allocate, at random unless given. */
@@ -198,11 +201,20 @@ function statsBody(stats: EventStats) {
  * section 9). Nobody signed in gets `unauthenticated`, and anyone not on the
  * organizer list gets `forbidden`.
  */
-export function adminRoutes({ session, games, now = () => new Date(), shuffle }: AdminRouteDeps) {
+export function adminRoutes({
+  session,
+  games,
+  connections,
+  now = () => new Date(),
+  shuffle,
+}: AdminRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireRole("organizer"));
 
-  app.route("/groups", adminGroupRoutes({ organizers: session.organizers, now, shuffle }));
+  app.route(
+    "/groups",
+    adminGroupRoutes({ organizers: session.organizers, connections, now, shuffle }),
+  );
 
   // The Groups screen's switch: whether a connection needs different token kinds or different
   // groups. Each tap is judged by the setting at that tap, and connections already made stay.

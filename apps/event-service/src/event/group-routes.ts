@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
+import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody } from "../lib/validate.ts";
+import type { ConnectionsGame } from "./connections.ts";
 import { exportGroupsCsv } from "./export.ts";
 import {
   allocateWaiting,
@@ -45,6 +47,8 @@ function myGroupBody({
       tags: group.tags,
       location: group.location,
       members: group.members.map((member) => ({ display_name: member.displayName })),
+      // Names only, never members (BAC-167, draft for the API agreement's next version).
+      other_groups: group.otherGroups,
     },
   };
 }
@@ -64,6 +68,8 @@ function eventGroupBody(group: EventGroup) {
       placed_at: member.placedAt,
       how: member.how,
     })),
+    // The other groups it has reached, in the board's order (BAC-167, draft for the next version).
+    reached_group_ids: group.reachedGroupIds,
   };
 }
 
@@ -91,9 +97,12 @@ function groupBoardBody(board: Awaited<ReturnType<typeof loadGroupBoard>>) {
  */
 export function myGroupRoutes({
   session,
+  connections,
   now = () => new Date(),
 }: {
   session: SessionOptions;
+  /** The event's connections game, for the groups a group has reached, or null for none. */
+  connections: ConnectionsGame | null;
   now?: () => Date;
 }) {
   const app = new Hono<AppEnv & SessionEnv>();
@@ -101,13 +110,13 @@ export function myGroupRoutes({
   const { organizers } = session;
 
   app.get("/", requireSession(session), async (c) =>
-    c.json(myGroupBody(await loadMyGroup(c.var.db, c.var.user.id, organizers))),
+    c.json(myGroupBody(await loadMyGroup(c.var.db, c.var.user.id, organizers, connections))),
   );
 
   app.post("/", requireSession(session), requireRole("participant"), async (c) => {
     const { db, user } = c.var;
     await joinGroups(db, user.id, now(), organizers);
-    return c.json(myGroupBody(await loadMyGroup(db, user.id, organizers)));
+    return c.json(myGroupBody(await loadMyGroup(db, user.id, organizers, connections)));
   });
 
   return app;
@@ -160,18 +169,24 @@ const placeMemberSchema = z.object({ group_id: z.string().nullable() });
  */
 export function adminGroupRoutes({
   organizers,
+  connections,
   now = () => new Date(),
   shuffle = shuffleAtRandom,
 }: {
   /** From config.organizers: the accounts kept out of every group. */
   organizers: Organizers;
+  /** The event's connections game, for the groups each group has reached, or null for none. */
+  connections: ConnectionsGame | null;
   now?: () => Date;
   /** At random unless a test gives its own. */
   shuffle?: Shuffle;
 }) {
   const app = new Hono<AppEnv & SessionEnv>();
 
-  app.get("/", async (c) => c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers))));
+  /** The board as it is now, which every route that changes it answers with. */
+  const loadBoard = (db: Db) => loadGroupBoard(db, organizers, connections);
+
+  app.get("/", async (c) => c.json(groupBoardBody(await loadBoard(c.var.db))));
 
   app.post("/", jsonBody(groupFieldsSchema), async (c) => {
     const group = await createGroup(c.var.db, c.req.valid("json"), now());
@@ -187,7 +202,7 @@ export function adminGroupRoutes({
     if (refusal === "not_found") return c.json({ error: "not_found" }, 404);
     if (refusal === "name_taken") return c.json({ error: "name_taken" }, 409);
     log("group_changed", { user_id: user.id, group_id: id });
-    const group = (await loadGroupBoard(db, organizers)).groups.find((each) => each.id === id);
+    const group = (await loadBoard(db)).groups.find((each) => each.id === id);
     // Deleted between the edit and this read, as another organizer may.
     if (!group) return c.json({ error: "not_found" }, 404);
     return c.json(eventGroupBody(group));
@@ -210,7 +225,7 @@ export function adminGroupRoutes({
     if (refusal === "not_found") return c.json({ error: "not_found" }, 404);
     if (refusal === "organizer") return c.json({ error: "forbidden" }, 403);
     log("group_member_moved", { user_id: user.id, member_id: userId, group_id: groupId });
-    return c.json(groupBoardBody(await loadGroupBoard(db, organizers)));
+    return c.json(groupBoardBody(await loadBoard(db)));
   });
 
   app.delete("/members/:userId", async (c) => {
@@ -226,7 +241,7 @@ export function adminGroupRoutes({
     const refusal = await allocateWaiting(c.var.db, now(), shuffle, organizers);
     if (refusal) return c.json(refusal, 409);
     log("groups_allocated", { user_id: c.var.user.id });
-    return c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers)));
+    return c.json(groupBoardBody(await loadBoard(c.var.db)));
   });
 
   // Makes the groups and allocates everyone who has joined, in one step, or makes nothing.
@@ -246,7 +261,7 @@ export function adminGroupRoutes({
       organizers,
     );
     if (refusal) return c.json(refusal, 409);
-    const board = await loadGroupBoard(c.var.db, organizers);
+    const board = await loadBoard(c.var.db);
     log("groups_split", { user_id: c.var.user.id, group_count: board.groups.length });
     return c.json(groupBoardBody(board), 201);
   });
@@ -255,7 +270,7 @@ export function adminGroupRoutes({
   app.post("/reset", async (c) => {
     await resetAllocation(c.var.db);
     log("groups_reset", { user_id: c.var.user.id });
-    return c.json(groupBoardBody(await loadGroupBoard(c.var.db, organizers)));
+    return c.json(groupBoardBody(await loadBoard(c.var.db)));
   });
 
   // Each person's group, times and how they were placed, as a file for the report.

@@ -391,6 +391,16 @@ export interface MapResponse {
 /** How someone came to be in their group (spec: participant groups, draft for agreement 0.14). */
 export type GroupPlacedHow = "allocated" | "latecomer" | "organizer";
 
+/**
+ * Another group as a participant's card lists it (BAC-167, draft for the agreement's next
+ * version): by name only, and whether the participant's group has reached it, which it has once
+ * one of its members has a connection with one of that group's.
+ */
+export interface OtherGroup {
+  name: string;
+  reached: boolean;
+}
+
 /** A participant's own group. Its members are names only, never a user ID. */
 export interface MyGroup {
   id: string;
@@ -398,6 +408,8 @@ export interface MyGroup {
   tags: string[];
   location: string | null;
   members: { display_name: string }[];
+  /** Every other group, oldest first (BAC-167). An Event Service from before it leaves it out. */
+  other_groups?: OtherGroup[];
 }
 
 /** GET and POST /api/v1/me/group (draft for agreement 0.14). `group` is set only when `placed`. */
@@ -423,6 +435,11 @@ export interface EventGroup {
   location: string | null;
   capacity: number | null;
   members: EventGroupMember[];
+  /**
+   * The other groups this one has reached, in the board's order (BAC-167, draft for the
+   * agreement's next version). An Event Service from before it leaves it out.
+   */
+  reached_group_ids?: string[];
 }
 
 export interface GroupWaitingMember {

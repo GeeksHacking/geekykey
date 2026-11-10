@@ -490,5 +490,12 @@ export function connectionsGame(
       });
       return { count: rows.length, links };
     },
+
+    async connectedPairs(db) {
+      const rows = await db
+        .select({ userA: connections.userA, userB: connections.userB })
+        .from(connections);
+      return rows.map(({ userA, userB }): [string, string] => [userA, userB]);
+    },
   };
 }

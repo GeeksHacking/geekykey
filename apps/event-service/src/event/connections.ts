@@ -149,4 +149,9 @@ export interface ConnectionsGame {
   connectionsOf(db: Db, userId: string, now: Date): Promise<Connection[]>;
   /** Every connection, for the map. */
   web(db: Db): Promise<ConnectionsWeb>;
+  /**
+   * Every connection as the user IDs of its two people, in no order, so groups.ts can tell which
+   * groups each group has reached (BAC-167). Only accepted connections are here, not requests.
+   */
+  connectedPairs(db: Db): Promise<[string, string][]>;
 }

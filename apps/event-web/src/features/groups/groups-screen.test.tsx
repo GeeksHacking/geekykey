@@ -1502,3 +1502,108 @@ describe("Groups board coordination", () => {
     expect(write).toHaveBeenCalledOnce();
   });
 });
+
+describe("GroupsScreen's groups reached (BAC-167)", () => {
+  /** Ana and Ben in Foyer, Cara in Atrium and Dev in Hall, connected as `pairs` says. */
+  function threeGroups(api: MockApiClient, pairs: [string, string][]) {
+    const placedAt = new Date().toISOString();
+    api.mock.data.groups.push({
+      id: "g_hall",
+      name: "Hall mixer",
+      tags: [],
+      location: null,
+      capacity: null,
+    });
+    api.mock.data.groupAllocationStartedAt = placedAt;
+    api.mock.data.groupMembers = (
+      [
+        ["u_7f3a", "g_foyer"],
+        ["u_9c21", "g_foyer"],
+        ["u_2e8b", "g_atrium"],
+        ["u_b514", "g_hall"],
+      ] as const
+    ).map(([user_id, group_id]) => ({
+      user_id,
+      group_id,
+      joined_at: placedAt,
+      placed_at: placedAt,
+      how: "organizer",
+    }));
+    api.mock.data.connectedPairs = pairs;
+  }
+
+  it("shows on each group which others it has reached, by name", async () => {
+    const { api, poll } = renderScreen({
+      prepare: (client) => threeGroups(client, [["u_7f3a", "u_2e8b"]]),
+    });
+
+    const foyer = await screen.findByRole("region", { name: "Foyer mixer" });
+    expect(within(foyer).getByText("Reached Atrium mixer")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Atrium mixer" })).getByText("Reached Foyer mixer"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Hall mixer" })).getByText(
+        "Reached no other group yet",
+      ),
+    ).toBeInTheDocument();
+
+    // Ben connects with Dev in Hall, and Foyer has reached both at the next poll.
+    api.mock.data.connectedPairs.push(["u_9c21", "u_b514"]);
+    await act(() => poll());
+    expect(await within(foyer).findByText("Reached every other group")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Hall mixer" })).getByText("Reached Foyer mixer"),
+    ).toBeInTheDocument();
+  });
+
+  it("counts only groups with someone in them toward every other group", async () => {
+    renderScreen({
+      prepare: (client) => {
+        threeGroups(client, [["u_7f3a", "u_2e8b"]]);
+        client.mock.data.groupMembers = client.mock.data.groupMembers.filter(
+          ({ group_id }) => group_id !== "g_hall",
+        );
+      },
+    });
+
+    const foyer = await screen.findByRole("region", { name: "Foyer mixer" });
+    expect(within(foyer).getByText("Reached every other group")).toBeInTheDocument();
+  });
+
+  it("says nothing of other groups on a group with nobody in it", async () => {
+    renderScreen();
+
+    const foyer = await screen.findByRole("region", { name: "Foyer mixer" });
+    expect(within(foyer).getByText("Nobody here yet.")).toBeInTheDocument();
+    expect(within(foyer).queryByText(/^Reached/)).not.toBeInTheDocument();
+  });
+
+  it("says nothing of other groups with only one group", async () => {
+    renderScreen({
+      prepare: (client) => {
+        client.mock.data.groups = client.mock.data.groups.slice(0, 1);
+      },
+    });
+
+    const foyer = await screen.findByRole("region", { name: "Foyer mixer" });
+    expect(within(foyer).queryByText(/^Reached/)).not.toBeInTheDocument();
+  });
+
+  it("says nothing of other groups from an Event Service that doesn't give them", async () => {
+    renderScreen({
+      prepare: (client) => {
+        threeGroups(client, [["u_7f3a", "u_2e8b"]]);
+        const real = client.groupBoard.bind(client);
+        vi.spyOn(client, "groupBoard").mockImplementation(async () => {
+          const board = await real();
+          for (const group of board.groups) delete group.reached_group_ids;
+          return board;
+        });
+      },
+    });
+
+    const foyer = await screen.findByRole("region", { name: "Foyer mixer" });
+    expect(within(foyer).queryByText(/^Reached/)).not.toBeInTheDocument();
+  });
+});

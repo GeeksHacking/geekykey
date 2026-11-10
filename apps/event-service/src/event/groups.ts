@@ -1,5 +1,6 @@
-import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
+import type { ConnectionsGame } from "./connections.ts";
 import { loadChallenge, loadConnectAcross } from "./event-settings.ts";
 import type { Tx } from "./games.ts";
 import { groupAllocation, groupMembers, participantGroups, users } from "./schema.ts";
@@ -87,7 +88,8 @@ export async function createGroup(
     if (taken.some((group) => sameGroupName(group.name, fields.name))) return "name_taken";
     const group = { id: crypto.randomUUID(), ...fields };
     await tx.insert(participantGroups).values({ ...group, createdAt: now.toISOString() });
-    return { ...group, members: [] };
+    // Nobody is in it yet, so it has reached no other group.
+    return { ...group, members: [], reachedGroupIds: [] };
   });
 }
 
@@ -494,7 +496,7 @@ export async function groupsOf(db: Db | Tx, userIds: readonly string[]) {
     .select({ userId: groupMembers.userId, groupId: groupMembers.groupId })
     .from(groupMembers)
     .where(inArray(groupMembers.userId, [...userIds]));
-  return new Map(rows.flatMap(({ userId, groupId }) => (groupId ? [[userId, groupId]] : [])));
+  return groupByUser(rows);
 }
 
 /** When allocation started, or null before it has. */
@@ -506,12 +508,57 @@ async function allocationStartedAt(db: Db): Promise<string | null> {
   return row?.startedAt ?? null;
 }
 
-/** Everything the organizers' Groups screen shows, groups oldest first. */
-export async function loadGroupBoard(db: Db, organizers: Organizers) {
-  const [startedAt, connectAcross, challenge, groups, members] = await Promise.all([
+/**
+ * Every connection's two people, or none for an event with no connections game (BAC-167).
+ * Connections stay when people move group and after Reset, so what they reach follows the groups.
+ */
+async function pairsOrNone(db: Db, connections: ConnectionsGame | null) {
+  return connections ? connections.connectedPairs(db) : [];
+}
+
+/**
+ * Which other groups each group has reached (BAC-167): a group reaches another when one of its
+ * members has a connection with one of that group's, by `groupOf`, the groups as they are now.
+ * Someone not in a group, or an organizer, whom `groupOf` leaves out, reaches nothing. Two people
+ * in one group reach no other group.
+ */
+function groupsReached(
+  pairs: readonly [string, string][],
+  groupOf: ReadonlyMap<string, string>,
+): Map<string, Set<string>> {
+  const reached = new Map<string, Set<string>>();
+  const add = (from: string, to: string) => {
+    if (!reached.has(from)) reached.set(from, new Set());
+    reached.get(from)!.add(to);
+  };
+  for (const [one, other] of pairs) {
+    const [oneGroup, otherGroup] = [groupOf.get(one), groupOf.get(other)];
+    if (!oneGroup || !otherGroup || oneGroup === otherGroup) continue;
+    add(oneGroup, otherGroup);
+    add(otherGroup, oneGroup);
+  }
+  return reached;
+}
+
+/** Each placed participant's group, by user ID, from rows with a nullable group. */
+function groupByUser(members: readonly { userId: string; groupId: string | null }[]) {
+  return new Map(members.flatMap(({ userId, groupId }) => (groupId ? [[userId, groupId]] : [])));
+}
+
+/**
+ * Everything the organizers' Groups screen shows, groups oldest first. Each group's
+ * `reachedGroupIds` are the other groups it has reached, in the board's order (BAC-167).
+ */
+export async function loadGroupBoard(
+  db: Db,
+  organizers: Organizers,
+  connections: ConnectionsGame | null,
+) {
+  const [startedAt, connectAcross, challenge, pairs, groups, members] = await Promise.all([
     allocationStartedAt(db),
     loadConnectAcross(db),
     loadChallenge(db),
+    pairsOrNone(db, connections),
     db
       .select({
         id: participantGroups.id,
@@ -536,6 +583,7 @@ export async function loadGroupBoard(db: Db, organizers: Organizers) {
       .where(participantsOnly(organizers))
       .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId)),
   ]);
+  const reached = groupsReached(pairs, groupByUser(members));
   return {
     startedAt,
     connectAcross,
@@ -544,6 +592,9 @@ export async function loadGroupBoard(db: Db, organizers: Organizers) {
     groups: groups.map((group) => ({
       ...group,
       members: members.filter((member) => member.groupId === group.id),
+      reachedGroupIds: groups
+        .filter((other) => reached.get(group.id)?.has(other.id))
+        .map((other) => other.id),
     })),
     waiting: members.filter((member) => member.groupId === null),
   };
@@ -551,10 +602,17 @@ export async function loadGroupBoard(db: Db, organizers: Organizers) {
 
 /**
  * What a user sees of the groups: whether they've joined, and their own group
- * with its members' names. Never anyone's user ID, nor anyone else's group. An
- * organizer reads `not_joined`.
+ * with its members' names. Never anyone's user ID, nor anyone else's members. An
+ * organizer reads `not_joined`. The group comes with every other group that has someone in it,
+ * oldest first, by name and whether this group has reached it (BAC-167). A group with nobody in
+ * it can't be reached, so listing it would keep "every other group" out of reach for good.
  */
-export async function loadMyGroup(db: Db, userId: string, organizers: Organizers) {
+export async function loadMyGroup(
+  db: Db,
+  userId: string,
+  organizers: Organizers,
+  connections: ConnectionsGame | null,
+) {
   const [startedAt, [mine]] = await Promise.all([
     allocationStartedAt(db),
     db
@@ -575,11 +633,37 @@ export async function loadMyGroup(db: Db, userId: string, organizers: Organizers
   if (!mine || organizers.has(userId))
     return { status: "not_joined" as const, allocationStarted, group: null };
   if (!mine.group) return { status: "waiting" as const, allocationStarted, group: null };
-  const members = await db
-    .select({ displayName: users.displayName })
-    .from(groupMembers)
-    .innerJoin(users, eq(users.id, groupMembers.userId))
-    .where(and(eq(groupMembers.groupId, mine.group.id), participantsOnly(organizers)))
-    .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId));
-  return { status: "placed" as const, allocationStarted, group: { ...mine.group, members } };
+  const myGroupId = mine.group.id;
+  const [groups, placed, pairs] = await Promise.all([
+    db
+      .select({ id: participantGroups.id, name: participantGroups.name })
+      .from(participantGroups)
+      .orderBy(asc(participantGroups.createdAt), asc(participantGroups.id)),
+    // Everyone placed, for what each group has reached, and the user's own group's names.
+    db
+      .select({
+        userId: groupMembers.userId,
+        groupId: groupMembers.groupId,
+        displayName: users.displayName,
+      })
+      .from(groupMembers)
+      .innerJoin(users, eq(users.id, groupMembers.userId))
+      .where(and(isNotNull(groupMembers.groupId), participantsOnly(organizers)))
+      .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.userId)),
+    pairsOrNone(db, connections),
+  ]);
+  const reached = groupsReached(pairs, groupByUser(placed)).get(myGroupId);
+  return {
+    status: "placed" as const,
+    allocationStarted,
+    group: {
+      ...mine.group,
+      members: placed
+        .filter((member) => member.groupId === myGroupId)
+        .map(({ displayName }) => ({ displayName })),
+      otherGroups: groups
+        .filter((group) => group.id !== myGroupId && placed.some((p) => p.groupId === group.id))
+        .map((group) => ({ name: group.name, reached: reached?.has(group.id) ?? false })),
+    },
+  };
 }

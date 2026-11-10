@@ -11,7 +11,8 @@ const FEWEST_MEMBERS = 2;
 /**
  * One group on the organizers' screen: its name, tags and location, how many are in it out of its
  * capacity, and who. A group past its capacity says so in words, however it got there, and so
- * does one with fewer than 2 members once allocation has started, so nobody is left alone.
+ * does one with fewer than 2 members once allocation has started, so nobody is left alone. The
+ * groups it has reached go last, as the group's progress rather than its make-up (BAC-167).
  */
 export function GroupPanel({
   group,
@@ -73,7 +74,30 @@ export function GroupPanel({
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">Nobody here yet.</p>
       )}
+      <ReachedLine group={group} groups={groups} />
     </section>
+  );
+}
+
+/**
+ * Which other groups this one has reached, by name in the board's order (BAC-167). Groups with
+ * nobody in them can't reach or be reached, so they count for nothing here, as on the
+ * participant's card. Nothing shows for an empty group, with no other group to reach, or from an
+ * Event Service from before BAC-167, which doesn't say.
+ */
+function ReachedLine({ group, groups }: { group: EventGroup; groups: EventGroup[] }) {
+  const reachedIds = group.reached_group_ids;
+  const others = groups.filter((other) => other.id !== group.id && other.members.length > 0);
+  if (!reachedIds || others.length === 0 || group.members.length === 0) return null;
+  const reached = others.filter((other) => reachedIds.includes(other.id));
+  return (
+    <p className="mt-3 border-t pt-2 text-sm text-muted-foreground">
+      {reached.length === others.length
+        ? "Reached every other group"
+        : reached.length === 0
+          ? "Reached no other group yet"
+          : `Reached ${reached.map((other) => other.name).join(", ")}`}
+    </p>
   );
 }
 
