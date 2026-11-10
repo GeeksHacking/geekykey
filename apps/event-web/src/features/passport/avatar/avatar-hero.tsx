@@ -16,13 +16,13 @@ import type { PassportChanges } from "@/features/passport/passport-changes";
 
 interface AvatarHeroProps {
   me: MeResponse;
-  /** What the last poll changed: a new connection's piece flies in, and the last one also spins. */
+  /** What the last poll changed: a new connection's or win's pieces fly in, and the last one also spins. */
   changes: PassportChanges;
 }
 
 /**
- * The dashboard's lead (FRO-105): the guest's avatar, dressed one piece per connection, then
- * the pieces and a caption with the counts the points summary used to show.
+ * The dashboard's lead (FRO-105): the guest's avatar, dressed one piece per connection and one
+ * more for a win, then the pieces and a caption with the counts the points summary used to show.
  */
 export function AvatarHero({ me, changes }: AvatarHeroProps) {
   const { colours } = useAvatarColours(me.user.id);
@@ -39,12 +39,12 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
   const flatUrl = useDressedUrl(outfit.slots, colours);
   const arriving = useMemo(() => {
     if (demoOn !== null) return demo.arriving;
-    if (changes.connections === null) return [];
+    if (changes.pieces === null) return [];
     return outfit.slots
-      .slice(changes.connections.from, changes.connections.to)
+      .slice(changes.pieces.from, changes.pieces.to)
       .filter((slot) => slot.worn)
       .map((slot) => slot.piece.key);
-  }, [outfit.slots, changes.connections, demoOn, demo.arriving]);
+  }, [outfit.slots, changes.pieces, demoOn, demo.arriving]);
   const name = me.user.display_name ?? "Guest";
 
   return (

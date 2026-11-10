@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Connection } from "@/api/types";
 import { CHARACTERS } from "@/features/passport/avatar/art";
 import { demoOutfitFrom, outfitFrom } from "@/features/passport/avatar/outfit";
+import { PIECES_PER_CHARACTER } from "@/features/passport/avatar/pieces";
 
 function connection(connectedAt: string, fields: Partial<Connection> = {}): Connection {
   return {
@@ -119,10 +120,10 @@ describe("outfitFrom", () => {
     ).toEqual([true, true, false, false]);
   });
 
-  it("gives every character the same number of pieces, which the poll's change marks rely on", () => {
-    const counts = Object.values(CHARACTERS).map((character) => character.pieces.length);
-
-    expect(new Set(counts).size).toBe(1);
+  it("gives every character the number of pieces the poll counts", () => {
+    for (const character of Object.values(CHARACTERS)) {
+      expect(character.pieces.length).toBe(PIECES_PER_CHARACTER);
+    }
   });
 
   it("gives the first connection the first piece, and each next connection the next", () => {

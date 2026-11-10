@@ -207,6 +207,16 @@ function connections(count: number): Connection[] {
   }));
 }
 
+const won: Connection = {
+  ...met,
+  dice: { your_roll: 5, their_roll: 2, result: "win" },
+};
+
+const lost: Connection = {
+  ...met,
+  dice: { your_roll: 2, their_roll: 5, result: "loss" },
+};
+
 const dressing: MeResponse = {
   ...baseMe,
   points: 5,
@@ -248,6 +258,17 @@ describe("DashboardScreen's avatar", () => {
     expect(avatar).toHaveTextContent("4 of 4 pieces · 12 points");
     expect(within(avatar).getByText("Hat: wearing")).toBeInTheDocument();
     expect(within(avatar).getByText("Glass: wearing")).toBeInTheDocument();
+  });
+
+  it("wears two pieces for a win and one for a loss", () => {
+    state.me = makeMe({ connections: [won] });
+    const first = renderDashboard();
+    expect(screen.getByRole("region", { name: "Your avatar" })).toHaveTextContent("2 of 4 pieces");
+    first.unmount();
+
+    state.me = makeMe({ connections: [lost] });
+    renderDashboard();
+    expect(screen.getByRole("region", { name: "Your avatar" })).toHaveTextContent("1 of 4 pieces");
   });
 
   it("says the picture can be added as a sticker in WhatsApp", () => {
