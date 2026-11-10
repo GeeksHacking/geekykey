@@ -8,7 +8,7 @@ import {
 
 import type { ApiClient } from "@/api/client";
 import { useApi } from "@/api/context";
-import { NetworkError } from "@/api/errors";
+import { isApiError, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type {
   Challenge,
@@ -32,9 +32,51 @@ type GroupBoardChange =
   | { type: "split"; input: SplitGroupsRequest }
   | { type: "reset" }
   | { type: "move"; userId: string; groupId: string | null }
+  | { type: "place"; userIds: string[]; groupId: string }
   | { type: "remove"; userId: string }
   | { type: "rule"; connectAcross: ConnectAcross }
   | { type: "challenge"; challenge: Challenge };
+
+/** Someone who wasn't placed, and what the service or the connection said. */
+type FailedPlacement = { userId: string; error: unknown };
+
+/**
+ * Some of the people ticked weren't placed (FRO-130). `board` is the reply to the last placement
+ * that went through, if any did.
+ */
+export class PlacementsFailed extends Error {
+  constructor(
+    readonly failed: FailedPlacement[],
+    readonly board: GroupBoardResponse | null,
+  ) {
+    super("Some people were not placed");
+    this.name = "PlacementsFailed";
+  }
+}
+
+/**
+ * Places each person with the single move's request, one after another, so each CSV row says an
+ * organizer placed them (FRO-130). The agreement has no request for several. Someone who has
+ * gone (`not_found`) leaves the others to be placed. Any other failure, such as a lost connection,
+ * the rate limit or a signed-out organizer, would refuse everyone left too, so the rest aren't
+ * sent and count as not placed.
+ */
+async function placeSeveral(api: ApiClient, userIds: string[], groupId: string) {
+  let board: GroupBoardResponse | null = null;
+  const failed: FailedPlacement[] = [];
+  for (const [index, userId] of userIds.entries()) {
+    try {
+      board = await api.placeGroupMember(userId, groupId);
+    } catch (error) {
+      failed.push({ userId, error });
+      if (isApiError(error) && error.code === "not_found") continue;
+      failed.push(...userIds.slice(index + 1).map((unsent) => ({ userId: unsent, error })));
+      break;
+    }
+  }
+  if (failed.length > 0) throw new PlacementsFailed(failed, board);
+  return board;
+}
 
 async function sendChange(
   api: ApiClient,
@@ -58,6 +100,8 @@ async function sendChange(
       return api.resetGroups();
     case "move":
       return api.placeGroupMember(change.userId, change.groupId);
+    case "place":
+      return placeSeveral(api, change.userIds, change.groupId);
     case "remove":
       await api.removeGroupMember(change.userId);
       return null;
@@ -116,9 +160,13 @@ export function useGroupBoardChange() {
           });
         }
       } catch (error) {
-        if (error instanceof NetworkError) {
-          // A lost reply can follow a committed write. Reconcile with a read, never retry it.
+        if (error instanceof NetworkError || error instanceof PlacementsFailed) {
+          // A lost reply can follow a committed write, and some of several placements may have
+          // gone through. Reconcile with a read, never retry it.
           await queryClient.cancelQueries({ queryKey: queryKeys.groupBoard });
+          // Those placed show at once, even if the read after a refusal fails too.
+          if (error instanceof PlacementsFailed && error.board)
+            queryClient.setQueryData(queryKeys.groupBoard, error.board);
           await queryClient.invalidateQueries({
             queryKey: queryKeys.groupBoard,
             refetchType: "all",

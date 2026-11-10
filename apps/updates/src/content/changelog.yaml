@@ -2499,3 +2499,12 @@
     a mouse or a long press on a phone. A drop makes the same move as the person's menu, which
     stays for keyboard users. The trade-offs we accept: the Groups page downloads about 10 KB more,
     and dragging has no keyboard controls of its own.
+- id: groups-tick-several
+  date: 2026-11-10
+  area: frontend
+  change: >-
+    Organisers can tick several people on the Groups screen's waiting list and put them all in one
+    group with one press, as the 5 Nov trial asked for. Each person is placed the way their menu
+    places them, so a group can go over its capacity. Anyone who couldn't be placed is named and
+    stays ticked. The limit we accept: each person is one request, so about 40 at once can reach
+    the Event Service's 60 requests a minute, and the rest then wait a minute.
