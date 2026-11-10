@@ -32,8 +32,10 @@ The participant and organiser shells share an account menu for identity and Sign
 place switch shows the current place and links to My tokens, Event screens and, for organisers,
 Organiser console. My tokens opens the GeekyKey screens in the same tab, with a login link from
 `POST /api/v1/login-links` so the same user is logged in there (agreement 8.12, BAC-157). When the
-link can't be had, it opens them without one. The current place has a
-yellow highlight. Page links stay in the participant tabs or console sidebar and bottom bar.
+link can't be had, it opens them without one. Opening the place switch asks for the link and
+starts the connection to the GeekyKey screens, so the click doesn't wait for them (FRO-162): a
+click uses that link while it's under 45 seconds old, and closing the switch drops it. The
+current place has a yellow highlight. Page links stay in the participant tabs or console sidebar and bottom bar.
 The header separates identity controls from navigation so long names do not compete with tabs.
 On phones it scrolls away; from tablet width up it stays at the top.
 On the organiser desktop, the place switch sits below the wordmark and the account menu stays in
