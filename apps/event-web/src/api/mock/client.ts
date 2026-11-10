@@ -409,7 +409,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       if (data.phraseWords[user_id] !== undefined) continue;
       const places = words.map((_, place) => place);
       const held = places.filter((place) => holders(place, group_id) > 0);
-      const oneShort = data.groups.length > 1 && held.length === places.length - 1;
+      const keepOneBack = data.groups.length > 1 && data.connectAcross === "token_kinds";
+      const oneShort = keepOneBack && held.length === places.length - 1;
       data.phraseWords[user_id] = (oneShort ? held : places).reduce((best, place) => {
         const [mine, bests] = [holders(place, group_id), holders(best, group_id)];
         return mine < bests || (mine === bests && holders(place) < holders(best)) ? place : best;

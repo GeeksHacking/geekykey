@@ -277,9 +277,9 @@ piece.
 
 **Word**:
 One place in the phrase, which a participant in a group holds. A participant has their own word
-and the word of each person they have a connection with. With more than one group, no
-group's members hold every word between them, so completing the phrase takes people from other
-groups.
+and the word of each person they have a connection with. While the event connects across token kinds and has more than one group, no group's members hold
+every word between them, so completing the phrase takes people from other groups. While it
+connects across groups, that is so anyway, and a group may hold every word.
 _Avoid_: clue, piece, which is part of the avatar
 
 **Accepted tap**:

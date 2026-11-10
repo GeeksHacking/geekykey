@@ -2549,8 +2549,8 @@
   change: >-
     Organisers can now type a phrase on the Groups screen, and each person in a group holds one
     of its words. A connection gives both people the other's word, and the dashboard shows the
-    phrase with a blank for each word still to find. With more than one group, no group holds
-    every word, so finishing takes people from other groups. It adds no points and no avatar piece, and a blank phrase
-    turns it off. The trade-offs we accept: with only two groups that connect across groups,
-    some people can't finish a phrase of more than two words, and the Groups screen warns about
-    it.
+    phrase with a blank for each word still to find. Finishing takes people from other groups:
+    when the event connects across token kinds, no group is dealt every word. It adds no points
+    and no avatar piece, and a blank phrase turns it off. The trade-off we accept: two groups
+    that connect only with each other each need as many people as the phrase has words, or some
+    people can't finish, and the Groups screen warns about it.

@@ -90,7 +90,7 @@ export function GroupsScreen() {
           <PhraseSetting
             phrase={data.phrase}
             placedCount={data.groups.reduce((sum, group) => sum + group.members.length, 0)}
-            groupsWithPeople={data.groups.filter((group) => group.members.length > 0).length}
+            groupSizes={data.groups.map((group) => group.members.length).filter((size) => size > 0)}
             connectAcross={data.connect_across}
           />
         ) : null}

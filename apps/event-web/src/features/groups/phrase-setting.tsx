@@ -20,8 +20,8 @@ interface PhraseSettingProps {
   phrase: BoardPhrase | null;
   /** How many participants are in a group now, which the completed count is out of. */
   placedCount: number;
-  /** How many groups have someone in them. */
-  groupsWithPeople: number;
+  /** How many people each group with someone in it has. */
+  groupSizes: readonly number[];
   connectAcross: ConnectAcross;
 }
 
@@ -34,7 +34,7 @@ interface PhraseSettingProps {
 export function PhraseSetting({
   phrase,
   placedCount,
-  groupsWithPeople,
+  groupSizes,
   connectAcross,
 }: PhraseSettingProps) {
   const id = useId();
@@ -46,9 +46,13 @@ export function PhraseSetting({
   const changed = words.join(" ") !== saved;
   const problem = phraseProblem(words);
   const refused = change.isError && change.variables?.type === "phrase";
-  // With several groups, no group holds every word, so with two groups that only connect with
-  // each other, someone holding one of three words can never be given both of the others.
-  const twoGroupLimit = words.length > 2 && groupsWithPeople === 2 && connectAcross === "groups";
+  // Two groups that only connect with each other each need every word, since a word one group
+  // lacks is held only in the other, whose members can't give it to each other.
+  const twoGroupLimit =
+    connectAcross === "groups" &&
+    groupSizes.length === 2 &&
+    words.length > 2 &&
+    Math.min(...groupSizes) < words.length;
 
   const save = (next: string | null) =>
     change.mutate(
@@ -73,8 +77,7 @@ export function PhraseSetting({
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Each person in a group holds one word, and a connection gives both people the other&apos;s
-        word. With more than one group, no group holds every word, so finishing takes people from
-        other groups.
+        word. Finishing takes people from other groups.
       </p>
       <p className="mt-3 text-sm" role="status">
         {phrase ? (
@@ -148,15 +151,17 @@ export function PhraseSetting({
           <p className="mt-2 text-sm text-muted-foreground">
             A different phrase gives everyone a new word, and what each person has collected is
             counted again from the connections they already have. Turn off takes the phrase off
-            everyone&apos;s phone.
+            everyone&apos;s phone. Words are dealt for the connection rule at the time, so after
+            changing the rule, turn the phrase off and save it again.
           </p>
         ) : null}
         {twoGroupLimit ? (
           <p className="mt-2 flex items-start gap-1.5 text-sm">
             <Warning className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <span>
-              With two groups that connect only with each other, some people can&apos;t finish a
-              phrase of more than two words. Use two words, or make a third group.
+              With two groups that connect only with each other, each group needs at least{" "}
+              {words.length} people, one for each word, or some people can&apos;t finish. Use a
+              shorter phrase, or make a third group.
             </span>
           </p>
         ) : null}

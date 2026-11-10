@@ -466,3 +466,24 @@ test("with one group, its members hold every word, since there's no other group 
     cat: "Hello",
   });
 });
+
+test("connecting across groups, each of two groups holds every word, so everyone can finish", async () => {
+  const { send, makeGroups, setPhrase, wordsOf } = await harness();
+  const rule = await send(ORGANIZER, "PUT", "/api/v1/admin/connections/rule", {
+    connect_across: "groups",
+  });
+  assert.equal(rule.status, 200);
+  await makeGroups({ Red: ["ann", "ben", "cat"], Blue: ["dan", "eve", "fay"] });
+  await setPhrase("Meet someone new");
+
+  // Nobody connects inside their own group, so a word kept back from Blue would be one that
+  // Red's members could never get.
+  assert.deepEqual(await wordsOf(["ann", "ben", "cat", "dan", "eve", "fay"]), {
+    ann: "Meet",
+    ben: "someone",
+    cat: "new",
+    dan: "Meet",
+    eve: "someone",
+    fay: "new",
+  });
+});

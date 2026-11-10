@@ -1,7 +1,7 @@
 import { eq, inArray, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/pool.ts";
-import { loadPhrase } from "./event-settings.ts";
+import { loadConnectAcross, loadPhrase } from "./event-settings.ts";
 import type { Tx } from "./games.ts";
 import { groupMembers, participantGroups, phraseWords } from "./schema.ts";
 
@@ -68,8 +68,9 @@ export interface WordCounts {
 /**
  * Which word the next person placed in a group gets, by its position in the phrase.
  *
- * - With more than one group, a group one word short of the whole phrase gets a word it already
- *   has, so its members aren't dealt every word between them and finishing needs another group.
+ * - With `keepOneBack`, a group one word short of the whole phrase gets a word it already has, so
+ *   its members aren't dealt every word between them and finishing needs another group.
+ *   dealWords() says when that applies.
  * - Otherwise the word the group has fewest of, so a group's words are spread evenly.
  * - On a tie, the word the fewest other groups hold. A group then takes the rarer words first, and
  *   the one it ends up without is one other groups have, so two groups rarely lack the same word.
@@ -81,11 +82,11 @@ export interface WordCounts {
  */
 export function chooseWord(
   { inGroup, otherGroups, inEvent }: WordCounts,
-  severalGroups: boolean,
+  keepOneBack: boolean,
 ): number {
   const positions = inGroup.map((_, position) => position);
   const held = positions.filter((position) => inGroup[position]! > 0);
-  const oneShort = severalGroups && held.length > 0 && held.length === positions.length - 1;
+  const oneShort = keepOneBack && held.length > 0 && held.length === positions.length - 1;
   const rank = (position: number) => [
     inGroup[position]!,
     otherGroups[position]!,
@@ -104,12 +105,20 @@ export function chooseWord(
  * and it stays theirs while they wait or after they leave, so what others collected from them
  * stays collected. Only a new phrase and the groups' Reset take words back.
  *
+ * A group is kept one word short of the whole phrase when there's more than one group and the
+ * event connects across token kinds, where two people of one group can connect. When it connects
+ * across groups nobody connects inside their own group, so finishing takes another group anyway,
+ * and a word kept back from a group could be one its members can't reach: with two groups, the
+ * word group B lacks is held only in group A, whose members can't give it to each other. The rule
+ * is read at dealing, so a rule changed afterwards leaves the words as they were dealt.
+ *
  * Call it with the allocation lock held, after the placing. Its reads lock too, as groups.ts
  * says of its own.
  */
 export async function dealWords(tx: Tx, organizers: ReadonlySet<string>): Promise<void> {
   const words = await loadPhrase(tx, { lock: true });
   if (words === null) return;
+  const connectAcross = await loadConnectAcross(tx);
   const groups = await tx
     .select({ id: participantGroups.id })
     .from(participantGroups)
@@ -146,6 +155,7 @@ export async function dealWords(tx: Tx, organizers: ReadonlySet<string>): Promis
   const key = (member: (typeof members)[number]) =>
     `${member.placedAt} ${member.joinedAt} ${member.userId}`;
   without.sort((a, b) => (key(a) < key(b) ? -1 : 1));
+  const keepOneBack = groups.length > 1 && connectAcross === "token_kinds";
   const rows = without.map((member) => {
     const inGroup = inGroups.get(member.groupId!)!;
     const otherGroups = words.map(
@@ -153,7 +163,7 @@ export async function dealWords(tx: Tx, organizers: ReadonlySet<string>): Promis
         [...inGroups.values()].filter((counts) => counts !== inGroup && counts[position]! > 0)
           .length,
     );
-    const position = chooseWord({ inGroup, otherGroups, inEvent }, groups.length > 1);
+    const position = chooseWord({ inGroup, otherGroups, inEvent }, keepOneBack);
     inGroup[position]! += 1;
     inEvent[position]! += 1;
     return { userId: member.userId, position };

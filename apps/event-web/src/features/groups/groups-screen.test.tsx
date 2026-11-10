@@ -1483,7 +1483,7 @@ describe("the Groups screen's phrase (BAC-169)", () => {
     expect(api.mock.data.phrase).toEqual(["Strangers", "become", "friends", "today"]);
   });
 
-  it("warns that two groups connecting only with each other can't all finish a longer phrase", async () => {
+  it("warns when two groups connecting only with each other have fewer people than the phrase has words", async () => {
     const { user } = renderScreen({
       prepare: (api) => {
         const { data } = api.mock;
@@ -1498,7 +1498,7 @@ describe("the Groups screen's phrase (BAC-169)", () => {
       },
     });
     const section = await phraseSection();
-    const warning = /some people can't finish a phrase of more than two words/;
+    const warning = /each group needs at least 4 people, one for each word/;
     expect(within(section).getByText(warning)).toBeInTheDocument();
 
     const field = within(section).getByLabelText("Phrase");
