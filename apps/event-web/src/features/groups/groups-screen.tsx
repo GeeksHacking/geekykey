@@ -93,7 +93,7 @@ export function GroupsScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Groups"
-        description="Press Make groups to split everyone who has joined, by people per group or by number of groups, or to make each group by hand. Allocate places anyone waiting. Move anyone from their menu, or drag them to another group or to Waiting. Tick people who are waiting to move them to one group together. Reset empties the groups for another trial. Refreshes every 5 seconds."
+        description="Press Make groups to split everyone who has joined, by people per group or by number of groups, or to make each group by hand. Allocate places anyone waiting. Move anyone from their menu, or with a mouse, drag them to another group or to Waiting. Tick people who are waiting to move them to one group together. Reset empties the groups for another trial. Refreshes every 5 seconds."
         actions={
           <>
             <MakeGroupsDialog

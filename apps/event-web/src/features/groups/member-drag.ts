@@ -9,8 +9,11 @@ import { useGroupBoardBusy } from "@/features/groups/use-group-board";
 
 /*
   Dragging people between groups on the organisers' board (FRO-140), with Pragmatic drag and drop.
-  It uses the browser's own drag and drop, so a phone starts a drag on a long press and a swipe
-  still scrolls the page. The person's menu stays the way to move someone by keyboard.
+  It uses the browser's own drag and drop, which works with a mouse or a trackpad. On a phone it
+  doesn't: Android Chrome fades the row on a long press and then drops the drag (Pragmatic issues
+  #112 and #204), and Firefox on Android has no drag and drop at all. So a row is draggable only
+  where the main pointer is fine, and phones move people from the person's menu, which is also
+  the way to move someone by keyboard.
 
   A drop is a move from the row's own change, as the menu's is, so a refusal shows on the row.
   Each element registers once while it's mounted and reads the latest props through refs, so a
@@ -38,6 +41,9 @@ function isPlace(data: Record<string | symbol, unknown>): data is PlaceData {
   return data[PLACE] === true;
 }
 
+/** A phone or a tablet, by its main pointer, as `share-file.ts` tells one. */
+const PHONE = "(pointer: coarse)";
+
 /** Keeps the latest value for callbacks registered once. */
 function useLatest<T>(value: T) {
   const ref = useRef(value);
@@ -48,9 +54,9 @@ function useLatest<T>(value: T) {
 }
 
 /**
- * Makes a person's row draggable while no group change is pending. `onMove` gets the place it was
- * dropped on, and is never called for a drop outside a place, on their own place, or a cancelled
- * drag.
+ * Makes a person's row draggable while no group change is pending, except on a phone. `onMove`
+ * gets the place it was dropped on, and is never called for a drop outside a place, on their own
+ * place, or a cancelled drag.
  */
 export function useMemberDrag({
   userId,
@@ -67,7 +73,7 @@ export function useMemberDrag({
 
   useEffect(() => {
     const element = ref.current;
-    if (!element) return;
+    if (!element || window.matchMedia(PHONE).matches) return;
     return draggable({
       element,
       canDrag: () => !latest.current.busy,

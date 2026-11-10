@@ -1426,6 +1426,33 @@ describe("Dragging people between groups", () => {
     expect(namesIn("Members of Atrium mixer")).toContain(stayer);
   });
 
+  it("offers no drag on a phone, where the menu moves people", async () => {
+    // Android browsers start a native drag and then drop it, so phones use the menu (FRO-140).
+    const matchMedia = window.matchMedia;
+    window.matchMedia = (query) => ({
+      ...matchMedia(query),
+      matches: query === "(pointer: coarse)",
+    });
+    onTestFinished(() => {
+      window.matchMedia = matchMedia;
+      vi.restoreAllMocks();
+    });
+    const { api, user } = renderScreen();
+    await screen.findByRole("list", { name: "Waiting" });
+    const move = vi.spyOn(api, "placeGroupMember");
+
+    expect(rowOf("Kenji Ong")).not.toHaveAttribute("draggable");
+    const row = await pickUp("Kenji Ong");
+    expect(row).not.toHaveAttribute("data-dragging");
+    hoverOver(place("Atrium mixer"));
+    expect(place("Atrium mixer")).not.toHaveAttribute("data-drop-over");
+    fireEvent.dragEnd(row);
+    expect(move).not.toHaveBeenCalled();
+
+    await pick(user, "Kenji Ong", "Move to Atrium mixer");
+    await waitFor(() => expect(namesIn("Members of Atrium mixer")).toEqual(["Kenji Ong"]));
+  });
+
   it("marks the person being dragged and the group that would take them", async () => {
     renderScreen();
     await screen.findByRole("list", { name: "Waiting" });
