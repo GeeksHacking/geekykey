@@ -112,11 +112,13 @@ My tokens and Token kinds page links, with the current page marked.
 A token someone else holds sends half a connection by itself once the lookup answers
 `someone_else`, except for a GeekyKey admin, or when the browser says the page load is a reload
 or a move back or forward, which isn't a tap (BAC-149). The page words the Event Service's answer
-with section 13's sentences (agreement 8.8, FRO-110). With `waiting`, `connected` or
-`already_connected`, the event's button opens the dashboard through a login link, where the
-other person accepts a request and the guest sees the reveal (BAC-149). The mock answers it for
-now: BAC-120 builds 8.8 in the service. The hook is `src/features/token/use-meeting.ts`, and the
-sentences are in `src/features/token/meeting-notice.tsx`.
+with section 13's sentences (agreement 8.8, FRO-110). With `waiting`, `connected`,
+`already_connected`, `answers_needed` or `no_group`, the event's button opens the dashboard through
+a login link: where the other person accepts a request and the guest sees the reveal (BAC-149),
+where setup is finished, or, on `no_group`, where the participant joins a group and a latecomer is
+placed (FRO-146). The mock answers it for now: BAC-120 builds 8.8 in the service. The hook is
+`src/features/token/use-meeting.ts`, and the sentences are in
+`src/features/token/meeting-notice.tsx`.
 When the answer gives the owner's name, the page names them and asks whoever is carrying the token
 to swap it back, so people notice swapped tokens (BAC-143, wording approved for the agreement's next version). When it
 gives the owner's bio, the page shows it under the name (BAC-151, for the agreement's next version). The mock
