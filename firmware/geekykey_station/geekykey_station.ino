@@ -20,12 +20,18 @@
     Red LED           -> GPIO5       GPIO26
     Amber LED         -> GPIO3       GPIO27   (LED_PIN_YELLOW below)
     Buzzer +          -> GPIO21      GPIO32   (an active buzzer: it sounds while the pin is HIGH)
-    Buzzer -          -> GND         GND
+    Buzzer -          -> GND         GPIO33   (see below)
+    LED cathodes      -> GND         GPIO33   (see below)
 
   The classic ESP32 can't take the S3's pins: GPIO6 to 11 drive its flash chip,
   so I2C on 7 and 6 restarts it in a loop, the S3's LEDs on 4 and 5 would sit
   on its RST and SS, and GPIO3 is its UART's RX pin. Its buzzer is on GPIO32
   because the screen's SDA takes GPIO21.
+
+  On the classic ESP32, GPIO33 is held LOW as one shared ground for the three
+  LEDs and the buzzer. A pin can only sink about 40 mA, which covers one LED
+  and the buzzer at once (the station never lights two LEDs together), so
+  nothing else goes on it: the RC522 and the screen stay on a real GND pin.
 
   Libraries needed (Library Manager):
     "MFRC522"
@@ -72,6 +78,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Ticker.h>
+#include <driver/gpio.h>
 
 // The pins for the board picked in the IDE (the wiring at the top).
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -98,6 +105,7 @@
 #define I2C_SDA 21
 #define I2C_SCL 22
 #define BUZZER_PIN 32
+#define SHARED_GND_PIN 33
 #else
 #error "The station has pins for the ESP32-S3 and the classic ESP32 only. Pick one of those boards."
 #endif
@@ -105,7 +113,7 @@
 
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-10-28"
+#define FIRMWARE_VERSION "2026-11-10"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
@@ -280,6 +288,13 @@ void setup() {
   Serial.setTxTimeoutMs(0);
 #endif
   delay(1000);
+#ifdef SHARED_GND_PIN
+  // The LEDs' and buzzer's ground (the wiring at the top). Set first, and at
+  // the strongest drive, so it sinks their current before any of them is on.
+  pinMode(SHARED_GND_PIN, OUTPUT);
+  digitalWrite(SHARED_GND_PIN, LOW);
+  gpio_set_drive_capability((gpio_num_t)SHARED_GND_PIN, GPIO_DRIVE_CAP_3);
+#endif
   pinMode(LED_PIN_BLUE, OUTPUT);
   pinMode(LED_PIN_RED, OUTPUT);
   pinMode(LED_PIN_YELLOW, OUTPUT);

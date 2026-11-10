@@ -2466,3 +2466,12 @@
     Each participant's group card lists the other groups and which ones their group has reached
     through any member's connection, and the Groups screen shows the same for every group. It goes
     by the groups as they are now and shows group names only, with no count or score.
+
+- id: classic-esp32-gpio33-ground
+  date: 2026-11-10
+  area: firmware
+  change: >-
+    On the classic ESP32, the station holds GPIO33 low as a second ground, which its three LEDs and
+    buzzer share. GPIO22 was the first pick, but the screen's SCL already uses it. The trade-offs we
+    accept: a pin can only take about 40 mA, which covers one LED and the buzzer at once, so the
+    reader and the screen stay on a real ground pin.
