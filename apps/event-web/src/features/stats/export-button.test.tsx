@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
@@ -105,5 +106,36 @@ describe("ExportButton", () => {
     expect(
       screen.getByText("Some values were escaped, so this file is not the service's own."),
     ).toBeInTheDocument();
+  });
+
+  it("says why a download failed, saves no file, and clears the message on the next press", async () => {
+    const error = vi.spyOn(toast, "error");
+    onTestFinished(() => error.mockRestore());
+    const { api, click } = renderExportButton();
+    api.mock.failNext("rate_limited");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Too many requests. Wait a minute and try again.",
+    );
+    expect(error).not.toHaveBeenCalled();
+    expect(createdBlob).toBeUndefined();
+    expect(click).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Download CSV" })).toBeEnabled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
+    });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(createdBlob).toBeInstanceOf(Blob);
+
+    await act(async () => {
+      vi.runAllTimers();
+    });
   });
 });

@@ -1,6 +1,5 @@
 import { DownloadSimple } from "@phosphor-icons/react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { describeError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
@@ -23,10 +22,12 @@ interface CsvDownloadButtonProps {
 export function CsvDownloadButton({ fetchCsv, fileName }: CsvDownloadButtonProps) {
   const [pending, setPending] = useState(false);
   const [escaped, setEscaped] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function download() {
     setPending(true);
     setEscaped(false);
+    setError(null);
     let anchor: HTMLAnchorElement | null = null;
     let objectUrl: string | null = null;
     try {
@@ -43,8 +44,8 @@ export function CsvDownloadButton({ fetchCsv, fileName }: CsvDownloadButtonProps
       anchor.download = `${fileName}-${formatFileStamp(new Date())}.csv`;
       document.body.appendChild(anchor);
       anchor.click();
-    } catch (error) {
-      toast.error(describeError(error));
+    } catch (failure) {
+      setError(describeError(failure));
     } finally {
       anchor?.remove();
       if (objectUrl !== null) {
@@ -61,6 +62,11 @@ export function CsvDownloadButton({ fetchCsv, fileName }: CsvDownloadButtonProps
         <DownloadSimple aria-hidden />
         {pending ? "Preparing" : "Download CSV"}
       </Button>
+      {error ? (
+        <p role="alert" className="max-w-[36ch] text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
       <p className="max-w-[36ch] text-xs text-muted-foreground">{ESCAPING_RULE}</p>
       <p role="status" className="max-w-[36ch] text-xs text-foreground">
         {escaped ? ESCAPED_NOTICE : null}
