@@ -290,3 +290,36 @@ test("the Worker refuses to start with a FIREBASE_AUTH_URL that isn't https:// o
     }
   }
 });
+
+test("a hashed file under /assets is kept for a year, and the page is asked about each time", async () => {
+  const path = readFileSync(indexHtml, "utf8").match(/\/assets\/[^"]+\.js/)?.[0];
+  assert.ok(path, "dist/index.html names no script under /assets/");
+  const file = readFileSync(fileURLToPath(new URL(`../dist${path}`, import.meta.url)), "utf8");
+
+  const first = await browser("same-origin", path);
+  assert.equal(first.status, 200);
+  assert.equal(first.headers.get("Cache-Control"), "public, max-age=31536000, immutable");
+  assert.match(first.headers.get("Content-Type") ?? "", /javascript/);
+  assert.equal(await first.text(), file);
+
+  // A browser that held the file from before asks whether it changed. It gets the whole
+  // file again, with the header that lets it stop asking.
+  const etag = first.headers.get("ETag");
+  assert.ok(etag, "the file came with no ETag");
+  const again = await browser("same-origin", path, { headers: { "If-None-Match": etag } });
+  assert.equal(again.status, 200);
+  assert.equal(again.headers.get("Cache-Control"), "public, max-age=31536000, immutable");
+  assert.equal(await again.text(), file);
+
+  const page = await browser("navigate", "/");
+  assert.equal(page.headers.get("Cache-Control"), "public, max-age=0, must-revalidate");
+});
+
+test("a path under /assets with no file is a 404 that nothing keeps, not the screens", async () => {
+  for (const mode of ["navigate", "same-origin"] as const) {
+    const res = await browser(mode, "/assets/index-00000000.js");
+    assert.equal(res.status, 404, mode);
+    assert.equal(res.headers.get("Cache-Control"), "no-store", mode);
+    assert.equal(await res.text(), "Not found", mode);
+  }
+});
