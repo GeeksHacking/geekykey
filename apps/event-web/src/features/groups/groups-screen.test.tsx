@@ -198,7 +198,7 @@ describe("GroupsScreen", () => {
     expect(await saved.blob!.text()).toContain("u_7f3a,'=2+2,");
   });
 
-  it("says why a download failed, saves nothing, and lets the organiser try again", async () => {
+  it("says why a download failed, saves nothing, and clears the message on the next press", async () => {
     const saved = catchDownload();
     const error = vi.spyOn(toast, "error");
     onTestFinished(() => error.mockRestore());
@@ -208,11 +208,17 @@ describe("GroupsScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Download CSV" }));
 
-    await waitFor(() =>
-      expect(error).toHaveBeenCalledWith("Too many requests. Wait a minute and try again."),
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Too many requests. Wait a minute and try again.",
     );
+    expect(error).not.toHaveBeenCalled();
     expect(saved.blob).toBeUndefined();
     expect(screen.getByRole("button", { name: "Download CSV" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Download CSV" }));
+
+    await waitFor(() => expect(saved.name).toMatch(/^geekykey-groups-\d{8}-\d{4}\.csv$/));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("says what to do with no groups, and offers one Make groups button and no Allocate", async () => {
