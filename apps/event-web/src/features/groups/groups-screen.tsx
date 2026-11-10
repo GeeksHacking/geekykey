@@ -15,14 +15,16 @@ import { ExportGroupsButton } from "@/features/groups/export-groups-button";
 import { GroupBoardSkeleton } from "@/features/groups/group-board-skeleton";
 import { GroupPanel } from "@/features/groups/group-panel";
 import { MakeGroupsDialog } from "@/features/groups/make-groups-dialog";
-import { MemberRow } from "@/features/groups/member-row";
+import { useDragAutoScroll } from "@/features/groups/member-drag";
 import { ResetGroupsDialog } from "@/features/groups/reset-groups-dialog";
 import { useGroupBoard, useGroupBoardChange } from "@/features/groups/use-group-board";
+import { WaitingList } from "@/features/groups/waiting-list";
 import { showStaleNote } from "@/lib/rate-limit";
 
 export function GroupsScreen() {
   const board = useGroupBoard();
   const allocate = useGroupBoardChange();
+  useDragAutoScroll();
   const refetch = () => void board.refetch();
   const data = board.data;
   // There's nothing for Allocate to do otherwise, and pressing it again changes nothing.
@@ -78,25 +80,7 @@ export function GroupsScreen() {
             description="Once people have joined, press Make groups to split them into groups at once. Or use it to make each group by hand, then press Allocate."
           />
         )}
-        <section aria-labelledby="groups-waiting" className="rounded-lg border p-4">
-          <h2 id="groups-waiting" className="type-item">
-            Waiting
-          </h2>
-          {data.waiting.length > 0 ? (
-            <ul aria-label="Waiting" className="mt-3 space-y-1 text-sm">
-              {data.waiting.map((member) => (
-                <MemberRow
-                  key={member.user_id}
-                  member={member}
-                  groupId={null}
-                  groups={data.groups}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-muted-foreground">Nobody is waiting.</p>
-          )}
-        </section>
+        <WaitingList waiting={data.waiting} groups={data.groups} />
         <ConnectionRuleSwitch value={data.connect_across} />
         {/* An Event Service from before BAC-161 has no challenge to choose. */}
         {data.challenge ? <ConnectionChallengeSwitch value={data.challenge} /> : null}
@@ -109,7 +93,7 @@ export function GroupsScreen() {
     <div className="space-y-6">
       <PageHeader
         title="Groups"
-        description="Press Make groups to split everyone who has joined, by people per group or by number of groups, or to make each group by hand. Allocate places anyone waiting. Move anyone from their menu. Reset empties the groups for another trial. Refreshes every 5 seconds."
+        description="Press Make groups to split everyone who has joined, by people per group or by number of groups, or to make each group by hand. Allocate places anyone waiting. Move anyone from their menu, or drag them to another group or to Waiting. Reset empties the groups for another trial. Refreshes every 5 seconds."
         actions={
           <>
             <MakeGroupsDialog

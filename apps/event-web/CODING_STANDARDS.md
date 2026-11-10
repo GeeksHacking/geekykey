@@ -53,6 +53,14 @@ the automated checks cannot fully enforce, design rules and the checks for a fin
   every screen; lint rejects that import. Mini uses `z.nullable(...)` and
   `.check(z.minLength(1, "..."))` rather than `.nullable()` and `.min(1, "...")`.
 - Before changing the avatar's generated art or figures, read [the art guide](art/avatar/README.md).
+- Drag and drop uses Pragmatic drag and drop (`@atlaskit/pragmatic-drag-and-drop`, with
+  `@atlaskit/pragmatic-drag-and-drop-auto-scroll` to scroll the page during a drag, and
+  `@atlaskit/pragmatic-drag-and-drop-unit-testing` for jsdom's missing drag events), chosen in
+  FRO-140 over dnd-kit, React DnD and hand-written events. It uses the browser's own drag and
+  drop, so a phone starts a drag on a long press and a swipe still scrolls. It has no keyboard
+  dragging, so every drag needs a menu or button that does the same thing. Keep its imports in the
+  feature that uses them, so it loads only on that route. `features/groups/member-drag.ts` shows
+  the pattern, and the Groups tests show how to drag in jsdom.
 - Before adding GSAP or three.js imports, read [design direction](docs/design-direction.md) for
   loading boundaries, motion exceptions and reduced-motion behaviour.
 

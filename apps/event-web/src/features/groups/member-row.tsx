@@ -1,4 +1,4 @@
-import { DotsThree } from "@phosphor-icons/react";
+import { DotsSixVertical, DotsThree } from "@phosphor-icons/react";
 
 import { describeError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useMemberDrag } from "@/features/groups/member-drag";
 import { useGroupBoardChange } from "@/features/groups/use-group-board";
+import { cn } from "@/lib/utils";
 
 /**
  * One person on the Groups screen, in a group or on the waiting list, with the organiser's
- * moves for them (the spec's user stories 30 to 35). A move may pass a group's capacity, and the
- * panel then says it's over. A move or removal that fails says why on the row.
+ * moves for them (the spec's user stories 30 to 35), from their menu or by dragging the row to
+ * another place (FRO-140). A move may pass a group's capacity, and the panel then says it's over.
+ * A move or removal that fails says why on the row.
  */
 export function MemberRow({
   member,
@@ -31,11 +34,27 @@ export function MemberRow({
   const { busy, error } = change;
   const move = (to: string | null) =>
     change.mutate({ type: "move", userId: member.user_id, groupId: to });
+  const { ref: dragRef, dragging } = useMemberDrag({ userId: member.user_id, busy, onMove: move });
 
   return (
-    <li>
+    <li
+      ref={dragRef}
+      data-dragging={dragging || undefined}
+      className={cn(
+        "-mx-1 rounded-md px-1 select-none",
+        !busy && "cursor-grab active:cursor-grabbing",
+        dragging && "opacity-50 outline-2 outline-offset-1 outline-dashed outline-border",
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 break-words">{member.display_name}</span>
+        <span className="flex min-w-0 items-center gap-1">
+          <DotsSixVertical
+            weight="bold"
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+          <span className="min-w-0 break-words">{member.display_name}</span>
+        </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
