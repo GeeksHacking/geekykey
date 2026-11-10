@@ -2475,3 +2475,12 @@
     buzzer share. GPIO22 was the first pick, but the screen's SCL already uses it. The trade-offs we
     accept: a pin can only take about 40 mA, which covers one LED and the buzzer at once, so the
     reader and the screen stay on a real ground pin.
+
+- id: avatar-piece-from-a-win
+  date: 2026-11-10
+  area: frontend
+  change: >-
+    A win now adds an extra piece to the dashboard's avatar, on top of the one the connection
+    gives, so a guest who wins the dice or the reaction test finishes the outfit sooner. A tie
+    counts as a win for both, older connections still give one piece, and the reveal says what
+    the win earned.

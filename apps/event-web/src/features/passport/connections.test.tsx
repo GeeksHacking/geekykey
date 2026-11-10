@@ -42,6 +42,7 @@ function FakeDiceStage({ dice, rolling, onReady, onLanded }: DiceStageProps) {
 
 const TALK = "Talk to find out which answers you share.";
 const SHOW = "Show what we share";
+const PIECE = "Winning adds an extra piece to your avatar.";
 
 /** The screens are only ever shown inside RequireSession, so the test waits for a session too. */
 function SignedIn({ children }: { children: ReactNode }) {
@@ -121,6 +122,38 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
         `You rolled ${dice.your_roll}. They rolled ${dice.their_roll}.`,
       );
     }
+  });
+
+  it("says a win adds a piece in the reveal, and not in the list", async () => {
+    renderScreen(
+      setUp([connection(0, { dice: { your_roll: 5, their_roll: 2, result: "win" } })]),
+      <DashboardScreen />,
+    );
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    const list = screen.getByRole("list", { name: "Connections" });
+
+    expect(within(reveal).getByText(PIECE)).toBeInTheDocument();
+    expect(within(list).queryByText(PIECE)).not.toBeInTheDocument();
+  });
+
+  it("says it for a tie too, since both win", async () => {
+    renderScreen(
+      setUp([connection(0, { dice: { your_roll: 4, their_roll: 4, result: "win" } })]),
+      <DashboardScreen />,
+    );
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+
+    expect(within(reveal).getByText(PIECE)).toBeInTheDocument();
+  });
+
+  it("doesn't say it for a loss", async () => {
+    renderScreen(
+      setUp([connection(0, { dice: { your_roll: 1, their_roll: 6, result: "loss" } })]),
+      <DashboardScreen />,
+    );
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+
+    expect(within(reveal).queryByText(PIECE)).not.toBeInTheDocument();
   });
 
   it.each([undefined, null])("keeps an older connection visible with dice %s", async (dice) => {

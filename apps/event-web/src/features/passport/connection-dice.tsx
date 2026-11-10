@@ -1,4 +1,5 @@
 import type { Connection } from "@/api/types";
+import { WinPiece } from "@/features/passport/win-piece";
 import { cn } from "@/lib/utils";
 
 interface ConnectionDiceProps {
@@ -29,6 +30,7 @@ export function ConnectionDice({ dice, layout, className }: ConnectionDiceProps)
         You rolled {dice.your_roll}. They rolled {dice.their_roll}.
       </p>
       <p className={layout === "line" ? "font-semibold" : "type-item"}>{result}</p>
+      <WinPiece result={dice.result} layout={layout} />
     </div>
   );
 }
