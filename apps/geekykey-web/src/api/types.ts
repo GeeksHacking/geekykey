@@ -62,6 +62,7 @@ export const MEETING_STATUSES = [
   "connected",
   "already_connected",
   "same_kind",
+  "no_kind",
   // Connecting across groups: the two are in one group, or either isn't in a group yet
   // (BAC-140, approved for the agreement's next version).
   "same_group",

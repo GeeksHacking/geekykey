@@ -146,7 +146,8 @@ describe("connection requests on the dashboard (BAC-149)", () => {
   });
 
   it.each([
-    ["same_kind", SAME_GROUP],
+    ["same_kind", "You have the same token kind. Find someone with a different kind."],
+    ["no_kind", "This token can't connect yet. Ask an organizer."],
     ["same_group", SAME_GROUP],
     ["no_group", NO_GROUP],
   ] as const)("accepting says why when the service answers %s", async (status, sentence) => {

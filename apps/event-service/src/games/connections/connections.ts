@@ -130,7 +130,7 @@ function pairOf(oneUser: string, otherUser: string): Pair {
 }
 
 /** The statuses that say the connection rule refuses the two (11.10). */
-type Refusal = Extract<MeetingStatus, "same_kind" | "same_group" | "no_group">;
+type Refusal = Extract<MeetingStatus, "same_kind" | "no_kind" | "same_group" | "no_group">;
 
 /**
  * Whether the rule lets the two connect, with each one's kind, locked until `tx`
@@ -154,7 +154,8 @@ async function judge(tx: Tx, { userA, userB }: Pair, given: ReadonlyMap<string, 
     const [groupA, groupB] = [groups.get(userA), groups.get(userB)];
     if (groupA === undefined || groupB === undefined) refusal = "no_group";
     else if (groupA === groupB) refusal = "same_group";
-  } else if (kindA === null || kindB === null || kindA === kindB) refusal = "same_kind";
+  } else if (kindA === null || kindB === null) refusal = "no_kind";
+  else if (kindA === kindB) refusal = "same_kind";
   return { kindA, kindB, refusal };
 }
 

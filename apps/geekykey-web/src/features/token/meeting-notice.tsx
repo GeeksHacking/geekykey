@@ -24,7 +24,8 @@ const SENTENCE: Record<MeetingStatus, string> = {
   answers_needed: "You both need to finish your names and answers in the event before connecting.",
   connected: "You're connected!",
   already_connected: "You're already connected.",
-  same_kind: "You're in the same group. Find someone from another group.",
+  same_kind: "You have the same token kind. Find someone with a different kind.",
+  no_kind: "This token can't connect yet. Ask an organizer.",
   // Approved for the agreement's next version (BAC-140).
   same_group: "You're in the same group. Find someone from another group.",
   // Section 13 (FRO-146): the event's button joins the participant.
@@ -40,6 +41,7 @@ const STATE: Record<MeetingStatus, { icon: Icon; className: string }> = {
   already_connected: { icon: CheckCircle, className: "text-status-accepted" },
   answers_needed: { icon: Info, className: "text-status-cooldown" },
   same_kind: { icon: Info, className: "text-status-cooldown" },
+  no_kind: { icon: Info, className: "text-status-cooldown" },
   same_group: { icon: Info, className: "text-status-cooldown" },
   no_group: { icon: Info, className: "text-status-cooldown" },
   unavailable: { icon: WarningCircle, className: "text-status-unknown" },

@@ -18,6 +18,7 @@ test("the agreement's meeting hand-off and its answer pass", () => {
     "connected",
     "already_connected",
     "same_kind",
+    "no_kind",
     "same_group",
     "no_group",
   ]) {

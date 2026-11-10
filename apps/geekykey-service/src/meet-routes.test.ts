@@ -114,6 +114,19 @@ test("tapping someone else's token hands the half on, with both kinds, and answe
   ]);
 });
 
+test("a missing kind is passed on as no_kind, and older same_kind answers still work", async () => {
+  const { fake, logIn, meet } = harness();
+  const cookie = await logIn("tapper");
+  for (const status of ["no_kind", "same_kind"]) {
+    fake.answers.meetings = async () => Response.json({ status });
+    const res = await meet(UID, cookie);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), {
+      meetings: [{ event_id: "showcase", status, owner_name: null, owner_bio: null }],
+    });
+  }
+});
+
 test("the owner's bio in the Event Service's answer is passed on, with no ID, UID or contact line", async () => {
   const { fake, logIn, meet } = harness();
   fake.answers.meetings = async () =>
