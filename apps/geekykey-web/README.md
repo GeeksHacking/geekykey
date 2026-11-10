@@ -14,7 +14,7 @@ these are the first screens a phone opens when it taps a token.
 The stack matches the Event screens: React 19, Vite, TanStack Router and Query, Tailwind 4 and
 shadcn/ui. The two apps share no component package. A few files are copies of the Event screens'
 and change together with them; [CLAUDE.md](CLAUDE.md) lists them, with this app's other rules.
-It follows the shared conventions in `apps/event-web/CLAUDE.md`.
+It follows the shared conventions in [the Event screens' coding standards](../event-web/CODING_STANDARDS.md).
 
 ## Running it
 

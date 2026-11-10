@@ -4,7 +4,7 @@
 
 ## Sources of truth
 
-- Shared frontend conventions: `apps/event-web/CLAUDE.md`
+- Before writing or reviewing code, read the shared [frontend conventions](../event-web/CODING_STANDARDS.md).
 - API contract: `apps/API-AGREEMENT.md`
 - This app's planned screens: section 13 of the API agreement
 
@@ -22,7 +22,7 @@ differ.
   survives the redirect to `/login`.
 - Forms use react-hook-form and zod through the shadcn `Form`, in `src/components/ui/form.tsx` and
   `src/components/ui/input.tsx`. Import `zod/mini`, as the Event screens do; lint refuses `zod`
-  (see the Forms row of the stack table in `apps/event-web/CLAUDE.md`).
+  (see [dependency conventions](../event-web/CODING_STANDARDS.md#dependencies-and-generated-assets)).
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
 - `src/test/location.ts` is a copy of the Event screens' file. Change them together.

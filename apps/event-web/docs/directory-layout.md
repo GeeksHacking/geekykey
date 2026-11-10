@@ -1,11 +1,12 @@
 # Directory layout
 
-What lives where in `apps/event-web`. The rules for where code may import from are in
-CLAUDE.md, under "Directory layout".
+What lives where in `apps/event-web`. Read the [module boundaries](../CODING_STANDARDS.md#module-boundaries)
+before adding imports between features.
 
 ```
 apps/event-web/
   CLAUDE.md
+  CODING_STANDARDS.md        # conventions, design rules and checks for a finished screen
   index.html                # theme bootstrap script runs before first paint
   public/brand/             # the branding kit's logos; the secondary one is also the favicon
   vite.config.ts            # react, router and tailwind plugins, proxy /api and /auth to :8001
