@@ -287,6 +287,8 @@ export const myGroupResponseSchema: z.ZodMiniType<MyGroupResponse> = z.object({
       tags: z.array(z.string()),
       location: z.nullable(z.string()),
       members: z.array(z.object({ display_name: z.string() })),
+      // BAC-167, draft for the agreement's next version; an older Event Service leaves it out.
+      other_groups: z.optional(z.array(z.object({ name: z.string(), reached: z.boolean() }))),
     }),
   ),
 });
@@ -323,6 +325,8 @@ export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
       how: z.enum(["allocated", "latecomer", "organizer"]),
     }),
   ),
+  // BAC-167, draft for the agreement's next version; an older Event Service leaves it out.
+  reached_group_ids: z.optional(z.array(z.string())),
 });
 
 /** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate. */

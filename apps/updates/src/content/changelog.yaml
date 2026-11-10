@@ -2458,3 +2458,11 @@
     makes a one-use link that lasts a minute, and marks it used when the GeekyKey Service checks it.
     The trade-offs we accept: an Event Service trusted this way can log anyone in to GeekyKey, so
     only ours is, and the link stops working if the Event Service doesn't answer.
+
+- id: groups-see-groups-reached
+  date: 2026-11-10
+  area: backend
+  change: >-
+    Each participant's group card lists the other groups and which ones their group has reached
+    through any member's connection, and the Groups screen shows the same for every group. It goes
+    by the groups as they are now and shows group names only, with no count or score.

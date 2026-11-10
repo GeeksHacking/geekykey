@@ -1169,7 +1169,8 @@ describe("the mock's groups (draft for agreement 0.14)", () => {
     await api.deleteGroup(foyer!.id);
 
     const after = await api.groupBoard();
-    expect(after.groups).toEqual([atrium]);
+    // Its members stay, and with no other group left it has reached none (BAC-167).
+    expect(after.groups).toEqual([{ ...atrium, reached_group_ids: [] }]);
     expect(after.waiting.map(({ user_id }) => user_id).sort()).toEqual(
       foyer!.members.map(({ user_id }) => user_id).sort(),
     );

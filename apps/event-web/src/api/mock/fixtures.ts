@@ -129,6 +129,12 @@ export interface MockData {
   connectAcross: ConnectAcross;
   /** What a new connection plays, which a new event starts as random (BAC-161). */
   challenge: Challenge;
+  /**
+   * Every connection as the user IDs of its two people, which the Event Service keeps and the
+   * mock needs only for the groups each group has reached (BAC-167). The users' own
+   * `connections` don't say who the other person is, so the two aren't kept in step.
+   */
+  connectedPairs: [string, string][];
 }
 
 /**
@@ -544,5 +550,11 @@ export function createFixtures(now: number = Date.now()): MockData {
     groupAllocationStartedAt: null,
     connectAcross: "token_kinds",
     challenge: "random",
+    // Two pairs of those waiting have connected, so after Allocate their groups may have reached
+    // each other.
+    connectedPairs: [
+      ["u_7f3a", "u_2e8b"],
+      ["u_9c21", "u_d0a9"],
+    ],
   };
 }

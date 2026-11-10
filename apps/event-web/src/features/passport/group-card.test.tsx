@@ -442,3 +442,110 @@ describe("GroupCard's name prompt (agreement 8.1, 8.7 and 13)", () => {
     expect(join?.calls).toBe(1);
   });
 });
+
+describe("GroupCard's other groups (BAC-167)", () => {
+  /**
+   * The participant and u_7f3a in Foyer, u_9c21 in Atrium and u_2e8b in a third group, Hall,
+   * connected as `pairs` says.
+   */
+  function threeGroups(api: MockApiClient, pairs: [string, string][]) {
+    const placedAt = new Date().toISOString();
+    api.mock.data.groups.push({
+      id: "g_hall",
+      name: "Hall mixer",
+      tags: [],
+      location: null,
+      capacity: null,
+    });
+    api.mock.data.groupAllocationStartedAt = placedAt;
+    api.mock.data.groupMembers = (
+      [
+        [SEEDED_PARTICIPANT_ID, "g_foyer"],
+        ["u_7f3a", "g_foyer"],
+        ["u_9c21", "g_atrium"],
+        ["u_2e8b", "g_hall"],
+      ] as const
+    ).map(([user_id, group_id]) => ({
+      user_id,
+      group_id,
+      joined_at: placedAt,
+      placed_at: placedAt,
+      how: "organizer",
+    }));
+    api.mock.data.connectedPairs = pairs;
+  }
+
+  /** Each other group's row on the card, as its text. */
+  async function otherGroupRows() {
+    const list = await screen.findByRole("list", { name: "Other groups" });
+    return within(list)
+      .getAllByRole("listitem")
+      .map((row) => row.textContent);
+  }
+
+  it("lists each other group, and which ones a groupmate's connection has reached", async () => {
+    renderCard({ prepare: (api) => threeGroups(api, [["u_7f3a", "u_9c21"]]) });
+
+    expect(await otherGroupRows()).toEqual(["Atrium mixerReached", "Hall mixerNot yet"]);
+    expect(
+      screen.getByText("Connect with someone from each group to reach it."),
+    ).toBeInTheDocument();
+  });
+
+  it("says when the group has reached every other group", async () => {
+    renderCard({
+      prepare: (api) =>
+        threeGroups(api, [
+          ["u_7f3a", "u_9c21"],
+          ["u_2e8b", SEEDED_PARTICIPANT_ID],
+        ]),
+    });
+
+    expect(await otherGroupRows()).toEqual(["Atrium mixerReached", "Hall mixerReached"]);
+    expect(screen.getByText("Your group has reached every other group.")).toBeInTheDocument();
+  });
+
+  it("leaves out a group with nobody in it, so the group can still reach every other", async () => {
+    renderCard({
+      prepare: (api) => {
+        threeGroups(api, [["u_7f3a", "u_9c21"]]);
+        api.mock.data.groupMembers = api.mock.data.groupMembers.filter(
+          ({ group_id }) => group_id !== "g_hall",
+        );
+      },
+    });
+
+    expect(await otherGroupRows()).toEqual(["Atrium mixerReached"]);
+    expect(screen.getByText("Your group has reached every other group.")).toBeInTheDocument();
+  });
+
+  it("shows no other groups when there's only one group", async () => {
+    renderCard({
+      prepare: (api) => {
+        api.mock.data.groups = api.mock.data.groups.slice(0, 1);
+        placeInOneGroup(api, [SEEDED_PARTICIPANT_ID]);
+      },
+    });
+
+    await screen.findByRole("list", { name: "Members" });
+    expect(screen.queryByRole("list", { name: "Other groups" })).not.toBeInTheDocument();
+  });
+
+  it("shows the group as before from an Event Service that doesn't give other groups", async () => {
+    const { api } = renderCard({
+      prepare: (client) => {
+        threeGroups(client, [["u_7f3a", "u_9c21"]]);
+        const real = client.myGroup.bind(client);
+        vi.spyOn(client, "myGroup").mockImplementation(async () => {
+          const answer = await real();
+          if (answer.group) delete answer.group.other_groups;
+          return answer;
+        });
+      },
+    });
+
+    await screen.findByRole("list", { name: "Members" });
+    expect(screen.queryByRole("list", { name: "Other groups" })).not.toBeInTheDocument();
+    expect(api.myGroup).toHaveBeenCalled();
+  });
+});

@@ -119,8 +119,11 @@ export function createApp(
     }),
   );
   app.route("/api/v1/me", meRoutes({ session, answers, connections, now }));
-  app.route("/api/v1/me/group", myGroupRoutes({ session, now }));
-  app.route("/api/v1/admin", adminRoutes({ session, games: showcaseGames, now, shuffle }));
+  app.route("/api/v1/me/group", myGroupRoutes({ session, connections, now }));
+  app.route(
+    "/api/v1/admin",
+    adminRoutes({ session, games: showcaseGames, connections, now, shuffle }),
+  );
   app.route("/api/v1/map", mapRoutes({ session, connections }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route(

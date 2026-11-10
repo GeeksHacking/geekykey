@@ -341,9 +341,28 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     return userById(userId)?.display_name ?? "Guest";
   }
 
+  /**
+   * The other groups `groupId` has reached, oldest first, as the Event Service works it out
+   * (BAC-167): one of its members has a connection with one of theirs, by the groups now.
+   */
+  function reachedGroupIds(groupId: string): string[] {
+    const groupOf = new Map(
+      data.groupMembers.flatMap(({ user_id, group_id }) => (group_id ? [[user_id, group_id]] : [])),
+    );
+    const reached = new Set<string>();
+    for (const [one, other] of data.connectedPairs) {
+      const [oneGroup, otherGroup] = [groupOf.get(one), groupOf.get(other)];
+      if (!oneGroup || !otherGroup || oneGroup === otherGroup) continue;
+      if (oneGroup === groupId) reached.add(otherGroup);
+      if (otherGroup === groupId) reached.add(oneGroup);
+    }
+    return data.groups.filter(({ id }) => reached.has(id)).map(({ id }) => id);
+  }
+
   function toEventGroup(group: MockGroup): EventGroup {
     return {
       ...group,
+      reached_group_ids: reachedGroupIds(group.id),
       members: data.groupMembers.flatMap((member) =>
         member.group_id === group.id && member.placed_at !== null && member.how !== null
           ? [
@@ -509,6 +528,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     if (!mine) return { status: "not_joined", allocation_started, group: null };
     const group = data.groups.find(({ id }) => id === mine.group_id);
     if (!group) return { status: "waiting", allocation_started, group: null };
+    const reached = reachedGroupIds(group.id);
     return {
       status: "placed",
       allocation_started,
@@ -520,6 +540,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         members: data.groupMembers
           .filter((member) => member.group_id === group.id)
           .map((member) => ({ display_name: memberName(member.user_id) })),
+        // Only groups with someone in them, as the Event Service lists them.
+        other_groups: data.groups
+          .filter(
+            ({ id }) =>
+              id !== group.id && data.groupMembers.some((member) => member.group_id === id),
+          )
+          .map(({ id, name }) => ({ name, reached: reached.includes(id) })),
       },
     };
   }

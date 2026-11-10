@@ -36,6 +36,8 @@ interface MyGroupBody {
     tags: string[];
     location: string | null;
     members: { display_name: string }[];
+    /** Every other group, oldest first (BAC-167). */
+    other_groups: { name: string; reached: boolean }[];
   } | null;
 }
 
@@ -58,6 +60,8 @@ interface BoardBody {
       placed_at: string;
       how: string;
     }[];
+    /** The other groups it has reached (BAC-167). */
+    reached_group_ids: string[];
   }[];
   waiting: { user_id: string; display_name: string; joined_at: string }[];
 }
@@ -269,6 +273,7 @@ test("a new group is on the board by its name, with nobody in it", async () => {
     location: null,
     capacity: null,
     members: [],
+    reached_group_ids: [],
   });
   assert.deepEqual(await board(), {
     allocation_started_at: null,
@@ -474,6 +479,7 @@ test("editing a group sets all its fields, and a field left out is none", async 
     location: "Hall",
     capacity: 4,
     members: [],
+    reached_group_ids: [],
   });
 
   const bare = await read<BoardBody["groups"][number]>(

@@ -2,10 +2,12 @@ import { MapPin } from "@phosphor-icons/react";
 
 import type { MyGroup } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
+import { GroupsReached } from "@/features/passport/groups-reached";
 
 /**
  * What a placed participant sees of their group: its name, where to go, its tags and the other
- * members' names (the spec's user stories 45 and 46).
+ * members' names (the spec's user stories 45 and 46), then which other groups it has reached
+ * (BAC-167).
  */
 export function MyGroupDetails({ group }: { group: MyGroup }) {
   return (
@@ -32,6 +34,8 @@ export function MyGroupDetails({ group }: { group: MyGroup }) {
           <li key={index}>{member.display_name}</li>
         ))}
       </ul>
+      {/* An Event Service from before BAC-167 doesn't say. */}
+      {group.other_groups ? <GroupsReached others={group.other_groups} /> : null}
     </>
   );
 }
