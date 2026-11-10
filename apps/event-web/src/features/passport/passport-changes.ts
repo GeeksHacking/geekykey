@@ -1,22 +1,29 @@
 import type { MeResponse } from "@/api/types";
+import { wornPieces } from "@/features/passport/avatar/pieces";
 
 export interface PassportChanges {
   /** The slots that filled since the last poll, by `station_id`. */
   stamped: readonly string[];
   /** The points before and after, when they went up. */
   points: { from: number; to: number } | null;
-  /** The connection count before and after, when it went up. */
-  connections: { from: number; to: number } | null;
+  /**
+   * The pieces worn before and after, when the outfit gained one. A new connection gives
+   * one, a win gives an extra one, and a reaction result that arrives later gives its extra
+   * one on that poll, without a new connection.
+   */
+  pieces: { from: number; to: number } | null;
 }
 
-export const NO_CHANGES: PassportChanges = { stamped: [], points: null, connections: null };
+export const NO_CHANGES: PassportChanges = { stamped: [], points: null, pieces: null };
 
 /**
  * What changed between two polls of /me that the passport should animate. A first poll has
  * nothing to compare with, and a different user signing in isn't a change, so both find
  * nothing. Neither does a slot that is new since the last poll, even one already stamped, or
- * points going down. A connection makes a change only when the list grew, since the answers
- * a pair share arriving later don't give a piece. The screens play what this returns and
+ * points going down. The outfit makes a change when the pieces worn grew: a new connection
+ * gives one, a win gives an extra one, and a reaction result that arrives later gives its
+ * extra one on that poll. The answers a pair share arriving later give nothing, and nor does
+ * a connection or win once the outfit is complete. The screens play what this returns and
  * decide nothing else.
  */
 export function passportChanges(
@@ -31,12 +38,11 @@ export function passportChanges(
     .filter((stamp) => stamp.earned_at !== null && wasEarned.get(stamp.station_id) === false)
     .map((stamp) => stamp.station_id);
   const points = next.points > previous.points ? { from: previous.points, to: next.points } : null;
-  const connections =
-    next.connections.length > previous.connections.length
-      ? { from: previous.connections.length, to: next.connections.length }
-      : null;
-  if (stamped.length === 0 && points === null && connections === null) return NO_CHANGES;
-  return { stamped, points, connections };
+  const from = wornPieces(previous.connections);
+  const to = wornPieces(next.connections);
+  const pieces = to > from ? { from, to } : null;
+  if (stamped.length === 0 && points === null && pieces === null) return NO_CHANGES;
+  return { stamped, points, pieces };
 }
 
 /** A new stamp's group page, from the poll that filled it. */

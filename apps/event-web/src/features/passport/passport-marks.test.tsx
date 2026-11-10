@@ -58,6 +58,38 @@ function connections(count: number): Connection[] {
   }));
 }
 
+const won: Connection = {
+  ...met,
+  dice: { your_roll: 5, their_roll: 2, result: "win" },
+};
+
+const lost: Connection = {
+  ...met,
+  dice: { your_roll: 2, their_roll: 5, result: "loss" },
+};
+
+/** A win made at a given time, so rows in one test keep their own keys. */
+function winAt(connectedAt: string): Connection {
+  return { ...won, connected_at: connectedAt, shared_at: connectedAt };
+}
+
+/** A reaction connection, with the result the service has kept so far. */
+function reaction(result: "win" | "loss" | null): Connection {
+  return {
+    ...met,
+    id: "c_reaction",
+    dice: null,
+    reaction: {
+      play_by: met.connected_at,
+      your_play: result === null ? "not_played" : "played",
+      your_ms: result === null ? null : 240,
+      their_play: result === null ? "not_played" : "played",
+      their_ms: result === null ? null : result === "win" ? 287 : 200,
+      result,
+    },
+  };
+}
+
 const withConnection: MeResponse = { ...before, points: 3, connections: [met] };
 const withFourConnections: MeResponse = { ...before, points: 6, connections: connections(4) };
 const afterFifthConnection: MeResponse = {
@@ -297,6 +329,88 @@ describe("the dashboard marks what a poll changed", () => {
     expect(within(pieces).getByText("Monocle: not yet").closest("li")).not.toHaveAttribute(
       "data-changed",
     );
+  });
+
+  it("marks the two pieces a win gave, and the point", () => {
+    const { poll } = renderScreen(DashboardScreen);
+    expect(changed()).toEqual([]);
+
+    poll({ ...before, points: 3, connections: [won] });
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("2 of 4 pieces · 3 points");
+    expect(within(avatar).getByText("3")).toHaveAttribute("data-changed", "points");
+    const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
+    for (const label of ["Hat: wearing", "Monocle: wearing"]) {
+      expect(within(pieces).getByText(label).closest("li")).toHaveAttribute(
+        "data-changed",
+        "piece",
+      );
+    }
+    expect(within(pieces).getByText("Cane: not yet").closest("li")).not.toHaveAttribute(
+      "data-changed",
+    );
+  });
+
+  it("marks one piece for a loss", () => {
+    const { poll } = renderScreen(DashboardScreen);
+
+    poll({ ...before, points: 3, connections: [lost] });
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("1 of 4 pieces · 3 points");
+    const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
+    expect(within(pieces).getByText("Hat: wearing").closest("li")).toHaveAttribute(
+      "data-changed",
+      "piece",
+    );
+    expect(within(pieces).getByText("Monocle: not yet").closest("li")).not.toHaveAttribute(
+      "data-changed",
+    );
+  });
+
+  it("marks the extra piece when a reaction win arrives later, and no points", () => {
+    state.me = { ...before, points: 3, connections: [reaction(null)] };
+    const { poll } = renderScreen(DashboardScreen);
+    expect(changed()).toEqual([]);
+
+    poll({ ...before, points: 3, connections: [reaction("win")] });
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("2 of 4 pieces · 3 points");
+    const pieces = within(avatar).getByRole("list", { name: "Your outfit" });
+    expect(within(pieces).getByText("Hat: wearing").closest("li")).not.toHaveAttribute(
+      "data-changed",
+    );
+    expect(within(pieces).getByText("Monocle: wearing").closest("li")).toHaveAttribute(
+      "data-changed",
+      "piece",
+    );
+    expect(within(avatar).getByText("3")).not.toHaveAttribute("data-changed");
+  });
+
+  it("marks nothing when a win arrives on a complete outfit", () => {
+    state.me = {
+      ...before,
+      points: 4,
+      connections: [winAt("2026-11-17T02:40:00.000Z"), winAt("2026-11-17T02:41:00.000Z")],
+    };
+    const { poll } = renderScreen(DashboardScreen);
+    expect(changed()).toEqual([]);
+
+    poll({
+      ...before,
+      points: 5,
+      connections: [
+        winAt("2026-11-17T02:42:00.000Z"),
+        winAt("2026-11-17T02:40:00.000Z"),
+        winAt("2026-11-17T02:41:00.000Z"),
+      ],
+    });
+
+    const avatar = screen.getByRole("region", { name: "Your avatar" });
+    expect(avatar).toHaveTextContent("4 of 4 pieces · 5 points");
+    expect(changed().map((element) => element.getAttribute("data-changed"))).toEqual(["points"]);
   });
 
   it("marks nothing for a fifth connection, though the points still rise", () => {
