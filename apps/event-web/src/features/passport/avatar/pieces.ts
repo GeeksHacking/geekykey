@@ -12,8 +12,10 @@ export const PIECES_PER_CHARACTER = 4;
  * answers `win` for a tie too, so a win adds exactly one. A connection from before the
  * challenges has neither, and gives one.
  */
-export function piecesEarned(connections: readonly Connection[]): number {
-  return connections.reduce((count, connection) => count + 1 + (won(connection) ? 1 : 0), 0);
+export function piecesEarned(connections: readonly Connection[], roundWins = 0): number {
+  return (
+    roundWins + connections.reduce((count, connection) => count + 1 + (won(connection) ? 1 : 0), 0)
+  );
 }
 
 function won(connection: Connection): boolean {
@@ -21,6 +23,6 @@ function won(connection: Connection): boolean {
 }
 
 /** The pieces the guest wears, capped at the character's count. */
-export function wornPieces(connections: readonly Connection[]): number {
-  return Math.min(piecesEarned(connections), PIECES_PER_CHARACTER);
+export function wornPieces(connections: readonly Connection[], roundWins = 0): number {
+  return Math.min(piecesEarned(connections, roundWins), PIECES_PER_CHARACTER);
 }

@@ -31,8 +31,9 @@ export interface Outfit {
 export function outfitFrom(
   connections: readonly Connection[],
   character: CharacterKey = "suit",
+  roundWins = 0,
 ): Outfit {
-  const worn = Math.min(piecesEarned(connections), CHARACTERS[character].pieces.length);
+  const worn = Math.min(piecesEarned(connections, roundWins), CHARACTERS[character].pieces.length);
   const slots = CHARACTERS[character].pieces.map((piece, index) => ({
     piece,
     worn: index < worn,

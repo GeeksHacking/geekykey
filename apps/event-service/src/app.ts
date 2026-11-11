@@ -16,7 +16,8 @@ import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
 import { userLimit } from "./event/user-limit.ts";
-import { showcaseGames } from "./showcase/games.ts";
+import type { TeamDuelsGame } from "./event/team-duels.ts";
+import { showcaseTeamDuels, showcaseGames } from "./showcase/games.ts";
 import { showcaseAnswers, showcaseConnections } from "./showcase/questions.ts";
 
 export type AppEnv = {
@@ -45,6 +46,7 @@ export interface AppDeps {
   connections?: ConnectionsGame | null;
   /** For the groups' Allocate, at random unless a test gives its own. */
   shuffle?: Shuffle;
+  teamDuels?: TeamDuelsGame | null;
 }
 
 /**
@@ -74,6 +76,7 @@ export function createApp(
     now,
     answers = showcaseAnswers,
     connections = showcaseConnections,
+    teamDuels = showcaseTeamDuels,
     shuffle,
   }: AppDeps = {
     googleKeys: googleSigningKeys(),
@@ -88,6 +91,10 @@ export function createApp(
     mapScreens: new Set(config.mapScreens),
     userLimit: userLimit(now),
   };
+
+  const games = showcaseGames.flatMap((entry) =>
+    entry.game.id !== "team_duels" ? [entry] : teamDuels ? [{ ...entry, game: teamDuels }] : [],
+  );
 
   const app = createBaseApp<AppEnv>();
 
@@ -118,17 +125,14 @@ export function createApp(
       links: loginLinks(config.eventServiceKey, { to: "geekykey" }),
     }),
   );
-  app.route("/api/v1/me", meRoutes({ session, answers, connections, now }));
+  app.route("/api/v1/me", meRoutes({ session, answers, connections, teamDuels, now }));
   app.route("/api/v1/me/group", myGroupRoutes({ session, connections, now }));
-  app.route(
-    "/api/v1/admin",
-    adminRoutes({ session, games: showcaseGames, connections, now, shuffle }),
-  );
+  app.route("/api/v1/admin", adminRoutes({ session, games, connections, now, shuffle }));
   app.route("/api/v1/map", mapRoutes({ session, connections }));
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route(
     "/geekykey/v1",
-    handoffRoutes({ key: config.eventServiceKey, games: showcaseGames, connections, answers, now }),
+    handoffRoutes({ key: config.eventServiceKey, games, connections, answers, now }),
   );
 
   // The claims stand-in: who owns each token, for the GeekyKey Service only.

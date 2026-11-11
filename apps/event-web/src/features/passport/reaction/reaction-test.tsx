@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConnectionReaction } from "@/features/passport/connection-reaction";
 import { playedLine } from "@/features/passport/reaction/reaction-wording";
 import { usePlayReaction } from "@/features/passport/reaction/use-play-reaction";
+import { RoundCountdown } from "@/features/passport/round-countdown";
 import { cn } from "@/lib/utils";
 
 /** The random wait before green: 1.5 to 4 seconds, so nobody can tap on a rhythm. */
@@ -21,6 +22,7 @@ const REFUSALS = ["already_played", "too_late", "not_found"] as const;
 
 interface ReactionTestProps {
   connectionId: string;
+  target?: "connection" | "duel";
   reaction: Reaction;
 }
 
@@ -29,12 +31,12 @@ interface ReactionTestProps {
  * I'm ready is pressed. Then the box waits a random time, turns green, and the tap sends the time
  * from green to the tap. This phone's clock measures it, which the agreement accepts.
  */
-export function ReactionTest({ connectionId, reaction }: ReactionTestProps) {
+export function ReactionTest({ connectionId, reaction, target = "connection" }: ReactionTestProps) {
   const [phase, setPhase] = useState<Phase>("intro");
   const signalAt = useRef(0);
   // A second tap can land before the render that hides the box, so only the first one sends.
   const tapped = useRef(false);
-  const play = usePlayReaction(connectionId);
+  const play = usePlayReaction(connectionId, target);
 
   useEffect(() => {
     if (phase !== "waiting") return;
@@ -72,18 +74,34 @@ export function ReactionTest({ connectionId, reaction }: ReactionTestProps) {
 
   // What the service has kept wins. A play's answer goes into /me, so it shows here too.
   if (reaction.your_play !== "not_played" || reaction.result !== null) {
-    return <ConnectionReaction reaction={reaction} layout="stack" className="text-center" />;
+    return (
+      <>
+        {target === "duel" && reaction.result === null ? (
+          <RoundCountdown closesAt={reaction.play_by} duel />
+        ) : null}
+        <ConnectionReaction
+          reaction={reaction}
+          layout="stack"
+          reward={target !== "duel"}
+          className="text-center"
+        />
+      </>
+    );
   }
 
   if (phase === "intro") {
     return (
-      <div className="rounded-lg bg-muted p-3 text-center">
+      <div className={target === "duel" ? "text-center" : "rounded-lg bg-muted p-3 text-center"}>
         <p className="type-item">Reaction test</p>
         <p className="mt-1 text-sm">
           When the box turns green, tap it as fast as you can. Tap before then and you lose. The
           faster of you wins.
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">You have 2 minutes to play.</p>
+        {target === "duel" ? (
+          <RoundCountdown closesAt={reaction.play_by} duel />
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">You have 2 minutes to play.</p>
+        )}
         <Button type="button" className="mt-3" onClick={() => setPhase("waiting")}>
           I&apos;m ready
         </Button>
@@ -108,7 +126,10 @@ export function ReactionTest({ connectionId, reaction }: ReactionTestProps) {
             </Button>
           </>
         ) : (
-          <p className="text-muted-foreground">Waiting for them to play.</p>
+          <>
+            <p className="text-muted-foreground">Waiting for them to play.</p>
+            {target === "duel" ? <RoundCountdown closesAt={reaction.play_by} duel /> : null}
+          </>
         )}
       </div>
     );

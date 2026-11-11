@@ -708,6 +708,7 @@ const statusFor = {
   no_groups: 409,
   too_few_participants: 409,
   groups_exist: 409,
+  station_has_taps: 409,
   already_played: 409,
   too_late: 409,
   rate_limited: 429,

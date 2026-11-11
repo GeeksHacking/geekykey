@@ -10,6 +10,7 @@ const CODES: Record<ErrorCode, true> = {
   no_groups: true,
   too_few_participants: true,
   groups_exist: true,
+  station_has_taps: true,
   already_played: true,
   too_late: true,
   unauthenticated: true,

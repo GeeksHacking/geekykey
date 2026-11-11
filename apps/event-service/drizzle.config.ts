@@ -7,6 +7,7 @@ export default defineConfig({
   schema: [
     "./src/event/schema.ts",
     "./src/games/connections/schema.ts",
+    "./src/games/team-duels/schema.ts",
     "./src/claims-stand-in/schema.ts",
   ],
   out: "./drizzle",

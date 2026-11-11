@@ -38,8 +38,8 @@ export function passportChanges(
     .filter((stamp) => stamp.earned_at !== null && wasEarned.get(stamp.station_id) === false)
     .map((stamp) => stamp.station_id);
   const points = next.points > previous.points ? { from: previous.points, to: next.points } : null;
-  const from = wornPieces(previous.connections);
-  const to = wornPieces(next.connections);
+  const from = wornPieces(previous.connections, previous.round_wins ?? 0);
+  const to = wornPieces(next.connections, next.round_wins ?? 0);
   const pieces = to > from ? { from, to } : null;
   if (stamped.length === 0 && points === null && pieces === null) return NO_CHANGES;
   return { stamped, points, pieces };

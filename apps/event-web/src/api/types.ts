@@ -230,7 +230,31 @@ export interface UpdateMeResponse {
 }
 
 /** GET /api/v1/me */
+/** Team duels (BAC-155, draft for the agreement's next version). */
+export interface DuelRound {
+  id: string;
+  state: "opening" | "playing" | "ended";
+  closes_at: string;
+  players: number;
+  challenge: "dice" | "reaction" | null;
+  team: "a" | "b" | null;
+  teammates: string[];
+  duels: {
+    id: string;
+    opponent: string;
+    dice: { your_roll: number; their_roll: number; result: "win" | "loss" } | null;
+    reaction: Reaction | null;
+  }[];
+  result: {
+    outcome: "win" | "loss" | "nobody_joined";
+    your_team_wins: number;
+    their_team_wins: number;
+  } | null;
+}
+
 export interface MeResponse {
+  round?: DuelRound | null;
+  round_wins?: number;
   user: User;
   /** The answers game's questions in the order to ask them, or null without the game. */
   questions: Question[] | null;
@@ -306,6 +330,7 @@ export interface EventStationBoardStation {
 }
 
 export interface EventStationBoardResponse {
+  games?: { id: string; name: string }[];
   stations: EventStationBoardStation[];
 }
 
@@ -584,6 +609,7 @@ export type ErrorCode =
   | "groups_exist"
   // BAC-156, for the agreement's next version, 8.11: a second play of a reaction test, and one
   // after its 2 minutes.
+  | "station_has_taps"
   | "already_played"
   | "too_late"
   | "rate_limited"

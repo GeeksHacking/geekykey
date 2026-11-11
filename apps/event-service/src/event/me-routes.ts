@@ -17,12 +17,15 @@ import { loadMe } from "./me.ts";
 import { bioSchema, contactLineSchema, setProfile } from "./profiles.ts";
 import type { AppEnv } from "../app.ts";
 
+import type { TeamDuelsGame } from "./team-duels.ts";
+
 export interface MeRouteDeps {
   session: SessionOptions;
   /** The event's answers game, from its settings, or null for none. */
   answers: AnswersGame | null;
   /** The event's connections game, from its settings, or null for none. */
   connections: ConnectionsGame | null;
+  teamDuels?: TeamDuelsGame | null;
   /** The clock that says when what a pair share is shown, and when one connects. Tests pin it. */
   now?: () => Date;
 }
@@ -120,6 +123,7 @@ export function meRoutes({
   session,
   answers: game,
   connections: connectionsGame,
+  teamDuels,
   now = () => new Date(),
 }: MeRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
@@ -146,8 +150,22 @@ export function meRoutes({
       connectionsGame ? connectionsGame.connectionsOf(c.var.db, user.id, now()) : [],
       connectionsGame ? connectionsGame.requestsFor(c.var.db, user.id) : [],
     ]);
+    const rounds = teamDuels
+      ? await teamDuels.roundsOf(c.var.db, user.id, now())
+      : { round: null, round_wins: 0 };
     const phrase = await loadMyPhrase(c.var.db, user.id, session.organizers, connections);
     return c.json({
+      round_wins: rounds.round_wins,
+      round:
+        rounds.round === null
+          ? null
+          : {
+              ...rounds.round,
+              duels: rounds.round.duels.map((duel) => ({
+                ...duel,
+                reaction: duel.reaction === null ? null : reactionBody(duel.reaction),
+              })),
+            },
       user: userBody(user, answers),
       questions: game ? game.questions : null,
       // The passport's points, and the same for each connection, whatever its match.
@@ -266,6 +284,26 @@ export function meRoutes({
       if (result.status === "not_found") return c.json({ error: "not_found" }, 404);
       if (result.status !== "played") return c.json({ error: result.status }, 409);
       log("reaction_played", { user_id: user.id, ms: play.ms });
+      return c.json({ reaction: reactionBody(result.reaction) });
+    },
+  );
+
+  // BAC-155 draft, the same play and errors as agreement 8.11, without a connection.
+  app.post(
+    "/duels/:id/reaction",
+    requireSession(session),
+    jsonBody(reactionPlaySchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      const result = teamDuels
+        ? await teamDuels.playReaction(
+            c.var.db,
+            { duelId: c.req.param("id"), userId: c.var.user.id, ms: "ms" in body ? body.ms : null },
+            now(),
+          )
+        : { status: "not_found" as const };
+      if (result.status === "not_found") return c.json({ error: "not_found" }, 404);
+      if (result.status !== "played") return c.json({ error: result.status }, 409);
       return c.json({ reaction: reactionBody(result.reaction) });
     },
   );

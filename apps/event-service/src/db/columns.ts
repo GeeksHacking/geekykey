@@ -27,3 +27,6 @@ export const groupId = (name: string) => varchar(name, { length: 36 });
 export const connectionRequestId = (name: string) => varchar(name, { length: 36 });
 /** `crypto.randomUUID()`, or MySQL's `UUID()` for a connection from before its ID (BAC-156). */
 export const connectionId = (name: string) => varchar(name, { length: 36 });
+
+/** `crypto.randomUUID()`, for a round or a duel (BAC-155). */
+export const duelId = (name: string) => varchar(name, { length: 36 });

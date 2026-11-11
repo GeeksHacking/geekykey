@@ -84,6 +84,21 @@ test("the right name empties the tables on the cleared list and keeps those on t
     assert.equal(count, 0, `${name} should be empty`);
   }
   assert.deepEqual(await rowCounts(keptTables), keptBefore);
+  const app = testApp();
+  await testDb().insert(users).values({ id: "user-1", displayName: "Alex" });
+  const login = await app.request("/auth/dev-login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: "user-1" }),
+  });
+  assert.equal(login.status, 204);
+  const me = await app.request("/api/v1/me", {
+    headers: { Cookie: login.headers.get("Set-Cookie")!.split(";")[0]! },
+  });
+  const body = (await me.json()) as { round: unknown; round_wins: number };
+  screensSchemas.meResponseSchema.parse(body);
+  assert.equal(body.round, null);
+  assert.equal(body.round_wins, 0);
 });
 
 test("the clear keeps the connection rule and the challenge organizers chose", async () => {

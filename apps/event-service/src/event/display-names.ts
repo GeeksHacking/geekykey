@@ -70,17 +70,19 @@ export async function loginNameOf(db: Db, userId: string): Promise<string | null
  * their own (hasName). The screen shows only printable ASCII, so a name it
  * can't show, such as one in Chinese characters, is left out, and so is a
  * user who has never logged in to this Event Service. `db` may be an
- * ingest's transaction.
+ * ingest's transaction. With `lock`, sees names committed after its lock wait.
  */
 export async function greetingNames(
   db: Db | Tx,
   userIds: readonly string[],
+  { lock = false } = {},
 ): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map();
-  const rows = await db
+  const query = db
     .select({ id: users.id, displayName: users.displayName, nameSetAt: users.nameSetAt })
     .from(users)
     .where(inArray(users.id, [...new Set(userIds)]));
+  const rows = await (lock ? query.for("update") : query);
   const names = new Map<string, string>();
   for (const user of rows) {
     if (!hasName(user)) continue;

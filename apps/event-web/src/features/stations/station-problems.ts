@@ -30,7 +30,8 @@ export function stationProblems(station: EventStationBoardStation): StationProbl
   if (station.online === false) problems.push("offline");
   if (station.reader_ok === false) problems.push("readerNotResponding");
   if ((station.buffered_taps ?? 0) > 0) problems.push("buffered");
-  if (station.passport === null) problems.push("notInPassport");
+  if (station.passport === null && (station.game === null || station.game === "passport"))
+    problems.push("notInPassport");
 
   return problems;
 }

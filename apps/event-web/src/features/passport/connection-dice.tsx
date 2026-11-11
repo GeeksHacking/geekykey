@@ -7,10 +7,11 @@ interface ConnectionDiceProps {
   /** stack: the result on its own line, as the reveal's answer. line: one line in a list's row. */
   layout: "stack" | "line";
   className?: string;
+  reward?: boolean;
 }
 
 /** The same stored dice in the reveal and the list (agreement 8.1 and 13, BAC-150 approved). */
-export function ConnectionDice({ dice, layout, className }: ConnectionDiceProps) {
+export function ConnectionDice({ dice, layout, className, reward = true }: ConnectionDiceProps) {
   if (!dice) return null;
   const result =
     dice.your_roll === dice.their_roll
@@ -30,7 +31,7 @@ export function ConnectionDice({ dice, layout, className }: ConnectionDiceProps)
         You rolled {dice.your_roll}. They rolled {dice.their_roll}.
       </p>
       <p className={layout === "line" ? "font-semibold" : "type-item"}>{result}</p>
-      <WinPiece result={dice.result} layout={layout} />
+      {reward ? <WinPiece result={dice.result} layout={layout} /> : null}
     </div>
   );
 }

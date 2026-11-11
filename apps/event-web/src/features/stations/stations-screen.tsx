@@ -55,7 +55,7 @@ export function StationsScreen() {
         {/* The brackets sit outside the table's own scroll region, so scrolling never clips them. */}
         <div className="relative">
           <CornerBrackets />
-          <StationBoard stations={list} />
+          <StationBoard stations={list} games={stations.data?.games} />
         </div>
       </div>
     );

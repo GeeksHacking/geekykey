@@ -63,6 +63,7 @@ export interface MockUser {
  * `passport`, which is null until 9.1 adds them.
  */
 export interface MockStation {
+  game?: string | null;
   id: string;
   label: string;
   created_at: string;

@@ -62,6 +62,9 @@ export interface ApiClient {
    * The user's one play in a connection's reaction test. A second play answers `already_played`,
    * and one after `play_by` answers `too_late`.
    */
+  playDuelReaction(duelId: string, play: ReactionPlayRequest): Promise<PlayReactionResponse>;
+  setStationGame(stationId: string, game: string | null): Promise<StationResponse>;
+
   playReaction(connectionId: string, play: ReactionPlayRequest): Promise<PlayReactionResponse>;
 
   /** POST /auth/dev-login. Local development only. */

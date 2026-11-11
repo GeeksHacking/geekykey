@@ -5,7 +5,8 @@ import { useApi } from "@/api/context";
 import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type { MeResponse } from "@/api/types";
-import { POLL_ME_MS } from "@/lib/constants";
+import { RoundPollingContext } from "@/lib/round-polling";
+import { mePollInterval } from "@/lib/me-poll-interval";
 import { clearArrivedByLoginLink, markArrivedByLoginLink } from "@/lib/login-link-arrival";
 import { SessionContext, type SessionStatus } from "@/lib/session";
 
@@ -30,6 +31,7 @@ export function SessionProvider({
   children: ReactNode;
   loginLink?: string;
 }) {
+  const [roundCardMounted, setRoundCardMounted] = useState(false);
   const api = useApi();
   const queryClient = useQueryClient();
   const [authorizationFailure, setAuthorizationFailure] = useState<{
@@ -70,7 +72,7 @@ export function SessionProvider({
     // Stamps and points change while the participant walks around, so keep them fresh,
     // but only while someone is signed in. A 401 is a normal answer whose data is null,
     // and the timer starts again when a login puts a session in the cache.
-    refetchInterval: (query) => (query.state.data ? POLL_ME_MS : false),
+    refetchInterval: (query) => mePollInterval(query.state.data, roundCardMounted),
   });
 
   const clearIdentityQueries = useCallback(() => {
@@ -247,5 +249,9 @@ export function SessionProvider({
     ],
   );
 
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return (
+    <RoundPollingContext value={setRoundCardMounted}>
+      <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+    </RoundPollingContext>
+  );
 }

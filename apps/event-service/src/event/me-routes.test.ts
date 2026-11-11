@@ -165,6 +165,8 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
       contact_line: null,
     },
     questions: null,
+    round: null,
+    round_wins: 0,
     points: 0,
     stamps: [
       {
@@ -477,6 +479,8 @@ test("an organizer on the list gets the same view of their own account", async (
       contact_line: null,
     },
     questions: null,
+    round: null,
+    round_wins: 0,
     points: 0,
     stamps: [
       {

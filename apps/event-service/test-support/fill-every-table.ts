@@ -17,6 +17,8 @@ import {
 import { answers, connections, meetingHalves } from "../src/games/connections/schema.ts";
 import { setupFixture } from "../src/test-helpers.ts";
 
+import { duelRounds, duelRoundPlayers, duels } from "../src/games/team-duels/schema.ts";
+
 const AT = "2026-11-12T12:00:00.000Z";
 
 export async function fillEveryTable() {
@@ -53,5 +55,9 @@ export async function fillEveryTable() {
   await db
     .insert(eventSettings)
     .values({ id: 1, connectAcross: "groups", phrase: "Strangers become friends" });
+  const roundId = crypto.randomUUID();
+  await db.insert(duelRounds).values({ id: roundId, stationId, openedAt: AT, closesAt: AT });
+  await db.insert(duelRoundPlayers).values({ roundId, userId, joinedAt: AT });
+  await db.insert(duels).values({ id: crypto.randomUUID(), roundId, userA: userId, userB: other });
   return fixture;
 }

@@ -32,9 +32,9 @@ export function AvatarHero({ me, changes }: AvatarHeroProps) {
   const outfit = useMemo(
     () =>
       demoOn === null
-        ? outfitFrom(me.connections, colours.character)
+        ? outfitFrom(me.connections, colours.character, me.round_wins ?? 0)
         : demoOutfitFrom(colours.character, demoOn),
-    [me.connections, colours.character, demoOn],
+    [me.connections, me.round_wins, colours.character, demoOn],
   );
   const flatUrl = useDressedUrl(outfit.slots, colours);
   const arriving = useMemo(() => {
