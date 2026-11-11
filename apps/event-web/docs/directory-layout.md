@@ -85,7 +85,7 @@ apps/event-web/
       online-status.tsx     # online, offline, or never connected (agreement 9.2)
     api/
       types.ts              # mirrors API-AGREEMENT.md exactly
-      client.ts             # the interface every feature consumes
+      client.ts             # the one interface screens consume, implemented by the mock and the HTTP client
       keys.ts               # every TanStack Query key, in one place
       context.ts            # useApi()
       provider.tsx
@@ -94,7 +94,6 @@ apps/event-web/
       mock/                 # fixtures + mock client
       http/                 # fetch client, credentialed transport, error envelope, response validation
       create-client.ts      # the mock, or the HTTP client in a live build
-      service-client.ts     # the methods grouped by the service that owns them
     lib/                    # shared infrastructure, safe to import from any feature
       session.ts            # "am I logged in": useSession(), useMe()
       session-provider.tsx

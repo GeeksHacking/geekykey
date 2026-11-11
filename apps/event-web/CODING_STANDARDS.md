@@ -34,8 +34,10 @@ the automated checks cannot fully enforce, design rules and the checks for a fin
 ## Data
 
 - Server data enters components through TanStack Query hooks in `features/*`. Never
-  `useEffect` plus `fetch`. All data access goes through `src/api/`, so screens work with either
-  client. Keep transport and response validation there, with no per-screen response reshaping.
+  `useEffect` plus `fetch`. All data access goes through `src/api/`. Screens consume the single
+  `ApiClient` in `src/api/client.ts`, which the mock and the HTTP client both implement, so they
+  work with either client. Keep transport and response validation in `src/api/http/` and
+  `src/api/schemas.ts`, with no per-screen response reshaping.
 - Derive, don't sync: no state that duplicates props or server data. The previous `/me` snapshot
   for animation is the exception; [design direction](docs/design-direction.md) explains it.
 - Follow the [server-state patterns](docs/data-access.md#server-state) for polling and writes.
