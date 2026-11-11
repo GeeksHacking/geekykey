@@ -2564,3 +2564,10 @@
   change: >-
     My tokens can show a QR code of each token's address. Someone whose phone can't read the
     token scans it with their camera and lands on the same page a tap opens.
+- id: error-text-readable
+  date: 2026-11-11
+  area: frontend
+  change: >-
+    Error messages on cards and dialogs in both apps use a dedicated red in the dark theme, so
+    they reach 4.5:1 contrast. Destructive buttons keep their own red and their labels stay
+    readable.
