@@ -88,13 +88,13 @@ export function ReleaseKindTokenDialog({
           <dd className="break-all font-mono">{confirmed.owner_id}</dd>
         </dl>
         {ownerChanged ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             This token's owner has changed since you opened this. Close it and check the list.
           </p>
         ) : null}
         {release.isError ? (
           <div role="alert" className="space-y-1 text-sm">
-            <p className="text-destructive">
+            <p className="text-destructive-text">
               {isApiErrorCode(release.error, "not_found")
                 ? "Someone else has claimed this token now, or it has already been released."
                 : describeError(release.error)}

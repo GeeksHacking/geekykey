@@ -62,7 +62,7 @@ export function MemoryCardDialog({ slots, colours, name }: MemoryCardDialogProps
         </DialogHeader>
         <TiltCard slots={slots} colours={colours} name={name} />
         {picture.state === "failed" ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             Couldn't make the picture. Close this and try again.
           </p>
         ) : null}

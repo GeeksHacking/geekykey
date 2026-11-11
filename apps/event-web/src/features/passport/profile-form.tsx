@@ -113,7 +113,7 @@ export function ProfileForm({
           )}
         />
         {formError ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             {formError}
           </p>
         ) : null}

@@ -173,7 +173,7 @@ function LoadForm() {
           />
           {log.trim() === "" ? null : <LogCheck found={found} />}
           {load.isError ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive-text">
               {describeError(load.error)}
               {mayHaveLoaded(load.error)
                 ? " The load may have gone in anyway. Loading again is safe, but those tokens then count as already having that kind, and anyone who already has a kind keeps it."

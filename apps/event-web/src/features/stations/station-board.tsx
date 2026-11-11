@@ -82,7 +82,7 @@ export function StationBoard({
                   className={
                     station.passport || station.game === "team_duels"
                       ? "text-xs text-muted-foreground"
-                      : "text-xs font-medium text-destructive"
+                      : "text-xs font-medium text-destructive-text"
                   }
                 >
                   {station.game === "team_duels"
@@ -97,7 +97,7 @@ export function StationBoard({
                     {listed.map((problem) => (
                       <li
                         key={problem}
-                        className="flex items-center gap-1 text-xs font-medium text-destructive"
+                        className="flex items-center gap-1 text-xs font-medium text-destructive-text"
                       >
                         <WarningCircle weight="fill" className="h-3 w-3 shrink-0" aria-hidden />
                         {STATION_PROBLEMS[problem]}

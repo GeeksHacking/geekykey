@@ -125,7 +125,7 @@ export function GroupsScreen() {
         }
       />
       {allocate.isError && allocateUseful ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive-text">
           {describeError(allocate.error)}
         </p>
       ) : null}

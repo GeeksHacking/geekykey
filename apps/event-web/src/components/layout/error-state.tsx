@@ -15,7 +15,7 @@ export function ErrorState({ error, onRetry, title = "Could not load this" }: Er
       role="alert"
       className="flex flex-col items-center rounded-lg border border-destructive/40 bg-destructive/5 px-6 py-10 text-center"
     >
-      <WarningCircle className="h-8 w-8 text-destructive" aria-hidden />
+      <WarningCircle className="h-8 w-8 text-destructive-text" aria-hidden />
       <h2 className="mt-4 type-item">{title}</h2>
       <p className="mt-1 max-w-[40ch] text-sm text-muted-foreground">{describeError(error)}</p>
       {onRetry ? (

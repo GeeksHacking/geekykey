@@ -25,7 +25,7 @@ export function LoginLinkNotice({ className }: { className?: string }) {
         className,
       )}
     >
-      <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden />
+      <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive-text" aria-hidden />
       <span>{LOGIN_LINK_EXPIRED}</span>
     </div>
   );

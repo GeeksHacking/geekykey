@@ -65,7 +65,7 @@ export function StickerButton({ slots, colours, describedBy }: StickerButtonProp
         Save as sticker
       </Button>
       {sticker?.state === "failed" ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive-text">
           Couldn't make the sticker. Try again.
         </p>
       ) : null}

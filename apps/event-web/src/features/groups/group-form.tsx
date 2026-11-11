@@ -85,7 +85,7 @@ export function GroupForm({ group, onSaved }: { group?: EventGroup; onSaved: () 
           numeric
         />
         {formError ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             {formError}
           </p>
         ) : null}

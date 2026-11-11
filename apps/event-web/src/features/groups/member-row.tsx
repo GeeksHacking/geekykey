@@ -132,7 +132,7 @@ export function MemberRow({
                 can join again. */}
             <DropdownMenuItem
               disabled={busy}
-              className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              className="text-destructive-text focus:bg-destructive/10 focus:text-destructive-text"
               onSelect={() => change.mutate({ type: "remove", userId: member.user_id })}
             >
               Remove
@@ -141,7 +141,7 @@ export function MemberRow({
         </DropdownMenu>
       </div>
       {error ? (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-xs text-destructive-text">
           {describeError(error)}
         </p>
       ) : null}

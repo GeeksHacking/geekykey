@@ -73,7 +73,7 @@ function DeleteGroupConfirm({ group, onDeleted }: { group: EventGroup; onDeleted
         <AlertDialogDescription>{membersSentence(group.members.length)}</AlertDialogDescription>
       </AlertDialogHeader>
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive-text">
           {error}
         </p>
       ) : null}

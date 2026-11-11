@@ -83,7 +83,7 @@ export function QuestionStep({
         })}
       </div>
       {error ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="mt-3 text-sm text-destructive-text">
           {error}
         </p>
       ) : null}
