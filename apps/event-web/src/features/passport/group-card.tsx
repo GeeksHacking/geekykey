@@ -139,7 +139,7 @@ function GroupCardBody() {
             Join
           </Button>
           {joinFailed ? (
-            <p role="alert" className="mt-2 text-sm text-destructive">
+            <p role="alert" className="mt-2 text-sm text-destructive-text">
               {describeError(joinError)}
             </p>
           ) : null}

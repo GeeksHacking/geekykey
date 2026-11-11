@@ -133,12 +133,12 @@ export function PhraseSetting({
           characters.
         </p>
         {tried && problem ? (
-          <p id={`${id}-problem`} role="alert" className="mt-2 text-sm text-destructive">
+          <p id={`${id}-problem`} role="alert" className="mt-2 text-sm text-destructive-text">
             {problem}
           </p>
         ) : null}
         {refused ? (
-          <p role="alert" className="mt-2 text-sm text-destructive">
+          <p role="alert" className="mt-2 text-sm text-destructive-text">
             Couldn&apos;t save the phrase. {describeError(change.error)}
           </p>
         ) : null}

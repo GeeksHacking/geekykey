@@ -16,7 +16,7 @@ export function EventLinkError({ error }: { error: unknown }) {
   if (isApiErrorCode(error, "not_found")) return null;
 
   return (
-    <p role="alert" className="text-sm text-destructive">
+    <p role="alert" className="text-sm text-destructive-text">
       {describeError(error)}
     </p>
   );

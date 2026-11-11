@@ -107,7 +107,7 @@ export function ConnectionRequests({ requests }: { requests: ConnectionRequest[]
         </div>
       ) : null}
       {failure ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive-text">
           {failure}
         </p>
       ) : null}

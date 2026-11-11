@@ -102,7 +102,7 @@ export function StationActionsMenu({
               apart and in the error colour. */}
           {station.disabled_at === null ? (
             <DropdownMenuItem
-              className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              className="text-destructive-text focus:bg-destructive/10 focus:text-destructive-text"
               onSelect={() => openDialog(onDisable)}
             >
               Disable station…
@@ -121,7 +121,7 @@ export function StationActionsMenu({
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-xs text-destructive-text">
           {error}
         </p>
       ) : null}

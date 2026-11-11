@@ -76,7 +76,7 @@ export function ConnectionChallengeSwitch({ value }: { value: Challenge }) {
         ))}
       </RadioGroup>
       {setChallenge.isError ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="mt-3 text-sm text-destructive-text">
           Couldn't change the challenge. {describeError(setChallenge.error)}
         </p>
       ) : null}

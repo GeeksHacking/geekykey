@@ -103,7 +103,7 @@ function OwnerView({
 
   if (isApiErrorCode(failure, "token_limit_reached")) {
     return (
-      <p className="text-base text-destructive">
+      <p className="text-base text-destructive-text">
         You already have 3 tokens.{" "}
         <Link to={HOME_PATH} className="underline underline-offset-4">
           Release one on My tokens
@@ -138,7 +138,7 @@ function OwnerView({
   if (isApiErrorCode(failure, "token_taken")) {
     return (
       <div className="flex flex-col gap-4">
-        <p className="text-base text-destructive">Someone else already claimed this token.</p>
+        <p className="text-base text-destructive-text">Someone else already claimed this token.</p>
         {view}
       </div>
     );

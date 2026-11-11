@@ -57,7 +57,7 @@ export function GroupActions({ group }: { group: EventGroup }) {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={busy}
-            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+            className="text-destructive-text focus:bg-destructive/10 focus:text-destructive-text"
             onSelect={() => setDialog("delete")}
           >
             Delete group…

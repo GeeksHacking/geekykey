@@ -51,7 +51,7 @@ export function StationGameSelect({
         </p>
       ) : null}
       {write.isError ? (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-xs text-destructive-text">
           {describeError(write.error)}
         </p>
       ) : null}

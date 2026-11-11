@@ -127,7 +127,7 @@ export function SessionFrame({ children }: { children: ReactNode }) {
         ) : null}
         <LoginLinkNotice className="mb-4" />
         {checkFailed ? (
-          <p role="alert" className="pb-4 text-sm text-destructive">
+          <p role="alert" className="pb-4 text-sm text-destructive-text">
             {COULD_NOT_CHECK_LOGIN}
           </p>
         ) : null}

@@ -66,7 +66,7 @@ export function GuestSignOutDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? (
-          <div role="alert" className="text-sm text-destructive">
+          <div role="alert" className="text-sm text-destructive-text">
             <p>Couldn't release your tokens, so you're still signed in.</p>
             <p>{describeError(error)}</p>
           </div>

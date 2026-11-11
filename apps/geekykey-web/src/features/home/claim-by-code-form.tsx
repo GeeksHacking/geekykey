@@ -117,7 +117,7 @@ export function ClaimByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) 
           )}
         />
         {formError ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             {formError}
           </p>
         ) : null}

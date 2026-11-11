@@ -155,12 +155,12 @@ export function SplitGroupsForm({
         ) : null}
         {warning ? (
           <p className="flex items-start gap-2 text-sm font-medium">
-            <Warning aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <Warning aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive-text" />
             {warning}
           </p>
         ) : null}
         {formError ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             {formError}
           </p>
         ) : null}

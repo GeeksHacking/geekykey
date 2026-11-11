@@ -19,7 +19,7 @@ export function InlineQueryError({
       className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
     >
       <span className="flex items-start gap-2">
-        <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden />
+        <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive-text" aria-hidden />
         <span>
           <strong className="font-medium">{title}</strong> {describeError(error)}
         </span>

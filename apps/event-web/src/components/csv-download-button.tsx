@@ -63,7 +63,7 @@ export function CsvDownloadButton({ fetchCsv, fileName }: CsvDownloadButtonProps
         {pending ? "Preparing" : "Download CSV"}
       </Button>
       {error ? (
-        <p role="alert" className="max-w-[36ch] text-sm text-destructive">
+        <p role="alert" className="max-w-[36ch] text-sm text-destructive-text">
           {error}
         </p>
       ) : null}

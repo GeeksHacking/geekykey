@@ -36,7 +36,7 @@ export function RemoveKindDialog({ uid, onClose }: { uid: string; onClose: () =>
           </AlertDialogDescription>
         </AlertDialogHeader>
         {remove.isError ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             {describeError(remove.error)}
             {!isApiErrorCode(remove.error, "token_claimed") &&
             !isApiErrorCode(remove.error, "not_found")

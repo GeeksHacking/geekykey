@@ -74,7 +74,7 @@ export function PlaceTicked({
 function PlaceError({ error, waiting }: { error: unknown; waiting: GroupWaitingMember[] }) {
   if (!(error instanceof PlacementsFailed)) {
     return (
-      <p role="alert" className="text-xs text-destructive">
+      <p role="alert" className="text-xs text-destructive-text">
         {describeError(error)}
       </p>
     );
@@ -88,7 +88,7 @@ function PlaceError({ error, waiting }: { error: unknown; waiting: GroupWaitingM
   }
   if (namesByReason.size === 0) return null;
   return (
-    <div role="alert" className="space-y-1 text-xs text-destructive">
+    <div role="alert" className="space-y-1 text-xs text-destructive-text">
       {[...namesByReason].map(([reason, names]) => (
         <p key={reason}>
           Not placed: {names.join(", ")}. {reason}

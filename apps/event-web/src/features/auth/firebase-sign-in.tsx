@@ -70,7 +70,7 @@ export function FirebaseSignIn() {
         <p className="text-sm text-muted-foreground">Sign-in is not set up in this build.</p>
       ) : null}
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive-text">
           {error}
         </p>
       ) : null}

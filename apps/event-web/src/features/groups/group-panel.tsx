@@ -116,7 +116,7 @@ function ReachedLine({ group, groups }: { group: EventGroup; groups: EventGroup[
 /** A problem with the group, in words and an icon as well as colour. */
 function Flag({ children }: { children: string }) {
   return (
-    <p className="mt-1 flex items-center gap-1 text-xs font-medium text-destructive">
+    <p className="mt-1 flex items-center gap-1 text-xs font-medium text-destructive-text">
       <WarningCircle weight="fill" className="h-3 w-3 shrink-0" aria-hidden />
       {children}
     </p>

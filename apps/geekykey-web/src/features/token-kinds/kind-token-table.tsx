@@ -110,7 +110,7 @@ export function KindTokenTable({
                         size="sm"
                         disabled={busy}
                         aria-label={`Remove ${token.uid}`}
-                        className="h-9 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="h-9 text-sm text-destructive-text hover:bg-destructive/10 hover:text-destructive-text"
                         onClick={() => onRemove(token.uid)}
                       >
                         Remove

@@ -67,7 +67,7 @@ export function ConnectionRuleSwitch({ value }: { value: ConnectAcross }) {
         ))}
       </RadioGroup>
       {setRule.isError ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="mt-3 text-sm text-destructive-text">
           Couldn't change what connections need. {describeError(setRule.error)}
         </p>
       ) : null}

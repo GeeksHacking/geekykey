@@ -85,7 +85,7 @@ export function AddStationForm({ onCreated }: { onCreated: (result: StationKeyRe
           )}
         />
         {formError ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             {formError}
           </p>
         ) : null}
