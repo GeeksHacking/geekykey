@@ -2577,3 +2577,9 @@
   change: >-
     Confirmation dialogs scroll when they are taller than the screen, so their title, message
     and buttons stay reachable on a phone held sideways or with large text.
+- id: reaction-time-left
+  date: 2026-11-11
+  area: frontend
+  change: >-
+    A reaction test now shows the time left to play, counts it down, and checks the result when
+    it reaches zero. A failed check offers a retry.

@@ -2512,16 +2512,20 @@ Organisers can open it for totals only.
   stay visible (BAC-150, approved for the next version).
 - For a connection with `reaction` (BAC-156, wording a draft for Ethan), the reveal says how to
   play before anything starts: **"Reaction test"**, **"When the box turns green, tap it as fast
-  as you can. Tap before then and you lose. The faster of you wins."** and **"You have 2 minutes
-  to play."**, with an **I'm ready** button. Nothing is timed until it's pressed. Then the box says
-  **"Wait for green…"**, and after a random wait of 1.5 to 4 seconds it turns green and says
-  **"Tap!"**. A tap sends the time (8.11). After playing, before the result, it says **"You took
-  {your_ms} ms."**, or **"Too soon! You tapped before green."** for an early tap, then **"Waiting
-  for them to play."**, in the reveal and the list. A failed send says **"Couldn't send your
-  result. Try again."** with a **Send again** button that sends the same play. A refused play reads
-  `/me` again instead. The list offers the same test, from its instructions, for a connection
-  whose test is still to play and that isn't in the reveal, so dismissing the reveal or making a
-  newer connection doesn't take the test away.
+  as you can. Tap before then and you lose. The faster of you wins."** and **"Time left to play:
+  {m}:{ss}."**, with an **I'm ready** button. The time counts down while the test is visible,
+  including while waiting for green and tapping, and is recomputed when the page returns to the
+  foreground. Nothing is timed until it's pressed. Then the box says **"Wait for green…"**, and
+  after a random wait of 1.5 to 4 seconds it turns green and says **"Tap!"**. A tap sends the time
+  (8.11). At zero the test says **"Checking the result..."** and reads `/me` again; if that read
+  fails, it says **"Couldn't check the result. Try again."** with a **Try again** button. After
+  playing, before the result, it says **"You took {your_ms} ms."**, or **"Too soon! You tapped
+  before green."** for an early tap, then **"Waiting for them to play."**, in the reveal and the
+  list. A failed send says **"Couldn't send your result. Try again."** with a **Send again** button
+  that sends the same play. A refused play reads `/me` again instead, with **"Checking the
+  result..."** while it waits. The list offers the same test, from its instructions, for a
+  connection whose test is still to play and that isn't in the reveal, so dismissing the reveal or
+  making a newer connection doesn't take the test away.
 - Once `result` comes, the reveal and the list say, for the user, **"You took {your_ms} ms."**,
   **"You tapped too soon."** or **"You didn't play in time."**, and for the other person
   **"They took {their_ms} ms."**, **"They tapped too soon."** or **"They didn't play in time."**
@@ -2754,3 +2758,4 @@ Closed on 2026-10-10:
 | 2026-11-09 | For the next version: the Event screens' login tells a guest who arrived without a login link where to go (FRO-90). Section 13 adds one line under the sign-in buttons, "Signed in as a guest? Open GeekyKey and tap your event button.", with **Open GeekyKey** linking to `https://key.geekshacking.com/`. The GeekyKey screens' login doesn't show it. No endpoint, field or error code changes. |
 | 2026-11-09 | For the next version: a tap with no group offers the event, where the participant joins one (FRO-146). Section 13 gives the token page's `no_group` answer its own sentence, "You both need to be in a group to connect. Open the event to join a group, then tap again.", and the event's button, because opening the event joins the participant and a latecomer is placed at once. The dashboard's answer after Accept keeps its own sentence, "You both need to be in a group to connect. Ask an organiser.", since the person is already in the event there. No endpoint, field or error code changes. |
 | 2026-11-10 | For the next version: a missing token kind has its own status, `no_kind`, in the meeting hand-off (11.10), the token page's answer (8.8) and Accept (8.10), under the across-token-kinds rule (BAC-135). `same_kind` now means two equal, present kinds. Section 13 gives each its own sentence on the token page and after Accept. Ethan's approval of `no_kind` and the ticket's sentence was confirmed in the implementation session on 10 Nov; the equal-kinds sentence follows his 10 Nov comment. No field is removed. An older GeekyKey Service turns `no_kind` into `unavailable`, and older screens show their existing failure message. New screens accept every older status. |
+| 2026-11-11 | For the next version: a reaction test shows the time left to play, not a fresh two minutes (FRO-152). Section 13 replaces "You have 2 minutes to play." with "Time left to play: {m}:{ss}.", which counts down while the test is visible and is recomputed when the page returns, and adds "Checking the result..." while the test reads `/me` at zero, with "Couldn't check the result. Try again." and a **Try again** button if that read fails. A refused play reads `/me` with the same checking sentence. No endpoint, field or error code changes. |
