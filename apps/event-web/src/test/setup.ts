@@ -36,6 +36,18 @@ if (typeof globalThis.ResizeObserver !== "function") {
   });
 }
 
+// jsdom has no elementsFromPoint, which Pragmatic's auto-scroll asks for on every frame. Its
+// frame can run after a test has torn down, so the missing method fails the whole run with an
+// unhandled error even though every test passed (FRO-165). jsdom has no layout, so no element is
+// at a point.
+if (typeof document !== "undefined" && typeof document.elementsFromPoint !== "function") {
+  Object.defineProperty(document, "elementsFromPoint", {
+    configurable: true,
+    writable: true,
+    value: () => [],
+  });
+}
+
 // jsdom has no canvas and warns on every getContext. With none, the avatar takes the path a
 // phone without WebGL takes: the flat picture, never three.js (FRO-105).
 if (typeof HTMLCanvasElement !== "undefined") {
