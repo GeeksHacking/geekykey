@@ -345,8 +345,8 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
   });
 
   it("shows a name changed after connecting at the next poll, and keeps the row's panel open", async () => {
-    const held = connection(9, { display_name: "Guest", shared: ["drink"] });
-    const api = setUp([held], { drink: "tea" });
+    const held = connection(9, { display_name: "Guest", shared: ["team_role"] });
+    const api = setUp([held], { team_role: "ideas" });
     const { poll, user } = renderScreen(api);
     await user.click(await screen.findByRole("button", { name: SHOW }));
 
@@ -470,14 +470,14 @@ describe("the list of connections (agreement 0.13 draft, section 13)", () => {
 });
 
 describe("what you share (agreement 0.13 draft, section 13)", () => {
-  const answers = { drink: "tea", school: "cca", hours: "night_owl" };
+  const answers = { team_role: "ideas", starting: "prototype", learning: "trying" };
 
   it("has no button until `shared` arrives, then one that lists it", async () => {
     const api = setUp(
       [
         connection(1, {
           match: 67,
-          shared: ["drink", "school"],
+          shared: ["team_role", "starting"],
           shared_at: "2099-01-01T00:00:00Z",
         }),
       ],
@@ -505,8 +505,11 @@ describe("what you share (agreement 0.13 draft, section 13)", () => {
       within(shared)
         .getAllByRole("listitem")
         .map((row) => row.textContent),
-    ).toEqual(["Tea or coffee?Tea", "Best part of school?CCA"]);
-    expect(shared).not.toHaveTextContent("Night owl");
+    ).toEqual([
+      "Your team is making something new. Which part would you most enjoy?Coming up with ideas",
+      "You have one hour to make something. How would you start?Make a rough version and improve it",
+    ]);
+    expect(shared).not.toHaveTextContent("Try it myself");
 
     await user.click(button);
     expect(screen.queryByRole("list", { name: "What you share" })).not.toBeInTheDocument();
@@ -522,7 +525,7 @@ describe("what you share (agreement 0.13 draft, section 13)", () => {
 
   it("leaves out a question taken off the list since", async () => {
     const { user } = renderScreen(
-      setUp([connection(5, { shared: ["drink", "retired"] })], { ...answers, retired: "gone" }),
+      setUp([connection(5, { shared: ["team_role", "retired"] })], { ...answers, retired: "gone" }),
     );
 
     await user.click(await screen.findByRole("button", { name: SHOW }));

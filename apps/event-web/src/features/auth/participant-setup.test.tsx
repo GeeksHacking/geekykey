@@ -61,10 +61,20 @@ it("a participant who skipped before must save a name and every answer before se
   // The setup step hides the section tabs.
   expect(screen.queryByRole("navigation", { name: "Sections" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /skip/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "Tea or coffee?" })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    }),
+  ).not.toBeInTheDocument();
   await user.type(screen.getByRole("textbox", { name: "Name" }), "Mei Lin");
   await user.click(screen.getByRole("button", { name: "Save" }));
-  for (const choice of ["Tea", "Night owl", "Friends", "Fly", "Out with friends"]) {
+  for (const choice of [
+    "Coming up with ideas",
+    "Try it myself",
+    "Make a plan first",
+    "Break the problem into smaller parts",
+    "Something that makes everyday life easier",
+  ]) {
     expect(screen.queryByText("Dashboard and group card")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /skip/i })).not.toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: choice }));
@@ -78,7 +88,13 @@ it("a guest who finishes setup sees how to connect on the dashboard", async () =
   const { user } = renderEvent(false, false, undefined, true);
   await user.type(await screen.findByRole("textbox", { name: "Name" }), "Mei Lin");
   await user.click(screen.getByRole("button", { name: "Save" }));
-  for (const choice of ["Tea", "Night owl", "Friends", "Fly", "Out with friends"]) {
+  for (const choice of [
+    "Coming up with ideas",
+    "Try it myself",
+    "Make a plan first",
+    "Break the problem into smaller parts",
+    "Something that makes everyday life easier",
+  ]) {
     await user.click(await screen.findByRole("button", { name: choice }));
   }
 
@@ -137,8 +153,10 @@ it("an older connection does not stop someone filling missing answers in setup",
     ];
   });
   expect(screen.queryByText("Dashboard and group card")).not.toBeInTheDocument();
-  await screen.findByRole("button", { name: "Out with friends" });
+  await screen.findByRole("button", { name: "Something that makes everyday life easier" });
   expect(screen.queryByRole("button", { name: /Change answer/ })).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Out with friends" }));
+  await user.click(
+    screen.getByRole("button", { name: "Something that makes everyday life easier" }),
+  );
   expect(await screen.findByText("Dashboard and group card")).toBeInTheDocument();
 });

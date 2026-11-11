@@ -240,7 +240,7 @@ describe("connections in /me (agreement 0.13 draft, 8.1)", () => {
 
     expect(connections.map(({ match }) => match)).toEqual([60, 80, null]);
     expect(connections[0]?.shared).toBeNull();
-    expect(connections[1]?.shared).toEqual(["drink", "hours", "superpower", "weekend"]);
+    expect(connections[1]?.shared).toEqual(["team_role", "learning", "stuck", "project"]);
     expect(connections[2]?.shared).toEqual([]);
   });
 
@@ -260,7 +260,7 @@ describe("connections in /me (agreement 0.13 draft, 8.1)", () => {
 
       vi.setSystemTime(Date.now() + 2 * 60_000);
 
-      expect((await api.me()).connections[0]?.shared).toEqual(["drink", "school", "weekend"]);
+      expect((await api.me()).connections[0]?.shared).toEqual(["team_role", "starting", "project"]);
     } finally {
       vi.useRealTimers();
     }
@@ -383,7 +383,10 @@ describe("the answers game (agreement 0.13)", () => {
     const me = await api.me();
 
     expect(me.questions).toHaveLength(5);
-    expect(me.questions?.[0]).toMatchObject({ id: "drink", text: "Tea or coffee?" });
+    expect(me.questions?.[0]).toMatchObject({
+      id: "team_role",
+      text: "Your team is making something new. Which part would you most enjoy?",
+    });
     expect(me.user.answers).toEqual({});
   });
 
@@ -391,20 +394,20 @@ describe("the answers game (agreement 0.13)", () => {
     const api = client();
     await api.devLogin(SEEDED_GUEST_ID);
 
-    await api.updateMe({ answers: { drink: "tea" } });
-    const answer = await api.updateMe({ answers: { hours: "night_owl" } });
+    await api.updateMe({ answers: { team_role: "ideas" } });
+    const answer = await api.updateMe({ answers: { learning: "trying" } });
 
-    expect(answer.user.answers).toEqual({ drink: "tea", hours: "night_owl" });
+    expect(answer.user.answers).toEqual({ team_role: "ideas", learning: "trying" });
   });
 
   it("changes an answer the user already gave", async () => {
     const api = client();
     await api.devLogin(SEEDED_GUEST_ID);
-    await api.updateMe({ answers: { drink: "tea" } });
+    await api.updateMe({ answers: { team_role: "ideas" } });
 
-    const answer = await api.updateMe({ answers: { drink: "coffee" } });
+    const answer = await api.updateMe({ answers: { team_role: "design" } });
 
-    expect(answer.user.answers).toEqual({ drink: "coffee" });
+    expect(answer.user.answers).toEqual({ team_role: "design" });
   });
 
   it("refuses a PATCH with neither the name nor the answers", async () => {
@@ -438,7 +441,7 @@ describe("the answers game (agreement 0.13)", () => {
     await api.devLogin(SEEDED_GUEST_ID);
 
     const error = await api
-      .updateMe({ answers: { drink: "tea", snack: "chips" } })
+      .updateMe({ answers: { team_role: "ideas", snack: "chips" } })
       .catch((reason: unknown) => reason);
 
     expect(error).toBeInstanceOf(ApiError);
@@ -454,12 +457,12 @@ describe("the answers game (agreement 0.13)", () => {
     await api.devLogin(SEEDED_GUEST_ID);
 
     const error = await api
-      .updateMe({ answers: { drink: "milo" } })
+      .updateMe({ answers: { team_role: "milo" } })
       .catch((reason: unknown) => reason);
 
     expect((error as ApiError).issues).toEqual([
       {
-        path: ["answers", "drink"],
+        path: ["answers", "team_role"],
         message: "The question has no choice with this ID",
       },
     ]);
@@ -469,14 +472,14 @@ describe("the answers game (agreement 0.13)", () => {
   it("keeps existing answers fixed after connecting, but lets missing answers be filled", async () => {
     const api = client();
     await api.devLogin(SEEDED_GUEST_ID);
-    await api.updateMe({ answers: { drink: "tea" } });
+    await api.updateMe({ answers: { team_role: "ideas" } });
     connect(api);
 
     await expectApiError(api.updateMe({ answers: {} }), "answers_fixed", 409);
-    await expectApiError(api.updateMe({ answers: { drink: "coffee" } }), "answers_fixed", 409);
-    await api.updateMe({ answers: { hours: "night_owl" } });
+    await expectApiError(api.updateMe({ answers: { team_role: "design" } }), "answers_fixed", 409);
+    await api.updateMe({ answers: { learning: "trying" } });
     await expect(api.me()).resolves.toMatchObject({
-      user: { answers: { drink: "tea", hours: "night_owl" } },
+      user: { answers: { team_role: "ideas", learning: "trying" } },
     });
   });
 
@@ -496,7 +499,11 @@ describe("the answers game (agreement 0.13)", () => {
     api.mock.data.questions = null;
 
     await expect(api.me()).resolves.toMatchObject({ questions: null });
-    await expectApiError(api.updateMe({ answers: { drink: "tea" } }), "validation_failed", 400);
+    await expectApiError(
+      api.updateMe({ answers: { team_role: "ideas" } }),
+      "validation_failed",
+      400,
+    );
     await expect(api.updateMe({ answers: {} })).resolves.toMatchObject({
       user: { answers: {} },
     });
@@ -505,7 +512,7 @@ describe("the answers game (agreement 0.13)", () => {
   it("keeps answers and questions off the map and the station board", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
-    await api.updateMe({ answers: { drink: "tea" } });
+    await api.updateMe({ answers: { team_role: "ideas" } });
 
     const board = JSON.stringify(await api.listStationBoard());
     const map = JSON.stringify(await api.map());

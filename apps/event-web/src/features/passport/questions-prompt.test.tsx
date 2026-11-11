@@ -51,7 +51,13 @@ function renderPassport(
 }
 
 async function answerAll(user: ReturnType<typeof userEvent.setup>) {
-  for (const choice of ["Tea", "Night owl", "Friends", "Fly", "Out with friends"]) {
+  for (const choice of [
+    "Coming up with ideas",
+    "Try it myself",
+    "Make a plan first",
+    "Break the problem into smaller parts",
+    "Something that makes everyday life easier",
+  ]) {
     await user.click(await screen.findByRole("button", { name: choice }));
   }
   await screen.findByText(EDITABLE);
@@ -79,20 +85,26 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     // The name prompt comes first in the document, even though neither blocks the other.
     expect(name.compareDocumentPosition(answers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(SENTENCE)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Tea or coffee?" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Your team is making something new. Which part would you most enjoy?",
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Question 1 of 5")).toBeInTheDocument();
   });
 
   it("sends one answer and moves to the next question", async () => {
     const { api, user } = renderPassport();
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
     const updateMe = vi.spyOn(api, "updateMe");
 
-    await user.click(screen.getByRole("button", { name: "Tea" }));
+    await user.click(screen.getByRole("button", { name: "Coming up with ideas" }));
 
-    expect(updateMe).toHaveBeenCalledWith({ answers: { drink: "tea" } });
+    expect(updateMe).toHaveBeenCalledWith({ answers: { team_role: "ideas" } });
     expect(
-      await screen.findByRole("heading", { name: "Night owl or early bird?" }),
+      await screen.findByRole("heading", { name: "How do you prefer to learn something new?" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Question 2 of 5")).toBeInTheDocument();
   });
@@ -102,15 +114,19 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     await answerAll(user);
 
     expect(screen.getAllByRole("button", { name: /^Change answer to/ })).toHaveLength(5);
-    expect(screen.queryByRole("heading", { name: "Tea or coffee?" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Your team is making something new. Which part would you most enjoy?",
+      }),
+    ).not.toBeInTheDocument();
     await expect(api.me()).resolves.toMatchObject({
       user: {
         answers: {
-          drink: "tea",
-          hours: "night_owl",
-          school: "friends",
-          superpower: "fly",
-          weekend: "friends",
+          team_role: "ideas",
+          learning: "trying",
+          starting: "plan",
+          stuck: "smaller_parts",
+          project: "everyday",
         },
       },
     });
@@ -121,34 +137,47 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     await answerAll(user);
     const updateMe = vi.spyOn(api, "updateMe");
 
-    await user.click(screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }));
+    await user.click(
+      screen.getByRole("button", {
+        name: 'Change answer to "Your team is making something new. Which part would you most enjoy?"',
+      }),
+    );
 
-    expect(await screen.findByRole("button", { name: "Tea" })).toHaveAttribute(
+    expect(await screen.findByRole("button", { name: "Coming up with ideas" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Coffee" })).toHaveAttribute("aria-pressed", "false");
-    await user.click(screen.getByRole("button", { name: "Coffee" }));
+    expect(screen.getByRole("button", { name: "Making it look good" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await user.click(screen.getByRole("button", { name: "Making it look good" }));
 
-    expect(updateMe).toHaveBeenCalledWith({ answers: { drink: "coffee" } });
+    expect(updateMe).toHaveBeenCalledWith({ answers: { team_role: "design" } });
     expect(await screen.findByText(EDITABLE)).toBeInTheDocument();
-    expect(screen.getByText("Coffee")).toBeInTheDocument();
+    expect(screen.getByText("Making it look good")).toBeInTheDocument();
   });
 
   it("changes an answer before all five are answered", async () => {
     const { user } = renderPassport();
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
-    await user.click(screen.getByRole("button", { name: "Tea" }));
-    await screen.findByRole("heading", { name: "Night owl or early bird?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
+    await user.click(screen.getByRole("button", { name: "Coming up with ideas" }));
+    await screen.findByRole("heading", { name: "How do you prefer to learn something new?" });
     expect(screen.getByText(EDITABLE)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }));
-    await user.click(await screen.findByRole("button", { name: "Coffee" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: 'Change answer to "Your team is making something new. Which part would you most enjoy?"',
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Making it look good" }));
 
     expect(
-      await screen.findByRole("heading", { name: "Night owl or early bird?" }),
+      await screen.findByRole("heading", { name: "How do you prefer to learn something new?" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Coffee")).toBeInTheDocument();
+    expect(screen.getByText("Making it look good")).toBeInTheDocument();
     expect(screen.getByText(SENTENCE)).toBeInTheDocument();
   });
 
@@ -157,27 +186,37 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     await answerAll(user);
     const updateMe = vi.spyOn(api, "updateMe");
 
-    await user.click(screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }));
+    await user.click(
+      screen.getByRole("button", {
+        name: 'Change answer to "Your team is making something new. Which part would you most enjoy?"',
+      }),
+    );
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(updateMe).not.toHaveBeenCalled();
     expect(screen.getByText(EDITABLE)).toBeInTheDocument();
-    expect(screen.getByText("Tea")).toBeInTheDocument();
+    expect(screen.getByText("Coming up with ideas")).toBeInTheDocument();
   });
 
   it("does not carry an error from another question into a change", async () => {
     const { api, user } = renderPassport();
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
-    await user.click(screen.getByRole("button", { name: "Tea" }));
-    await screen.findByRole("heading", { name: "Night owl or early bird?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
+    await user.click(screen.getByRole("button", { name: "Coming up with ideas" }));
+    await screen.findByRole("heading", { name: "How do you prefer to learn something new?" });
     api.mock.failNext("network");
-    await user.click(screen.getByRole("button", { name: "Night owl" }));
+    await user.click(screen.getByRole("button", { name: "Try it myself" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not reach the server");
 
-    await user.click(screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }));
+    await user.click(
+      screen.getByRole("button", {
+        name: 'Change answer to "Your team is making something new. Which part would you most enjoy?"',
+      }),
+    );
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Tea" })).toHaveAttribute(
+    expect(await screen.findByRole("button", { name: "Coming up with ideas" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -185,16 +224,20 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
   it("disables Change while an answer is being sent", async () => {
     const { api, user } = renderPassport();
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
-    await user.click(screen.getByRole("button", { name: "Tea" }));
-    await screen.findByRole("heading", { name: "Night owl or early bird?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
+    await user.click(screen.getByRole("button", { name: "Coming up with ideas" }));
+    await screen.findByRole("heading", { name: "How do you prefer to learn something new?" });
 
     const held = deferred<UpdateMeResponse>();
     vi.spyOn(api, "updateMe").mockReturnValue(held.promise);
-    await user.click(screen.getByRole("button", { name: "Night owl" }));
+    await user.click(screen.getByRole("button", { name: "Try it myself" }));
 
     expect(
-      screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }),
+      screen.getByRole("button", {
+        name: 'Change answer to "Your team is making something new. Which part would you most enjoy?"',
+      }),
     ).toBeDisabled();
 
     await act(async () => {
@@ -204,14 +247,16 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
           display_name: "Guest",
           role: "participant",
           has_name: false,
-          answers: { drink: "tea", hours: "night_owl" },
+          answers: { team_role: "ideas", learning: "trying" },
           bio: null,
           contact_line: null,
         },
       });
     });
     expect(
-      await screen.findByRole("heading", { name: "Best part of school?" }),
+      await screen.findByRole("heading", {
+        name: "You have one hour to make something. How would you start?",
+      }),
     ).toBeInTheDocument();
   });
 
@@ -228,7 +273,7 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
     expect(await screen.findByText(READ_ONLY)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Change answer to/ })).not.toBeInTheDocument();
-    expect(screen.getByText("Tea")).toBeInTheDocument();
+    expect(screen.getByText("Coming up with ideas")).toBeInTheDocument();
   });
 
   it("turns read-only and refreshes /me when a change is refused with answers_fixed", async () => {
@@ -239,21 +284,27 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     participant.connections = [connection];
     const me = vi.spyOn(api, "me");
 
-    await user.click(screen.getByRole("button", { name: 'Change answer to "Tea or coffee?"' }));
-    await user.click(screen.getByRole("button", { name: "Coffee" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: 'Change answer to "Your team is making something new. Which part would you most enjoy?"',
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Making it look good" }));
 
     expect(await screen.findByText(READ_ONLY)).toBeInTheDocument();
     // The connection that refused the change is now in /me, so a remount stays read-only.
     await waitFor(() => expect(me).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: /^Change answer to/ })).not.toBeInTheDocument();
     // The refused change saved nothing, so the answer stays as it was.
-    expect(screen.getByText("Tea")).toBeInTheDocument();
+    expect(screen.getByText("Coming up with ideas")).toBeInTheDocument();
   });
 
   it("keeps an answer when a slower name change lands after it", async () => {
     const { api, user } = renderPassport(SEEDED_GUEST_ID);
     await screen.findByRole("heading", { name: "What should we call you?" });
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
 
     const name = deferred<UpdateMeResponse>();
     const answer = deferred<UpdateMeResponse>();
@@ -263,7 +314,7 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
     await user.type(screen.getByLabelText("Name"), "Mei Ling");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    await user.click(screen.getByRole("button", { name: "Tea" }));
+    await user.click(screen.getByRole("button", { name: "Coming up with ideas" }));
 
     await act(async () => {
       answer.resolve({
@@ -272,14 +323,14 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
           display_name: "Guest",
           role: "participant",
           has_name: false,
-          answers: { drink: "tea" },
+          answers: { team_role: "ideas" },
           bio: null,
           contact_line: null,
         },
       });
     });
     expect(
-      await screen.findByRole("heading", { name: "Night owl or early bird?" }),
+      await screen.findByRole("heading", { name: "How do you prefer to learn something new?" }),
     ).toBeInTheDocument();
 
     await act(async () => {
@@ -298,7 +349,9 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
     expect(await screen.findByText("Mei Ling")).toBeInTheDocument();
     // The slower name answer did not put the first question, or its empty answers, back.
-    expect(screen.getByRole("heading", { name: "Night owl or early bird?" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "How do you prefer to learn something new?" }),
+    ).toBeInTheDocument();
   });
 
   it("shows the questions read-only when the user has already connected", async () => {
@@ -316,19 +369,23 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
   it("skips a question and asks the next one, keeping the sentence", async () => {
     const { user } = renderPassport();
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
 
     await user.click(screen.getByRole("button", { name: "Skip this question" }));
 
     expect(
-      await screen.findByRole("heading", { name: "Night owl or early bird?" }),
+      await screen.findByRole("heading", { name: "How do you prefer to learn something new?" }),
     ).toBeInTheDocument();
     expect(screen.getByText(SENTENCE)).toBeInTheDocument();
   });
 
   it("collapses when every question is skipped, and Answer the rest brings them back", async () => {
     const { user } = renderPassport();
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
 
     for (let skipped = 0; skipped < 5; skipped += 1) {
       await user.click(await screen.findByRole("button", { name: "Skip this question" }));
@@ -338,7 +395,11 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     expect(screen.getByText(SENTENCE)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Answer the rest" }));
 
-    expect(await screen.findByRole("heading", { name: "Tea or coffee?" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Your team is making something new. Which part would you most enjoy?",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("asks nothing without an answers game", async () => {
@@ -353,15 +414,21 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
   it("keeps the question and says what happened when the service can't be reached", async () => {
     const { api, user } = renderPassport();
-    await screen.findByRole("heading", { name: "Tea or coffee?" });
+    await screen.findByRole("heading", {
+      name: "Your team is making something new. Which part would you most enjoy?",
+    });
     api.mock.failNext("network");
 
-    await user.click(screen.getByRole("button", { name: "Tea" }));
+    await user.click(screen.getByRole("button", { name: "Coming up with ideas" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not reach the server. Check the Wi-Fi and try again.",
     );
-    expect(screen.getByRole("heading", { name: "Tea or coffee?" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Your team is making something new. Which part would you most enjoy?",
+      }),
+    ).toBeInTheDocument();
     await expect(api.me()).resolves.toMatchObject({ user: { answers: {} } });
   });
 });

@@ -149,55 +149,57 @@ export interface MockData {
 }
 
 /**
- * The Event Service's placeholder questions (BAC-119). They mirror
+ * The Event Service's questions (BAC-162). They mirror
  * apps/event-service/src/showcase/questions.ts, so the mock asks what the service asks.
- * BAC-162 owns their new wording; a reworded one keeps its IDs.
+ * New questions have new IDs so older answers are not reinterpreted.
  */
 const QUESTIONS: Question[] = [
   {
-    id: "drink",
-    text: "Tea or coffee?",
+    id: "team_role",
+    text: "Your team is making something new. Which part would you most enjoy?",
     choices: [
-      { id: "tea", text: "Tea" },
-      { id: "coffee", text: "Coffee" },
+      { id: "ideas", text: "Coming up with ideas" },
+      { id: "design", text: "Making it look good" },
+      { id: "building", text: "Building it" },
+      { id: "feedback", text: "Trying it out and giving feedback" },
     ],
   },
   {
-    id: "hours",
-    text: "Night owl or early bird?",
+    id: "learning",
+    text: "How do you prefer to learn something new?",
     choices: [
-      { id: "night_owl", text: "Night owl" },
-      { id: "early_bird", text: "Early bird" },
+      { id: "trying", text: "Try it myself" },
+      { id: "watching", text: "Watch someone show me" },
+      { id: "reading", text: "Read a guide" },
+      { id: "talking", text: "Talk it through with someone" },
     ],
   },
   {
-    id: "school",
-    text: "Best part of school?",
+    id: "starting",
+    text: "You have one hour to make something. How would you start?",
     choices: [
-      { id: "friends", text: "Friends" },
-      { id: "cca", text: "CCA" },
-      { id: "camps", text: "Camps" },
-      { id: "food", text: "The food" },
+      { id: "plan", text: "Make a plan first" },
+      { id: "prototype", text: "Make a rough version and improve it" },
     ],
   },
   {
-    id: "superpower",
-    text: "Pick a superpower",
+    id: "stuck",
+    text: "Your team gets stuck. What would you try first?",
     choices: [
-      { id: "fly", text: "Fly" },
-      { id: "invisibility", text: "Invisibility" },
-      { id: "reading_minds", text: "Reading minds" },
-      { id: "time_travel", text: "Time travel" },
+      { id: "smaller_parts", text: "Break the problem into smaller parts" },
+      { id: "help", text: "Ask someone for help" },
+      { id: "different_idea", text: "Try a different idea" },
+      { id: "break", text: "Take a short break and come back" },
     ],
   },
   {
-    id: "weekend",
-    text: "Your weekend?",
+    id: "project",
+    text: "Which project would you most like to help create?",
     choices: [
-      { id: "friends", text: "Out with friends" },
-      { id: "home", text: "At home" },
-      { id: "sport", text: "Sport" },
-      { id: "games", text: "Games" },
+      { id: "everyday", text: "Something that makes everyday life easier" },
+      { id: "people", text: "Something that brings people together" },
+      { id: "environment", text: "Something that helps the environment" },
+      { id: "laughter", text: "Something that makes people laugh" },
     ],
   },
 ];
@@ -243,11 +245,11 @@ export function createFixtures(now: number = Date.now()): MockData {
       bio: "Second-year CS. Building a robot arm that can pour teh tarik.",
       contact_line: "@alextan on Telegram",
       answers: {
-        drink: "tea",
-        hours: "night_owl",
-        school: "cca",
-        superpower: "time_travel",
-        weekend: "games",
+        team_role: "ideas",
+        learning: "trying",
+        starting: "prototype",
+        stuck: "break",
+        project: "laughter",
       },
       connection_requests: [
         {
@@ -270,7 +272,7 @@ export function createFixtures(now: number = Date.now()): MockData {
           contact_line: "@weilin_c on Telegram",
           kind: "B",
           match: 60,
-          shared: ["drink", "school", "weekend"],
+          shared: ["team_role", "starting", "project"],
           // "today".
           gives_word: 3,
         }),
@@ -281,7 +283,7 @@ export function createFixtures(now: number = Date.now()): MockData {
           contact_line: "farhan.i@example.com",
           kind: "G",
           match: 80,
-          shared: ["drink", "hours", "superpower", "weekend"],
+          shared: ["team_role", "learning", "stuck", "project"],
           // "Strangers".
           gives_word: 0,
         }),
