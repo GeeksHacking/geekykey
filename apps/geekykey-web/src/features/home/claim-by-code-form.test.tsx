@@ -187,7 +187,7 @@ describe("the UID box (FRO-74)", () => {
     await waitFor(() => expect(claimToken).toHaveBeenCalledWith(TICKET_UID));
   });
 
-  it.each(["04:E4:51:50:32:41:89", "04 E4 51 50 32 41 89"])(
+  it.each(["04E45150324189", "04:E4:51:50:32:41:89", "04 E4 51 50 32 41 89"])(
     "pastes %s into the same grouped UID and claims the same token",
     async (pasted) => {
       const claimToken = vi.spyOn(api, "claimToken");
