@@ -1,7 +1,11 @@
+import { useId, useState } from "react";
+
 import type { Token } from "@/api/types";
 
 import { ReleaseButton } from "@/components/release-button";
 import { ReleaseError } from "@/components/release-error";
+import { Button } from "@/components/ui/button";
+import { TokenQr } from "@/features/home/token-qr";
 import { formatWhen } from "@/lib/format";
 import { formatUid } from "@/lib/token-uid";
 import { useReleaseToken } from "@/lib/use-release-token";
@@ -19,9 +23,15 @@ import { useReleaseToken } from "@/lib/use-release-token";
  * Token kinds' rows, so the event's button below the list stays the page's main action
  * (FRO-155). A long UID wraps between its byte pairs and pushes Release under it, rather
  * than squeezing either. A failed release shows across the whole row, under both.
+ *
+ * "Show QR code" opens a code of the token's address under the row, for someone whose
+ * phone can't read the token by tapping (FRO-166). It is a button with aria-expanded and
+ * aria-controls, as the manual claim's is, and the code mounts only while it is open.
  */
 export function TokenRow({ token }: { token: Token }) {
   const release = useReleaseToken(token.uid);
+  const [qrOpen, setQrOpen] = useState(false);
+  const qrId = useId();
 
   return (
     <div className="rounded-lg border bg-card p-4">
@@ -34,8 +44,22 @@ export function TokenRow({ token }: { token: Token }) {
             </p>
           ) : null}
         </div>
-        <ReleaseButton release={release} mine compact />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 text-sm"
+            aria-expanded={qrOpen}
+            aria-controls={qrId}
+            onClick={() => setQrOpen((shown) => !shown)}
+          >
+            {qrOpen ? "Hide QR code" : "Show QR code"}
+          </Button>
+          <ReleaseButton release={release} mine compact />
+        </div>
       </div>
+      <div id={qrId}>{qrOpen ? <TokenQr uid={token.uid} /> : null}</div>
       {release.error ? (
         <div className="mt-3">
           <ReleaseError error={release.error} />

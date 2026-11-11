@@ -41,6 +41,14 @@ import { stubLocation } from "@/test/location";
   it shows, and what the empty state says about it.
 */
 
+/*
+  The QR drawing is stood in for (FRO-166), so a test reads the address the code was given.
+  jsdom has no camera to decode the real squares with.
+*/
+vi.mock("qrcode.react", () => ({
+  QRCodeSVG: ({ value }: { value: string }) => <svg role="img" aria-label={`QR ${value}`} />,
+}));
+
 const OLDEST = "04 A1 B2 C3 D4 E5 F6";
 const NEWEST = "04 B7 C9 E1 F3 A5";
 /** A token nobody owns, so the form can claim it (agreement 8.2). */
@@ -123,6 +131,31 @@ function rowFor(displayedUid: string) {
 }
 
 describe("My tokens", () => {
+  it("shows a QR code of a token's own address, and hides it again", async () => {
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    renderHome();
+    await screen.findByText(OLDEST);
+    const row = rowFor(OLDEST);
+
+    const show = row.getByRole("button", { name: "Show QR code" });
+    expect(show).toHaveAttribute("aria-expanded", "false");
+    expect(row.queryByRole("img")).not.toBeInTheDocument();
+    await userEvent.click(show);
+
+    // The address is the token page's on this site, which on production is the chip's own.
+    expect(
+      await row.findByRole("img", { name: `QR ${window.location.origin}/t/04A1B2C3D4E5F6` }),
+    ).toBeInTheDocument();
+    expect(row.getByText(/scan this with their camera/)).toBeInTheDocument();
+    // The other row's code stays closed.
+    expect(rowFor(NEWEST).queryByRole("img")).not.toBeInTheDocument();
+
+    const hide = row.getByRole("button", { name: "Hide QR code" });
+    expect(hide).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(hide);
+    expect(row.queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it.each([
     [0, SEEDED_ADMIN_ID],
     [1, SEEDED_PARTICIPANT_ID],
