@@ -17,9 +17,43 @@ export function isValidUid(uid: string): boolean {
   return uid.length >= 8 && uid.length <= 20 && uid.length % 2 === 0;
 }
 
+/** Groups a normalised UID in pairs, with `separator` between them. */
+function groupUid(uid: string, separator: string): string {
+  return normalizeUid(uid).replace(/(..)(?=.)/g, `$1${separator}`);
+}
+
 /** What the page shows and links to. Grouped in pairs so it is readable on a phone. */
 export function formatUid(uid: string): string {
-  return normalizeUid(uid).replace(/(..)(?=.)/g, "$1 ");
+  return groupUid(uid, " ");
+}
+
+/**
+ * The claim form's UID as it is typed (FRO-74): upper-case, in colon pairs, so it is easy
+ * to check against the token in your hand. The placeholder shows the same shape, and a
+ * partial UID takes no trailing colon.
+ */
+export function formatUidInput(raw: string): string {
+  return groupUid(raw, ":");
+}
+
+const HEX_DIGIT = /[0-9A-F]/;
+
+/**
+ * Where the caret goes in the grouped UID after an edit (FRO-74). The browser reports the
+ * caret against the text it handed us, so count the hex digits before it and put the caret
+ * after the same number in the grouped text. That keeps an edit in the middle where it was
+ * instead of jumping to the end.
+ */
+export function uidCaretPosition(raw: string, caret: number, formatted: string): number {
+  const digitsBefore = normalizeUid(raw.slice(0, caret)).length;
+  if (digitsBefore === 0) return 0;
+  let seen = 0;
+  for (let index = 0; index < formatted.length; index += 1) {
+    if (!HEX_DIGIT.test(formatted.charAt(index))) continue;
+    seen += 1;
+    if (seen === digitsBefore) return index + 1;
+  }
+  return formatted.length;
 }
 
 /**
