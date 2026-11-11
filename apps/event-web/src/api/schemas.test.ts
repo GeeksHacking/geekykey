@@ -801,3 +801,33 @@ describe("the rules each field carries", () => {
     );
   });
 });
+
+describe("team duels draft contract", () => {
+  it("keeps a round and its wins and accepts an older answer without them", () => {
+    const round = {
+      id: "11111111-1111-4111-8111-111111111111",
+      state: "ended" as const,
+      closes_at: "2026-11-12T08:00:30.000Z",
+      players: 2,
+      challenge: "dice" as const,
+      team: "a" as const,
+      teammates: [],
+      duels: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          opponent: "Jo",
+          dice: { your_roll: 5, their_roll: 2, result: "win" as const },
+          reaction: null,
+        },
+      ],
+      result: { outcome: "win" as const, your_team_wins: 1, their_team_wins: 0 },
+    };
+    expect(parseMeResponse(makeMe({ round, round_wins: 1 })).round).toEqual(round);
+    expect(parseMeResponse(makeMe({ round: null, round_wins: 0 })).round).toBeNull();
+    expect(parseMeResponse(makeMe()).round).toBeUndefined();
+    expect(meResponseSchema.safeParse(makeMe({ round_wins: -1 })).success).toBe(false);
+    expect(
+      meResponseSchema.safeParse({ ...makeMe(), round: { ...round, team: "c" } }).success,
+    ).toBe(false);
+  });
+});

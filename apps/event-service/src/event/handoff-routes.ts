@@ -60,7 +60,11 @@ export function handoffRoutes({
       const { station_id, taps } = c.req.valid("json");
       const { db, config } = c.var;
 
-      const pipeline = new TapPipeline(db, { cooldownSeconds: config.tapCooldownSeconds, games });
+      const pipeline = new TapPipeline(db, {
+        cooldownSeconds: config.tapCooldownSeconds,
+        games,
+        now,
+      });
       let results;
       try {
         results = await pipeline.ingest(

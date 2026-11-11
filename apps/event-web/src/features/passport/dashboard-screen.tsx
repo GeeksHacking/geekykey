@@ -1,3 +1,4 @@
+import { TeamRoundCard } from "@/features/passport/team-round-card";
 import { useRef } from "react";
 
 import { SectionHeading } from "@/components/layout/section-heading";
@@ -28,6 +29,7 @@ export function DashboardScreen() {
 
   return (
     <div ref={scope} className="space-y-8">
+      <TeamRoundCard key={`round:${me.user.id}`} userId={me.user.id} round={me.round} />
       {/* First, because the token page's login link lands on this screen (agreement 8.6). */}
       <ConnectionReveal me={me} />
       <ConnectionRequests requests={me.connection_requests} />

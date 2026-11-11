@@ -190,6 +190,13 @@
       "when": 1794319367667,
       "tag": "0026_participants_hold_a_word_of_a_phrase",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1794354880243,
+      "tag": "0027_stations_run_team_duels",
+      "breakpoints": true
     }
   ]
 }

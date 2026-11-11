@@ -203,9 +203,25 @@ or the reaction test at random for each new connection, unless organizers have c
 their own phone when it turns green, within 2 minutes of connecting, and the faster time wins.
 _Avoid_: dual tap, link between tags
 
+**Team duels**:
+A station game where the first tap opens a round for 30 seconds. Everyone who taps in joins,
+then the Event Service spreads each group across two teams and pairs opponents across groups
+where it can. The round makes no connections. Players tap their opponents' tokens to connect.
+
+**Round**:
+One gathering of players at a team duels station. After 30 seconds its teams play the event's
+chosen challenge. The team with more duel wins wins the round, and equal scores win for both
+teams. A round where no duel was won is a win for nobody. One player alone gets no opponent and
+no win.
+
+**Duel**:
+One pair of opponents on different teams playing the dice or the reaction test in a round.
+With an odd number of players, one player on the smaller team plays two duels.
+_Avoid_: connection, which players make separately
+
 **Challenge**:
-What a new connection plays: the dice or the reaction test. The connection keeps its result, and a
-win or a tie can earn a reward. Organizers choose on the Groups screen whether each new connection
+What a new connection or a team duels round plays: the dice or the reaction test. The connection
+keeps its result, and a win or a tie can earn a reward. Organizers choose on the Groups screen whether each new connection
 gets one at random, which a new event starts on, or always the dice, or always the reaction test.
 A change applies to connections made after it (BAC-161). The API still calls the connection's
 field `game`.

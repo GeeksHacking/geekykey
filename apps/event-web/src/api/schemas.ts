@@ -147,6 +147,7 @@ const eventStationBoardStationSchema = z.object({
 
 export const eventStationBoardResponseSchema: z.ZodMiniType<EventStationBoardResponse> = z.object({
   stations: z.array(eventStationBoardStationSchema),
+  games: z.optional(z.array(z.object({ id: z.string(), name: z.string() }))),
 });
 
 /** Agreement 9.1. Here `station_id` sits inside `passport`, which the board's doesn't have. */
@@ -240,6 +241,42 @@ export const fallbackTapResponseSchema: z.ZodMiniType<FallbackTapResponse> = z.o
  * field as none, so a screens build can run against a service that hasn't shipped it yet.
  */
 export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
+  // BAC-155, draft for the agreement's next version.
+  round_wins: z.optional(z.int().check(z.nonnegative())),
+  round: z.optional(
+    z.nullable(
+      z.object({
+        id: z.string().check(z.uuid()),
+        state: z.enum(["opening", "playing", "ended"]),
+        closes_at: isoTimestamp,
+        players: z.int().check(z.positive()),
+        challenge: z.nullable(z.enum(["dice", "reaction"])),
+        team: z.nullable(z.enum(["a", "b"])),
+        teammates: z.array(z.string()),
+        duels: z.array(
+          z.object({
+            id: z.string().check(z.uuid()),
+            opponent: z.string(),
+            dice: z.nullable(
+              z.object({
+                your_roll: z.int().check(z.minimum(1), z.maximum(6)),
+                their_roll: z.int().check(z.minimum(1), z.maximum(6)),
+                result: z.enum(["win", "loss"]),
+              }),
+            ),
+            reaction: z.nullable(reactionSchema),
+          }),
+        ),
+        result: z.nullable(
+          z.object({
+            outcome: z.enum(["win", "loss", "nobody_joined"]),
+            your_team_wins: z.int().check(z.nonnegative()),
+            their_team_wins: z.int().check(z.nonnegative()),
+          }),
+        ),
+      }),
+    ),
+  ),
   user: userSchema,
   questions: z.nullable(z.array(questionSchema)),
   points: z.int().check(z.nonnegative()),

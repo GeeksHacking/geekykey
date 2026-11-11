@@ -232,7 +232,10 @@ test("lists a station with its passport settings, its health and its last tap", 
   await addTap("station-3", { receivedAt: "2026-10-10T08:58:12.004Z" });
 
   assert.deepEqual(await board(), {
-    games: [{ id: "passport", name: "Passport" }],
+    games: [
+      { id: "passport", name: "Passport" },
+      { id: "team_duels", name: "Team duels" },
+    ],
     stations: [
       {
         id: "station-3",

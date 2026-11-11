@@ -9,11 +9,17 @@ import type { MeResponse, ReactionPlayRequest } from "@/api/types";
  * the test as it now stands, which goes straight into ["me"]. A refused play reads /me again
  * instead, which shows what the service kept: the earlier play, or a missed one.
  */
-export function usePlayReaction(connectionId: string) {
+export function usePlayReaction(
+  connectionId: string,
+  target: "connection" | "duel" = "connection",
+) {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (play: ReactionPlayRequest) => api.playReaction(connectionId, play),
+    mutationFn: (play: ReactionPlayRequest) =>
+      target === "duel"
+        ? api.playDuelReaction(connectionId, play)
+        : api.playReaction(connectionId, play),
     onSuccess: ({ reaction }) => {
       // A poll asked for before the play would put the unplayed test back (FRO-68).
       void queryClient.cancelQueries({ queryKey: queryKeys.me });
@@ -21,12 +27,23 @@ export function usePlayReaction(connectionId: string) {
         me
           ? {
               ...me,
+              ...(target === "duel" && me.round
+                ? {
+                    round: {
+                      ...me.round,
+                      duels: me.round.duels.map((duel) =>
+                        duel.id === connectionId ? { ...duel, reaction } : duel,
+                      ),
+                    },
+                  }
+                : {}),
               connections: me.connections.map((connection) =>
                 connection.id === connectionId ? { ...connection, reaction } : connection,
               ),
             }
           : me,
       );
+      if (target === "duel") void queryClient.invalidateQueries({ queryKey: queryKeys.me });
     },
     onError: () => queryClient.invalidateQueries({ queryKey: queryKeys.me }),
   });

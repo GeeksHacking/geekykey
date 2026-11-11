@@ -33,7 +33,7 @@ every call is answered by the in-memory mock in `src/api/mock/`, shaped like
 `mise exec -- pnpm dev:live` from this folder. The dev server forwards `/api` and `/auth` to
 `localhost:8001`.
 
-The mock's seeded accounts are Alex Tan, a participant, and Priya Raman, an organizer. Against the
+The mock's seeded users are Alex Tan, a participant, and Priya Raman, an organizer. Against the
 real Event Service, the seeded users are the same two (`dev-user-1` and `dev-organizer-1`).
 [Getting started](../../docs/getting-started.md#signing-in-locally) covers signing in.
 
@@ -42,6 +42,17 @@ independent. Sign out before switching modes, or use a fresh tab.
 
 To try an arriving login link on the mock, open `http://localhost:5173/#login=mock` for Alex Tan,
 or `#login=guest` for a guest without a name. Any other `login` value tries an expired link.
+
+To try team duels, sign in as Alex and open `/?mockRound=opening`, `playing`, `odd`,
+`win`, `loss`, `tie`, `nobody-won`, `nobody`, `mixed` or `team-win` (keep `?mockRound=` before each value). `odd` has two reaction
+opponents. `mixed` wins a duel but loses the round; `team-win` loses a duel but wins the round.
+`nobody-won` has no duel won on either team. `win`, `loss` and `tie` show dice. `/?mockRound=live` opens a 30-second joining
+window, then offers a reaction test. The mock opponent takes 350 ms; play faster to win, or
+leave it for 2 minutes to see a missed play. These are mock-only URL switches. Reloading starts
+the scenario again; an ended round dismissed on this phone stays dismissed for that user
+and scenario. Clear the `gk-round-dismissed:<user id>` localStorage key to show it again.
+On the station board, add a station, then choose Team duels in its game menu. A station with
+counted taps keeps its game fixed.
 
 Firebase's committed web config is in `.env.development`; a shell variable or `.env.local`
 overrides it. These public values are the only committed `.env` exception. Keep private config

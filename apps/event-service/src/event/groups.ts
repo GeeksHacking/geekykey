@@ -516,14 +516,16 @@ export const shuffleAtRandom: Shuffle = (items) => {
 
 /**
  * Each user's group as it is now, by user ID, for the connections game (BAC-140). Someone
- * who hasn't joined, or is waiting, has none, and isn't in the map. A plain read, so in a
- * transaction it must come before any lock to see the groups as they were at its start.
+ * who hasn't joined, or is waiting, has none, and isn't in the map. With `lock`, reads the
+ * latest placement under the caller's lock (BAC-155). Otherwise a plain read, which a
+ * transaction calls before its locks to see the groups as they were at its start.
  */
-export async function groupsOf(db: Db | Tx, userIds: readonly string[]) {
-  const rows = await db
+export async function groupsOf(db: Db | Tx, userIds: readonly string[], { lock = false } = {}) {
+  const query = db
     .select({ userId: groupMembers.userId, groupId: groupMembers.groupId })
     .from(groupMembers)
     .where(inArray(groupMembers.userId, [...userIds]));
+  const rows = await (lock ? query.for("update") : query);
   return groupByUser(rows);
 }
 

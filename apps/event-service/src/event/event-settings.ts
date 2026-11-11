@@ -51,12 +51,13 @@ export async function setConnectAcross(db: Db, connectAcross: ConnectAcross): Pr
     .onDuplicateKeyUpdate({ set: { connectAcross } });
 }
 
-/** What a new connection plays now. */
-export async function loadChallenge(db: Db | Tx): Promise<Challenge> {
-  const [row] = await db
+/** What a new connection or round plays now. With `lock`, sees settings committed after a lock wait. */
+export async function loadChallenge(db: Db | Tx, { lock = false } = {}): Promise<Challenge> {
+  const query = db
     .select({ challenge: eventSettings.challenge })
     .from(eventSettings)
     .where(eq(eventSettings.id, SETTINGS_ROW));
+  const [row] = await (lock ? query.for("update") : query);
   return row?.challenge ?? CHALLENGE_DEFAULT;
 }
 

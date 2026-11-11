@@ -2554,3 +2554,9 @@
     and no avatar piece, and a blank phrase turns it off. The trade-off we accept: two groups
     that connect only with each other each need as many people as the phrase has words, or some
     people can't finish, and the Groups screen warns about it.
+- id: team-duel-screens
+  date: 2026-11-11
+  area: frontend
+  change: >-
+    The dashboard now shows team-duel rounds as players join, play and get their team's result.
+    Organisers can choose Team duels on a station, and a winning team earns an avatar piece.

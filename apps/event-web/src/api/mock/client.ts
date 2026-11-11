@@ -1,3 +1,4 @@
+import { mockDuelRound, scoreReactions, type RoundScenario } from "@/api/mock/duel-round";
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
 import {
@@ -138,6 +139,7 @@ const MOCK_LOGIN_LINKS: Record<string, string> = {
 };
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
+  station_has_taps: 409,
   name_taken: 409,
   no_groups: 409,
   too_few_participants: 409,
@@ -168,6 +170,7 @@ export type MockFailure = ErrorCode | "network";
 
 export interface MockClientOptions {
   data?: MockData;
+  roundScenario?: RoundScenario;
   /** [min, max] simulated latency. Use [0, 0] in tests. */
   latencyMs?: readonly [number, number];
   /** Keep online stations alive and append new taps over time. */
@@ -198,6 +201,33 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   let pendingFailure: MockFailure | null = null;
   let nextTapId = data.taps.reduce((max, tap) => Math.max(max, tap.id), 0) + 1;
   let mapReads = 0;
+
+  const scenario = options.roundScenario;
+  let round = scenario ? mockDuelRound(scenario, now()) : null;
+  function roundNow() {
+    if (!round) return null;
+    if (scenario === "live" && round.state === "opening" && now() >= Date.parse(round.closes_at)) {
+      round = { ...mockDuelRound("playing", Date.parse(round.closes_at)), id: round.id };
+    }
+    if (round.state === "playing") {
+      round.duels = round.duels.map((duel) => ({
+        ...duel,
+        reaction: duel.reaction
+          ? reactionNow(duel.reaction, scenario === "timeout" ? undefined : 350)
+          : null,
+      }));
+      if (round.duels.every((duel) => duel.reaction?.result !== null)) {
+        round = {
+          ...round,
+          state: "ended",
+          result: scoreReactions(
+            round.duels.flatMap((duel) => (duel.reaction ? [duel.reaction] : [])),
+          ),
+        };
+      }
+    }
+    return structuredClone(round);
+  }
 
   const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -300,13 +330,18 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
    * settings runs the passport, as the migration to 0.7 gave every such station, and the
    * rest run none.
    */
-  const gameOf = (station: MockStation) => (station.passport ? "passport" : null);
+  const gameOf = (station: MockStation) =>
+    station.game === undefined ? (station.passport ? "passport" : null) : station.game;
 
   // The stamp slots (section 4): stations with passport settings, oldest settings first, so
   // adding one never moves the others. The passport (8.1) and the stats (9.5) list these.
   const stampSlots = () =>
     data.stations
-      .flatMap((station) => (station.passport ? [{ id: station.id, ...station.passport }] : []))
+      .flatMap((station) =>
+        station.passport && gameOf(station) === "passport"
+          ? [{ id: station.id, ...station.passport }]
+          : [],
+      )
       .sort((a, b) => a.added_at.localeCompare(b.added_at));
 
   /**
@@ -705,6 +740,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             received_at: t.received_at,
           }));
         return {
+          round: roundNow(),
+          round_wins: round?.result?.outcome === "win" ? 1 : 0,
           user: toUser(user),
           questions: data.questions,
           points,
@@ -792,6 +829,36 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       }),
 
     // BAC-156, for the agreement's next version, 8.11.
+    playDuelReaction: (id, play) =>
+      call(() => {
+        currentUser();
+        roundNow();
+        const duel = round?.duels.find((duel) => duel.id === id);
+        if (!duel?.reaction) fail("not_found");
+        const reaction = duel.reaction;
+        if (reaction.your_play === "missed") fail("too_late");
+        if (reaction.your_play !== "not_played") fail("already_played");
+        const ms = "ms" in play ? play.ms : null;
+        if (ms !== null && (!Number.isInteger(ms) || ms < 1 || ms > 120_000))
+          fail("validation_failed");
+        duel.reaction = reactionNow(
+          { ...reaction, your_play: ms === null ? "early" : "played", your_ms: ms },
+          scenario === "timeout" ? undefined : 350,
+        );
+        return { reaction: structuredClone(duel.reaction) };
+      }),
+    setStationGame: (id, game) =>
+      call(() => {
+        currentOrganizer();
+        const station = stationById(id);
+        if (!station) fail("not_found");
+        if (game !== null && game !== "passport" && game !== "team_duels")
+          fail("validation_failed");
+        if (toStationBoardStation(station).game_fixed && gameOf(station) !== game)
+          fail("station_has_taps");
+        station.game = game;
+        return { station: toStationBoardStation(station) };
+      }),
     playReaction: (connectionId, play) =>
       call((): PlayReactionResponse => {
         const user = currentUser();
@@ -934,7 +1001,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     listStationBoard: () =>
       call((): EventStationBoardResponse => {
         currentOrganizer();
-        return { stations: data.stations.map(toStationBoardStation) };
+        return {
+          stations: data.stations.map(toStationBoardStation),
+          games: [
+            { id: "passport", name: "Passport" },
+            { id: "team_duels", name: "Team duels" },
+          ],
+        };
       }),
 
     // Agreement 9.7. The label is the device's name and the only field, so a new

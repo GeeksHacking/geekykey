@@ -202,6 +202,16 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     },
 
     // BAC-156, for the agreement's next version.
+    playDuelReaction: (id, play) =>
+      sendJson(`/api/v1/me/duels/${encodeURIComponent(id)}/reaction`, postJson(play)).then(
+        parsePlayReactionResponse,
+      ),
+    setStationGame: (id, game) =>
+      sendJson(`/api/v1/admin/stations/${encodeURIComponent(id)}/game`, {
+        method: "PUT",
+        body: JSON.stringify({ game }),
+        headers: { "Content-Type": "application/json" },
+      }).then(parseStationResponse),
     playReaction: (connectionId, play) =>
       sendJson(
         `/api/v1/me/connections/${encodeURIComponent(connectionId)}/reaction`,
@@ -284,6 +294,7 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "no_groups",
   "too_few_participants",
   "groups_exist",
+  "station_has_taps",
   "already_played",
   "too_late",
   "rate_limited",

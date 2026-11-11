@@ -1,3 +1,4 @@
+import { StationGameSelect } from "@/features/stations/station-game-select";
 import { WarningCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 
@@ -26,7 +27,13 @@ import {
 import { useStationDialog } from "@/features/stations/use-station-dialog";
 import { EMPTY_CELL, formatDateTime, formatWhen } from "@/lib/format";
 
-export function StationBoard({ stations }: { stations: EventStationBoardStation[] }) {
+export function StationBoard({
+  stations,
+  games,
+}: {
+  stations: EventStationBoardStation[];
+  games?: { id: string; name: string }[];
+}) {
   // The row order the organiser was looking at when they opened a row's menu, or null with no
   // menu open. A poll that sorts the stations again would otherwise move the row out from
   // under the open menu. Each row still shows the poll's data; only the order waits.
@@ -73,15 +80,18 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 </p>
                 <p
                   className={
-                    station.passport
+                    station.passport || station.game === "team_duels"
                       ? "text-xs text-muted-foreground"
                       : "text-xs font-medium text-destructive"
                   }
                 >
-                  {station.passport
-                    ? (station.passport.location ?? "No location")
-                    : "Not in the passport"}
+                  {station.game === "team_duels"
+                    ? null
+                    : station.passport
+                      ? (station.passport.location ?? "No location")
+                      : "Not in the passport"}
                 </p>
+                {games ? <StationGameSelect station={station} games={games} /> : null}
                 {listed.length > 0 ? (
                   <ul className="mt-1 space-y-0.5">
                     {listed.map((problem) => (
@@ -104,7 +114,9 @@ export function StationBoard({ stations }: { stations: EventStationBoardStation[
                 )}
               </TableCell>
               <TableCell className="text-right font-mono">
-                {station.passport?.points ?? EMPTY_CELL}
+                {station.game === "passport"
+                  ? (station.passport?.points ?? EMPTY_CELL)
+                  : EMPTY_CELL}
               </TableCell>
               <TableCell>
                 <OnlineStatus online={station.online} lastSeenAt={station.last_seen_at} />

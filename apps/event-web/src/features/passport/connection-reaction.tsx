@@ -13,10 +13,16 @@ interface ConnectionReactionProps {
   /** stack: the reveal's lines, with the user's play before the result. line: a list's row. */
   layout: "stack" | "line";
   className?: string;
+  reward?: boolean;
 }
 
 /** A connection's reaction test once played, in the reveal and the list (agreement 8.1 and 13). */
-export function ConnectionReaction({ reaction, layout, className }: ConnectionReactionProps) {
+export function ConnectionReaction({
+  reaction,
+  layout,
+  className,
+  reward = true,
+}: ConnectionReactionProps) {
   if (!reaction) return null;
   const lines = cn(
     "text-sm",
@@ -45,7 +51,7 @@ export function ConnectionReaction({ reaction, layout, className }: ConnectionRe
         {theirLine(reaction.their_play, reaction.their_ms)}
       </p>
       <p className={layout === "line" ? "font-semibold" : "type-item"}>{resultLine(reaction)}</p>
-      <WinPiece result={reaction.result} layout={layout} />
+      {reward ? <WinPiece result={reaction.result} layout={layout} /> : null}
     </div>
   );
 }

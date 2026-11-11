@@ -109,6 +109,7 @@ export function testApp(
     now,
     answers = null,
     connections = null,
+    teamDuels,
     shuffle,
     db = testDb(),
   }: Partial<AppDeps> & { db?: Db } = {},
@@ -121,7 +122,7 @@ export function testApp(
     FIREBASE_PROJECT_ID: TEST_FIREBASE_PROJECT_ID,
     ...settings,
   });
-  return createApp(config, db, { googleKeys, now, answers, connections, shuffle });
+  return createApp(config, db, { googleKeys, now, answers, connections, teamDuels, shuffle });
 }
 
 /** One station running the passport, with its settings, and one participant holding one token. */

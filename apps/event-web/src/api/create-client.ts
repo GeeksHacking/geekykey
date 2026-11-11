@@ -1,3 +1,4 @@
+import { ROUND_SCENARIOS } from "@/api/mock/duel-round";
 import type { ApiClient } from "@/api/client";
 import { createHttpClient } from "@/api/http/client";
 import { createMockClient } from "@/api/mock/client";
@@ -16,6 +17,12 @@ export interface AppClientOptions {
 }
 
 export function createAppClient({ live = LIVE_API }: AppClientOptions = {}): ApiClient {
-  if (!live) return createMockClient({ simulate: true });
+  if (!live) {
+    const chosen = new URLSearchParams(window.location.search).get("mockRound");
+    return createMockClient({
+      simulate: true,
+      roundScenario: ROUND_SCENARIOS.find((value) => value === chosen),
+    });
+  }
   return createHttpClient({ baseUrl: import.meta.env.VITE_API_BASE_URL });
 }

@@ -80,7 +80,10 @@ export function StationActionsMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
           {/* Agreement 9.1. A station with no settings can be added; one with settings changed. */}
-          <DropdownMenuItem onSelect={() => openDialog(onPassport)}>
+          <DropdownMenuItem
+            disabled={station.game !== null && station.game !== "passport"}
+            onSelect={() => openDialog(onPassport)}
+          >
             {station.passport ? "Edit passport settings…" : "Add to passport…"}
           </DropdownMenuItem>
           {/* Agreement 9.12. On every station, disabled ones included, because the map
