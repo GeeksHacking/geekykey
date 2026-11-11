@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID, type MockConnection } from "@/api/mock/fixtures";
-import type { Reaction } from "@/api/types";
+import type { MeResponse, PlayReactionResponse, Reaction } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { useSession } from "@/lib/session";
 import { ThemeProvider } from "@/lib/theme-provider";
@@ -106,6 +106,32 @@ async function tap(box: HTMLElement) {
   vi.useRealTimers();
 }
 
+/** Fake timers for the clock, so its interval and Date can be advanced together. */
+function useClockTimers() {
+  vi.useFakeTimers({
+    shouldAdvanceTime: true,
+    toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date", "performance"],
+  });
+  vi.setSystemTime(new Date("2026-11-12T08:00:00.000Z"));
+}
+
+/** Presses I'm ready on the clock's fake timers and lets the shortest wait run out. */
+async function getReadyWithClock(reveal: HTMLElement) {
+  const ready = await within(reveal).findByRole("button", { name: READY });
+  vi.spyOn(Math, "random").mockReturnValue(0);
+  fireEvent.click(ready);
+  const box = within(reveal).getByRole("button", { name: WAIT });
+  act(() => vi.advanceTimersByTime(1_499));
+  expect(box).toHaveTextContent(WAIT);
+  return box;
+}
+
+/** Taps on the clock's fake timers, without switching back to real ones. */
+async function tapWithClock(box: HTMLElement) {
+  fireEvent.pointerDown(box);
+  await act(() => vi.advanceTimersByTimeAsync(50));
+}
+
 beforeEach(() => {
   sessionStorage.clear();
   localStorage.clear();
@@ -125,7 +151,7 @@ describe("the reaction test in the reveal (BAC-156)", () => {
         "When the box turns green, tap it as fast as you can. Tap before then and you lose. The faster of you wins.",
       ),
     ).toBeInTheDocument();
-    expect(within(reveal).getByText("You have 2 minutes to play.")).toBeInTheDocument();
+    expect(within(reveal).getByText("Time left to play: 1:50.")).toBeInTheDocument();
     expect(within(reveal).queryByRole("button", { name: WAIT })).not.toBeInTheDocument();
     expect(within(reveal).queryByText(/rolled/)).not.toBeInTheDocument();
 
@@ -179,7 +205,7 @@ describe("the reaction test in the reveal (BAC-156)", () => {
     const box = await getReady(reveal);
     act(() => vi.advanceTimersByTime(1));
     act(() => vi.advanceTimersByTime(405));
-    api.mock.failNext("network");
+    api.mock.failNext("claims_unavailable");
     await tap(box);
 
     expect(
@@ -201,6 +227,7 @@ describe("the reaction test in the list (BAC-156)", () => {
     expect(within(list).getByText("Reaction test in progress.")).toBeInTheDocument();
 
     await userEvent.setup().click(within(reveal).getByRole("button", { name: "Dismiss" }));
+    expect(within(list).getByText(/Time left to play: 1:5[0-9]\./)).toBeVisible();
     const box = await getReady(list);
     act(() => vi.advanceTimersByTime(1));
     act(() => vi.advanceTimersByTime(198));
@@ -259,5 +286,159 @@ describe("the reaction test's result, in the reveal and the list (BAC-156)", () 
     expect(within(reveal).getByText("You didn't play in time. They took 287 ms.")).toBeVisible();
     expect(within(reveal).getByText("They win!")).toBeInTheDocument();
     expect(within(reveal).queryByRole("button", { name: READY })).not.toBeInTheDocument();
+  });
+});
+
+describe("the reaction test's keyboard (BAC-156)", () => {
+  it("taps with Enter", async () => {
+    const api = setUp(reactionConnection(10));
+    const reveal = await renderDashboard(api);
+    const box = await getReady(reveal);
+    act(() => vi.advanceTimersByTime(1));
+
+    fireEvent.keyDown(box, { key: "Enter" });
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    vi.useRealTimers();
+
+    expect(await within(reveal).findByText("You took 1 ms.")).toBeInTheDocument();
+    expect(keptReaction(api)).toMatchObject({ your_play: "played", your_ms: 1 });
+  });
+});
+
+describe("the reaction test's clock (FRO-152)", () => {
+  it("counts the time left down while the test is open", async () => {
+    useClockTimers();
+    const reveal = await renderDashboard(setUp(reactionConnection(10)));
+
+    const timer = within(reveal).getByText("Time left to play: 1:50.");
+    expect(timer).toBeVisible();
+    expect(timer).toHaveAttribute("aria-live", "off");
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(within(reveal).getByText("Time left to play: 1:49.")).toBeVisible();
+  });
+
+  it("checks the result at zero, then shows the missed play", async () => {
+    useClockTimers();
+    const api = setUp(reactionConnection(119));
+    const reveal = await renderDashboard(api);
+    expect(within(reveal).getByText("Time left to play: 0:01.")).toBeVisible();
+
+    const originalMe = api.me.bind(api);
+    let resolveMe!: (value: MeResponse) => void;
+    vi.spyOn(api, "me").mockReturnValueOnce(
+      new Promise<MeResponse>((resolve) => {
+        resolveMe = resolve;
+      }),
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(within(reveal).getByText("Checking the result...")).toBeVisible();
+
+    await act(async () => {
+      resolveMe(await originalMe());
+    });
+    expect(
+      await within(reveal).findByText("You didn't play in time. They didn't play in time."),
+    ).toBeVisible();
+    expect(within(reveal).getByText("Nobody wins.")).toBeInTheDocument();
+  });
+
+  it("keeps the time visible while waiting for green, and checks it at zero", async () => {
+    useClockTimers();
+    const api = setUp(reactionConnection(118));
+    const reveal = await renderDashboard(api);
+    const box = await getReadyWithClock(reveal);
+
+    expect(within(reveal).getByText("Time left to play: 0:01.")).toBeVisible();
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(
+      await within(reveal).findByText("You didn't play in time. They didn't play in time."),
+    ).toBeVisible();
+    expect(box).not.toBeInTheDocument();
+  });
+
+  it("checks the result when a late play is refused", async () => {
+    useClockTimers();
+    const api = setUp(reactionConnection(10));
+    const reveal = await renderDashboard(api);
+    const box = await getReadyWithClock(reveal);
+
+    // The service's clock is ahead of this phone's, so the play is refused before the local tick.
+    vi.setSystemTime(new Date("2026-11-12T08:02:01.000Z"));
+    await tapWithClock(box);
+
+    expect(
+      await within(reveal).findByText("You didn't play in time. They didn't play in time."),
+    ).toBeVisible();
+  });
+
+  it("keeps an explanation and a retry when the result read fails", async () => {
+    useClockTimers();
+    const api = setUp(reactionConnection(119));
+    const reveal = await renderDashboard(api);
+    api.mock.failNext("claims_unavailable");
+
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(await within(reveal).findByText("Couldn't check the result. Try again.")).toBeVisible();
+
+    fireEvent.click(within(reveal).getByRole("button", { name: "Try again" }));
+    expect(
+      await within(reveal).findByText("You didn't play in time. They didn't play in time."),
+    ).toBeVisible();
+  });
+
+  it("recomputes the time when the page comes back to the foreground", async () => {
+    useClockTimers();
+    const api = setUp(reactionConnection(119));
+    const reveal = await renderDashboard(api);
+
+    vi.setSystemTime(new Date("2026-11-12T08:00:05.000Z"));
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(
+      await within(reveal).findByText("You didn't play in time. They didn't play in time."),
+    ).toBeVisible();
+  });
+
+  it("keeps a play sent before the deadline when its answer arrives later", async () => {
+    useClockTimers();
+    const api = setUp(reactionConnection(10));
+    const reveal = await renderDashboard(api);
+    const box = await getReadyWithClock(reveal);
+    act(() => vi.advanceTimersByTime(1));
+
+    let resolvePlay!: (value: PlayReactionResponse) => void;
+    vi.spyOn(api, "playReaction").mockReturnValueOnce(
+      new Promise<PlayReactionResponse>((resolve) => {
+        resolvePlay = resolve;
+      }),
+    );
+    fireEvent.pointerDown(box);
+    await act(() => vi.advanceTimersByTimeAsync(2_000));
+
+    expect(within(reveal).getByText("You took 1 ms.")).toBeVisible();
+    expect(within(reveal).getByText("Waiting for them to play.")).toBeVisible();
+
+    await act(async () => {
+      resolvePlay({
+        reaction: {
+          ...keptReaction(api)!,
+          your_play: "played",
+          your_ms: 200,
+        },
+      });
+    });
+    expect(await within(reveal).findByText("You took 200 ms.")).toBeVisible();
+    expect(
+      within(reveal).queryByText("You didn't play in time. They didn't play in time."),
+    ).not.toBeInTheDocument();
   });
 });
