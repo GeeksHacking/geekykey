@@ -1,13 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { isApiErrorCode } from "@/api/errors";
 import type { Reaction, ReactionPlayRequest } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { ConnectionReaction } from "@/features/passport/connection-reaction";
+import { ReactionBox } from "@/features/passport/reaction/reaction-box";
+import { ReactionCheck } from "@/features/passport/reaction/reaction-check";
+import { ReactionIntro } from "@/features/passport/reaction/reaction-intro";
 import { playedLine } from "@/features/passport/reaction/reaction-wording";
 import { usePlayReaction } from "@/features/passport/reaction/use-play-reaction";
+import { useReactionClock } from "@/features/passport/reaction/use-reaction-clock";
 import { RoundCountdown } from "@/features/passport/round-countdown";
-import { cn } from "@/lib/utils";
 
 /** The random wait before green: 1.5 to 4 seconds, so nobody can tap on a rhythm. */
 const WAIT_MIN_MS = 1_500;
@@ -36,16 +39,32 @@ export function ReactionTest({ connectionId, reaction, target = "connection" }: 
   const signalAt = useRef(0);
   // A second tap can land before the render that hides the box, so only the first one sends.
   const tapped = useRef(false);
+  const refusalCheckStarted = useRef(false);
   const play = usePlayReaction(connectionId, target);
+  const clock = useReactionClock(
+    reaction.play_by,
+    target === "connection" &&
+      reaction.your_play === "not_played" &&
+      reaction.result === null &&
+      phase !== "tapped",
+  );
+  const { retry } = clock;
+  const refused = REFUSALS.some((code) => isApiErrorCode(play.error, code));
 
   useEffect(() => {
-    if (phase !== "waiting") return;
+    if (phase !== "waiting" || clock.checking || clock.failed) return;
     const timer = setTimeout(
       () => setPhase("signal"),
       WAIT_MIN_MS + Math.random() * WAIT_SPREAD_MS,
     );
     return () => clearTimeout(timer);
-  }, [phase]);
+  }, [phase, clock.checking, clock.failed]);
+
+  useEffect(() => {
+    if (phase !== "tapped" || !refused || refusalCheckStarted.current) return;
+    refusalCheckStarted.current = true;
+    void retry();
+  }, [phase, refused, retry]);
 
   // Before the green is painted, so the time can't include this render. It may include up to a
   // frame of painting, the same on both phones.
@@ -66,11 +85,6 @@ export function ReactionTest({ connectionId, reaction, target = "connection" }: 
       send({ ms: Math.min(Math.max(ms, 1), LONGEST_MS) });
     }
   };
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
-    event.preventDefault();
-    tap();
-  };
 
   // What the service has kept wins. A play's answer goes into /me, so it shows here too.
   if (reaction.your_play !== "not_played" || reaction.result !== null) {
@@ -89,23 +103,18 @@ export function ReactionTest({ connectionId, reaction, target = "connection" }: 
     );
   }
 
+  if (clock.checking || clock.failed) {
+    return <ReactionCheck failed={clock.failed} onRetry={() => void retry()} />;
+  }
+
   if (phase === "intro") {
     return (
-      <div className={target === "duel" ? "text-center" : "rounded-lg bg-muted p-3 text-center"}>
-        <p className="type-item">Reaction test</p>
-        <p className="mt-1 text-sm">
-          When the box turns green, tap it as fast as you can. Tap before then and you lose. The
-          faster of you wins.
-        </p>
-        {target === "duel" ? (
-          <RoundCountdown closesAt={reaction.play_by} duel />
-        ) : (
-          <p className="mt-1 text-sm text-muted-foreground">You have 2 minutes to play.</p>
-        )}
-        <Button type="button" className="mt-3" onClick={() => setPhase("waiting")}>
-          I&apos;m ready
-        </Button>
-      </div>
+      <ReactionIntro
+        target={target}
+        playBy={reaction.play_by}
+        secondsLeft={clock.secondsLeft}
+        onReady={() => setPhase("waiting")}
+      />
     );
   }
 
@@ -113,7 +122,9 @@ export function ReactionTest({ connectionId, reaction, target = "connection" }: 
   if (phase === "tapped" && sent) {
     // A refused play reads /me again, which shows what the service kept in a moment. Sending it
     // again would only be refused again.
-    if (REFUSALS.some((code) => isApiErrorCode(play.error, code))) return null;
+    if (refused) {
+      return <ReactionCheck failed={clock.failed} onRetry={() => void retry()} />;
+    }
     const failed = play.isError;
     return (
       <div className="space-y-0.5 text-center text-sm">
@@ -136,20 +147,11 @@ export function ReactionTest({ connectionId, reaction, target = "connection" }: 
   }
 
   return (
-    <button
-      type="button"
-      // Focused when it appears, so a keyboard taps with Enter or Space.
-      autoFocus
-      onPointerDown={tap}
-      onKeyDown={onKeyDown}
-      className={cn(
-        "grid h-36 w-full touch-manipulation select-none place-items-center rounded-lg text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        phase === "signal"
-          ? "bg-status-accepted text-background"
-          : "bg-muted text-muted-foreground",
-      )}
-    >
-      {phase === "signal" ? "Tap!" : "Wait for green…"}
-    </button>
+    <ReactionBox
+      showTimer={target === "connection"}
+      signal={phase === "signal"}
+      secondsLeft={clock.secondsLeft}
+      onTap={tap}
+    />
   );
 }
