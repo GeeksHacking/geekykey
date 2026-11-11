@@ -54,6 +54,7 @@ const NEWEST = "04 B7 C9 E1 F3 A5";
 /** A token nobody owns, so the form can claim it (agreement 8.2). */
 const UNCLAIMED = "04E5F7091B3D";
 const UNCLAIMED_DISPLAYED = "04 E5 F7 09 1B 3D";
+const UNCLAIMED_TYPED = "04:E5:F7:09:1B:3D";
 
 let api: MockApiClient;
 let location: ReturnType<typeof stubLocation>;
@@ -316,7 +317,8 @@ describe("My tokens", () => {
       "aria-expanded",
       "true",
     );
-    expect(screen.getByLabelText("Token UID")).toHaveValue(UNCLAIMED);
+    // The box shows the colon pairs it adds (FRO-74), so the person can check the UID.
+    expect(screen.getByLabelText("Token UID")).toHaveValue(UNCLAIMED_TYPED);
   });
 
   it("releases a token from its row, and the list drops it", async () => {
