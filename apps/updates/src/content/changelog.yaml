@@ -2571,3 +2571,9 @@
     Error messages on cards and dialogs in both apps use a dedicated red in the dark theme, so
     they reach 4.5:1 contrast. Destructive buttons keep their own red and their labels stay
     readable.
+- id: tall-dialogs-scroll
+  date: 2026-11-11
+  area: frontend
+  change: >-
+    Confirmation dialogs scroll when they are taller than the screen, so their title, message
+    and buttons stay reachable on a phone held sideways or with large text.
