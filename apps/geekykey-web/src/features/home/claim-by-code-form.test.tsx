@@ -19,7 +19,11 @@ import { createTestProviders } from "@/test/providers";
 */
 
 const UNCLAIMED = "04E5F7091B3D";
+const UNCLAIMED_TYPED = "04:E5:F7:09:1B:3D";
 const TAKEN_BY_SOMEONE_ELSE = "04C3D5F70912";
+const TAKEN_TYPED = "04:C3:D5:F7:09:12";
+const TICKET_UID = "04E45150324189";
+const TICKET_TYPED = "04:E4:51:50:32:41:89";
 
 let api: MockApiClient;
 
@@ -103,7 +107,7 @@ describe("claiming a token by its code", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Someone else already claimed this token.",
     );
-    expect(screen.getByLabelText("Token UID")).toHaveValue(TAKEN_BY_SOMEONE_ELSE);
+    expect(screen.getByLabelText("Token UID")).toHaveValue(TAKEN_TYPED);
   });
 
   it("gives the 3-token cap the wording section 13 fixes", async () => {
@@ -115,7 +119,7 @@ describe("claiming a token by its code", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "You already have 3 tokens. Release one on My tokens first.",
     );
-    expect(screen.getByLabelText("Token UID")).toHaveValue(UNCLAIMED);
+    expect(screen.getByLabelText("Token UID")).toHaveValue(UNCLAIMED_TYPED);
   });
 
   it("uses section 13's rate_limited wording", async () => {
@@ -168,5 +172,84 @@ describe("claiming a token by its code", () => {
     expect(screen.getByLabelText("Token UID")).toHaveAccessibleDescription(
       /Some of the details are not valid\. Check the form and try again\.$/,
     );
+  });
+});
+
+describe("the UID box (FRO-74)", () => {
+  it("groups 04e45150324189 as it is typed, and claims the normalised UID", async () => {
+    const claimToken = vi.spyOn(api, "claimToken");
+    renderForm();
+
+    await userEvent.type(screen.getByLabelText("Token UID"), "04e45150324189");
+
+    expect(screen.getByLabelText("Token UID")).toHaveValue(TICKET_TYPED);
+    await userEvent.click(screen.getByRole("button", { name: "Claim" }));
+    await waitFor(() => expect(claimToken).toHaveBeenCalledWith(TICKET_UID));
+  });
+
+  it.each(["04:E4:51:50:32:41:89", "04 E4 51 50 32 41 89"])(
+    "pastes %s into the same grouped UID and claims the same token",
+    async (pasted) => {
+      const claimToken = vi.spyOn(api, "claimToken");
+      renderForm();
+      const field = screen.getByLabelText("Token UID");
+
+      await userEvent.click(field);
+      await userEvent.paste(pasted);
+
+      expect(field).toHaveValue(TICKET_TYPED);
+      await userEvent.click(screen.getByRole("button", { name: "Claim" }));
+      await waitFor(() => expect(claimToken).toHaveBeenCalledWith(TICKET_UID));
+    },
+  );
+
+  it.each(["04E5F7091B3D", "04:E5:F7:09:1B:3D", "04-e5-f7-09-1b-3d"])(
+    "shows %s in the same colon pairs",
+    async (typed) => {
+      renderForm();
+      const field = screen.getByLabelText("Token UID");
+
+      await userEvent.type(field, typed);
+
+      expect(field).toHaveValue(UNCLAIMED_TYPED);
+    },
+  );
+
+  it("keeps the caret where a digit is typed in the middle", async () => {
+    renderForm();
+    const field = screen.getByLabelText("Token UID") as HTMLInputElement;
+
+    await userEvent.type(field, "04E451");
+    expect(field).toHaveValue("04:E4:51");
+
+    field.setSelectionRange(5, 5);
+    await userEvent.keyboard("A");
+
+    expect(field).toHaveValue("04:E4:A5:1");
+    expect(field.selectionStart).toBe(7);
+  });
+
+  it("keeps the caret where a digit is deleted in the middle", async () => {
+    renderForm();
+    const field = screen.getByLabelText("Token UID") as HTMLInputElement;
+
+    await userEvent.type(field, "04E451");
+    field.setSelectionRange(7, 7);
+    await userEvent.keyboard("{backspace}");
+
+    expect(field).toHaveValue("04:E4:1");
+    expect(field.selectionStart).toBe(5);
+  });
+
+  it("drops a character that is not hex without moving the caret to the end", async () => {
+    renderForm();
+    const field = screen.getByLabelText("Token UID") as HTMLInputElement;
+
+    await userEvent.type(field, "04E451");
+    field.setSelectionRange(4, 4);
+    await userEvent.keyboard("z");
+
+    expect(field).toHaveValue("04:E4:51");
+    expect(field.selectionStart).toBe(4);
   });
 });

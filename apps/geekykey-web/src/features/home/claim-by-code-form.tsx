@@ -5,16 +5,8 @@ import * as z from "zod/mini";
 
 import { describeError, isApiError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form, FormField } from "@/components/ui/form";
+import { UidField } from "@/features/home/uid-field";
 import { applyApiIssues } from "@/lib/form-errors";
 import { isValidUid, normalizeUid } from "@/lib/token-uid";
 import { useClaimToken } from "@/lib/use-claim-token";
@@ -42,6 +34,9 @@ type ClaimValues = z.infer<typeof schema>;
 /**
  * My tokens' claim-by-code form (agreement 8.2, FRO-30). One UID field, for the tokens
  * a phone cannot read, and the same claim mutation as the token page.
+ *
+ * The box groups the UID in colon pairs as it is typed (FRO-74), and the claim still sends
+ * the normalised UID.
  *
  * A claim changes what /me holds, so the hook refetches it and the token appears in the
  * list on the page. The field clears once the claim is through, so the next token can be
@@ -96,25 +91,7 @@ export function ClaimByCodeForm({ autoFocus = false }: { autoFocus?: boolean }) 
         <FormField
           control={form.control}
           name="uid"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Token UID</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  className="font-mono"
-                  placeholder="04:A1:B2:C3:D4:E5:F6"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </FormControl>
-              <FormDescription>
-                The UID printed on the token, or read out by an organiser. Any separator style
-                works.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => <UidField field={field} />}
         />
         {formError ? (
           <p role="alert" className="text-sm text-destructive-text">
