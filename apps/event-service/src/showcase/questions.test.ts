@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { showcaseQuestions } from "./questions.ts";
 
-// These check the list's shape; BAC-162 replaces the placeholder wording.
-
 test("the showcase asks 5 questions, each with 2 to 4 choices", () => {
   assert.equal(showcaseQuestions.length, 5);
   for (const question of showcaseQuestions) {

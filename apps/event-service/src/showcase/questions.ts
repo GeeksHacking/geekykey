@@ -9,53 +9,55 @@ import { connectionsGame } from "../games/connections/connections.ts";
  * choice. A question or choice taken off the list drops out of everyone's
  * answers.
  *
- * Placeholders from BAC-119. BAC-162 replaces their wording for the showcase.
+ * BAC-162 replaces the placeholder questions before the event clear.
  */
 export const showcaseQuestions: readonly Question[] = [
   {
-    id: "drink",
-    text: "Tea or coffee?",
+    id: "team_role",
+    text: "Your team is making something new. Which part would you most enjoy?",
     choices: [
-      { id: "tea", text: "Tea" },
-      { id: "coffee", text: "Coffee" },
+      { id: "ideas", text: "Coming up with ideas" },
+      { id: "design", text: "Making it look good" },
+      { id: "building", text: "Building it" },
+      { id: "feedback", text: "Trying it out and giving feedback" },
     ],
   },
   {
-    id: "hours",
-    text: "Night owl or early bird?",
+    id: "learning",
+    text: "How do you prefer to learn something new?",
     choices: [
-      { id: "night_owl", text: "Night owl" },
-      { id: "early_bird", text: "Early bird" },
+      { id: "trying", text: "Try it myself" },
+      { id: "watching", text: "Watch someone show me" },
+      { id: "reading", text: "Read a guide" },
+      { id: "talking", text: "Talk it through with someone" },
     ],
   },
   {
-    id: "school",
-    text: "Best part of school?",
+    id: "starting",
+    text: "You have one hour to make something. How would you start?",
     choices: [
-      { id: "friends", text: "Friends" },
-      { id: "cca", text: "CCA" },
-      { id: "camps", text: "Camps" },
-      { id: "food", text: "The food" },
+      { id: "plan", text: "Make a plan first" },
+      { id: "prototype", text: "Make a rough version and improve it" },
     ],
   },
   {
-    id: "superpower",
-    text: "Pick a superpower",
+    id: "stuck",
+    text: "Your team gets stuck. What would you try first?",
     choices: [
-      { id: "fly", text: "Fly" },
-      { id: "invisibility", text: "Invisibility" },
-      { id: "reading_minds", text: "Reading minds" },
-      { id: "time_travel", text: "Time travel" },
+      { id: "smaller_parts", text: "Break the problem into smaller parts" },
+      { id: "help", text: "Ask someone for help" },
+      { id: "different_idea", text: "Try a different idea" },
+      { id: "break", text: "Take a short break and come back" },
     ],
   },
   {
-    id: "weekend",
-    text: "Your weekend?",
+    id: "project",
+    text: "Which project would you most like to help create?",
     choices: [
-      { id: "friends", text: "Out with friends" },
-      { id: "home", text: "At home" },
-      { id: "sport", text: "Sport" },
-      { id: "games", text: "Games" },
+      { id: "everyday", text: "Something that makes everyday life easier" },
+      { id: "people", text: "Something that brings people together" },
+      { id: "environment", text: "Something that helps the environment" },
+      { id: "laughter", text: "Something that makes people laugh" },
     ],
   },
 ];
