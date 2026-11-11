@@ -36,6 +36,7 @@ export function formatUidInput(raw: string): string {
   return groupUid(raw, ":");
 }
 
+/** The grouped text is upper-case, so this matches its hex digits. */
 const HEX_DIGIT = /[0-9A-F]/;
 
 /**

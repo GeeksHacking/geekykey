@@ -28,6 +28,8 @@ export function UidField({ field }: UidFieldProps) {
   // that puts the caret back.
   const [, rerender] = useReducer((count: number) => count + 1, 0);
 
+  // Runs after every render on purpose: the caret goes back after whichever render the
+  // change produced, including the forced one for a dropped character.
   useLayoutEffect(() => {
     const pending = pendingCaret.current;
     if (!pending) return;
@@ -41,8 +43,8 @@ export function UidField({ field }: UidFieldProps) {
     const caret = input.selectionStart ?? raw.length;
     const grouped = formatUidInput(raw);
     const at = uidCaretPosition(raw, caret, grouped);
-    // Put the grouped text and the caret in place now, and again after the render, so an
-    // edit in the middle stays where it was (FRO-74).
+    // Write the grouped text and the caret now, before React restores the controlled value,
+    // so a dropped character never shows and an edit in the middle stays put (FRO-74).
     input.value = grouped;
     input.setSelectionRange(at, at);
     pendingCaret.current = { input, at };
