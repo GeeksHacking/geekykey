@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatUid, isValidUid, normalizeUid } from "@/lib/token-uid";
+import { formatUid, isValidUid, normalizeUid, tokenAddress } from "@/lib/token-uid";
 
 describe("normalizeUid", () => {
   it("strips separators and upper-cases", () => {
@@ -27,5 +27,11 @@ describe("formatUid", () => {
   it("groups the UID in pairs", () => {
     expect(formatUid("04A1B2C3D4E5F6")).toBe("04 A1 B2 C3 D4 E5 F6");
     expect(formatUid("04:a1:b2:c3:d4:e5:f6")).toBe("04 A1 B2 C3 D4 E5 F6");
+  });
+});
+
+describe("tokenAddress", () => {
+  it("is the token page on this site, with the UID as the chip holds it", () => {
+    expect(tokenAddress("04 a1 b2 c3 d4 e5 f6")).toBe(`${window.location.origin}/t/04A1B2C3D4E5F6`);
   });
 });

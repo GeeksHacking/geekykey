@@ -2558,3 +2558,9 @@
   change: >-
     The dashboard now shows team-duel rounds as players join, play and get their team's result.
     Organisers can choose Team duels on a station, and a winning team earns an avatar piece.
+- id: my-tokens-qr-code
+  date: 2026-11-11
+  area: frontend
+  change: >-
+    My tokens can show a QR code of each token's address. Someone whose phone can't read the
+    token scans it with their camera and lands on the same page a tap opens.

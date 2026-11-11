@@ -21,3 +21,13 @@ export function isValidUid(uid: string): boolean {
 export function formatUid(uid: string): string {
   return normalizeUid(uid).replace(/(..)(?=.)/g, "$1 ");
 }
+
+/**
+ * The token address (agreement, "The token address"), `/t/<UID>` on the site this page is
+ * open on. On production that is `https://key.geekshacking.com/t/<UID>`, what the chip
+ * itself holds, so a QR code of it opens the same token page a tap does (FRO-166). On
+ * staging or a dev server it stays on that site, so the code can be tried there.
+ */
+export function tokenAddress(uid: string): string {
+  return `${window.location.origin}/t/${normalizeUid(uid)}`;
+}

@@ -64,7 +64,9 @@ page, listing the user's tokens with Release (FRO-27), the data layer in `src/ap
 (FRO-19), and claiming a token from the token page (FRO-22). My tokens also claims a token by
 typing its UID, for the tokens a phone cannot read (FRO-30). The page lists the tokens, then
 the event buttons, then the form behind "Claim a token manually", closed on load
-(`src/features/home/manual-claim.tsx`, FRO-155). The form is in
+(`src/features/home/manual-claim.tsx`, FRO-155). Each token's row has "Show QR code", which
+draws the token's address for a phone that can't read the token (`src/features/home/token-qr.tsx`,
+FRO-166). `qrcode.react` draws it and loads only when a code is shown. The form is in
 `src/features/home/claim-by-code-form.tsx`, and the claim it makes goes through the hook in
 `src/lib/use-claim-token.ts`, which the token page uses too.
 The login screen signs in with Firebase's web SDK, through `src/lib/firebase.ts` and
