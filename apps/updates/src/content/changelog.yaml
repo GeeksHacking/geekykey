@@ -2583,3 +2583,10 @@
   change: >-
     A reaction test now shows the time left to play, counts it down, and checks the result when
     it reaches zero. A failed check offers a retry.
+- id: uid-box-groups-pairs
+  date: 2026-11-11
+  area: frontend
+  change: >-
+    The UID box on My tokens adds a colon between each pair of characters as you type, so a
+    typed token is easier to check against the token in your hand. Pasting a UID with colons or
+    spaces gives the same box and the same claim.
