@@ -30,6 +30,9 @@ const LOG_LINES = {
   stations_unavailable: "ERROR",
   // A registered station whose ID or key hash appears twice, in one list or in two, so its key is refused.
   station_refused: "ERROR",
+  // A registered station whose idle_lines break the agreement's rules (6.1), so its heartbeat's
+  // answer leaves them out, and the station keeps its own idle screen. Its key still works.
+  idle_lines_refused: "ERROR",
   // A Firebase login answered 503, because Google's keys couldn't be fetched to check the token.
   login_unavailable: "ERROR",
   // A station's or a user's request answered 429, because it was over a limit (src/rate-limit.ts).

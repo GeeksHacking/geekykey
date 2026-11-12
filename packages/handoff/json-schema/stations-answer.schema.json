@@ -18,7 +18,7 @@
             "description": "The SHA-256 of the station key, in lower-case hex. Never the key itself"
           },
           "idle_lines": {
-            "description": "What the station shows between taps, from its game. The GeekyKey Service gives them to the station in the heartbeat's answer. Left out for a station whose game gives none, such as one with no game",
+            "description": "What the station shows between taps, from its game. The GeekyKey Service gives them to the station in the heartbeat's answer. Left out for a station whose game gives none, such as one with no game. The GeekyKey Service leaves out any that break these rules, and the station keeps its own idle screen",
             "minItems": 1,
             "maxItems": 2,
             "type": "array",

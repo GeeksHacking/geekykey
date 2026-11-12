@@ -9,8 +9,9 @@ import {
   type MeetingsAnswer,
   type MeetingsRequest,
   type RegisteredStation,
+  registeredStation,
   SECONDS_LEFT,
-  stationsAnswer,
+  stationLines,
   type TapsAnswer,
   tapsAnswerMatching,
   type TapsRequest,
@@ -18,7 +19,17 @@ import {
   type UsedLoginLinksRequest,
 } from "@geekykey/handoff";
 import { z } from "zod";
+import { log } from "./lib/log.ts";
 import { askService, type Send, Unanswered } from "./service-request.ts";
+
+/**
+ * The registered stations' answer as the GeekyKey Service reads it: as
+ * stationsAnswer, but with each station's idle_lines checked on its own
+ * (registeredStations), so a bad idle text never refuses the whole list.
+ */
+const stationsAnswerKeepingKeys = z.object({
+  stations: z.array(registeredStation.extend({ idle_lines: z.unknown().optional() })),
+});
 
 /**
  * The station's Event Service didn't answer the hand-off properly in time. A
@@ -50,19 +61,29 @@ export class EventService {
 
   /**
    * Its registered stations (11.1): the enabled ones, each with its key's
-   * hash. Throws EventServiceUnavailable for anything else, or when `signal`
-   * fires first. There's no retry: the copy asks again a minute later.
+   * hash, and the idle lines of its game, if any. Idle lines that break 6.1's
+   * rules are left out and logged, and the station stays on the list, since a
+   * station's idle screen mustn't turn its taps away or keep the copy on an
+   * old list. Throws EventServiceUnavailable for anything else, or when
+   * `signal` fires first. There's no retry: the copy asks again a minute
+   * later.
    */
   async registeredStations(signal: AbortSignal): Promise<RegisteredStation[]> {
     const { stations } = await askService(this.#send, {
       method: "GET",
       url: `${this.#url}/geekykey/v1/stations`,
       key: this.#key,
-      answer: stationsAnswer,
+      answer: stationsAnswerKeepingKeys,
       signal,
       fail: EventServiceUnavailable,
     });
-    return stations;
+    return stations.map(({ idle_lines, ...station }) => {
+      if (idle_lines === undefined) return station;
+      const checked = stationLines.safeParse(idle_lines);
+      if (checked.success) return { ...station, idle_lines: checked.data };
+      log("idle_lines_refused", { event_service: this.id, station_id: station.station_id });
+      return station;
+    });
   }
 
   /**

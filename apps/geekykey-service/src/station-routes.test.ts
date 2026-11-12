@@ -663,6 +663,34 @@ test("a heartbeat's answer gives the station's idle lines, from its Event Servic
   assert.deepEqual(answer.idle_lines, ["Team duels", "Tap to join"]);
 });
 
+test("idle lines that break the rules are dropped and logged, and the station's key still works", async () => {
+  // A cosmetic text mustn't turn the station away, or keep the copy on an old list (BAC-181).
+  const { fake, post, postHeartbeat } = await harness();
+  const lines = loggedLines();
+  fake.stations.set("showcase", [
+    {
+      station_id: STATION_ID,
+      key_hash: await hashStationKey(STATION_KEY),
+      idle_lines: ["x".repeat(17)],
+    },
+  ]);
+  const res = await postHeartbeat({});
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as HeartbeatAnswer).idle_lines, undefined);
+  assert.equal((await post({ taps: [{ client_tap_id: "t1", uid: UID }] })).status, 200);
+  assert.deepEqual(
+    lines().filter((line) => line.message === "idle_lines_refused"),
+    [
+      {
+        severity: "ERROR",
+        message: "idle_lines_refused",
+        event_service: "showcase",
+        station_id: STATION_ID,
+      },
+    ],
+  );
+});
+
 test("a heartbeat's answer doesn't wait for the hand-off", async () => {
   const { fake, postHeartbeat, settled } = await harness();
   let handedOff = false;
