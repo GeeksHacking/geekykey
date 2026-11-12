@@ -117,9 +117,9 @@ can no longer tap, such as a lost token.
 One tap point at one event, registered by that event's Event Service, with its own station key.
 Its hardware lent to another event becomes a new station there. It runs one of the event's games,
 or none, as an organizer chooses, and that game sets what a tap there counts for, such as its
-station points. The choice is fixed once a game has counted a tap there or held one back. An
-organizer can disable a
-station, turning away everything it sends until it is enabled again.
+station points. An organizer can change the station's game at any time, since each tap records
+the game that counted it or held it back. An organizer can disable a station, turning away
+everything it sends until it is enabled again.
 _Avoid_: reader, device
 
 **Station hardware**:
@@ -312,7 +312,8 @@ A station's place in a participant's passport, either empty or stamped.
 _Avoid_: empty stamp
 
 **Stamp**:
-What fills a stamp slot, earned by the participant's first accepted tap at that station.
+What fills a stamp slot, earned by the participant's first accepted tap at that station that the
+passport counted. Another game's taps there never earn one.
 
 **Next stop**:
 The passport station a station names after a passport tap: the quietest one the participant
@@ -332,4 +333,4 @@ _Avoid_: score
 **Cooldown**:
 The window after an accepted tap during which the same participant's taps at the same station are
 recorded but do not count. The Event Service's base keeps it, and each game chooses whether to use
-it. The passport does.
+it. The passport does. A game's cooldown starts only from the taps that game accepted.

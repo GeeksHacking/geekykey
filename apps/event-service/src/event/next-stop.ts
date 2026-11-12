@@ -1,7 +1,7 @@
 import { and, asc, count, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import type { Tx } from "./games.ts";
-import { passportStations, stations, taps } from "./schema.ts";
+import { PASSPORT_GAME_ID, passportStations, stations, taps } from "./schema.ts";
 import { runsThePassport } from "./stamp-slots.ts";
 
 /**
@@ -20,9 +20,11 @@ export interface NextStop {
 }
 
 /**
- * The stamp slots anyone can be sent to, quietest first: the fewest stored
- * taps, of any status, made in the last NEXT_STOP_WINDOW_MINUTES before
- * `now`, and between those with as many, the earlier slot. A tap is placed
+ * The stamp slots anyone can be sent to, quietest first: the fewest taps the
+ * passport counted or held back, made in the last NEXT_STOP_WINDOW_MINUTES
+ * before `now`, and between those with as many, the earlier slot. Another
+ * game's taps there, from before the station changed to the passport, don't
+ * count (the API agreement's 8.1). A tap is placed
  * by the station's time for it when the pipeline kept one, else by when it
  * arrived, so a station's saved taps, sent when it comes back online, don't
  * make its booth look busy. A disabled station
@@ -53,6 +55,7 @@ export async function quietestFirst(db: Db | Tx, now: Date): Promise<NextStop[]>
       taps,
       and(
         eq(taps.stationId, passportStations.stationId),
+        eq(taps.game, PASSPORT_GAME_ID),
         // ISO strings compare as the times they write.
         gte(sql`coalesce(${taps.tappedAt}, ${taps.receivedAt})`, since),
       ),

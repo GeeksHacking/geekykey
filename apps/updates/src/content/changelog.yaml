@@ -2597,3 +2597,10 @@
     After a live tap, the station shows the two lines its game sends, such as a participant's
     stamps and next stop, with the status's own LED and sound. The tap that finishes a game plays
     three short beeps and blinks the blue LED three times.
+- id: station-game-changes-any-time
+  date: 2026-11-12
+  area: backend
+  change: >-
+    Each tap now records the game that counted it, so an organizer can change a station's game
+    at any time. A tap another game counts at a passport station earns no stamp, and a station
+    set back to the passport shows the stamps it had.

@@ -2,15 +2,8 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
-import { TEST_EVENT_SERVICE_KEY, testApp, testDb } from "../test-helpers.ts";
-import {
-  type NewTap,
-  PASSPORT_GAME_ID,
-  passportStations,
-  stations,
-  taps,
-  users,
-} from "./schema.ts";
+import { storeTap, TEST_EVENT_SERVICE_KEY, testApp, testDb } from "../test-helpers.ts";
+import { type NewTap, PASSPORT_GAME_ID, passportStations, stations, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -86,10 +79,13 @@ async function harness(settings: Record<string, string> = {}) {
   };
 
   let tapCount = 0;
-  /** Stores a tap at `stationId`: accepted, NFC, by the participant, unless told otherwise. */
+  /**
+   * Stores a tap at `stationId`: accepted, NFC, by the participant, recording the station's
+   * game, unless told otherwise.
+   */
   const addTap = async (stationId: string, tap: Partial<NewTap> = {}) => {
     tapCount++;
-    await db.insert(taps).values({
+    await storeTap(db, {
       stationId,
       clientTapId: `tap-${tapCount}`,
       userId: PARTICIPANT,
@@ -197,6 +193,17 @@ test("a station running another game is listed with its game and booth, but no p
     unique_participants: 1,
     last_tap_at: "2026-10-10T09:00:02.000Z",
   });
+});
+
+test("a station's participants are those its game counted, while its taps count every game's", async () => {
+  const { map, addStation, addTap } = await harness();
+  await addStation("station-a", { name: "Booth A" });
+  // Team duels counted user-2 here before the station changed to the passport (BAC-183).
+  await addTap("station-a", { userId: "user-2", game: "team_duels" });
+  await addTap("station-a", { game: PASSPORT_GAME_ID });
+
+  const [slot] = (await map()).stations;
+  assert.deepEqual([slot!.taps, slot!.unique_participants], [2, 1]);
 });
 
 /** The map screen these tests list in MAP_SCREENS. */

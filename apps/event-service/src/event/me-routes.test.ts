@@ -1,15 +1,8 @@
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
-import { screensSchemas, setupFixture, testApp } from "../test-helpers.ts";
-import {
-  type NewTap,
-  PASSPORT_GAME_ID,
-  passportStations,
-  stations,
-  taps,
-  users,
-} from "./schema.ts";
+import { screensSchemas, setupFixture, storeTap, testApp } from "../test-helpers.ts";
+import { type NewTap, PASSPORT_GAME_ID, passportStations, stations, users } from "./schema.ts";
 
 const app = testApp();
 
@@ -88,9 +81,9 @@ async function harness() {
   };
 
   let tapCount = 0;
-  /** Stores a tap. Unless told otherwise: accepted, NFC, Alex, Booth 1. */
+  /** Stores a tap. Unless told otherwise: accepted, NFC, Alex, Booth 1, its station's game. */
   const addTap = (tap: Partial<NewTap> & Pick<NewTap, "receivedAt">) =>
-    fx.db.insert(taps).values({
+    storeTap(fx.db, {
       stationId: fx.stationId,
       clientTapId: `tap-${++tapCount}`,
       userId: fx.userId,

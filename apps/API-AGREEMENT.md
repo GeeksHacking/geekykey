@@ -154,7 +154,6 @@ only for `validation_failed` and follows Zod's issue format.
 | `already_played` | 409 | The user has already played this connection's reaction test (8.11) |
 | `too_late` | 409 | The 2 minutes to play this connection's reaction test have passed (8.11) |
 | `answers_fixed` | 409 | The user's answers in the answers game can't change, because their first connection fixed them (8.7) |
-| `station_has_taps` | 409 | A game has counted or held back a tap at the station, so its game can't change until the data is cleared ([Games](#games)) |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
 | `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them. From 7.5, the Event Service that made a login link didn't mark it used properly in time (11.11), and the GeekyKey screens say what they say for `invalid_login_link` |
@@ -361,7 +360,7 @@ Every tap a station sends comes back with one of these.
 | Value | Answered by | Stored | Meaning |
 |---|---|---|---|
 | `accepted` | Event Service | yes | Counts in at least one game, such as the passport |
-| `cooldown` | Event Service | yes | Same user, same station, inside the cooldown. Recorded, doesn't count |
+| `cooldown` | Event Service | yes | Same user, same station, inside the cooldown after a tap the same game accepted. Recorded, doesn't count |
 | `no_game` | Event Service | yes | Reached the event, but no game counts taps at that station: one that runs no game, or one that runs the passport without passport settings |
 | `duplicate` | Event Service | no | This station already sent this `client_tap_id`. Nothing written. Returned only to stations |
 | `unknown_token` | GeekyKey Service | no, only logged | Nobody has claimed this token |
@@ -400,13 +399,12 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 - The station's own game can also give what the station shows after an `accepted` or `cooldown`
   tap, as `lines` and `complete` (6.1). The passport's are the participant's progress, by name,
   and their next stop.
-- A station's game is **fixed** once the station has a tap that a game counted or held back, an
-  `accepted` or `cooldown` tap, from the station or the QR fallback (9.4). After that, a change
-  answers `409 station_has_taps`. The passport's record is the accepted taps at its stations,
-  so a change after one would turn another game's accepted taps into stamps. `no_game` taps
-  don't fix it, so a station tapped before anyone chose its game can still be given one.
-- The evening-before clear empties `taps`, so organizers can choose new games before the
-  showcase.
+- Each stored tap records the game that counted it or held it back, and a `no_game` tap records
+  none (BAC-183, for the next version). A game reads only its own taps, so an organizer can
+  change a station's game at any time (9.11). A tap another game counted at a passport station
+  never becomes a stamp, and a station set back to the passport shows the stamps it had. Taps
+  stored before the next version record the game their station ran then, since until then a
+  station's game couldn't change once a game had counted or held back a tap there.
 - Stations created before version 0.7 with passport settings run the passport.
 
 ### Connections
@@ -474,9 +472,10 @@ them.
 - Only stations that run the passport and have passport settings are **stamp slots**, in the
   order their settings were added, oldest first, so adding one never moves the others. A
   station that has settings but runs another game keeps them, and isn't a stamp slot.
-- A user has a **stamp** for a station once they have at least one `accepted` tap there.
-- **Points** are the sum of the station's points over the user's accepted taps, so tapping a
-  station again after the cooldown earns its points again, plus 1 for each connection
+- A user has a **stamp** for a station once they have at least one `accepted` tap there that the
+  passport counted ([Games](#games)). Another game's accepted taps there don't count.
+- **Points** are the sum of the station's points over the user's accepted taps that the passport
+  counted, so tapping a station again after the cooldown earns its points again, plus 1 for each connection
   ([Connections](#connections)), whatever its match, from 0.13. This is the simplest rule that
   keeps the showcase interesting and can be changed later without an API change.
 - A station disabled later keeps its stamp slot and the stamps already earned there.
@@ -648,8 +647,8 @@ item has a [`tap_status`](#tap_status).
   and light the LED in a way of its own. An answer without `lines` shows the table's screen, as
   today.
 - The cooldown for saved taps is judged by `tapped_at` when present, so saved taps can be sent
-  in any order, and a tap is compared with the accepted taps nearest it in time on either side,
-  including ones already stored. Without `tapped_at` the receipt time is used, which means every
+  in any order, and a tap is compared with the taps the same game accepted nearest it in time on
+  either side, including ones already stored. Without `tapped_at` the receipt time is used, which means every
   tap in a flush by the same user at the same station after the first will be `cooldown`.
   Stations should send `tapped_at` whenever they have had a time sync.
 
@@ -968,8 +967,9 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
 - `stamps` lists **every** stamp slot (section 4), so the passport can render empty slots. They
   come in the order their settings were added, oldest first. A station that isn't a stamp slot
   never appears here, even if it has passport settings or the user has tapped it.
-- `earned_at` is `null` until the user has an accepted tap at that station. After that it is
-  when the Event Service **received** their first accepted tap there. For a station that was
+- `earned_at` is `null` until the user has an accepted tap at that station that the passport
+  counted (section 4). After that it is when the Event Service **received** their first such tap
+  there. For a station that was
   offline, that is when it sent the tap, not when it read the token.
 - `stamps[].points` is what one accepted tap at that station is worth, not what this user has
   earned there. The user's total is `points`.
@@ -981,7 +981,8 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   didn't count". `station_name` is `null` for a station that isn't a stamp slot.
 - `next_stop` is where a station sends the participant next (6.1), worked out again at each poll,
   or `null` when there is nowhere. It is the empty slot whose station has the fewest taps made in
-  the last 10 minutes, counting stored taps of any status. A tap counts by its `tapped_at` (6.1),
+  the last 10 minutes, counting the passport's `accepted` and `cooldown` taps there, not another
+  game's (section 4, [Games](#games)). A tap counts by its `tapped_at` (6.1),
   or by when it arrived when it has none, so the taps a station saved while offline and sends
   later don't make its booth look busy. Between slots with as many, it is the one listed first in
   `stamps`. A disabled station, and one with no booth (9.12), is never the
@@ -1505,8 +1506,8 @@ leaves the station's booth as it is, and one that gives `booth`, even `null`, se
   it.
 - A station with no game runs the passport from then on (section 4, [Games](#games)), so its
   taps get `accepted` or `cooldown` instead of `no_game`. Taps already stored as `no_game` stay
-  as they are. A station whose game is fixed keeps having none. Giving it the passport writes the
-  `station_game_changed` line that 9.11 writes, beside this call's own.
+  as they are. Giving it the passport writes the `station_game_changed` line that 9.11 writes,
+  beside this call's own.
 - A station that runs another game keeps it. Its settings are saved, and it isn't a stamp slot
   until an organizer sets its game to `passport` (9.11).
 - A disabled station can be added or changed too, and its settings count once it is enabled
@@ -1540,7 +1541,7 @@ organizers can choose from.
       "created_at": "2026-10-01T02:00:00.000Z",
       "disabled_at": null,
       "game": "passport",
-      "game_fixed": true,
+      "game_fixed": false,
       "booth": "A3",
       "passport": { "name": "3D Printing Booth", "location": "Hall A", "booth": "A3", "points": 1, "link": "https://example.com/3d-printing", "added_at": "…" },
       "last_seen_at": "2026-10-10T09:00:01.250Z",
@@ -1560,7 +1561,7 @@ organizers can choose from.
 | `label` | The device's name, such as "Reader 3". Its name in the passport is `passport.name` |
 | `disabled_at` | When an organizer disabled it, or `null` while it is enabled |
 | `game` | The `id` of the game it runs, or `null` for none (section 4, [Games](#games)). With none, its taps get `no_game` |
-| `game_fixed` | `true` once a game has counted or held back a tap there, so its game can't change (9.11) |
+| `game_fixed` | Always `false` from the next version, since a station's game can change at any time (9.11). Kept for one version so the screens don't break, then removed. Don't read it |
 | `booth` | The booth the map draws it at (9.12), or `null` |
 | `passport` | `null` for a station without passport settings. The screen shows it as "Not in the passport", with a button to add its settings (9.1). A station with settings is a stamp slot only while its `game` is `passport` |
 | `passport.booth` | The same as `booth`, kept because fields are never removed. Read `booth` |
@@ -1687,8 +1688,10 @@ stamp slots (section 4), in the order they were added.
 - `accepted_taps` and `unique_participants` count `accepted` taps only, from any game. A
   participant is a user with at least one `accepted` tap, so someone whose taps were all
   `cooldown` or `no_game` isn't counted.
-- For a station, `unique_participants` is the users with an `accepted` tap there, which is the
-  number of stamps earned there. `name` is its passport name.
+- For a station, `accepted_taps` and `unique_participants` count only the `accepted` taps the
+  passport counted there, so `unique_participants` is the number of stamps earned there. Another
+  game's taps there, from before the station changed to the passport, count only in the totals.
+  `name` is its passport name.
 - A stamp slot with no taps is listed with zeros, and a disabled one is listed too, since it
   keeps its stamp slot (9.9). A station that isn't a stamp slot isn't listed, but its taps count
   in the totals.
@@ -1855,8 +1858,8 @@ session gets `unauthenticated`. It isn't under `/admin`, because a map screen is
 | `name` | Its name in the passport while it's a stamp slot (section 4), or `null` |
 | `booth` | Its booth (9.12), or `null` |
 | `disabled` | `true` while an organizer has it disabled (9.9) |
-| `taps` | How many of its taps its game counted or held back, `accepted` or `cooldown`, from the station and the QR fallback (9.4). `no_game` taps, stored before it ran a game, aren't counted |
-| `unique_participants` | The users with an `accepted` tap there. At a stamp slot, that is the number of stamps earned there, as in 9.5 |
+| `taps` | How many of its taps a game counted or held back, `accepted` or `cooldown`, from the station and the QR fallback (9.4), whichever game it ran then, so the count never drops when its game changes. `no_game` taps, stored before it ran a game, aren't counted |
+| `unique_participants` | The users with an `accepted` tap there that the game it runs now counted. At a stamp slot, that is the number of stamps earned there, as in 9.5 |
 | `last_tap_at` | When the Event Service received the newest tap that `taps` counts, or `null` |
 
 - `stations` lists every station this Event Service registered: first the stamp slots, in
@@ -1911,15 +1914,17 @@ from the station board.
 { "station": { /* the station, as the board lists it (9.2) */ } }
 ```
 
-- Its next tap goes to the new game. A tap already being judged when the change arrives is judged
-  by the game before.
+- An organizer can change it at any time, however many taps the station has (section 4,
+  [Games](#games)). Its next tap goes to the new game. A tap already being judged when the
+  change arrives is judged by the game before.
 - A station that has passport settings and is set to another game keeps them, and stops being a
-  stamp slot. Set back to `passport` before its game is fixed, it takes its old slot again,
-  since slots follow when the settings were added.
+  stamp slot. Set back to `passport`, it takes its old slot again, since slots follow when the
+  settings were added, and shows the stamps earned there before, since those taps still record
+  the passport.
 - A station set to `passport` with no settings yet isn't a stamp slot, and its taps get
   `no_game`, until 9.1 adds them.
-- Setting the game it already runs answers `200` with the station as it is, even once its game
-  is fixed, and writes no log line.
+- Setting the game it already runs answers `200` with the station as it is, and writes no log
+  line.
 - The Event Service writes one `station_game_changed` log line, with the organizer's user ID, the
   station's ID and the new game's `id`, or `null`.
 
@@ -1928,8 +1933,6 @@ from the station board.
 - `unauthenticated` and `forbidden`, as for every organizer endpoint.
 - `validation_failed` for a missing `game`, or one that isn't in 9.2's `games`.
 - `not_found` for a station this Event Service didn't register.
-- `station_has_taps` (`409`) once the station's game is fixed (section 4). The station keeps its
-  game.
 - `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.12 `PUT /api/v1/admin/stations/{id}/booth` (`Implemented`)
@@ -2389,8 +2392,8 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 - Leaderboards.
 - WebSocket or server-sent events. Poll the endpoints above.
 - Reading a station key back. Replacing one is in scope, for organizers.
-- Removing a station's passport settings. Before the station's game is fixed, an organizer can
-  set it to another game instead (9.11), and it keeps its settings but stops being a stamp slot.
+- Removing a station's passport settings. An organizer can set the station to another game
+  instead (9.11), and it keeps its settings but stops being a stamp slot.
 - Editing or deleting taps.
 - User profile editing, apart from the name the event shows, the bio and the contact line (8.7).
   A guest can't be turned into a Google account.
@@ -2471,9 +2474,6 @@ Organisers can open it for totals only.
 - When the Event screens' `/sign-out` can't log the user out, it says **"Couldn't log you out of the
   event"** above that error's own sentence, with **Try again** and **Back to GeekyKey** (FRO-144, for
   the next version).
-- On `station_has_taps`, the station board says "Taps here have already counted, so this
-  station's game can't change until the data is cleared." It shows a station whose `game_fixed`
-  is `true` with its game, and no way to change it.
 - On `invalid_login_link`, the Event screens say "That link has expired. Tap your token again to
   get back in."
 - When `POST /auth/login-link` fails on the GeekyKey screens, whatever the error, they say "That
@@ -2759,3 +2759,4 @@ Closed on 2026-10-10:
 | 2026-11-09 | For the next version: a tap with no group offers the event, where the participant joins one (FRO-146). Section 13 gives the token page's `no_group` answer its own sentence, "You both need to be in a group to connect. Open the event to join a group, then tap again.", and the event's button, because opening the event joins the participant and a latecomer is placed at once. The dashboard's answer after Accept keeps its own sentence, "You both need to be in a group to connect. Ask an organiser.", since the person is already in the event there. No endpoint, field or error code changes. |
 | 2026-11-10 | For the next version: a missing token kind has its own status, `no_kind`, in the meeting hand-off (11.10), the token page's answer (8.8) and Accept (8.10), under the across-token-kinds rule (BAC-135). `same_kind` now means two equal, present kinds. Section 13 gives each its own sentence on the token page and after Accept. Ethan's approval of `no_kind` and the ticket's sentence was confirmed in the implementation session on 10 Nov; the equal-kinds sentence follows his 10 Nov comment. No field is removed. An older GeekyKey Service turns `no_kind` into `unavailable`, and older screens show their existing failure message. New screens accept every older status. |
 | 2026-11-11 | For the next version: a reaction test shows the time left to play, not a fresh two minutes (FRO-152). Section 13 replaces "You have 2 minutes to play." with "Time left to play: {m}:{ss}.", which counts down while the test is visible and is recomputed when the page returns, and adds "Checking the result..." while the test reads `/me` at zero, with "Couldn't check the result. Try again." and a **Try again** button if that read fails. A refused play reads `/me` with the same checking sentence. No endpoint, field or error code changes. |
+| 2026-11-12 | For the next version: each stored tap records the game that counted it or held it back, so an organizer can change a station's game at any time (BAC-183). The booth's two stations can then run the passport and change to another game during the demo. Section 4 replaces the rule that fixed a station's game with one where each game reads only its own taps: a stamp and points come from the taps the passport accepted, and the cooldown (6.1) and the next stop (8.1) from the taps it judged, so another game's tap at a passport station earns nothing, and a station set back to the passport shows the stamps it had. 8.1's `earned_at` and `next_stop`, 9.5's stamp slots and 9.10's `unique_participants` count the same way, while 9.10's `taps` still counts every game's, so it never drops. Taps stored before the change record the game their station ran then. **Removed:** `409 station_has_taps`, from section 2, 9.11 and the station board's sentence in section 13, and 9.1's rule that a station whose game was fixed keeps none. Removing an error code is an exception to section 1's rule, as in the row of 2026-11-06: an older screen that still knows it is never sent it. **Changed:** 9.2's `game_fixed` is always `false`, and is removed in the version after this one. No other field changes, and nothing is added to a response. |

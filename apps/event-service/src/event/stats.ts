@@ -1,7 +1,7 @@
 import { and, asc, count, countDistinct, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import { passportStations, stations, taps } from "./schema.ts";
-import { runsThePassport } from "./stamp-slots.ts";
+import { countedByThePassport, runsThePassport } from "./stamp-slots.ts";
 
 /** The organizers' totals (the API agreement's 9.5). No token ID: the Event side never sees one. */
 export interface EventStats {
@@ -18,12 +18,13 @@ export interface StationStats {
   stationId: string;
   /** Its name in the passport. */
   name: string;
+  /** The taps the passport counted there, not another game's. */
   acceptedTaps: number;
-  /** The users with at least one accepted tap there, so the stamps earned there. */
+  /** The users with a tap the passport counted there, so the stamps earned there. */
   uniqueParticipants: number;
 }
 
-/** Only accepted taps count for the passport, and so for participants. */
+/** A participant is anyone with an accepted tap, from any game. */
 const isAccepted = eq(taps.status, "accepted");
 
 /**
@@ -43,7 +44,7 @@ export async function loadStats(db: Db): Promise<EventStats> {
           ),
       })
       .from(taps),
-    // Every stamp slot, with or without accepted taps.
+    // Every stamp slot, with or without taps the passport counted.
     db
       .select({
         stationId: passportStations.stationId,
@@ -53,7 +54,7 @@ export async function loadStats(db: Db): Promise<EventStats> {
       })
       .from(passportStations)
       .innerJoin(stations, and(eq(stations.id, passportStations.stationId), runsThePassport))
-      .leftJoin(taps, and(eq(taps.stationId, passportStations.stationId), isAccepted))
+      .leftJoin(taps, and(eq(taps.stationId, passportStations.stationId), countedByThePassport))
       .groupBy(passportStations.stationId, passportStations.name, passportStations.addedAt)
       // The order they were added, as the passport's stamp slots are.
       .orderBy(asc(passportStations.addedAt), asc(passportStations.stationId)),

@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, min } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import { type NextStop, nextStop, quietestFirst } from "./next-stop.ts";
 import { passportStations, stations, taps } from "./schema.ts";
-import { runsThePassport } from "./stamp-slots.ts";
+import { countedByThePassport, runsThePassport } from "./stamp-slots.ts";
 import type { StoredTapStatus, TapSource } from "./tap-pipeline.ts";
 
 /** How many of their latest taps a participant sees, any status. */
@@ -46,7 +46,7 @@ export interface MeView {
 
 /**
  * Reads everything /me shows, for one user. Stamps and points are derived from
- * accepted taps here, never stored, so they cannot drift from the tap log.
+ * the taps the passport counted, never stored, so they cannot drift from the tap log.
  *
  * The four reads are independent and sent together. Not with db.batch(): that
  * is libSQL-only. The cost is that each read sees its own moment, so a tap
@@ -68,7 +68,7 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
       .innerJoin(stations, and(eq(stations.id, passportStations.stationId), runsThePassport))
       // The order they were added keeps every slot in place when a station is added mid-event.
       .orderBy(asc(passportStations.addedAt), asc(passportStations.stationId)),
-    // One row per station this participant has an accepted tap at.
+    // One row per station this participant has a tap the passport counted at.
     db
       .select({
         stationId: taps.stationId,
@@ -76,7 +76,7 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
         accepted: count(),
       })
       .from(taps)
-      .where(and(eq(taps.userId, userId), eq(taps.status, "accepted")))
+      .where(and(eq(taps.userId, userId), countedByThePassport))
       .groupBy(taps.stationId),
     // Newest first by arrival. Not by id alone: on TiDB, ids only rise per server.
     db
@@ -103,7 +103,7 @@ export async function loadMe(db: Db, userId: string): Promise<MeView> {
   ]);
   const visitsByStation = new Map(visits.map((visit) => [visit.stationId, visit]));
 
-  // Every accepted tap earns its station's points, so a repeat visit after the cooldown counts again.
+  // Every tap the passport counted earns its station's points, so a repeat visit after the cooldown counts again.
   const points = passport.reduce(
     (sum, station) => sum + station.points * (visitsByStation.get(station.id)?.accepted ?? 0),
     0,

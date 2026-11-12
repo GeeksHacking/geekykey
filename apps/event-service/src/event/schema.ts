@@ -63,8 +63,8 @@ export const stations = mysqlTable("stations", {
    * The game an organizer chose for the station, by the game's ID (the API
    * agreement's 9.11), or null for none. 9.11 takes only the event's games,
    * and an ID no game of the event's has means none runs there, as after a
-   * deploy that drops a game. Fixed once the station has a tap a game counted
-   * or held back.
+   * deploy that drops a game. It can change at any time, since each tap
+   * records the game that judged it.
    */
   game: varchar("game", { length: 64 }),
   /**
@@ -110,8 +110,8 @@ export const TAP_SOURCES = ["nfc", "qr_fallback"] as const;
 /** `duplicate` and the GeekyKey Service's `unknown_token` are answered, never stored. */
 export const STORED_TAP_STATUSES = ["accepted", "cooldown", "no_game"] as const;
 /**
- * The statuses of a tap a game judged, counting it or holding it back. One
- * fixes its station's game (9.11), and the map counts them (9.10).
+ * The statuses of a tap a game judged, counting it or holding it back, which
+ * the map counts (9.10). Such a tap records its game (`taps.game`).
  */
 export const COUNTED_TAP_STATUSES = ["accepted", "cooldown"] as const;
 
@@ -139,6 +139,15 @@ export const taps = mysqlTable(
     /** Device clock time of the tap. Nullable because ESP32 clocks are unreliable. */
     tappedAt: isoTimestamp("tapped_at"),
     receivedAt: isoTimestamp("received_at").notNull(),
+    /**
+     * The ID of the game that counted the tap or held it back, or null for a
+     * `no_game` tap (the API agreement's section 4, "Games"). A game reads
+     * only its own taps, so a station's game can change at any time, and a
+     * tap another game counted there never becomes a stamp. Taps from before
+     * the column have the game their station ran when it was added, since no
+     * station could change game then.
+     */
+    game: varchar("game", { length: 64 }),
   },
   (t) => [
     uniqueIndex("taps_station_client_tap_id_uidx").on(t.stationId, t.clientTapId),

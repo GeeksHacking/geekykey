@@ -30,6 +30,7 @@ export async function fillEveryTable() {
     clientTapId: "tap-1",
     userId,
     status: "accepted",
+    game: "passport",
     receivedAt: AT,
   });
   await db.insert(userKinds).values({ userId, kind: "E" });

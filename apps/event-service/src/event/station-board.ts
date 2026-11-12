@@ -1,6 +1,6 @@
-import { asc, eq, inArray, max, type SQL, sql } from "drizzle-orm";
+import { asc, eq, max, type SQL } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
-import { COUNTED_TAP_STATUSES, passportStations, stations, taps } from "./schema.ts";
+import { passportStations, stations, taps } from "./schema.ts";
 
 /** How recently a station must have been heard from to be online (the API agreement's 9.2). */
 const ONLINE_WINDOW_SECONDS = 120;
@@ -13,11 +13,6 @@ export interface BoardStation {
   disabledAt: string | null;
   /** The game it runs, by the game's ID, or null for none (9.11). */
   game: string | null;
-  /**
-   * Whether its game can no longer change: it has a stored tap that a game
-   * counted or held back, from the station or the QR fallback (9.11).
-   */
-  gameFixed: boolean;
   /** The booth it stands at, where the map draws it (9.12), or null. */
   booth: string | null;
   /** Its passport settings, or null for a station not in the passport, whose taps get `no_game`. */
@@ -75,35 +70,25 @@ async function loadBoardStations(db: Db, now: Date, where?: SQL): Promise<BoardS
     .groupBy(taps.stationId)
     .as("last_taps");
 
-  // The stations with a tap a game counted or held back, whose game is fixed.
-  const countedTaps = db
-    .selectDistinct({ stationId: taps.stationId })
-    .from(taps)
-    .where(inArray(taps.status, COUNTED_TAP_STATUSES))
-    .as("counted_taps");
-
   const rows = await db
     .select({
       station: stations,
       passport: passportStations,
       lastTapAt: lastTaps.lastTapAt,
-      gameFixed: sql<boolean>`${countedTaps.stationId} is not null`.mapWith(Boolean),
     })
     .from(stations)
     .leftJoin(passportStations, eq(passportStations.stationId, stations.id))
     .leftJoin(lastTaps, eq(lastTaps.stationId, stations.id))
-    .leftJoin(countedTaps, eq(countedTaps.stationId, stations.id))
     .where(where)
     .orderBy(asc(stations.createdAt), asc(stations.id));
 
   const onlineSince = now.getTime() - ONLINE_WINDOW_SECONDS * 1000;
-  return rows.map(({ station, passport, lastTapAt, gameFixed }) => ({
+  return rows.map(({ station, passport, lastTapAt }) => ({
     id: station.id,
     label: station.label,
     createdAt: station.createdAt,
     disabledAt: station.disabledAt,
     game: station.game,
-    gameFixed,
     booth: station.booth,
     passport: passport && {
       name: passport.name,
