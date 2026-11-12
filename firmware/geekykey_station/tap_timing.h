@@ -15,6 +15,7 @@
 #define SOUND_ACCEPTED 1  // one 1-second beep
 #define SOUND_COOLDOWN 2  // two slow beeps: not yet, try again later
 #define SOUND_ERROR 3     // three fast beeps: something is wrong
+#define SOUND_COMPLETE 4  // three short beeps, slower than an error's: the tap finished the game
 
 // Whether the buzzer is on `elapsed` milliseconds after a sound started. The
 // buzzer is an active one, which sounds while its pin is HIGH, so a sound is a
@@ -24,6 +25,7 @@ inline bool soundIsOn(int sound, uint32_t elapsed) {
   static const uint32_t accepted[] = {1000};
   static const uint32_t cooldown[] = {200, 200, 200};
   static const uint32_t error[] = {80, 80, 80, 80, 80};
+  static const uint32_t complete[] = {150, 150, 150, 150, 150};
   const uint32_t *steps = nullptr;
   int count = 0;
   if (sound == SOUND_ACCEPTED) {
@@ -35,6 +37,9 @@ inline bool soundIsOn(int sound, uint32_t elapsed) {
   } else if (sound == SOUND_ERROR) {
     steps = error;
     count = sizeof(error) / sizeof(error[0]);
+  } else if (sound == SOUND_COMPLETE) {
+    steps = complete;
+    count = sizeof(complete) / sizeof(complete[0]);
   }
   uint32_t stepEndsAt = 0;
   for (int i = 0; i < count; i++) {
@@ -42,6 +47,14 @@ inline bool soundIsOn(int sound, uint32_t elapsed) {
     if (elapsed < stepEndsAt) return i % 2 == 0;
   }
   return false;
+}
+
+// Whether a result's LED is on `elapsed` milliseconds after it started showing.
+// It stays on for the whole result, except when the tap finished the game: then
+// it blinks three times with the beeps, so the finish looks different too.
+inline bool resultLedIsOn(int sound, uint32_t elapsed) {
+  if (sound == SOUND_COMPLETE) return soundIsOn(sound, elapsed);
+  return true;
 }
 
 // How long after a token is read the same token is answered from memory, with
