@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { onTestFinished, test, vi } from "vitest";
-import { fakeClock, screensSchemas, testApp, testDb } from "../test-helpers.ts";
-import { PASSPORT_GAME_ID, passportStations, stations, taps, users } from "./schema.ts";
+import { fakeClock, screensSchemas, storeTap, testApp, testDb } from "../test-helpers.ts";
+import { PASSPORT_GAME_ID, passportStations, stations, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -153,7 +153,7 @@ test("a tap inside the cooldown answers cooldown, and one after it counts again"
 
 test("a station's own tap puts a QR fallback tap in the cooldown, as another station tap would", async () => {
   const { db, logTap } = await harness();
-  await db.insert(taps).values({
+  await storeTap(db, {
     stationId: BOOTH,
     clientTapId: "tap-000001",
     userId: PARTICIPANT,

@@ -230,6 +230,42 @@ for (const [what, change, error] of [
   });
 }
 
+test("a copy from before taps recorded their game gets each counted tap's game from the copy's stations", async () => {
+  const { stationId, userId } = await fillEveryTable();
+  await testDb()
+    .insert(taps)
+    .values([
+      {
+        stationId,
+        clientTapId: "tap-cooldown",
+        userId,
+        status: "cooldown",
+        receivedAt: RESTORED_AT,
+      },
+      { stationId, clientTapId: "tap-no-game", userId, status: "no_game", receivedAt: RESTORED_AT },
+    ]);
+  const { file } = await backUpNow();
+  // As db:backup wrote it before 0028 (BAC-183): no game on any tap.
+  const copy = JSON.parse(await readFile(file, "utf8")) as Copy;
+  const tapsWithoutGame = copy.tables.taps!.map(({ game: _game, ...row }) => row);
+  const old = await copyFile({ ...copy, tables: { ...copy.tables, taps: tapsWithoutGame } });
+  // The station runs another game since the copy, which mustn't count.
+  await connection.query("UPDATE stations SET game = 'team_duels'");
+  await testDb().delete(taps);
+
+  const { outcome } = await restore(old, ["taps"]);
+  assert.equal(await outcome, "restored");
+
+  const [rows] = await connection.query<RowDataPacket[]>(
+    "SELECT client_tap_id, game FROM taps ORDER BY client_tap_id",
+  );
+  assert.deepEqual(rows, [
+    { client_tap_id: "tap-1", game: "passport" },
+    { client_tap_id: "tap-cooldown", game: "passport" },
+    { client_tap_id: "tap-no-game", game: null },
+  ]);
+});
+
 test("a table the database doesn't have stops the restore before anything changes", async () => {
   await fillEveryTable();
   const { file } = await backUpNow();

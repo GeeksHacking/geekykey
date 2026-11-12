@@ -2,15 +2,8 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { test } from "vitest";
 import { tokens } from "../claims-stand-in/schema.ts";
-import { screensSchemas, testApp, testDb } from "../test-helpers.ts";
-import {
-  type NewTap,
-  PASSPORT_GAME_ID,
-  passportStations,
-  stations,
-  taps,
-  users,
-} from "./schema.ts";
+import { screensSchemas, storeTap, testApp, testDb } from "../test-helpers.ts";
+import { type NewTap, PASSPORT_GAME_ID, passportStations, stations, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -83,10 +76,13 @@ async function harness() {
   };
 
   let tapCount = 0;
-  /** Stores a tap at `stationId`: accepted, NFC, by the participant, unless told otherwise. */
+  /**
+   * Stores a tap at `stationId`: accepted, NFC, by the participant, recording the station's
+   * game, unless told otherwise.
+   */
   const addTap = async (stationId: string, tap: Partial<NewTap> = {}) => {
     tapCount++;
-    await db.insert(taps).values({
+    await storeTap(db, {
       stationId,
       clientTapId: `tap-${tapCount}`,
       userId: PARTICIPANT,

@@ -19,12 +19,16 @@ export interface MapStation {
   disabled: boolean;
   /**
    * Its `accepted` and `cooldown` taps, from the station and the QR fallback:
-   * the taps its game judged. The screen pulses the station when this goes
+   * the taps a game judged, whichever game it ran then, so the count never
+   * drops when its game changes. The screen pulses the station when this goes
    * up, so a tap in the cooldown pulses it too. `no_game` taps, stored before
    * it ran a game, aren't counted.
    */
   taps: number;
-  /** The users with an accepted tap there, so at a stamp slot the stamps earned there, as in the stats. */
+  /**
+   * The users with a tap there that the game it runs now accepted, so at a
+   * stamp slot the stamps earned there, as in the stats (BAC-183).
+   */
   uniqueParticipants: number;
   /** When the newest tap `taps` counts was received, or null. */
   lastTapAt: string | null;
@@ -50,7 +54,7 @@ export function loadMap(db: Db): Promise<MapStation[]> {
       disabled: sql<boolean>`${stations.disabledAt} is not null`.mapWith(Boolean),
       taps: count(taps.id),
       uniqueParticipants:
-        sql<number>`count(distinct case when ${taps.status} = 'accepted' then ${taps.userId} end)`.mapWith(
+        sql<number>`count(distinct case when ${taps.status} = 'accepted' and ${taps.game} = ${stations.game} then ${taps.userId} end)`.mapWith(
           Number,
         ),
       // ISO strings sort as the times they write.

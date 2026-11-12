@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.ts";
@@ -7,7 +7,7 @@ import { log } from "../lib/log.ts";
 import { jsonBody, queryParams } from "../lib/validate.ts";
 import { setChallenge, setConnectAcross } from "./event-settings.ts";
 import type { ConnectionsGame } from "./connections.ts";
-import type { GameOnStations, Tx } from "./games.ts";
+import type { GameOnStations } from "./games.ts";
 import {
   requireRole,
   requireSession,
@@ -17,7 +17,6 @@ import {
 import {
   CHALLENGES,
   CONNECT_ACROSS,
-  COUNTED_TAP_STATUSES,
   PASSPORT_GAME_ID,
   passportStations,
   STORED_TAP_STATUSES,
@@ -104,22 +103,6 @@ const passportSchema = z.object({
 /** A station's booth (9.12), which is never left out. */
 const boothSchema = z.object({ booth: boothText });
 
-/**
- * Whether the station has a stored tap that a game counted or held back, from
- * it or the QR fallback, which fixes its game (9.11). A locking read, so it
- * sees the latest taps once the station's row is locked (tap-pipeline.ts says
- * why, at #lockStation).
- */
-async function hasCountedTap(tx: Tx, stationId: string): Promise<boolean> {
-  const [tap] = await tx
-    .select({ id: taps.id })
-    .from(taps)
-    .where(and(eq(taps.stationId, stationId), inArray(taps.status, COUNTED_TAP_STATUSES)))
-    .limit(1)
-    .for("update");
-  return tap !== undefined;
-}
-
 /** A station as the station board lists it (the API agreement's 9.2). */
 function stationBody(station: BoardStation) {
   return {
@@ -128,7 +111,9 @@ function stationBody(station: BoardStation) {
     created_at: station.createdAt,
     disabled_at: station.disabledAt,
     game: station.game,
-    game_fixed: station.gameFixed,
+    // A game no longer fixes, so always false, kept for one version so the screens don't break
+    // (BAC-183, a draft for the API agreement's next version, 9.2).
+    game_fixed: false,
     booth: station.booth,
     passport: station.passport && {
       name: station.passport.name,
@@ -379,10 +364,11 @@ export function adminRoutes({
     return c.json({ station: stationBody(station) });
   });
 
-  // Setting the game a station runs, or none (9.11). The station's row is
-  // locked, as the tap pipeline locks it, so a tap can't be judged by one game
-  // while the station changes to another. The same game again changes nothing
-  // and writes no log line, even once the game is fixed.
+  // Setting the game a station runs, or none (9.11), at any time: each tap
+  // records the game that judged it, so another game's taps never count for
+  // the new one (BAC-183). The station's row is locked, as the tap pipeline
+  // locks it, so a tap can't be judged by one game while the station changes
+  // to another. The same game again changes nothing and writes no log line.
   app.put("/stations/:id/game", jsonBody(gameSchema), async (c) => {
     const id = c.req.param("id");
     const { game } = c.req.valid("json");
@@ -394,13 +380,10 @@ export function adminRoutes({
         .for("update");
       if (!station) return "not_found";
       if (station.game === game) return "unchanged";
-      // Another game's counted taps would count for the new one.
-      if (await hasCountedTap(tx, id)) return "fixed";
       await tx.update(stations).set({ game }).where(eq(stations.id, id));
       return "changed";
     });
     if (outcome === "not_found") return c.json({ error: "not_found" }, 404);
-    if (outcome === "fixed") return c.json({ error: "station_has_taps" }, 409);
     // Once the transaction has committed, as 9.1's lines are.
     if (outcome === "changed") {
       log("station_game_changed", { user_id: c.var.user.id, station_id: id, game });
@@ -451,10 +434,8 @@ export function adminRoutes({
       }
       const savedBooth = booth === undefined ? station.booth : booth;
       // A station with no game runs the passport from now on, so its next taps
-      // count, unless its game is fixed or this event doesn't run the passport.
-      // Any other game stays.
-      const givenThePassport =
-        offersThePassport && station.game === null && !(await hasCountedTap(tx, id));
+      // count, unless this event doesn't run the passport. Any other game stays.
+      const givenThePassport = offersThePassport && station.game === null;
       if (givenThePassport) {
         await tx.update(stations).set({ game: PASSPORT_GAME_ID }).where(eq(stations.id, id));
       }

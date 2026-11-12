@@ -68,6 +68,9 @@ export interface RestoreOptions {
  * It answers `counts_differ` if the restore went through but a table's count
  * isn't the copy's, because something wrote to it since.
  *
+ * A copy from before taps recorded their game has each tap's filled in, as
+ * the migration filled them (withTapGames()).
+ *
  * It throws, having changed nothing, if the copy is of another database, a
  * table isn't in the copy or the database, the copy has a column the table
  * doesn't, the restore would leave a row pointing at one that isn't there, or
@@ -84,7 +87,7 @@ export async function restoreTables(
         "its name. Nothing was restored.",
     );
   }
-  const copy = await readCopy(file);
+  const copy = withTapGames(await readCopy(file));
   const jsonColumns = await refuseWhatCantBeRestored(connection, database, copy, tables);
 
   const ownCopy = await writeCopy(connection, database, copyDir, now).catch((cause: unknown) => {
@@ -154,6 +157,26 @@ export async function restoreTables(
   }
   print("Restored: each table holds the copy's rows.");
   return "restored";
+}
+
+/**
+ * `copy`, with a game for each tap that has none: a copy written before
+ * migration 0028 (BAC-183) holds taps with no `game` column, and a restore
+ * would leave them with none, so the passport would stop counting them. No
+ * station could change game then, so each accepted or cooldown tap gets the
+ * game its station ran in the same copy, as the migration filled the taps it
+ * found, and a `no_game` tap none. A copy with the column is given back as it is.
+ */
+function withTapGames(copy: Copy): Copy {
+  const copied = copy.tables.taps;
+  if (copied === undefined || copied.every((row) => "game" in row)) return copy;
+  const gameOf = new Map((copy.tables.stations ?? []).map((row) => [row.id, row.game ?? null]));
+  const taps = copied.map((row) =>
+    "game" in row
+      ? row
+      : { ...row, game: row.status === "no_game" ? null : (gameOf.get(row.station_id) ?? null) },
+  );
+  return { ...copy, tables: { ...copy.tables, taps } };
 }
 
 /**

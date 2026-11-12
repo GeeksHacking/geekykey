@@ -49,10 +49,11 @@ export interface GameContext {
   tx: Tx;
   /**
    * The base's cooldown, for a game that uses it: for each of `taps`, whether
-   * the same user has an accepted tap at this station, stored or earlier in
-   * `taps`, inside the cooldown on either side of it. Taps are taken in the
-   * order they happened, so a station's saved taps are judged by when they
-   * were made, not when they arrived.
+   * the same user has a tap this game accepted at this station, stored or
+   * earlier in `taps`, inside the cooldown on either side of it. Another
+   * game's taps there never hold one back (the API agreement's 6.1 and
+   * section 4). Taps are taken in the order they happened, so a station's
+   * saved taps are judged by when they were made, not when they arrived.
    */
   cooldown(taps: readonly GameTap[]): Promise<boolean[]>;
 }
@@ -118,9 +119,18 @@ export function runsAt(onStations: GameOnStations, stationGame: string | null): 
   return onStations.stations === "all" || onStations.game.id === stationGame;
 }
 
-/** The status a tap is stored with, from every game's. */
-export function combinedStatus(statuses: readonly GameStatus[]): GameStatus {
-  if (statuses.includes("accepted")) return "accepted";
-  if (statuses.includes("cooldown")) return "cooldown";
-  return "no_game";
+/**
+ * The status a tap is stored with, from every game's, and the game it records
+ * (the API agreement's section 4, "Games"): the first that counted it,
+ * otherwise the first that held it back, otherwise none, for `no_game`.
+ */
+export function combinedStatus(byGame: readonly { gameId: string; status: GameStatus }[]): {
+  status: GameStatus;
+  game: string | null;
+} {
+  for (const status of ["accepted", "cooldown"] as const) {
+    const judged = byGame.find((judgement) => judgement.status === status);
+    if (judged) return { status, game: judged.gameId };
+  }
+  return { status: "no_game", game: null };
 }

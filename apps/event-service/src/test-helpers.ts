@@ -6,7 +6,15 @@ import { type AppDeps, createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createDbPool, type Db } from "./db/pool.ts";
 import { tokens } from "./claims-stand-in/schema.ts";
-import { PASSPORT_GAME_ID, passportStations, stations, users } from "./event/schema.ts";
+import { eq } from "drizzle-orm";
+import {
+  type NewTap,
+  PASSPORT_GAME_ID,
+  passportStations,
+  stations,
+  taps,
+  users,
+} from "./event/schema.ts";
 import { generateStationKey, hashStationKey } from "./event/station-keys.ts";
 
 /** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
@@ -153,6 +161,24 @@ export async function setupFixture(): Promise<TestFixture> {
  */
 export function claimToken(uid: string, userId: string, claimedAt = "2026-10-12T05:00:00.000Z") {
   return testDb().insert(tokens).values({ uid, userId, claimedAt });
+}
+
+/**
+ * Stores `tap` straight into the taps, as a test's fixture. Unless it names
+ * one, an `accepted` or `cooldown` tap records the game its station runs, as
+ * the migration filled the taps from before the column (BAC-183), and a
+ * `no_game` tap none.
+ */
+export async function storeTap(db: Db, tap: NewTap): Promise<void> {
+  let game = tap.game;
+  if (game === undefined && tap.status !== "no_game") {
+    const [station] = await db
+      .select({ game: stations.game })
+      .from(stations)
+      .where(eq(stations.id, tap.stationId));
+    game = station?.game ?? null;
+  }
+  await db.insert(taps).values({ ...tap, game: game ?? null });
 }
 
 /** Deterministic clock for pipeline tests. */

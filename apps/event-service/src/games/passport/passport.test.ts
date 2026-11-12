@@ -210,8 +210,11 @@ async function setBooths(ids: readonly string[], booths: readonly (string | null
   }
 }
 
-/** `count` taps by other participants at `stationId`, received `minutesAgo` before now. */
-async function addCrowdTaps(stationId: string, count: number, minutesAgo = 0) {
+/**
+ * `count` taps by other participants at `stationId`, received `minutesAgo` before now, that
+ * `game` counted.
+ */
+async function addCrowdTaps(stationId: string, count: number, minutesAgo = 0, game = "passport") {
   const receivedAt = new Date(Date.now() - minutesAgo * 60_000).toISOString();
   await testDb()
     .insert(taps)
@@ -221,6 +224,7 @@ async function addCrowdTaps(stationId: string, count: number, minutesAgo = 0) {
         clientTapId: `crowd-${stationId}-${minutesAgo}-${n}`,
         userId: `crowd-${n}`,
         status: "accepted" as const,
+        game,
         receivedAt,
       })),
     );
@@ -288,6 +292,17 @@ test("between booths as quiet, the next stop is the earlier stamp slot", async (
   await addCrowdTaps(ids[2]!, 1);
   assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
     { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 3", "Next: C3"] },
+  ]);
+});
+
+test("only the passport's own taps tell how quiet a booth is for the next stop", async () => {
+  const { ids, userId } = await passportOf(2);
+  await setBooths(ids, ["A1", "B2", "C3"]);
+  // Team duels counted these at B2 before it changed back to the passport (BAC-183).
+  await addCrowdTaps(ids[1]!, 3, 1, "team_duels");
+  await addCrowdTaps(ids[2]!, 1);
+  assert.deepEqual(await handOff(ids[0]!, [{ client_tap_id: "t1", user_id: userId }]), [
+    { client_tap_id: "t1", status: "accepted", lines: ["Alex: 1 of 3", "Next: B2"] },
   ]);
 });
 

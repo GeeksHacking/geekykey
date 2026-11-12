@@ -4,16 +4,15 @@ import { forTheScreen, greetingNames } from "../../event/display-names.ts";
 import type { Game, JudgedTap, StationText, Tx } from "../../event/games.ts";
 import { type NextStop, nextStop, quietestFirst } from "../../event/next-stop.ts";
 import { PASSPORT_GAME_ID, passportStations, stations, taps } from "../../event/schema.ts";
-import { runsThePassport } from "../../event/stamp-slots.ts";
+import { countedByThePassport, runsThePassport } from "../../event/stamp-slots.ts";
 
 /**
  * The passport: a participant collects a stamp at each station that runs it
  * and has passport settings, worth that station's points. It counts a tap at
  * one of its stations unless the cooldown holds it back. Its record of what
- * it counted is the accepted taps at its stations, so it writes nothing of
- * its own. That holds while no other game counts taps at a passport station:
- * a tap another game counted there would be `accepted` too, and earn a stamp.
- * So a station's game is fixed once it has a tap a game counted or held back.
+ * it counted is the accepted taps that record it as their game, so it writes
+ * nothing of its own, and a tap another game counted at the same station
+ * never earns a stamp, before or after the station's game changes (BAC-183).
  *
  * Organizers choose the stations it runs on, and its settings are their data
  * too, in `passport_stations`. A station that runs it with no settings yet
@@ -87,7 +86,7 @@ async function stampsElsewhere(tx: Tx, stationId: string, userIds: readonly stri
       and(
         eq(taps.stationId, passportStations.stationId),
         ne(taps.stationId, stationId),
-        eq(taps.status, "accepted"),
+        countedByThePassport,
         inArray(taps.userId, userIds),
       ),
     );
@@ -100,8 +99,8 @@ async function stampsElsewhere(tx: Tx, stationId: string, userIds: readonly stri
 
 /**
  * The taps among `judged` that earned the participant this station's stamp: for
- * each participant with no accepted tap here before these, their first accepted
- * one by when it happened.
+ * each participant with no tap here the passport counted before these, their
+ * first accepted one by when it happened.
  */
 async function newStamps(
   tx: Tx,
@@ -120,7 +119,7 @@ async function newStamps(
     .where(
       and(
         eq(taps.stationId, stationId),
-        eq(taps.status, "accepted"),
+        countedByThePassport,
         inArray(taps.userId, [...new Set(accepted.map((tap) => tap.userId))]),
       ),
     )

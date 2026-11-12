@@ -30,6 +30,7 @@ test("each Event table has only the columns the spec gives it", async () => {
       "status",
       "tapped_at",
       "received_at",
+      "game",
     ],
     passport_stations: ["station_id", "name", "location", "points", "added_at", "link"],
   };
@@ -210,5 +211,40 @@ test("dropping the passport's booth keeps each station's booth and passport sett
       added_at: "2026-10-12T05:01:00.000Z",
       link: null,
     },
+  ]);
+});
+
+test("each old accepted or cooldown tap records the game its station runs, and a no_game tap none", async () => {
+  // Production as 0027 left it, when a station's game was fixed by its first counted tap.
+  const url = await scratchDatabase("geekykey_event_migration");
+  await migrate(url, await migrationsUpTo("0027_stations_run_team_duels"));
+  const connection = await createConnection({ uri: url });
+  onTestFinished(() => connection.end());
+  await connection.query(
+    `INSERT INTO stations (id, label, api_key_hash, created_at, game) VALUES
+      ('passport', 'Reader 1', '${"a".repeat(64)}', '2026-11-10T05:00:00.000Z', 'passport'),
+      ('duels', 'Reader 2', '${"b".repeat(64)}', '2026-11-10T05:00:00.000Z', 'team_duels'),
+      ('none', 'Reader 3', '${"c".repeat(64)}', '2026-11-10T05:00:00.000Z', NULL)`,
+  );
+  await connection.query(
+    `INSERT INTO taps (station_id, client_tap_id, user_id, status, received_at) VALUES
+      ('passport', 't1', 'user-1', 'accepted', '2026-11-10T05:01:00.000Z'),
+      ('passport', 't2', 'user-1', 'cooldown', '2026-11-10T05:02:00.000Z'),
+      ('duels', 't3', 'user-1', 'accepted', '2026-11-10T05:03:00.000Z'),
+      ('duels', 't4', 'user-1', 'no_game', '2026-11-10T05:04:00.000Z'),
+      ('none', 't5', 'user-1', 'no_game', '2026-11-10T05:05:00.000Z')`,
+  );
+
+  await migrate(url);
+
+  const [taps] = await connection.query(
+    "SELECT client_tap_id, game FROM taps ORDER BY client_tap_id",
+  );
+  assert.deepEqual(taps, [
+    { client_tap_id: "t1", game: "passport" },
+    { client_tap_id: "t2", game: "passport" },
+    { client_tap_id: "t3", game: "team_duels" },
+    { client_tap_id: "t4", game: null },
+    { client_tap_id: "t5", game: null },
   ]);
 });

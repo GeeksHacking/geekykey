@@ -1,15 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { onTestFinished, test, vi } from "vitest";
-import { TEST_EVENT_SERVICE_KEY, screensSchemas, testApp, testDb } from "../test-helpers.ts";
 import {
-  type NewTap,
-  PASSPORT_GAME_ID,
-  passportStations,
-  stations,
-  taps,
-  users,
-} from "./schema.ts";
+  TEST_EVENT_SERVICE_KEY,
+  screensSchemas,
+  storeTap,
+  testApp,
+  testDb,
+} from "../test-helpers.ts";
+import { type NewTap, PASSPORT_GAME_ID, passportStations, stations, users } from "./schema.ts";
 
 /** The organizer testApp() starts with, as `pnpm dev` does. */
 const ORGANIZER = "dev-organizer-1";
@@ -105,9 +104,12 @@ async function harness() {
     });
 
   let tapCount = 0;
-  /** Stores a tap at `stationId`: accepted, NFC, by the participant, unless told otherwise. */
+  /**
+   * Stores a tap at `stationId`: accepted, NFC, by the participant, recording the station's
+   * game, unless told otherwise.
+   */
   const addTap = (stationId: string, tap: Partial<NewTap> & Pick<NewTap, "receivedAt">) =>
-    db.insert(taps).values({
+    storeTap(db, {
       stationId,
       clientTapId: `tap-${++tapCount}`,
       userId: PARTICIPANT,
@@ -243,7 +245,8 @@ test("lists a station with its passport settings, its health and its last tap", 
         created_at: "2026-10-01T02:00:00.000Z",
         disabled_at: null,
         game: "passport",
-        game_fixed: true,
+        // A game no longer fixes (BAC-183), so always false, kept for one version.
+        game_fixed: false,
         booth: "A3",
         passport: {
           name: "3D Printing Booth",
@@ -300,26 +303,22 @@ test("a station outside the passport and never heard from has nulls, not zeros",
   });
 });
 
-test("a station's game is fixed once it has a tap a game counted or held back, not a no_game one", async () => {
+test("no station's game is fixed, whatever its taps, so game_fixed is always false", async () => {
   const { board, addStation, addTap } = await harness();
   await addStation("no-taps", { game: PASSPORT_GAME_ID });
   await addStation("no-game-taps");
   await addTap("no-game-taps", { status: "no_game", receivedAt: "2026-10-10T08:00:00.000Z" });
   await addStation("accepted", { game: PASSPORT_GAME_ID });
   await addTap("accepted", { receivedAt: "2026-10-10T08:00:00.000Z" });
-  await addStation("cooldown", { game: "connections" });
+  await addStation("cooldown", { game: "team_duels" });
   await addTap("cooldown", { status: "cooldown", receivedAt: "2026-10-10T08:00:00.000Z" });
-  // A QR fallback tap counts as much as a station's.
-  await addStation("qr-fallback", { game: PASSPORT_GAME_ID });
-  await addTap("qr-fallback", { source: "qr_fallback", receivedAt: "2026-10-10T08:00:00.000Z" });
 
   const fixed = Object.fromEntries((await board()).stations.map((s) => [s.id, s.game_fixed]));
   assert.deepEqual(fixed, {
     "no-taps": false,
     "no-game-taps": false,
-    accepted: true,
-    cooldown: true,
-    "qr-fallback": true,
+    accepted: false,
+    cooldown: false,
   });
 });
 
@@ -886,16 +885,20 @@ test("adding settings gives a station with no game the passport, and leaves any 
   const { signIn, putPassport, addStation, addTap, board } = await harness();
   await addStation("no-game");
   await addStation("other-game", { game: "connections" });
-  // A game on every station counted a tap here, so its game is fixed, even as none.
-  await addStation("fixed", { createdAt: "2026-10-01T02:00:01.000Z" });
-  await addTap("fixed", { receivedAt: "2026-10-10T08:00:00.000Z" });
+  // A game on every station counted a tap here. That no longer keeps it on none (BAC-183).
+  await addStation("counted", { createdAt: "2026-10-01T02:00:01.000Z" });
+  await addTap("counted", { game: "every-station", receivedAt: "2026-10-10T08:00:00.000Z" });
   const cookie = await signIn(ORGANIZER);
-  for (const id of ["no-game", "other-game", "fixed"]) {
+  for (const id of ["no-game", "other-game", "counted"]) {
     assert.equal((await putPassport(id, cookie, { name: `Booth ${id}` })).status, 201, id);
   }
 
   const games = Object.fromEntries((await board()).stations.map((s) => [s.id, s.game]));
-  assert.deepEqual(games, { "no-game": "passport", "other-game": "connections", fixed: null });
+  assert.deepEqual(games, {
+    "no-game": "passport",
+    "other-game": "connections",
+    counted: "passport",
+  });
 });
 
 test("a participant, or nobody signed in, can't change the passport", async () => {
@@ -1028,7 +1031,7 @@ test("setting a game logs who did it, and the same game again changes nothing an
   ]);
 });
 
-test("a station with a tap a game counted or held back keeps its game, and answers station_has_taps", async () => {
+test("a station with taps a game counted or held back still changes game, and logs it", async () => {
   const { signIn, putGame, addStation, addTap, board } = await harness();
   await addStation("accepted", { game: PASSPORT_GAME_ID });
   await addTap("accepted", { receivedAt: "2026-10-10T08:00:00.000Z" });
@@ -1038,17 +1041,19 @@ test("a station with a tap a game counted or held back keeps its game, and answe
   const logs = captureLogs();
 
   for (const id of ["accepted", "cooldown"]) {
-    const res = await putGame(id, cookie, { game: null });
-    assert.equal(res.status, 409, id);
-    assert.deepEqual(await res.json(), { error: "station_has_taps" });
-    // The game it already runs is no change, so it answers 200.
-    assert.equal((await putGame(id, cookie, { game: "passport" })).status, 200, id);
+    assert.equal((await putGame(id, cookie, { game: "team_duels" })).status, 200, id);
   }
   assert.deepEqual(
     (await board()).stations.map((s) => s.game),
-    ["passport", "passport"],
+    ["team_duels", "team_duels"],
   );
-  assert.deepEqual(logs(), []);
+  assert.deepEqual(
+    logs().map((line) => [line.message, line.station_id, line.game]),
+    [
+      ["station_game_changed", "accepted", "team_duels"],
+      ["station_game_changed", "cooldown", "team_duels"],
+    ],
+  );
 });
 
 test("a station whose taps are all no_game can still change its game", async () => {
