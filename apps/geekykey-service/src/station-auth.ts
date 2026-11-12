@@ -9,6 +9,8 @@ export interface StationContext {
   id: string;
   /** The Event Service that registered the station, which its taps go to. */
   eventService: EventService;
+  /** What the station shows between taps, from its registered stations' entry, if it gave any. */
+  idleLines?: string[];
 }
 
 /** Sets `station`, the request's `deadline` and its `waitUntil`, for the handlers after it. */
@@ -69,7 +71,11 @@ export function stationAuth(
       return c.json({ error: "event_service_unavailable" }, 503);
     }
 
-    c.set("station", { id: check.stationId, eventService: check.eventService });
+    c.set("station", {
+      id: check.stationId,
+      eventService: check.eventService,
+      ...(check.idleLines !== undefined && { idleLines: check.idleLines }),
+    });
     c.set("deadline", deadline);
     c.set("waitUntil", waitUntil);
     return await next();

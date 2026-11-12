@@ -31,3 +31,21 @@ test("registered stations the agreement doesn't allow are rejected", () => {
     assert.equal(stationsAnswer.safeParse(body).success, false, what);
   }
 });
+
+test("a registered station's idle lines pass, with lines' rules", () => {
+  // BAC-181: what the station shows between taps, from its game.
+  const idle = { ...station, idle_lines: ["Team duels", "Tap to join"] };
+  assert.deepEqual(stationsAnswer.parse({ stations: [idle] }), { stations: [idle] });
+  for (const [what, idle_lines] of [
+    ["no lines", []],
+    ["three lines", ["a", "b", "c"]],
+    ["a line of 17 characters", ["x".repeat(17)]],
+    ["a line that isn't ASCII", ["Café"]],
+  ] as const) {
+    assert.equal(
+      stationsAnswer.safeParse({ stations: [{ ...station, idle_lines }] }).success,
+      false,
+      what,
+    );
+  }
+});

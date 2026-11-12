@@ -213,6 +213,7 @@ const heartbeatBody = heartbeatsRequest.omit({ station_id: true });
  * against `stationLimit` with the station's taps, and the key is checked as
  * a tap's is, so a key that can't be checked gets `503
  * event_service_unavailable`, and no time. Once it is, the answer is made,
+ * with the station's idle lines when its registered stations gave some,
  * and what the station said of its health is passed on to the Event Service
  * that registered it in `waitUntil`, after the answer has gone (the
  * agreement's 6.2 and 11.3). A hand-off that fails never fails the
@@ -233,7 +234,13 @@ export function heartbeatRoutes({
     jsonBody(heartbeatBody),
     (c) => {
       const { station, deadline, waitUntil } = c.var;
-      const answer = { station_id: station.id, server_time: new Date().toISOString() };
+      const answer = {
+        station_id: station.id,
+        server_time: new Date().toISOString(),
+        // The idle screen, from the station's game, as its registered stations last gave
+        // it, so a change of game reaches it within about two minutes (BAC-181).
+        ...(station.idleLines !== undefined && { idle_lines: station.idleLines }),
+      };
       waitUntil(
         passOnHeartbeat(
           station.eventService,

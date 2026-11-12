@@ -9,11 +9,17 @@ export interface StationsSource {
   registeredStations(signal: AbortSignal): Promise<RegisteredStation[]>;
 }
 
-/** A station on the copy: its ID, and the Event Service that registered it. */
+/** A station on the copy: its ID, the Event Service that registered it, and its idle lines. */
 export interface FoundStation<S extends StationsSource> {
   stationId: string;
   /** Which its taps go to. */
   eventService: S;
+  /**
+   * What the station shows between taps, from its game, as its Event
+   * Service's list last gave them (the API agreement's 11.1). Left out when
+   * the list gave none.
+   */
+  idleLines?: string[];
 }
 
 /** Runs `work` after the request has its answer, as a Worker's `ctx.waitUntil()` does. */
@@ -201,7 +207,7 @@ export class StationsCopy<S extends StationsSource> {
 
     const byKeyHash = new Map<string, FoundStation<S>>();
     const refused = new Set<string>();
-    for (const { station_id, key_hash, eventService } of stations) {
+    for (const { station_id, key_hash, idle_lines, eventService } of stations) {
       const reason =
         ids.get(station_id)! > 1
           ? "duplicate_station_id"
@@ -209,7 +215,11 @@ export class StationsCopy<S extends StationsSource> {
             ? "duplicate_key_hash"
             : undefined;
       if (reason === undefined) {
-        byKeyHash.set(key_hash, { stationId: station_id, eventService });
+        byKeyHash.set(key_hash, {
+          stationId: station_id,
+          eventService,
+          ...(idle_lines !== undefined && { idleLines: idle_lines }),
+        });
         continue;
       }
       const refusal = JSON.stringify([eventService.id, station_id, reason]);

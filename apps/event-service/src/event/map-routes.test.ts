@@ -278,7 +278,13 @@ test("a map screen is no organizer: every organizer endpoint answers it forbidde
     headers: { Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}` },
   });
   assert.deepEqual(await registered.json(), {
-    stations: [{ station_id: "station-3", key_hash: "unused-station-3" }],
+    stations: [
+      {
+        station_id: "station-3",
+        key_hash: "unused-station-3",
+        idle_lines: ["Passport", "Tap your token"],
+      },
+    ],
   });
 });
 

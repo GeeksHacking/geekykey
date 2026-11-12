@@ -14,6 +14,11 @@ test("the quick check of the hand-off's answer agrees with tapsAnswerMatching", 
   const schema = tapsAnswerMatching(request);
   const quick = quickTapsAnswer(request);
   const result = (client_tap_id: string, status: string) => ({ client_tap_id, status });
+  const countdown = {
+    seconds: 27,
+    lines: ["Team duels", "3 in, {s}s left"],
+    ending: ["Round started!", "Check your phone"],
+  };
   // Answers an Event Service gives, which the quick check must take itself, or it saves nothing.
   const usual: unknown[] = [
     { results: [result("t1", "accepted"), result("t2", "cooldown")] },
@@ -26,6 +31,17 @@ test("the quick check of the hand-off's answer agrees with tapsAnswerMatching", 
       ],
     },
     { results: [{ ...result("t1", "accepted"), complete: false }, result("t2", "no_game")] },
+    // A countdown (BAC-181), with a field the schema doesn't know left out of both.
+    {
+      results: [
+        {
+          ...result("t1", "accepted"),
+          lines: ["Alex joined", "3 in, 27s left"],
+          countdown: { ...countdown, extra: 1 },
+        },
+        { ...result("t2", "cooldown"), countdown: { ...countdown, lines: ["{s}"] } },
+      ],
+    },
   ];
   const others: unknown[] = [
     undefined,
@@ -56,6 +72,25 @@ test("the quick check of the hand-off's answer agrees with tapsAnswerMatching", 
     })),
     { results: [result("t1", "accepted"), { ...result("t2", "accepted"), complete: "true" }] },
     { results: [result("t1", "accepted"), { ...result("t2", "accepted"), complete: null }] },
+    ...[
+      null,
+      [],
+      { ...countdown, seconds: 0 },
+      { ...countdown, seconds: 100 },
+      { ...countdown, seconds: 2.5 },
+      { ...countdown, seconds: "27" },
+      { ...countdown, lines: [] },
+      { ...countdown, lines: ["a", "b", "c"] },
+      { ...countdown, lines: ["x".repeat(17)] },
+      { ...countdown, lines: [`${"x".repeat(15)}{s}`] },
+      { ...countdown, lines: ["{s} {s}"] },
+      { ...countdown, lines: ["{s}", "{s}"] },
+      { ...countdown, lines: ["{", "s}"] },
+      { ...countdown, ending: undefined },
+      { ...countdown, ending: ["x".repeat(17)] },
+    ].map((bad) => ({
+      results: [result("t1", "accepted"), { ...result("t2", "accepted"), countdown: bad }],
+    })),
   ];
   for (const answer of [...usual, ...others]) {
     const parsed = schema.safeParse(answer).data;

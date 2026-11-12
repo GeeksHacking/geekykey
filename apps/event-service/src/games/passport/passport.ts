@@ -26,6 +26,9 @@ import { countedByThePassport, runsThePassport } from "../../event/stamp-slots.t
  */
 export const passport: Game = {
   id: PASSPORT_GAME_ID,
+  // The idle screen of a passport station (the API agreement's 6.2 and 11.1, BAC-181). The
+  // wording can change.
+  idleLines: ["Passport", "Tap your token"],
   async judge(taps, { stationId, tx, cooldown }) {
     const [settings] = await tx
       .select({ stationId: passportStations.stationId })

@@ -120,3 +120,51 @@ test("a result's lines and complete pass: up to two lines of up to 16 printable 
     assert.equal(tapsAnswer.safeParse(withLines(extra)).success, false, what);
   }
 });
+
+test("a result's countdown passes: seconds to count, lines with {s} for the seconds left, and an ending for zero", () => {
+  // The example in the API agreement, 6.1 (BAC-181).
+  const result = {
+    client_tap_id: "tap-000123",
+    status: "accepted",
+    lines: ["Team duels", "3 in, 27s left"],
+    countdown: {
+      seconds: 27,
+      lines: ["Team duels", "3 in, {s}s left"],
+      ending: ["Round started!", "Check your phone"],
+    },
+  };
+  const withCountdown = (countdown: Record<string, unknown>) => ({
+    results: [{ ...result, countdown: { ...result.countdown, ...countdown } }],
+  });
+  for (const countdown of [
+    {},
+    { seconds: 1 },
+    { seconds: 99 },
+    // {s} counts as 2, so a line holding it may be 17 characters as sent.
+    { lines: ["Sent!", "Blue to Bxxx {s}s"] },
+    { lines: ["{s}"], ending: ["Too slow"] },
+    // A countdown needn't show the number.
+    { lines: ["Hold on"] },
+  ]) {
+    const body = withCountdown(countdown);
+    assert.deepEqual(tapsAnswer.parse(body), body, JSON.stringify(countdown));
+  }
+  for (const [what, countdown] of [
+    ["no seconds", { seconds: undefined }],
+    ["0 seconds", { seconds: 0 }],
+    ["100 seconds, which {s} can't show in 2 characters", { seconds: 100 }],
+    ["seconds that aren't whole", { seconds: 2.5 }],
+    ["no lines", { lines: [] }],
+    ["three lines", { lines: ["a", "b", "c"] }],
+    ["a line of 17 characters without {s}", { lines: ["x".repeat(17)] }],
+    ["a line of 18 characters with {s}", { lines: [`${"x".repeat(15)}{s}`] }],
+    ["{s} twice in a line", { lines: ["{s} and {s}"] }],
+    ["{s} in both lines", { lines: ["{s}", "{s}"] }],
+    ["a line that isn't ASCII", { lines: ["José {s}"] }],
+    ["no ending", { ending: undefined }],
+    ["an ending with no lines", { ending: [] }],
+    ["an ending with a line of 17 characters", { ending: ["x".repeat(17)] }],
+  ] as const) {
+    assert.equal(tapsAnswer.safeParse(withCountdown(countdown)).success, false, what);
+  }
+});

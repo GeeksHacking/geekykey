@@ -16,6 +16,17 @@
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
             "description": "The SHA-256 of the station key, in lower-case hex. Never the key itself"
+          },
+          "idle_lines": {
+            "description": "What the station shows between taps, from its game. The GeekyKey Service gives them to the station in the heartbeat's answer. Left out for a station whose game gives none, such as one with no game",
+            "minItems": 1,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[\\x20-\\x7E]{0,16}$",
+              "description": "One row of the station's 16x2 screen"
+            }
           }
         },
         "required": [

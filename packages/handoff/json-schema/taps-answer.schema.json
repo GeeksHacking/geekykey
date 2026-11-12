@@ -34,6 +34,45 @@
           "complete": {
             "description": "True on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune",
             "type": "boolean"
+          },
+          "countdown": {
+            "type": "object",
+            "properties": {
+              "seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 99,
+                "description": "Seconds to count down, from when the answer was made"
+              },
+              "lines": {
+                "minItems": 1,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^(?:(?!.*\\{s\\})[\\x20-\\x7E]{0,16}|(?=.*\\{s\\})(?!.*\\{s\\}.*\\{s\\})[\\x20-\\x7E]{3,17})$",
+                  "description": "One row of the station's 16x2 screen, where {s} is the seconds left"
+                },
+                "description": "What the station shows while it counts. {s} may appear once across them"
+              },
+              "ending": {
+                "minItems": 1,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[\\x20-\\x7E]{0,16}$",
+                  "description": "One row of the station's 16x2 screen"
+                },
+                "description": "What the station shows once the count reaches zero"
+              }
+            },
+            "required": [
+              "seconds",
+              "lines",
+              "ending"
+            ],
+            "description": "A screen that counts down, shown in place of lines by a station that knows it. The GeekyKey Service passes it to the station with accepted and cooldown only"
           }
         },
         "required": [
@@ -47,5 +86,5 @@
     "results"
   ],
   "title": "The answer to the hand-off: POST /geekykey/v1/taps",
-  "description": "Also: one result per tap in the request, in the same order, with the same client_tap_ids."
+  "description": "Also: one result per tap in the request, in the same order, with the same client_tap_ids, and {s} at most once across a countdown's lines."
 }
