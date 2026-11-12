@@ -111,9 +111,12 @@
 #endif
 #define NO_LED -1
 
+// The characters on one line of the screen, a 16x2 LCD.
+#define LINE_CHARS 16
+
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-11-10"
+#define FIRMWARE_VERSION "2026-11-12"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
@@ -153,7 +156,7 @@
 // thing typed; anything past this is dropped.
 #define SERIAL_LINE_MAX 200
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+LiquidCrystal_I2C lcd(0x27, LINE_CHARS, 2);
 
 // The four settings, read at boot by loadSettings: what the setup mode stored,
 // or else secrets.h. The Wi-Fi name and password are stored together, so one
@@ -207,11 +210,11 @@ uint32_t nextTapId = 0;
 // answered from memory with no request (answerToken in tap_timing.h).
 LastToken lastToken;
 
-// A result, as showResult takes it. Every caller passes string literals, so
-// the pointers stay good for as long as the station runs.
+// A result, as showResult takes it. The lines are copies, since a game's
+// lines come from the server's answer, which is gone once the tap is handled.
 struct Result {
-  const char *line1 = "";
-  const char *line2 = "";
+  char line1[LINE_CHARS + 1] = "";
+  char line2[LINE_CHARS + 1] = "";
   int ledPin = NO_LED;
   int sound = SOUND_NONE;
 };
@@ -242,6 +245,11 @@ struct QueuedTap {
 struct QueueAttempt {
   bool completed[QUEUE_BATCH_MAX];
   String newTapStatus;
+  // The new tap's lines from its game, if its answer had any (6.1), already
+  // cut to fit the screen, and whether the tap finished the game.
+  char newTapLines[2][LINE_CHARS + 1];
+  uint8_t newTapLineCount = 0;
+  bool newTapComplete = false;
   bool newTapDropped = false;
   bool retryable = false;
   int httpCode = 0;
@@ -421,7 +429,7 @@ void loop() {
       return;
     case SHOW_LAST_RESULT:
       Serial.println("Same token again straight after: its last result again, not sent");
-      showResult(lastResult.line1, lastResult.line2, lastResult.ledPin, lastResult.sound);
+      showResult(lastResult);
       return;
     case SEND_TAP:
       break;
@@ -512,7 +520,7 @@ bool handleTap(const String &uid) {
 
   QueueAttempt attempt = flushQueue(clientTapId);
   if (attempt.newTapStatus.length() > 0) {
-    showTapStatus(attempt.newTapStatus);
+    showTapAnswer(attempt);
   } else if (attempt.newTapDropped) {
     showResult("DROPPED", "Bad tap request", LED_PIN_RED, SOUND_ERROR);
   } else if (attempt.httpCode == 401) {
@@ -722,10 +730,32 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
       if (batch[i].clientTapId != id) continue;
       // Any returned status is definitive, including statuses added in future.
       result.completed[i] = true;
-      if (newTapId == batch[i].clientTapId) result.newTapStatus = statusText;
+      if (newTapId == batch[i].clientTapId) readNewTapAnswer(item, result);
     }
   }
   return;
+}
+
+// Keeps what the station shows from the new tap's answer: its status, and
+// its game's lines and `complete` (6.1). A saved tap's answer only removes it,
+// since the person who tapped has gone. A line that isn't text is left blank,
+// so the other line keeps its place.
+void readNewTapAnswer(JsonObject item, QueueAttempt &result) {
+  result.newTapStatus = item["status"].as<const char *>();
+  JsonArray lines = item["lines"].as<JsonArray>();
+  for (JsonVariant line : lines) {
+    if (result.newTapLineCount == 2) break;
+    const char *text = line.is<const char *>() ? line.as<const char *>() : "";
+    copyLine(result.newTapLines[result.newTapLineCount++], text);
+  }
+  result.newTapComplete = item["complete"].is<bool>() && item["complete"].as<bool>();
+}
+
+// Copies a line for the screen. 6.1 keeps a game's lines to 16 characters,
+// and anything longer from a server that doesn't is cut, not wrapped.
+void copyLine(char *line, const char *text) {
+  strncpy(line, text, LINE_CHARS);
+  line[LINE_CHARS] = '\0';
 }
 
 QueueAttempt flushQueue(const String &newTapId) {
@@ -758,38 +788,66 @@ QueueAttempt flushQueue(const String &newTapId) {
   return result;
 }
 
-void showTapStatus(const String &status) {
+// Shows a live tap's result. The status picks the LED and the sound, and the
+// screen too, unless the tap's game sent lines: then they replace it. An
+// accepted tap that finished the game blinks blue with three short beeps in
+// place of the accepted beep (6.1).
+void showTapAnswer(const QueueAttempt &attempt) {
+  const String &status = attempt.newTapStatus;
+  Result result;
   if (status == "accepted") {
-    showResult("ACCEPTED", "Points added", LED_PIN_BLUE, SOUND_ACCEPTED);
+    result = makeResult("ACCEPTED", "Points added", LED_PIN_BLUE, SOUND_ACCEPTED);
   } else if (status == "cooldown") {
     // The same words as a repeat tap answered on the station, and as 6.1's
     // table suggests.
-    showResult("Already counted", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
+    result = makeResult("Already counted", "Try again later", LED_PIN_YELLOW, SOUND_COOLDOWN);
   } else if (status == "unknown_token") {
-    showResult("UNKNOWN TAG", "Pair this token", LED_PIN_RED, SOUND_ERROR);
+    result = makeResult("UNKNOWN TAG", "Pair this token", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "no_event") {
-    showResult("NO EVENT", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
+    result = makeResult("NO EVENT", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "no_game") {
-    showResult("NO GAME", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
+    result = makeResult("NO GAME", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
   } else if (status == "duplicate") {
-    showResult("DUPLICATE", "Already recorded", NO_LED, SOUND_NONE);
+    result = makeResult("DUPLICATE", "Already recorded", NO_LED, SOUND_NONE);
   } else {
-    showResult("TAP RECEIVED", "Check your phone", LED_PIN_BLUE, SOUND_NONE);
+    result = makeResult("TAP RECEIVED", "Check your phone", LED_PIN_BLUE, SOUND_NONE);
   }
+  if (attempt.newTapLineCount > 0) {
+    copyLine(result.line1, attempt.newTapLines[0]);
+    copyLine(result.line2, attempt.newTapLineCount > 1 ? attempt.newTapLines[1] : "");
+  }
+  if (attempt.newTapComplete && status == "accepted") {
+    result.ledPin = LED_PIN_BLUE;
+    result.sound = SOUND_COMPLETE;
+  }
+  showResult(result);
+}
+
+// A result from the station's own wording, cut to fit the screen.
+Result makeResult(const char *line1, const char *line2, int ledPin, int sound) {
+  Result result;
+  copyLine(result.line1, line1);
+  copyLine(result.line2, line2);
+  result.ledPin = ledPin;
+  result.sound = sound;
+  return result;
 }
 
 // Shows a result with its LED on and its sound starting, and returns at once.
 // tickResult() plays the sound and goes back to Ready after RESULT_SHOW_MS. A
 // result already showing ends first.
 void showResult(const char *line1, const char *line2, int ledPin, int sound) {
+  showResult(makeResult(line1, line2, ledPin, sound));
+}
+
+// The result is copied first, since showing the last result again passes
+// lastResult itself.
+void showResult(const Result &result) {
+  const Result shown = result;
   endResult();
-  showScreen(line1, line2);
-  if (ledPin != NO_LED) digitalWrite(ledPin, HIGH);
+  showScreen(shown.line1, shown.line2);
   printTapTiming();
-  lastResult.line1 = line1;
-  lastResult.line2 = line2;
-  lastResult.ledPin = ledPin;
-  lastResult.sound = sound;
+  lastResult = shown;
   resultShowing = true;
   resultShownAt = millis();
   tickResult();
@@ -807,6 +865,9 @@ void tickResult() {
     return;
   }
   digitalWrite(BUZZER_PIN, soundIsOn(lastResult.sound, elapsed) || clickOn ? HIGH : LOW);
+  if (lastResult.ledPin != NO_LED) {
+    digitalWrite(lastResult.ledPin, resultLedIsOn(lastResult.sound, elapsed) ? HIGH : LOW);
+  }
 }
 
 // Turns off the result's LED and its sound, and leaves the screen as it is.

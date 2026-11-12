@@ -50,6 +50,38 @@ static void errorIsThreeFastBeeps() {
   CHECK(!soundIsOn(SOUND_ERROR, 400));
 }
 
+// The tap that finishes a game is three short beeps, 150 ms on and 150 off,
+// slower than an error's so the two don't sound alike.
+static void completeIsThreeShortBeeps() {
+  CHECK(soundIsOn(SOUND_COMPLETE, 0));
+  CHECK(soundIsOn(SOUND_COMPLETE, 149));
+  CHECK(!soundIsOn(SOUND_COMPLETE, 150));
+  CHECK(!soundIsOn(SOUND_COMPLETE, 299));
+  CHECK(soundIsOn(SOUND_COMPLETE, 300));
+  CHECK(!soundIsOn(SOUND_COMPLETE, 450));
+  CHECK(soundIsOn(SOUND_COMPLETE, 600));
+  CHECK(soundIsOn(SOUND_COMPLETE, 749));
+  CHECK(!soundIsOn(SOUND_COMPLETE, 750));
+  CHECK(!soundIsOn(SOUND_COMPLETE, 1900));
+}
+
+// A result's LED stays on while it shows, except a finished game's, which
+// blinks three times with its beeps.
+static void onlyCompleteBlinksItsLed() {
+  CHECK(resultLedIsOn(SOUND_ACCEPTED, 0));
+  CHECK(resultLedIsOn(SOUND_ACCEPTED, 1500));
+  CHECK(resultLedIsOn(SOUND_COOLDOWN, 300));
+  CHECK(resultLedIsOn(SOUND_NONE, 1900));
+
+  CHECK(resultLedIsOn(SOUND_COMPLETE, 0));
+  CHECK(!resultLedIsOn(SOUND_COMPLETE, 150));
+  CHECK(resultLedIsOn(SOUND_COMPLETE, 300));
+  CHECK(!resultLedIsOn(SOUND_COMPLETE, 450));
+  CHECK(resultLedIsOn(SOUND_COMPLETE, 600));
+  CHECK(!resultLedIsOn(SOUND_COMPLETE, 750));
+  CHECK(!resultLedIsOn(SOUND_COMPLETE, 1900));
+}
+
 static void noSoundIsSilent() {
   CHECK(!soundIsOn(SOUND_NONE, 0));
   CHECK(!soundIsOn(SOUND_NONE, 500));
@@ -114,6 +146,8 @@ int main() {
   acceptedIsOneSecondBeep();
   cooldownIsTwoSlowBeeps();
   errorIsThreeFastBeeps();
+  completeIsThreeShortBeeps();
+  onlyCompleteBlinksItsLed();
   noSoundIsSilent();
   anotherTokenIsSent();
   sameTokenDuringItsResultKeepsIt();

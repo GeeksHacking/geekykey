@@ -45,8 +45,9 @@ network and give it a throwaway key from `mise run seed`, never a production key
 ## Testing the station's timing rules
 
 The station's rules about time are in `geekykey_station/tap_timing.h`: when the buzzer is on during
-a result's sound, and how a token tapped again a moment later is answered without a request. They
-touch no pins, so their tests run on a laptop with any C++ compiler, from the repo root:
+a result's sound, when the result's LED is on, which blinks for a finished game, and how a token
+tapped again a moment later is answered without a request. They touch no pins, so their tests run
+on a laptop with any C++ compiler, from the repo root:
 
 ```sh
 c++ -std=c++17 -Wall -Wextra -o /tmp/tap_timing_test firmware/geekykey_station/test/tap_timing_test.cpp && /tmp/tap_timing_test
