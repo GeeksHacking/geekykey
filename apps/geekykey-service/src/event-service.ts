@@ -1,11 +1,15 @@
 import {
+  COUNTDOWN_LINE_PATTERN,
+  type Countdown,
   type HeartbeatsRequest,
   LINE_PATTERN,
+  MAX_COUNTDOWN_SECONDS,
   MAX_LINES,
   meetingsAnswer,
   type MeetingsAnswer,
   type MeetingsRequest,
   type RegisteredStation,
+  SECONDS_LEFT,
   stationsAnswer,
   type TapsAnswer,
   tapsAnswerMatching,
@@ -158,6 +162,24 @@ function isLines(lines: unknown): lines is string[] {
 }
 
 /**
+ * `value` as tapsAnswer takes a result's countdown, with only its own three
+ * fields, or undefined when it isn't one.
+ */
+function checkedCountdown(value: unknown): Countdown | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const { seconds, lines, ending } = value as Record<string, unknown>;
+  if (!Number.isInteger(seconds)) return undefined;
+  if ((seconds as number) < 1 || (seconds as number) > MAX_COUNTDOWN_SECONDS) return undefined;
+  if (!Array.isArray(lines) || lines.length < 1 || lines.length > MAX_LINES) return undefined;
+  if (!lines.every((line) => typeof line === "string" && COUNTDOWN_LINE_PATTERN.test(line))) {
+    return undefined;
+  }
+  if (lines.join("\n").split(SECONDS_LEFT).length > 2) return undefined;
+  if (!isLines(ending)) return undefined;
+  return { seconds: seconds as number, lines, ending };
+}
+
+/**
  * A plain check of the hand-off's answer, tried before tapsAnswerMatching
  * (service-request.ts). It returns what the schema would, or undefined for
  * anything it isn't sure of, which the schema then checks as usual. So it
@@ -178,7 +200,10 @@ export function quickTapsAnswer(request: TapsRequest) {
     const results: TapsAnswer["results"] = [];
     for (const [i, result] of raw.entries()) {
       if (typeof result !== "object" || result === null || Array.isArray(result)) return undefined;
-      const { client_tap_id, status, lines, complete } = result as Record<string, unknown>;
+      const { client_tap_id, status, lines, complete, countdown } = result as Record<
+        string,
+        unknown
+      >;
       if (client_tap_id !== request.taps[i]!.client_tap_id) return undefined;
       if (typeof status !== "string" || !STATUS_PATTERN.test(status)) return undefined;
       const checked: TapsAnswer["results"][number] = { client_tap_id, status };
@@ -189,6 +214,11 @@ export function quickTapsAnswer(request: TapsRequest) {
       if (complete !== undefined) {
         if (typeof complete !== "boolean") return undefined;
         checked.complete = complete;
+      }
+      if (countdown !== undefined) {
+        const checkedCount = checkedCountdown(countdown);
+        if (checkedCount === undefined) return undefined;
+        checked.countdown = checkedCount;
       }
       results.push(checked);
     }

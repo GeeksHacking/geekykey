@@ -1,5 +1,11 @@
 import { randomInt } from "node:crypto";
-import { LINE_LENGTH } from "@geekykey/handoff";
+import {
+  type Countdown,
+  COUNTDOWN_LINE_PATTERN,
+  LINE_LENGTH,
+  MAX_COUNTDOWN_SECONDS,
+  SECONDS_LEFT,
+} from "@geekykey/handoff";
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "../../db/pool.ts";
 import { DEFAULT_DISPLAY_NAME, greetingNames } from "../../event/display-names.ts";
@@ -87,6 +93,21 @@ function joinedLine(status: GameStatus, name: string | undefined) {
   if (status === "cooldown") return "Already in";
   if (name) return `${name.slice(0, LINE_LENGTH - 7)} joined`;
   return "Player joined";
+}
+
+/**
+ * The station's countdown to a round's start, for a tap while it's open, with
+ * `players` in and `seconds` left (BAC-181). The wording follows the BAC-181
+ * draft for the API agreement's 6.1 and can change. With more players than
+ * the line holds, it shows only the seconds.
+ */
+function roundCountdown(players: number, seconds: number): Countdown {
+  const counted = `${players} in, ${SECONDS_LEFT}s left`;
+  return {
+    seconds,
+    lines: ["Team duels", COUNTDOWN_LINE_PATTERN.test(counted) ? counted : `${SECONDS_LEFT}s left`],
+    ending: ["Round started!", "Check your phone"],
+  };
 }
 
 /** Spread each group evenly before pairing, keeping the two teams within one player. */
@@ -281,6 +302,9 @@ export function teamDuelsGame({
 
   return {
     id: "team_duels",
+    // The idle screen of a team duels station (the API agreement's 6.2 and 11.1, BAC-181).
+    // The wording can change.
+    idleLines: ["Team duels", "Tap to join"],
     async judge(taps, { stationId, tx, now }) {
       const statuses: GameStatus[] = taps.map(() => "no_game");
       if (!taps.length) return statuses;
@@ -402,6 +426,12 @@ export function teamDuelsGame({
                 LINE_LENGTH,
               ),
             ],
+            // While the round is open, a station that knows countdowns ticks to its start. A
+            // round opened by a station clock ahead (6.1) can start further off than one shows.
+            ...(seconds > 0 &&
+              seconds <= MAX_COUNTDOWN_SECONDS && {
+                countdown: roundCountdown(joined.length, seconds),
+              }),
           };
         }),
       );

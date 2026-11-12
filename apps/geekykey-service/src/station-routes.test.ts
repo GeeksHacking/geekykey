@@ -101,9 +101,17 @@ interface TapsAnswer {
 interface HeartbeatAnswer {
   station_id: string;
   server_time: string;
+  idle_lines?: string[];
 }
 
 const never = () => new Promise<Response>(() => {});
+
+/** The countdown in the API agreement's 6.1 example (BAC-181). */
+const COUNTDOWN = {
+  seconds: 27,
+  lines: ["Team duels", "3 in, {s}s left"],
+  ending: ["Round started!", "Check your phone"],
+};
 
 // Each status a station can hear.
 
@@ -423,7 +431,7 @@ test("another team's own status passes to the station unchanged", async () => {
   ]);
 });
 
-test("a tap's lines and complete pass to the station with accepted and cooldown only", async () => {
+test("a tap's lines, complete and countdown pass to the station with accepted and cooldown only", async () => {
   const { fake, post } = await harness();
   const statuses: Record<string, string> = {
     t1: "accepted",
@@ -439,6 +447,7 @@ test("a tap's lines and complete pass to the station with accepted and cooldown 
         status: statuses[t.client_tap_id],
         lines: ["Alex: 6 of 6", "All 6 done!"],
         complete: true,
+        countdown: COUNTDOWN,
       })),
     });
   const res = await post({
@@ -447,7 +456,7 @@ test("a tap's lines and complete pass to the station with accepted and cooldown 
       uid: id === "t3" ? "DE:AD:BE:EF" : UID,
     })),
   });
-  const shown = { lines: ["Alex: 6 of 6", "All 6 done!"], complete: true };
+  const shown = { lines: ["Alex: 6 of 6", "All 6 done!"], complete: true, countdown: COUNTDOWN };
   assert.deepEqual(((await res.json()) as TapsAnswer).results, [
     { client_tap_id: "t1", status: "accepted", ...shown },
     { client_tap_id: "t2", status: "cooldown", ...shown },
@@ -539,6 +548,17 @@ for (const [what, answer] of [
         })),
       }),
   ],
+  [
+    "a countdown that breaks its rules",
+    async ({ body }: SentRequest) =>
+      Response.json({
+        results: (body as { taps: HandedOffTap[] }).taps.map((t) => ({
+          client_tap_id: t.client_tap_id,
+          status: "accepted",
+          countdown: { ...COUNTDOWN, lines: ["{s}", "{s}"] },
+        })),
+      }),
+  ],
   ["one result short", async () => Response.json({ results: [] })],
   [
     "results in another order",
@@ -624,6 +644,23 @@ test("a heartbeat gets the time, then is handed off with the Event Service key a
       body: { station_id: STATION_ID, buffered_taps: 0, reader_ok: false },
     },
   ]);
+});
+
+test("a heartbeat's answer gives the station's idle lines, from its Event Service's registered stations", async () => {
+  // BAC-181. A station with none, such as one with no game, gets no idle_lines (the test above).
+  const { fake, postHeartbeat } = await harness();
+  fake.stations.set("showcase", [
+    {
+      station_id: STATION_ID,
+      key_hash: await hashStationKey(STATION_KEY),
+      idle_lines: ["Team duels", "Tap to join"],
+    },
+  ]);
+  const res = await postHeartbeat({});
+  assert.equal(res.status, 200);
+  const answer = (await res.json()) as HeartbeatAnswer;
+  assert.equal(answer.station_id, STATION_ID);
+  assert.deepEqual(answer.idle_lines, ["Team duels", "Tap to join"]);
 });
 
 test("a heartbeat's answer doesn't wait for the hand-off", async () => {

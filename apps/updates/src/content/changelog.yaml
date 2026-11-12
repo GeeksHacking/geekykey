@@ -2604,3 +2604,10 @@
     Each tap now records the game that counted it, so an organizer can change a station's game
     at any time. A tap another game counts at a passport station earns no stamp, and a station
     set back to the passport shows the stamps it had.
+- id: station-countdown-and-idle-screen
+  date: 2026-11-12
+  area: backend
+  change: >-
+    A tap's answer can now give the station a countdown it runs itself, and a team duels round
+    counts down to its start. Each heartbeat's answer also gives the station's idle screen from
+    its game, such as "Team duels" and "Tap to join".

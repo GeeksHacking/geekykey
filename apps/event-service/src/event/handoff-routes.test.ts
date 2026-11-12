@@ -357,24 +357,42 @@ test("the registered stations without the Event Service key, or with another, ar
   }
 });
 
-test("the registered stations are the enabled ones, each with its key's hash and nothing else", async () => {
+test("the registered stations are the enabled ones, each with its key's hash and its game's idle screen", async () => {
   const { stationId, stationKey } = await setupFixture();
   await testDb()
     .insert(stations)
-    .values({
-      id: "station-disabled",
-      label: "Reader 2",
-      apiKeyHash: "a".repeat(64),
-      disabledAt: "2026-10-14T01:00:00.000Z",
-    });
+    .values([
+      {
+        id: "station-disabled",
+        label: "Reader 2",
+        apiKeyHash: "a".repeat(64),
+        disabledAt: "2026-10-14T01:00:00.000Z",
+      },
+      { id: "station-duels", label: "Reader 3", apiKeyHash: "b".repeat(64), game: "team_duels" },
+      { id: "station-no-game", label: "Reader 4", apiKeyHash: "c".repeat(64) },
+    ]);
 
   const res = await registeredStations();
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), {
-    stations: [
-      { station_id: stationId, key_hash: createHash("sha256").update(stationKey).digest("hex") },
-    ],
-  });
+  const { stations: listed } = (await res.json()) as { stations: { station_id: string }[] };
+  assert.deepEqual(
+    listed.sort((a, b) => a.station_id.localeCompare(b.station_id)),
+    [
+      {
+        station_id: stationId,
+        key_hash: createHash("sha256").update(stationKey).digest("hex"),
+        // What the station shows between taps, from its game (BAC-181).
+        idle_lines: ["Passport", "Tap your token"],
+      },
+      {
+        station_id: "station-duels",
+        key_hash: "b".repeat(64),
+        idle_lines: ["Team duels", "Tap to join"],
+      },
+      // No game, so the station keeps its own idle screen.
+      { station_id: "station-no-game", key_hash: "c".repeat(64) },
+    ].sort((a, b) => a.station_id.localeCompare(b.station_id)),
+  );
 });
 
 // The heartbeat hand-off, as the GeekyKey Service sends it: the API agreement's

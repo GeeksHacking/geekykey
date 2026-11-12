@@ -39,6 +39,26 @@ test("the answer's JSON Schema keeps the agreement's rules", () => {
   assert.equal(result.properties.lines.maxItems, 2);
   assert.equal(result.properties.lines.items.pattern, "^[\\x20-\\x7E]{0,16}$");
   assert.equal(result.properties.complete.type, "boolean");
+  // A countdown counts at most 99 seconds, so {s} fits the 2 characters its lines count it as.
+  const countdown = result.properties.countdown;
+  assert.deepEqual(countdown.required, ["seconds", "lines", "ending"]);
+  assert.equal(countdown.properties.seconds.minimum, 1);
+  assert.equal(countdown.properties.seconds.maximum, 99);
+  const line = new RegExp(countdown.properties.lines.items.pattern);
+  assert.match("3 in, {s}s left", line);
+  assert.match(`${"x".repeat(14)}{s}`, line);
+  assert.doesNotMatch(`${"x".repeat(15)}{s}`, line);
+  assert.doesNotMatch("x".repeat(17), line);
+  assert.equal(countdown.properties.ending.items.pattern, "^[\\x20-\\x7E]{0,16}$");
+});
+
+test("the registered stations' JSON Schema keeps the agreement's rules", () => {
+  const schema = JSON.parse(jsonSchemaFiles()["stations-answer.schema.json"]!);
+  const station = schema.properties.stations.items;
+  // Optional, and as a result's lines are.
+  assert.deepEqual(station.required, ["station_id", "key_hash"]);
+  assert.equal(station.properties.idle_lines.maxItems, 2);
+  assert.equal(station.properties.idle_lines.items.pattern, "^[\\x20-\\x7E]{0,16}$");
 });
 
 test("the heartbeat hand-off's JSON Schema keeps the agreement's rules", () => {

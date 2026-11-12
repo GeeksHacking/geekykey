@@ -154,6 +154,22 @@ One reading of a token at a station. A tap by a claimed token reaches the statio
 records it with a status whether or not it counts. A tap by an unclaimed token is turned away
 before it reaches any event.
 
+**Idle screen**:
+What a station shows between taps. Its game writes it, such as "Team duels" and "Tap to join",
+and the station hears it in each heartbeat's answer. A station with no game shows "Ready" and
+"Tap a tag".
+
+**Result screen**:
+What a station shows after a tap, written by the station's game, such as the passport's progress
+and next stop. A game that writes none leaves the station's own screen for the tap's status.
+_Avoid_: lines, which is the field that carries it
+
+**Countdown**:
+A result screen that counts down to a moment the game sets, then shows an ending. The station
+counts it down itself from a number of seconds, so the screen moves without hearing from the
+server again. Team duels counts down to a round's start.
+_Avoid_: timer
+
 ### Events
 
 **Event**:

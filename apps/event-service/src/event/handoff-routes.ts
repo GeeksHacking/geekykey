@@ -45,15 +45,27 @@ export function handoffRoutes({
   /** The clock a half is timed by. Tests pin it. */
   now?: () => Date;
 }) {
+  // The games organizers give stations, by ID: a station's own game, which writes its screen.
+  const chosenGames = new Map(
+    games.flatMap((onStations) =>
+      onStations.stations === "chosen" ? [[onStations.game.id, onStations.game]] : [],
+    ),
+  );
   const app = new Hono<AppEnv>()
     .use(requireBearerKey(key, "invalid_event_service_key"))
     .get("/stations", async (c) => {
-      // The registered stations: the enabled ones, each with its key's hash (11.1).
+      // The registered stations: the enabled ones, each with its key's hash, and the idle
+      // screen of the game organizers gave it, if it has one (11.1, BAC-181).
       const enabled = await c.var.db
-        .select({ station_id: stations.id, key_hash: stations.apiKeyHash })
+        .select({ station_id: stations.id, key_hash: stations.apiKeyHash, game: stations.game })
         .from(stations)
         .where(isNull(stations.disabledAt));
-      return c.json({ stations: enabled } satisfies StationsAnswer);
+      return c.json({
+        stations: enabled.map(({ station_id, key_hash, game }) => {
+          const idleLines = game === null ? undefined : chosenGames.get(game)?.idleLines;
+          return { station_id, key_hash, ...(idleLines && { idle_lines: [...idleLines] }) };
+        }),
+      } satisfies StationsAnswer);
     })
     .post("/taps", jsonBody(tapsRequest), async (c) => {
       // The hand-off: a station's taps, each by a token's owner, as users (11.2).
@@ -99,6 +111,7 @@ export function handoffRoutes({
           ...(stationText !== null && {
             lines: stationText.lines,
             ...(stationText.complete && { complete: true }),
+            ...(stationText.countdown && { countdown: stationText.countdown }),
           }),
         })),
       });

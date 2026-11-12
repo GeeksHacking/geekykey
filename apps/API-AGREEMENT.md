@@ -399,6 +399,11 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 - The station's own game can also give what the station shows after an `accepted` or `cooldown`
   tap, as `lines` and `complete` (6.1). The passport's are the participant's progress, by name,
   and their next stop.
+- The station's own game writes the rest of its screen too (BAC-181, for the next version). After a
+  tap it can give a `countdown` (6.1), which the station counts down itself, and it gives what the
+  station shows between taps, as `idle_lines` (6.2 and 11.1). The firmware knows no games. It keeps
+  only the screens it has to show alone: no Wi-Fi, a saved tap, a wrong key and setup mode
+  ([ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)).
 - Each stored tap records the game that counted it or held it back, and a `no_game` tap records
   none (BAC-183, for the next version). A game reads only its own taps, so an organizer can
   change a station's game at any time (9.11). A tap another game counted at a passport station
@@ -593,6 +598,10 @@ item has a [`tap_status`](#tap_status).
 | `results[].status` | string | A [`tap_status`](#tap_status), or another team's own |
 | `results[].lines` | array of strings, optional | 1 or 2 lines for the station's screen, written by the station's game. Each is 0 to 16 printable ASCII characters, space to `~`. Only with `accepted` and `cooldown` |
 | `results[].complete` | boolean, optional | `true` on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune. Only with `accepted` and `cooldown`. Ours gives it only when `true`, with `lines` |
+| `results[].countdown` | object, optional | A screen that counts down, written by the station's game (BAC-181, for the next version). Only with `accepted` and `cooldown`. Ours gives it with `lines` |
+| `results[].countdown.seconds` | integer | 1 to 99. Seconds to count down, from when the answer was made, so a station with a wrong clock still counts correctly |
+| `results[].countdown.lines` | array of strings | 1 or 2 lines, with `lines`' rules, except that `{s}` may appear once across them and counts as 2 characters. The station puts the seconds left in its place |
+| `results[].countdown.ending` | array of strings | 1 or 2 lines, with `lines`' rules, that the station shows when the count reaches zero |
 
 - The passport's lines are the participant's progress, and their next stop (8.1): `Alex: 3 of 6`
   and `Next: B3`, with the booth's accents taken off and as much of it as fits. Without a next
@@ -606,6 +615,27 @@ item has a [`tap_status`](#tap_status).
 - No token UID or user ID is ever in a line, and no log line prints them.
 - A saved tap sent later gets them too, but the station doesn't show them, since the participant has
   gone.
+
+**A countdown** (BAC-181, for the next version). A result can also give a screen that ticks,
+since the station hears from the server only in a tap's answer and a heartbeat's:
+
+```json
+{ "client_tap_id": "tap-000123", "status": "accepted",
+  "lines": ["Alex joined", "3 in, 27s left"],
+  "countdown": { "seconds": 27,
+                 "lines": ["Team duels", "3 in, {s}s left"],
+                 "ending": ["Round started!", "Check your phone"] } }
+```
+
+- `lines` stays the plain snapshot, which a station that doesn't know `countdown` shows. So `{s}`
+  never goes in `lines`.
+- Team duels gives a countdown to a tap while its round is open, `accepted` or `cooldown`, counting
+  down to the round's start: `Team duels` and `3 in, {s}s left`, then `Round started!` and
+  `Check your phone`. `seconds` is what the round has left, rounded up, as in `lines`. With more
+  players than the line holds, the second line is `{s}s left`. A tap while a round is playing gets
+  `Already in` and `Still playing`, with no countdown, and so does a round more than 99 seconds
+  from its start, which a station whose clock is ahead can open. The wording can change.
+- The passport gives none.
 
 **How a tap is answered, from checkpoint 3**
 
@@ -646,6 +676,12 @@ item has a [`tap_status`](#tap_status).
   and sound, except with `complete: true`: play a tune of your own instead of the accepted beep,
   and light the LED in a way of its own. An answer without `lines` shows the table's screen, as
   today.
+- For a live tap with `countdown` (BAC-181, for the next version), show `countdown.lines` in place
+  of `lines`, with `{s}` replaced by the seconds left, and count down once a second from
+  `countdown.seconds`, starting when the answer arrives. Keep the status's LED and sound as for
+  `lines`. At zero, show `countdown.ending` for about 2 seconds, then go back to the idle screen. A
+  new tap ends the countdown and shows its own result. Cut each line to 16 characters once `{s}`
+  is replaced, in case.
 - The cooldown for saved taps is judged by `tapped_at` when present, so saved taps can be sent
   in any order, and a tap is compared with the taps the same game accepted nearest it in time on
   either side, including ones already stored. Without `tapped_at` the receipt time is used, which means every
@@ -653,10 +689,13 @@ item has a [`tap_status`](#tap_status).
   Stations should send `tapped_at` whenever they have had a time sync.
 
 **Suggested screen and LED mapping.** Each line is at most 16 characters, and the wording can
-change. Show each result for about 2 seconds with its LED on, then go back to "Ready".
+change. Show each result for about 2 seconds with its LED on, then go back to the idle screen:
+`Ready` / `Tap a tag`, or the heartbeat's `idle_lines` (6.2). A countdown shows for as long as it
+counts, and its `ending` for about 2 seconds.
 
 | Result | Screen | LED |
 |---|---|---|
+| any result with `countdown`, for a live tap | `countdown.lines` with the seconds left, then `countdown.ending` at zero | the status's |
 | any result with `lines`, for a live tap | `lines[0]` / `lines[1]` | the status's, or its own with `complete` |
 | `accepted` | `Tap counted!` / `Check your phone` | blue |
 | `cooldown` | `Already counted` / `Try again later` | amber |
@@ -702,8 +741,14 @@ whether the reader works.
 **Response `200`**
 
 ```json
-{ "station_id": "…", "server_time": "2026-10-10T09:00:00.000Z" }
+{ "station_id": "…", "server_time": "2026-10-10T09:00:00.000Z", "idle_lines": ["Team duels", "Tap to join"] }
 ```
+
+| Field | Type | Rules |
+|---|---|---|
+| `station_id` | string | The station's ID |
+| `server_time` | string | The server's time, in UTC with milliseconds |
+| `idle_lines` | array of strings, optional | What the station shows between taps, its idle screen, from the station's game: 1 or 2 lines with 6.1's `lines` rules. Left out for a station whose game gives none, such as a station with no game (BAC-181, for the next version) |
 
 - Stations call this at boot and every 60 seconds. At boot it replaces `/api/health`, because
   it also proves the station key.
@@ -712,6 +757,15 @@ whether the reader works.
   the taps meanwhile keep the station online.
 - It is the station's clock: set the clock from `server_time` every time, and send `tapped_at`
   only once it has been set.
+- It gives the idle screen (BAC-181, for the next version). Show `idle_lines[0]` and
+  `idle_lines[1]`, or a blank second line, in place of `Ready` / `Tap a tag`, and keep them until
+  the next heartbeat's answer. An answer without `idle_lines` goes back to `Ready` / `Tap a tag`.
+  With no answer, keep the last. The station's own screens, such as no Wi-Fi, a setup error or a
+  reader error, still come first.
+- The GeekyKey Service takes `idle_lines` from its copy of the registered stations (11.1), which
+  is at most a minute old. So a change of the station's game reaches the idle screen within about
+  two minutes: up to one for the copy, and up to one for the next heartbeat. Ours gives
+  `Passport` / `Tap your token` and `Team duels` / `Tap to join`. The wording can change.
 - Every 60 seconds also keeps the HTTPS connection open, since Cloudflare closes an idle one
   after 400 seconds.
 - The GeekyKey Service answers as soon as the key is checked, and passes the other fields to the
@@ -2063,7 +2117,7 @@ Service's list in memory, fills it when it's empty, and refreshes it at most onc
 ```json
 {
   "stations": [
-    { "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6", "key_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" }
+    { "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6", "key_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "idle_lines": ["Passport", "Tap your token"] }
   ]
 }
 ```
@@ -2072,10 +2126,14 @@ Service's list in memory, fills it when it's empty, and refreshes it at most onc
 |---|---|---|
 | `station_id` | string | The station's ID, unique across every Event Service. Ours are UUIDs |
 | `key_hash` | string | The SHA-256 of the station key, as 64 lower-case hex characters. Never the key itself |
+| `idle_lines` | array of strings, optional | What the station shows between taps, from its game: 1 or 2 lines with 6.1's `lines` rules. The GeekyKey Service gives them to the station in the heartbeat's answer (6.2). Leave it out for a station whose game gives none. An Event Service from before it leaves it out for every station, which keeps each on `Ready` / `Tap a tag` (BAC-181, for the next version) |
 
 - List enabled stations only. A disabled station drops off, and within a minute its key gets
   `401`.
-- Nothing else goes in the list: no label, no location.
+- Nothing else goes in the list: no label, no location. `idle_lines` is the one exception, since
+  the GeekyKey Service answers a heartbeat before it hands it to you (11.3).
+- An `idle_lines` that breaks 6.1's rules makes the whole list fail, as any answer the schema
+  rejects does, so the GeekyKey Service keeps the last list it had from you.
 - A station ID or key hash that appears twice, in one list or across Event Services, is refused
   and logged, so neither station works until it's fixed. Make keys of 32 random bytes, as ours
   are, with the `gk_sta_` prefix.
@@ -2131,6 +2189,10 @@ it that passed the GeekyKey Service's own checks.
   even one of your own. A line that breaks 6.1's rules fails the whole request, as a status that
   isn't snake_case does (11.5). An Event Service that sends neither gets the station's own screen
   for the status.
+- `countdown` is optional too, with 6.1's rules, and passes to the station the same way, only with
+  `accepted` and `cooldown` (BAC-181, for the next version). One that breaks them fails the whole
+  request as a bad line does. A GeekyKey Service from before it drops it, and the station shows
+  `lines`.
 - `status` is a snake_case string. Ours answers `accepted`, `cooldown`, `no_game` or
   `duplicate`. Another team's may answer statuses of its own, which the GeekyKey Service passes to
   the station unchanged.
@@ -2212,8 +2274,8 @@ for other teams, in `packages/handoff/json-schema/`. The registered stations' an
 hand-off's two are there, and so is the heartbeat hand-off's request. Its answer has no body.
 
 - The files leave other fields allowed, since fields are only ever added (section 1).
-- A JSON Schema can't say that the hand-off's results match its taps one for one. The
-  GeekyKey Service checks that too (11.5).
+- A JSON Schema can't say that the hand-off's results match its taps one for one, or that `{s}`
+  appears at most once across a countdown's lines. The GeekyKey Service checks both (11.5).
 
 ### 11.8 What the hand-off leaves out
 
@@ -2760,3 +2822,4 @@ Closed on 2026-10-10:
 | 2026-11-10 | For the next version: a missing token kind has its own status, `no_kind`, in the meeting hand-off (11.10), the token page's answer (8.8) and Accept (8.10), under the across-token-kinds rule (BAC-135). `same_kind` now means two equal, present kinds. Section 13 gives each its own sentence on the token page and after Accept. Ethan's approval of `no_kind` and the ticket's sentence was confirmed in the implementation session on 10 Nov; the equal-kinds sentence follows his 10 Nov comment. No field is removed. An older GeekyKey Service turns `no_kind` into `unavailable`, and older screens show their existing failure message. New screens accept every older status. |
 | 2026-11-11 | For the next version: a reaction test shows the time left to play, not a fresh two minutes (FRO-152). Section 13 replaces "You have 2 minutes to play." with "Time left to play: {m}:{ss}.", which counts down while the test is visible and is recomputed when the page returns, and adds "Checking the result..." while the test reads `/me` at zero, with "Couldn't check the result. Try again." and a **Try again** button if that read fails. A refused play reads `/me` with the same checking sentence. No endpoint, field or error code changes. |
 | 2026-11-12 | For the next version: each stored tap records the game that counted it or held it back, so an organizer can change a station's game at any time (BAC-183). The booth's two stations can then run the passport and change to another game during the demo. Section 4 replaces the rule that fixed a station's game with one where each game reads only its own taps: a stamp and points come from the taps the passport accepted, and the cooldown (6.1) and the next stop (8.1) from the taps it judged, so another game's tap at a passport station earns nothing, and a station set back to the passport shows the stamps it had. 8.1's `earned_at` and `next_stop`, 9.5's stamp slots and 9.10's `unique_participants` count the same way, while 9.10's `taps` still counts every game's, so it never drops. Taps stored before the change record the game their station ran then. **Removed:** `409 station_has_taps`, from section 2, 9.11 and the station board's sentence in section 13, and 9.1's rule that a station whose game was fixed keeps none. Removing an error code is an exception to section 1's rule, as in the row of 2026-11-06: an older screen that still knows it is never sent it. **Changed:** 9.2's `game_fixed` is always `false`, and is removed in the version after this one. No other field changes, and nothing is added to a response. |
+| 2026-11-12 | For the next version: the server writes the rest of the station's screen (BAC-181, [ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)). A tap's result can give a `countdown` that the station counts down itself, with `seconds`, `lines` holding `{s}` for the seconds left, and an `ending` for zero (6.1 and 11.2). The ticket called it `then`, which our linter refuses as a key, since it marks an object as a promise. Team duels gives a countdown while its round is open, and the relay (BAC-184) will use one for a transfer's 20 seconds. **New:** `results[].countdown` in 6.1 and 11.2, `idle_lines` on each registered station (11.1) and in the heartbeat's answer (6.2), and the firmware contract for both. Ours gives the passport's and team duels' idle text. Section 4 says the server writes the screen, and 11.1 lets `idle_lines` into the list. Each service works with the other's previous version: an older GeekyKey Service drops both fields, and an older Event Service sends neither, so its stations keep `Ready` / `Tap a tag`. A station that doesn't know them ignores them and shows `lines`. No field or route is removed. |

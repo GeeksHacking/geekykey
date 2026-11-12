@@ -1,3 +1,4 @@
+import type { Countdown } from "@geekykey/handoff";
 import type { Db } from "../db/pool.ts";
 
 /**
@@ -67,11 +68,14 @@ export interface JudgedTap extends GameTap {
  * What a station shows after one tap, from its game (the API agreement's
  * 6.1): one or two lines, each a row of its 16x2 screen, so up to 16
  * printable ASCII characters, and whether the tap finished the game, which
- * the station plays its own tune for.
+ * the station plays its own tune for. A game can also give a countdown,
+ * which a station that knows it shows in place of the lines, counting down
+ * to a moment the game sets (BAC-181).
  */
 export interface StationText {
   lines: string[];
   complete: boolean;
+  countdown?: Countdown;
 }
 
 export interface Game {
@@ -91,6 +95,14 @@ export interface Game {
    * lines can count the tap itself.
    */
   lines?(taps: readonly JudgedTap[], context: GameContext): Promise<(StationText | null)[]>;
+  /**
+   * What a station running this game shows between taps, its idle screen:
+   * one or two lines with the rules of StationText's. The registered
+   * stations give them to the GeekyKey Service, which gives them to the
+   * station in the heartbeat's answer (the API agreement's 6.2 and 11.1,
+   * BAC-181). Optional: a station whose game has none keeps its own.
+   */
+  idleLines?: readonly string[];
 }
 
 /**

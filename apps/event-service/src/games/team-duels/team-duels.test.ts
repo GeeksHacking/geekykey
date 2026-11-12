@@ -71,10 +71,12 @@ async function harness(challenge: "dice" | "reaction" = "dice", rollDie = () => 
       }),
     });
     assert.equal(res.status, 200);
-    const { status, lines } = (
-      (await res.json()) as { results: { status: string; lines?: string[] }[] }
+    const { status, lines, countdown } = (
+      (await res.json()) as {
+        results: { status: string; lines?: string[]; countdown?: unknown }[];
+      }
     ).results[0]!;
-    return { status, lines };
+    return { status, lines, ...(countdown !== undefined && { countdown }) };
   }
   async function play(id: string, duel: string, body: unknown) {
     const response = await app.request(`/api/v1/me/duels/${duel}/reaction`, {
@@ -124,12 +126,45 @@ test("a lone player ends without a team or a round win", async () => {
   assert.equal(me.round_wins, 0);
 });
 
+/** The countdown a tap during an open round gets, with `players` in and `seconds` left (BAC-181). */
+function roundCountdown(players: number, seconds: number) {
+  return {
+    seconds,
+    lines: ["Team duels", `${players} in, {s}s left`],
+    ending: ["Round started!", "Check your phone"],
+  };
+}
+
+test("a tap during an open round counts down on the station to the round's start", async () => {
+  const h = await harness();
+  assert.deepEqual(await h.tap("alex"), {
+    status: "accepted",
+    lines: ["alex joined", "1 in, 30s left"],
+    countdown: roundCountdown(1, 30),
+  });
+  // The seconds are what's left of the round's 30, rounded up, as the lines say.
+  h.clock.advanceSeconds(6.4);
+  assert.deepEqual(await h.tap("bea"), {
+    status: "accepted",
+    lines: ["bea joined", "2 in, 24s left"],
+    countdown: roundCountdown(2, 24),
+  });
+});
+
+test("a round whose start is more than 99 seconds off, from a station clock ahead, gives no countdown", async () => {
+  // Its tapped_at is trusted up to 5 minutes ahead (6.1), and {s} shows at most 99.
+  const h = await harness();
+  const tap = await h.tap("alex", "2026-11-12T08:02:00.000Z");
+  assert.deepEqual(tap, { status: "accepted", lines: ["alex joined", "1 in, 150s left"] });
+});
+
 test("a repeated tap is held back during opening and play without adding a player", async () => {
   const h = await harness("reaction");
   await h.tap("alex");
   assert.deepEqual(await h.tap("alex"), {
     status: "cooldown",
     lines: ["Already in", "1 in, 30s left"],
+    countdown: roundCountdown(1, 30),
   });
   await h.tap("bea");
   h.clock.advanceSeconds(30);

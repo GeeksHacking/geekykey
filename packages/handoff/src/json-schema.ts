@@ -13,7 +13,8 @@ const SCHEMAS = {
   "taps-answer.schema.json": tapsAnswer.meta({
     title: "The answer to the hand-off: POST /geekykey/v1/taps",
     description:
-      "Also: one result per tap in the request, in the same order, with the same client_tap_ids.",
+      "Also: one result per tap in the request, in the same order, with the same " +
+      "client_tap_ids, and {s} at most once across a countdown's lines.",
   }),
   "stations-answer.schema.json": stationsAnswer.meta({
     title: "The registered stations: GET /geekykey/v1/stations",
