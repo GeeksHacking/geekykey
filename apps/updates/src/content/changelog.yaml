@@ -2611,3 +2611,10 @@
     A tap's answer can now give the station a countdown it runs itself, and a team duels round
     counts down to its start. Each heartbeat's answer also gives the station's idle screen from
     its game, such as "Team duels" and "Tap to join".
+- id: station-counts-down
+  date: 2026-11-13
+  area: firmware
+  change: >-
+    A station running team duels counts down to the round's start on its screen, and the count
+    comes back after another tap's result with the right seconds. Between taps, the station's
+    screen names its game, such as "Team duels" and "Tap to join", in place of "Ready".
