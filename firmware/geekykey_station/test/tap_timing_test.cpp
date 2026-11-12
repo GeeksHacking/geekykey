@@ -82,6 +82,15 @@ static void onlyCompleteBlinksItsLed() {
   CHECK(!resultLedIsOn(SOUND_COMPLETE, 1900));
 }
 
+// A countdown reaching zero is one half-second beep, shorter than an accepted
+// tap's, so the two don't sound alike.
+static void endingIsOneShortBeep() {
+  CHECK(soundIsOn(SOUND_ENDING, 0));
+  CHECK(soundIsOn(SOUND_ENDING, 499));
+  CHECK(!soundIsOn(SOUND_ENDING, 500));
+  CHECK(!soundIsOn(SOUND_ENDING, 1900));
+}
+
 static void noSoundIsSilent() {
   CHECK(!soundIsOn(SOUND_NONE, 0));
   CHECK(!soundIsOn(SOUND_NONE, 500));
@@ -148,6 +157,7 @@ int main() {
   errorIsThreeFastBeeps();
   completeIsThreeShortBeeps();
   onlyCompleteBlinksItsLed();
+  endingIsOneShortBeep();
   noSoundIsSilent();
   anotherTokenIsSent();
   sameTokenDuringItsResultKeepsIt();

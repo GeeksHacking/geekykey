@@ -56,6 +56,15 @@ c++ -std=c++17 -Wall -Wextra -o /tmp/tap_timing_test firmware/geekykey_station/t
 It prints `All passed`, or each check that failed. The Arduino IDE never builds the `test/` folder,
 so nothing in it reaches a station.
 
+What the screen shows between taps is in `geekykey_station/station_screen.h`. A tap's answer can
+start a countdown (section 6.1 of the API agreement), and the file works out the seconds left and
+puts them in place of `{s}`. It decides which screen shows when a result and a countdown overlap. It
+also picks the idle screen from a heartbeat's answer (section 6.2). Its tests run the same way:
+
+```sh
+c++ -std=c++17 -Wall -Wextra -o /tmp/station_screen_test firmware/geekykey_station/test/station_screen_test.cpp && /tmp/station_screen_test
+```
+
 ## Writing tokens
 
 `token_writer/` turns a spare ESP32-S3 station into a token writer. It writes each NTAG213 token's
