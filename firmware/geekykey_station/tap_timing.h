@@ -16,6 +16,7 @@
 #define SOUND_COOLDOWN 2  // two slow beeps: not yet, try again later
 #define SOUND_ERROR 3     // three fast beeps: something is wrong
 #define SOUND_COMPLETE 4  // three short beeps, slower than an error's: the tap finished the game
+#define SOUND_ENDING 5    // one half-second beep: a countdown reached zero
 
 // Whether the buzzer is on `elapsed` milliseconds after a sound started. The
 // buzzer is an active one, which sounds while its pin is HIGH, so a sound is a
@@ -26,6 +27,7 @@ inline bool soundIsOn(int sound, uint32_t elapsed) {
   static const uint32_t cooldown[] = {200, 200, 200};
   static const uint32_t error[] = {80, 80, 80, 80, 80};
   static const uint32_t complete[] = {150, 150, 150, 150, 150};
+  static const uint32_t ending[] = {500};
   const uint32_t *steps = nullptr;
   int count = 0;
   if (sound == SOUND_ACCEPTED) {
@@ -40,6 +42,9 @@ inline bool soundIsOn(int sound, uint32_t elapsed) {
   } else if (sound == SOUND_COMPLETE) {
     steps = complete;
     count = sizeof(complete) / sizeof(complete[0]);
+  } else if (sound == SOUND_ENDING) {
+    steps = ending;
+    count = sizeof(ending) / sizeof(ending[0]);
   }
   uint32_t stepEndsAt = 0;
   for (int i = 0; i < count; i++) {

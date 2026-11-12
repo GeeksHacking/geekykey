@@ -58,7 +58,11 @@
   The heartbeat goes at boot and every 60 seconds, with any saved taps sent
   just before it, held back a few seconds while a tap is being answered. Its
   answer's server_time sets the station's clock, and taps carry tapped_at once
-  the clock is set. There is no NTP: some venue WiFi blocks it.
+  the clock is set. There is no NTP: some venue WiFi blocks it. Its idle_lines
+  name the station's game on the idle screen.
+
+  A live tap's answer can start a countdown, which loop() redraws once a
+  second without holding up the reader (station_screen.h has its rules).
 */
 
 #include <SPI.h>
@@ -75,6 +79,7 @@
 #include "secrets.h"
 #include "ca_roots.h"
 #include "tap_timing.h"
+#include "station_screen.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Ticker.h>
@@ -111,12 +116,9 @@
 #endif
 #define NO_LED -1
 
-// The characters on one line of the screen, a 16x2 LCD.
-#define LINE_CHARS 16
-
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-11-12"
+#define FIRMWARE_VERSION "2026-11-13"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
@@ -217,13 +219,27 @@ struct Result {
   char line2[LINE_CHARS + 1] = "";
   int ledPin = NO_LED;
   int sound = SOUND_NONE;
+  bool countsDown = false;  // it started the countdown, so its screen ticks
+  bool isEnding = false;    // a countdown's ending, which no token's tap caused
 };
-// The last result shown, to show again when its token is tapped once more.
+
+// The countdown from the last live tap's answer that gave one (6.1). loop()
+// redraws it once a second (tickScreen), and a new one replaces it. Another
+// result covers it for its usual time, and the count goes on underneath.
+Countdown countdown;
+
+// The idle screen from the latest heartbeat's answer (6.2).
+IdleLines idleLines;
+
+// What the screen shows, so tickScreen draws only when a line changes.
+char shownLines[2][LINE_CHARS + 1] = {"", ""};
+// The last token's result, to show again when it is tapped once more.
 Result lastResult;
 
-// The result on the screen, if any. showResult returns at once, and loop()
-// plays the sound and ends the result (tickResult), so the reader is still read
-// while a result shows.
+// The result on the screen, if any: the last token's, or a countdown's ending.
+// displayResult returns at once, and loop() plays the sound and ends the result
+// (tickResult), so the reader is still read while a result shows.
+Result shownResult;
 bool resultShowing = false;
 unsigned long resultShownAt = 0;
 unsigned long resultEndedAt = 0;
@@ -250,6 +266,11 @@ struct QueueAttempt {
   char newTapLines[2][LINE_CHARS + 1];
   uint8_t newTapLineCount = 0;
   bool newTapComplete = false;
+  // The new tap's countdown, started from when its answer arrived, if its
+  // answer had a usable one.
+  Countdown newTapCountdown;
+  bool newTapCountsDown = false;
+  unsigned long answeredAt = 0;  // millis() when the answer arrived
   bool newTapDropped = false;
   bool retryable = false;
   int httpCode = 0;
@@ -393,7 +414,7 @@ void setup() {
   const int heartbeatCode = heartbeatTick();
 
   Serial.println("Ready. Tap an NTAG213 tag...");
-  // The setup error is a result, which loop() ends by going to Ready.
+  // The setup error is a result. Once loop() ends it, the idle screen shows.
   if (heartbeatCode == 401) {
     showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
   } else {
@@ -404,6 +425,7 @@ void setup() {
 void loop() {
   pollSerial();
   tickResult();
+  tickScreen();
   if (heartbeatMayStart()) heartbeatTick();
 
   String uid;
@@ -416,7 +438,10 @@ void loop() {
 
   Serial.println("UID: " + uid);
 
-  switch (answerToken(lastToken, uid.c_str(), readAt, resultShowing)) {
+  // A countdown's ending isn't the last token's result, so it doesn't keep
+  // that token from being answered.
+  const bool tokenResultShowing = resultShowing && !shownResult.isEnding;
+  switch (answerToken(lastToken, uid.c_str(), readAt, tokenResultShowing)) {
     case KEEP_RESULT:
       // A token that slipped off and back and one tapped again on purpose look
       // the same here, so both get the click and the result stays as it is.
@@ -687,7 +712,8 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
   const int code = http.POST(body);
   const String response = code > 0 ? http.getString() : "";
   http.end();
-  if (tapTiming.readAt != 0) tapTiming.answeredAt = millis();
+  result.answeredAt = millis();
+  if (tapTiming.readAt != 0) tapTiming.answeredAt = result.answeredAt;
   result.httpCode = code;
 
   if (code <= 0) {
@@ -736,26 +762,42 @@ void sendBatch(const QueuedTap *batch, uint8_t count, const String &newTapId,
   return;
 }
 
-// Keeps what the station shows from the new tap's answer: its status, and
-// its game's lines and `complete` (6.1). A saved tap's answer only removes it,
-// since the person who tapped has gone. A line that isn't text is left blank,
-// so the other line keeps its place.
+// Keeps what the station shows from the new tap's answer: its status, its
+// game's lines and `complete`, and its countdown (6.1). A saved tap's answer
+// only removes it, since the person who tapped has gone. A line that isn't
+// text is left blank, so the other line keeps its place.
 void readNewTapAnswer(JsonObject item, QueueAttempt &result) {
   result.newTapStatus = item["status"].as<const char *>();
-  JsonArray lines = item["lines"].as<JsonArray>();
-  for (JsonVariant line : lines) {
-    if (result.newTapLineCount == 2) break;
-    const char *text = line.is<const char *>() ? line.as<const char *>() : "";
-    copyLine(result.newTapLines[result.newTapLineCount++], text);
-  }
+  result.newTapLineCount = readLines(item["lines"], result.newTapLines[0], result.newTapLines[1], LINE_CHARS);
   result.newTapComplete = item["complete"].is<bool>() && item["complete"].as<bool>();
+  readCountdown(item["countdown"], result);
 }
 
-// Copies a line for the screen. 6.1 keeps a game's lines to 16 characters,
-// and anything longer from a server that doesn't is cut, not wrapped.
-void copyLine(char *line, const char *text) {
-  strncpy(line, text, LINE_CHARS);
-  line[LINE_CHARS] = '\0';
+// Copies up to two lines of text from an answer, cut to `maxChars`, and
+// returns how many it had. A second line it didn't have is left blank.
+uint8_t readLines(JsonVariant from, char *line1, char *line2, size_t maxChars) {
+  char *lines[2] = {line1, line2};
+  uint8_t count = 0;
+  line2[0] = '\0';
+  for (JsonVariant line : from.as<JsonArray>()) {
+    if (count == 2) break;
+    const char *text = line.is<const char *>() ? line.as<const char *>() : "";
+    strncpy(lines[count], text, maxChars);
+    lines[count][maxChars] = '\0';
+    count++;
+  }
+  return count;
+}
+
+// Keeps the answer's countdown, started from when the answer arrived. One
+// without seconds from 1 to 99, its lines or its ending is left out, and the
+// answer's lines show as if it had none.
+void readCountdown(JsonVariant from, QueueAttempt &result) {
+  if (!from.is<JsonObject>() || !from["seconds"].is<long>()) return;
+  Countdown &next = result.newTapCountdown;
+  if (readLines(from["lines"], next.lines[0], next.lines[1], COUNTDOWN_LINE_MAX) == 0) return;
+  if (readLines(from["ending"], next.ending[0], next.ending[1], LINE_CHARS) == 0) return;
+  result.newTapCountsDown = startCountdown(next, from["seconds"].as<long>(), result.answeredAt);
 }
 
 QueueAttempt flushQueue(const String &newTapId) {
@@ -791,7 +833,8 @@ QueueAttempt flushQueue(const String &newTapId) {
 // Shows a live tap's result. The status picks the LED and the sound, and the
 // screen too, unless the tap's game sent lines: then they replace it. An
 // accepted tap that finished the game blinks blue with three short beeps in
-// place of the accepted beep (6.1).
+// place of the accepted beep (6.1). A countdown replaces the one running, and
+// its lines replace the game's, with the seconds left in them.
 void showTapAnswer(const QueueAttempt &attempt) {
   const String &status = attempt.newTapStatus;
   Result result;
@@ -820,6 +863,14 @@ void showTapAnswer(const QueueAttempt &attempt) {
     result.ledPin = LED_PIN_BLUE;
     result.sound = SOUND_COMPLETE;
   }
+  // 6.1 gives a countdown only with accepted and cooldown. Those count the tap,
+  // so the same token tapped again never shows this result's old seconds.
+  if (attempt.newTapCountsDown && (status == "accepted" || status == "cooldown")) {
+    countdown = attempt.newTapCountdown;
+    countdownScreen(result.line1, result.line2);
+    result.countsDown = true;
+    Serial.println("Countdown: " + String(countdown.seconds) + " s");
+  }
   showResult(result);
 }
 
@@ -833,9 +884,10 @@ Result makeResult(const char *line1, const char *line2, int ledPin, int sound) {
   return result;
 }
 
-// Shows a result with its LED on and its sound starting, and returns at once.
-// tickResult() plays the sound and goes back to Ready after RESULT_SHOW_MS. A
-// result already showing ends first.
+// Shows the last token's result with its LED on and its sound starting, and
+// returns at once. tickResult() plays the sound and ends it after
+// RESULT_SHOW_MS, and tickScreen() then shows the countdown or the idle screen.
+// A result already showing ends first.
 void showResult(const char *line1, const char *line2, int ledPin, int sound) {
   showResult(makeResult(line1, line2, ledPin, sound));
 }
@@ -844,29 +896,35 @@ void showResult(const char *line1, const char *line2, int ledPin, int sound) {
 // lastResult itself.
 void showResult(const Result &result) {
   const Result shown = result;
-  endResult();
-  showScreen(shown.line1, shown.line2);
-  printTapTiming();
   lastResult = shown;
+  displayResult(shown);
+}
+
+// Shows any result, the last token's or a countdown's ending, which isn't a
+// token's and so never becomes lastResult.
+void displayResult(const Result &result) {
+  endResult();
+  shownResult = result;
+  showScreen(shownResult.line1, shownResult.line2);
+  printTapTiming();
   resultShowing = true;
   resultShownAt = millis();
   tickResult();
 }
 
-// Called from loop(): sets the buzzer for where the sound is, and goes back to
-// Ready once the result has shown for RESULT_SHOW_MS. A click still sounding
-// keeps the buzzer on, so a result that comes at once doesn't cut it short.
+// Called from loop(): sets the buzzer for where the sound is, and ends the
+// result once it has shown for RESULT_SHOW_MS. A click still sounding keeps the
+// buzzer on, so a result that comes at once doesn't cut it short.
 void tickResult() {
   if (!resultShowing) return;
   const uint32_t elapsed = millis() - resultShownAt;
   if (elapsed >= RESULT_SHOW_MS) {
     endResult();
-    showReady();
     return;
   }
-  digitalWrite(BUZZER_PIN, soundIsOn(lastResult.sound, elapsed) || clickOn ? HIGH : LOW);
-  if (lastResult.ledPin != NO_LED) {
-    digitalWrite(lastResult.ledPin, resultLedIsOn(lastResult.sound, elapsed) ? HIGH : LOW);
+  digitalWrite(BUZZER_PIN, soundIsOn(shownResult.sound, elapsed) || clickOn ? HIGH : LOW);
+  if (shownResult.ledPin != NO_LED) {
+    digitalWrite(shownResult.ledPin, resultLedIsOn(shownResult.sound, elapsed) ? HIGH : LOW);
   }
 }
 
@@ -874,15 +932,51 @@ void tickResult() {
 void endResult() {
   if (!resultShowing) return;
   digitalWrite(BUZZER_PIN, clickOn ? HIGH : LOW);
-  if (lastResult.ledPin != NO_LED) digitalWrite(lastResult.ledPin, LOW);
+  if (shownResult.ledPin != NO_LED) digitalWrite(shownResult.ledPin, LOW);
   resultShowing = false;
   resultEndedAt = millis();
+}
+
+// Called from loop(): redraws the countdown when its seconds change, shows its
+// ending at zero, and shows the idle screen once nothing else is showing
+// (screenNow in station_screen.h). It draws only what changed, so calling it
+// on every pass costs nothing.
+void tickScreen() {
+  switch (screenNow(resultShowing, shownResult.countsDown, countdown, millis(), readerOk)) {
+    case SCREEN_RESULT:
+      return;
+    case SCREEN_COUNTDOWN: {
+      char line1[LINE_CHARS + 1];
+      char line2[LINE_CHARS + 1];
+      countdownScreen(line1, line2);
+      drawScreen(line1, line2);
+      return;
+    }
+    case SCREEN_ENDING: {
+      countdown.running = false;
+      Serial.println("Countdown: ended");
+      Result ending = makeResult(countdown.ending[0], countdown.ending[1], NO_LED, SOUND_ENDING);
+      ending.isEnding = true;
+      displayResult(ending);
+      return;
+    }
+    case SCREEN_IDLE:
+      showReady();
+      return;
+  }
+}
+
+// The countdown's lines with the seconds left in them now.
+void countdownScreen(char *line1, char *line2) {
+  const uint32_t secondsLeft = countdownSecondsLeft(countdown, millis());
+  fillCountdownLine(line1, countdown.lines[0], secondsLeft);
+  fillCountdownLine(line2, countdown.lines[1], secondsLeft);
 }
 
 // The click while a result shows, unless its sound is on already: a click
 // then would only cut a gap into the beep.
 void clickDuringResult() {
-  if (soundIsOn(lastResult.sound, millis() - resultShownAt)) return;
+  if (soundIsOn(shownResult.sound, millis() - resultShownAt)) return;
   startClick();
 }
 
@@ -920,24 +1014,33 @@ String msAfterRead(unsigned long at) {
   return at == 0 ? String("-") : String(at - tapTiming.readAt);
 }
 
-// Ready, unless the reader isn't answering: then the red LED stays on and the
-// screen says so until it answers again.
+// The idle screen (idleScreen in station_screen.h): the heartbeat's idle
+// lines, or Ready / Tap a tag. While the reader isn't answering, the red LED
+// stays on and the screen says so until it answers again.
 void showReady() {
   digitalWrite(LED_PIN_RED, readerOk ? LOW : HIGH);
-  if (readerOk) {
-    showScreen("Ready", "Tap a tag");
-  } else {
-    showScreen("Reader error", "Tell organizer");
-  }
+  const ScreenLines idle = idleScreen(idleLines, readerOk);
+  drawScreen(idle.line1, idle.line2);
 }
 
-// Each line fits 16 characters; anything longer is cut off.
+// Shows two lines, unless the screen shows them already.
+void drawScreen(const char *line1, const char *line2) {
+  if (strncmp(line1, shownLines[0], LINE_CHARS) == 0 && strncmp(line2, shownLines[1], LINE_CHARS) == 0) return;
+  showScreen(line1, line2);
+}
+
+// Each line fits 16 characters; anything longer is cut off. Each is written
+// over the last with spaces after it, rather than clearing the screen first,
+// so a countdown's redraw every second doesn't flicker.
 void showScreen(const char *line1, const char *line2) {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
+  copyLine(shownLines[0], line1);
+  copyLine(shownLines[1], line2);
+  for (uint8_t row = 0; row < 2; row++) {
+    char padded[LINE_CHARS + 1];
+    snprintf(padded, sizeof(padded), "%-*s", LINE_CHARS, shownLines[row]);
+    lcd.setCursor(0, row);
+    lcd.print(padded);
+  }
 }
 
 // Formats the hardware UID as uppercase hex with no separators, e.g. 04A1B2C3D4E5F6.
@@ -1093,17 +1196,17 @@ void checkReader() {
   if (ok == readerOk) return;
   readerOk = ok;
   Serial.println(readerOk ? "Reader answers again" : "Reader not answering");
-  showReady();
 }
 
 // Whether a heartbeat may start now: it's due, no result shows, and the
-// station has been quiet for HEARTBEAT_QUIET_MS, or the heartbeat is already
-// HEARTBEAT_MAX_DELAY_MS late.
+// station has been quiet for HEARTBEAT_QUIET_MS with no countdown running, or
+// the heartbeat is already HEARTBEAT_MAX_DELAY_MS late. A countdown is when
+// people come to tap, and a tag read during a heartbeat is lost.
 bool heartbeatMayStart() {
   const unsigned long now = millis();
   if ((long)(now - nextHeartbeatAt) < 0) return false;
   if (resultShowing) return false;
-  if (now - resultEndedAt >= HEARTBEAT_QUIET_MS) return true;
+  if (!countdown.running && now - resultEndedAt >= HEARTBEAT_QUIET_MS) return true;
   return now - nextHeartbeatAt >= HEARTBEAT_MAX_DELAY_MS;
 }
 
@@ -1123,8 +1226,9 @@ int heartbeatTick() {
 }
 
 // POST /api/v1/stations/heartbeat (the API agreement's 6.2). A 200 sets the
-// clock from server_time. Any other answer changes nothing here: a 401 or a
-// 503 also fails the taps, which are saved and sent again.
+// clock from server_time and the idle screen from idle_lines. Any other answer
+// changes nothing here: a 401 or a 503 also fails the taps, which are saved
+// and sent again, and the idle screen stays as the last answer left it.
 int sendHeartbeat() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Heartbeat: not sent, no WiFi");
@@ -1167,12 +1271,30 @@ int sendHeartbeat() {
     return code;
   }
   JsonDocument answer;
-  if (deserializeJson(answer, response) || !setClockFrom(answer["server_time"].as<const char *>())) {
+  if (deserializeJson(answer, response)) {
+    Serial.println("Heartbeat: answer wasn't JSON");
+    return code;
+  }
+  readIdleLines(answer["idle_lines"]);
+  if (!setClockFrom(answer["server_time"].as<const char *>())) {
     Serial.println("Heartbeat: answer had no usable server_time");
     return code;
   }
   Serial.println("Heartbeat: clock set to " + isoNow());
   return code;
+}
+
+// Keeps a heartbeat's idle_lines for the idle screen, which tickScreen shows
+// on its next pass. An answer without them goes back to Ready / Tap a tag.
+void readIdleLines(JsonVariant from) {
+  IdleLines next;
+  next.given = readLines(from, next.lines[0], next.lines[1], LINE_CHARS) > 0;
+  if (next.given != idleLines.given || strcmp(next.lines[0], idleLines.lines[0]) != 0 ||
+      strcmp(next.lines[1], idleLines.lines[1]) != 0) {
+    Serial.println(next.given ? "Idle screen: " + String(next.lines[0]) + " / " + String(next.lines[1])
+                              : String("Idle screen: Ready / Tap a tag"));
+  }
+  idleLines = next;
 }
 
 // Sets the clock from a time the server sent, such as
