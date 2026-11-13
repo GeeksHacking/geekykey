@@ -2684,3 +2684,10 @@
   change: >-
     The token writer can upload each token's kind straight to GeekyKey, so it counts in the
     Token kinds screen without a pasted log. A later write wins even if an earlier upload arrives last.
+- id: my-tokens-shows-its-frame
+  date: 2026-11-13
+  area: frontend
+  change: >-
+    My tokens shows its frame while the session loads: the header and a skeleton of the page
+    appear at once, and the tokens fill in when the answer arrives, in place of a full-page
+    loader covering the wait. The token page and Token kinds show the same frame.

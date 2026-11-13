@@ -17,6 +17,7 @@ import { RequireSession } from "@/features/auth/require-session";
 import { useGoAfterLogin } from "@/features/auth/use-go-after-login";
 import { isSafeReturnTo } from "@/features/auth/paths";
 import { SessionContext, useSession, type SessionState } from "@/lib/session";
+import { ThemeProvider } from "@/lib/theme-provider";
 
 const me: MeResponse = {
   user: { id: "dev-user-1", is_geekykey_admin: false },
@@ -96,13 +97,23 @@ function LoginStandIn() {
 }
 
 describe("RequireSession", () => {
-  it("shows the loading view while the session is unknown", async () => {
+  it("shows the signed-in shell while the session is unknown", async () => {
     render(
-      <SessionContext.Provider value={sessionWith("loading", null)}>
-        <RouterProvider router={makeRouter("/t/04A1B2C3D4E5F6")} />
-      </SessionContext.Provider>,
+      <ThemeProvider>
+        <SessionContext.Provider value={sessionWith("loading", null)}>
+          <RouterProvider router={makeRouter("/t/04A1B2C3D4E5F6")} />
+        </SessionContext.Provider>
+      </ThemeProvider>,
     );
-    expect(await screen.findByRole("status")).toBeInTheDocument();
+
+    // The shell is the header, the skip link and the main landmark, not only a spinner.
+    // It has to be there before /me answers, so the wait happens inside a page rather
+    // than over a blank one.
+    expect(await screen.findByRole("link", { name: "GeekyKey home" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Skip to content" })).toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading");
+    // The gated screen still must not flash.
     expect(screen.queryByText("Secret token page")).not.toBeInTheDocument();
   });
 

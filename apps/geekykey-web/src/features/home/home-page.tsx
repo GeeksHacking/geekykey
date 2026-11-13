@@ -10,9 +10,9 @@ import { useMe } from "@/lib/session";
  * My tokens is the home page of the GeekyKey screens (agreement 8.4, FRO-27). The list
  * is the session's own me payload: the query that answers "Am I logged in?" already
  * holds the user's tokens, oldest claim first, so this page keeps no query of its own.
- * A me call that fails is the gate's business (RequireSession renders the loading view,
- * the error state and the redirect to /login), so this page only renders with a
- * signed-in user.
+ * A me call that fails is the gate's business (RequireSession renders the frame while the
+ * session loads, the error state and the redirect to /login), so this page only renders
+ * with a signed-in user.
  *
  * The page reads in the order most people need it (FRO-155): their tokens, then the
  * buttons that open each event in /me as the same user (FRO-31), then the manual claim.
