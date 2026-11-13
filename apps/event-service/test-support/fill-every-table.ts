@@ -19,6 +19,8 @@ import { setupFixture } from "../src/test-helpers.ts";
 
 import { duelRounds, duelRoundPlayers, duels } from "../src/games/team-duels/schema.ts";
 
+import { relayGames, relayLock, relayTransfers } from "../src/games/relay/schema.ts";
+
 const AT = "2026-11-12T12:00:00.000Z";
 
 export async function fillEveryTable() {
@@ -60,5 +62,26 @@ export async function fillEveryTable() {
   await db.insert(duelRounds).values({ id: roundId, stationId, openedAt: AT, closesAt: AT });
   await db.insert(duelRoundPlayers).values({ roundId, userId, joinedAt: AT });
   await db.insert(duels).values({ id: crypto.randomUUID(), roundId, userA: userId, userB: other });
+  const gameId = crypto.randomUUID();
+  await db.insert(relayLock).values({ id: 1 });
+  await db.insert(relayGames).values({
+    id: gameId,
+    startedAt: AT,
+    stationA: stationId,
+    stationB: "station-2",
+    groupsPlaying: 2,
+    transfersNeeded: 3,
+    lastMovedAt: AT,
+  });
+  await db.insert(relayTransfers).values({
+    id: crypto.randomUUID(),
+    gameId,
+    fromStationId: stationId,
+    toStationId: "station-2",
+    fromGroupId: "group-1",
+    toGroupId: "group-2",
+    calledAt: AT,
+    closesAt: AT,
+  });
   return fixture;
 }

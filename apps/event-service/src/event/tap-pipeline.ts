@@ -105,6 +105,7 @@ export class TapPipeline {
     const receivedAt = now.toISOString();
 
     const stored: PendingTap[] = [];
+    const afterCommit: (() => Promise<unknown>)[] = [];
     const results = await this.#db.transaction(async (tx) => {
       const station = await this.#lockStation(tx, stationId);
       if (!station) throw new UnknownStation();
@@ -158,6 +159,9 @@ export class TapPipeline {
         stationId,
         now,
         tx,
+        afterCommit: (work) => {
+          afterCommit.push(work);
+        },
         cooldown: (toJudge) => this.#cooldown(tx, stationId, gameId, toJudge),
       });
       const gameTaps: GameTap[] = pending.map(({ clientTapId, userId, tappedAt, effectiveAt }) => ({
@@ -222,6 +226,12 @@ export class TapPipeline {
       return results;
     });
 
+    for (const work of afterCommit) {
+      // Handle both throws and rejections, without logging lines, keys or participant IDs.
+      void Promise.resolve()
+        .then(work)
+        .catch(() => log("after_commit_failed", { station_id: stationId }));
+    }
     for (const p of stored) {
       log("tap_stored", {
         station_id: stationId,

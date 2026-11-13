@@ -237,6 +237,7 @@ test("lists a station with its passport settings, its health and its last tap", 
     games: [
       { id: "passport", name: "Passport" },
       { id: "team_duels", name: "Team duels" },
+      { id: "relay", name: "Relay" },
     ],
     stations: [
       {

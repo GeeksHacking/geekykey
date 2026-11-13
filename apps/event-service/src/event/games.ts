@@ -57,6 +57,12 @@ export interface GameContext {
    * saved taps are judged by when they were made, not when they arrived.
    */
   cooldown(taps: readonly GameTap[]): Promise<boolean[]>;
+  /**
+   * Starts work only after the ingest commits, without awaiting it in the tap answer
+   * (the API agreement's 11.12). A rolled-back ingest runs none of its callbacks.
+   * Delivery may fail or be dropped, so a game must not depend on the result.
+   */
+  afterCommit(work: () => Promise<unknown>): void;
 }
 
 /** A tap a game counted or held back, with the status it was stored with. */
