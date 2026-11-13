@@ -2684,3 +2684,11 @@
   change: >-
     The token writer can upload each token's kind straight to GeekyKey, so it counts in the
     Token kinds screen without a pasted log. A later write wins even if an earlier upload arrives last.
+
+- id: relay-on-the-map
+  date: 2026-11-13
+  area: frontend
+  change: >-
+    The map at the booth draws a relay game: a line between its two stations, a mark on the one
+    waiting for a tap, and the count, such as 2 of 4. It never names a person or a group, so the
+    players still have to tell each other who goes next.
