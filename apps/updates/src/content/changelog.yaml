@@ -2658,3 +2658,10 @@
     Two stations can run the relay, where a tap at one names a group that must tap at the other
     within 20 seconds, until a game of 3 or 4 transfers is done. The waiting station gets a message
     with each call, and the map can read the game's progress every second, without names.
+- id: station-says-no-wifi
+  date: 2026-11-13
+  area: firmware
+  change: >-
+    Between taps, a station that has dropped off WiFi says "No WiFi: saving" on its screen while
+    it saves taps to send later. When WiFi returns, the screen goes back to its usual second line
+    by itself.
