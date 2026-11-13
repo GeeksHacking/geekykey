@@ -93,8 +93,6 @@ export function describeError(error: unknown): string {
       case "groups_exist":
         return "People are in groups already, so nothing changed. Press Reset to empty the groups, then make groups again.";
       // The reaction test reads /me again after either, which shows the play or the miss.
-      case "station_has_taps":
-        return "Taps here have already counted, so this station's game can't change until the data is cleared.";
       case "already_played":
         return "You've already played this one.";
       case "too_late":

@@ -139,7 +139,6 @@ const MOCK_LOGIN_LINKS: Record<string, string> = {
 };
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
-  station_has_taps: 409,
   name_taken: 409,
   no_groups: 409,
   too_few_participants: 409,
@@ -355,15 +354,15 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       .filter((tap) => tap.station_id === station.id && tap.source === "nfc")
       .sort((a, b) => b.received_at.localeCompare(a.received_at))[0];
     const seen = station.last_seen_at ? new Date(station.last_seen_at).getTime() : null;
-    // 9.11 fixes a station's game once a game has counted or held back a tap there.
-    const counted = countedTapsAt(station).length > 0;
     return {
       id: station.id,
       label: station.label,
       created_at: station.created_at,
       disabled_at: station.disabled_at,
       game: gameOf(station),
-      game_fixed: counted,
+      // 9.2 keeps game_fixed for one version and always gives false, since a station's game
+      // can change at any time (9.11). The screens don't read it.
+      game_fixed: false,
       booth: station.booth,
       passport: station.passport,
       last_seen_at: station.last_seen_at,
@@ -854,8 +853,6 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         if (!station) fail("not_found");
         if (game !== null && game !== "passport" && game !== "team_duels")
           fail("validation_failed");
-        if (toStationBoardStation(station).game_fixed && gameOf(station) !== game)
-          fail("station_has_taps");
         station.game = game;
         return { station: toStationBoardStation(station) };
       }),

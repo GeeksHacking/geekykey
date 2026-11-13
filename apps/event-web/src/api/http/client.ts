@@ -294,7 +294,6 @@ const ERROR_CODES: ReadonlySet<ErrorCode> = new Set([
   "no_groups",
   "too_few_participants",
   "groups_exist",
-  "station_has_taps",
   "already_played",
   "too_late",
   "rate_limited",

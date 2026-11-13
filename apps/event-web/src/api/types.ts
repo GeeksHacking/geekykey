@@ -316,7 +316,10 @@ export interface EventStationBoardStation {
   disabled_at: string | null;
   /** The `id` of the game it runs, or null for none. With none, its taps get `no_game`. */
   game: string | null;
-  /** True once a game has counted or held back a tap there, so its game can't change (9.11). */
+  /**
+   * Always false from the next version, since a station's game can change at any time (9.11).
+   * Kept for one version so the screens don't break, then removed. Don't read it.
+   */
   game_fixed: boolean;
   /** The booth the map draws it at (9.12), or null. */
   booth: string | null;
@@ -609,7 +612,6 @@ export type ErrorCode =
   | "groups_exist"
   // BAC-156, for the agreement's next version, 8.11: a second play of a reaction test, and one
   // after its 2 minutes.
-  | "station_has_taps"
   | "already_played"
   | "too_late"
   | "rate_limited"

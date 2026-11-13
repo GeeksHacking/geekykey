@@ -553,9 +553,9 @@ describe("station board", () => {
     }
   });
 
-  // Agreement 9.2 and 0.7: the board names the game each station runs, whether that game is
-  // fixed, and the booth the map draws it at (9.10, 9.11, 9.12).
-  it("gives every station its game, game_fixed and booth", async () => {
+  // Agreement 9.2 and 0.7: the board names the game each station runs, its game_fixed, and
+  // the booth the map draws it at (9.10, 9.11, 9.12).
+  it("gives every station its game, an always-false game_fixed and booth", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const board = await api.listStationBoard();
@@ -566,10 +566,9 @@ describe("station board", () => {
     for (const station of inPassport) expect(station.game).toBe("passport");
     expect(board.stations.some((station) => station.game === null)).toBe(true);
 
-    // A game is fixed once it has counted or held back a tap there (9.11), and the fixtures
-    // hold both a station with counted taps and one with only a no_game tap.
-    expect(board.stations.some((station) => station.game_fixed)).toBe(true);
-    expect(board.stations.some((station) => !station.game_fixed)).toBe(true);
+    // 9.2 keeps game_fixed for one version and gives false for every station, since a
+    // station's game can change at any time.
+    expect(board.stations.every((station) => station.game_fixed === false)).toBe(true);
 
     // The fixtures name booths from the example plan plus one it doesn't name, and leave one
     // station without a booth.
@@ -651,10 +650,10 @@ describe("setting a station's booth (agreement 9.12)", () => {
     expect(answer.station.booth).toBe(emoji);
   });
 
-  it("sets it on a disabled station and on one whose game is fixed", async () => {
+  it("sets it on a disabled station and on one that has taps", async () => {
     const { api, stations } = await setup();
     const disabled = stations.find((one) => one.disabled_at !== null)!;
-    const tapped = stations.find((one) => one.game_fixed && one.disabled_at === null)!;
+    const tapped = stations.find((one) => one.last_tap_at !== null && one.disabled_at === null)!;
 
     await api.setStationBooth(disabled.id, { booth: "C5" });
     await api.setStationBooth(tapped.id, { booth: "A1" });

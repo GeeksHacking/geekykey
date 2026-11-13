@@ -26,10 +26,10 @@ it("sets the game and refreshes the affected caches after cancelling the board p
   ]);
   expect(cancel.mock.invocationCallOrder[0]).toBeLessThan(invalidate.mock.invocationCallOrder[0]!);
   invalidate.mockClear();
-  api.mock.failNext("station_has_taps");
+  api.mock.failNext("internal_error");
   await act(async () => {
     await expect(result.current.mutateAsync("none")).rejects.toMatchObject({
-      code: "station_has_taps",
+      code: "internal_error",
     });
   });
   expect(invalidate).not.toHaveBeenCalled();
