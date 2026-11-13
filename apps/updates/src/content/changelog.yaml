@@ -2624,3 +2624,9 @@
   change: >-
     The station board's game menu now offers every game on a station that has taps, so an
     organiser can switch the two booth stations from the passport to team duels during the day.
+- id: guest-signs-out-after-event-link
+  date: 2026-11-13
+  area: frontend
+  change: >-
+    A guest who came to My tokens from the event can sign out there, and their tokens are
+    released, so the next person on a shared phone can claim them.

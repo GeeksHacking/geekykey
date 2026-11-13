@@ -107,6 +107,17 @@ export async function isSignedInAsGuest(userId: string): Promise<boolean> {
   return user !== null && user.isAnonymous && user.uid === userId;
 }
 
+/**
+ * Whether Firebase remembers the session's user as an account, rather than as a guest or as
+ * someone else. A session that arrived by a login link has no Firebase sign-in here, so this is
+ * what separates a guest, whose link is all that is left, from a Google user Firebase still
+ * knows (FRO-161).
+ */
+export async function remembersAccount(userId: string): Promise<boolean> {
+  const user = await savedUser();
+  return user !== null && !user.isAnonymous && user.uid === userId;
+}
+
 /** The user Firebase remembers in this browser, or null. */
 function savedUser(): Promise<User | null> {
   if (!hasFirebaseConfig()) return Promise.resolve(null);

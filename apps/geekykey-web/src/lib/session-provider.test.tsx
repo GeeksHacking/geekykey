@@ -6,6 +6,11 @@ import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { MeResponse } from "@/api/types";
+import {
+  arrivedByLoginLink,
+  clearArrivedByLoginLink,
+  markArrivedByLoginLink,
+} from "@/lib/login-link-arrival";
 import { useSession } from "@/lib/session";
 import { FIREBASE_SIGN_OUT_FAILED_KEY } from "@/lib/sign-out-marker";
 import { createTestProviders } from "@/test/providers";
@@ -25,6 +30,7 @@ beforeEach(() => {
   savedUserIdToken.mockResolvedValue(null);
   // A persisted sign-out survives a reload, so no test may inherit another's.
   localStorage.removeItem(FIREBASE_SIGN_OUT_FAILED_KEY);
+  clearArrivedByLoginLink();
 });
 
 /** A token the seeded participant owns, used as an identity-scoped cache key. */
@@ -125,6 +131,8 @@ describe("SessionProvider", () => {
       expect(result.current.loginLinkError).toBeUndefined();
       expect(api.firebaseLogin).not.toHaveBeenCalled();
       expect(statuses).not.toContain("anonymous");
+      // The session came from a link, so a later sign-out can tell it has no Firebase here.
+      expect(arrivedByLoginLink()).toBe(true);
     });
 
     it("replaces the session the browser had with the link's user", async () => {
@@ -144,6 +152,32 @@ describe("SessionProvider", () => {
 
       await act(() => result.current.refresh());
       expect(loginLink).toHaveBeenCalledOnce();
+    });
+
+    it("clears the arrival when the linked session signs out", async () => {
+      const api = createMockClient({ latencyMs: [0, 0], storage: null });
+      const { result } = mount(api, "mock");
+      await waitFor(() => expect(result.current.status).toBe("authenticated"));
+      expect(arrivedByLoginLink()).toBe(true);
+
+      await act(async () => {
+        await result.current.signOut();
+      });
+
+      expect(arrivedByLoginLink()).toBe(false);
+    });
+
+    it("clears the arrival when someone signs in", async () => {
+      markArrivedByLoginLink();
+      const { result } = setup();
+      await waitFor(() => expect(result.current.status).toBe("anonymous"));
+      expect(arrivedByLoginLink()).toBe(true);
+
+      await act(async () => {
+        await result.current.signIn(SEEDED_PARTICIPANT_ID);
+      });
+
+      expect(arrivedByLoginLink()).toBe(false);
     });
 
     it("keeps the session the browser had when the link fails, and says why", async () => {

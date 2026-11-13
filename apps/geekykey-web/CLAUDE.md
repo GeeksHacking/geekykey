@@ -26,9 +26,10 @@ differ.
 - `src/components/ui/form.tsx`, `src/components/ui/input.tsx` and `src/lib/form-errors.ts` are
   copies of the Event screens' files, with the same tests. Change them together.
 - `src/test/location.ts` is a copy of the Event screens' file. Change them together.
-- `src/lib/login-link.ts` and `src/features/auth/login-link-notice.tsx` are copies of the Event
-  screens' files of the same names, for a login link arriving here (agreement 7.5, BAC-157) rather
-  than there. Only the comments and the sentence differ. Change them together.
+- `src/lib/login-link.ts`, `src/lib/login-link-arrival.ts` and
+  `src/features/auth/login-link-notice.tsx` are copies of the Event screens' files of the same
+  names, for a login link arriving here (agreement 7.5, BAC-157) rather than there. Only the
+  comments and the sentence differ. Change them together.
 - `src/components/layout/page-title.tsx` and `section-title.tsx` draw the same yellow underline
   and marker as the Event screens' `page-header.tsx` and `section-heading.tsx` (FRO-159). Change
   their classes together.
@@ -89,6 +90,10 @@ frame. On the mock, `http://localhost:5174/#login=mock` logs in as the seeded pa
 A guest who signs out here goes on to `/sign-out` on the Event screens, which end that session and
 come back to the login here, so the next person on a shared phone doesn't find their passport
 (FRO-144).
+A session that arrived by a login link has no Firebase sign-in here, so
+`src/lib/login-link-arrival.ts` remembers the arrival. A sign-out then treats that session as a
+guest's when Firebase doesn't remember this user as an account, so the guest is warned and their
+tokens are released (FRO-161). A Google user Firebase still remembers signs out as before.
 A sign-out waits for that returning-user login to finish before it clears the cookie, so a
 login already in flight cannot set the cookie again (FRO-69). A sign-in waits for a
 returning-user login already running and stops a new one from starting, so the sign-in is

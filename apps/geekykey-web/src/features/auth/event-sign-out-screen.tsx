@@ -7,7 +7,7 @@ import { ErrorState } from "@/components/layout/error-state";
 import { FullPageLoading } from "@/components/layout/full-page-loading";
 import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
 import { Button } from "@/components/ui/button";
-import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
+import { COULD_NOT_CHECK_LOGIN, isGuestOrLinkArrival } from "@/features/auth/guest-check";
 import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
 import { EVENT_SCREENS_URL, HOME_PATH } from "@/lib/constants";
 import { useSession } from "@/lib/session";
@@ -46,7 +46,7 @@ export function EventSignOutScreen({ userId }: { userId: string | null }) {
     }
     if (session.status !== "authenticated" || check !== "checking" || !signedInAs) return;
     let current = true;
-    isGuest(signedInAs).then(
+    isGuestOrLinkArrival(signedInAs).then(
       (guest) => {
         if (!current) return;
         if (guest) setCheck("guest");

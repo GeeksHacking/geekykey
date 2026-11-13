@@ -9,6 +9,7 @@ import { ApiError } from "@/api/errors";
 import { ApiProvider } from "@/api/provider";
 import { createMockClient } from "@/api/mock/client";
 import { EVENT_SCREENS_URL } from "@/lib/constants";
+import { clearArrivedByLoginLink, markArrivedByLoginLink } from "@/lib/login-link-arrival";
 import { createQueryClient } from "@/lib/query-client";
 import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
@@ -16,16 +17,20 @@ import { routeTree } from "@/routeTree.gen";
 import { stubLocation } from "@/test/location";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 
-const { isSignedInAsGuest } = vi.hoisted(() => ({ isSignedInAsGuest: vi.fn() }));
+const { isSignedInAsGuest, remembersAccount } = vi.hoisted(() => ({
+  isSignedInAsGuest: vi.fn(),
+  remembersAccount: vi.fn(),
+}));
 
 /*
   Whether the user is a guest is Firebase's to say, and the test build has no Firebase, so
-  that one answer is stubbed. Everything else in the module is the real one: with no config,
+  those answers are stubbed. Everything else in the module is the real one: with no config,
   signing out of Firebase does nothing.
 */
 vi.mock("@/lib/firebase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/firebase")>()),
   isSignedInAsGuest,
+  remembersAccount,
 }));
 
 let location: ReturnType<typeof stubLocation>;
@@ -35,6 +40,10 @@ beforeEach(() => {
   vi.restoreAllMocks();
   isSignedInAsGuest.mockReset();
   isSignedInAsGuest.mockResolvedValue(false);
+  remembersAccount.mockReset();
+  // The test build has no Firebase, so it remembers no account unless a test says otherwise.
+  remembersAccount.mockResolvedValue(false);
+  clearArrivedByLoginLink();
   // Sonner keeps its queue in module state, so a toast raised in one test would otherwise
   // be replayed into the Toaster mounted by the next one.
   toast.dismiss();
@@ -179,6 +188,67 @@ describe("the signed-in shell", () => {
     );
     expect(router.state.location.pathname).toBe("/");
     expect(await api.me()).toMatchObject({ tokens: before.tokens });
+  });
+
+  it("warns a guest who arrived by a login link, though Firebase remembers nobody", async () => {
+    const user = userEvent.setup();
+    const { router, api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+    const { tokens } = await api.me();
+    // The link logged them in, so Firebase here remembers nobody.
+    markArrivedByLoginLink();
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: /Sign out/ }));
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Sign out of this guest login?",
+    });
+    await user.click(within(dialog).getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    await expect(api.me()).rejects.toMatchObject({ code: "unauthenticated" });
+    api.mock.setSession(SEEDED_ADMIN_ID);
+    for (const { uid } of tokens) {
+      await expect(api.claimToken(uid)).resolves.toMatchObject({ uid });
+    }
+    expect(window.location.replace).toHaveBeenCalledWith(
+      `${EVENT_SCREENS_URL}sign-out#user=${SEEDED_PARTICIPANT_ID}`,
+    );
+  });
+
+  it("signs a Google user out without warning when Firebase knows them", async () => {
+    const user = userEvent.setup();
+    const { router, api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+    const { tokens } = await api.me();
+    markArrivedByLoginLink();
+    remembersAccount.mockResolvedValue(true);
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: /Sign out/ }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(window.location.replace).not.toHaveBeenCalled();
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    expect(await api.me()).toMatchObject({ tokens });
+  });
+
+  it("releases nothing and says it couldn't check when Firebase fails", async () => {
+    const user = userEvent.setup();
+    const { router, api } = signedInAs(SEEDED_PARTICIPANT_ID);
+    await screen.findByRole("button", { name: "Account menu" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    isSignedInAsGuest.mockRejectedValue(new Error("Firebase didn't load"));
+    const release = vi.spyOn(api, "releaseToken");
+
+    const menu = await openAccountMenu(user);
+    await user.click(within(menu).getByRole("menuitem", { name: /Sign out/ }));
+
+    expect(await screen.findByText("Couldn't check your login. Try again.")).toBeInTheDocument();
+    expect(release).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/");
   });
 
   it("releases every token a guest holds and signs them out, so someone else can claim them", async () => {
