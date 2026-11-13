@@ -6,8 +6,13 @@
     https://key.geekshacking.com/t/<14 placeholder zeros>?k=<kind>
   and the chip's UID mirror swaps in the token's own UID each time it is read.
   The kind is one letter, set for the batch over serial with "kind E" (ADR 0006).
-  Each token written prints "<UID>,<kind>" on its own line: keep those lines,
-  they're the list the server loads (BAC-113).
+  Each token written prints "<UID>,<kind>" on its own line and queues its kind
+  for upload (HAR-31). Keep the serial log as the backup for the Token kinds
+  screen. WiFi and uploads run on core 0; writing never waits for the network.
+  The RAM queue is lost on restart: wait for "All uploaded" before unplugging.
+  Set the writer's WiFi, SERVER_URL and WRITER_KEY in its own secrets.h.
+  HTTPS checks ca_roots.h; plain HTTP is only to .local hosts through mDNS.
+  This sketch never reads or writes the station's saved settings.
   Writes are protected by one password (secrets.h). Reads are open.
 
   NEVER set CFGLCK (ACCESS bit 6) and never touch the lock bytes on pages 02h/28h.
@@ -23,6 +28,7 @@
 #include <LiquidCrystal_I2C.h>
 #include "secrets.h"   // NTAG_PASSWORD[4], NTAG_PACK[2]  (gitignored, see secrets.example.h)
 #include "token_address.h"
+#include "token_upload_task.h"
 
 // ---- Wiring: change these to match the station ------------------------------
 constexpr int     PIN_SCK  = 12;   // ESP32-S3 default FSPI pins
@@ -64,9 +70,16 @@ static char errBuf[17];
 static char kind = NO_KIND;
 
 static void showLines(const char* l1, const char* l2 = "") {
-  lcd.clear();
-  lcd.setCursor(0, 0); lcd.print(l1);
-  lcd.setCursor(0, 1); lcd.print(l2);
+  static char previous[2][17] = {};
+  const char* lines[2] = {l1, l2};
+  for (uint8_t row = 0; row < 2; ++row) {
+    char padded[17];
+    snprintf(padded, sizeof(padded), "%-16.16s", lines[row]);
+    if (!strcmp(previous[row], padded)) continue;
+    lcd.setCursor(0, row);
+    lcd.print(padded);
+    memcpy(previous[row], padded, sizeof(padded));
+  }
 }
 
 // Keep identical to the station's uidToHex (upper-case hex, no separators).
@@ -111,16 +124,18 @@ static const char* failPage(const char* what, uint8_t page) {
 
 static void showReady() {
   if (kind != NO_KIND) {
-    char line2[17];
-    snprintf(line2, sizeof(line2), "to write kind %c", kind);
-    showLines("Tap a token", line2);
+    char line1[17], line2[17];
+    snprintf(line1, sizeof(line1), "Tap: kind %c", kind);
+    const UploadSnapshot upload = tokenUploadSnapshot();
+    formatReadyUpload(line2, upload.enabled, upload.wifi, upload.waiting, upload.pasteNeeded);
+    showLines(line1, line2);
   } else {
     showLines("Set the kind:", "type kind <A-Z>");
   }
 }
 
 static void printHelp() {
-  Serial.println("Type \"kind <letter>\" to set the kind of this batch, for example: kind E");
+  writerPrintLine("Type \"kind <letter>\" to set the kind of this batch, for example: kind E");
 }
 
 // Handles one line typed on the serial port.
@@ -129,11 +144,11 @@ static void handleLine(const char* line) {
   switch (readKindCommand(line, &newKind)) {
     case KIND_SET:
       kind = newKind;
-      Serial.print("Kind set to "); Serial.println(kind);
+      writerPrintLine(String("Kind set to ") + kind);
       showReady();
       break;
     case KIND_NOT_A_LETTER:
-      Serial.println("A kind is one letter, A to Z. The kind is unchanged.");
+      writerPrintLine("A kind is one letter, A to Z. The kind is unchanged.");
       break;
     case NOT_KIND_COMMAND:
       if (line[0] != '\0') printHelp();
@@ -150,7 +165,7 @@ static void pollSerial() {
     char c = Serial.read();
     if (c == '\n' || c == '\r') {
       line[len] = '\0';
-      if (tooLong) Serial.println("That line was too long. The kind is unchanged.");
+      if (tooLong) writerPrintLine("That line was too long. The kind is unchanged.");
       else handleLine(line);
       len = 0;
       tooLong = false;
@@ -168,6 +183,7 @@ static void waitForTokenToWrite() {
   showReady();
   while (true) {
     pollSerial();
+    showReady();
     if (kind != NO_KIND && mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) return;
     delay(30);
   }
@@ -182,10 +198,27 @@ static bool waitForToken(uint32_t timeoutMs) {
   return false;
 }
 
+static bool resultVisible = false;
+static uint32_t resultUploadId = 0;
+static bool resultWritten = false;
+static char resultText[17] = {};
+static String resultUid;
+
+static void refreshResult() {
+  if (!resultVisible) return;
+  char line[17];
+  if (resultWritten && (resultUploadId || !strncmp(resultText, "OK ", 3)))
+    formatResultUpload(line, resultText, tokenUploadSnapshot(resultUploadId).state,
+                       (millis() / 1500) % 2 == 1);
+  else snprintf(line, sizeof(line), "%s", resultText);
+  showLines(line, resultUid.c_str());
+}
+
 static void waitForRemoval() {
   mfrc522.PICC_HaltA();
   uint8_t misses = 0;
   while (misses < 5) {
+    refreshResult();
     byte atqa[2];
     byte size = sizeof(atqa);
     if (mfrc522.PICC_WakeupA(atqa, &size) == MFRC522::STATUS_OK) {
@@ -212,7 +245,7 @@ static const char* writeToken() {
   if (!readPages(PAGE_CONFIG, page)) return "READ CONFIG";
   if (page[4] & 0x40) return "CFG LOCKED";           // CFGLCK already set, ACCESS can't change
   if (page[3] != AUTH0_FRESH) {
-    Serial.println("Token was written before, authenticating (one try only)");
+    writerPrintLine("Token was written before, authenticating (one try only)");
     if (!authenticate()) return "AUTH";
   }
 
@@ -295,13 +328,14 @@ void setup() {
 
   if (secretsLookUnset()) {
     showLines("Set secrets.h", "then reflash");
-    Serial.println("secrets.h still has the placeholder password. Stopping.");
+    writerPrintLine("secrets.h still has the placeholder password. Stopping.");
     while (true) delay(1000);
   }
 
+  startTokenUploads();
   SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_SS);
   mfrc522.PCD_Init();
-  Serial.println("GeekyKey token writer ready");
+  writerPrintLine("GeekyKey token writer ready");
   printHelp();
 }
 
@@ -309,39 +343,43 @@ void loop() {
   waitForTokenToWrite();
 
   String uid = uidToHex(mfrc522.uid);
-  Serial.print("Token UID: "); Serial.println(uid);
+  writerPrintLine(String("Token UID: ") + uid);
   char writing[17];
   snprintf(writing, sizeof(writing), "Writing kind %c", kind);
   showLines(writing, uid.c_str());
 
   const char* err = writeToken();
   bool written = !err;
+  uint32_t uploadId = 0;
   if (written) {
     // The token carries the new address from here on, so its line goes in the
     // log now, even if the check below fails.
-    char uidKindLine[UID_KIND_LINE_LEN];
-    formatUidKindLine(uidKindLine, uid.c_str(), kind);
-    Serial.println(uidKindLine);
+    uploadId = logWrittenToken(uid.c_str(), kind);
     err = verifyToken(uid);
   }
 
   char line1[17];
   if (err) {
     snprintf(line1, sizeof(line1), "FAIL %s", err);
-    Serial.print("FAIL: "); Serial.println(err);
+    writerPrintLine(String("FAIL: ") + err);
     if (!strcmp(err, "AUTH") || !strcmp(err, "PASSWORD")) {
-      Serial.println("Don't keep re-tapping: every wrong password counts towards the chip's limit of 7.");
+      writerPrintLine("Don't keep re-tapping: every wrong password counts towards the chip's limit of 7.");
     } else if (written) {
-      Serial.print("The token was written with kind "); Serial.print(kind);
-      Serial.println(" but its check failed. Tap it again to write and check it again.");
+      writerPrintLine(String("The token was written with kind ") + kind +
+                      " but its check failed. Tap it again to write and check it again.");
     }
   } else {
     snprintf(line1, sizeof(line1), "OK kind %c", kind);
-    Serial.print("OK  https://"); Serial.print(URL_TAIL); Serial.print(uid);
-    Serial.print(KIND_QUERY); Serial.println(kind);
+    writerPrintLine(String("OK  https://") + URL_TAIL + uid + KIND_QUERY + kind);
   }
-  showLines(line1, uid.c_str());
-
+  resultUploadId = uploadId;
+  resultWritten = written;
+  snprintf(resultText, sizeof(resultText), "%s", line1);
+  resultUid = uid;
+  resultVisible = true;
+  refreshResult();
   waitForRemoval();
-  delay(1500);
+  const uint32_t removedAt = millis();
+  while (uint32_t(millis() - removedAt) < 1500) { refreshResult(); delay(30); }
+  resultVisible = false;
 }

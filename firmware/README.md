@@ -117,24 +117,54 @@ token page ([ADR 0006](../docs/adr/0006-a-token-carries-its-kind.md)).
 
 1. Copy `token_writer/secrets.example.h` to `token_writer/secrets.h` and put in the write password.
    Every token written with one password can only be rewritten with that password, so keep a copy
-   with Adam outside the repo.
+   with Adam outside the repo. For uploads, fill in `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL` and
+   `WRITER_KEY` in this same file. Adam makes the writer key (`gk_wri_` and 64 lower-case hex digits);
+   the Worker keeps only its hash. It is a writer key, separate from a station key.
+   Use a 2.4 GHz WiFi network with a password and no sign-in page. Leaving the WiFi settings or key
+   empty or at their placeholders turns uploads off; writing and the serial log still work.
+   `SERVER_URL` is a full base URL, such as `https://key-api.geekshacking.com`. HTTPS checks the
+   certificates in `token_writer/ca_roots.h`. Plain HTTP is allowed only to a `.local` host found
+   through mDNS, such as `http://your-laptop.local:8000`, on the same network. Use a throwaway
+   writer key there: HTTP sends it without encryption.
 2. Flash `token_writer/` to the station with the same board settings as the station itself.
-   Flashing the station again later brings it back, with its setup-mode settings kept.
+   Flashing the station again later brings it back, with its setup-mode settings kept. The writer
+   uses only its own `secrets.h`; it never reads or writes the station's saved settings.
 3. Open the Serial Monitor at 115200 baud. Opening it restarts the S3, so open it before you start.
    Keep it open for the whole batch, because the log in step 5 comes only through it.
 4. Type `kind E`, with the batch's letter in place of `E`. The letter can be upper or lower case,
-   and the writer always writes a capital. The screen shows `to write kind E`. The writer writes
+   and the writer always writes a capital. The screen shows `Tap: kind E`. The writer writes
    nothing until a kind is set, and forgets it at every restart, so it never reuses an earlier
    batch's kind. Type `kind` again with another letter to start the next batch.
 5. Tap a token, take it away when the screen says so, and tap it again to check it. The screen
    shows `OK kind E` or `FAIL` with the reason. Each token written prints a line such as
-   `04E45150324189,E`, its UID and its kind, before the check. Those lines are the list the
-   server loads (BAC-113), so copy every one of them out of the Serial Monitor. Every one of them
-   has this shape: 14 capital hex digits, a comma and one capital letter. Anything else the writer
-   prints isn't part of the list. Load them at `https://key.geekshacking.com/admin/token-kinds`,
-   which needs a GeekyKey admin's login. The screen reads only those lines, so the Serial Monitor's text can be pasted as it is. Check the tokens
-   per kind and any lines it flags, then press Load. One load takes up to 500 tokens, so split a
-   longer log.
+   `04E45150324189,E`, its UID and its kind, before the check, and queues the same write for upload.
+   A failed check still uploads that write, because the token already carries its new address.
+   The result shows `wait` while queued and `sent` when uploaded, and updates while the token is
+   still on the reader. `full` means the queue had no room, `err` means the upload was rejected,
+   and `off` means uploads are off. A `FAIL` reason too long for a suffix takes turns with `Upload: wait` or `Upload: sent`.
+6. Between tokens, the second line shows `All uploaded`, how many are waiting, `No WiFi` with the
+   waiting count, or `Uploads off`. Wait for `All uploaded` before unplugging. The queue holds
+   256 writes in RAM only; unplugging or restarting loses everything still waiting. A token
+   written while the queue is full still writes and logs normally, but needs the backup path below.
+
+WiFi joins and reconnects in the background, so losing it never stops writing. The writer sends
+FIFO batches of up to 50 writes. After a failed upload it retries after 5, 10, 20, 40, then 60
+seconds, and stays at 60 until one succeeds. Serial reports the reason and waiting count, and
+prints `Uploaded <UID> kind E` for each accepted write. A 401 retries every 60 seconds: check the
+writer key and the Worker's secret with Adam. The Worker secret can be fixed without reflashing
+the writer. A 400 means a firmware bug: that batch is rejected rather than retried forever, and
+Serial lists the affected UIDs. Writes still waiting after seven days also need the backup path.
+`Check serial log` (or a waiting count with `paste!`) means some writes need that path even after
+the queue drains. This warning stays until restart.
+
+Keep the Serial Monitor log as the backup when uploads fail or are off. Copy the `<UID>,<kind>`
+lines for the tokens that didn't upload, and load them at
+`https://key.geekshacking.com/admin/token-kinds`, which needs a GeekyKey admin's login. A writer's
+NTAG213 line has 14 capital hex digits, a comma and one capital letter. Upload messages and the
+writer's other text aren't part of the list. The screen reads only UID/kind lines, so Serial
+Monitor text can be pasted as it is. Check the tokens per kind and any lines it flags, then press
+Load. One load takes up to 500 tokens, so split a longer log. For a rewritten UID, use its latest
+line. Keep the full log until every written token is on the server's list.
 
 After a `FAIL` other than `AUTH` or `PASSWORD`, tap the same token again until it shows `OK`. A
 failed check can leave the token written, and writing it again prints its line again.
@@ -151,6 +181,16 @@ run on a laptop, from the repo root:
 ```sh
 c++ -std=c++17 -Wall -Wextra -o /tmp/token_address_test firmware/token_writer/test/token_address_test.cpp && /tmp/token_address_test
 ```
+
+The upload queue, retry timing, JSON body and screen/serial text also touch no pins:
+
+```sh
+c++ -std=c++17 -Wall -Wextra -o /tmp/token_upload_test firmware/token_writer/test/token_upload_test.cpp && /tmp/token_upload_test
+```
+
+Both tests print `All passed`. They don't open a serial port. To refresh the trusted certificates,
+follow the commands at the top of `geekykey_station/make_ca_roots.py` from that folder; the script
+writes both the station's and writer's `ca_roots.h` copies.
 
 ## The setup mode
 
