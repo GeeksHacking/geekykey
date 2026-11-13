@@ -174,6 +174,7 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 | GeekyKey Service | Each user's requests to its API | 60 |
 | GeekyKey Service | Each user's token lookups, claims and meetings (8.8), which also count toward the 60 | 20 |
 | Event Service | Each user's requests to its API | 60, counted by each server instance |
+| Event Service | Each user's polls of the relay's progress, `GET /api/v1/map/relay` (9.13), which don't count toward the 60 (BAC-184, for the next version) | 90, counted by each server instance |
 
 - The station limit counts a request by the key it sends, before the key is checked. So a wrong
   key is counted too, and over the limit it gets `429` rather than `401`. A request with no key
@@ -197,8 +198,10 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
   after it ends starts a new count. An organizer's screens share one count: the station board
   polled every 10 to 15 seconds (9.2) and the scan log every 5 (9.3) use at most 18 a minute.
   The map, polled every 2 seconds (9.10), uses 30, so an organizer with all three open uses 48.
-- The relay's progress, `GET /api/v1/map/relay` (9.13), isn't counted (BAC-184, for the next
-  version). The map polls it every second, which with the map's own 30 would pass the 60.
+- The relay's progress, `GET /api/v1/map/relay` (9.13), has a count of its own, 90 a minute,
+  and doesn't count toward the 60 (BAC-184, for the next version). The map polls it every second,
+  which with the map's own 30 would pass the 60. Its count leaves room for those 60 polls, and
+  still answers `429` to a screen polling it in a loop.
 - Each Event Service server instance keeps its own count, so a user whose requests reach two
   instances can get up to 120 a minute through.
 
@@ -2145,8 +2148,8 @@ Added for the next version (BAC-184). What the map draws of the relay (6.1): its
 call a station is waiting on, and how far the game has got. It's apart from 9.10 so the map can ask
 for it every second.
 
-**Auth:** as 9.10's, for a user on the organizer list or the map screen list. It isn't counted
-toward the user's 60 requests a minute ([Rate limits](#rate-limits)).
+**Auth:** as 9.10's, for a user on the organizer list or the map screen list. It has a limit of
+its own, 90 a minute, and doesn't count toward the user's 60 ([Rate limits](#rate-limits)).
 
 **Response `200`**
 
@@ -2184,7 +2187,8 @@ toward the user's 60 requests a minute ([Rate limits](#rate-limits)).
   either. The map draws the transfer between the two stations' booths from 9.10.
 - Poll this every second while the map is shown.
 
-**Errors:** `unauthenticated` and `forbidden`, as 9.10's.
+**Errors:** `unauthenticated` and `forbidden`, as 9.10's, and `rate_limited` past its own 90 a
+minute ([Rate limits](#rate-limits)).
 
 ---
 
@@ -3048,4 +3052,4 @@ Closed on 2026-10-10:
 | 2026-11-12 | For the next version: each stored tap records the game that counted it or held it back, so an organizer can change a station's game at any time (BAC-183). The booth's two stations can then run the passport and change to another game during the demo. Section 4 replaces the rule that fixed a station's game with one where each game reads only its own taps: a stamp and points come from the taps the passport accepted, and the cooldown (6.1) and the next stop (8.1) from the taps it judged, so another game's tap at a passport station earns nothing, and a station set back to the passport shows the stamps it had. 8.1's `earned_at` and `next_stop`, 9.5's stamp slots and 9.10's `unique_participants` count the same way, while 9.10's `taps` still counts every game's, so it never drops. Taps stored before the change record the game their station ran then. **Removed:** `409 station_has_taps`, from section 2, 9.11 and the station board's sentence in section 13, and 9.1's rule that a station whose game was fixed keeps none. Removing an error code is an exception to section 1's rule, as in the row of 2026-11-06: an older screen that still knows it is never sent it. **Changed:** 9.2's `game_fixed` is always `false`, and is removed in the version after this one. No other field changes, and nothing is added to a response. |
 | 2026-11-12 | For the next version: the server writes the rest of the station's screen (BAC-181, [ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)). A tap's result can give a `countdown` that the station counts down itself, with `seconds`, `lines` holding `{s}` for the seconds left, and an `ending` for zero (6.1 and 11.2). The ticket called it `then`, which our linter refuses as a key, since it marks an object as a promise. Team duels gives a countdown while its round is open, and the relay (BAC-184) will use one for a transfer's 20 seconds. **New:** `results[].countdown` in 6.1 and 11.2, `idle_lines` on each registered station (11.1) and in the heartbeat's answer (6.2), and the firmware contract for both. Ours gives the passport's and team duels' idle text. An `idle_lines` that breaks the rules is left out for that station alone, not the whole list. Section 4 says the server writes the screen, and 11.1 lets `idle_lines` into the list. Each service works with the other's previous version: an older GeekyKey Service drops both fields, and an older Event Service sends neither, so its stations keep `Ready` / `Tap a tag`. A station that doesn't know them ignores them and shows `lines`. No field or route is removed. |
 | 2026-11-13 | For the next version: an Event Service can send a station a station message, with no tap (BAC-182, [ADR 0009](../docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md)). Each station holds a WebSocket open to the GeekyKey Service, which passes on what the station's Event Service sends for it. **New:** the station's socket, `GET /api/v1/stations/socket` (6.3), with its firmware contract; `POST /api/v1/station-messages` on the GeekyKey Service (11.12), the first request an Event Service makes to it, with the Event Service key it already shares; the status `426` and the error `upgrade_required`; and the JSON Schema of the message's request and answer (11.7). A message carries a tap answer's `lines` and `countdown`, with 6.1's rules, and `beep`. One for a station with no socket answers `delivered: false` and is dropped. Section 3 says the Event Service key now goes both ways, and the station limit counts the requests that open the socket. Each service works with the other's previous version: an older GeekyKey Service answers a message `404 not_found`, which ours treats as a failed message, and a station that doesn't know the socket never opens it. No field or route is removed. |
-| 2026-11-13 | For the next version: two stations run the relay, where people from different groups pass a transfer between them (BAC-184). A tap at either relay station starts a game and names a group for the other station; that group's tap there within 20 seconds completes a transfer and calls the next group back. A game is 3 transfers with two groups, or 4 with three or more, and ends at its last transfer or after 2 minutes with no tap. **New:** the relay in section 4 and in 9.2's `games`, as `relay`; its lines, countdowns and station messages in 6.1; its idle text in 6.2; and `GET /api/v1/map/relay` (9.13), which the map polls every second and which isn't counted toward the user limit. The relay gives no points, stamps or connections. No field or route is removed. |
+| 2026-11-13 | For the next version: two stations run the relay, where people from different groups pass a transfer between them (BAC-184). A tap at either relay station starts a game and names a group for the other station; that group's tap there within 20 seconds completes a transfer and calls the next group back. A game is 3 transfers with two groups, or 4 with three or more, and ends at its last transfer or after 2 minutes with no tap. **New:** the relay in section 4 and in 9.2's `games`, as `relay`; its lines, countdowns and station messages in 6.1; its idle text in 6.2; and `GET /api/v1/map/relay` (9.13), which the map polls every second, with a limit of its own of 90 a minute rather than a share of the user's 60. The relay gives no points, stamps or connections. No field or route is removed. |
