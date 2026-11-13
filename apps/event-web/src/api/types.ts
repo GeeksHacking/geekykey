@@ -462,6 +462,23 @@ export interface MapResponse {
   connections?: MapConnections;
 }
 
+/** GET /api/v1/map/relay (agreement 9.13). Counts and station IDs only. */
+export interface MapRelayResponse {
+  relay: null | {
+    stations: string[];
+    game: null | {
+      started_at: string;
+      transfers: number;
+      transfers_needed: number;
+      calling_station_id: string | null;
+      waiting_station_id: string | null;
+      waiting_until: string | null;
+      ended_at: string | null;
+      complete: boolean;
+    };
+  };
+}
+
 /** How someone came to be in their group (spec: participant groups, draft for agreement 0.14). */
 export type GroupPlacedHow = "allocated" | "latecomer" | "organizer";
 

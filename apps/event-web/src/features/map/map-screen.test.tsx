@@ -12,6 +12,7 @@ import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { MapScreen } from "@/features/map/map-screen";
+import { relayPoll } from "@/features/map/test-relay";
 import { mapStation } from "@/features/map/test-stations";
 import { createTestProviders } from "@/test/providers";
 
@@ -39,7 +40,14 @@ function setup(
     act(async () => {
       await queryClient.refetchQueries({ queryKey: queryKeys.map });
     });
-  return { api, poll };
+  return {
+    api,
+    poll,
+    pollRelay: () =>
+      act(async () => {
+        await queryClient.refetchQueries({ queryKey: queryKeys.mapRelay });
+      }),
+  };
 }
 
 function ringOf(stationId: string) {
@@ -235,4 +243,57 @@ describe("MapScreen", () => {
     await screen.findByRole("region", { name: "On the map" });
     expect(screen.queryByRole("region", { name: "Connections" })).not.toBeInTheDocument();
   });
+});
+
+it("adds the relay to the plan and side column without replacing the connection web", async () => {
+  const { api } = setup(SEEDED_ORGANIZER_ID, (api) => {
+    vi.spyOn(api, "map").mockResolvedValue({
+      stations: [
+        mapStation({ station_id: "s1", game: "relay", booth: "B1", name: null }),
+        mapStation({ station_id: "s2", game: "relay", booth: "B2", name: null }),
+      ],
+      connections: { count: 1, links: [[1, 2]] },
+    });
+    vi.spyOn(api, "mapRelay").mockResolvedValue(relayPoll());
+  });
+  const relay = await screen.findByRole("region", { name: "Reactor Relay" });
+  expect(relay).toHaveTextContent("2 of 4");
+  expect(screen.getByRole("region", { name: "Connections" })).toHaveTextContent("1 connection");
+  expect(
+    screen.getByRole("img", { name: /MPH/ }).querySelector("[data-relay-line]"),
+  ).toBeInTheDocument();
+  for (const user of api.mock.data.users)
+    if (user.display_name) expect(document.body).not.toHaveTextContent(user.display_name);
+  for (const group of api.mock.data.groups) expect(relay).not.toHaveTextContent(group.name);
+});
+
+it("does not ask for relay progress on the ordinary map", async () => {
+  let relayRequest;
+  setup(SEEDED_ORGANIZER_ID, (api) => {
+    relayRequest = vi.spyOn(api, "mapRelay");
+  });
+  await screen.findByRole("region", { name: "Connections" });
+  expect(relayRequest).not.toHaveBeenCalled();
+});
+
+it("keeps the map and web without an error notice when the relay request fails", async () => {
+  const { api, pollRelay } = setup(SEEDED_ORGANIZER_ID, (api) => {
+    vi.spyOn(api, "map").mockResolvedValue({
+      stations: [
+        mapStation({ station_id: "s1", game: "relay", booth: "B1" }),
+        mapStation({ station_id: "s2", game: "relay", booth: "B2" }),
+      ],
+      connections: { count: 1, links: [[1, 2]] },
+    });
+    vi.spyOn(api, "mapRelay").mockResolvedValue(relayPoll());
+  });
+  await screen.findByRole("region", { name: "Reactor Relay" });
+  vi.spyOn(api, "mapRelay").mockRejectedValue(new Error("offline"));
+  await pollRelay();
+  await waitFor(() =>
+    expect(screen.queryByRole("region", { name: "Reactor Relay" })).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("region", { name: "Connections" })).toHaveTextContent("1 connection");
+  expect(screen.getByRole("img", { name: /MPH/ })).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
