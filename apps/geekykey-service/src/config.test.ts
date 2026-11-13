@@ -65,6 +65,7 @@ test("wrangler.jsonc's settings, with the secrets, start the Worker", () => {
     EVENT_SERVICE_KEY_SHOWCASE,
   });
   assert.deepEqual(config, {
+    tokenWriterKeyHash: null,
     eventServices: [
       {
         id: "showcase",
@@ -290,4 +291,14 @@ test("a missing or malformed setting stops the Worker, and says which", () => {
   ] as const) {
     assertRefused({ [name]: value }, name);
   }
+});
+
+test("the optional writer hash never prevents startup and only valid hashes enable uploads", () => {
+  for (const hash of [undefined, "", "bad", "A".repeat(64), 42]) {
+    assert.equal(loadConfig(settings({ TOKEN_WRITER_KEY_HASH: hash })).tokenWriterKeyHash, null);
+  }
+  assert.equal(
+    loadConfig(settings({ TOKEN_WRITER_KEY_HASH: "a".repeat(64) })).tokenWriterKeyHash,
+    "a".repeat(64),
+  );
 });

@@ -29,6 +29,7 @@ function harness({ claimsDeadlineMs = 4000 } = {}) {
     stationSockets: fakeStationSockets(),
     stationLimit: env.STATION_LIMIT,
     userLimit: fakeLimiter(60),
+    writerLimit: env.TOKEN_WRITER_LIMIT,
     tokenLimit: fakeLimiter(20),
   });
 
@@ -362,4 +363,17 @@ test("new routes reject malformed stand-in replies without logging a successful 
     lines.some((line) => line.message === "token_kind_removed"),
     false,
   );
+});
+
+test("the admin paste response keeps its three counts when the stand-in adds outdated", async () => {
+  const { fake, logIn, load } = harness();
+  fake.answers.loadKinds = async () =>
+    Response.json({ new: 1, changed: 0, unchanged: 0, outdated: 0 });
+  const res = await load(
+    { tokens: [{ uid: "DEADBEEF", kind: "E", written_at: "2026-11-13T00:00:00.000Z" }] },
+    await logIn("admin-1"),
+  );
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { new: 1, changed: 0, unchanged: 0 });
+  assert.deepEqual(fake.sent[0]?.body, { tokens: [{ uid: "DEADBEEF", kind: "E" }] });
 });

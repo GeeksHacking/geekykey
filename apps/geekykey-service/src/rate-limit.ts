@@ -7,7 +7,7 @@ import { log } from "./lib/log.ts";
  * its key's hash, and null when it doesn't, or a user, by user ID. Never a
  * key, or a key's hash, which finds the station as well as its key would.
  */
-export type Caller = { station_id: string | null } | { user_id: string };
+export type Caller = { station_id: string | null } | { user_id: string } | { token_writer: true };
 
 /**
  * The answer to a caller over a limit (the API agreement's section 2, "Rate

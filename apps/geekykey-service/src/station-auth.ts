@@ -53,6 +53,8 @@ export function stationAuth(
   return async (c, next) => {
     const key = bearerKey(c.req.header("Authorization"));
     if (key === null) return c.json({ error: "missing_station_key" }, 401);
+    // A writer key never authenticates a station, even if an Event Service lists its hash.
+    if (key.startsWith("gk_wri_")) return c.json({ error: "invalid_station_key" }, 401);
 
     const keyHash = await hashStationKey(key);
     const { success } = await stationLimit.limit({ key: keyHash });

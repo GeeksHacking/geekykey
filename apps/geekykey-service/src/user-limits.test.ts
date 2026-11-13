@@ -41,6 +41,7 @@ function harness({
     stationLimit: fakeLimiter(60),
     userLimit,
     tokenLimit,
+    writerLimit: env.TOKEN_WRITER_LIMIT,
   });
 
   /** The gk_session cookie a Firebase login as `userId` sets, as the browser sends it back. */

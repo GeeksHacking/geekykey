@@ -161,39 +161,79 @@ export function claimsStandInRoutes({ key }: { key: string }) {
     })
     .post(
       "/token-kinds",
-      jsonBody(z.object({ tokens: z.array(z.object({ uid, kind })).max(MAX_UIDS) })),
+      jsonBody(
+        z.object({
+          tokens: z
+            .array(z.object({ uid, kind, written_at: z.iso.datetime({ precision: 3 }).optional() }))
+            .max(MAX_UIDS),
+        }),
+      ),
       async (c) => {
         const { db } = c.var;
-        // A UID named twice takes its later kind, as the token writer's log reads.
-        const kindOf = new Map(c.req.valid("json").tokens.map((t) => [t.uid, t.kind]));
-        const uids = [...kindOf.keys()];
-        const existing =
-          uids.length === 0
-            ? []
-            : await db
-                .select({ uid: tokenKinds.uid, kind: tokenKinds.kind })
-                .from(tokenKinds)
-                .where(inArray(tokenKinds.uid, uids));
-        const current = new Map(existing.map((t) => [t.uid, t.kind]));
-
-        const writes = [...kindOf]
-          .filter(([token, newKind]) => current.get(token) !== newKind)
-          .map(([token, newKind]) => ({ uid: token, kind: newKind }));
-        // One statement, so a load goes in whole or not at all. It never deletes, so a
-        // token not in the load keeps its kind.
-        if (writes.length > 0) {
-          await db
-            .insert(tokenKinds)
-            .values(writes)
-            .onDuplicateKeyUpdate({ set: { kind: sql`VALUES(kind)` } });
+        const latest = new Map<string, { uid: string; kind: string; written_at?: string }>();
+        for (const token of c.req.valid("json").tokens) {
+          const before = latest.get(token.uid);
+          // A paste load keeps a UID's last entry (agreement 10.1). A writer upload keeps its
+          // latest write, the last one on a tie (10.4).
+          if (!before?.written_at || !token.written_at || token.written_at >= before.written_at) {
+            latest.set(token.uid, token);
+          }
         }
-
-        const added = writes.filter((t) => !current.has(t.uid)).length;
-        return c.json({
-          new: added,
-          changed: writes.length - added,
-          unchanged: kindOf.size - writes.length,
+        const counts = await db.transaction(async (tx) => {
+          const counts = { new: 0, changed: 0, unchanged: 0, outdated: 0 };
+          const ordered = [...latest.values()].sort((a, b) => a.uid.localeCompare(b.uid));
+          if (ordered.length === 0) return counts;
+          // Reserve absent UIDs and lock existing ones in UID order, including concurrent
+          // first uploads. The empty kind is private to this transaction: every reserved
+          // row is filled below, or the whole transaction rolls back.
+          await tx
+            .insert(tokenKinds)
+            .values(ordered.map(({ uid }) => ({ uid, kind: "" })))
+            .onDuplicateKeyUpdate({ set: { uid: sql`token_kinds.uid` } });
+          const existing = await tx
+            .select()
+            .from(tokenKinds)
+            .where(
+              inArray(
+                tokenKinds.uid,
+                ordered.map(({ uid }) => uid),
+              ),
+            )
+            .orderBy(asc(tokenKinds.uid))
+            .for("update");
+          const current = new Map(existing.map((row) => [row.uid, row]));
+          const writes = [];
+          for (const token of ordered) {
+            const before = current.get(token.uid)!;
+            if (token.written_at && before.writtenAt && before.writtenAt >= token.written_at) {
+              counts.outdated++;
+              continue;
+            }
+            if (before.kind === "") counts.new++;
+            else if (before.kind === token.kind) counts.unchanged++;
+            else counts.changed++;
+            writes.push({
+              uid: token.uid,
+              kind: token.kind,
+              writtenAt: token.written_at ?? before.writtenAt,
+            });
+          }
+          if (writes.length > 0) {
+            // The comparison happened under the locks above. No conditional assignments
+            // depend on MySQL/TiDB's left-to-right evaluation of an upsert's setters.
+            await tx
+              .insert(tokenKinds)
+              .values(writes)
+              .onDuplicateKeyUpdate({
+                set: {
+                  kind: sql`VALUES(kind)`,
+                  writtenAt: sql`VALUES(written_at)`,
+                },
+              });
+          }
+          return counts;
         });
+        return c.json(counts);
       },
     );
 }

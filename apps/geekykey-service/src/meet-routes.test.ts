@@ -37,6 +37,7 @@ function harness({
     stationSockets: fakeStationSockets(),
     stationLimit: env.STATION_LIMIT,
     userLimit: fakeLimiter(60),
+    writerLimit: env.TOKEN_WRITER_LIMIT,
     tokenLimit: fakeLimiter(20),
   });
   // The tapper's own token, of kind E, and the owner's, of kind B.

@@ -39,4 +39,6 @@ export type Token = typeof tokens.$inferSelect;
 export const tokenKinds = mysqlTable("token_kinds", {
   uid: tokenUid("uid").primaryKey(),
   kind: varchar("kind", { length: TOKEN_KIND_MAX }).notNull(),
+  /** UTC with milliseconds. Null until a writer upload gives its write time (agreement 10.4). */
+  writtenAt: isoTimestamp("written_at"),
 });

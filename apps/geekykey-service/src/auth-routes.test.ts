@@ -36,6 +36,7 @@ function harness({ devAuth, googleKeys = google.keys }: { devAuth: boolean } & P
     stationSockets: fakeStationSockets(),
     stationLimit: env.STATION_LIMIT,
     userLimit: fakeLimiter(60),
+    writerLimit: env.TOKEN_WRITER_LIMIT,
     tokenLimit: fakeLimiter(20),
   });
   const post = (path: string, body?: unknown) =>

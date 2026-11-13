@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --env-file dev.env --var DEV_AUTH_ENABLED:true",
+    "dev": "wrangler dev --env-file dev.env --var DEV_AUTH_ENABLED:true --var TOKEN_WRITER_KEY_HASH:${TOKEN_WRITER_KEY_HASH:-f1d9d1202ff93f01e7ce79dabf516d26be963a313f76fb373fa39376be375315}",
     "test": "vitest run",
     "typecheck": "wrangler types && tsc",
     "lint": "oxlint --deny-warnings",

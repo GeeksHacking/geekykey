@@ -141,7 +141,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `error` code | HTTP | Meaning |
 |---|---|---|
 | `validation_failed` | 400 | See `issues` |
-| `unauthenticated` | 401 | No valid session cookie |
+| `unauthenticated` | 401 | No valid session cookie, or token writer key (10.4, draft HAR-31) |
 | `invalid_token` | 401 | The Firebase ID token sent to log in can't be trusted: not signed by Google, for another Firebase project, or expired. The screens say "Couldn't log you in. Try again." |
 | `invalid_login_link` | 401 | The login link sent to log in (7.4, or 7.5 on the GeekyKey Service) has expired, has been used already, or was changed. The Event screens say "That link has expired. Tap your token again to get back in.", and the GeekyKey screens "That link has expired. Open My tokens from the event again." (section 13) |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
@@ -238,6 +238,7 @@ the session cookie by default.
 | Map screen | `event_session`, with a user ID on the Event Service's map screen list | The Event Service, for the map's data (9.10) as well as what a participant calls |
 | User | `gk_session` | The GeekyKey Service: the token page and My tokens |
 | GeekyKey admin | `gk_session`, with a user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens and manage token kinds (section 10) |
+| Token writer | `Authorization: Bearer gk_wri_…` | The GeekyKey Service, only to add to the list of token kinds (10.4) |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
 | GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
 | Event Service | `Authorization: Bearer` with its Event Service key | The GeekyKey Service, for station messages (11.12, BAC-182, for the next version) |
@@ -526,6 +527,7 @@ them.
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Implemented` | Release a token |
 | GET | `/api/v1/admin/token-kinds` | GeekyKey admin, organiser | `Checkpoint 7` | Totals by kind |
 | POST | `/api/v1/admin/token-kinds` | GeekyKey admin | `Checkpoint 7` | Load token kinds |
+| POST | `/api/v1/token-writer/tokens` | Token writer | Draft for next version (HAR-31) | Upload token kinds as they are written (10.4) |
 | GET | `/api/v1/admin/token-kinds/tokens` | GeekyKey admin | `Checkpoint 7` | Every UID, kind and current claim |
 | DELETE | `/api/v1/admin/token-kinds/{uid}` | GeekyKey admin | `Checkpoint 7` | Remove an unclaimed UID from the kinds list |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
@@ -2213,7 +2215,8 @@ These totals count only UIDs on the kinds list, including claimed ones.
 POST takes `{ "tokens": [{ "uid": "04A1B2C3D4E5F6", "kind": "E" }] }`, from 1 to 500
 entries. UIDs follow section 4, and a loaded kind is one capital letter. A repeated UID
 takes its last kind. The response is `200` with `{ "new": 1, "changed": 0, "unchanged": 0 }`.
-Loading removes nothing. Each load logs `token_kinds_loaded` with `loaded_by` and the counts.
+Loading removes nothing and leaves each token's `written_at` alone (10.4). Each load logs
+`token_kinds_loaded` with `loaded_by` and the counts.
 
 **Errors:** `unauthenticated`, `forbidden`, `validation_failed` (POST), `rate_limited`,
 `claims_unavailable`. A load whose reply is lost may still have happened.
@@ -2250,6 +2253,44 @@ and `uid`. A lost reply can mean the removal happened; refresh before trying aga
 
 **Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found`, `token_claimed`,
 `rate_limited`, `claims_unavailable`.
+
+### 10.4 The token writer: `POST /api/v1/token-writer/tokens`
+
+Draft for the next agreement version (HAR-31). The writer uploads each token's kind as it
+writes it. The same kinds list feeds the totals in 10.1; the paste load there still works.
+
+**Auth:** `Authorization: Bearer gk_wri_<64 lower-case hex>`, separate from station keys.
+The Worker keeps only its SHA-256 in the optional secret `TOKEN_WRITER_KEY_HASH` and compares
+in constant time, before reading the body. An absent or malformed secret, missing header or
+wrong key answers `401 unauthenticated`. A session cookie or station key grants no access;
+the writer key grants access to no other route.
+
+**Request:**
+
+```json
+{ "tokens": [{ "uid": "04E45150324189", "kind": "E", "written_ago_ms": 1234 }] }
+```
+
+From 1 to 50 entries. UIDs follow section 4, `kind` is one capital letter A-Z, and
+`written_ago_ms` is an integer from 0 to 604800000 (7 days), measured on the writer's timer.
+The writer needs no clock. The server sets `written_at` to request arrival time minus that
+age, in UTC with millisecond precision. Within a request, a repeated UID keeps the later
+write, or the later array entry on a tie, and is counted once.
+
+A write applies when the UID is new, has no `written_at`, or has a strictly earlier one.
+It sets both kind and write time. An equal or earlier write counts as `outdated` and changes
+nothing, so an old upload arriving late cannot undo a newer write. The whole load applies
+or none does. A paste load (10.1) sets the kind and preserves any existing write time;
+a new paste-only row has none.
+
+**Response `200`:** `{ "new": 1, "changed": 0, "unchanged": 0, "outdated": 0 }`.
+An applied write of the same kind counts as `unchanged` but advances its write time.
+Each upload logs `token_kinds_uploaded` with the counts and never the key.
+
+**Errors:** `validation_failed` (400), `unauthenticated` (401), `rate_limited` (429),
+`claims_unavailable` (503). The writer key has its own limit of 60 requests a minute,
+separate from users and stations, with `Retry-After: 60`. The claims deadline is 4 seconds;
+an upload whose reply is lost may still have happened.
 
 ---
 

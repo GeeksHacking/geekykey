@@ -96,3 +96,51 @@ test("a 401, as until a new key is set on both sides, is ClaimsUnavailable", asy
     (err) => err instanceof ClaimsUnavailable && err.reason === "status" && err.status === 401,
   );
 });
+
+test("writer uploads carry write times and return outdated counts", async () => {
+  const { claims, sent } = standIn(
+    Response.json({ new: 1, changed: 2, unchanged: 3, outdated: 4 }),
+  );
+  const tokens = [{ uid: "04E45150324189", kind: "E", written_at: "2026-11-13T01:00:00.123Z" }];
+  assert.deepEqual(await claims.uploadKinds(tokens, signal()), {
+    new: 1,
+    changed: 2,
+    unchanged: 3,
+    outdated: 4,
+  });
+  assert.deepEqual(sent, [
+    {
+      method: "POST",
+      url: `${STAND_IN_URL}/token-kinds`,
+      authorization: `Bearer ${KEY}`,
+      body: { tokens },
+    },
+  ]);
+});
+
+test("paste loads hide the new count and writer uploads accept an old stand-in answer", async () => {
+  const paste = standIn(Response.json({ new: 1, changed: 0, unchanged: 0, outdated: 0 }));
+  assert.deepEqual(await paste.claims.loadKinds([{ uid: "DEADBEEF", kind: "E" }], signal()), {
+    new: 1,
+    changed: 0,
+    unchanged: 0,
+  });
+  const old = standIn(Response.json({ new: 1, changed: 0, unchanged: 0 }));
+  assert.deepEqual(
+    await old.claims.uploadKinds(
+      [{ uid: "DEADBEEF", kind: "E", written_at: "2026-11-13T00:00:00.000Z" }],
+      signal(),
+    ),
+    { new: 1, changed: 0, unchanged: 0, outdated: 0 },
+  );
+});
+
+test("a writer upload fails closed on a bad count or an unanswered stand-in", async () => {
+  for (const answer of [
+    Response.json({ new: 0, changed: 0, unchanged: 0, outdated: "bad" }),
+    new Response(null, { status: 500 }),
+  ]) {
+    const { claims } = standIn(answer);
+    await assert.rejects(claims.uploadKinds([], signal()), ClaimsUnavailable);
+  }
+});

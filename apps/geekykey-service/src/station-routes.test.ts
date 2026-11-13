@@ -48,6 +48,7 @@ async function harness(
     stationSockets: fakeStationSockets(),
     stationLimit,
     userLimit: fakeLimiter(60),
+    writerLimit: env.TOKEN_WRITER_LIMIT,
     tokenLimit: fakeLimiter(20),
   });
 

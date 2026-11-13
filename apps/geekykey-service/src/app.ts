@@ -17,6 +17,7 @@ import { socketRoutes, stationMessageRoutes } from "./station-message-routes.ts"
 import type { StationConnections } from "./station-sockets.ts";
 import { StationsCopy } from "./stations-copy.ts";
 import { tokenKindRoutes } from "./token-kind-routes.ts";
+import { tokenWriterRoutes } from "./token-writer-routes.ts";
 import { tokenRoutes } from "./token-routes.ts";
 
 /** What the GeekyKey Service reaches outside itself. Tests fake each. */
@@ -44,6 +45,8 @@ export interface AppDeps {
    * `userLimit` as well: the TOKEN_LIMIT binding in wrangler.jsonc.
    */
   tokenLimit: RateLimit;
+  /** Writer uploads only: TOKEN_WRITER_LIMIT, 60 per minute. */
+  writerLimit: RateLimit;
 }
 
 /** Section 8's opening: a user's request gives the claims 4 seconds. */
@@ -72,7 +75,11 @@ export function createApp(
     stationLimit,
     userLimit,
     tokenLimit,
-  }: Pick<AppDeps, "send" | "stationSockets" | "stationLimit" | "userLimit" | "tokenLimit"> &
+    writerLimit,
+  }: Pick<
+    AppDeps,
+    "send" | "stationSockets" | "stationLimit" | "userLimit" | "tokenLimit" | "writerLimit"
+  > &
     Partial<AppDeps>,
 ) {
   const app = new Hono();
@@ -114,6 +121,15 @@ export function createApp(
   );
 
   const claims = new StandInClaims({ ...config.claimsStandIn, send });
+  app.route(
+    "/api/v1/token-writer/tokens",
+    tokenWriterRoutes({
+      claims,
+      keyHash: config.tokenWriterKeyHash,
+      writerLimit,
+      deadlineMs: claimsDeadlineMs,
+    }),
+  );
   // Each Event Service with its entry, so what's built from both reads them together.
   const eventServiceEntries = config.eventServices.map((entry) => ({
     entry,

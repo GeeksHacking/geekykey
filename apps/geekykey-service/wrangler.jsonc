@@ -38,6 +38,7 @@
   // adding one adds its key here too. Listing them also changes `wrangler
   // dev`: from dev.env it takes only these and the settings under `vars`,
   // and ignores anything else.
+  // TOKEN_WRITER_KEY_HASH is optional: omit it here so deploying before it is set works.
   "secrets": {
     "required": ["SESSION_SECRET", "CLAIMS_STAND_IN_KEY", "EVENT_SERVICE_KEY_SHOWCASE"],
   },
@@ -51,7 +52,7 @@
 
   // The rate limits (the API agreement's section 2, "Rate limits"; the
   // migration spec's 5.1). We chose 7101 to 7103 ourselves (BAC-67), and
-  // Julian knows they're taken (22 Oct 2026).
+  // Julian knows they're taken (22 Oct 2026). HAR-31 adds 7104 for writer uploads.
   // Bindings that share a namespace_id on one account share a count only
   // for the same key, and our keys are hashes and IDs no other Worker
   // sends, so another Worker's use of these IDs wouldn't touch ours. Each
@@ -61,6 +62,12 @@
   // above that's nearly always the one near Singapore, wherever the request
   // was answered. Locally, Wrangler simulates them.
   "ratelimits": [
+    // Token writer uploads, separate from stations and users.
+    {
+      "name": "TOKEN_WRITER_LIMIT",
+      "namespace_id": "7104",
+      "simple": { "limit": 60, "period": 60 },
+    },
     // Each station's taps, heartbeats and socket upgrades, by the SHA-256
     // of the key it sent, counted before the key is checked.
     {
@@ -162,11 +169,18 @@
       "routes": [],
       "placement": { "region": "gcp:asia-southeast1" },
       // Set these on the staging Worker too, using staging's shared keys.
+      // TOKEN_WRITER_KEY_HASH is optional: omit it here so deploying before it is set works.
       "secrets": {
         "required": ["SESSION_SECRET", "CLAIMS_STAND_IN_KEY", "EVENT_SERVICE_KEY_SHOWCASE"],
       },
       // Keep the same limits and socket binding as production.
       "ratelimits": [
+        // Token writer uploads, separate from stations and users.
+        {
+          "name": "TOKEN_WRITER_LIMIT",
+          "namespace_id": "7104",
+          "simple": { "limit": 60, "period": 60 },
+        },
         // Each station's taps, heartbeats and socket upgrades, by the SHA-256
         // of the key it sent, counted before the key is checked.
         {
