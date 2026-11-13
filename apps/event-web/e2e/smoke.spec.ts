@@ -117,3 +117,38 @@ test("a route change to the dashboard focuses its heading", async ({ page }) => 
 
   await expect(page.getByRole("heading", { level: 1, name: "Alex Tan" })).toBeFocused();
 });
+
+test("a login link opens the participant dashboard and leaves no fragment", async ({ page }) => {
+  // FRO-60 and FRO-66: app.tsx takes the link out of the address before the router and the
+  // session read it, so the whole path is what this checks, not takeLoginLink alone.
+  await page.goto("/#login=mock");
+
+  await expect(page.getByRole("heading", { level: 1, name: "Alex Tan" })).toBeVisible();
+  await expect(page).toHaveURL("http://127.0.0.1:5173/");
+});
+
+test("an expired login link with no session says so on the login screen", async ({ page }) => {
+  await page.goto("/#login=expired");
+
+  await expect(
+    page.getByText("That link has expired. Tap your token again to get back in."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Tap in, collect stamps, earn points." }),
+  ).toBeVisible();
+});
+
+test("an expired login link with a session says so above that person's dashboard", async ({
+  page,
+}) => {
+  // The link fails, but the session the browser had carries on underneath it.
+  await page.addInitScript(() => {
+    sessionStorage.setItem("gk-mock-session", "dev-organizer-1");
+  });
+  await page.goto("/#login=expired");
+
+  await expect(
+    page.getByText("That link has expired. Tap your token again to get back in."),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Priya Raman" })).toBeVisible();
+});
