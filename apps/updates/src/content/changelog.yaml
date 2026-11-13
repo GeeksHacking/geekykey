@@ -2618,3 +2618,9 @@
     A station running team duels counts down to the round's start on its screen, and the count
     comes back after another tap's result with the right seconds. Between taps, the station's
     screen names its game, such as "Team duels" and "Tap to join", in place of "Ready".
+- id: station-game-any-time
+  date: 2026-11-13
+  area: frontend
+  change: >-
+    The station board lets an organiser change a station's game at any time, however many taps
+    it has. The booth's two stations can switch from the passport to the relay during the day.
