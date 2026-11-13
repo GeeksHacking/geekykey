@@ -76,7 +76,10 @@ export function addLights(scene: THREE.Scene) {
   scene.add(rim);
 }
 
-export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
+export function createWorld(
+  host: HTMLElement,
+  { still, onFirstFrame }: { still: boolean; onFirstFrame?: () => void },
+) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   Object.assign(renderer.domElement.style, { width: "100%", height: "100%", display: "block" });
@@ -214,6 +217,7 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
   const e = new THREE.Euler();
   let last = performance.now();
   let frame = 0;
+  let firstFrame = false;
 
   function playArrivals(now: number) {
     arrivals = arrivals.filter((a) => {
@@ -253,6 +257,11 @@ export function createWorld(host: HTMLElement, { still }: { still: boolean }) {
     figure.position.y = still ? 0 : Math.abs(Math.sin(now / 420)) * 1;
     if (arrivals.length > 0) playArrivals(now);
     renderer.render(scene, camera);
+    // The first frame with the figure on it, so the stage can fade in over the flat picture.
+    if (!firstFrame && meshes.length > 0) {
+      firstFrame = true;
+      onFirstFrame?.();
+    }
   }
   frame = requestAnimationFrame(tick);
 
