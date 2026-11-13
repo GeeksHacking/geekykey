@@ -242,6 +242,18 @@ One pair of opponents on different teams playing the dice or the reaction test i
 With an odd number of players, one player on the smaller team plays two duels.
 _Avoid_: connection, which players make separately
 
+**Relay**:
+A game on two stations where people from different groups pass a transfer from one station to the
+other. A tap at one station names the group needed at the other, and someone from that group has
+20 seconds to tap there. A game is 3 transfers with two groups, or 4 with three or more. It gives
+no points, stamps or connections (BAC-184).
+_Avoid_: Reactor Relay, Generator and Router, which are screen wording only
+
+**Transfer**:
+One completed pass in the relay: a tap at one station, answered by the needed group's tap at the
+other. A call that nobody from the needed group answers in time is lost, and doesn't count.
+_Avoid_: route, which suggests a fixed order, as under Next stop
+
 **Challenge**:
 What a new connection or a team duels round plays: the dice or the reaction test. The connection
 keeps its result, and a win or a tie can earn a reward. Organizers choose on the Groups screen whether each new connection

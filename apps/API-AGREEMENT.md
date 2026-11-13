@@ -197,6 +197,8 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
   after it ends starts a new count. An organizer's screens share one count: the station board
   polled every 10 to 15 seconds (9.2) and the scan log every 5 (9.3) use at most 18 a minute.
   The map, polled every 2 seconds (9.10), uses 30, so an organizer with all three open uses 48.
+- The relay's progress, `GET /api/v1/map/relay` (9.13), isn't counted (BAC-184, for the next
+  version). The map polls it every second, which with the map's own 30 would pass the 60.
 - Each Event Service server instance keeps its own count, so a user whose requests reach two
   instances can get up to 120 a minute through.
 
@@ -419,6 +421,10 @@ list of games is in the Event Service's code, so it changes only with a deploy.
   never becomes a stamp, and a station set back to the passport shows the stamps it had. Taps
   stored before the next version record the game their station ran then, since until then a
   station's game couldn't change once a game had counted or held back a tap there.
+- The relay runs on two stations, and people from different groups pass a transfer between them
+  (BAC-184, for the next version). Its rules and its record are the Event Service's: it gives no
+  points, no stamp and no connection. Its lines are in 6.1, and the map reads its progress
+  from 9.13. Its `id` is `relay` and its `name` is "Relay".
 - Stations created before version 0.7 with passport settings run the passport.
 
 ### Connections
@@ -555,6 +561,7 @@ them.
 | GET | `/api/v1/admin/stats` | Organizer | `Implemented` | Totals for the dashboard |
 | GET | `/api/v1/admin/export.csv` | Organizer | `Implemented` | Raw tap export for Joshua's analysis |
 | GET | `/api/v1/map` | Organizer, map screen | `Implemented` | Each station's game, booth and counts, for the map |
+| GET | `/api/v1/map/relay` | Organizer, map screen | `Checkpoint 8` | The relay's progress, for the map (BAC-184) |
 
 ---
 
@@ -647,6 +654,43 @@ which the station counts down itself, so the screen moves without hearing from t
   `Already in` and `Still playing`, with no countdown, and so does a round more than 99 seconds
   from its start, which a station whose clock is ahead can open. The wording can change.
 - The passport gives none.
+
+**The relay's lines** (BAC-184, for the next version). The relay runs on the two stations whose
+game is `relay`. The first tap at either one starts a game, and that station calls a group to the
+other station. Someone from that group taps there within 20 seconds to complete a transfer, and
+their station then calls the next group back. A game is 3 transfers with two groups playing, or 4
+with three or more, and it ends at its last transfer or after 2 minutes with no tap that moves it.
+In the table, `Blue` is a group's name and `B` a station's booth.
+
+| The tap | Status | `lines` | `countdown` |
+|---|---|---|---|
+| Starts a game, or calls again at the station whose call was missed | `accepted` | `Sent!` / `Blue to B` | `Blue to B` / `{s}s left`, ending `Missed it` / `Tap again` |
+| Completes a transfer, and calls the next group back | `accepted` | `Got it!` / `Green to A` | `Green to A` / `{s}s left`, ending `Missed it` / `Tap again` |
+| Completes the game's last transfer | `accepted`, with `complete` | `Relay done!` / `4 of 4` | none |
+| At the calling station while its call is open | `cooldown` | `Still waiting` / `Blue to B` | as the call's |
+| At the waiting station from another group, which includes the group that just tapped | `cooldown` | `Not you` / `Ask at A` | none |
+| At the waiting station after the call's 20 seconds | `cooldown` | `Too late` / `Ask at A` | none |
+| By someone in no group | `cooldown` | `Join a group` / `on your phone` | none |
+| Fewer than two groups have members | `cooldown` | `Need 2 groups` / `Tell organizer` | none |
+| Not exactly two stations run the relay | `cooldown` | `Relay needs` / `2 stations` | none |
+
+- The calling station names a group other than the tapper's. With two groups that is always the
+  other one. With three or more, the Event Service picks one of the others at random.
+- A call missed after its 20 seconds loses that transfer only, and it doesn't count toward the 3
+  or 4. The game goes on: the next tap at the calling station, by anyone in a group, calls again.
+- Only taps marked `accepted` move the game. A `cooldown` tap changes nothing, and doesn't count
+  as a tap for the 2 minutes either.
+- A group's name goes through the screen's rules (6.1's names): its accents taken off, and cut so
+  the booth stays whole. A name the screen can't show is `Group 2`, its place in the event's list
+  of groups. A station with no booth, or one the screen can't show, is `other`.
+- The relay judges a tap by when the Event Service received it. A saved tap made more than 20
+  seconds before it arrived gets `no_game`, since the game has moved on.
+- Each new call also sends the waiting station a station message (6.3, 11.12), sent after the
+  tap's answer and never holding it up: `Need Blue` / `Tap here`, counting down `Need Blue` /
+  `{s}s left` to `Missed it`, with `beep`. The game's last transfer sends the other station
+  `Relay done!` / `4 of 4`, with `beep`. A dropped message changes nothing, since each tap's own
+  answer says what to do.
+- The wording can change.
 
 **How a tap is answered, from checkpoint 3**
 
@@ -776,7 +820,8 @@ whether the reader works.
 - The GeekyKey Service takes `idle_lines` from its copy of the registered stations (11.1), which
   is at most a minute old. So a change of the station's game reaches the idle screen within about
   two minutes: up to one for the copy, and up to one for the next heartbeat. Ours gives
-  `Passport` / `Tap your token` and `Team duels` / `Tap to join`. The wording can change.
+  `Passport` / `Tap your token`, `Team duels` / `Tap to join` and, from the next version,
+  `Relay` / `Tap to start` (BAC-184). The wording can change.
 - Every 60 seconds also keeps the HTTPS connection open, since Cloudflare closes an idle one
   after 400 seconds.
 - The GeekyKey Service answers as soon as the key is checked, and passes the other fields to the
@@ -2090,6 +2135,53 @@ Event Service trims it and counts it in code points, as 9.1 does: at most 80, an
 **Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found` for a station this
 Event Service didn't register, and `rate_limited` ([Rate limits](#rate-limits)).
 
+### 9.13 `GET /api/v1/map/relay` (`Checkpoint 8`)
+
+Added for the next version (BAC-184). What the map draws of the relay (6.1): its two stations, the
+call a station is waiting on, and how far the game has got. It's apart from 9.10 so the map can ask
+for it every second.
+
+**Auth:** as 9.10's, for a user on the organizer list or the map screen list. It isn't counted
+toward the user's 60 requests a minute ([Rate limits](#rate-limits)).
+
+**Response `200`**
+
+```json
+{
+  "relay": {
+    "stations": ["ca939e19-8216-4b95-8375-5b54e543c5f6", "5d0b1f0e-31a4-4f43-9a52-0c7a1e2b9f11"],
+    "game": {
+      "started_at": "2026-11-17T06:00:00.000Z",
+      "transfers": 2,
+      "transfers_needed": 4,
+      "calling_station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
+      "waiting_station_id": "5d0b1f0e-31a4-4f43-9a52-0c7a1e2b9f11",
+      "waiting_until": "2026-11-17T06:01:12.000Z",
+      "ended_at": null,
+      "complete": false
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `relay` | `null` for an event without the relay |
+| `relay.stations` | The enabled stations whose game is `relay`, oldest first. The relay plays only with exactly two |
+| `relay.game` | The latest game, running or ended, or `null` before the first |
+| `game.transfers` | The transfers completed so far. A missed call doesn't count |
+| `game.transfers_needed` | 3 with two groups playing, 4 with three or more, fixed when the game started |
+| `game.calling_station_id`, `game.waiting_station_id` | The station that made the open call and the one waiting for the group it named, or `null` while no call is open, such as after a missed call or once the game has ended |
+| `game.waiting_until` | When the open call's 20 seconds end, or `null` with no open call |
+| `game.ended_at` | When it ended, or `null` while it runs. A game with no tap that moved it for 2 minutes is shown ended 2 minutes after its last move, before any tap stores that |
+| `game.complete` | `true` once it has ended at its last transfer |
+
+- The answer has no user ID, display name, group or token UID, and fields added later won't
+  either. The map draws the transfer between the two stations' booths from 9.10.
+- Poll this every second while the map is shown.
+
+**Errors:** `unauthenticated` and `forbidden`, as 9.10's.
+
 ---
 
 ## 10. GeekyKey admin endpoints
@@ -2620,7 +2712,7 @@ Organisers can open it for totals only.
 | Organizer station board | `GET /api/v1/admin/stations`, polled; `PUT /api/v1/admin/stations/{id}/passport`; `PUT /api/v1/admin/stations/{id}/game`; `PUT /api/v1/admin/stations/{id}/booth`; `POST /api/v1/admin/stations`; `POST /api/v1/admin/stations/{id}/key`; `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
 | Organizer summary | `GET /api/v1/admin/stats`, `GET /api/v1/admin/export.csv` |
-| Map, on the big screen at our booth | `GET /api/v1/map`, polled every 2 seconds. Logged in as a map screen, or as an organizer |
+| Map, on the big screen at our booth | `GET /api/v1/map`, polled every 2 seconds, and `GET /api/v1/map/relay`, every second (BAC-184, for the next version). Logged in as a map screen, or as an organizer |
 
 - On `429`, screens that poll keep showing their last data. The token page, the claim form and My
   tokens say "Too many tries. Wait a minute and try again."
@@ -2952,3 +3044,4 @@ Closed on 2026-10-10:
 | 2026-11-12 | For the next version: each stored tap records the game that counted it or held it back, so an organizer can change a station's game at any time (BAC-183). The booth's two stations can then run the passport and change to another game during the demo. Section 4 replaces the rule that fixed a station's game with one where each game reads only its own taps: a stamp and points come from the taps the passport accepted, and the cooldown (6.1) and the next stop (8.1) from the taps it judged, so another game's tap at a passport station earns nothing, and a station set back to the passport shows the stamps it had. 8.1's `earned_at` and `next_stop`, 9.5's stamp slots and 9.10's `unique_participants` count the same way, while 9.10's `taps` still counts every game's, so it never drops. Taps stored before the change record the game their station ran then. **Removed:** `409 station_has_taps`, from section 2, 9.11 and the station board's sentence in section 13, and 9.1's rule that a station whose game was fixed keeps none. Removing an error code is an exception to section 1's rule, as in the row of 2026-11-06: an older screen that still knows it is never sent it. **Changed:** 9.2's `game_fixed` is always `false`, and is removed in the version after this one. No other field changes, and nothing is added to a response. |
 | 2026-11-12 | For the next version: the server writes the rest of the station's screen (BAC-181, [ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)). A tap's result can give a `countdown` that the station counts down itself, with `seconds`, `lines` holding `{s}` for the seconds left, and an `ending` for zero (6.1 and 11.2). The ticket called it `then`, which our linter refuses as a key, since it marks an object as a promise. Team duels gives a countdown while its round is open, and the relay (BAC-184) will use one for a transfer's 20 seconds. **New:** `results[].countdown` in 6.1 and 11.2, `idle_lines` on each registered station (11.1) and in the heartbeat's answer (6.2), and the firmware contract for both. Ours gives the passport's and team duels' idle text. An `idle_lines` that breaks the rules is left out for that station alone, not the whole list. Section 4 says the server writes the screen, and 11.1 lets `idle_lines` into the list. Each service works with the other's previous version: an older GeekyKey Service drops both fields, and an older Event Service sends neither, so its stations keep `Ready` / `Tap a tag`. A station that doesn't know them ignores them and shows `lines`. No field or route is removed. |
 | 2026-11-13 | For the next version: an Event Service can send a station a station message, with no tap (BAC-182, [ADR 0009](../docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md)). Each station holds a WebSocket open to the GeekyKey Service, which passes on what the station's Event Service sends for it. **New:** the station's socket, `GET /api/v1/stations/socket` (6.3), with its firmware contract; `POST /api/v1/station-messages` on the GeekyKey Service (11.12), the first request an Event Service makes to it, with the Event Service key it already shares; the status `426` and the error `upgrade_required`; and the JSON Schema of the message's request and answer (11.7). A message carries a tap answer's `lines` and `countdown`, with 6.1's rules, and `beep`. One for a station with no socket answers `delivered: false` and is dropped. Section 3 says the Event Service key now goes both ways, and the station limit counts the requests that open the socket. Each service works with the other's previous version: an older GeekyKey Service answers a message `404 not_found`, which ours treats as a failed message, and a station that doesn't know the socket never opens it. No field or route is removed. |
+| 2026-11-13 | For the next version: two stations run the relay, where people from different groups pass a transfer between them (BAC-184). A tap at either relay station starts a game and names a group for the other station; that group's tap there within 20 seconds completes a transfer and calls the next group back. A game is 3 transfers with two groups, or 4 with three or more, and ends at its last transfer or after 2 minutes with no move. **New:** the relay in section 4 and in 9.2's `games`, as `relay`; its lines, countdowns and station messages in 6.1; its idle text in 6.2; and `GET /api/v1/map/relay` (9.13), which the map polls every second and which isn't counted toward the user limit. The relay gives no points, stamps or connections. No field or route is removed. |
