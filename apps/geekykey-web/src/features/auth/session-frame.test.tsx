@@ -470,7 +470,10 @@ describe("the signed-in shell", () => {
   it("has a theme toggle on a signed-in screen as well as on the login page", async () => {
     signedInAs(SEEDED_PARTICIPANT_ID);
 
-    expect(await screen.findByRole("button", { name: "Change theme" })).toBeInTheDocument();
+    // The account menu marks the signed-in frame. The loading shell has a theme toggle too,
+    // so waiting for the frame first keeps this on the screen the test is about.
+    await screen.findByRole("button", { name: "Account menu" });
+    expect(screen.getByRole("button", { name: "Change theme" })).toBeInTheDocument();
   });
 
   it("opens a session event through the places menu", async () => {

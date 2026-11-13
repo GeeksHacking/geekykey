@@ -30,6 +30,9 @@ differ.
   `src/features/auth/login-link-notice.tsx` are copies of the Event screens' files of the same
   names, for a login link arriving here (agreement 7.5, BAC-157) rather than there. Only the
   comments and the sentence differ. Change them together.
+- `src/features/auth/session-loading-shell.tsx` copies `SessionFrame`'s skip link, header and
+  main, and `TokenHeader`'s two rows, so the frame does not jump when the page replaces it.
+  Change them together (FRO-163).
 - `src/components/layout/page-title.tsx` and `section-title.tsx` draw the same yellow underline
   and marker as the Event screens' `page-header.tsx` and `section-heading.tsx` (FRO-159). Change
   their classes together.
@@ -112,7 +115,9 @@ Event screens. Event names appear directly in the menu and open login links with
 The trigger says "Opening event" while a link is pending, and an error shows under the header.
 The account menu contains the user ID and Sign out; its trigger says "Account".
 The header scrolls away on phones and stays at the top from tablet width up. Event-link errors
-scroll with the page. Page navigation moves focus to the new heading.
+scroll with the page. Page navigation moves focus to the new heading. While `/me` is still being
+read, the signed-in frame shows with the header and a skeleton of the page in place of the
+full-page loader, so the wait happens inside the page (FRO-163).
 
 Token pages have a My tokens back link. Users allowed to view Token kinds also get persistent
 My tokens and Token kinds page links, with the current page marked.

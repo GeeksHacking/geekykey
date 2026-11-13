@@ -4,11 +4,14 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { describeError, isApiErrorCode } from "@/api/errors";
 import { ErrorState } from "@/components/layout/error-state";
 import { FullPageLoading } from "@/components/layout/full-page-loading";
+import { SessionLoadingShell } from "@/features/auth/session-loading-shell";
+import { HOME_PATH } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 
 /**
  * Gate for any screen that needs a signed-in user. Sends anonymous visitors to /login and
- * back again after.
+ * back again after. While the session is unknown it shows the signed-in frame, so the wait
+ * for /me happens inside the page rather than over a blank one (FRO-163).
  *
  * The token page depends on the return: it logs in with `return_to=/t/<UID>` so the user
  * lands back on the token they tapped (agreement 7.2). The /login route validates that
@@ -20,6 +23,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
   // Only the href string, so the effect's dependency is a primitive. Selecting the whole
   // location object returns a fresh reference each render and re-fires the effect.
   const currentPath = useRouterState({ select: (state) => state.location.href });
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const anonymous = session.status === "anonymous";
 
   // One navigation per anonymous visit, from an effect. A <Navigate /> element here would
@@ -37,7 +41,12 @@ export function RequireSession({ children }: { children: ReactNode }) {
     void navigate({ to: "/login", search: { return_to: currentPath }, replace: true });
   }, [anonymous, currentPath, navigate]);
 
-  if (session.status === "loading" || anonymous) return <FullPageLoading />;
+  if (session.status === "loading") {
+    return <SessionLoadingShell tokens={pathname === HOME_PATH} />;
+  }
+
+  // The redirect is already running, so the page itself has nothing to show.
+  if (anonymous) return <FullPageLoading />;
 
   if (session.status === "error" && !session.me) {
     const title = titleFor(session.error);
