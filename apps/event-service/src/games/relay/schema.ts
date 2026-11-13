@@ -14,6 +14,8 @@ export const relayGames = mysqlTable("relay_games", {
   groupsPlaying: int("groups_playing").notNull(),
   transfersNeeded: int("transfers_needed").notNull(),
   lastMovedAt: isoTimestamp("last_moved_at").notNull(),
+  /** Any tap the relay judged, which keeps the game from ending idle (BAC-184). */
+  lastTapAt: isoTimestamp("last_tap_at").notNull(),
   endedAt: isoTimestamp("ended_at"),
   endedHow: varchar("ended_how", { length: 8 }).$type<"complete" | "idle">(),
 });

@@ -6,6 +6,7 @@ CREATE TABLE `relay_games` (
 	`groups_playing` int NOT NULL,
 	`transfers_needed` int NOT NULL,
 	`last_moved_at` varchar(24) NOT NULL,
+	`last_tap_at` varchar(24) NOT NULL,
 	`ended_at` varchar(24),
 	`ended_how` varchar(8),
 	CONSTRAINT `relay_games_id` PRIMARY KEY(`id`)

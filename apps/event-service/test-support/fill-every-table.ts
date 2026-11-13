@@ -72,6 +72,7 @@ export async function fillEveryTable() {
     groupsPlaying: 2,
     transfersNeeded: 3,
     lastMovedAt: AT,
+    lastTapAt: AT,
   });
   await db.insert(relayTransfers).values({
     id: crypto.randomUUID(),

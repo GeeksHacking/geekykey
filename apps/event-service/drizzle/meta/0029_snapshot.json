@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "c0f71c1c-03f2-48f3-8cf9-07364f5c6acc",
+  "id": "06e36569-58ca-4271-8456-f036aea3250c",
   "prevId": "51a90100-76b4-45bb-abbb-a3087f10bd8c",
   "tables": {
     "event_settings": {
@@ -1206,6 +1206,13 @@
         },
         "last_moved_at": {
           "name": "last_moved_at",
+          "type": "varchar(24)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_tap_at": {
+          "name": "last_tap_at",
           "type": "varchar(24)",
           "primaryKey": false,
           "notNull": true,

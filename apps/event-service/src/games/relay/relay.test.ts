@@ -12,6 +12,7 @@ import {
   TEST_EVENT_SERVICE_KEY,
 } from "../../test-helpers.ts";
 import { relayGame } from "./relay.ts";
+import { relayGames, relayTransfers } from "./schema.ts";
 
 async function harness(
   groupCount = 3,
@@ -248,13 +249,13 @@ test("the map shows stations, the open call and completed progress without ident
   });
 });
 
-test("only a move resets the idle clock and the map ends an idle relay before the next tap", async () => {
+test("any tap keeps a relay going and the map ends one nobody has tapped for 2 minutes", async () => {
   const h = await harness();
   await h.tap();
   h.clock.advanceSeconds(60);
-  await h.tap("B", "blue");
-  await h.tap("A", "unplaced");
-  h.clock.advanceSeconds(59);
+  // A tap that changes nothing else still counts: the game ends when nobody has tapped.
+  assert.deepEqual((await h.tap("A", "unplaced")).lines, ["Join a group", "on your phone"]);
+  h.clock.advanceSeconds(119);
   assert.equal((await h.map()).relay!.game!.ended_at, null);
   h.clock.advanceSeconds(1);
   assert.deepEqual((await h.map()).relay!.game, {
@@ -264,11 +265,11 @@ test("only a move resets the idle clock and the map ends an idle relay before th
     calling_station_id: null,
     waiting_station_id: null,
     waiting_until: null,
-    ended_at: "2026-11-13T08:02:00.000Z",
+    ended_at: "2026-11-13T08:03:00.000Z",
     complete: false,
   });
   assert.deepEqual((await h.tap("B", "red")).lines, ["Sent!", "Blue to A"]);
-  assert.equal((await h.map()).relay!.game!.started_at, "2026-11-13T08:02:00.000Z");
+  assert.equal((await h.map()).relay!.game!.started_at, "2026-11-13T08:03:00.000Z");
 });
 
 test("a committed call sends a waiting message without waiting for its delivery", async () => {
@@ -394,9 +395,9 @@ test("the showcase offers Relay and its registered stations have the relay idle 
     headers: { Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}` },
   });
   assert.equal(registered.status, 200);
-  const stationList = stationsAnswer.parse(await registered.json());
+  const registeredStations = stationsAnswer.parse(await registered.json());
   assert.ok(
-    stationList.stations.every(
+    registeredStations.stations.every(
       (s) => JSON.stringify(s.idle_lines) === JSON.stringify(["Relay", "Tap to start"]),
     ),
   );
@@ -548,6 +549,22 @@ test("simultaneous taps at the two stations share one relay without deadlocking"
   assert.equal((await h.map()).relay!.game!.transfers, 0);
 });
 
+test("a tap that waited behind the other station's call answers it no earlier than it was made", async () => {
+  const h = await harness();
+  await h.tap("A", "red");
+  h.clock.advanceSeconds(6);
+  assert.deepEqual((await h.tap("B", "blue")).lines, ["Got it!", "Red to A"]);
+  // An ingest at A received a second earlier, which reaches the relay lock only now.
+  h.clock.advanceSeconds(-1);
+  assert.deepEqual((await h.tap("A", "red")).lines, ["Got it!", "Blue to B"]);
+  for (const call of await h.db.select().from(relayTransfers)) {
+    if (call.completedAt !== null) assert.ok(call.completedAt >= call.calledAt);
+  }
+  const [game] = await h.db.select().from(relayGames);
+  assert.equal(game!.lastMovedAt, "2026-11-13T08:00:06.000Z");
+  assert.equal(game!.lastTapAt, "2026-11-13T08:00:06.000Z");
+});
+
 test("relay taps give no points, stamps, connections or avatar rewards", async () => {
   const h = await harness();
   await h.tap();
@@ -586,7 +603,8 @@ test("station screens shorten names, remove accents and use readable group and b
   await h.db.update(participantGroups).set({ name: "{s}" }).where(eq(participantGroups.id, "Blue"));
   await h.db.update(stations).set({ booth: null }).where(eq(stations.id, "B"));
   const braces = await h.tap();
-  assert.deepEqual(braces.lines, ["Sent!", "{s} to other"]);
+  // {s} never goes in `lines` (6.1), only in a countdown's own placeholder.
+  assert.deepEqual(braces.lines, ["Sent!", "(s) to other"]);
   assert.deepEqual(braces.countdown!.lines, ["(s) to other", "{s}s left"]);
   for (const message of messages) {
     stationMessageRequest.parse(await message.json());
