@@ -12,6 +12,7 @@ import type {
   ListTapsQuery,
   ListTapsResponse,
   MapResponse,
+  MapRelayResponse,
   MeResponse,
   MyGroupResponse,
   GeekykeyLoginLinkResponse,
@@ -150,6 +151,9 @@ export interface ApiClient {
    * on the map screen list may read it, and anyone else gets `forbidden`.
    */
   map(): Promise<MapResponse>;
+
+  /** GET /api/v1/map/relay (9.13), with the same read-only roles as map. */
+  mapRelay(): Promise<MapRelayResponse>;
 
   /**
    * GET /api/v1/me/group (draft for agreement 0.14). Whether the current user has joined, and

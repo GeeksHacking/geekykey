@@ -54,6 +54,17 @@ and scenario. Clear the `gk-round-dismissed:<user id>` localStorage key to show 
 On the station board, add a station, then choose Team duels in its game menu. A station with
 counted taps keeps its game fixed.
 
+To try Reactor Relay, run `pnpm dev:mock`, sign in as Priya Raman and open `/map`. The simulated
+client adds relay stations at A3 and C4. The first relay read starts the timeline: no game for 3 s,
+a call at 3 s, completed transfers at 9 s and 15 s, a missed call at 35 s (its full 20 seconds),
+another call at 39 s, a transfer at 45 s and completion at 51 s. The result stays until 56 s, then
+the plain map returns until the next call at 73 s. This second game completes one transfer at 79 s,
+misses its call at 99 s, then ends incomplete at 199 s, two minutes after its last tap. That result
+clears at 204 s. The whole timeline repeats every 210 s. Reload to restart. The map shows only
+booths and counts, never a person or group. Tests can enable the same devices without random tap
+simulation with `relayDemo: true` on `createMockClient`. The timeline runs when exactly two enabled
+stations have game `relay`.
+
 Firebase's committed web config is in `.env.development`; a shell variable or `.env.local`
 overrides it. These public values are the only committed `.env` exception. Keep private config
 and station keys out of git. Firebase sign-in works on `localhost`, where the app uses Firebase's

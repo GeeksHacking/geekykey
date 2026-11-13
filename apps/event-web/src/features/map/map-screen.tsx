@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MPH_EXAMPLE_PLAN } from "@/features/map/floor-plan";
 import { MapConnections } from "@/features/map/map-connections";
 import { MapForbidden } from "@/features/map/map-forbidden";
+import { MapRelay } from "@/features/map/map-relay";
 import { MapPlan } from "@/features/map/map-plan";
 import { placeStations } from "@/features/map/place-stations";
 import { StationList } from "@/features/map/station-list";
@@ -58,31 +59,39 @@ export function MapScreen() {
       </div>
     );
   } else {
-    const { placed, unplaced } = placeStations(map.data.stations, plan);
+    const data = map.data;
+    const { placed, unplaced } = placeStations(data.stations, plan);
     body = (
-      <div className={LAYOUT}>
-        <MapPlan plan={plan} placed={placed} stations={map.data.stations} />
-        <div className="space-y-6 lg:h-full lg:overflow-y-auto lg:px-1.5">
-          {showStaleNote(map.error, true) ? (
-            <StaleDataNote onRetry={() => void map.refetch()} />
-          ) : map.isError ? (
-            <InlineQueryError
-              error={map.error}
-              onRetry={() => void map.refetch()}
-              title="The map is not updating."
-            />
-          ) : null}
-          {map.data.connections ? <MapConnections connections={map.data.connections} /> : null}
-          {map.data.stations.length === 0 ? (
-            <p className="text-muted-foreground">
-              No stations yet. Each one appears here once an organiser adds it on the station board
-              and gives it a booth.
-            </p>
-          ) : (
-            <StationList placed={placed} unplaced={unplaced} />
-          )}
-        </div>
-      </div>
+      <MapRelay stations={data.stations} placed={placed}>
+        {({ layer, status }) => (
+          <div className={LAYOUT}>
+            <MapPlan plan={plan} placed={placed} stations={data.stations}>
+              {layer}
+            </MapPlan>
+            <div className="space-y-6 lg:h-full lg:overflow-y-auto lg:px-1.5">
+              {showStaleNote(map.error, true) ? (
+                <StaleDataNote onRetry={() => void map.refetch()} />
+              ) : map.isError ? (
+                <InlineQueryError
+                  error={map.error}
+                  onRetry={() => void map.refetch()}
+                  title="The map is not updating."
+                />
+              ) : null}
+              {status}
+              {data.connections ? <MapConnections connections={data.connections} /> : null}
+              {data.stations.length === 0 ? (
+                <p className="text-muted-foreground">
+                  No stations yet. Each one appears here once an organiser adds it on the station
+                  board and gives it a booth.
+                </p>
+              ) : (
+                <StationList placed={placed} unplaced={unplaced} />
+              )}
+            </div>
+          </div>
+        )}
+      </MapRelay>
     );
   }
 

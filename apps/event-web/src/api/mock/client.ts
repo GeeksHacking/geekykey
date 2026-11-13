@@ -1,3 +1,4 @@
+import { mockMapRelay, relayDemoStations } from "@/api/mock/map-relay";
 import { mockDuelRound, scoreReactions, type RoundScenario } from "@/api/mock/duel-round";
 import type { ApiClient } from "@/api/client";
 import { ApiError, NetworkError, publishAuthError } from "@/api/errors";
@@ -185,6 +186,8 @@ export interface MockClientOptions {
   latencyMs?: readonly [number, number];
   /** Keep online stations alive and append new taps over time. */
   simulate?: boolean;
+  /** Add two relay devices for the repeating map demo. On by default in simulated mode. */
+  relayDemo?: boolean;
   now?: () => number;
   /** Where the fake session cookie lives. Pass null to keep it in memory only. */
   storage?: Storage | null;
@@ -204,6 +207,10 @@ export type MockApiClient = ApiClient & { mock: MockControls };
 export function createMockClient(options: MockClientOptions = {}): MockApiClient {
   const now = options.now ?? (() => Date.now());
   const data = options.data ?? createFixtures(now());
+  if ((options.relayDemo ?? options.simulate) && !options.data) {
+    data.stations.push(...relayDemoStations(now()));
+  }
+  let relayStarted: number | undefined;
   const latency = options.latencyMs ?? MOCK_LATENCY_MS;
   const storage = options.storage === undefined ? safeSessionStorage() : options.storage;
 
@@ -1251,6 +1258,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           connections: { count: links.length, links },
         };
       }),
+    mapRelay: () =>
+      call(() => {
+        currentOrganizer();
+        const at = now();
+        relayStarted ??= at;
+        return mockMapRelay(data.stations, relayStarted, at);
+      }),
+
     // The groups, from the spec's draft for agreement 0.14.
     myGroup: () => call(() => toMyGroup(currentUser().id)),
 
