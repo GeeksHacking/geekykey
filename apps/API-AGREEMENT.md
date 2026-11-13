@@ -7,14 +7,14 @@ owner, registered stations and hand-off mean what [`CONTEXT.md`](../CONTEXT.md) 
 | Part | What it does | Code |
 |---|---|---|
 | GeekyKey Service | What stations and tokens talk to. It checks each station's key against the stations the Event Services have registered, finds each token's owner, and hands taps on. A Cloudflare Worker with no database | `apps/geekykey-service` |
-| Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase on 17 November 2026, whose games are the passport and connections. A server on Google Cloud Run | `apps/event-service` |
+| Event Service | Runs one event's games, and registers that event's stations. Ours runs the capstone showcase on 17 November 2026, whose games are the passport, connections, team duels and the relay, with participant groups. A server on Google Cloud Run | `apps/event-service` |
 | GeekyKey screens | The token page and My tokens | `apps/geekykey-web` |
 | Event screens | The dashboard, passport, activity and organizer screens, including the station board, and the map on the big screen at our booth | `apps/event-web` |
 
 | | |
 |---|---|
-| Version | 0.13 (draft) |
-| Date | 6 November 2026 |
+| Version | 0.14 (draft) |
+| Date | 14 November 2026 |
 | GeekyKey Service owner | Adam |
 | Event Service owner | Adam |
 | Screens owner | Ethan |
@@ -114,10 +114,10 @@ of an Event Service lives under `/geekykey/v1`.
 | 204 | Successful delete or logout, no body |
 | 400 | Body, query or path failed validation. Body contains `issues` |
 | 401 | Not authenticated, or a station key, Event Service key or login link is missing or invalid. A disabled station's key also gets 401 |
-| 403 | Authenticated but not allowed: not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs |
+| 403 | Authenticated but not allowed: not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs. Also an organizer who joins the groups (8.13), or is put in one (9.16) |
 | 404 | Resource does not exist or is not visible to this user |
-| 409 | Conflict with existing state: a token someone else has claimed, a user who already holds 3 tokens, or a station whose game can no longer change |
-| 426 | A station asked for its socket (6.3) without asking to upgrade to a WebSocket (BAC-182, for the next version) |
+| 409 | Conflict with existing state: a token someone else has claimed, a user who already holds 3 tokens, a name someone else has, or groups that can't be allocated or split as they are |
+| 426 | A station asked for its socket (6.3) without asking to upgrade to a WebSocket (BAC-182) |
 | 429 | Too many requests from this caller in the last minute. See [Rate limits](#rate-limits) |
 | 500 | A bug in a service. Screens show a generic error and log the request ID if present |
 | 503 | A service this one depends on didn't answer: whatever holds the claims (the claims stand-in, then the Portal), the station's Event Service during a station request, Google's keys during login, or, for the Worker in front of a set of screens, the service behind it |
@@ -136,26 +136,31 @@ Every non-2xx response has this shape:
 ```
 
 `error` is a stable snake_case code that screens and stations can switch on. `issues` is present
-only for `validation_failed` and follows Zod's issue format.
+only for `validation_failed` and follows Zod's issue format. `needed` is present only for
+`too_few_participants`: a whole number, how many more participants must join.
 
 | `error` code | HTTP | Meaning |
 |---|---|---|
 | `validation_failed` | 400 | See `issues` |
-| `unauthenticated` | 401 | No valid session cookie, or token writer key (10.4, draft HAR-31) |
+| `unauthenticated` | 401 | No valid session cookie, or token writer key (10.4) |
 | `invalid_token` | 401 | The Firebase ID token sent to log in can't be trusted: not signed by Google, for another Firebase project, or expired. The screens say "Couldn't log you in. Try again." |
 | `invalid_login_link` | 401 | The login link sent to log in (7.4, or 7.5 on the GeekyKey Service) has expired, has been used already, or was changed. The Event screens say "That link has expired. Tap your token again to get back in.", and the GeekyKey screens "That link has expired. Open My tokens from the event again." (section 13) |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
-| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1`, and on a station message to the GeekyKey Service (11.12, BAC-182, for the next version) |
-| `forbidden` | 403 | Not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs |
+| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1`, and on a station message to the GeekyKey Service (11.12, BAC-182) |
+| `forbidden` | 403 | Not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs. Also an organizer who joins the groups (8.13), or is put in one (9.16) |
 | `not_found` | 404 | |
 | `token_claimed` | 409 | A GeekyKey admin tried to remove the kind of a claimed token (10.3) |
 | `token_taken` | 409 | Someone else has claimed this token |
 | `token_limit_reached` | 409 | The user already holds 3 tokens |
-| `already_played` | 409 | The user has already played this connection's reaction test (8.11) |
-| `too_late` | 409 | The 2 minutes to play this connection's reaction test have passed (8.11) |
+| `already_played` | 409 | The user has already played this connection's reaction test (8.11), or this duel's (8.14) |
+| `too_late` | 409 | The 2 minutes to play this connection's reaction test have passed (8.11), or this duel's (8.14) |
 | `answers_fixed` | 409 | The user's answers in the answers game can't change, because their first connection fixed them (8.7) |
-| `upgrade_required` | 426 | A request for a station's socket (6.3) that isn't a WebSocket upgrade (BAC-182, for the next version) |
+| `name_taken` | 409 | Someone else in the event has this name (8.7), or another group has this group name (9.15). Capitals don't make a name different |
+| `no_groups` | 409 | Allocate was pressed with no groups (9.17) |
+| `too_few_participants` | 409 | Fewer than 2 participants have joined for each group, on Allocate or a split (9.17). The body also has `needed` |
+| `groups_exist` | 409 | A split was asked for while someone is placed in a group (9.17) |
+| `upgrade_required` | 426 | A request for a station's socket (6.3) that isn't a WebSocket upgrade (BAC-182) |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
 | `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them. From 7.5, the Event Service that made a login link didn't mark it used properly in time (11.11), and the GeekyKey screens say what they say for `invalid_login_link` |
@@ -174,7 +179,7 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 | GeekyKey Service | Each user's requests to its API | 60 |
 | GeekyKey Service | Each user's token lookups, claims and meetings (8.8), which also count toward the 60 | 20 |
 | Event Service | Each user's requests to its API | 60, counted by each server instance |
-| Event Service | Each user's polls of the relay's progress, `GET /api/v1/map/relay` (9.13), which don't count toward the 60 (BAC-184, for the next version) | 90, counted by each server instance |
+| Event Service | Each user's polls of the relay's progress, `GET /api/v1/map/relay` (9.13), which don't count toward the 60 (BAC-184) | 90, counted by each server instance |
 
 - The station limit counts a request by the key it sends, before the key is checked. So a wrong
   key is counted too, and over the limit it gets `429` rather than `401`. A request with no key
@@ -198,8 +203,12 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
   after it ends starts a new count. An organizer's screens share one count: the station board
   polled every 10 to 15 seconds (9.2) and the scan log every 5 (9.3) use at most 18 a minute.
   The map, polled every 2 seconds (9.10), uses 30, so an organizer with all three open uses 48.
+  The Groups screen, polled every 5 seconds (9.14), uses 12.
+- A participant's dashboard polls `/me` every 10 seconds, and their group (8.13) every 5 seconds
+  until they're placed, then every 15. While their team duels round is opening or playing, it
+  polls `/me` every 3 seconds, which with the group's poll is at most 32 a minute.
 - The relay's progress, `GET /api/v1/map/relay` (9.13), has a count of its own, 90 a minute,
-  and doesn't count toward the 60 (BAC-184, for the next version). The map polls it every second,
+  and doesn't count toward the 60 (BAC-184). The map polls it every second,
   which with the map's own 30 would pass the 60. Its count leaves room for those 60 polls, and
   still answers `429` to a screen polling it in a loop.
 - Each Event Service server instance keeps its own count, so a user whose requests reach two
@@ -241,7 +250,7 @@ the session cookie by default.
 | Token writer | `Authorization: Bearer gk_wri_…` | The GeekyKey Service, only to add to the list of token kinds (10.4) |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
 | GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
-| Event Service | `Authorization: Bearer` with its Event Service key | The GeekyKey Service, for station messages (11.12, BAC-182, for the next version) |
+| Event Service | `Authorization: Bearer` with its Event Service key | The GeekyKey Service, for station messages (11.12, BAC-182) |
 
 - The organizer list, the map screen list and the GeekyKey admin list are settings of their
   service, changed through a reviewed pull request and a deploy. Each is checked on every
@@ -265,7 +274,7 @@ Each service sets its own cookie, and the screens' code is identical whichever r
   services, with guests at checkpoint 5.
 - `POST /auth/login-link`, on the Event Service, with a login link made by the GeekyKey Service
   (7.4). `Implemented`. And on the GeekyKey Service, with a login link made by an Event Service
-  (7.5), at `Checkpoint 7`, for the next version (BAC-157).
+  (7.5), at `Checkpoint 7` (BAC-157).
 - `POST /auth/dev-login`, in local development only. This exists so the screens can be built
   before the login lands, without any code that has to be removed later.
 
@@ -276,12 +285,12 @@ reaches the Event screens from the GeekyKey screens' event buttons, which open a
 log them in there as the same user, without a second login. A guest can only get there that way:
 a guest sign-in on `event.` would be a different guest, so the Event screens don't offer one.
 
-The way back works the same (BAC-157, for the next version). My tokens on the Event screens asks
+The way back works the same (BAC-157). My tokens on the Event screens asks
 the Event Service for a login link (8.12) and opens it on the GeekyKey screens (7.5). So a guest
 whose sign-in on `key.` is gone, after a sign-out there, in another browser or after clearing site
 data, still sees their own tokens while their Event session lasts.
 
-A sign-out on the Event screens also goes through the GeekyKey screens (FRO-131, for the next version). Only the
+A sign-out on the Event screens also goes through the GeekyKey screens (FRO-131). Only the
 GeekyKey screens can tell a guest and release a token, so when the session came from a login link,
 the Event screens log the user out (7.3) and open `/sign-out#user=<user ID>` on the GeekyKey
 screens. That page warns a guest and releases their tokens (section 13). It sends anyone else back
@@ -290,7 +299,7 @@ or a different user from the one named. A guest with no sign-in left on `key.` c
 anything there, so a GeekyKey admin still releases their tokens.
 
 A guest who signs out on the GeekyKey screens is logged out of the Event screens too, so the next
-person on a shared phone doesn't find their passport (FRO-144, for the next version). The GeekyKey
+person on a shared phone doesn't find their passport (FRO-144). The GeekyKey
 screens open `/sign-out#user=<user ID>` on the Event screens, which log out that user (7.3) and open
 the GeekyKey login. They leave a different user's session alone, so a link can't log anyone out. A
 Google or GeeksHacking user's Event session stays when they sign out on the GeekyKey screens.
@@ -322,7 +331,7 @@ and only its hash is stored. Firmware sends it on every request to the GeekyKey 
 it as `Authorization: Bearer <key>` on every request under `/geekykey/v1`: the registered
 stations, the hand-off, the heartbeat hand-off, the meeting hand-off and marking a login link used
 (11.11). An Event Service sends the same key the other way, with each station message (11.12,
-BAC-182, for the next version). It is the only request an Event Service makes to the GeekyKey
+BAC-182). It is the only request an Event Service makes to the GeekyKey
 Service.
 
 - It is 32 random bytes, written as 64 lower-case hex characters, as `openssl rand -hex 32`
@@ -411,24 +420,27 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 - The station's own game can also give what the station shows after an `accepted` or `cooldown`
   tap, as `lines` and `complete` (6.1). The passport's are the participant's progress, by name,
   and their next stop.
-- The station's own game writes the rest of its screen too (BAC-181, for the next version). After a
+- The station's own game writes the rest of its screen too (BAC-181). After a
   tap it can give a `countdown` (6.1), which the station counts down itself, and it gives what the
   station shows between taps, as `idle_lines` (6.2 and 11.1). The firmware knows no games. It keeps
   only the screens it has to show alone: no Wi-Fi, a saved tap, a wrong key and setup mode
   ([ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)).
 - A game can also send one of its stations a station message with no tap (11.12), which the
-  station shows as it shows a tap's answer (BAC-182, for the next version). A game must still work
+  station shows as it shows a tap's answer (BAC-182). A game must still work
   when a message is dropped, since a station's socket (6.3) can be down.
 - Each stored tap records the game that counted it or held it back, and a `no_game` tap records
-  none (BAC-183, for the next version). A game reads only its own taps, so an organizer can
+  none (BAC-183). A game reads only its own taps, so an organizer can
   change a station's game at any time (9.11). A tap another game counted at a passport station
   never becomes a stamp, and a station set back to the passport shows the stamps it had. Taps
-  stored before the next version record the game their station ran then, since until then a
+  stored before 0.14 record the game their station ran then, since until then a
   station's game couldn't change once a game had counted or held back a tap there.
 - The relay runs on two stations, and people from different groups pass a transfer between them
-  (BAC-184, for the next version). Its rules and its record are the Event Service's: it gives no
+  (BAC-184). Its rules and its record are the Event Service's: it gives no
   points, no stamp and no connection. Its lines are in 6.1, and the map reads its progress
   from 9.13. Its `id` is `relay` and its `name` is "Relay".
+- Team duels runs on any station set to it. A tap opens a round or joins the open one, and the
+  players' phones show the rest ([Team duels](#team-duels)). Its `id` is `team_duels` and its
+  `name` is "Team duels" (BAC-155).
 - Stations created before version 0.7 with passport settings run the passport.
 
 ### Connections
@@ -443,17 +455,18 @@ game's own record. The rules, from CONTEXT.md:
   each person and keeps both rolls with it. The higher roll wins, and equal rolls win for both.
   A pair plays once, and polls and repeat taps never change the rolls. Older connections have
   no dice. The answers and match stay visible, and points, the map and the memory card stay as
-  they are (BAC-150, approved for the next version; 8.1 and section 13).
-- Since BAC-156 (for the next version), the Event Service picks at random, when a connection is
-  made, whether the pair rolls the dice or plays the **reaction test**, and keeps the choice. Each
+  they are (BAC-150; 8.1 and section 13).
+- When a connection is made, the pair rolls the dice or plays the **reaction test** (BAC-156),
+  and the connection keeps which. Organizers choose on the Groups screen (9.19, BAC-161): at
+  random, which a new event starts on, or always the dice, or always the reaction test. A
+  change applies to connections made after it. Each
   person waits for a signal on their own phone and taps, and the phone sends how many
   milliseconds the tap took (8.11). The phones don't need to be in sync. Each person plays once,
   within 2 minutes of the connection. The faster time wins, and equal times win for both. A tap
   before the signal, or no play within the 2 minutes, has no time and loses to any time. With no
   time on either side, nobody wins. The phone measures the time, so someone could fake it, which
   is acceptable for a game with a cosmetic prize. A win counts as a dice win does.
-- Organizers choose on the Groups screen what the two must have (BAC-140, a draft for the next
-  version). A new event starts on across token kinds, and the other choice is across groups. The
+- Organizers choose on the Groups screen what the two must have (BAC-140). A new event starts on across token kinds, and the other choice is across groups. The
   Event Service judges each tap and each accept by the choice and the groups at that moment, so
   organizers can change it during a session with no deploy. Connections already made stay when it changes, when
   someone moves group, and after the groups' Reset.
@@ -465,7 +478,7 @@ game's own record. The rules, from CONTEXT.md:
   and a token with no kind connects too. Two people in the same group don't connect, and nor
   does anyone who isn't placed in a group: not joined, or waiting. The connection keeps each
   side's kind, or none.
-- **The phone's way** (8.8, 8.10, 11.10; BAC-149, a draft for the next version). A user taps their
+- **The phone's way** (8.8, 8.10, 11.10; BAC-149). A user taps their
   phone on the other's token. That tap, a **half**, sends the owner a **connection request**. The
   owner's dashboard shows the request with the tapper's name, an Accept button and a Decline
   button (section 13), and accepting connects the two. A tap on the token of someone who has
@@ -487,6 +500,93 @@ game's own record. The rules, from CONTEXT.md:
   the match can't change later and stays true for both. After that, a change to an answer gets
   `409 answers_fixed` (8.7).
 - The evening-before clear empties connections, connection requests and answers, with the taps.
+
+### Groups
+
+Added in 0.14, at `Checkpoint 7` (BAC-125). Organizers split the participants into groups on the
+Groups screen, and each participant sees their own group on their dashboard. The routes are 8.13
+and 9.14 to 9.20. The rules:
+
+- A participant is in one group at most. An account on the organizer list is never in one: it
+  can't join, it isn't counted or placed, and it reads `not_joined` (8.13).
+- **Joining.** A participant joins once (8.13), and joining again changes nothing. Until
+  allocation has started, they wait.
+- **Allocate** (9.17) shuffles everyone waiting, then places each person in the group with the
+  fewest members that still has room. When no group has room, they go to the group with the
+  fewest members. The oldest group wins a tie. It never moves anyone already placed, so it can
+  be pressed again.
+- Allocate is refused with no groups, and when fewer than 2 participants have joined for each
+  group. A refusal places nobody and doesn't start allocation.
+- The first Allocate that isn't refused starts allocation, and so does a split. From then on
+  someone who joins is a **latecomer**, placed as they join by the same rule, without the
+  shuffle. A latecomer waits only when there are no groups.
+- Once allocation has started, someone waits only when there was no group to put them in, an
+  organizer sent them back, or their group was deleted.
+- Nothing rebalances by itself. Deleting a group, removing a person or changing a capacity
+  changes only what the organizer asked for.
+- An organizer's own move may pass a group's capacity. The Groups screen marks any group over
+  its capacity, however it got there.
+- **A split** (9.17) makes the groups and allocates everyone who has joined, in one step, or
+  makes nothing.
+- **Reset** (9.17) readies another trial: everyone leaves their group and the waiting list and
+  has to join again, and allocation goes back to not started. The groups stay.
+- Each member has a `how`: `allocated` by Allocate or a split, `latecomer`, or `organizer` for
+  an organizer's own move.
+- **Groups reached.** A group has reached another group when one of its members has a
+  connection with one of the other's members, as the groups are now. A group with nobody in it
+  reaches no group and can't be reached.
+- The evening-before clear empties who joined and where they were placed, and keeps the groups.
+
+**The phrase** (BAC-169). Organizers can set one phrase of 2 to 12 words (9.20), and each
+participant placed in a group then holds one of its words.
+
+- A participant has their own word and the word of everyone they have a connection with. With
+  every word, they have completed the phrase. It gives no points and no avatar piece.
+- A word is a place in the phrase, so a phrase that says "the" twice has two words to collect.
+- A participant gets their word when they are first placed in a group, and keeps it when they
+  move, while they wait and after they are removed, so what others collected from them stays
+  collected. Only a different phrase and Reset take words back.
+- Words are dealt so a group holds each word about equally often, and so more than one person
+  holds each word where the numbers allow. With more than one group, and connections across
+  token kinds, a group is kept one word short of the whole phrase, so finishing takes someone
+  from another group. Across groups nobody connects inside their own group, so no word is kept
+  back. The rule is read when a word is dealt, so after changing the rule, organizers turn the
+  phrase off and save it again.
+- Nothing is written when two people connect. What each person has collected follows from the
+  dealt words and the connections, so connections made before a phrase was set count too.
+
+### Team duels
+
+Added in 0.14, at `Checkpoint 7` (BAC-155). A station game for people standing at one station.
+It gives no points, no stamp and no connection.
+
+- A tap at a team duels station opens a **round**, or joins the round open there. A round stays
+  open for 30 seconds from its first tap. A joining tap is `accepted`, and the station shows the
+  player's name with `joined`, then how many are in and the seconds left (6.1).
+- A player whose round hasn't ended gets `cooldown` and `Already in` for another tap, at any
+  team duels station. A saved tap that arrives after its round's 30 seconds gets `no_game`.
+- When the 30 seconds end, the Event Service makes two teams, `a` and `b`, at most one player
+  apart. Each group's players are spread across the two, so a team mixes groups. The teams last
+  for that round only.
+- Each player gets a **duel** with an opponent on the other team, from another group where that
+  is possible. With an odd number of players, one player on the smaller team has two duels.
+- The round plays one challenge, by the Groups screen's choice (9.19) when the teams are made:
+  the dice, the reaction test, or one of them picked at random for the whole round.
+- With the dice, both rolls are made with the teams, and the higher roll wins the duel. Equal
+  rolls win it for both. The round ends at once.
+- With the reaction test, each player plays each of their duels once (8.14), within 2 minutes
+  of the round closing, by the rules of a connection's reaction test
+  ([Connections](#connections)). The round ends when every duel has a result.
+- A team wins the round when it won at least one duel, and at least as many as the other team.
+  So equal counts win for both teams, and a round where no duel was won is won by nobody.
+- With one player when the 30 seconds end, no teams are made, and the round ends with
+  `nobody_joined`.
+- A round makes no connection. Afterwards the dashboard suggests each player taps their
+  opponent's token, which is an ordinary connection request under the usual rule.
+- `round_wins` in `/me` (8.1) counts the rounds the user's team has won. The dashboard's avatar
+  gains a piece for a win.
+- Nothing runs when a round closes. The teams are made, and a round is ended, by the next tap
+  at the station or the next read of `/me` by one of its players.
 
 ### Stamps and points
 
@@ -527,7 +627,7 @@ them.
 | DELETE | `/api/v1/tokens/{uid}` | User, GeekyKey admin | `Implemented` | Release a token |
 | GET | `/api/v1/admin/token-kinds` | GeekyKey admin, organiser | `Checkpoint 7` | Totals by kind |
 | POST | `/api/v1/admin/token-kinds` | GeekyKey admin | `Checkpoint 7` | Load token kinds |
-| POST | `/api/v1/token-writer/tokens` | Token writer | Draft for next version (HAR-31) | Upload token kinds as they are written (10.4) |
+| POST | `/api/v1/token-writer/tokens` | Token writer | `Checkpoint 8` | Upload token kinds as they are written (10.4) |
 | GET | `/api/v1/admin/token-kinds/tokens` | GeekyKey admin | `Checkpoint 7` | Every UID, kind and current claim |
 | DELETE | `/api/v1/admin/token-kinds/{uid}` | GeekyKey admin | `Checkpoint 7` | Remove an unclaimed UID from the kinds list |
 | POST | `/api/v1/login-links` | User | `Implemented` | A login link to one event's screens |
@@ -553,6 +653,9 @@ them.
 | POST | `/api/v1/me/connection-requests/{id}/accept` | Participant, Organizer | `Checkpoint 7` | Accept a connection request |
 | POST | `/api/v1/me/connection-requests/{id}/decline` | Participant, Organizer | `Checkpoint 7` | Decline a connection request |
 | POST | `/api/v1/me/connections/{id}/reaction` | Participant, Organizer | `Checkpoint 7` | Play a connection's reaction test |
+| GET | `/api/v1/me/group` | Participant, Organizer | `Checkpoint 7` | The user's own group, or whether they wait |
+| POST | `/api/v1/me/group` | Participant | `Checkpoint 7` | Join the groups |
+| POST | `/api/v1/me/duels/{id}/reaction` | Participant, Organizer | `Checkpoint 7` | Play a duel's reaction test, in a team duels round |
 | PUT | `/api/v1/admin/stations/{id}/passport` | Organizer | `Implemented` | Add or change a station's passport settings |
 | PUT | `/api/v1/admin/stations/{id}/game` | Organizer | `Implemented` | Set the game a station runs |
 | PUT | `/api/v1/admin/stations/{id}/booth` | Organizer | `Implemented` | Set the booth a station stands at |
@@ -565,6 +668,19 @@ them.
 | POST | `/api/v1/admin/taps` | Organizer | `Implemented` | QR fallback tap |
 | GET | `/api/v1/admin/stats` | Organizer | `Implemented` | Totals for the dashboard |
 | GET | `/api/v1/admin/export.csv` | Organizer | `Implemented` | Raw tap export for Joshua's analysis |
+| GET | `/api/v1/admin/groups` | Organizer | `Checkpoint 7` | The groups board |
+| POST | `/api/v1/admin/groups` | Organizer | `Checkpoint 7` | Make a group |
+| PUT | `/api/v1/admin/groups/{id}` | Organizer | `Checkpoint 7` | Set a group's fields |
+| DELETE | `/api/v1/admin/groups/{id}` | Organizer | `Checkpoint 7` | Delete a group, sending its members back to waiting |
+| PUT | `/api/v1/admin/groups/members/{user_id}` | Organizer | `Checkpoint 7` | Put someone in a group, or back to waiting |
+| DELETE | `/api/v1/admin/groups/members/{user_id}` | Organizer | `Checkpoint 7` | Take someone off the board |
+| POST | `/api/v1/admin/groups/allocate` | Organizer | `Checkpoint 7` | Place everyone waiting |
+| POST | `/api/v1/admin/groups/split` | Organizer | `Checkpoint 7` | Make the groups and place everyone, in one step |
+| POST | `/api/v1/admin/groups/reset` | Organizer | `Checkpoint 7` | Empty the groups for another trial |
+| GET | `/api/v1/admin/groups/export.csv` | Organizer | `Checkpoint 7` | Each person's group and times, for the report |
+| PUT | `/api/v1/admin/connections/rule` | Organizer | `Checkpoint 7` | What two people need to connect |
+| PUT | `/api/v1/admin/connections/challenge` | Organizer | `Checkpoint 7` | What a new connection plays |
+| PUT | `/api/v1/admin/groups/phrase` | Organizer | `Checkpoint 7` | Set the phrase, or turn it off |
 | GET | `/api/v1/map` | Organizer, map screen | `Implemented` | Each station's game, booth and counts, for the map |
 | GET | `/api/v1/map/relay` | Organizer, map screen | `Checkpoint 8` | The relay's progress, for the map (BAC-184) |
 
@@ -621,7 +737,7 @@ item has a [`tap_status`](#tap_status).
 | `results[].status` | string | A [`tap_status`](#tap_status), or another team's own |
 | `results[].lines` | array of strings, optional | 1 or 2 lines for the station's screen, written by the station's game. Each is 0 to 16 printable ASCII characters, space to `~`. Only with `accepted` and `cooldown` |
 | `results[].complete` | boolean, optional | `true` on the tap that finishes the station's game, such as the passport's last stamp, so the station plays its own tune. Only with `accepted` and `cooldown`. Ours gives it only when `true`, with `lines` |
-| `results[].countdown` | object, optional | A screen that counts down, written by the station's game (BAC-181, for the next version). Only with `accepted` and `cooldown`. Ours gives it with `lines` |
+| `results[].countdown` | object, optional | A screen that counts down, written by the station's game (BAC-181). Only with `accepted` and `cooldown`. Ours gives it with `lines` |
 | `results[].countdown.seconds` | integer | 1 to 99. Seconds to count down, from when the answer was made, so a station with a wrong clock still counts correctly |
 | `results[].countdown.lines` | array of strings | 1 or 2 lines, with `lines`' rules, except that `{s}` may appear once across them and counts as 2 characters. The station puts the seconds left in its place |
 | `results[].countdown.ending` | array of strings | 1 or 2 lines, with `lines`' rules, that the station shows when the count reaches zero |
@@ -639,7 +755,7 @@ item has a [`tap_status`](#tap_status).
 - A saved tap sent later gets them too, but the station doesn't show them, since the participant has
   gone.
 
-**A countdown** (BAC-181, for the next version). A result can also give a screen that ticks,
+**A countdown** (BAC-181). A result can also give a screen that ticks,
 which the station counts down itself, so the screen moves without hearing from the server again:
 
 ```json
@@ -660,7 +776,7 @@ which the station counts down itself, so the screen moves without hearing from t
   from its start, which a station whose clock is ahead can open. The wording can change.
 - The passport gives none.
 
-**The relay's lines** (BAC-184, for the next version). The relay runs on the two stations whose
+**The relay's lines** (BAC-184). The relay runs on the two stations whose
 game is `relay`. The first tap at either one starts a game, and that station calls a group to the
 other station. Someone from that group taps there within 20 seconds to complete a transfer, and
 their station then calls the next group back. A game is 3 transfers with two groups playing, or 4
@@ -740,12 +856,18 @@ In the table, `Blue` is a group's name and `B` a station's booth.
   and sound, except with `complete: true`: play a tune of your own instead of the accepted beep,
   and light the LED in a way of its own. An answer without `lines` shows the table's screen, as
   today.
-- For a live tap with `countdown` (BAC-181, for the next version), show `countdown.lines` in place
+- For a live tap with `countdown` (BAC-181), show `countdown.lines` in place
   of `lines`, with `{s}` replaced by the seconds left, and count down once a second from
   `countdown.seconds`, starting when the answer arrives. Keep the status's LED and sound as for
-  `lines`. At zero, show `countdown.ending` for about 2 seconds, then go back to the idle screen. A
-  new tap ends the countdown and shows its own result. Cut each line to 16 characters once `{s}`
-  is replaced, in case.
+  `lines`. At zero, show `countdown.ending` for about 2 seconds, then go back to the idle screen.
+  Cut each line to 16 characters once `{s}` is replaced, in case.
+- Another result during a countdown, such as an unknown token or a tap saved with no Wi-Fi,
+  shows for its usual 2 seconds. Then the countdown comes back, still counting from when its
+  own answer arrived. Only a new answer with its own `countdown`, or a station message (6.3),
+  replaces the one running (HAR-50).
+- If the count reaches zero while another result shows, show `countdown.ending` once that
+  result ends, up to about 2 seconds late. A reader error covers the countdown, and the count
+  goes on underneath.
 - The cooldown for saved taps is judged by `tapped_at` when present, so saved taps can be sent
   in any order, and a tap is compared with the taps the same game accepted nearest it in time on
   either side, including ones already stored. Without `tapped_at` the receipt time is used, which means every
@@ -812,7 +934,7 @@ whether the reader works.
 |---|---|---|
 | `station_id` | string | The station's ID |
 | `server_time` | string | The server's time, in UTC with milliseconds |
-| `idle_lines` | array of strings, optional | What the station shows between taps, its idle screen, from the station's game: 1 or 2 lines with 6.1's `lines` rules. Left out for a station whose game gives none, such as a station with no game (BAC-181, for the next version) |
+| `idle_lines` | array of strings, optional | What the station shows between taps, its idle screen, from the station's game: 1 or 2 lines with 6.1's `lines` rules. Left out for a station whose game gives none, such as a station with no game (BAC-181) |
 
 - Stations call this at boot and every 60 seconds. At boot it replaces `/api/health`, because
   it also proves the station key.
@@ -821,7 +943,7 @@ whether the reader works.
   the taps meanwhile keep the station online.
 - It is the station's clock: set the clock from `server_time` every time, and send `tapped_at`
   only once it has been set.
-- It gives the idle screen (BAC-181, for the next version). Show `idle_lines[0]` and
+- It gives the idle screen (BAC-181). Show `idle_lines[0]` and
   `idle_lines[1]`, or a blank second line, in place of `Ready` / `Tap a tag`, and keep them until
   the next heartbeat's answer. An answer without `idle_lines` goes back to `Ready` / `Tap a tag`.
   With no answer, keep the last. The station's own screens, such as no Wi-Fi, a setup error or a
@@ -829,8 +951,8 @@ whether the reader works.
 - The GeekyKey Service takes `idle_lines` from its copy of the registered stations (11.1), which
   is at most a minute old. So a change of the station's game reaches the idle screen within about
   two minutes: up to one for the copy, and up to one for the next heartbeat. Ours gives
-  `Passport` / `Tap your token`, `Team duels` / `Tap to join` and, from the next version,
-  `Relay` / `Tap to start` (BAC-184). The wording can change.
+  `Passport` / `Tap your token`, `Team duels` / `Tap to join` and `Relay` / `Tap to start`
+  (BAC-184). The wording can change.
 - Every 60 seconds also keeps the HTTPS connection open, since Cloudflare closes an idle one
   after 400 seconds.
 - The GeekyKey Service answers as soon as the key is checked, and passes the other fields to the
@@ -847,7 +969,7 @@ gets `401` whatever it sends, until it's over the limit.
 
 ### 6.3 `GET /api/v1/stations/socket` (`Checkpoint 8`)
 
-Added for the next version (BAC-182, [ADR 0009](../docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md)).
+Added in 0.14 (BAC-182, [ADR 0009](../docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md)).
 The station's WebSocket, which it holds open so its Event Service can send it a station message
 (11.12) with no tap. Taps and heartbeats stay on HTTP.
 
@@ -872,14 +994,15 @@ against the station's 60 a minute.
 | `type` | string | `station_message`. Ignore a frame whose `type` you don't know |
 | `lines` | array of strings | 1 or 2 lines, with 6.1's `lines` rules |
 | `countdown` | object, optional | With 6.1's `countdown` rules |
-| `beep` | boolean, optional | `true` for one attention beep as the message arrives. Left out means `false` |
+| `beep` | boolean, optional | `true` for one attention beep when the station shows the message. Left out means `false` |
 
 - The GeekyKey Service sends a message only to the station it names, and only while its socket is
   open. A message sent while a station has no socket is dropped, and is never sent later.
 - A station has one socket. Opening a second closes the first with code `4000`, so a station that
   reconnected after a dropped Wi-Fi never leaves a stale one taking its messages.
 - Send the text `ping` every 30 seconds. The GeekyKey Service answers `pong`. Anything else the
-  station sends is ignored.
+  station sends is ignored. A station that gets no `pong` within 15 seconds of its `ping` closes
+  the socket and opens it again (HAR-51).
 - A disabled station's socket stays open until it closes. It gets no messages once the GeekyKey
   Service's copy of the registered stations leaves it out, since an Event Service can only send
   one to a station on its own list (11.12).
@@ -897,9 +1020,15 @@ that isn't a WebSocket upgrade, and `rate_limited`
 - A station message is shown as a live tap's answer is (6.1). With a `countdown`, show its `lines`
   in place of `lines` and count down, then its `ending` for about 2 seconds at zero. Without one,
   show `lines` for about 2 seconds. Then go back to the idle screen. With `beep: true`, play one
-  short attention beep, and leave the LED as it is. A tap's answer, or a newer message, replaces
-  it. The station's own screens, such as no Wi-Fi, a setup error or a reader error, still come
-  first.
+  short attention beep when the message shows, and leave the LED as it is. A tap's answer, or a
+  newer message, replaces it. The station's own screens, such as no Wi-Fi, a setup error or a
+  reader error, still come first.
+- A tap's answer wins for its first 2 seconds (HAR-51). A message that arrives in that time
+  waits, and only the newest one is kept. When the 2 seconds end, the station shows it and plays
+  its beep then, with its countdown counted from when it arrived. After those 2 seconds a
+  message replaces a tap's running countdown, which the relay needs.
+- A message also waits while a heartbeat is overdue, so a stream of messages can't hold the
+  heartbeat back past 6.2's 30 seconds.
 - A frame that isn't JSON, or breaks the rules above, is ignored and printed on the serial port.
 - Everything still works without the socket. A station whose socket is down shows each tap's
   answer, and the heartbeat's idle screen, as before.
@@ -1046,7 +1175,7 @@ way a guest reaches the Event screens. The link's format is in 11.9.
 
 ### 7.5 `POST /auth/login-link` on the GeekyKey Service (`Checkpoint 7`)
 
-Added for the next version (BAC-157). Logs the user in with a login link from an Event Service
+Added in 0.14 (BAC-157). Logs the user in with a login link from an Event Service
 (8.12), so someone logged in on the Event screens is logged in on the GeekyKey screens as the same
 user. It's the reverse of 7.4, for a guest whose sign-in on the GeekyKey screens is gone: without
 it, the GeekyKey login offers "Continue as guest", which makes a new guest who owns none of their
@@ -1100,10 +1229,9 @@ already have been made.
 
 Everything the participant dashboard and passport view need in one call.
 
-BAC-144, approved for the next version as Adam reported: before showing any participant screen,
-the screens require `user.has_name` and an answer to every question in the event's `questions`.
-This uses the multiple-choice draft's `questions` and `user.answers`, where each question ID maps
-to its chosen choice ID. With `questions: null` or an empty list, only the name is needed.
+Before showing any participant screen, the screens require `user.has_name` and an answer to
+every question in the event's `questions` (BAC-144). This uses `questions` and `user.answers`,
+where each question ID maps to its chosen choice ID. With `questions: null` or an empty list, only the name is needed.
 Organizers keep their current flow. No skip remembered by the browser bypasses this check.
 
 **Auth:** `event_session`, any role.
@@ -1131,7 +1259,9 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   ],
   "connections": [
     { "id": "0b7e4d2c-1f9a-4c3e-8a5d-6e2f1b9c7d40", "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "match": 50, "shared": null, "shared_at": "2026-11-12T08:14:30.000Z" }
-  ]
+  ],
+  "round_wins": 0,
+  "round": null
 }
 ```
 
@@ -1181,19 +1311,19 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   is left out too. While a question isn't in `answers`, the passport asks it (section 13). Added
   in 0.13, replacing 0.12's `user.question` and `user.answer`, which were never built.
 - `connection_requests` lists the requests waiting for the user to accept or decline
-  ([Connections](#connections)), newest first (BAC-149, a draft for the next version). `id` is the
+  ([Connections](#connections)), newest first (BAC-149). `id` is the
   request's own, for 8.10, because this answer never gives another person's user ID.
   `display_name` is the tapper's current event name, so a name they change shows at the next poll,
   or `Guest` when they have none. `bio` is the tapper's current bio, or `null` when they have none,
   so the user can see who's asking before they accept. A screen reads a missing one as `null`
-  (BAC-151, for the next version). `requested_at` is when the tap reached the Event Service. The
+  (BAC-151). `requested_at` is when the tap reached the Event Service. The
   list is empty without a connections game, and a screen reads a missing list as empty, so it
   works with an Event Service from before it.
-- `user.bio` and `user.contact_line` are what the user wrote (8.7), or `null` for none (BAC-147,
-  approved for the next version). A screen reads a missing one as `null`, so it works with an Event
+- `user.bio` and `user.contact_line` are what the user wrote (8.7), or `null` for none (BAC-147). A screen reads a missing one as `null`, so it works with an Event
   Service from before them.
 - `connections` lists the user's connections ([Connections](#connections)), newest first. Each
   gives when it was made and the other person's `kind`, and never their user ID or answers.
+  `kind` is `null` when they had none, which only a connection across groups allows.
   Without a connections game it is an empty list. Added in 0.12, with these fields from 0.13:
   - `match` is the pair's match as a whole percent, from 0 to 100, kept from when they connected.
     It is `null` when no question was answered by both, or the event has no answers game.
@@ -1208,11 +1338,10 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   stays as it was made. `display_name` is `null` when they have never logged in to this Event
   Service, and the screens show `Guest` (BAC-136). `bio` and `contact_line` are `null` when they
   have none. This list is the only answer that gives another person's contact line, so nobody gets
-  one before the two connect. A screen reads a missing one as `null` (BAC-147, approved for the
-  next version).
+  one before the two connect. A screen reads a missing one as `null` (BAC-147).
 - The user's tokens are not here. They are on the GeekyKey Service's `/me` (8.4).
 
-**Dice (BAC-150, approved for the next version).** Each connection also gives
+**Dice (BAC-150).** Each connection also gives
 `dice`: `{ "your_roll": 5, "their_roll": 2, "result": "win" }`, or `null` for a connection made
 before dice. Each roll is an integer from 1 to 6, chosen independently by the Event Service when
 the connection is made and stored with it. Accepting with the button or tapping back uses the
@@ -1223,7 +1352,7 @@ for both people. Both see the same rolls from their own side, with no other pers
 A screen reads a missing `dice` as `null`, so it works with an Event Service from before dice.
 The answers, match, points, map and memory card stay as they are.
 
-**Reaction test (BAC-156, for the next version).** Each connection also gives its own `id`, the
+**Reaction test (BAC-156).** Each connection also gives its own `id`, the
 same for both people and never a user ID, for 8.11. Connections made before it get one too. Each
 connection also gives `reaction`, which is `null` unless the pair got the reaction test
 ([Connections](#connections)). A reaction connection has `dice: null`.
@@ -1245,6 +1374,60 @@ connection also gives `reaction`, which is `null` unless the pair got the reacti
   and the screens say nobody wins.
 - A screen reads a missing `id` or `reaction` as `null`, so it works with an Event Service from
   before them. An older Event Service gives every new connection dice.
+
+**Team duels (BAC-155).** `round_wins` is how many rounds the user's team has won
+([Team duels](#team-duels)), and `round` is the latest round the user is in, or `null` for
+none. Without a team duels game they are `0` and `null`, and a screen reads a missing one the
+same way.
+
+```jsonc
+"round": {
+  "id": "…",
+  "state": "playing",          // "opening" | "playing" | "ended"
+  "closes_at": "2026-11-12T08:14:30.000Z",
+  "players": 3,
+  "challenge": "dice",         // null while opening, then "dice" | "reaction"
+  "team": "a",                 // null while opening, and with one player
+  "teammates": ["Sam"],
+  "duels": [
+    { "id": "…", "opponent": "Jo",
+      "dice": { "your_roll": 5, "their_roll": 2, "result": "win" },
+      "reaction": null }
+  ],
+  "result": null               // { "outcome": "win", "your_team_wins": 2, "their_team_wins": 1 }
+}
+```
+
+- `state` is `opening` until `closes_at`, when the round stops taking players, `playing` while a
+  duel has no result, and `ended` after.
+- `players` is how many have joined. `teammates` are the names of the others on the user's
+  team, and `duels` are the user's own: one, or two for the odd player.
+- A duel's `opponent` is the other player's name, `dice` is as a connection's above, and
+  `reaction` is a connection's `reaction` object, with `play_by` 2 minutes after `closes_at`. A
+  dice round has `reaction: null`, and a reaction round `dice: null`. A duel's `id` is for 8.14.
+- `result` is `null` until the round ends. `outcome` is `win` or `loss` for the user's team,
+  or `nobody_joined` for a round with one player. `your_team_wins` and `their_team_wins` count
+  the duels each team won. Equal counts above 0 are a `win` for both teams, and 0 to 0 is a
+  `loss` for both, which the screens word as nobody winning.
+- `/me` gives no other user's ID, and names only the round's own players. A player who has
+  never logged in shows as `Guest`.
+- The dashboard polls `/me` every 3 seconds while `state` is `opening` or `playing`
+  ([Rate limits](#rate-limits)).
+
+**The phrase (BAC-169).** While a phrase is set ([Groups](#groups)), a participant placed in a
+group who holds a word also gets `phrase`, and each of their connections gets `word`:
+
+```json
+"phrase": { "words": ["make", null, "people", null], "your_word": 0 }
+```
+
+- `words` is the whole phrase in order: a word's text when the user has it, and `null` when
+  they don't yet. `your_word` is the place of the user's own word in `words`, counted from 0.
+- Each connection's `word` is `{ "text": "people", "already_had": false }`: the word the other
+  person holds, and whether the user had it before that connection, counting connections oldest
+  first. It is `null` when the other person holds no word.
+- For anyone else, and with no phrase set, the answer has no `phrase` and no connection has a
+  `word`, as before 0.14.
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
 
@@ -1287,7 +1470,7 @@ claim. Taps made with the token before still count.
 **Auth:** `gk_session`. An owner releases their own token. A GeekyKey admin can release someone
 else's by adding `?owner_id=<user ID>`: the owner the token lookup (8.5) showed when the
 page loaded, so a late or double click can't release a newer claim. On the Token kinds screen it
-is the owner the list (10.2) showed (FRO-145, for the next version).
+is the owner the list (10.2) showed (FRO-145).
 
 **Request:** no body. `{uid}` is a [Token UID](#token-uid) in any separator style.
 
@@ -1353,7 +1536,7 @@ shows a login prompt and looks nothing up.
 |---|---|
 | `nobody` | **Claim** |
 | `you` | Your token, with **Release**, and a button for each event from `/me`, such as "Open Capstone Showcase", which opens a login link (8.6) |
-| `someone_else` | "This token belongs to someone else". This lookup gives no name or bio, and the meeting's answer (8.8) can give the owner's (BAC-143, approved for the next version, and BAC-151, for the next version). A GeekyKey admin also sees **Release** |
+| `someone_else` | "This token belongs to someone else". This lookup gives no name or bio, and the meeting's answer (8.8) can give the owner's (BAC-143 and BAC-151). A GeekyKey admin also sees **Release** |
 
 - `{uid}` is a [Token UID](#token-uid) in any separator style, and `uid` in the answer is the
   normalised form.
@@ -1393,6 +1576,9 @@ token's UID, in any separator style ([Token UID](#token-uid)), and My tokens sen
   owns the token, so nobody takes on a kind by naming someone else's token. A token with no kind,
   someone else's, nobody's, or no `uid` at all gives a link with no kind. Only a request with a
   `uid` asks the claims stand-in, so only it can get `claims_unavailable`.
+- The account menu's Event screens action sends no `uid`, as My tokens does, so its link carries
+  no kind (FRO-151). The user's kind in the event (8.1) is the first one either service gave, so
+  for someone with several tokens the first tap or token page sets it.
 - It expires 60 seconds after it's made, and works once (7.4). The screens open it straight away
   and don't keep it.
 - The screens open `url` as it is. They never build it, so the event's address and the
@@ -1406,7 +1592,7 @@ token's UID, in any separator style ([Token UID](#token-uid)), and My tokens sen
 
 Sets the name the event shows for the current user: on the passport, the scan log and the
 export. From 0.13 it also sets some or all of the user's answers in the answers game, and it
-sets the user's bio and contact line (BAC-147, approved for the next version). Participant setup asks for the name when `has_name` is `false` (8.1), and the dashboard and passport let the user change it
+sets the user's bio and contact line (BAC-147). Participant setup asks for the name when `has_name` is `false` (8.1), and the dashboard and passport let the user change it
 later. Anyone can set it, not only a guest. A Google user may not want their full Google name
 shown.
 
@@ -1424,8 +1610,7 @@ Every field is optional, and a request needs at least one.
 script is allowed. A name that breaks the rule gets `validation_failed`, with its issue under the
 path `["display_name"]`, and leaves the name as it was.
 
-A name someone else in the event has gets `409 name_taken` and leaves the name as it was (BAC-145,
-approved for the next version). Names are compared after trimming, and names that differ only in
+A name someone else in the event has gets `409 name_taken` and leaves the name as it was (BAC-145). Names are compared after trimming, and names that differ only in
 capitals are the same, as group names are. The default `Guest` doesn't count while `has_name` is
 `false`, since nobody chose it. Saving your own current name again works, with different capitals
 too. Of two saves of one name at once, one gets it.
@@ -1445,7 +1630,7 @@ changed. A user can change their answers until their first connection fixes them
 `bio` and `contact_line` are each a string or `null`. A string is trimmed, then must be at most 160
 code points for `bio` and 80 for `contact_line`, with its issue under `["bio"]` or
 `["contact_line"]`. A blank string or `null` clears it, and `GET` then gives `null`. The contact
-line is free text, such as a Telegram handle (BAC-147, approved for the next version).
+line is free text, such as a Telegram handle (BAC-147).
 
 BAC-144 keeps that lock on existing answers. A user
 whose older connection fixed incomplete answers can fill a missing question, including a question
@@ -1464,8 +1649,7 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
 - From now on, logging in (7.2) and login links (7.4) no longer change the name.
 - Nothing checks what a name says. A station's screen greets the user by its first word (6.1). On
   phones, the user's name shows to the organizers, to the user's group, to anyone who taps the
-  user's token, before the two connect, and to anyone whose token the user taps (8.8, BAC-143,
-  approved for the next version).
+  user's token, before the two connect, and to anyone whose token the user taps (8.8, BAC-143).
 - `user.answers` is all the user's answers after the change, as 8.1 gives them.
 - Answers show only on the user's own phone. `/me` never gives another person's answers, only
   the questions a pair answered the same (8.1), and the map (9.10) gives none.
@@ -1473,8 +1657,7 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
   and to the people they have connected with, in `connections` (8.1). A bio shows to them too, and
   also to anyone who taps the user's token, before the two connect (8.8), and to anyone whose token
   the user taps, in a connection request (8.1), because viewing a profile needs no accepting. The
-  organizers' screens, the export, the map and the memory card never show either one (BAC-147,
-  approved for the next version, and BAC-151, for the next version).
+  organizers' screens, the export, the map and the memory card never show either one (BAC-147, and BAC-151).
 
 **Errors:** `unauthenticated`, `validation_failed`, `answers_fixed`, `name_taken` (BAC-145), and `rate_limited`
 ([Rate limits](#rate-limits)).
@@ -1485,7 +1668,7 @@ The current user tapped their phone on someone else's token: one half of a conne
 sends the owner a connection request or accepts theirs ([Connections](#connections)). The token
 page calls it by itself once its lookup (8.5) answers `someone_else`, except for a GeekyKey admin,
 who may be holding a lost token, and except when the browser says the page load is a reload or a
-move back or forward, which isn't a tap (BAC-149, a draft for the next version). Then the page
+move back or forward, which isn't a tap (BAC-149). Then the page
 shows only the sentence that the token belongs to someone else.
 
 **Auth:** `gk_session`, any user.
@@ -1507,15 +1690,14 @@ shows only the sentence that the token belongs to someone else.
 - `meetings` has one item for each Event Service that takes meetings, in the order of `events` in
   `/me` (8.4), and is empty when none takes them.
 - `status` is the Event Service's answer (11.10): `waiting`, `connected`, `already_connected` or
-  `same_kind`, `no_kind` (BAC-135), or `answers_needed` (BAC-144, approved for the next version). Section 13 has what the token page shows for each. A tap makes one request at most,
+  `same_kind`, `no_kind` (BAC-135), or `answers_needed` (BAC-144). Section 13 has what the token page shows for each. A tap makes one request at most,
   so `waiting` can come again for the same pair.
 - `owner_name` is the Event Service's answer too (11.10): the owner's current name, or `null`. The
   GeekyKey Service passes it on and stores no names. The answer gives no user ID, token UID or
-  answers. A screen that gets no `owner_name` reads it as `null` (BAC-143, approved for the next
-  version).
+  answers. A screen that gets no `owner_name` reads it as `null` (BAC-143).
 - `owner_bio` comes the same way: the owner's current bio from the same answer (11.10), or `null`.
   The GeekyKey Service passes it on and stores no bios. The answer never gives a contact line. A
-  screen that gets no `owner_bio` reads it as `null` (BAC-151, for the next version).
+  screen that gets no `owner_bio` reads it as `null` (BAC-151).
 - An Event Service that doesn't answer in time, or answers wrongly, gets the status
   `unavailable` in its item, with `owner_name` and `owner_bio` `null`, and the GeekyKey Service logs `meeting_handoff_failed`. The other items are unaffected. Nothing is retried. Tapping the token again
   sends the half again, which does no harm.
@@ -1534,7 +1716,7 @@ token now reaches them as a connection request (8.1), so `tapped_you` went with 
 
 ### 8.10 `POST /api/v1/me/connection-requests/{id}/accept` and `/decline` on the Event Service (`Checkpoint 7`)
 
-BAC-149, a draft for the next version. The user answers a connection request that waits for them
+Added in 0.14 (BAC-149). The user answers a connection request that waits for them
 (8.1, [Connections](#connections)). Only that user can answer it.
 
 **Auth:** `event_session`, any role.
@@ -1549,7 +1731,7 @@ BAC-149, a draft for the next version. The user answers a connection request tha
 
 | `status` | Meaning |
 |---|---|
-| `answers_needed` | Either person still needs their name or an answer. The request stays, and no connection is made (BAC-144, approved for the next version) |
+| `answers_needed` | Either person still needs their name or an answer. The request stays, and no connection is made (BAC-144) |
 | `connected` | The two are connected, and both see the reveal at their next read of `/me` |
 | `already_connected` | Another accept or a tap back made the connection just before this one |
 | `same_kind` | Across token kinds, both have a kind and the two kinds are equal. There's no connection, and the request has gone |
@@ -1571,7 +1753,7 @@ includes one already answered, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 8.11 `POST /api/v1/me/connections/{id}/reaction` on the Event Service (`Checkpoint 7`)
 
-BAC-156, for the next version. The user plays a connection's reaction test once
+Added in 0.14 (BAC-156). The user plays a connection's reaction test once
 ([Connections](#connections)). The phone shows how to play, waits a random time once the user is
 ready, shows the signal, and sends how long the tap took. The Event Service keeps the first play
 and refuses any other.
@@ -1604,7 +1786,7 @@ played, even after `play_by`, `too_late` (409) once `play_by` has passed without
 
 ### 8.12 `POST /api/v1/login-links` on the Event Service (`Checkpoint 7`)
 
-Added for the next version (BAC-157). A login link to the GeekyKey screens, for the current user,
+Added in 0.14 (BAC-157). A login link to the GeekyKey screens, for the current user,
 the reverse of 8.6. My tokens on the Event screens calls it, then opens the GeekyKey screens at
 `/#login=<login_link>` (7.5). Every user gets one, guests and Google users alike.
 
@@ -1632,6 +1814,66 @@ the reverse of 8.6. My tokens on the Event screens calls it, then opens the Geek
 - Nothing logs the link.
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
+
+### 8.13 `GET` and `POST /api/v1/me/group` on the Event Service (`Checkpoint 7`)
+
+Added in 0.14 (BAC-125). The user's own group ([Groups](#groups)), for the dashboard's group
+card. `GET` reads it, and `POST` joins the groups first.
+
+**Auth:** `event_session`. `GET` takes any role. `POST` takes a participant, and an organizer
+gets `403 forbidden`, since an organizer account is never in a group.
+
+**Request:** no body.
+
+**Response `200`**, from both:
+
+```json
+{
+  "status": "placed",
+  "allocation_started": true,
+  "group": {
+    "id": "…", "name": "Group 1", "tags": ["Mixer"], "location": "Table 3",
+    "members": [ { "display_name": "Alex" }, { "display_name": "Mei Lin" } ],
+    "other_groups": [ { "name": "Group 2", "reached": true }, { "name": "Group 3", "reached": false } ]
+  }
+}
+```
+
+- `status` is `not_joined`, `waiting`, for someone who has joined and has no group, or
+  `placed`. An organizer always reads `not_joined`.
+- `allocation_started` says whether allocation has started, so the card can tell someone
+  waiting whether a group will come by itself.
+- `group` is `null` unless `status` is `placed`. `tags` is a list, empty for none, and
+  `location` is `null` for none. `members` is everyone in the group, the user included, by
+  name only, oldest join first.
+- `other_groups` is every other group with someone in it, oldest first, with whether the
+  user's group has reached it ([Groups](#groups)) (BAC-167). It gives names only, never
+  members. A screen that gets none shows no list, so it works with an Event Service from before
+  it.
+- The answer never gives a user ID, or another group's members.
+- `POST` joins the user, and answers as `GET` does. Someone who has joined keeps their place. A
+  join after allocation has started places the participant at once and answers `placed`, or
+  `waiting` when there are no groups. Their `how` is then `latecomer`, and their `placed_at`
+  equals their `joined_at` (9.14).
+- The dashboard sends the join once when the user arrives through a login link, and otherwise
+  shows a Join button while `status` is `not_joined`, so someone looking from home isn't counted
+  as present (section 13).
+
+**Errors:** `unauthenticated`, `forbidden` for an organizer's `POST`, and `rate_limited`
+([Rate limits](#rate-limits)).
+
+### 8.14 `POST /api/v1/me/duels/{id}/reaction` on the Event Service (`Checkpoint 7`)
+
+Added in 0.14 (BAC-155). The user plays one of their duels in a team duels round whose
+challenge is the reaction test ([Team duels](#team-duels)). `{id}` is a duel's `id` from
+`round.duels` in `/me` (8.1). The body, the answer and the play's rules are 8.11's, and
+`play_by` is 2 minutes after the round's `closes_at`.
+
+**Auth:** `event_session`, any role.
+
+**Errors:** `unauthenticated`, `validation_failed`, `not_found` for a duel that isn't the
+user's or whose round doesn't play the reaction test, `already_played` (409), `too_late` (409),
+and `rate_limited` ([Rate limits](#rate-limits)).
 
 ---
 
@@ -1741,7 +1983,7 @@ organizers can choose from.
 | `label` | The device's name, such as "Reader 3". Its name in the passport is `passport.name` |
 | `disabled_at` | When an organizer disabled it, or `null` while it is enabled |
 | `game` | The `id` of the game it runs, or `null` for none (section 4, [Games](#games)). With none, its taps get `no_game` |
-| `game_fixed` | Always `false` from the next version, since a station's game can change at any time (9.11). Kept for one version so the screens don't break, then removed. Don't read it |
+| `game_fixed` | Always `false` from 0.14, since a station's game can change at any time (9.11). Kept for one version so the screens don't break, then removed. Don't read it |
 | `booth` | The booth the map draws it at (9.12), or `null` |
 | `passport` | `null` for a station without passport settings. The screen shows it as "Not in the passport", with a button to add its settings (9.1). A station with settings is a stamp slot only while its `game` is `passport` |
 | `passport.booth` | The same as `booth`, kept because fields are never removed. Read `booth` |
@@ -2146,7 +2388,7 @@ Event Service didn't register, and `rate_limited` ([Rate limits](#rate-limits)).
 
 ### 9.13 `GET /api/v1/map/relay` (`Checkpoint 8`)
 
-Added for the next version (BAC-184). What the map draws of the relay (6.1): its two stations, the
+Added in 0.14 (BAC-184). What the map draws of the relay (6.1): its two stations, the
 call a station is waiting on, and how far the game has got. It's apart from 9.10 so the map can ask
 for it every second.
 
@@ -2192,6 +2434,241 @@ its own, 90 a minute, and doesn't count toward the user's 60 ([Rate limits](#rat
 **Errors:** `unauthenticated` and `forbidden`, as 9.10's, and `rate_limited` past its own 90 a
 minute ([Rate limits](#rate-limits)).
 
+### 9.14 `GET /api/v1/admin/groups` (`Checkpoint 7`)
+
+Added in 0.14 (BAC-125). The groups board: everything the Groups screen shows
+([Groups](#groups)). The screen polls it every 5 seconds.
+
+**Response `200`**
+
+```json
+{
+  "allocation_started_at": "2026-11-12T08:05:00.000Z",
+  "connect_across": "groups",
+  "challenge": "random",
+  "phrase": { "text": "make something people want", "completed_count": 2 },
+  "joined_count": 3,
+  "groups": [
+    { "id": "…", "name": "Group 1", "tags": ["Mixer"], "location": "Table 3", "capacity": 4,
+      "members": [
+        { "user_id": "dev-user-1", "display_name": "Alex", "joined_at": "2026-11-12T08:01:10.000Z", "placed_at": "2026-11-12T08:05:00.000Z", "how": "allocated" },
+        { "user_id": "dev-user-2", "display_name": "Mei Lin", "joined_at": "2026-11-12T08:09:30.000Z", "placed_at": "2026-11-12T08:09:30.000Z", "how": "latecomer" }
+      ],
+      "reached_group_ids": [] }
+  ],
+  "waiting": [
+    { "user_id": "dev-user-9", "display_name": "Sam", "joined_at": "2026-11-12T08:02:00.000Z" }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `allocation_started_at` | When allocation started, or `null` while it hasn't |
+| `connect_across` | What two people need to connect, `token_kinds` or `groups` (9.19) |
+| `challenge` | What a new connection plays, `random`, `dice` or `reaction` (9.19). A screen that gets none offers no choice, so it works with an Event Service from before it |
+| `phrase` | `null` with no phrase set. Otherwise its `text`, with one space between words, and `completed_count`: how many participants in a group now have every word (9.20). A screen that gets no `phrase` key shows no setting |
+| `joined_count` | How many participants have joined: everyone in a group, and everyone waiting |
+| `groups` | Every group, oldest first |
+| `groups[].capacity` | The most people it has room for, or `null` for any number. Allocate fills every group with room before any goes over |
+| `groups[].members` | Who is in it, oldest join first. `placed_at` is when they were put in this group, and `how` is `allocated`, `latecomer` or `organizer` (section 4) |
+| `groups[].reached_group_ids` | The IDs of the other groups it has reached, in the board's order (BAC-167). A screen that gets none shows nothing about it |
+| `waiting` | Everyone who has joined and has no group, oldest join first |
+
+- Organizer accounts are left out everywhere: of `joined_count`, of each group and of `waiting`.
+- Every route below that answers "with the board" answers with this body as it is after the
+  change.
+
+**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` ([Rate limits](#rate-limits)).
+
+### 9.15 `POST /api/v1/admin/groups`, and `PUT` and `DELETE /api/v1/admin/groups/{id}` (`Checkpoint 7`)
+
+Added in 0.14 (BAC-128 and BAC-132). Make a group, set its fields, or delete it.
+
+**Request**, for `POST` and `PUT`:
+
+```json
+{ "name": "Group 1", "tags": ["Mixer", "Year 1"], "location": "Table 3", "capacity": 4 }
+```
+
+| Field | Rules |
+|---|---|
+| `name` | Required. Trimmed, then 1 to 80 characters, counted as Unicode code points |
+| `tags` | Optional, at most 5, each trimmed, then 1 to 80 characters. Left out means none. They are shown and change nothing about allocation |
+| `location` | Optional. Trimmed, then at most 80 characters. Blank, `null` or left out means none |
+| `capacity` | Optional. A whole number above 0, or `null` or left out for any number |
+
+- A field left out is none, so a `PUT` sets every field, and the screen sends them all.
+- `POST` answers `201` with the group, as the board lists it (9.14), with no members.
+- `PUT` answers `200` with the group, as the board lists it. It moves nobody, even when the
+  capacity drops below the group's size.
+- `DELETE` answers `204`. The group's members go back to waiting, to be placed at the next
+  Allocate, and nobody else moves.
+- A name another group has gets `409 name_taken`, and changes nothing. Capitals don't make a
+  name different, so "Team A" and "team a" are one name.
+- Each writes a log line, `group_created`, `group_changed` or `group_deleted`, with the
+  organizer's user ID and the group's ID.
+
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found` for a `PUT` or
+`DELETE` of a group that doesn't exist, `name_taken`, and `rate_limited`
+([Rate limits](#rate-limits)).
+
+### 9.16 `PUT` and `DELETE /api/v1/admin/groups/members/{user_id}` (`Checkpoint 7`)
+
+Added in 0.14 (BAC-132). An organizer's own move of one person. `{user_id}` is from the board.
+
+**Request**, for `PUT`:
+
+```json
+{ "group_id": "…" }
+```
+
+`group_id` is required: a group's ID, or `null` to send the person back to waiting.
+
+- `PUT` answers `200` with the board (9.14), so the screen needs no second read. The move may
+  pass the group's capacity. Their `how` becomes `organizer` and their `placed_at` the time of
+  the move, or both `null` for waiting. Putting someone where they already are changes nothing.
+- A `PUT` for a user who hasn't joined joins them now, with the time of the move as their
+  `joined_at`.
+- `DELETE` answers `204` and takes the person off the board, as someone who has left, so they
+  stop counting toward a group's size. They can join again, as a latecomer once allocation has
+  started.
+- A `PUT` that names an account on the organizer list gets `403 forbidden`, since an organizer
+  is never placed. The Groups screen can't send one, because the board never lists an organizer.
+- Each writes a log line, `group_member_moved` or `group_member_removed`.
+
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed`, `not_found` for a `PUT` whose
+user or group doesn't exist and for a `DELETE` of someone who hasn't joined, and `rate_limited`
+([Rate limits](#rate-limits)).
+
+### 9.17 `POST /api/v1/admin/groups/allocate`, `/split` and `/reset` (`Checkpoint 7`)
+
+Added in 0.14 (BAC-130, BAC-133 and BAC-138). The Groups screen's three presses
+([Groups](#groups)).
+
+**Allocate** takes no body. It places everyone waiting, and answers `200` with the board
+(9.14). It answers `409 no_groups` with no groups, and `409 too_few_participants` when fewer
+than 2 participants have joined for each group:
+
+```json
+{ "error": "too_few_participants", "needed": 1 }
+```
+
+`needed` is how many more must join. A refusal places nobody and doesn't start allocation.
+Later arrivals and an organizer's own moves are never refused this way.
+
+**Split** makes the groups and allocates everyone who has joined, in one step:
+
+```json
+{ "people_per_group": 4, "locations": ["Table 1", "Table 2", null] }
+```
+
+| Field | Rules |
+|---|---|
+| `people_per_group` | A whole number, 2 or more. Each group gets it as its capacity |
+| `group_count` | A whole number, 1 or more. The groups get no capacity |
+| `locations` | Optional. One for each group, in order, each with a group's location rule (9.15). `null`, blank or missing is none, and any past the last group go unused |
+
+- Send exactly one of `people_per_group` and `group_count`. Both, or neither, gets
+  `validation_failed`.
+- By people per group, the number of groups is the smaller of two numbers: the joined
+  participants divided by the people per group, rounded up, and the joined participants divided
+  by 2, rounded down. So nobody goes over the number entered where that's possible, and nobody
+  is alone in a group. 5 joined at 2 a group gives groups of 3 and 2, and 3 joined at 2 a group
+  gives one group of 3.
+- By number of groups, everyone is split evenly. 10 joined with 3 groups gives 4, 3 and 3.
+- The groups are named "Group 1", "Group 2" and so on, with no tags.
+- It answers `201` with the board (9.14), since it makes groups. Allocate answers `200` with
+  the same body.
+- Groups that exist with nobody placed in any, as after a Reset, are replaced.
+- With anyone placed in a group, it answers `409 groups_exist`, so it can't overwrite a board in
+  use. When fewer than 2 participants have joined for each group it would make, it answers
+  `409 too_few_participants` with `needed`. Either way nothing is made or changed.
+- Two splits at once make one set of groups: one answers `201`, and the other `groups_exist`.
+
+**Reset** takes no body, and answers `200` with the board. Everyone leaves their group and the
+waiting list, allocation goes back to not started, and every word of the phrase is taken back.
+The groups, the connection rule, the challenge and the phrase stay. Connections already made
+stay too.
+
+Each writes a log line: `groups_allocated`, `groups_split` with how many groups, or
+`groups_reset`.
+
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed` for a split, `no_groups` for
+Allocate, `too_few_participants` for Allocate and a split, `groups_exist` for a split, and
+`rate_limited` ([Rate limits](#rate-limits)).
+
+### 9.18 `GET /api/v1/admin/groups/export.csv` (`Checkpoint 7`)
+
+Added in 0.14 (BAC-134). Everyone who has joined the groups, as a file, so the report can
+measure the time from joining to being placed. A Reset empties it, so the Groups screen says to
+download it first.
+
+**Response `200`**, with `Content-Type: text/csv; charset=utf-8` and
+`Content-Disposition: attachment; filename="geekykey-groups.csv"`.
+
+Columns, in order: `user_id, display_name, group_name, joined_at, placed_at, how`.
+
+- One row for each person who has joined, oldest join first.
+- `group_name`, `placed_at` and `how` are empty for someone waiting.
+- Times are UTC ISO timestamps, and values are escaped as in 9.6.
+
+**Errors:** `unauthenticated`, `forbidden`, and `rate_limited` ([Rate limits](#rate-limits)).
+
+### 9.19 `PUT /api/v1/admin/connections/rule` and `/challenge` (`Checkpoint 7`)
+
+Added in 0.14 (BAC-140 and BAC-161). The Groups screen's two settings for connections
+([Connections](#connections)). Each is one setting for the whole event, kept in the database,
+so every server instance reads the same one and a restart keeps it.
+
+**The rule.** The body and the `200` answer are both:
+
+```json
+{ "connect_across": "groups" }
+```
+
+`connect_across` is `token_kinds`, which a new event starts on, or `groups`. Each tap and each
+accept is judged by the rule at that moment, and connections already made stay.
+
+**The challenge.** The body and the `200` answer are both:
+
+```json
+{ "challenge": "dice" }
+```
+
+`challenge` is `random`, which a new event starts on, `dice` or `reaction`. A connection plays
+what the setting says when it's made, and connections already made keep theirs. A team duels
+round reads it when its teams are made ([Team duels](#team-duels)).
+
+Each writes a log line, `connection_rule_changed` or `connection_challenge_changed`. The board
+(9.14) gives both settings.
+
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed` for any other value, and
+`rate_limited` ([Rate limits](#rate-limits)).
+
+### 9.20 `PUT /api/v1/admin/groups/phrase` (`Checkpoint 7`)
+
+Added in 0.14 (BAC-169). Set the phrase, or turn it off ([Groups](#groups)).
+
+**Request**
+
+```json
+{ "phrase": "make something people want" }
+```
+
+- `phrase` is text of 2 to 12 words, each at most 20 characters, counted as Unicode code
+  points. Any run of spaces or line breaks separates two words, and punctuation stays on its
+  word. `null` or blank text turns the phrase off.
+- It answers `200` with the board (9.14).
+- A phrase that differs from the one set takes every word back and deals them again to everyone
+  placed. What each person has collected is then counted again from the connections they
+  already have. The same phrase again changes nothing.
+- It writes a `phrase_changed` log line with the organizer's user ID and the number of words,
+  never the words.
+
+**Errors:** `unauthenticated`, `forbidden`, `validation_failed` for a phrase outside the limits,
+and `rate_limited` ([Rate limits](#rate-limits)).
+
 ---
 
 ## 10. GeekyKey admin endpoints
@@ -2200,8 +2677,7 @@ The station jobs moved to each Event Service's organizers in version 0.3 (9.7 to
 A GeekyKey admin releases someone else's token through 8.3 with `owner_id`, and manages
 GeekyKey's list of token kinds below. Station jobs remain with each Event Service.
 
-The additions below are a draft for the next agreement version (BAC-139 and BAC-152).
-The route shapes and wording here are what this branch builds against.
+Added in 0.14 (BAC-139, BAC-152 and HAR-31).
 
 ### 10.1 Totals and loading: `GET` and `POST /api/v1/admin/token-kinds`
 
@@ -2228,7 +2704,7 @@ An organiser without GeekyKey admin access gets `403 forbidden` and no UIDs or o
 
 Answers `200` with `{ "tokens": [...] }`, every UID on the kinds list or currently claimed,
 once each, in ascending UID order. There is no server pagination or filtering; the screen
-searches by UID, filters by kind (including no kind) and, for the next version, by ownership,
+searches by UID, filters by kind (including no kind) and by ownership,
 sorts by UID or kind (FRO-145), and pages 50 rows at a time.
 Each item has `uid`, `kind` (string or null), `owner_id` (string or null) and `claimed_at`
 (UTC ISO timestamp or null). An unclaimed token has null for both claim fields. A claimed
@@ -2256,7 +2732,7 @@ and `uid`. A lost reply can mean the removal happened; refresh before trying aga
 
 ### 10.4 The token writer: `POST /api/v1/token-writer/tokens`
 
-Draft for the next agreement version (HAR-31). The writer uploads each token's kind as it
+Added in 0.14 (HAR-31). The writer uploads each token's kind as it
 writes it. The same kinds list feeds the totals in 10.1; the paste load there still works.
 
 **Auth:** `Authorization: Bearer gk_wri_<64 lower-case hex>`, separate from station keys.
@@ -2340,7 +2816,7 @@ Service's list in memory, fills it when it's empty, and refreshes it at most onc
 |---|---|---|
 | `station_id` | string | The station's ID, unique across every Event Service. Ours are UUIDs |
 | `key_hash` | string | The SHA-256 of the station key, as 64 lower-case hex characters. Never the key itself |
-| `idle_lines` | array of strings, optional | What the station shows between taps, from its game: 1 or 2 lines with 6.1's `lines` rules. The GeekyKey Service gives them to the station in the heartbeat's answer (6.2). Leave it out for a station whose game gives none. An Event Service from before it leaves it out for every station, which keeps each on `Ready` / `Tap a tag` (BAC-181, for the next version) |
+| `idle_lines` | array of strings, optional | What the station shows between taps, from its game: 1 or 2 lines with 6.1's `lines` rules. The GeekyKey Service gives them to the station in the heartbeat's answer (6.2). Leave it out for a station whose game gives none. An Event Service from before it leaves it out for every station, which keeps each on `Ready` / `Tap a tag` (BAC-181) |
 
 - List enabled stations only. A disabled station drops off, and within a minute its key gets
   `401`.
@@ -2405,7 +2881,7 @@ it that passed the GeekyKey Service's own checks.
   isn't snake_case does (11.5). An Event Service that sends neither gets the station's own screen
   for the status.
 - `countdown` is optional too, with 6.1's rules, and passes to the station the same way, only with
-  `accepted` and `cooldown` (BAC-181, for the next version). One that breaks them fails the whole
+  `accepted` and `cooldown` (BAC-181). One that breaks them fails the whole
   request as a bad line does. A GeekyKey Service from before it drops it, and the station shows
   `lines`.
 - `status` is a snake_case string. Ours answers `accepted`, `cooldown`, `no_game` or
@@ -2489,7 +2965,7 @@ for other teams, in `packages/handoff/json-schema/`. The registered stations' an
 hand-off's two are there, and so is the heartbeat hand-off's request. Its answer has no body.
 
 - A station message's request and answer are there too (11.12): `station-messages-request.schema.json`
-  and `station-messages-answer.schema.json` (BAC-182, for the next version).
+  and `station-messages-answer.schema.json` (BAC-182).
 - The files leave other fields allowed, since fields are only ever added (section 1).
 - A JSON Schema can't say that the hand-off's results match its taps one for one, or that `{s}`
   appears at most once across a countdown's lines. The GeekyKey Service checks both (11.5).
@@ -2538,7 +3014,7 @@ UTF-8, then the HMAC-SHA256 of that first part's characters with the login link 
 The Event Service compares the HMAC in constant time, then checks `v`, `exp` and `jti`, and
 answers `invalid_login_link` (401) if any check fails. It never logs a link.
 
-**The other way** (BAC-157, for the next version). A login link to the GeekyKey screens (7.5 and
+**The other way** (BAC-157). A login link to the GeekyKey screens (7.5 and
 8.12) has the same format, and the Event Service makes it. Its key is derived the same way, with
 the info `geekykey login link to geekykey` in place of `geekykey login link`, so a link made for
 one service's screens never logs anyone in on the other's. Its `kind` is always `null`. The
@@ -2579,16 +3055,16 @@ entry in `EVENT_SERVICES` says `"meetings": true`, and an entry that leaves it o
 `owner_name` is the owner's current name, a string of at least 1 character, for every `status`. It
 is `null` when they have no name of their own (`has_name` in 8.1 would be `false`) or this Event
 Service has never seen them. The token page shows it so that two people notice they hold each
-other's tokens (BAC-143, approved for the next version).
+other's tokens (BAC-143).
 
 `owner_bio` is the owner's current bio (8.7), a string of at least 1 character, for every `status`.
 It is `null` when they have none or this Event Service has never seen them. It doesn't depend on
 `owner_name`, so an owner with no name of their own can still have one. The token page shows it
-under their name, and the answer never gives a contact line (BAC-151, for the next version).
+under their name, and the answer never gives a contact line (BAC-151).
 
 | `status` | Meaning |
 |---|---|
-| `answers_needed` | The tapper has no name or has not answered every question, or a tap back would complete an older request whose sender has not finished. No new half is kept, no request is sent, and no connection is made. An existing request stays (BAC-144, approved for the next version) |
+| `answers_needed` | The tapper has no name or has not answered every question, or a tap back would complete an older request whose sender has not finished. No new half is kept, no request is sent, and no connection is made. An existing request stays (BAC-144) |
 | `waiting` | The owner has a connection request from the user, which waits until they answer it. A request already waiting stays as it is |
 | `connected` | The user had a request from the owner, so this tap accepted it, and the two are connected |
 | `already_connected` | The two were connected before. Nothing changes |
@@ -2611,7 +3087,7 @@ under their name, and the answer never gives a contact line (BAC-151, for the ne
   statuses don't change with connection requests (BAC-149): `waiting` only comes to mean a request
   rather than a half that expires. A GeekyKey Service from before `owner_name` ignores the field.
   A GeekyKey Service that knows the field reads an answer without it as `null`. `owner_bio` works
-  the same way (BAC-151, for the next version).
+  the same way (BAC-151).
   A GeekyKey Service from before `answers_needed` treats that unknown status as a malformed
   answer and gives `unavailable`, with no half kept by the Event Service. An older Event Service
   still gives its existing statuses, which the new GeekyKey Service accepts (BAC-144).
@@ -2628,7 +3104,7 @@ under their name, and the answer never gives a contact line (BAC-151, for the ne
 
 ### 11.11 Marking a login link used: `POST /geekykey/v1/used-login-links` (`Checkpoint 7`)
 
-Added for the next version (BAC-157). The GeekyKey Service calls this when a login link to its
+Added in 0.14 (BAC-157). The GeekyKey Service calls this when a login link to its
 screens (7.5), made by this Event Service, checks out there. The GeekyKey Service keeps no
 database, so the Event Service keeps each link's `jti` until it expires, and a link works once.
 
@@ -2658,7 +3134,7 @@ database, so the Event Service keeps each link's `jti` until it expires, and a l
 
 ### 11.12 Sending a station message: `POST /api/v1/station-messages` on the GeekyKey Service (`Checkpoint 8`)
 
-Added for the next version (BAC-182). The one request an Event Service makes to the GeekyKey
+Added in 0.14 (BAC-182). The one request an Event Service makes to the GeekyKey
 Service: send one of its own stations a station message, which the station shows with no tap. The
 GeekyKey Service passes it down the station's socket (6.3), and keeps nothing.
 
@@ -2740,7 +3216,7 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 | Login | Firebase's web SDK, with Google, GeeksHacking's login or as a guest, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development |
 | Token page, `/t/<UID>` | `GET /api/v1/me`, `GET /api/v1/tokens/{uid}`, then `POST /api/v1/tokens/{uid}/claim` or `DELETE /api/v1/tokens/{uid}`, which a GeekyKey admin also uses to release someone else's token; `POST /api/v1/login-links` with the token's `uid` for the event buttons; `POST /api/v1/tokens/{uid}/meet` once the lookup answers `someone_else` |
 | My tokens, the home page | `GET /api/v1/me`, `DELETE /api/v1/tokens/{uid}`, and `POST /api/v1/tokens/{uid}/claim` for the claim-by-code form; `POST /api/v1/login-links` for the event buttons |
-| Arriving from the Event screens' My tokens, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` (7.5, BAC-157, for the next version) |
+| Arriving from the Event screens' My tokens, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` (7.5, BAC-157) |
 | Signing out from the Event screens, `/sign-out#user=<user ID>` | `GET /api/v1/me`, then for a guest `DELETE /api/v1/tokens/{uid}` for each token and `POST /auth/logout`, or `POST /api/v1/login-links` if they stay (section 3, "Browser sessions") |
 
 The GeekyKey admin screen is Token kinds at `/admin/token-kinds`, described in section 10.
@@ -2752,16 +3228,17 @@ Organisers can open it for totals only.
 |---|---|
 | Login | Firebase's web SDK, with Google or GeeksHacking's login, then `POST /auth/firebase`, in production; `POST /auth/dev-login` in development. No guest sign-in |
 | Arriving from a login link, `/#login=<link>` | `POST /auth/login-link`, then `GET /api/v1/me` |
-| My tokens, in the place menu | `POST /api/v1/login-links`, then opens the GeekyKey screens at `/#login=<link>`, or at `/` when that fails (8.12, BAC-157, for the next version) |
+| My tokens, in the place menu | `POST /api/v1/login-links`, then opens the GeekyKey screens at `/#login=<link>`, or at `/` when that fails (8.12, BAC-157) |
 | Signing out after arriving from a login link | `POST /auth/logout`, then opens `/sign-out#user=<user ID>` on the GeekyKey screens (section 3, "Browser sessions") |
 | A guest who signed out on the GeekyKey screens, `/sign-out#user=<user ID>` | `GET /api/v1/me`, then `POST /auth/logout` when it names that user, then opens the GeekyKey login (section 3, "Browser sessions") |
-| Participant dashboard | `GET /api/v1/me`, with `connection_requests`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline`; `PATCH /api/v1/me` for the bio and the contact line |
+| Participant dashboard | `GET /api/v1/me`, with `connection_requests`, `round` and `phrase`; `POST /api/v1/me/connection-requests/{id}/accept` and `/decline`; `PATCH /api/v1/me` for the bio and the contact line; `GET /api/v1/me/group`, polled, and `POST /api/v1/me/group` for the group card; `POST /api/v1/me/duels/{id}/reaction` |
 | Passport / stamp book | `GET /api/v1/me` (the `stamps` array, and `connections` for the reveal); `PATCH /api/v1/me` for the name and the answers |
 | Organizer scan log | `GET /api/v1/admin/taps`, polled |
 | Organizer station board | `GET /api/v1/admin/stations`, polled; `PUT /api/v1/admin/stations/{id}/passport`; `PUT /api/v1/admin/stations/{id}/game`; `PUT /api/v1/admin/stations/{id}/booth`; `POST /api/v1/admin/stations`; `POST /api/v1/admin/stations/{id}/key`; `POST /api/v1/admin/stations/{id}/disable`, `/enable` |
+| Organizer Groups screen | `GET /api/v1/admin/groups`, polled every 5 seconds; `POST /api/v1/admin/groups`; `PUT` and `DELETE /api/v1/admin/groups/{id}`; `PUT` and `DELETE /api/v1/admin/groups/members/{user_id}`; `POST /api/v1/admin/groups/allocate`, `/split` and `/reset`; `PUT /api/v1/admin/connections/rule` and `/challenge`; `PUT /api/v1/admin/groups/phrase`; `GET /api/v1/admin/groups/export.csv` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
 | Organizer summary | `GET /api/v1/admin/stats`, `GET /api/v1/admin/export.csv` |
-| Map, on the big screen at our booth | `GET /api/v1/map`, polled every 2 seconds, and `GET /api/v1/map/relay`, every second (BAC-184, for the next version). Logged in as a map screen, or as an organizer |
+| Map, on the big screen at our booth | `GET /api/v1/map`, polled every 2 seconds, and `GET /api/v1/map/relay`, every second (BAC-184). Logged in as a map screen, or as an organizer |
 
 - On `429`, screens that poll keep showing their last data. The token page, the claim form and My
   tokens say "Too many tries. Wait a minute and try again."
@@ -2785,8 +3262,7 @@ Organisers can open it for totals only.
   afterwards: **"Sign out of this guest login?"**, with "You can't log back in as this guest, and
   your tokens will be released so anyone can claim them. Your connections and points stay as they
   are." under it, or "You can't log back in as this guest. Your connections and points stay as they
-  are." when they hold no tokens, and **Stay signed in** and **Sign out** (FRO-131, approved for the
-  next version, as Adam reported).
+  are." when they hold no tokens, and **Stay signed in** and **Sign out** (FRO-131).
 - **Sign out** there reads a fresh `/me` (8.4) and releases each token (8.3), counting `not_found`
   as released, then signs out. If a release fails, the guest stays signed in, and the warning says
   "Couldn't release your tokens, so you're still signed in." above that error's own sentence. Some
@@ -2800,21 +3276,19 @@ Organisers can open it for totals only.
   release nothing and say "Couldn't check your login. Try again.", so a Google user can't lose a
   token that way. A Google or GeeksHacking user signs out without being asked and keeps their tokens.
 - When the Event screens' `/sign-out` can't log the user out, it says **"Couldn't log you out of the
-  event"** above that error's own sentence, with **Try again** and **Back to GeekyKey** (FRO-144, for
-  the next version).
+  event"** above that error's own sentence, with **Try again** and **Back to GeekyKey** (FRO-144).
 - On `invalid_login_link`, the Event screens say "That link has expired. Tap your token again to
   get back in."
 - When `POST /auth/login-link` fails on the GeekyKey screens, whatever the error, they say "That
   link has expired. Open My tokens from the event again." above whatever the session they had
-  shows: the login, or My tokens (BAC-157, for the next version, not yet seen by Ethan).
+  shows: the login, or My tokens (BAC-157).
 - Participants finish setup before the dashboard, passport, activity or group card can render
-  (BAC-144, approved for the next version). Setup is headed **"Your name and answers"**, or **"Your name"** without questions. When `has_name` is `false`, setup asks **"What should
+  (BAC-144). Setup is headed **"Your name and answers"**, or **"Your name"** without questions. When `has_name` is `false`, setup asks **"What should
   we call you?"**, with **Save** and no Skip. On `validation_failed` it says **"Use 1 to 30
   characters."** On `name_taken`, here and wherever the name changes, it says **"Someone already
-  has this name. Try another."** under the field and keeps what was typed (BAC-145, approved for
-  the next version). Under the field it says **"The organisers, your group, and anyone who taps your
+  has this name. Try another."** under the field and keeps what was typed (BAC-145). Under the field it says **"The organisers, your group, and anyone who taps your
   token or whose token you tap see it. Anyone who taps your token or whose token you tap also sees
-  your bio."** (BAC-143, FRO-127 and BAC-151; the second sentence is for the next version).
+  your bio."** (BAC-143, FRO-127 and BAC-151).
 - After the name, setup asks every unanswered question in the event's order, one at a time,
   with each choice as a button and no Skip. It says **"Your answers"**, **"Question {n} of
   {total}"** and **"Answer all {total} to get your match when you connect."** Saving the last
@@ -2833,12 +3307,12 @@ Organisers can open it for totals only.
 - On `answers_fixed`, a screen says **"You've connected, so your answers are set."**
 - The reveal and the list of connections show the other person's `display_name`, or **Guest** for
   `null`, then their `bio`, then **"Contact: {contact_line}"**. A field that's `null` takes no line
-  (BAC-136 and BAC-147, approved for the next version; "Contact:" is a draft for Ethan to approve).
+  (BAC-136 and BAC-147).
 - The reveal and the list of connections also show **"You rolled {your_roll}. They rolled
   {their_roll}."**, then **"You win!"** for `win` or **"They win!"** for `loss`. Equal rolls say
   **"You both win!"**. A connection with no `dice` shows no roll or result. The answers and match
-  stay visible (BAC-150, approved for the next version).
-- For a connection with `reaction` (BAC-156, wording a draft for Ethan), the reveal says how to
+  stay visible (BAC-150).
+- For a connection with `reaction` (BAC-156), the reveal says how to
   play before anything starts: **"Reaction test"**, **"When the box turns green, tap it as fast
   as you can. Tap before then and you lose. The faster of you wins."** and **"Time left to play:
   {m}:{ss}."**, with an **I'm ready** button. The time counts down while the test is visible,
@@ -2864,16 +3338,14 @@ Organisers can open it for totals only.
   **Change profile** button, or **"No bio or contact line yet. Add them so people you connect with
   can reach you."** with neither. Change profile opens a form headed **"What people see about you."**, with **Bio**, which has **"Anyone who taps your token
   or whose token you tap sees this."** under it, **Contact line**, which has **"People you connect
-  with see this."** under it, and **Save** (BAC-151 changes the heading and the sentence under Bio,
-  for the next version). The contact line's placeholder is
+  with see this."** under it, and **Save** (BAC-151). The contact line's placeholder is
   "@yourhandle on Telegram". Leaving one blank clears it. On `validation_failed` it says "Use at most
   160 characters." or "Use at most 80 characters." under that field. An event with no connections game
-  shows none of this (BAC-147, approved for the next version; the sentence about who sees the contact
-  line is the ticket's, and the other wording BAC-147 added is a draft for Ethan to approve).
+  shows none of this (BAC-147).
 - While `connection_requests` isn't empty, the dashboard lists each one under **"Connection
   requests"** as **"{display_name} wants to connect."**, then their `bio`, which takes no line when
-  it's `null` (BAC-151, for the next version), with **Accept** and **Decline** buttons,
-  and reads `/me` again after a press (BAC-149, drafts for Ethan to approve). On a `same_kind`
+  it's `null` (BAC-151), with **Accept** and **Decline** buttons,
+  and reads `/me` again after a press (BAC-149). On a `same_kind`
   answer it says **"You have the same token kind. Find someone with a different kind."**; on
   `no_kind`, **"This token can't connect yet. Ask an organizer."** (BAC-135); on
   `same_group`, **"You're in the same group. Find someone from another group."**,
@@ -2884,12 +3356,10 @@ Organisers can open it for totals only.
   (BAC-144).
 - After the meeting call (8.8), when an item's `owner_name` isn't `null`, the token page replaces "This token belongs to someone else" with **"This token
   belongs to {owner_name}."** and **"If you're carrying this token, it isn't yours. Swap it back
-  with {owner_name}."** (BAC-143, approved for the next version). When an item's `owner_bio` isn't
+  with {owner_name}."** (BAC-143). When an item's `owner_bio` isn't
   `null`, the bio goes straight under "This token belongs to {owner_name}." or "This token belongs
   to someone else", and when it's `null` it takes no line. The name and the bio come from one item:
-  the first with a name, or the first with a bio when none has a name (BAC-151, for the next
-  version). Under those sentences, it shows: for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149,
-  a draft for Ethan to approve); for `connected`,
+  the first with a name, or the first with a bio when none has a name (BAC-151). Under those sentences, it shows: for `waiting`, **"Request sent. Ask them to open their dashboard and accept."** (BAC-149); for `connected`,
   **"You're connected!"**; for `already_connected`, **"You're already connected."**; for
   `answers_needed`, **"You both need to finish your names and answers in the event before connecting."**; for
   `same_kind`, **"You have the same token kind. Find someone with a different kind."**; for
@@ -2902,7 +3372,7 @@ Organisers can open it for totals only.
   offers it too, because opening the event joins the participant, and a latecomer is placed at once.
   Under `waiting`, `connected` and `already_connected`, it says what that button opens:
   **"Open the event to see your connection once they accept."**, **"Open the event to play your
-  challenge."**, and **"Open the event to see your connection."** (FRO-169, for the next version).
+  challenge."**, and **"Open the event to see your connection."** (FRO-169).
 - When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
   shows the stamp's `name` with a button, **"Open their page?"**, which opens `link` in a new
   tab. It never opens the page by itself, since a browser opens one only after a press. A stamp
@@ -2911,8 +3381,13 @@ Organisers can open it for totals only.
   above its content. With no service behind the screens at all, it says "Demo data. This screen
   shows sample data." Every screen built so far sends every call to its own service, so with the
   service behind it, it shows no notice.
+- Until their first tap, the dashboard says how to start. For an event with the answers game it
+  says **"Tap someone's token with your phone to connect."**, and otherwise **"Tap your token at
+  any station to start collecting stamps"** (FRO-138).
+- The station board's game select is labelled **Game**, lists each of 9.2's `games` by name and
+  **No game**, and says **"Game saved."** after a change (9.11).
 - The organiser's CSV download is the file the service sent, unchanged, unless a value needs
-  escaping. The summary says the rule under the Download CSV button: **"A value that a
+  escaping. The summary and the Groups screen say the rule under the Download CSV button: **"A value that a
   spreadsheet could run as a formula gets an apostrophe, so it stays text."** When the file was
   changed, it says **"Some values were escaped, so this file is not the service's own."**
 
@@ -2932,7 +3407,7 @@ on one set of screens leaves the other's alone.
 
 ---
 
-### Token kinds screen (BAC-152 draft)
+### Token kinds screen
 
 Only GeekyKey admins see the "Every token" list, with "UID", "Kind", "Owner ID" and
 "Claimed" columns. An unclaimed token says "Unclaimed" and "Not claimed". A missing kind
@@ -2948,7 +3423,7 @@ A lost removal reply says to check the refreshed list before trying again. The l
 refresh after a load or removal, including a failed request whose reply may have been lost.
 Organisers retain the totals from 10.1 and see no token list or removal controls.
 
-For the next version (FRO-145): each claimed token, including one with no kind, also has
+Since FRO-145, each claimed token, including one with no kind, also has
 "Release", which releases it through 8.3 with the `owner_id` the list showed. It opens
 "Release this token?", which names the UID and the "Owner ID" and says "Anyone will be able to
 claim it again. Its kind, earlier taps, connections and points stay." The buttons say "Cancel"
@@ -2970,6 +3445,151 @@ filter is set, and "Clear
 filters" resets the search, kind and ownership. With an ownership filter set, no matches says
 "No tokens match. Clear the search, choose another kind or show all owners." Paging shows only
 when there is more than one page. The last column is "Actions".
+
+### Groups screen
+
+Added in 0.14. The organizers' screen at `/admin/groups`, over 9.14 to 9.20.
+
+- It is headed **Groups**, with: "Press Make groups to split everyone who has joined, by people
+  per group or by number of groups, or to make each group by hand. Allocate places anyone
+  waiting. Move anyone from their menu, or with a mouse, drag them to another group or to
+  Waiting. Tick people who are waiting to move them to one group together. Reset empties the
+  groups for another trial. Refreshes every 5 seconds."
+- The header has **Make groups**, **Allocate** and **Reset**. Allocate shows only while there
+  are groups and someone is waiting. Above the board it says **"{n} joined, {n} waiting"**.
+- With no groups: **"No groups yet"** and "Once people have joined, press Make groups to split
+  them into groups at once. Or use it to make each group by hand, then press Allocate."
+- When the board can't be read again, it keeps the last one and says **"Group updates are
+  delayed."**
+- **Each group** shows its name, then **"{n} of {capacity}"**, or **"{n} in it"** with no
+  capacity, its location and its tags. It says **"Over capacity"** past its capacity, and
+  **"Fewer than 2 members"** once allocation has started. An empty one says **"Nobody here
+  yet."** Last comes **"Reached every other group"**, **"Reached no other group yet"** or
+  **"Reached {names}"**, which shows only when the group and another group have members.
+- **Each person** shows their name, **"Joined {time}"**, and in a group **"Placed {time}"** and
+  how: **"Allocated"**, **"Latecomer"** or **"Moved by an organiser"**. Their menu has **"Move
+  to {group}"** for each other group, **"Send back to waiting"** and **"Remove"**. A move or
+  removal that fails says why on their row.
+- **Waiting** lists everyone with no group, or says **"Nobody is waiting."** Each has a tick
+  box. Under the list it says **"Tick people to move them to a group together."**, **"{n}
+  ticked"**, or **"Make a group to move people to."** with no groups, beside **Move ticked**,
+  which offers **"Move to {group}"**. Anyone it couldn't place is named: **"Not placed:
+  {names}. {reason}"**
+- A group's menu has **"Edit group…"** and **"Delete group…"**. Deleting asks **"Delete
+  {name}?"**, with **"Nobody is in it."**, or **"Its 1 member goes back to the waiting list.
+  Press Allocate to place them again."** ("Its {n} members go" for more), and **Cancel** and
+  **Delete**.
+- Reset asks **"Reset the groups?"**, with "Everyone leaves their group and has to join again,
+  and Allocate starts over. The groups stay as they are. Download the CSV first to keep this
+  trial's times.", and **Cancel** and **Reset**.
+- **Make groups** opens a dialog with three ways: **"By people per group"**, which it starts
+  on, **"By number of groups"** and **"By hand"**. The first two say "Makes the groups and
+  places everyone who has joined, in one step." By hand says "Participants see its name, tags
+  and location when they're placed."
+- By people per group, the field is **"People per group"**, with "People per group is each
+  group's capacity. The number of groups comes from how many have joined when you press
+  Split." By number of groups it is **"Number of groups"**, with "Everyone who has joined is
+  split evenly between them. The groups have no capacity." A number that won't do says
+  **"Enter a whole number, 2 or more."**, or "1 or more" for the number of groups.
+- Under the number, a line says what a press would make: **"Nobody has joined yet."**, **"1
+  has joined."** or **"{n} have joined."**, then **"A split needs at least 2."**, **"{n} groups
+  need at least {n}."**, **"This makes {n} groups of {n}."** or **"This makes {n} groups: {n}
+  of {n} and {n} of {n}."** While anyone is in a group it says only how many have joined.
+- **Locations** says "Optional. Where each group's members go.", with a field **"Group {n}
+  location"** for each group the line shows, up to 30. Past 30 it adds "Only the first 30 have
+  a field here. Set the rest from each group's menu afterwards."
+- With empty groups there, the dialog warns **"This replaces the {n} empty groups, including
+  their names and locations."**, or "This replaces the empty group, including its name and
+  location." for one. The button says **Split**.
+- By hand, and **Edit group**, is the group form: **Name**; **Tags**, with "Optional. Up to 5,
+  separated by commas, such as Mixer, Year 1."; **Location**, with "Optional. Where its members
+  go."; and **Capacity**, with "Optional. Allocate fills every group with room before any goes
+  over. Leave it empty for any number." The button says **Create group**, or **Save** for an
+  edit. Its checks say **"Give the group a name."**, **"Keep it under 80 characters."**, **"Use
+  at most 5 tags."**, **"Keep each tag under 80 characters."** and **"Enter a whole number
+  above 0, or leave it empty."**
+- On `name_taken` the form says **"Another group has this name. Choose a different one."**
+  under the name.
+- On `no_groups`, Allocate says **"Make groups first, then press Allocate."**
+- On `too_few_participants`, Allocate says **"Each group needs at least 2 people. Wait for
+  {needed} more people to join, then press Allocate again."**, with "1 more person" for one.
+  The Make groups dialog says the same sentence ending **"then press Split again."**, because
+  pressing Allocate after a refused split would find no groups.
+- On `groups_exist`, the dialog says **"People are in groups already, so nothing changed. Press
+  Reset to empty the groups, then make groups again."**
+- **Connections** has two choices: **"Connect across token kinds"**, with "Two people connect
+  when their tokens are of different kinds.", and **"Connect across groups"**, with "Two people
+  connect when they are in different groups, whatever their tokens." A refused change says
+  **"Couldn't change what connections need."**, then the reason.
+- **Challenge** says "What each new connection plays. Connections already made keep theirs.",
+  with **Random**, "Each new connection gets the dice or the reaction test, picked at random.";
+  **Dice**, "Each new connection rolls the dice."; and **Reaction**, "Each new connection plays
+  the reaction test." A refused change says **"Couldn't change the challenge."**, then the
+  reason.
+- **Phrase** says "Each person in a group holds one word, and a connection gives both people
+  the other's word. Finishing takes people from other groups." Its status is **"On. {n} of {m}
+  people in groups have completed it."** or **"Off. Save a phrase to start."** The field
+  counts **"{n} words"**, with "2 to 12 words, each up to 20 characters." under it, and the
+  buttons are **Save phrase** and **Turn off**.
+- A phrase that won't do says **"Use 2 to 12 words."** or **"Use at most 20 characters in each
+  word."** A refused save says **"Couldn't save the phrase."**, then the reason. While the field
+  differs from the phrase set, it says **"Not saved yet. People still see {phrase}."**
+- With a phrase set it also says: "A different phrase gives everyone a new word, and what each
+  person has collected is counted again from the connections they already have. Turn off takes
+  the phrase off everyone's phone. Words are dealt for the connection rule at the time, so
+  after changing the rule, turn the phrase off and save it again."
+- Across groups, with exactly two groups that have members, a phrase of more than 2 words and
+  a group smaller than the phrase, it warns: "With two groups that connect only with each
+  other, each group needs at least {n} people, one for each word, or some people can't finish.
+  Use a shorter phrase, or make a third group."
+- The CSV download follows the summary's rule above, and saves `geekykey-groups.csv`.
+
+### Group card, phrase and team duels on the dashboard
+
+Added in 0.14. What a participant sees of 8.13 and of `round` and `phrase` in 8.1.
+
+- **The group card.** Not joined, it is headed **Groups** and says **"Press Join when you're at
+  the event, and you'll be put in a group."**, with a **Join** button. Arriving through a login
+  link joins without the button.
+- Waiting, it says **"You're waiting for a group."**, then **"It will show here. You don't need
+  to do anything else."** before allocation has started, or **"Ask an organiser to put you in
+  one."** after.
+- Placed, it is headed **Your group** and shows the group's name, location, tags and members'
+  names. Under **Other groups**, each other group says **Reached** or **Not yet**, then **"Your
+  group has reached every other group."** or **"Connect with someone from each group to reach
+  it."**
+- A card that can't load says **"Your group couldn't be loaded."**, and one whose polls fail
+  keeps what it had and says **"Your group's updates are delayed."**
+- **The phrase card** is headed **Phrase**, with **"{n} of {total} words"**, and says
+  **"Complete the phrase"** or **"You completed the phrase!"**. It shows each word, with a blank
+  for one not found yet, and **"Your word is {word}."** Until it is complete it says: "A blank
+  is a word you haven't found yet. Tap someone's token with your phone, and when they accept,
+  you each get the other's word. Different people hold different words, so meet people from
+  other groups too."
+- With a phrase, each connection and the reveal say **"Gave you the word {word}."**, **"Their
+  word is {word}, which you already had."** or **"You're connected, but they hold no word of
+  the phrase."**
+- **The team duels card**, while a round is opening, says **"You're in!"**, **"Teams in
+  {n}s"**, then **"Making the teams…"** at zero, **"{n} players joined"** ("1 player joined"
+  for one), and "Others can tap the station to join. Teams are made automatically, then you get
+  an opponent. No need to tap again."
+- While it plays: **"Play your duels"**, **"Your team: A"** or **"Your team: B"**, **"Your
+  teammates: {names}."** or **"You're on this team on your own."**, **"Teams are mixed for this
+  round only."**, and for each duel **"Opponent: {opponent}"**. A dice round says **"The dice
+  were rolled for you."** A reaction round shows the reaction test as a connection does, with
+  **"{n}s left to play"**, then **"Time is up. Waiting for the result."** The odd player sees
+  **"You have two duels because the numbers are odd. {n} of {total} played."**
+- When it ends: **"Your team won!"**, **"Your team lost."**, **"Both teams won!"** or **"Nobody
+  won this round."**, then **"Your team: {n} duel wins. Other team: {n} duel wins."** ("win" for
+  one). Equal counts add **"The teams won the same number of duels."**, or **"No duel was
+  won."** at 0 to 0. A win adds **"Your team's win earned an avatar piece."** Each duel is
+  headed **"Your duel"**, and offers **"Connect with {opponent}"**: "Tap your phone on
+  {opponent}'s token to send a connection request. When they accept, the usual connection rules
+  apply." Last, **"Tap the station to start another round."**, and a **Dismiss** button.
+- A round with one player says **"Nobody else joined."** and **"Find someone to play with, then
+  tap the station again."**
+- Away from the dashboard, the passport and activity say **"You're in a team duels round. Open
+  the dashboard to play."**, or **"Your team duels result is ready. Open the dashboard."**
 
 ## 14. Open questions
 
@@ -3094,3 +3714,4 @@ Closed on 2026-10-10:
 | 2026-11-12 | For the next version: the server writes the rest of the station's screen (BAC-181, [ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)). A tap's result can give a `countdown` that the station counts down itself, with `seconds`, `lines` holding `{s}` for the seconds left, and an `ending` for zero (6.1 and 11.2). The ticket called it `then`, which our linter refuses as a key, since it marks an object as a promise. Team duels gives a countdown while its round is open, and the relay (BAC-184) will use one for a transfer's 20 seconds. **New:** `results[].countdown` in 6.1 and 11.2, `idle_lines` on each registered station (11.1) and in the heartbeat's answer (6.2), and the firmware contract for both. Ours gives the passport's and team duels' idle text. An `idle_lines` that breaks the rules is left out for that station alone, not the whole list. Section 4 says the server writes the screen, and 11.1 lets `idle_lines` into the list. Each service works with the other's previous version: an older GeekyKey Service drops both fields, and an older Event Service sends neither, so its stations keep `Ready` / `Tap a tag`. A station that doesn't know them ignores them and shows `lines`. No field or route is removed. |
 | 2026-11-13 | For the next version: an Event Service can send a station a station message, with no tap (BAC-182, [ADR 0009](../docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md)). Each station holds a WebSocket open to the GeekyKey Service, which passes on what the station's Event Service sends for it. **New:** the station's socket, `GET /api/v1/stations/socket` (6.3), with its firmware contract; `POST /api/v1/station-messages` on the GeekyKey Service (11.12), the first request an Event Service makes to it, with the Event Service key it already shares; the status `426` and the error `upgrade_required`; and the JSON Schema of the message's request and answer (11.7). A message carries a tap answer's `lines` and `countdown`, with 6.1's rules, and `beep`. One for a station with no socket answers `delivered: false` and is dropped. Section 3 says the Event Service key now goes both ways, and the station limit counts the requests that open the socket. Each service works with the other's previous version: an older GeekyKey Service answers a message `404 not_found`, which ours treats as a failed message, and a station that doesn't know the socket never opens it. No field or route is removed. |
 | 2026-11-13 | For the next version: two stations run the relay, where people from different groups pass a transfer between them (BAC-184). A tap at either relay station starts a game and names a group for the other station; that group's tap there within 20 seconds completes a transfer and calls the next group back. A game is 3 transfers with two groups, or 4 with three or more, and ends at its last transfer or after 2 minutes with no tap. **New:** the relay in section 4 and in 9.2's `games`, as `relay`; its lines, countdowns and station messages in 6.1; its idle text in 6.2; and `GET /api/v1/map/relay` (9.13), which the map polls every second, with a limit of its own of 90 a minute rather than a share of the user's 60. The relay gives no points, stamps or connections. No field or route is removed. |
+| 2026-11-14 | Version 0.14, a draft for Ethan to read (BAC-137). It gathers every row above marked "for the next version", from 5 to 13 November, into one version and drops those labels from the text. It also writes down what was built with no text here until now. **Participant groups** (BAC-125): section 4's "Groups", `GET` and `POST /api/v1/me/group` (8.13), the board `GET /api/v1/admin/groups` (9.14), the group and member writes (9.15 and 9.16), Allocate, the split and Reset (9.17), and the groups CSV (9.18). **New errors:** `409 no_groups`, `409 too_few_participants`, which carries `needed`, and `409 groups_exist`; `name_taken` now has its row in section 2 and also covers a group's name. **The Groups screen's settings:** `PUT /api/v1/admin/connections/rule` and `/challenge` (9.19, BAC-140 and BAC-161) and the phrase, `PUT /api/v1/admin/groups/phrase` (9.20, BAC-169), with `phrase` and `connections[].word` in 8.1. **Groups reached** (BAC-167): `other_groups` in 8.13 and `reached_group_ids` in 9.14. **Team duels** (BAC-155): section 4's "Team duels", `round_wins` and `round` in 8.1, and `POST /api/v1/me/duels/{id}/reaction` (8.14). **Changed, from the firmware as built:** during a countdown, another result shows for 2 seconds and the countdown then comes back, where 6.1 said a new tap ended it (HAR-50). A station message that arrives during a tap's first 2 seconds waits, its beep plays when it shows, and the station reopens a socket whose `pong` is 15 seconds late (6.3, HAR-51). **Section 13:** the Groups screen, the group card, the phrase card and the team duels card, compared with the screens' code, the dashboard's first-tap hint (FRO-138), the station board's game select, and the CSV rule now names the Groups screen. 8.6 says the account menu's link carries no kind (FRO-151). No field or route is removed. The one code removed since 0.13 is `409 station_has_taps`, in the 12 November row (BAC-183). `game_fixed` in 9.2 stays for this version and is always `false`. |
