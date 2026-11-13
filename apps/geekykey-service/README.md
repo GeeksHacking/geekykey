@@ -179,9 +179,11 @@ inherit, and points both the Event Service and the claims stand-in at staging's 
 from [infra/README.md](../../infra/README.md). Its socket objects are separate from production's.
 There is no staging screens address, so its Event Service entry leaves `public_url` out.
 
-Set `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY` and `EVENT_SERVICE_KEY_SHOWCASE` on this Worker before
-its first deploy, using `wrangler secret put <NAME> --env staging`. The two shared keys must match
-the staging Event Service's secrets. They are required in staging just as in production.
+It needs `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY` and `EVENT_SERVICE_KEY_SHOWCASE`, as production
+does, and a deploy fails without them. On the first deploy, pass them in a JSON file with
+`--secrets-file`, kept outside the repo; later ones keep them. The two shared keys must match the
+Event Service it points at. It lives on Adam's own Cloudflare account for now
+([docs/operations.md](../../docs/operations.md)).
 
 From `apps/geekykey-service`, check the build and deploy staging first:
 
