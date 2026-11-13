@@ -359,7 +359,7 @@ describe("TokenPage", () => {
       already_connected: "You're already connected.",
       same_kind: "You have the same token kind. Find someone with a different kind.",
       no_kind: "This token can't connect yet. Ask an organizer.",
-      // Connecting across groups (BAC-140, approved for the agreement's next version).
+      // Connecting across groups (BAC-140, agreement 0.14).
       same_group: "You're in the same group. Find someone from another group.",
       // Section 13 (FRO-146): the event's button joins the participant, so the tapper is told
       // to open the event. The dashboard keeps its own sentence, since it answers a request.

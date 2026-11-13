@@ -11,22 +11,20 @@ import { EventButtons } from "@/components/event-buttons";
 
 /*
   What came of the half a tap sent (agreement 8.8), under the sentence that says the token
-  belongs to someone else. Section 13 fixes the wording for every answer but `same_group`, whose
-  sentence is approved for the agreement's next version (BAC-140), and `waiting`, whose new
-  sentence is a draft for Ethan to approve (BAC-149), so the sentences are here as the agreement
+  belongs to someone else. Section 13 fixes the wording for every answer, so the sentences are here as the agreement
   writes them; a status added to the union fails the type check until it has one.
 */
 
 /** Section 13's words, one per status an Event Service can answer with (11.10). */
 const SENTENCE: Record<MeetingStatus, string> = {
-  // A draft for Ethan to approve (BAC-149).
+  // BAC-149.
   waiting: "Request sent. Ask them to open their dashboard and accept.",
   answers_needed: "You both need to finish your names and answers in the event before connecting.",
   connected: "You're connected!",
   already_connected: "You're already connected.",
   same_kind: "You have the same token kind. Find someone with a different kind.",
   no_kind: "This token can't connect yet. Ask an organizer.",
-  // Approved for the agreement's next version (BAC-140).
+  // BAC-140.
   same_group: "You're in the same group. Find someone from another group.",
   // Section 13 (FRO-146): the event's button joins the participant.
   no_group:
@@ -36,8 +34,8 @@ const SENTENCE: Record<MeetingStatus, string> = {
 
 /**
  * What the event's button opens, under the result sentence and above the button. Section 13
- * gives these for `waiting`, `connected` and `already_connected` (FRO-169, for the next
- * version). `answers_needed` and `no_group` already say what the button does, so they keep
+ * gives these for `waiting`, `connected` and `already_connected` (FRO-169, agreement 0.14).
+ * `answers_needed` and `no_group` already say what the button does, so they keep
  * their sentences and take no line.
  */
 const NEXT_STEP: Partial<Record<MeetingStatus, string>> = {

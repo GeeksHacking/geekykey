@@ -1,7 +1,7 @@
 import { boolean, index, int, mysqlTable, primaryKey, varchar } from "drizzle-orm/mysql-core";
 import { duelId, isoTimestamp, stationId, userId } from "../../db/columns.ts";
 
-/** Team duels' records (BAC-155, draft for the agreement's next version). */
+/** Team duels' records (BAC-155, agreement 0.14). */
 export const duelRounds = mysqlTable(
   "duel_rounds",
   {

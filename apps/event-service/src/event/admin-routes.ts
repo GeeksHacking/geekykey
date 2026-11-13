@@ -46,10 +46,10 @@ export interface AdminRouteDeps {
   shuffle?: Shuffle;
 }
 
-/** Who may connect (BAC-140, draft for the API agreement's next version). */
+/** Who may connect (BAC-140, agreement 0.14). */
 const connectionRuleSchema = z.object({ connect_across: z.enum(CONNECT_ACROSS) });
 
-/** Which challenge a new connection plays (BAC-161, draft for the API agreement's next version). */
+/** Which challenge a new connection plays (BAC-161, agreement 0.14). */
 const connectionChallengeSchema = z.object({ challenge: z.enum(CHALLENGES) });
 
 /** A new station's label, the device's name. */
@@ -112,7 +112,7 @@ function stationBody(station: BoardStation) {
     disabled_at: station.disabledAt,
     game: station.game,
     // A game no longer fixes, so always false, kept for one version so the screens don't break
-    // (BAC-183, a draft for the API agreement's next version, 9.2).
+    // (BAC-183, agreement 0.14, 9.2).
     game_fixed: false,
     booth: station.booth,
     passport: station.passport && {

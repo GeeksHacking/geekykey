@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 type Phase = "loading" | "ready" | "unsupported" | "failed";
 
 /**
- * What the line under the stage says. Loading and the two fallbacks are draft screen copy for
- * the agreement's next version (FRO-164); "Drag to turn" is the line that was already there.
+ * What the line under the stage says. Loading and the two fallbacks are in section 13 of
+ * agreement 0.14 (FRO-164); "Drag to turn" is the line that was already there.
  */
 const MESSAGE: Record<Phase, string> = {
   loading: "Loading your avatar in 3D...",

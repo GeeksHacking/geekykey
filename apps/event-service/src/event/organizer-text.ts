@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * The longest station label, passport name, location or booth, in Unicode code
  * points (the API agreement's 9.1 and 9.7), and of a group's name, tag or
- * location, in the participant groups spec's draft for the agreement's 0.14.
+ * location, in the participant groups spec's agreement 0.14.
  */
 const TEXT_MAX = 80;
 

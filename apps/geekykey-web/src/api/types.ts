@@ -4,7 +4,7 @@
   propose a change to the agreement instead.
 
   Sections 8.2 to 8.6 and 8.8 of the agreement are the endpoints here, and the token
-  kinds screen's two, which BAC-139 builds ahead of the agreement's next version. A
+  kinds screen's two, which are section 10 (BAC-139). A
   GeekyKey admin's other job is releasing someone else's token, which is 8.3 with
   `owner_id`. The Event Service's shapes (agreement 8.1, 9.x)
   are deliberately absent: they belong to apps/event-web and must not leak into
@@ -40,12 +40,12 @@ export interface Meeting {
   status: MeetingStatus;
   /**
    * The owner's current name, or null when they have no name of their own, the Event
-   * Service never saw them or it was `unavailable` (BAC-143, approved for the next version).
+   * Service never saw them or it was `unavailable` (BAC-143, agreement 0.14).
    */
   owner_name: string | null;
   /**
    * The owner's current bio, or null when they have none, the Event Service never saw them or
-   * it was `unavailable` (BAC-151, for the agreement's next version).
+   * it was `unavailable` (BAC-151, agreement 0.14).
    */
   owner_bio: string | null;
 }
@@ -64,7 +64,7 @@ export const MEETING_STATUSES = [
   "same_kind",
   "no_kind",
   // Connecting across groups: the two are in one group, or either isn't in a group yet
-  // (BAC-140, approved for the agreement's next version).
+  // (BAC-140, agreement 0.14).
   "same_group",
   "no_group",
   "unavailable",

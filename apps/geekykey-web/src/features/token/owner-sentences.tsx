@@ -1,5 +1,5 @@
 /**
- * Whose token it is (BAC-143, wording approved for the next version). A tap goes to whoever
+ * Whose token it is (BAC-143, agreement 0.14). A tap goes to whoever
  * claimed the token, not whoever holds it, so seeing a name other than the person in front of
  * you is how two people notice they hold each other's tokens. Handing them back is the fix.
  *

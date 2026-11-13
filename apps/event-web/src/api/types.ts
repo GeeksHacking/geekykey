@@ -50,15 +50,15 @@ export interface Question {
  */
 export interface Connection {
   /**
-   * The connection's own ID, for the reaction test's play (BAC-156, for the agreement's next
-   * version, 8.11). Missing or null from a service before it.
+   * The connection's own ID, for the reaction test's play (BAC-156, agreement 0.14, 8.11).
+   * Missing or null from a service before it.
    */
   id?: string | null;
   connected_at: string;
   /**
    * The other person's current name, so unlike the rest it can change after the connection. Null
    * when they have never logged in to this Event Service, which a screen shows as `Guest`
-   * (BAC-136, draft for the agreement's next version).
+   * (BAC-136, agreement 0.14).
    */
   display_name: string | null;
   /** The other person's current bio, or null for none (BAC-147). */
@@ -67,7 +67,7 @@ export interface Connection {
   contact_line: string | null;
   /**
    * The other person's kind, or null for none, which only a connection across groups has
-   * (BAC-140, draft for the agreement's next version).
+   * (BAC-140, agreement 0.14).
    */
   kind: string | null;
   /** A whole percent, or null when no question was answered by both. */
@@ -78,7 +78,7 @@ export interface Connection {
   reaction?: Reaction | null;
   /**
    * The word of the phrase this connection gave, and whether the user had it before, or null
-   * when the other person holds none (BAC-169, draft for the agreement's next version). Missing
+   * when the other person holds none (BAC-169, agreement 0.14). Missing
    * with no phrase to see.
    */
   word?: ConnectionWord | null;
@@ -87,7 +87,7 @@ export interface Connection {
   shared_at: string;
 }
 
-/** The word of the phrase a connection gave (BAC-169, draft for the agreement's next version). */
+/** The word of the phrase a connection gave (BAC-169, agreement 0.14). */
 export interface ConnectionWord {
   text: string;
   /** True when it was the user's own word, or an earlier connection gave the same one. */
@@ -95,7 +95,7 @@ export interface ConnectionWord {
 }
 
 /**
- * The phrase as one participant sees it (BAC-169, draft for the agreement's next version): every
+ * The phrase as one participant sees it (BAC-169, agreement 0.14): every
  * word in order, null for one they don't have yet, and which is their own, counted from 0. With
  * no null left, they have completed it.
  */
@@ -122,7 +122,7 @@ export interface BoardPhrase {
 export type ReactionPlay = "not_played" | "played" | "early" | "missed";
 
 /**
- * A connection's reaction test, from this user's side (BAC-156, for the agreement's next version,
+ * A connection's reaction test, from this user's side (BAC-156, agreement 0.14,
  * 8.1). Until `result` comes, `their_ms` is null and `their_play` says only whether they've had
  * their go, so an early tap of theirs shows as `played`.
  */
@@ -142,8 +142,8 @@ export interface Reaction {
 export type ReactionPlayRequest = { ms: number } | { early: true };
 
 /**
- * A request waiting for this user to accept or decline it (BAC-149, draft for the agreement's
- * next version). `id` is the request's own, so it gives no other person's user ID.
+ * A request waiting for this user to accept or decline it (BAC-149, agreement 0.14).
+ * `id` is the request's own, so it gives no other person's user ID.
  */
 export interface ConnectionRequest {
   id: string;
@@ -151,7 +151,7 @@ export interface ConnectionRequest {
   display_name: string;
   /**
    * Their current bio, or null for none, so the user can see who's asking before accepting
-   * (BAC-151, for the agreement's next version). Their contact line stays hidden until the two connect.
+   * (BAC-151, agreement 0.14). Their contact line stays hidden until the two connect.
    */
   bio: string | null;
   requested_at: string;
@@ -171,8 +171,8 @@ export const ACCEPT_CONNECTION_REQUEST_STATUSES = [
 export type AcceptConnectionRequestStatus = (typeof ACCEPT_CONNECTION_REQUEST_STATUSES)[number];
 
 /**
- * POST /api/v1/login-links on the Event Service (agreement 8.12, BAC-157, for the next
- * version): a login link to the GeekyKey screens for the signed-in user, which works once and
+ * POST /api/v1/login-links on the Event Service (agreement 8.12, BAC-157, agreement 0.14):
+ * a login link to the GeekyKey screens for the signed-in user, which works once and
  * expires 60 seconds after it is made. My tokens opens it straight away and keeps nothing.
  */
 export interface GeekykeyLoginLinkResponse {
@@ -230,7 +230,7 @@ export interface UpdateMeResponse {
 }
 
 /** GET /api/v1/me */
-/** Team duels (BAC-155, draft for the agreement's next version). */
+/** Team duels (BAC-155, agreement 0.14). */
 export interface DuelRound {
   id: string;
   state: "opening" | "playing" | "ended";
@@ -266,8 +266,8 @@ export interface MeResponse {
   /** The user's connections, newest first. Empty without a connections game. */
   connections: Connection[];
   /**
-   * Only for a participant placed in a group while a phrase is set (BAC-169, draft for the
-   * agreement's next version). Missing for anyone else.
+   * Only for a participant placed in a group while a phrase is set (BAC-169, agreement 0.14).
+   * Missing for anyone else.
    */
   phrase?: MyPhrase;
 }
@@ -317,7 +317,7 @@ export interface EventStationBoardStation {
   /** The `id` of the game it runs, or null for none. With none, its taps get `no_game`. */
   game: string | null;
   /**
-   * Always false from the next version, since a station's game can change at any time (9.11).
+   * Always false from agreement 0.14, since a station's game can change at any time (9.11).
    * Kept for one version so the screens don't break, then removed. Don't read it.
    */
   game_fixed: boolean;
@@ -479,12 +479,12 @@ export interface MapRelayResponse {
   };
 }
 
-/** How someone came to be in their group (spec: participant groups, draft for agreement 0.14). */
+/** How someone came to be in their group (spec: participant groups, agreement 0.14). */
 export type GroupPlacedHow = "allocated" | "latecomer" | "organizer";
 
 /**
- * Another group as a participant's card lists it (BAC-167, draft for the agreement's next
- * version): by name only, and whether the participant's group has reached it, which it has once
+ * Another group as a participant's card lists it (BAC-167, agreement 0.14):
+ * by name only, and whether the participant's group has reached it, which it has once
  * one of its members has a connection with one of that group's.
  */
 export interface OtherGroup {
@@ -503,7 +503,7 @@ export interface MyGroup {
   other_groups?: OtherGroup[];
 }
 
-/** GET and POST /api/v1/me/group (draft for agreement 0.14). `group` is set only when `placed`. */
+/** GET and POST /api/v1/me/group (agreement 0.14). `group` is set only when `placed`. */
 export interface MyGroupResponse {
   status: "not_joined" | "waiting" | "placed";
   allocation_started: boolean;
@@ -527,8 +527,8 @@ export interface EventGroup {
   capacity: number | null;
   members: EventGroupMember[];
   /**
-   * The other groups this one has reached, in the board's order (BAC-167, draft for the
-   * agreement's next version). An Event Service from before it leaves it out.
+   * The other groups this one has reached, in the board's order (BAC-167, agreement 0.14).
+   * An Event Service from before it leaves it out.
    */
   reached_group_ids?: string[];
 }
@@ -540,7 +540,7 @@ export interface GroupWaitingMember {
 }
 
 /**
- * Who may connect (BAC-140, draft for the agreement's next version): two people of different
+ * Who may connect (BAC-140, agreement 0.14): two people of different
  * token kinds, which a new event starts on, or two people in different groups.
  */
 export const CONNECT_ACROSS = ["token_kinds", "groups"] as const;
@@ -553,7 +553,7 @@ export interface ConnectionRule {
 }
 
 /**
- * Which challenge a new connection plays (BAC-161, draft for the agreement's next version): the
+ * Which challenge a new connection plays (BAC-161, agreement 0.14): the
  * dice or the reaction test at random, which a new event starts on, or always one of them.
  */
 export const CHALLENGES = ["random", "dice", "reaction"] as const;
@@ -565,7 +565,7 @@ export interface ConnectionChallenge {
   challenge: Challenge;
 }
 
-/** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate (draft for agreement 0.14). */
+/** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate (agreement 0.14). */
 export interface GroupBoardResponse {
   allocation_started_at: string | null;
   /** What connections need now, which the Groups screen's switch sets (BAC-140). */
@@ -599,7 +599,7 @@ export interface CreateGroupRequest {
 export type UpdateGroupRequest = CreateGroupRequest;
 
 /**
- * POST /api/v1/admin/groups/split (BAC-138, BAC-141, BAC-146, draft for agreement 0.14): takes
+ * POST /api/v1/admin/groups/split (BAC-138, BAC-141, BAC-146, agreement 0.14): takes
  * exactly one of two numbers. By `people_per_group` (2 or more), which is each group's capacity,
  * it works out the number of groups from who has joined. By `group_count` (1 or more), the groups
  * have no capacity. It makes "Group 1", "Group 2" and so on, then allocates everyone. Group n's
@@ -626,14 +626,14 @@ export type ErrorCode =
   | "not_found"
   // Agreement 0.13 section 8.7: the user's first connection fixed their answers.
   | "answers_fixed"
-  // Drafts for agreement 0.14: another group has this name; Allocate with no groups, or with
+  // Agreement 0.14: another group has this name; Allocate with no groups, or with
   // fewer than 2 joined for each group, which also gives how many more it `needed`; the
   // one-step split while any group exists.
   | "name_taken"
   | "no_groups"
   | "too_few_participants"
   | "groups_exist"
-  // BAC-156, for the agreement's next version, 8.11: a second play of a reaction test, and one
+  // BAC-156, agreement 0.14, 8.11: a second play of a reaction test, and one
   // after its 2 minutes.
   | "already_played"
   | "too_late"
@@ -673,7 +673,7 @@ export const EXPORT_CSV_COLUMNS = [
 ] as const;
 
 /**
- * CSV columns of GET /api/v1/admin/groups/export.csv, in order (draft for agreement 0.14).
+ * CSV columns of GET /api/v1/admin/groups/export.csv, in order (agreement 0.14).
  * `group_name`, `placed_at` and `how` are empty for someone still waiting.
  */
 export const GROUPS_EXPORT_CSV_COLUMNS = [

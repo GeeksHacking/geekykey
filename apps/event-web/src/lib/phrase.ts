@@ -1,5 +1,5 @@
 /*
-  The phrase's limits (BAC-169, draft for the agreement's next version), as the Event Service
+  The phrase's limits (BAC-169, agreement 0.14), as the Event Service
   checks them in apps/event-service/src/event/phrase.ts. The Groups screen checks them first, so a
   phrase outside them is refused where it was typed.
 */

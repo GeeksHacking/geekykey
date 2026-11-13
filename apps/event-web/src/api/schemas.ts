@@ -88,7 +88,7 @@ const connectionSchema = z.object({
     null,
   ),
   reaction: z.prefault(z.nullable(reactionSchema), null),
-  // BAC-169, draft for the agreement's next version. Missing with no phrase to see.
+  // BAC-169, agreement 0.14. Missing with no phrase to see.
   word: z.optional(z.nullable(z.object({ text: z.string(), already_had: z.boolean() }))),
   shared: z.nullable(z.array(z.string())),
   shared_at: isoTimestamp,
@@ -259,11 +259,11 @@ export const fallbackTapResponseSchema: z.ZodMiniType<FallbackTapResponse> = z.o
  * them at checkpoint 3. A user's tokens are on the GeekyKey Service's /me
  * (API-AGREEMENT.md:8.4), which is a different service and a different session.
  *
- * `connection_requests` is a draft for the agreement's next version (BAC-149). It reads a missing
+ * `connection_requests` is agreement 0.14 (BAC-149). It reads a missing
  * field as none, so a screens build can run against a service that hasn't shipped it yet.
  */
 export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
-  // BAC-155, draft for the agreement's next version.
+  // BAC-155, agreement 0.14.
   round_wins: z.optional(z.int().check(z.nonnegative())),
   round: z.optional(
     z.nullable(
@@ -306,7 +306,7 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   recent_taps: z.array(meTapSchema),
   connection_requests: z.prefault(z.array(connectionRequestSchema), []),
   connections: z.array(connectionSchema),
-  // BAC-169, draft for the agreement's next version. Missing with no phrase to see.
+  // BAC-169, agreement 0.14. Missing with no phrase to see.
   phrase: z.optional(
     z
       .object({
@@ -318,18 +318,18 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   ),
 });
 
-/** Accepting a connection request's answer (BAC-149, draft for the agreement's next version). */
+/** Accepting a connection request's answer (BAC-149, agreement 0.14). */
 export const acceptConnectionRequestResponseSchema: z.ZodMiniType<AcceptConnectionRequestResponse> =
   z.object({
     status: z.enum(ACCEPT_CONNECTION_REQUEST_STATUSES),
   });
 
-/** A reaction test's play's answer (BAC-156, for the agreement's next version, 8.11). */
+/** A reaction test's play's answer (BAC-156, agreement 0.14, 8.11). */
 export const playReactionResponseSchema: z.ZodMiniType<PlayReactionResponse> = z.object({
   reaction: reactionSchema,
 });
 
-/** A login link to the GeekyKey screens (BAC-157, for the agreement's next version, 8.12). */
+/** A login link to the GeekyKey screens (BAC-157, agreement 0.14, 8.12). */
 export const geekykeyLoginLinkResponseSchema: z.ZodMiniType<GeekykeyLoginLinkResponse> = z.object({
   login_link: z.string().check(z.minLength(1)),
   expires_at: isoTimestamp,
@@ -347,7 +347,7 @@ export const updateMeResponseSchema: z.ZodMiniType<UpdateMeResponse> = z.object(
  */
 export const setDisplayNameResponseSchema = updateMeResponseSchema;
 
-/** GET and POST /api/v1/me/group (draft for agreement 0.14). */
+/** GET and POST /api/v1/me/group (agreement 0.14). */
 export const myGroupResponseSchema: z.ZodMiniType<MyGroupResponse> = z.object({
   status: z.enum(["not_joined", "waiting", "placed"]),
   allocation_started: z.boolean(),
@@ -358,24 +358,24 @@ export const myGroupResponseSchema: z.ZodMiniType<MyGroupResponse> = z.object({
       tags: z.array(z.string()),
       location: z.nullable(z.string()),
       members: z.array(z.object({ display_name: z.string() })),
-      // BAC-167, draft for the agreement's next version; an older Event Service leaves it out.
+      // BAC-167, agreement 0.14; an older Event Service leaves it out.
       other_groups: z.optional(z.array(z.object({ name: z.string(), reached: z.boolean() }))),
     }),
   ),
 });
 
-/** Who may connect (BAC-140, draft for the agreement's next version). */
+/** Who may connect (BAC-140, agreement 0.14). */
 const connectAcrossSchema = z.enum(CONNECT_ACROSS);
 
-/** PUT /api/v1/admin/connections/rule's answer (BAC-140, draft for the agreement's next version). */
+/** PUT /api/v1/admin/connections/rule's answer (BAC-140, agreement 0.14). */
 export const connectionRuleSchema: z.ZodMiniType<ConnectionRule> = z.object({
   connect_across: connectAcrossSchema,
 });
 
-/** Which challenge a new connection plays (BAC-161, draft for the agreement's next version). */
+/** Which challenge a new connection plays (BAC-161, agreement 0.14). */
 const challengeSchema = z.enum(CHALLENGES);
 
-/** PUT /api/v1/admin/connections/challenge's answer (BAC-161, draft for the agreement's next version). */
+/** PUT /api/v1/admin/connections/challenge's answer (BAC-161, agreement 0.14). */
 export const connectionChallengeSchema: z.ZodMiniType<ConnectionChallenge> = z.object({
   challenge: challengeSchema,
 });
@@ -396,7 +396,7 @@ export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
       how: z.enum(["allocated", "latecomer", "organizer"]),
     }),
   ),
-  // BAC-167, draft for the agreement's next version; an older Event Service leaves it out.
+  // BAC-167, agreement 0.14; an older Event Service leaves it out.
   reached_group_ids: z.optional(z.array(z.string())),
 });
 
@@ -405,7 +405,7 @@ export const groupBoardResponseSchema: z.ZodMiniType<GroupBoardResponse> = z.obj
   allocation_started_at: z.nullable(isoTimestamp),
   connect_across: connectAcrossSchema,
   challenge: z.optional(challengeSchema),
-  // BAC-169, draft for the agreement's next version; an older Event Service leaves it out.
+  // BAC-169, agreement 0.14; an older Event Service leaves it out.
   phrase: z.optional(
     z.nullable(z.object({ text: z.string(), completed_count: z.int().check(z.nonnegative()) })),
   ),

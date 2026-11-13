@@ -15,7 +15,7 @@ vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
 vi.mock("@/features/passport/avatar/voxel-stage", () => ({ VoxelStage: () => null }));
 
 /*
-  The reaction test in the reveal (BAC-156, for the agreement's next version, 8.11 and section 13).
+  The reaction test in the reveal (BAC-156, agreement 0.14, 8.11 and section 13).
   The dashboard runs on the mock client, whose other person plays when a test says so.
 */
 

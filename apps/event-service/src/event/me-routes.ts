@@ -45,7 +45,7 @@ class NameTaken extends Error {}
 /**
  * One of the user's connections, as /me lists it (8.1). With a phrase to see, it has the word
  * the connection gave, and whether they had it already, or null when the other person holds
- * none (BAC-169, draft for the next version). With none, it has no `word` at all.
+ * none (BAC-169, agreement 0.14). With none, it has no `word` at all.
  */
 function connectionBody(connection: Connection, phrase: MyPhrase | null) {
   const word = phrase?.byConnection.get(connection.id);
@@ -198,8 +198,8 @@ export function meRoutes({
             },
       connection_requests: requests.map(connectionRequestBody),
       connections: connections.map((connection) => connectionBody(connection, phrase)),
-      // Only for a participant in a group while a phrase is set (BAC-169, draft for the next
-      // version). Anyone else's answer is as it was before the phrase.
+      // Only for a participant in a group while a phrase is set (BAC-169, agreement 0.14).
+      // Anyone else's answer is as it was before the phrase.
       ...(phrase && { phrase: { words: phrase.words, your_word: phrase.yourWord } }),
     });
   });
@@ -242,7 +242,7 @@ export function meRoutes({
     return c.json({ user: userBody(updated, saved) });
   });
 
-  // Agreement 8.10, a draft for the next version. An event with no connections game has no
+  // Agreement 8.10, agreement 0.14. An event with no connections game has no
   // requests, so every ID is one that doesn't wait for this user.
   app.post("/connection-requests/:id/accept", requireSession(session), async (c) => {
     const { db, user } = c.var;
@@ -264,7 +264,7 @@ export function meRoutes({
     return c.json({ status: result.status });
   });
 
-  // Agreement 8.11, for the next version (BAC-156). The phone measures the time, so it could be
+  // Agreement 8.11, agreement 0.14 (BAC-156). The phone measures the time, so it could be
   // faked, which is acceptable for a game with a cosmetic prize.
   app.post(
     "/connections/:id/reaction",
@@ -288,7 +288,7 @@ export function meRoutes({
     },
   );
 
-  // BAC-155 draft, the same play and errors as agreement 8.11, without a connection.
+  // BAC-155, the same play and errors as agreement 8.11, without a connection.
   app.post(
     "/duels/:id/reaction",
     requireSession(session),

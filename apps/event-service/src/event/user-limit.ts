@@ -2,7 +2,7 @@
 const USER_REQUESTS_PER_MINUTE = 60;
 
 /**
- * The relay's map poll, counted apart from the 60 (the API agreement's 9.13 draft, BAC-184): the
+ * The relay's map poll, counted apart from the 60 (the API agreement's 9.13, BAC-184): the
  * map polls it every second, beside its own 30 a minute, so it gets room for that and no more.
  */
 export const RELAY_POLLS_PER_MINUTE = 90;

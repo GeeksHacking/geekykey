@@ -1,7 +1,7 @@
 import { index, int, mysqlTable, varchar } from "drizzle-orm/mysql-core";
 import { groupId, isoTimestamp, stationId } from "../../db/columns.ts";
 
-/** Relay records for BAC-184, the API agreement's sections 4 and 9.13 draft. */
+/** Relay records for BAC-184, the API agreement's sections 4 and 9.13. */
 export const relayLock = mysqlTable("relay_lock", {
   id: int("id").primaryKey(),
 });

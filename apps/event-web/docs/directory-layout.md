@@ -109,7 +109,7 @@ apps/event-web/
       display-name.ts       # agreement 8.7's rule for a name, shared by the form and the mock
       booth.ts              # agreement 9.12's rule for a station's booth, shared the same way
       group-link.ts         # agreement 9.1's rule for a group link, shared the same way
-      group-fields.ts       # the draft 0.14 rules for a group's name, tags and location, shared the same way
+      group-fields.ts       # agreement 0.14's rules for a group's name, tags and location, shared the same way
       dialog-focus.ts       # where a dialog opened from a menu sends the keyboard when it closes
       format.ts             # dates, points, counts
       constants.ts          # poll intervals, seeded user IDs, GEEKYKEY_SCREENS_URL

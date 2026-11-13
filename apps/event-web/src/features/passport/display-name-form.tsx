@@ -79,7 +79,7 @@ export function DisplayNameForm({
               <FormControl>
                 <Input {...field} autoComplete="nickname" className="sm:max-w-sm" />
               </FormControl>
-              {/* For the agreement's next version (BAC-143, FRO-127 for the group, BAC-151 for the bio). */}
+              {/* Agreement 0.14 (BAC-143, FRO-127 for the group, BAC-151 for the bio). */}
               <FormDescription>
                 The organisers, your group, and anyone who taps your token or whose token you tap
                 see it. Anyone who taps your token or whose token you tap also sees your bio.

@@ -23,10 +23,10 @@ const { GROUPS_EXPORT_CSV_COLUMNS } = (await import(/* @vite-ignore */ SCREENS_T
   GROUPS_EXPORT_CSV_COLUMNS: readonly string[];
 };
 
-/** The CSV's first line (draft for the API agreement's 0.14). */
+/** The CSV's first line (agreement 0.14). */
 const EXPORT_HEADER = "user_id,display_name,group_name,joined_at,placed_at,how";
 
-/** GET and POST /api/v1/me/group, in the shape the spec's draft for agreement 0.14 gives. */
+/** GET and POST /api/v1/me/group, in the shape agreement 0.14 gives. */
 interface MyGroupBody {
   status: "not_joined" | "waiting" | "placed";
   allocation_started: boolean;
@@ -41,7 +41,7 @@ interface MyGroupBody {
   } | null;
 }
 
-/** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate, from the same draft. */
+/** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate, from the same version. */
 interface BoardBody {
   allocation_started_at: string | null;
   connect_across: "token_kinds" | "groups";

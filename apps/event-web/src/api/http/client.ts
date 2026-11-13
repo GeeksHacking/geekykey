@@ -189,7 +189,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
 
     exportCsv: async () => (await send("/api/v1/admin/export.csv")).blob(),
 
-    // BAC-149, a draft for the agreement's next version.
+    // BAC-149, agreement 0.14.
     acceptConnectionRequest: (requestId) =>
       sendJson(`/api/v1/me/connection-requests/${encodeURIComponent(requestId)}/accept`, {
         method: "POST",
@@ -202,7 +202,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
       });
     },
 
-    // BAC-156, for the agreement's next version.
+    // BAC-156, agreement 0.14.
     playDuelReaction: (id, play) =>
       sendJson(`/api/v1/me/duels/${encodeURIComponent(id)}/reaction`, postJson(play)).then(
         parsePlayReactionResponse,
@@ -219,7 +219,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
         postJson(play),
       ).then(parsePlayReactionResponse),
 
-    // BAC-157, for the agreement's next version, 8.12. No body: the link names the session's user.
+    // BAC-157, agreement 0.14, 8.12. No body: the link names the session's user.
     createGeekykeyLoginLink: () =>
       sendJson("/api/v1/login-links", { method: "POST" }).then(parseGeekykeyLoginLinkResponse),
 
@@ -227,7 +227,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     map: () => sendJson("/api/v1/map").then(parseMapResponse),
     mapRelay: () => sendJson("/api/v1/map/relay").then(parseMapRelayResponse),
 
-    // The groups, from the spec's draft for agreement 0.14.
+    // The groups, from the spec's agreement 0.14.
     myGroup: () => sendJson("/api/v1/me/group").then(parseMyGroupResponse),
 
     joinGroups: () => sendJson("/api/v1/me/group", { method: "POST" }).then(parseMyGroupResponse),
@@ -359,7 +359,7 @@ function parseErrorBody(body: unknown): {
         return [{ path, message: value.message }];
       })
     : [];
-  // Only too_few_participants carries it (draft for agreement 0.14).
+  // Only too_few_participants carries it (agreement 0.14).
   const needed = typeof record.needed === "number" ? record.needed : null;
   return { code, issues, needed };
 }

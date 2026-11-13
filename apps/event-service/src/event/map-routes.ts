@@ -14,7 +14,7 @@ import {
 export interface MapRouteDeps {
   session: SessionOptions;
   relay: RelayGame | null;
-  /** The relay poll's own count, apart from the user's 60 a minute (9.13 draft). */
+  /** The relay poll's own count, apart from the user's 60 a minute (9.13). */
   relayLimit: UserLimit;
   now?: () => Date;
   /** The event's connections game, whose web the map draws, or null for none. */
@@ -49,7 +49,7 @@ export function mapRoutes({
   now = () => new Date(),
 }: MapRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
-  // The relay's one-second poll has its own count, so it never uses up the user's 60 (9.13 draft).
+  // The relay's one-second poll has its own count, so it never uses up the user's 60 (9.13).
   app.get(
     "/relay",
     requireSession(session, { limit: relayLimit }),

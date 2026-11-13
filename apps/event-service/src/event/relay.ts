@@ -1,7 +1,7 @@
 import type { Db } from "../db/pool.ts";
 import type { Game } from "./games.ts";
 
-/** Counts and station IDs only, for the API agreement's 9.13 draft (BAC-184). */
+/** Counts and station IDs only, for the API agreement's 9.13 (BAC-184). */
 export interface RelayMapState {
   stations: string[];
   game: {

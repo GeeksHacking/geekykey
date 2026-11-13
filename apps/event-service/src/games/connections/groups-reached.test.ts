@@ -10,8 +10,8 @@ import {
 } from "../../test-helpers.ts";
 import { connectionsGame } from "./connections.ts";
 
-// Each group sees which other groups it has connected with (BAC-167, draft for the API agreement's
-// next version). A group has reached another when one of its members has an accepted connection
+// Each group sees which other groups it has connected with (BAC-167, agreement 0.14).
+// A group has reached another when one of its members has an accepted connection
 // with a member of that group, by the groups as they are now. A participant's card shows it for
 // their own group, by names only, and the organizers' board shows it for every group.
 

@@ -1,5 +1,5 @@
 /**
- * The rules for a group's fields (draft for agreement 0.14). A name, each tag and a location are
+ * The rules for a group's fields (agreement 0.14). A name, each tag and a location are
  * trimmed, then at most 80 characters, counted as Unicode code points, as agreement 9.1 counts a
  * name. A group has at most 5 tags. The screens check them before sending so the answer is
  * quick, and the service has the last word.

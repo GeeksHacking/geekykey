@@ -14,7 +14,7 @@ import { groupMembers, participantGroups, stations } from "../../event/schema.ts
 import type { StationMessages } from "../../event/station-messages.ts";
 import { relayGames, relayLock, relayTransfers } from "./schema.ts";
 
-/** BAC-184's timings and targets, together for the API agreement's section 4 draft. */
+/** BAC-184's timings and targets, together for the API agreement's section 4. */
 export const RELAY_RULES = {
   transferMs: 20_000,
   idleMs: 120_000,
@@ -40,7 +40,7 @@ function boothName(booth: string | null) {
   return withoutSeconds((booth === null ? null : forTheScreen(booth)) ?? "other");
 }
 
-/** The enabled stations running the relay, oldest first (the API agreement's 9.13 draft). */
+/** The enabled stations running the relay, oldest first (the API agreement's 9.13). */
 function configuredStations(db: Db | Tx) {
   return db
     .select()
@@ -78,7 +78,7 @@ async function lockRelay(tx: Tx) {
   await tx.select().from(relayLock).where(eq(relayLock.id, 1)).for("update");
 }
 
-/** A two-station game with no rewards or connections (BAC-184, agreement section 4 draft). */
+/** A two-station game with no rewards or connections (BAC-184, agreement section 4). */
 export function relayGame({
   stationMessages,
   pickGroup = (ids) => ids[randomInt(ids.length)]!,
