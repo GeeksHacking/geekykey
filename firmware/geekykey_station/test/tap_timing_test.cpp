@@ -151,7 +151,15 @@ static void theWindowSurvivesMillisWrapping() {
   CHECK(answerToken(last, TOKEN_A, REPEAT_WINDOW_MS, false) == SEND_TAP);
 }
 
+static void attentionIsOneShortBeep() {
+  CHECK(soundIsOn(SOUND_ATTENTION, 0));
+  CHECK(soundIsOn(SOUND_ATTENTION, 119));
+  CHECK(!soundIsOn(SOUND_ATTENTION, 120));
+  CHECK(!soundIsOn(SOUND_ATTENTION, 1000));
+}
+
 int main() {
+  attentionIsOneShortBeep();
   acceptedIsOneSecondBeep();
   cooldownIsTwoSlowBeeps();
   errorIsThreeFastBeeps();

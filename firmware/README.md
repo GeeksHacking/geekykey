@@ -10,7 +10,7 @@ The code that runs on the GeekyKey stations and the tools around them.
 | `NFC_test/`, `LCD_test/` | Small sketches for checking the RC522 and the screen |
 
 How the station talks to the server is in [the API agreement](../apps/API-AGREEMENT.md), sections
-6.1 and 6.2.
+6.1, 6.2 and 6.3.
 
 ## Flashing a station
 
@@ -65,6 +65,47 @@ run the same way:
 ```sh
 c++ -std=c++17 -Wall -Wextra -o /tmp/station_screen_test firmware/geekykey_station/test/station_screen_test.cpp && /tmp/station_screen_test
 ```
+
+## Station messages over a WebSocket
+
+After a heartbeat sets the clock, the station opens one WebSocket to
+`/api/v1/stations/socket` on the same server, with the same station key. This is optional:
+taps and heartbeats keep using HTTP, and work while the socket is down or reconnecting. With a server
+that has no socket endpoint, the station works as before. The server drops any message sent while
+the socket is down.
+
+A station message gives one or two screen lines, an optional countdown, and an optional attention
+beep. The firmware knows no games. It shows the message as a result, with one short beep if asked,
+and leaves the LED alone. A local tap's answer owns its first 2 seconds. A message that arrives then
+waits, with only the newest kept, and its countdown still counts from its arrival. After that window,
+a new message replaces the screen and any countdown, including one from a tap. A local tap's
+answer replaces a message. No WiFi, setup errors and reader errors come first.
+
+The socket checks the server's certificate against `ca_roots.h`, as HTTPS does. Plain WebSockets are
+allowed only for an `http://` server whose host ends in `.local`. It follows no redirects and
+never prints the key. It sends text `ping` every 30 seconds and expects text `pong` within 15
+seconds. On a drop or a failed upgrade it retries after 5, 10, 20, 40, then 60 seconds, staying at
+60 until an upgrade succeeds. A 401 shows the same setup error as a tap's 401 and retries after 60
+seconds. Close code 4000 means a newer connection replaced this one, and the station waits as usual.
+
+The socket has its own clients and a FreeRTOS task on core 0, so a TLS handshake never runs on the
+reader's loop. A one-slot queue passes the newest valid message to the screen. There is no extra
+Arduino library: the TLS is the ESP32 core's, as for HTTPS, and the station's own code only reads
+and writes the frames. It joins a text message split over several frames, refuses a message over
+2 KB and binary messages, and answers pings and closes. Serial output gives reasons for ignored messages
+without printing their payload, plus free heap on each open and the task's stack headroom once
+after its first successful upgrade. Check both on the classic ESP32 with HTTP and the socket open.
+
+The wire rules and message validation have laptop tests, with no Arduino headers or libraries:
+
+```sh
+c++ -std=c++17 -Wall -Wextra -o /tmp/station_socket_test firmware/geekykey_station/test/station_socket_test.cpp && /tmp/station_socket_test
+c++ -std=c++17 -Wall -Wextra -o /tmp/station_message_test firmware/geekykey_station/test/station_message_test.cpp && /tmp/station_message_test
+```
+
+Both print `All passed` on success. The screen tests above also cover messages waiting for taps,
+newer messages replacing older ones, countdowns that keep counting while hidden, and the station's
+own screens taking priority. The timing tests cover the attention beep.
 
 ## Writing tokens
 

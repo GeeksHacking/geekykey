@@ -229,7 +229,48 @@ static void wifiReturningRestoresTheIdleLines() {
   }
 }
 
+// A tap owns its first two seconds even if its countdown ends earlier.
+// Only the newest waiting message survives, and its clock starts at arrival.
+static void messagesWaitForTheTapThenReplaceItsCountdown() {
+  StationMessages messages;
+  messages.tapAnswered(1000);
+  StationMessage first;
+  copyLine(first.lines[0], "Old"); first.arrivedAt = 1100;
+  messages.receive(first);
+  StationMessage latest;
+  copyLine(latest.lines[0], "Need Red"); latest.beep = true; latest.arrivedAt = 1500;
+  startCountdown(latest.countdown, 20, latest.arrivedAt);
+  messages.receive(latest);
+  StationMessage shown;
+  CHECK(!messages.take(2999, 2000, false, shown));
+  CHECK(messages.take(3000, 2000, false, shown));
+  CHECK(strcmp(shown.lines[0], "Need Red") == 0 && shown.beep);
+  CHECK(countdownSecondsLeft(shown.countdown, 3000) == 19);
+  CHECK(!messages.take(3001, 2000, false, shown)); // beep cannot play twice
+  messages.receive(first);
+  CHECK(messages.take(3001, 2000, false, shown)); // a newer message needs no window
+  CHECK(!shown.countdown.running); // it replaces a running countdown too
+}
+static void ownScreensComeBeforeMessages() {
+  StationMessages messages;
+  StationMessage next; next.arrivedAt = 1000;
+  startCountdown(next.countdown, 1, 1000);
+  messages.receive(next);
+  StationMessage shown;
+  CHECK(!messages.take(1500, 2000, true, shown));
+  CHECK(messages.take(4000, 2000, false, shown));
+  CHECK(countdownSecondsLeft(shown.countdown, 4000) == 0);
+  CHECK(screenNow(true, false, Countdown{}, 4000, false, true, false, true) == SCREEN_IDLE);
+  CHECK(screenNow(true, false, Countdown{}, 4000, true, false, false, true) == SCREEN_IDLE);
+  CHECK(screenNow(true, false, Countdown{}, 4000, true, true, true, true) == SCREEN_IDLE);
+  messages.tapAnswered(0xffffff00UL);
+  messages.receive(next);
+  CHECK(!messages.take(500, 2000, false, shown));
+  CHECK(messages.take(1744, 2000, false, shown));
+}
 int main() {
+  messagesWaitForTheTapThenReplaceItsCountdown();
+  ownScreensComeBeforeMessages();
   countdownDropsByOneEachSecond();
   countdownSurvivesMillisWrapping();
   countdownLineShowsTheSecondsLeft();
