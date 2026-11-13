@@ -1,6 +1,12 @@
 /** How many requests a minute each user gets (the API agreement's section 2, "Rate limits"). */
 const USER_REQUESTS_PER_MINUTE = 60;
 
+/**
+ * The relay's map poll, counted apart from the 60 (the API agreement's 9.13 draft, BAC-184): the
+ * map polls it every second, beside its own 30 a minute, so it gets room for that and no more.
+ */
+export const RELAY_POLLS_PER_MINUTE = 90;
+
 const MINUTE_MS = 60_000;
 
 /** Counts each user's requests to the API, and says when one is over the limit. */
@@ -21,7 +27,10 @@ export interface UserLimit {
  *
  * Built once for the server's life, in src/app.ts, on the app's clock.
  */
-export function userLimit(now: () => Date = () => new Date()): UserLimit {
+export function userLimit(
+  now: () => Date = () => new Date(),
+  perMinute = USER_REQUESTS_PER_MINUTE,
+): UserLimit {
   const minutes = new Map<string, { startedAt: number; count: number }>();
   let lastSweepAt = 0;
 
@@ -43,7 +52,7 @@ export function userLimit(now: () => Date = () => new Date()): UserLimit {
         minutes.set(userId, minute);
       }
       minute.count += 1;
-      return minute.count <= USER_REQUESTS_PER_MINUTE;
+      return minute.count <= perMinute;
     },
   };
 }

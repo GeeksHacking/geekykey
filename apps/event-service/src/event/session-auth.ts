@@ -158,17 +158,18 @@ async function loadSessionUser(
  * one turned away costs the database nothing. A request with no session, or
  * a cookie that fails its signature or has expired, isn't counted, since
  * there's no user ID to count it by. /auth/* never mounts this, so it isn't
- * counted either. The relay map poll explicitly opts out with `counted: false`
- * (the API agreement's 9.13 draft); authentication still applies.
+ * counted either. A route with a limit of its own, such as the relay's map
+ * poll (the API agreement's 9.13 draft), passes it as `limit`, and its
+ * requests count there instead.
  */
 export function requireSession(
   options: SessionOptions,
-  { counted = true }: { counted?: boolean } = {},
+  { limit = options.userLimit }: { limit?: UserLimit } = {},
 ): MiddlewareHandler<SessionEnv> {
   return async (c, next) => {
     const userId = await sessionUserId(c, options);
     if (userId === null) return c.json({ error: "unauthenticated" }, 401);
-    if (counted && !options.userLimit.allow(userId)) {
+    if (!limit.allow(userId)) {
       log("rate_limited", { user_id: userId });
       return c.json({ error: "rate_limited" }, 429, { "Retry-After": "60" });
     }

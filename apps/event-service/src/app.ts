@@ -18,7 +18,7 @@ import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
 import { stationMessages, type StationMessages } from "./event/station-messages.ts";
-import { userLimit } from "./event/user-limit.ts";
+import { RELAY_POLLS_PER_MINUTE, userLimit } from "./event/user-limit.ts";
 import type { TeamDuelsGame } from "./event/team-duels.ts";
 import { showcaseTeamDuels, showcaseGames } from "./showcase/games.ts";
 import { showcaseAnswers, showcaseConnections } from "./showcase/questions.ts";
@@ -92,7 +92,7 @@ export function createApp(
   },
 ) {
   // Built once and shared, so every route that reads or writes a session agrees on it,
-  // and counted requests share one limit per user. The relay map poll opts out (9.13).
+  // and counted requests share one limit per user. The relay map poll has its own (9.13).
   const session: SessionOptions = {
     secret: config.sessionSecret,
     secure: config.sessionCookieSecure,
@@ -144,6 +144,7 @@ export function createApp(
       session,
       connections,
       relay: games.map((entry) => entry.game).find(isRelayGame) ?? null,
+      relayLimit: userLimit(now, RELAY_POLLS_PER_MINUTE),
       now,
     }),
   );

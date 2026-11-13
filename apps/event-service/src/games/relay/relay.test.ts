@@ -486,7 +486,7 @@ test("saved taps older than the transfer window count for no game and fresh save
   assert.equal((await h.map()).relay!.game!.waiting_until, "2026-11-13T08:00:20.000Z");
 });
 
-test("the map authenticates readers and relay polling leaves the sixty-request user allowance intact", async () => {
+test("the map authenticates readers and the relay poll has a 90-a-minute count of its own", async () => {
   const h = await harness();
   assert.equal((await h.app.request("/api/v1/map/relay")).status, 401);
   assert.equal(
@@ -498,12 +498,16 @@ test("the map authenticates readers and relay polling leaves the sixty-request u
     403,
   );
   const headers = { Cookie: await h.cookie() };
-  for (let i = 0; i < 65; i++)
+  for (let i = 0; i < 89; i++)
     assert.equal((await h.app.request("/api/v1/map/relay", { headers })).status, 200);
   for (let i = 0; i < 60; i++)
     assert.equal((await h.app.request("/api/v1/map", { headers })).status, 200);
   assert.equal((await h.app.request("/api/v1/map", { headers })).status, 429);
   assert.equal((await h.app.request("/api/v1/map/relay", { headers })).status, 200);
+  // A screen polling in a loop is still stopped, by the relay's own count.
+  const over = await h.app.request("/api/v1/map/relay", { headers });
+  assert.equal(over.status, 429);
+  assert.equal(over.headers.get("Retry-After"), "60");
   assert.equal(
     (await h.app.request("/api/v1/map/relay", { headers: { Cookie: await h.cookie("organizer") } }))
       .status,
