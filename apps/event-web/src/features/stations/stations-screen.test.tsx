@@ -220,4 +220,38 @@ describe("StationsScreen", () => {
     expect(screen.queryByText("Showing the last update.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
+
+  // BAC-183 and FRO-171: a station's game can change at any time, and the board shows the
+  // new game without a reload.
+  it("changes a station's game after taps, and shows it without a reload", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    const { Providers } = createTestProviders(api);
+    const user = userEvent.setup();
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+
+    await screen.findAllByText("Not in the passport");
+
+    const picker = screen.getByRole("combobox", { name: "Game for Station 1" });
+    expect(picker).toHaveTextContent("Passport");
+
+    await user.click(picker);
+    await user.click(await screen.findByRole("option", { name: "Team duels" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Game for Station 1" })).toHaveTextContent(
+        "Team duels",
+      ),
+    );
+    expect(await screen.findByText("Game saved.")).toBeInTheDocument();
+
+    const after = (await api.listStationBoard()).stations.find(
+      (station) => station.label === "Station 1",
+    );
+    expect(after?.game).toBe("team_duels");
+  });
 });
