@@ -2622,5 +2622,5 @@
   date: 2026-11-13
   area: frontend
   change: >-
-    The station board lets an organiser change a station's game at any time, however many taps
-    it has. The booth's two stations can switch from the passport to the relay during the day.
+    The station board's game menu now offers every game on a station that has taps, so an
+    organiser can switch the two booth stations from the passport to team duels during the day.
