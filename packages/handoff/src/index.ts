@@ -12,3 +12,4 @@ export * from "./stations.ts";
 export * from "./heartbeats.ts";
 export * from "./meetings.ts";
 export * from "./used-login-links.ts";
+export * from "./station-messages.ts";

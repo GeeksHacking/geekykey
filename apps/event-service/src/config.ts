@@ -30,6 +30,11 @@ export interface Config {
    */
   eventServiceKey: string;
   /**
+   * The GeekyKey Service's address, for station messages (the API agreement's
+   * 11.12). Unset means messages are off.
+   */
+  geekykeyServiceUrl?: string;
+  /**
    * The Event side's organizers, by user ID. Everyone else is a participant.
    * Read once at start-up, and checked on every request.
    */
@@ -201,6 +206,26 @@ function databaseUrlFromEnv(env: Env): string {
 }
 
 /**
+ * The Event Service key goes to this address, so plain HTTP is only allowed
+ * to this machine (the API agreement's section 3, "Event Service keys").
+ */
+function geekykeyServiceUrlFromEnv(env: Env): string | undefined {
+  const raw = env.GEEKYKEY_SERVICE_URL;
+  if (raw === undefined || raw === "") return undefined;
+  if (!URL.canParse(raw)) {
+    throw new ConfigError("GEEKYKEY_SERVICE_URL must be a URL");
+  }
+  const url = new URL(raw);
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
+    throw new ConfigError(
+      "GEEKYKEY_SERVICE_URL must start with https://, or be http:// to this machine",
+    );
+  }
+  return url.href.replace(/\/+$/, "");
+}
+
+/**
  * No default, not even locally: every sign-in but dev-login checks the token
  * against it, and a wrong one would turn every real token away. A Google
  * Cloud project ID is 6 to 30 lower-case letters, digits and hyphens,
@@ -231,6 +256,7 @@ export function loadConfig(env: Env): Config {
     sessionCookieSecure: !devAuthEnabled,
     claimsStandInKey: keyFromEnv(env, "CLAIMS_STAND_IN_KEY", devAuthEnabled),
     eventServiceKey: keyFromEnv(env, "EVENT_SERVICE_KEY", devAuthEnabled),
+    geekykeyServiceUrl: geekykeyServiceUrlFromEnv(env),
     organizers: userIdsFromEnv(env, "ORGANIZERS", devAuthEnabled, DEV_ORGANIZERS),
     // Locally the organizer reads the map, so there's no map screen until one is listed.
     mapScreens: userIdsFromEnv(env, "MAP_SCREENS", devAuthEnabled, []),

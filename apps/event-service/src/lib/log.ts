@@ -22,6 +22,9 @@ const LOG_LINES = {
   station_game_changed: "INFO",
   // An organizer set the booth a station stands at: who, and which station.
   station_booth_changed: "INFO",
+  // A station message failed, or had no open socket. Never its lines or the Event Service key.
+  station_message_failed: "ERROR",
+  station_message_dropped: "INFO",
   // An organizer logged a tap for a participant through the QR fallback: who, at which station,
   // and its client_tap_id, which finds the tap's own tap_stored line.
   qr_fallback_logged: "INFO",

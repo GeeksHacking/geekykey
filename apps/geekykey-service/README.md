@@ -4,7 +4,7 @@ The GeekyKey Service is what stations and tokens talk to. It is a Hono app on a 
 `https://key-api.geekshacking.com`, with no database. Every GeeksHacking event shares it, while
 each event runs its own Event Service.
 
-It does five jobs:
+It does six jobs:
 
 - checks each station's key, and hands the station's taps and heartbeats to the Event Service that
   registered it
@@ -13,6 +13,7 @@ It does five jobs:
   event's screens, and takes login links from an event's My tokens
 - claims and releases tokens, and lets a GeekyKey admin load token kinds
 - passes one half of a connection to the events that run connections
+- carries station messages from an Event Service down each station's WebSocket
 
 The routes and their shapes are in [the API agreement](../API-AGREEMENT.md): section 6 for
 stations, 7 and 8 for the screens, 11 for what it sends an Event Service.
@@ -25,6 +26,7 @@ routes. Each file in `src/` is one area, with its test beside it:
 | File                                                                              | What it does                                                                                            |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `station-routes.ts`, `station-auth.ts`, `station-keys.ts`                         | `POST /api/v1/taps` and `POST /api/v1/stations/heartbeat`, and the key check                            |
+| `station-message-routes.ts`, `station-sockets.ts`                                 | `GET /api/v1/stations/socket` and `POST /api/v1/station-messages`, with one Durable Object per station  |
 | `stations-copy.ts`                                                                | The in-memory copy of each Event Service's registered stations                                          |
 | `claims.ts`, `claims-deadline.ts`                                                 | Calls to the claims stand-in, behind one module, `Claims`, so the switch to the Portal changes one file |
 | `event-service.ts`, `service-request.ts`                                          | Calls to an Event Service                                                                               |
@@ -100,6 +102,26 @@ seconds. Each answers `waiting`, `connected`, `already_connected` or `same_kind`
 answer in time gets `unavailable` and a `meeting_handoff_failed` log line. One that answers `404`,
 as an Event Service from before connections does, is left out.
 
+## Station messages
+
+A station opens `GET /api/v1/stations/socket` with its station key and a WebSocket upgrade. The
+key check and rate limit are the same as for a heartbeat. A new connection closes the station's
+older connection with code `4000`, `replaced`. The station sends text `ping` every 30 seconds and
+gets `pong` without waking the object.
+
+An Event Service sends `POST /api/v1/station-messages` with its shared Event Service key and one
+of its own station IDs. The body has `lines` and optional `countdown` and `beep`, as the agreement
+sets out. The Worker checks the sender's registered stations and sends a JSON `station_message`
+frame. It answers `{ delivered: true }` if an open socket took it. Otherwise the message is dropped
+and the answer is `{ delivered: false }`, including when the object fails or times out. Nothing is
+queued, and there is no rate limit on this trusted Event Service route.
+
+`STATION_SOCKETS` binds the `StationSockets` Durable Object class exported by `src/worker.ts`.
+Each station has its own object, named by its Event Service and its ID, so a message never reaches
+another event's station with the same ID. It has a best-effort `apac` location hint. The
+object uses the Hibernation API and never writes storage. Its migration uses `new_sqlite_classes`
+because Cloudflare's free plan requires SQLite-backed classes even when they store nothing.
+
 ## Settings
 
 `wrangler.jsonc` holds the settings, and Cloudflare holds the secrets. A deploy overwrites anything
@@ -114,6 +136,7 @@ changed in the Cloudflare dashboard, so change settings in a pull request.
 | `CLAIMS_STAND_IN_URL`                                                          | The claims stand-in's address, on the Event Service                                                                                                                  |
 | `TAP_DEADLINE_MS`, `MAX_TAPS_PER_REQUEST`                                      | 4 seconds for a station's request, and 500 taps in one                                                                                                               |
 | `MAX_TOKENS_PER_USER`                                                          | How many tokens one user may claim: 3                                                                                                                                |
+| `STATION_SOCKETS`                                                              | The Durable Object namespace holding each station's WebSocket                                                                                                        |
 | `STATION_LIMIT`, `USER_LIMIT`, `TOKEN_LIMIT`                                   | Rate limits, a minute each: 60 requests per station, 60 per user, and 20 token lookups, claims and meetings per user. A request over a limit gets `429 rate_limited` |
 | Secrets: `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY_SHOWCASE` | Required. The Worker stops at start-up, naming the setting, if one is missing or malformed                                                                           |
 
@@ -147,3 +170,25 @@ mise exec -- pnpm check:build     # wrangler deploy --dry-run
 
 CI's GeekyKey Service job runs those four and the tests. Cloudflare's Workers Builds deploys the
 Worker from `main` ([docs/operations.md](../../docs/operations.md)).
+
+## Staging
+
+The `staging` environment in `wrangler.jsonc` deploys `geekykey-service-staging` by hand to its
+`workers.dev` address, with no custom domain. It repeats the bindings and vars Wrangler does not
+inherit, and points both the Event Service and the claims stand-in at staging's Cloud Run address
+from [infra/README.md](../../infra/README.md). Its socket objects are separate from production's.
+There is no staging screens address, so its Event Service entry leaves `public_url` out.
+
+Set `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY` and `EVENT_SERVICE_KEY_SHOWCASE` on this Worker before
+its first deploy, using `wrangler secret put <NAME> --env staging`. The two shared keys must match
+the staging Event Service's secrets. They are required in staging just as in production.
+
+From `apps/geekykey-service`, check the build and deploy staging first:
+
+```bash
+mise exec -- pnpm exec wrangler deploy --dry-run --env staging
+mise exec -- pnpm exec wrangler deploy --env staging
+```
+
+Wrangler prints the Worker's `workers.dev` address after the deploy. Set the staging Event
+Service's `GEEKYKEY_SERVICE_URL` to that address when testing station messages.

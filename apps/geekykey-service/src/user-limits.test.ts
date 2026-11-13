@@ -1,3 +1,4 @@
+import { fakeStationSockets } from "../test-support/fake-station-sockets.ts";
 import assert from "node:assert/strict";
 import { env } from "cloudflare:test";
 import { fakeGoogle } from "@geekykey/firebase-login/testing";
@@ -36,6 +37,7 @@ function harness({
   const app = createApp(config, {
     send: fake.send,
     googleKeys: google.keys,
+    stationSockets: fakeStationSockets(),
     stationLimit: fakeLimiter(60),
     userLimit,
     tokenLimit,

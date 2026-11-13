@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { heartbeatsRequest } from "./heartbeats.ts";
 import { meetingsAnswer, meetingsRequest } from "./meetings.ts";
+import { stationMessageAnswer, stationMessageRequest } from "./station-messages.ts";
 import { stationsAnswer } from "./stations.ts";
 import { tapsAnswer, tapsRequest } from "./taps.ts";
 import { usedLoginLinksAnswer, usedLoginLinksRequest } from "./used-login-links.ts";
@@ -36,6 +37,13 @@ const SCHEMAS = {
   }),
   "used-login-links-answer.schema.json": usedLoginLinksAnswer.meta({
     title: "The answer to marking a login link used: POST /geekykey/v1/used-login-links",
+  }),
+  "station-messages-request.schema.json": stationMessageRequest.meta({
+    title: "A station message: POST /api/v1/station-messages on the GeekyKey Service",
+    description: "Also: {s} at most once across a countdown's lines.",
+  }),
+  "station-messages-answer.schema.json": stationMessageAnswer.meta({
+    title: "The answer to a station message: POST /api/v1/station-messages",
   }),
 };
 

@@ -117,6 +117,7 @@ of an Event Service lives under `/geekykey/v1`.
 | 403 | Authenticated but not allowed: not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs |
 | 404 | Resource does not exist or is not visible to this user |
 | 409 | Conflict with existing state: a token someone else has claimed, a user who already holds 3 tokens, or a station whose game can no longer change |
+| 426 | A station asked for its socket (6.3) without asking to upgrade to a WebSocket (BAC-182, for the next version) |
 | 429 | Too many requests from this caller in the last minute. See [Rate limits](#rate-limits) |
 | 500 | A bug in a service. Screens show a generic error and log the request ID if present |
 | 503 | A service this one depends on didn't answer: whatever holds the claims (the claims stand-in, then the Portal), the station's Event Service during a station request, Google's keys during login, or, for the Worker in front of a set of screens, the service behind it |
@@ -145,7 +146,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `invalid_login_link` | 401 | The login link sent to log in (7.4, or 7.5 on the GeekyKey Service) has expired, has been used already, or was changed. The Event screens say "That link has expired. Tap your token again to get back in.", and the GeekyKey screens "That link has expired. Open My tokens from the event again." (section 13) |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
-| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1` |
+| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1`, and on a station message to the GeekyKey Service (11.12, BAC-182, for the next version) |
 | `forbidden` | 403 | Not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs |
 | `not_found` | 404 | |
 | `token_claimed` | 409 | A GeekyKey admin tried to remove the kind of a claimed token (10.3) |
@@ -154,6 +155,7 @@ only for `validation_failed` and follows Zod's issue format.
 | `already_played` | 409 | The user has already played this connection's reaction test (8.11) |
 | `too_late` | 409 | The 2 minutes to play this connection's reaction test have passed (8.11) |
 | `answers_fixed` | 409 | The user's answers in the answers game can't change, because their first connection fixed them (8.7) |
+| `upgrade_required` | 426 | A request for a station's socket (6.3) that isn't a WebSocket upgrade (BAC-182, for the next version) |
 | `rate_limited` | 429 | Sent with `Retry-After: 60` |
 | `internal_error` | 500 | |
 | `event_service_unavailable` | 503 | The station's Event Service didn't answer in time or answered wrongly, or its registered stations couldn't be fetched to check the key. The station keeps its taps and resends them. From 7.5, the Event Service that made a login link didn't mark it used properly in time (11.11), and the GeekyKey screens say what they say for `invalid_login_link` |
@@ -168,7 +170,7 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 
 | Service | Counts | Limit a minute |
 |---|---|---|
-| GeekyKey Service | Each station's requests, taps and heartbeats together | 60 |
+| GeekyKey Service | Each station's requests, taps and heartbeats together, and the requests that open its socket (6.3) | 60 |
 | GeekyKey Service | Each user's requests to its API | 60 |
 | GeekyKey Service | Each user's token lookups, claims and meetings (8.8), which also count toward the 60 | 20 |
 | Event Service | Each user's requests to its API | 60, counted by each server instance |
@@ -233,6 +235,7 @@ the session cookie by default.
 | GeekyKey admin | `gk_session`, with a user ID on the GeekyKey Service's admin list | The GeekyKey Service, to release other people's tokens and manage token kinds (section 10) |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
 | GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
+| Event Service | `Authorization: Bearer` with its Event Service key | The GeekyKey Service, for station messages (11.12, BAC-182, for the next version) |
 
 - The organizer list, the map screen list and the GeekyKey admin list are settings of their
   service, changed through a reviewed pull request and a deploy. Each is checked on every
@@ -312,12 +315,15 @@ and only its hash is stored. Firmware sends it on every request to the GeekyKey 
 `Implemented`. Each Event Service shares one key with the GeekyKey Service, which sends
 it as `Authorization: Bearer <key>` on every request under `/geekykey/v1`: the registered
 stations, the hand-off, the heartbeat hand-off, the meeting hand-off and marking a login link used
-(11.11). Event Services never call the GeekyKey Service.
+(11.11). An Event Service sends the same key the other way, with each station message (11.12,
+BAC-182, for the next version). It is the only request an Event Service makes to the GeekyKey
+Service.
 
 - It is 32 random bytes, written as 64 lower-case hex characters, as `openssl rand -hex 32`
   makes them. Nobody picks one.
 - The Event Service compares it in constant time, on every request, since its address is
-  public.
+  public. The GeekyKey Service compares a station message's key with each Event Service's key in
+  constant time too, and the one it matches says which Event Service sent it.
 - Neither side ever logs it.
 - The GeekyKey Service never follows a redirect, because `fetch()` sends `Authorization` on to
   wherever a redirect points, even another domain. Every Event Service address must start with
@@ -326,7 +332,7 @@ stations, the hand-off, the heartbeat hand-off, the meeting hand-off and marking
   address, so the exception never applies in production.
 - To replace one, set the new key on both sides outside the event. Hand-offs fail with
   `503 event_service_unavailable` until both match, and stations keep their taps and resend
-  them.
+  them. Station messages fail with `401 invalid_event_service_key` meanwhile, and are lost.
 
 ---
 
@@ -404,6 +410,9 @@ list of games is in the Event Service's code, so it changes only with a deploy.
   station shows between taps, as `idle_lines` (6.2 and 11.1). The firmware knows no games. It keeps
   only the screens it has to show alone: no Wi-Fi, a saved tap, a wrong key and setup mode
   ([ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)).
+- A game can also send one of its stations a station message with no tap (11.12), which the
+  station shows as it shows a tap's answer (BAC-182, for the next version). A game must still work
+  when a message is dropped, since a station's socket (6.3) can be down.
 - Each stored tap records the game that counted it or held it back, and a `no_game` tap records
   none (BAC-183, for the next version). A game reads only its own taps, so an organizer can
   change a station's game at any time (9.11). A tap another game counted at a passport station
@@ -496,6 +505,8 @@ them.
 | GET | `/api/health` | anyone | `Implemented` | Liveness check |
 | POST | `/api/v1/taps` | Station | `Implemented` | Taps, one or a batch |
 | POST | `/api/v1/stations/heartbeat` | Station | `Implemented` | Online light, clock, `reader_ok` |
+| GET | `/api/v1/stations/socket` | Station | `Checkpoint 8` | The station's WebSocket, which carries station messages (BAC-182) |
+| POST | `/api/v1/station-messages` | Event Service | `Checkpoint 8` | Send one of its stations a station message (BAC-182) |
 | POST | `/auth/dev-login` | local only | `Implemented` | Set `gk_session` for any user ID |
 | POST | `/auth/firebase` | browser | `Implemented` | Log in with a Firebase ID token, set `gk_session` |
 | POST | `/auth/login-link` | browser | `Checkpoint 7` | Log in with a login link from an Event Service's screens, set `gk_session` |
@@ -617,7 +628,7 @@ item has a [`tap_status`](#tap_status).
   gone.
 
 **A countdown** (BAC-181, for the next version). A result can also give a screen that ticks,
-since the station hears from the server only in a tap's answer and a heartbeat's:
+which the station counts down itself, so the screen moves without hearing from the server again:
 
 ```json
 { "client_tap_id": "tap-000123", "status": "accepted",
@@ -779,6 +790,67 @@ whether the reader works.
 `event_service_unavailable` when the key can't be checked, and `rate_limited`
 ([Rate limits](#rate-limits)). The key is checked before the body, so a station with a wrong key
 gets `401` whatever it sends, until it's over the limit.
+
+### 6.3 `GET /api/v1/stations/socket` (`Checkpoint 8`)
+
+Added for the next version (BAC-182, [ADR 0009](../docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md)).
+The station's WebSocket, which it holds open so its Event Service can send it a station message
+(11.12) with no tap. Taps and heartbeats stay on HTTP.
+
+**Auth:** station key, in `Authorization: Bearer <key>` on the request that opens the socket.
+
+**Request:** a WebSocket upgrade, with no body.
+
+**Response `101`**, and the socket is open. The key is checked as for a heartbeat (6.2), before
+the upgrade: a wrong or disabled key gets `401 invalid_station_key`, and the request counts
+against the station's 60 a minute.
+
+**Messages to the station** are text frames, each one JSON object:
+
+```json
+{ "type": "station_message", "lines": ["Blue to B", "Tap here"],
+  "countdown": { "seconds": 20, "lines": ["Blue to B", "{s}s left"], "ending": ["Missed it", ""] },
+  "beep": true }
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `type` | string | `station_message`. Ignore a frame whose `type` you don't know |
+| `lines` | array of strings | 1 or 2 lines, with 6.1's `lines` rules |
+| `countdown` | object, optional | With 6.1's `countdown` rules |
+| `beep` | boolean, optional | `true` for one attention beep as the message arrives. Left out means `false` |
+
+- The GeekyKey Service sends a message only to the station it names, and only while its socket is
+  open. A message sent while a station has no socket is dropped, and is never sent later.
+- A station has one socket. Opening a second closes the first with code `4000`, so a station that
+  reconnected after a dropped Wi-Fi never leaves a stale one taking its messages.
+- Send the text `ping` every 30 seconds. The GeekyKey Service answers `pong`. Anything else the
+  station sends is ignored.
+- A disabled station's socket stays open until it closes. It gets no messages once the GeekyKey
+  Service's copy of the registered stations leaves it out, since an Event Service can only send
+  one to a station on its own list (11.12).
+
+**Errors**, before the upgrade: `missing_station_key`, `invalid_station_key`,
+`event_service_unavailable` when the key can't be checked, `upgrade_required` (426) for a request
+that isn't a WebSocket upgrade, and `rate_limited`
+([Rate limits](#rate-limits)).
+
+**Firmware contract**
+
+- Open the socket once a heartbeat has set the clock, and keep it open. When it closes, or fails to
+  open, try again after 5 seconds, then 10, 20 and so on up to a minute. A `401` means the key is
+  wrong, so retry at the heartbeat's pace and show what 6.1 shows for a `401`.
+- A station message is shown as a live tap's answer is (6.1). With a `countdown`, show its `lines`
+  in place of `lines` and count down, then its `ending` for about 2 seconds at zero. Without one,
+  show `lines` for about 2 seconds. Then go back to the idle screen. With `beep: true`, play one
+  short attention beep, and leave the LED as it is. A tap's answer, or a newer message, replaces
+  it. The station's own screens, such as no Wi-Fi, a setup error or a reader error, still come
+  first.
+- A frame that isn't JSON, or breaks the rules above, is ignored and printed on the serial port.
+- Everything still works without the socket. A station whose socket is down shows each tap's
+  answer, and the heartbeat's idle screen, as before.
+- The security rules for firmware (6.1) apply: `wss://` in production with the same certificates,
+  `ws://` only to a `.local` address, no redirects, and never print the key.
 
 ---
 
@@ -2099,7 +2171,8 @@ buttons on My tokens and the token page open one. One whose entry says
 `"login_links_to_geekykey": true` can also make login links to the GeekyKey screens (7.5), and
 marks them used when asked (11.11). One that plays connections can also take
 meetings (11.10), if its entry in the GeekyKey Service's settings says so. It also creates its own stations and issues their keys, in whatever way suits it; ours
-does it on the station board (9.7 to 9.9).
+does it on the station board (9.7 to 9.9). Any Event Service can send its stations station
+messages (11.12), and no game needs them.
 
 Adding an Event Service is a reviewed pull request to the GeekyKey Service's settings: its ID,
 its name, its `https://` address, and optionally a public address and name for the buttons on My
@@ -2274,6 +2347,8 @@ our services check against them, and a JSON Schema generated from them with `z.t
 for other teams, in `packages/handoff/json-schema/`. The registered stations' answer and the
 hand-off's two are there, and so is the heartbeat hand-off's request. Its answer has no body.
 
+- A station message's request and answer are there too (11.12): `station-messages-request.schema.json`
+  and `station-messages-answer.schema.json` (BAC-182, for the next version).
 - The files leave other fields allowed, since fields are only ever added (section 1).
 - A JSON Schema can't say that the hand-off's results match its taps one for one, or that `{s}`
   appears at most once across a countdown's lines. The GeekyKey Service checks both (11.5).
@@ -2439,6 +2514,55 @@ database, so the Event Service keeps each link's `jti` until it expires, and a l
   starts making these links, or My tokens opens links nothing can check.
 
 **Errors:** `validation_failed`; `invalid_event_service_key` (401).
+
+### 11.12 Sending a station message: `POST /api/v1/station-messages` on the GeekyKey Service (`Checkpoint 8`)
+
+Added for the next version (BAC-182). The one request an Event Service makes to the GeekyKey
+Service: send one of its own stations a station message, which the station shows with no tap. The
+GeekyKey Service passes it down the station's socket (6.3), and keeps nothing.
+
+**Auth:** `Authorization: Bearer <Event Service key>`: the sender's own key, which the GeekyKey
+Service compares with each Event Service's in constant time. The one it matches is the sender.
+
+**Request**
+
+```json
+{ "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
+  "lines": ["Blue to B", "Tap here"],
+  "countdown": { "seconds": 20, "lines": ["Blue to B", "{s}s left"], "ending": ["Missed it", ""] },
+  "beep": true }
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `station_id` | string | One of the sender's registered stations (11.1) |
+| `lines` | array of strings | 1 or 2 lines, with 6.1's `lines` rules |
+| `countdown` | object, optional | With 6.1's `countdown` rules |
+| `beep` | boolean, optional | `true` for one attention beep. Left out means `false` |
+
+**Response `200`**
+
+```json
+{ "delivered": true }
+```
+
+- `delivered` is `false` when the station had no socket open, or its socket couldn't take the
+  message in time. The message is dropped, not kept for later. A game must work without it, as the
+  heartbeat's `idle_lines` and each tap's answer still reach the station.
+- `true` means the GeekyKey Service sent it down the socket. It doesn't mean the station showed it.
+- A `station_id` that isn't on the sender's registered stations gets `validation_failed`, as the
+  hand-off answers one that isn't the Event Service's own (11.2). That includes another Event
+  Service's station and a disabled one. The GeekyKey Service checks against its copy of the
+  registered stations, refreshed at most a minute before. While your list can't be fetched, it
+  keeps the last one it had (11.1), so a station disabled since then still gets messages until a
+  fetch succeeds.
+- A line that breaks 6.1's rules gets `validation_failed`, as a bad line fails a tap's hand-off.
+- There is no retry and no queue. Ours waits at most 2 seconds for the answer, and never makes a
+  tap's answer wait for it.
+- Neither side logs the key or the message's lines.
+
+**Errors:** `validation_failed`; `invalid_event_service_key` (401); `event_service_unavailable`
+(503) while the sender's registered stations can't be fetched to check the station.
 
 ---
 
@@ -2824,3 +2948,4 @@ Closed on 2026-10-10:
 | 2026-11-11 | For the next version: a reaction test shows the time left to play, not a fresh two minutes (FRO-152). Section 13 replaces "You have 2 minutes to play." with "Time left to play: {m}:{ss}.", which counts down while the test is visible and is recomputed when the page returns, and adds "Checking the result..." while the test reads `/me` at zero, with "Couldn't check the result. Try again." and a **Try again** button if that read fails. A refused play reads `/me` with the same checking sentence. No endpoint, field or error code changes. |
 | 2026-11-12 | For the next version: each stored tap records the game that counted it or held it back, so an organizer can change a station's game at any time (BAC-183). The booth's two stations can then run the passport and change to another game during the demo. Section 4 replaces the rule that fixed a station's game with one where each game reads only its own taps: a stamp and points come from the taps the passport accepted, and the cooldown (6.1) and the next stop (8.1) from the taps it judged, so another game's tap at a passport station earns nothing, and a station set back to the passport shows the stamps it had. 8.1's `earned_at` and `next_stop`, 9.5's stamp slots and 9.10's `unique_participants` count the same way, while 9.10's `taps` still counts every game's, so it never drops. Taps stored before the change record the game their station ran then. **Removed:** `409 station_has_taps`, from section 2, 9.11 and the station board's sentence in section 13, and 9.1's rule that a station whose game was fixed keeps none. Removing an error code is an exception to section 1's rule, as in the row of 2026-11-06: an older screen that still knows it is never sent it. **Changed:** 9.2's `game_fixed` is always `false`, and is removed in the version after this one. No other field changes, and nothing is added to a response. |
 | 2026-11-12 | For the next version: the server writes the rest of the station's screen (BAC-181, [ADR 0008](../docs/adr/0008-the-server-writes-the-stations-screen.md)). A tap's result can give a `countdown` that the station counts down itself, with `seconds`, `lines` holding `{s}` for the seconds left, and an `ending` for zero (6.1 and 11.2). The ticket called it `then`, which our linter refuses as a key, since it marks an object as a promise. Team duels gives a countdown while its round is open, and the relay (BAC-184) will use one for a transfer's 20 seconds. **New:** `results[].countdown` in 6.1 and 11.2, `idle_lines` on each registered station (11.1) and in the heartbeat's answer (6.2), and the firmware contract for both. Ours gives the passport's and team duels' idle text. An `idle_lines` that breaks the rules is left out for that station alone, not the whole list. Section 4 says the server writes the screen, and 11.1 lets `idle_lines` into the list. Each service works with the other's previous version: an older GeekyKey Service drops both fields, and an older Event Service sends neither, so its stations keep `Ready` / `Tap a tag`. A station that doesn't know them ignores them and shows `lines`. No field or route is removed. |
+| 2026-11-13 | For the next version: an Event Service can send a station a station message, with no tap (BAC-182, [ADR 0009](../docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md)). Each station holds a WebSocket open to the GeekyKey Service, which passes on what the station's Event Service sends for it. **New:** the station's socket, `GET /api/v1/stations/socket` (6.3), with its firmware contract; `POST /api/v1/station-messages` on the GeekyKey Service (11.12), the first request an Event Service makes to it, with the Event Service key it already shares; the status `426` and the error `upgrade_required`; and the JSON Schema of the message's request and answer (11.7). A message carries a tap answer's `lines` and `countdown`, with 6.1's rules, and `beep`. One for a station with no socket answers `delivered: false` and is dropped. Section 3 says the Event Service key now goes both ways, and the station limit counts the requests that open the socket. Each service works with the other's previous version: an older GeekyKey Service answers a message `404 not_found`, which ours treats as a failed message, and a station that doesn't know the socket never opens it. No field or route is removed. |

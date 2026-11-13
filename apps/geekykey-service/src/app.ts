@@ -13,6 +13,8 @@ import { meRoutes } from "./me-routes.ts";
 import type { Send } from "./service-request.ts";
 import type { SessionCheck, SessionOptions } from "./session.ts";
 import { heartbeatRoutes, tapsRoutes } from "./station-routes.ts";
+import { socketRoutes, stationMessageRoutes } from "./station-message-routes.ts";
+import type { StationConnections } from "./station-sockets.ts";
 import { StationsCopy } from "./stations-copy.ts";
 import { tokenKindRoutes } from "./token-kind-routes.ts";
 import { tokenRoutes } from "./token-routes.ts";
@@ -21,12 +23,14 @@ import { tokenRoutes } from "./token-routes.ts";
 export interface AppDeps {
   /** How it sends a request out to the Event Services and the claims stand-in. */
   send: Send;
+  /** Holds each station's socket and sends its messages. */
+  stationSockets: StationConnections;
   /** Google's keys, which POST /auth/firebase checks ID tokens against. */
   googleKeys: GoogleSigningKeys;
   /** Milliseconds a user's request gives the claims stand-in. Only a test changes it. */
   claimsDeadlineMs: number;
   /**
-   * Counts each station's requests, taps and heartbeats together: the
+   * Counts each station's taps, heartbeats and socket upgrades together: the
    * STATION_LIMIT binding in wrangler.jsonc.
    */
   stationLimit: RateLimit;
@@ -62,12 +66,14 @@ export function createApp(
   config: Config,
   {
     send,
+    stationSockets,
     googleKeys = googleSigningKeys(),
     claimsDeadlineMs = CLAIMS_DEADLINE_MS,
     stationLimit,
     userLimit,
     tokenLimit,
-  }: Pick<AppDeps, "send" | "stationLimit" | "userLimit" | "tokenLimit"> & Partial<AppDeps>,
+  }: Pick<AppDeps, "send" | "stationSockets" | "stationLimit" | "userLimit" | "tokenLimit"> &
+    Partial<AppDeps>,
 ) {
   const app = new Hono();
 
@@ -154,6 +160,19 @@ export function createApp(
   app.route(
     "/api/v1/stations/heartbeat",
     heartbeatRoutes({ stationsCopy, deadlineMs, stationLimit }),
+  );
+  app.route(
+    "/api/v1/stations/socket",
+    socketRoutes({ stationsCopy, stationSockets, deadlineMs, stationLimit }),
+  );
+  app.route(
+    "/api/v1/station-messages",
+    stationMessageRoutes({
+      eventServices: config.eventServices,
+      stationsCopy,
+      stationSockets,
+      deadlineMs,
+    }),
   );
   app.route(
     "/api/v1/me",

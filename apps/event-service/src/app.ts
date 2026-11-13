@@ -10,11 +10,13 @@ import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { myGroupRoutes } from "./event/group-routes.ts";
 import type { Shuffle } from "./event/groups.ts";
+import type { GameOnStations } from "./event/games.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { loginLinkRoutes } from "./event/login-link-routes.ts";
 import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
+import { stationMessages, type StationMessages } from "./event/station-messages.ts";
 import { userLimit } from "./event/user-limit.ts";
 import type { TeamDuelsGame } from "./event/team-duels.ts";
 import { showcaseTeamDuels, showcaseGames } from "./showcase/games.ts";
@@ -28,6 +30,10 @@ export type AppEnv = {
 export interface AppDeps {
   /** Google's keys, which POST /auth/firebase checks ID tokens against. Tests fake them. */
   googleKeys: GoogleSigningKeys;
+  /** The HTTP call to the GeekyKey Service for station messages. Tests fake it. */
+  send?: typeof fetch;
+  /** A game takes the shared sender when constructed, before any taps arrive (BAC-184). */
+  games?: (deps: { stationMessages: StationMessages }) => readonly GameOnStations[];
   /**
    * The clock the station board tells online stations by, and the user limit
    * counts minutes by. Tests pin it.
@@ -73,6 +79,8 @@ export function createApp(
   // One set of keys for the server's life, so Google's keys are cached between logins.
   {
     googleKeys,
+    send,
+    games: gamesForEvent = () => showcaseGames,
     now,
     answers = showcaseAnswers,
     connections = showcaseConnections,
@@ -92,7 +100,8 @@ export function createApp(
     userLimit: userLimit(now),
   };
 
-  const games = showcaseGames.flatMap((entry) =>
+  const messages = stationMessages(config, { send });
+  const games = gamesForEvent({ stationMessages: messages }).flatMap((entry) =>
     entry.game.id !== "team_duels" ? [entry] : teamDuels ? [{ ...entry, game: teamDuels }] : [],
   );
 

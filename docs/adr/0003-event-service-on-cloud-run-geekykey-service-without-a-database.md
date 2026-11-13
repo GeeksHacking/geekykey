@@ -48,3 +48,8 @@ domain mapping, which only Cloud Run's v1 interface offers. The details are in t
 we need a v2 feature. We read that as the v1 interface, which the domain mapping needs, and the
 first-generation execution environment. Whether he meant both is still to confirm (the spec,
 sections 2 and 12).
+
+**Amended 13 Nov 2026** by [ADR 0009](0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md).
+The GeekyKey Service has its first Durable Object, which holds each station's open WebSocket so an
+Event Service can send the station a message with no tap (BAC-182). It writes nothing to storage
+and keeps no copy of any game, so the service still keeps no database.

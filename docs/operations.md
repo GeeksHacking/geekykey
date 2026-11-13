@@ -11,6 +11,7 @@ builds are in the runbook, [infra/README.md](../infra/README.md).
 | `event-service` | `apps/event-service` | Google Cloud Run | `.github/workflows/deploy.yml`, on every push to `main` | `https://event-api.geekshacking.com`, behind Cloudflare's proxy, and its `run.app` address |
 | `event-service-staging` | `apps/event-service` | Google Cloud Run | The same workflow, run by hand from any branch | Its `run.app` address only (`infra/README.md`, step 5) |
 | `geekykey-service` | `apps/geekykey-service` | Cloudflare Workers | Workers Builds, from `main` | `https://key-api.geekshacking.com` |
+| `geekykey-service-staging` | `apps/geekykey-service`, the `staging` environment in `wrangler.jsonc` | Cloudflare Workers | By hand, `wrangler deploy --env staging` (BAC-182) | Its `workers.dev` address only |
 | `geekykey-web` | `apps/geekykey-web` | Cloudflare Workers | Workers Builds, from `main` | `https://key.geekshacking.com` |
 | `event-web` | `apps/event-web` | Cloudflare Workers | Workers Builds, from `main` | `https://event.geekshacking.com` |
 
@@ -80,7 +81,15 @@ minutes, or by Julian rolling back one version in the dashboard.
 `event-service-staging` runs the same code as production, in the same project, against its own
 database, `geekykey_staging`, on GeeksHacking's TiDB cluster. Its logins can't touch production's
 database. It has no domain and no warm instance, so the first request after a quiet spell takes two
-or three seconds. There is no staging copy of the Workers.
+or three seconds.
+
+`geekykey-service-staging` is the one staging copy of a Worker (BAC-182). It points at
+`event-service-staging`, holds its own Durable Objects, and has its own three secrets, whose two
+shared keys match `event-service-staging`'s. Nothing deploys it on a merge. Whoever holds the
+Cloudflare account runs `wrangler deploy --env staging` from `apps/geekykey-service` on the branch
+to try, and sets its secrets with `wrangler secret put <NAME> --env staging` before the first
+deploy. Once it has an address, `GEEKYKEY_SERVICE_URL` in `infra/staging/settings.env` points
+`event-service-staging` at it.
 
 Try a change on staging first when it touches how the server starts, its settings, its Google Cloud
 setup or how it reaches the database. Nobody deploys from their laptop. To deploy a branch:

@@ -4,6 +4,10 @@
  * that a query in Workers Logs can count and group.
  */
 const LOG_LINES = {
+  // A station connected or disconnected, and a message that could not reach its object.
+  station_socket_opened: "INFO",
+  station_socket_closed: "INFO",
+  station_message_failed: "ERROR",
   internal_error: "ERROR",
   // A station's tap by a token nobody owns, answered and stored nowhere.
   unknown_token: "INFO",

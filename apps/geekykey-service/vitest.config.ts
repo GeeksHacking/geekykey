@@ -29,6 +29,10 @@ export default defineConfig({
     }),
   ],
   test: {
+    // Cloudflare's plugin needs shared storage for Durable Object WebSockets.
+    // Tests use fresh station IDs and close every socket before finishing.
+    isolate: false,
+    maxWorkers: 1,
     include: ["src/**/*.test.ts"],
   },
 });
