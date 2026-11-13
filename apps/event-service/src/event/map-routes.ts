@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import type { ConnectionsGame } from "./connections.ts";
 import type { RelayGame } from "./relay.ts";
+import type { UserLimit } from "./user-limit.ts";
 import { loadMap, type MapStation } from "./map.ts";
 import {
   requireMapReader,
@@ -13,6 +14,8 @@ import {
 export interface MapRouteDeps {
   session: SessionOptions;
   relay: RelayGame | null;
+  /** The relay poll's own count, apart from the user's 60 a minute (9.13 draft). */
+  relayLimit: UserLimit;
   now?: () => Date;
   /** The event's connections game, whose web the map draws, or null for none. */
   connections: ConnectionsGame | null;
@@ -38,12 +41,18 @@ function stationBody(station: MapStation) {
  * signed in gets `forbidden`, and nobody signed in `unauthenticated`. It
  * isn't under /admin, since a map screen isn't an organizer.
  */
-export function mapRoutes({ session, connections, relay, now = () => new Date() }: MapRouteDeps) {
+export function mapRoutes({
+  session,
+  connections,
+  relay,
+  relayLimit,
+  now = () => new Date(),
+}: MapRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
-  // The relay's one-second poll is exempt from the user limit (agreement 9.13 draft).
+  // The relay's one-second poll has its own count, so it never uses up the user's 60 (9.13 draft).
   app.get(
     "/relay",
-    requireSession(session, { counted: false }),
+    requireSession(session, { limit: relayLimit }),
     requireMapReader(session),
     async (c) => {
       return c.json({ relay: relay ? await relay.mapState(c.var.db, now()) : null });
