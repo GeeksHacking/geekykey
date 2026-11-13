@@ -6,6 +6,7 @@ import {
   type Countdown,
 } from "@geekykey/handoff";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import type { Db } from "../../db/pool.ts";
 import { forTheScreen } from "../../event/display-names.ts";
 import type { GameStatus, StationText, Tx } from "../../event/games.ts";
 import type { RelayGame } from "../../event/relay.ts";
@@ -24,13 +25,28 @@ export const RELAY_RULES = {
 type Call = typeof relayTransfers.$inferSelect;
 type Group = typeof participantGroups.$inferSelect;
 
+/** A literal {s} in a name would read as the countdown's seconds, and never goes in `lines` (6.1). */
+function withoutSeconds(text: string) {
+  return text.replaceAll(SECONDS_LEFT, "(s)");
+}
+
 function groupName(groups: Group[], id: string) {
   const index = groups.findIndex((g) => g.id === id);
-  return index < 0 ? "Group" : (forTheScreen(groups[index]!.name) ?? `Group ${index + 1}`);
+  if (index < 0) return "Group";
+  return withoutSeconds(forTheScreen(groups[index]!.name) ?? `Group ${index + 1}`);
 }
 
 function boothName(booth: string | null) {
-  return booth === null ? "other" : (forTheScreen(booth) ?? "other");
+  return withoutSeconds((booth === null ? null : forTheScreen(booth)) ?? "other");
+}
+
+/** The enabled stations running the relay, oldest first (the API agreement's 9.13 draft). */
+function configuredStations(db: Db | Tx) {
+  return db
+    .select()
+    .from(stations)
+    .where(and(eq(stations.game, "relay"), isNull(stations.disabledAt)))
+    .orderBy(asc(stations.createdAt), asc(stations.id));
 }
 
 /**
@@ -48,8 +64,7 @@ function countdown(call: Call, line: string, now: Date): Countdown {
       MAX_COUNTDOWN_SECONDS,
       Math.ceil((Date.parse(call.closesAt) - now.getTime()) / 1000),
     ),
-    // A literal {s} in a name must not become a second countdown placeholder (6.1).
-    lines: [line.replaceAll(SECONDS_LEFT, "(s)"), `${SECONDS_LEFT}s left`],
+    lines: [line, `${SECONDS_LEFT}s left`],
     ending: ["Missed it", "Tap again"],
   };
 }
@@ -83,11 +98,7 @@ export function relayGame({
       const { tx, now, stationId } = context;
       // Reading configuration before the relay lock avoids locking the other station, whose
       // ingest may already hold its row while it waits for us. Relay records below use current reads.
-      const relayStations = await tx
-        .select()
-        .from(stations)
-        .where(and(eq(stations.game, "relay"), isNull(stations.disabledAt)))
-        .orderBy(asc(stations.createdAt), asc(stations.id));
+      const relayStations = await configuredStations(tx);
       await lockRelay(tx);
       // Groups aren't the relay's records, so plain reads: locking every member would make each
       // relay tap wait on, and could deadlock with, the Groups screen's writes (groups.ts).
@@ -116,17 +127,31 @@ export function relayGame({
           )
           .limit(1)
           .for("update");
+        // `now` was taken before this ingest waited for the relay lock. A tap that waited behind
+        // the other station's is judged no earlier than that one, so it can't answer a call made
+        // after it, or move the game's times back.
+        const at =
+          game && game.endedAt === null
+            ? new Date(Math.max(now.getTime(), Date.parse(game.lastTapAt)))
+            : now;
+        const atIso = at.toISOString();
         if (
           game &&
           game.endedAt === null &&
-          Date.parse(game.lastMovedAt) + rules.idleMs <= now.getTime()
+          Date.parse(game.lastTapAt) + rules.idleMs <= at.getTime()
         ) {
-          const endedAt = new Date(Date.parse(game.lastMovedAt) + rules.idleMs).toISOString();
+          const endedAt = new Date(Date.parse(game.lastTapAt) + rules.idleMs).toISOString();
           await tx
             .update(relayGames)
             .set({ endedAt, endedHow: "idle" })
             .where(eq(relayGames.id, game.id));
           game = { ...game, endedAt, endedHow: "idle" };
+        }
+        if (game && game.endedAt === null) {
+          // Any tap the relay judges keeps its game going: it ends when nobody has tapped for
+          // 2 minutes (BAC-184), even a tap that changes nothing else.
+          await tx.update(relayGames).set({ lastTapAt: atIso }).where(eq(relayGames.id, game.id));
+          game = { ...game, lastTapAt: atIso };
         }
         const groupId = members.find((m) => m.userId === tap.userId)?.groupId;
         const hold = (lines: string[], waiting?: Countdown) => {
@@ -154,13 +179,14 @@ export function relayGame({
         if (!game || game.endedAt !== null) {
           game = {
             id: crypto.randomUUID(),
-            startedAt: now.toISOString(),
+            startedAt: atIso,
             stationA: stationId,
             stationB: other.id,
             groupsPlaying: playing.length,
             transfersNeeded:
               playing.length === 2 ? rules.twoGroupTransfers : rules.manyGroupTransfers,
-            lastMovedAt: now.toISOString(),
+            lastMovedAt: atIso,
+            lastTapAt: atIso,
             endedAt: null,
             endedHow: null,
           };
@@ -173,31 +199,31 @@ export function relayGame({
             .orderBy(desc(relayTransfers.calledAt), desc(relayTransfers.id))
             .limit(1)
             .for("update");
-          if (open && now.toISOString() >= open.closesAt && open.toStationId === stationId) {
+          if (open && atIso >= open.closesAt && open.toStationId === stationId) {
             const booth = boothName(other.booth);
             hold(["Too late", `Ask at ${booth.slice(0, LINE_LENGTH - 7)}`]);
             continue;
           }
-          if (open && now.toISOString() < open.closesAt && open.fromStationId === stationId) {
+          if (open && atIso < open.closesAt && open.fromStationId === stationId) {
             const name = groupName(groups, open.toGroupId);
             const line = destination(name, boothName(other.booth));
-            hold(["Still waiting", line], countdown(open, line, now));
+            hold(["Still waiting", line], countdown(open, line, at));
             continue;
           }
-          if (open && now.toISOString() < open.closesAt && open.toGroupId !== groupId) {
+          if (open && atIso < open.closesAt && open.toGroupId !== groupId) {
             const booth = boothName(other.booth);
             hold(["Not you", `Ask at ${booth.slice(0, LINE_LENGTH - 7)}`]);
             continue;
           }
           if (
             open &&
-            now.toISOString() < open.closesAt &&
+            atIso < open.closesAt &&
             open.toStationId === stationId &&
             open.toGroupId === groupId
           ) {
             await tx
               .update(relayTransfers)
-              .set({ completedAt: now.toISOString() })
+              .set({ completedAt: atIso })
               .where(eq(relayTransfers.id, open.id));
             firstLine = "Got it!";
             const completed = await tx
@@ -209,9 +235,9 @@ export function relayGame({
               await tx
                 .update(relayGames)
                 .set({
-                  endedAt: now.toISOString(),
+                  endedAt: atIso,
                   endedHow: "complete",
-                  lastMovedAt: now.toISOString(),
+                  lastMovedAt: atIso,
                 })
                 .where(eq(relayGames.id, game.id));
               statuses[index] = "accepted";
@@ -221,10 +247,7 @@ export function relayGame({
               continue;
             }
           }
-          await tx
-            .update(relayGames)
-            .set({ lastMovedAt: now.toISOString() })
-            .where(eq(relayGames.id, game.id));
+          await tx.update(relayGames).set({ lastMovedAt: atIso }).where(eq(relayGames.id, game.id));
         }
         const gameId = game.id;
         const candidates = playing.filter((id) => id !== groupId);
@@ -236,8 +259,8 @@ export function relayGame({
           toStationId: other.id,
           fromGroupId: groupId,
           toGroupId,
-          calledAt: now.toISOString(),
-          closesAt: new Date(now.getTime() + rules.transferMs).toISOString(),
+          calledAt: atIso,
+          closesAt: new Date(at.getTime() + rules.transferMs).toISOString(),
           completedAt: null,
         };
         await tx.insert(relayTransfers).values(call);
@@ -246,7 +269,7 @@ export function relayGame({
         context.afterCommit(() =>
           stationMessages.send(other.id, {
             lines: [need, "Tap here"],
-            countdown: { ...countdown(call, need, now), ending: ["Missed it", ""] },
+            countdown: { ...countdown(call, need, at), ending: ["Missed it", ""] },
             beep: true,
           }),
         );
@@ -255,18 +278,14 @@ export function relayGame({
         texts.set(tap.clientTapId, {
           lines: [firstLine, line],
           complete: false,
-          countdown: countdown(call, line, now),
+          countdown: countdown(call, line, at),
         });
       }
       return statuses;
     },
     async mapState(db, now) {
       return db.transaction(async (tx) => {
-        const configured = await tx
-          .select({ id: stations.id })
-          .from(stations)
-          .where(and(eq(stations.game, "relay"), isNull(stations.disabledAt)))
-          .orderBy(asc(stations.createdAt), asc(stations.id));
+        const configured = await configuredStations(tx);
         const [game] = await tx
           .select()
           .from(relayGames)
@@ -283,7 +302,7 @@ export function relayGame({
           .from(relayTransfers)
           .where(eq(relayTransfers.gameId, game.id))
           .orderBy(desc(relayTransfers.calledAt), desc(relayTransfers.id));
-        const idleAt = new Date(Date.parse(game.lastMovedAt) + rules.idleMs).toISOString();
+        const idleAt = new Date(Date.parse(game.lastTapAt) + rules.idleMs).toISOString();
         const endedAt = game.endedAt ?? (now.toISOString() >= idleAt ? idleAt : null);
         const open =
           endedAt === null
