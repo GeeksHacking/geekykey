@@ -1015,11 +1015,12 @@ String msAfterRead(unsigned long at) {
 }
 
 // The idle screen (idleScreen in station_screen.h): the heartbeat's idle
-// lines, or Ready / Tap a tag. While the reader isn't answering, the red LED
-// stays on and the screen says so until it answers again.
+// lines, or Ready / Tap a tag. Without WiFi, the second line says taps are
+// saved. While the reader isn't answering, the red LED stays on and the
+// screen says so until it answers again.
 void showReady() {
   digitalWrite(LED_PIN_RED, readerOk ? LOW : HIGH);
-  const ScreenLines idle = idleScreen(idleLines, readerOk);
+  const ScreenLines idle = idleScreen(idleLines, readerOk, WiFi.status() == WL_CONNECTED);
   drawScreen(idle.line1, idle.line2);
 }
 
