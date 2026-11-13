@@ -42,7 +42,13 @@ async function copyDir(): Promise<string> {
 
 /** Every row in `table`, in a fixed order, as `SELECT *` gives them. */
 async function rowsOf(table: string): Promise<RowDataPacket[]> {
-  const [rows] = await connection.query<RowDataPacket[]>("SELECT * FROM ?? ORDER BY 1, 2", [table]);
+  // A singleton lock can have just one column; order only by columns the table has.
+  const [columns] = await connection.query<RowDataPacket[]>("SHOW COLUMNS FROM ??", [table]);
+  const order = columns.slice(0, 2).map((column) => column.Field as string);
+  const [rows] = await connection.query<RowDataPacket[]>("SELECT * FROM ?? ORDER BY ??", [
+    table,
+    order,
+  ]);
   return rows;
 }
 

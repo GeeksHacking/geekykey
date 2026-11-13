@@ -24,6 +24,8 @@ const LOG_LINES = {
   station_booth_changed: "INFO",
   // A station message failed, or had no open socket. Never its lines or the Event Service key.
   station_message_failed: "ERROR",
+  // Work scheduled by a game failed after the ingest committed. Never its error or screen text.
+  after_commit_failed: "ERROR",
   station_message_dropped: "INFO",
   // An organizer logged a tap for a participant through the QR fallback: who, at which station,
   // and its client_tap_id, which finds the tap's own tap_stored line.

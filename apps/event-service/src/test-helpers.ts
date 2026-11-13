@@ -17,8 +17,10 @@ import {
 } from "./event/schema.ts";
 import { generateStationKey, hashStationKey } from "./event/station-keys.ts";
 
+import { showcaseGames as gamesForShowcase } from "./showcase/games.ts";
+
 /** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
-export { showcaseGames } from "./showcase/games.ts";
+export const showcaseGames = gamesForShowcase({ stationMessages: { send: async () => "off" } });
 
 /** One of the Event screens' checks of an answer, from apps/event-web/src/api/schemas.ts. */
 export interface ScreensSchema {

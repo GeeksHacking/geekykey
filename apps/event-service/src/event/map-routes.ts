@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import type { ConnectionsGame } from "./connections.ts";
+import type { RelayGame } from "./relay.ts";
 import { loadMap, type MapStation } from "./map.ts";
 import {
   requireMapReader,
@@ -11,6 +12,8 @@ import {
 
 export interface MapRouteDeps {
   session: SessionOptions;
+  relay: RelayGame | null;
+  now?: () => Date;
   /** The event's connections game, whose web the map draws, or null for none. */
   connections: ConnectionsGame | null;
 }
@@ -35,11 +38,19 @@ function stationBody(station: MapStation) {
  * signed in gets `forbidden`, and nobody signed in `unauthenticated`. It
  * isn't under /admin, since a map screen isn't an organizer.
  */
-export function mapRoutes({ session, connections }: MapRouteDeps) {
+export function mapRoutes({ session, connections, relay, now = () => new Date() }: MapRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
-  app.use(requireSession(session), requireMapReader(session));
+  // The relay's one-second poll is exempt from the user limit (agreement 9.13 draft).
+  app.get(
+    "/relay",
+    requireSession(session, { counted: false }),
+    requireMapReader(session),
+    async (c) => {
+      return c.json({ relay: relay ? await relay.mapState(c.var.db, now()) : null });
+    },
+  );
 
-  app.get("/", async (c) => {
+  app.get("/", requireSession(session), requireMapReader(session), async (c) => {
     const [stations, web] = await Promise.all([
       loadMap(c.var.db),
       connections ? connections.web(c.var.db) : null,

@@ -17,6 +17,8 @@ import { answers, connections, meetingHalves } from "../src/games/connections/sc
 
 import { duelRounds, duelRoundPlayers, duels } from "../src/games/team-duels/schema.ts";
 
+import { relayGames, relayLock, relayTransfers } from "../src/games/relay/schema.ts";
+
 /*
   Which tables the event clear empties, and which it keeps (spec, checkpoint
   8: `db:clear-test-data`, in event-clear.ts). clear-lists.test.ts fails while
@@ -27,6 +29,9 @@ import { duelRounds, duelRoundPlayers, duels } from "../src/games/team-duels/sch
 /** The event's own data: the taps, every claim, every game's records, and the people. */
 export const clearedTables: readonly MySqlTable[] = [
   taps,
+  relayTransfers,
+  relayGames,
+  relayLock,
   duels,
   duelRoundPlayers,
   duelRounds,

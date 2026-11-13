@@ -13,6 +13,7 @@ import type { Shuffle } from "./event/groups.ts";
 import type { GameOnStations } from "./event/games.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { loginLinkRoutes } from "./event/login-link-routes.ts";
+import { isRelayGame } from "./event/relay.ts";
 import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
@@ -80,7 +81,7 @@ export function createApp(
   {
     googleKeys,
     send,
-    games: gamesForEvent = () => showcaseGames,
+    games: gamesForEvent = showcaseGames,
     now,
     answers = showcaseAnswers,
     connections = showcaseConnections,
@@ -91,7 +92,7 @@ export function createApp(
   },
 ) {
   // Built once and shared, so every route that reads or writes a session agrees on it,
-  // and every request with a session counts toward the one limit on its user.
+  // and counted requests share one limit per user. The relay map poll opts out (9.13).
   const session: SessionOptions = {
     secret: config.sessionSecret,
     secure: config.sessionCookieSecure,
@@ -137,7 +138,15 @@ export function createApp(
   app.route("/api/v1/me", meRoutes({ session, answers, connections, teamDuels, now }));
   app.route("/api/v1/me/group", myGroupRoutes({ session, connections, now }));
   app.route("/api/v1/admin", adminRoutes({ session, games, connections, now, shuffle }));
-  app.route("/api/v1/map", mapRoutes({ session, connections }));
+  app.route(
+    "/api/v1/map",
+    mapRoutes({
+      session,
+      connections,
+      relay: games.map((entry) => entry.game).find(isRelayGame) ?? null,
+      now,
+    }),
+  );
   // What the GeekyKey Service hands the Event side, with the Event Service key.
   app.route(
     "/geekykey/v1",
