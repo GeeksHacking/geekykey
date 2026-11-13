@@ -10,7 +10,14 @@ export interface RelayView {
    * calling the next group, or after the last transfer the one the previous poll had waiting.
    */
   arrivedAt: PlacedStation | undefined;
+  /**
+   * After a missed call, the station whose call it was, where the next tap calls again. Known only
+   * when the map saw the call before it was missed.
+   */
+  missedAt: PlacedStation | undefined;
   progress: string;
+  /** The game's transfers done and needed, for the pips under the count. */
+  transfers: { done: number; needed: number };
   state: "running" | "complete" | "incomplete";
   events: RelayEvent[];
 }
@@ -54,13 +61,20 @@ export function deriveRelay(
   const arrivedId = events.includes("transferred")
     ? (game.calling_station_id ?? before?.waiting_station_id)
     : undefined;
+  const openCall = !game.ended_at && game.waiting_station_id !== null;
+  const missedId =
+    !game.ended_at && !openCall && before?.started_at === game.started_at
+      ? before.calling_station_id
+      : undefined;
   return {
     endpoints: [first, second],
+    missedAt: [first, second].find((item) => item.station.station_id === missedId),
     arrivedAt: [first, second].find((item) => item.station.station_id === arrivedId),
     waiting: game.ended_at
       ? undefined
       : [first, second].find((item) => item.station.station_id === game.waiting_station_id),
     progress: `${game.transfers} of ${game.transfers_needed}`,
+    transfers: { done: game.transfers, needed: game.transfers_needed },
     state: game.ended_at ? (game.complete ? "complete" : "incomplete") : "running",
     events,
   };

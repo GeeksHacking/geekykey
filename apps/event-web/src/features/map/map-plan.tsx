@@ -6,6 +6,7 @@ import { FloorPlanDrawing } from "@/features/map/floor-plan-drawing";
 import type { PlacedStation } from "@/features/map/place-stations";
 import { StationMarker } from "@/features/map/station-marker";
 import { useMapPulses } from "@/features/map/use-map-pulses";
+import { cn } from "@/lib/utils";
 
 /** Room around the hall for the markers' rings and counts, in plan units. */
 const MARGIN = 24;
@@ -18,11 +19,13 @@ export function MapPlan({
   plan,
   placed,
   stations,
+  className,
   children,
 }: {
   plan: FloorPlan;
   placed: readonly PlacedStation[];
   stations: readonly MapStation[];
+  className?: string;
   children?: ReactNode;
 }) {
   const svg = useRef<SVGSVGElement>(null);
@@ -34,7 +37,7 @@ export function MapPlan({
       role="img"
       aria-label={`${plan.name}, with ${placed.length} ${placed.length === 1 ? "station" : "stations"} at their booths`}
       viewBox={`${-MARGIN} ${-MARGIN} ${plan.width + MARGIN * 2} ${plan.height + MARGIN * 2}`}
-      className="h-auto w-full font-sans lg:h-full lg:w-auto"
+      className={cn("h-auto w-full font-sans lg:h-full lg:w-auto", className)}
     >
       <FloorPlanDrawing plan={plan} />
       {children}
