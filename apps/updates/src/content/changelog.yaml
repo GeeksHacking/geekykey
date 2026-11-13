@@ -2644,3 +2644,10 @@
   change: >-
     After a connection, the token page says what the event's button opens, so a participant
     can find the challenge without being told where to press.
+- id: avatar-loading-and-fallback
+  date: 2026-11-13
+  area: frontend
+  change: >-
+    The dashboard avatar says when it is loading in 3D, fades into the 3D figure when the first
+    frame is ready, and explains when 3D is unavailable or could not load, keeping the flat
+    picture in both cases.
