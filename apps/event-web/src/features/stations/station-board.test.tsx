@@ -20,11 +20,12 @@ import { createTestProviders } from "@/test/providers";
 function renderBoard(
   stations: EventStationBoardStation[],
   api = createMockClient({ latencyMs: [0, 0], storage: null }),
+  games?: { id: string; name: string }[],
 ) {
   const { Providers } = createTestProviders(api);
   const result = render(
     <Providers>
-      <StationBoard stations={stations} />
+      <StationBoard stations={stations} games={games} />
     </Providers>,
   );
   return {
@@ -34,7 +35,7 @@ function renderBoard(
     poll: (next: EventStationBoardStation[]) =>
       result.rerender(
         <Providers>
-          <StationBoard stations={next} />
+          <StationBoard stations={next} games={games} />
         </Providers>,
       ),
   };
@@ -51,7 +52,7 @@ function station(overrides: Partial<EventStationBoardStation> = {}): EventStatio
     created_at: "2026-10-01T00:00:00.000Z",
     disabled_at: null,
     game: "passport",
-    game_fixed: true,
+    game_fixed: false,
     booth: "B2",
     passport: {
       name: "Careers Corner",
@@ -128,6 +129,28 @@ describe("StationBoard", () => {
     expect(screen.getByText("Station 3")).toBeInTheDocument();
     expect(screen.getByText("Not in the passport")).toBeInTheDocument();
     expect(screen.getByText("Never")).toBeInTheDocument();
+  });
+
+  // BAC-183 and FRO-171: a station's game can change at any time, even after taps. The old
+  // board disabled the picker and said the game was fixed.
+  it("offers every game on a station that already has taps", async () => {
+    const user = userEvent.setup();
+    renderBoard([station({ game_fixed: true })], undefined, [
+      { id: "passport", name: "Passport" },
+      { id: "team_duels", name: "Team duels" },
+    ]);
+
+    const picker = screen.getByRole("combobox", { name: "Game for Station 1" });
+    expect(picker).toBeEnabled();
+    expect(screen.queryByText("Game fixed after taps")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("The game cannot change once taps count here."),
+    ).not.toBeInTheDocument();
+
+    await user.click(picker);
+    expect(await screen.findByRole("option", { name: "No game" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Passport" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Team duels" })).toBeInTheDocument();
   });
 
   // FRO-100. One control per row, named for its station, in place of the four actions that

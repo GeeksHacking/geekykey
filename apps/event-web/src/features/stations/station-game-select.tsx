@@ -10,6 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/*
+  A station's game can change at any time, however many taps it has (BAC-183, agreement 9.11).
+  Each tap records the game that judged it, so the picker waits only while its own write is in
+  the air.
+*/
 export function StationGameSelect({
   station,
   games,
@@ -23,7 +28,7 @@ export function StationGameSelect({
       <p className="text-xs font-medium">Game</p>
       <Select
         value={station.game ?? "none"}
-        disabled={station.game_fixed || write.isPending}
+        disabled={write.isPending}
         onValueChange={(game) => write.mutate(game)}
       >
         <SelectTrigger aria-label={`Game for ${station.label}`}>
@@ -38,13 +43,6 @@ export function StationGameSelect({
           ))}
         </SelectContent>
       </Select>
-      {station.game_fixed ? (
-        <p className="text-xs text-muted-foreground">Game fixed after taps</p>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          The game cannot change once taps count here.
-        </p>
-      )}
       {write.isSuccess ? (
         <p role="status" className="text-xs">
           Game saved.
