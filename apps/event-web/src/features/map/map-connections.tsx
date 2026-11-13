@@ -56,7 +56,11 @@ export function MapConnections({ connections }: { connections: MapConnectionsDat
                     x2={edge.to.x}
                     y2={edge.to.y}
                     strokeWidth="1.5"
-                    className="stroke-primary/30"
+                    // The brand yellow is 1.1:1 on the light theme's card, so the lines
+                    // and rings take primary-text there: #706B00, 5.35:1, and the same
+                    // yellow as primary on dark (FRO-174). The lines sit at 75% to stay
+                    // subordinate to the nodes and still reach 3:1.
+                    className="stroke-primary-text/75 dark:stroke-primary/30"
                   />
                 ))}
                 {web.nodes.map((node) => (
@@ -65,7 +69,7 @@ export function MapConnections({ connections }: { connections: MapConnectionsDat
                     transform={`translate(${node.x} ${node.y})`}
                     data-web-node={node.id}
                   >
-                    <circle r="10" strokeWidth="1.5" className="fill-card stroke-primary" />
+                    <circle r="10" strokeWidth="1.5" className="fill-card stroke-primary-text" />
                     <text
                       y="5"
                       textAnchor="middle"
