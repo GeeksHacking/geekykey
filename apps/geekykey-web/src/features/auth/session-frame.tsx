@@ -8,7 +8,7 @@ import { useRouteHeadingFocus } from "@/lib/use-route-heading-focus";
 import { describeError } from "@/api/errors";
 import { GuestSignOutDialog } from "@/components/layout/guest-sign-out-dialog";
 import { TokenHeader } from "@/components/layout/token-header";
-import { COULD_NOT_CHECK_LOGIN, isGuest } from "@/features/auth/guest-check";
+import { COULD_NOT_CHECK_LOGIN, isGuestOrLinkArrival } from "@/features/auth/guest-check";
 import { LoginLinkNotice } from "@/features/auth/login-link-notice";
 import { useReleaseMyTokens } from "@/features/auth/use-release-my-tokens";
 import { EVENT_SCREENS_URL, HOME_PATH } from "@/lib/constants";
@@ -36,7 +36,7 @@ export function SessionFrame({ children }: { children: ReactNode }) {
     setCheckFailed(false);
     let guest: boolean;
     try {
-      guest = await isGuest(me.user.id);
+      guest = await isGuestOrLinkArrival(me.user.id);
     } catch {
       setCheckFailed(true);
       return;

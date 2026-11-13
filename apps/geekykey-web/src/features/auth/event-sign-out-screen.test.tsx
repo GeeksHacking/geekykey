@@ -10,18 +10,23 @@ import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ADMIN_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import { ApiProvider } from "@/api/provider";
 import { EVENT_SCREENS_URL } from "@/lib/constants";
+import { clearArrivedByLoginLink, markArrivedByLoginLink } from "@/lib/login-link-arrival";
 import { createQueryClient } from "@/lib/query-client";
 import { SessionProvider } from "@/lib/session-provider";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { routeTree } from "@/routeTree.gen";
 import { stubLocation } from "@/test/location";
 
-const { isSignedInAsGuest } = vi.hoisted(() => ({ isSignedInAsGuest: vi.fn() }));
+const { isSignedInAsGuest, remembersAccount } = vi.hoisted(() => ({
+  isSignedInAsGuest: vi.fn(),
+  remembersAccount: vi.fn(),
+}));
 
 // The test build has no Firebase, so whether the user is a guest is the one answer stubbed.
 vi.mock("@/lib/firebase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/firebase")>()),
   isSignedInAsGuest,
+  remembersAccount,
 }));
 
 const EVENT_LOGIN = `${EVENT_SCREENS_URL}login`;
@@ -33,6 +38,9 @@ beforeEach(() => {
   location = stubLocation();
   isSignedInAsGuest.mockReset();
   isSignedInAsGuest.mockResolvedValue(true);
+  remembersAccount.mockReset();
+  remembersAccount.mockResolvedValue(false);
+  clearArrivedByLoginLink();
   toast.dismiss();
 });
 
@@ -83,6 +91,27 @@ describe("signing out from the Event screens, on the GeekyKey screens", () => {
     expect(await warning()).toHaveTextContent("your tokens will be released");
     expect((await api.me()).tokens.length).toBeGreaterThan(0);
     expect(window.location.replace).not.toHaveBeenCalled();
+  });
+
+  it("warns a guest who arrived by a login link, though Firebase remembers nobody", async () => {
+    isSignedInAsGuest.mockResolvedValue(false);
+    markArrivedByLoginLink();
+    const { api } = arriveFromEvent();
+
+    expect(await warning()).toHaveTextContent("your tokens will be released");
+    expect((await api.me()).tokens.length).toBeGreaterThan(0);
+    expect(window.location.replace).not.toHaveBeenCalled();
+  });
+
+  it("goes straight back when Firebase knows a Google user, with no warning", async () => {
+    isSignedInAsGuest.mockResolvedValue(false);
+    remembersAccount.mockResolvedValue(true);
+    markArrivedByLoginLink();
+    const { api } = arriveFromEvent();
+
+    await waitFor(() => expect(window.location.replace).toHaveBeenCalledWith(EVENT_LOGIN));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(await api.me()).toMatchObject({ user: { id: SEEDED_PARTICIPANT_ID } });
   });
 
   it("releases the guest's tokens, signs them out here, and goes back to the event's login", async () => {

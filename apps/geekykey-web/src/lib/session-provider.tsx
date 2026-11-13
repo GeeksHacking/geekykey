@@ -5,6 +5,7 @@ import { useApi } from "@/api/context";
 import { AUTH_ERROR_EVENT, isApiErrorCode, NetworkError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import type { MeResponse } from "@/api/types";
+import { clearArrivedByLoginLink, markArrivedByLoginLink } from "@/lib/login-link-arrival";
 import { SessionContext, type SessionStatus } from "@/lib/session";
 import {
   clearFirebaseSignOutFailed,
@@ -80,6 +81,7 @@ export function SessionProvider({
         unsentLoginLink.current = undefined;
         try {
           await api.loginLink(link);
+          markArrivedByLoginLink();
         } catch (error) {
           // The session the browser had carries on underneath, so /me is read as usual.
           setLoginLinkError(error);
@@ -175,6 +177,7 @@ export function SessionProvider({
   );
 
   const clearForSignIn = useCallback(() => {
+    clearArrivedByLoginLink();
     // Count the sign-in before the cancel below, so a 401 already on its way cannot
     // start a returning login during it (FRO-91).
     signInsInFlight.current += 1;
@@ -272,6 +275,7 @@ export function SessionProvider({
       clearIdentityQueries();
     },
     onSuccess: () => {
+      clearArrivedByLoginLink();
       settleSession(null);
       clearIdentityQueries();
     },
