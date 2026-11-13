@@ -21,10 +21,12 @@ const plan = MPH_EXAMPLE_PLAN;
 
 /**
  * On a big screen the plan takes the full height left under the header and the list sits
- * beside it, both centred, so a projector shows the whole hall without scrolling.
+ * beside it, both centred, so a projector shows the whole hall without scrolling. The relay's
+ * card, while there is one, sits on top of the list and never scrolls away with it. On a phone
+ * it comes before the plan, so the game's state is the first thing on the screen.
  */
 const LAYOUT =
-  "grid gap-8 lg:min-h-0 lg:flex-1 lg:grid-cols-[auto_minmax(20rem,30rem)] lg:justify-center lg:gap-12";
+  "grid gap-8 lg:min-h-0 lg:flex-1 lg:grid-cols-[auto_minmax(20rem,30rem)] lg:grid-rows-[auto_minmax(0,1fr)] lg:justify-center lg:gap-x-12 lg:gap-y-0";
 
 /** The map on the big screen at our booth: every station at its booth, pulsing as taps arrive. */
 export function MapScreen() {
@@ -41,7 +43,7 @@ export function MapScreen() {
   if (map.isPending) {
     body = (
       <div className={LAYOUT} role="status" aria-label="Loading the map">
-        <Skeleton className="aspect-[588/1008] w-full lg:h-full lg:w-auto" />
+        <Skeleton className="aspect-[588/1008] w-full lg:row-span-2 lg:h-full lg:w-auto" />
         <div className="space-y-3">
           <Skeleton className="h-6 w-32" />
           <Skeleton className="h-72 w-full" />
@@ -65,10 +67,18 @@ export function MapScreen() {
       <MapRelay stations={data.stations} placed={placed}>
         {({ layer, status }) => (
           <div className={LAYOUT}>
-            <MapPlan plan={plan} placed={placed} stations={data.stations}>
+            {status ? (
+              <div className="lg:col-start-2 lg:row-start-1 lg:px-1.5 lg:pb-6">{status}</div>
+            ) : null}
+            <MapPlan
+              plan={plan}
+              placed={placed}
+              stations={data.stations}
+              className="lg:col-start-1 lg:row-span-2 lg:row-start-1"
+            >
               {layer}
             </MapPlan>
-            <div className="space-y-6 lg:h-full lg:overflow-y-auto lg:px-1.5">
+            <div className="space-y-6 lg:col-start-2 lg:row-start-2 lg:h-full lg:overflow-y-auto lg:px-1.5">
               {showStaleNote(map.error, true) ? (
                 <StaleDataNote onRetry={() => void map.refetch()} />
               ) : map.isError ? (
@@ -78,7 +88,6 @@ export function MapScreen() {
                   title="The map is not updating."
                 />
               ) : null}
-              {status}
               {data.connections ? <MapConnections connections={data.connections} /> : null}
               {data.stations.length === 0 ? (
                 <p className="text-muted-foreground">

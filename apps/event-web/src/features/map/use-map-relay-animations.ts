@@ -36,12 +36,16 @@ export function useMapRelayAnimations(
           const to = view.arrivedAt;
           const from = view.endpoints.find((item) => item !== to);
           const target = scope.current?.querySelector("[data-relay-transfer]");
-          if (target && to && from)
+          // The dot stays solid while it travels, so it reads from across the booth, then fades
+          // where it arrived.
+          if (target && to && from) {
             gsap.fromTo(
               target,
               { attr: { cx: from.x, cy: from.y }, opacity: 1 },
-              { attr: { cx: to.x, cy: to.y }, opacity: 0, duration: 0.75, ease: "power2.out" },
+              { attr: { cx: to.x, cy: to.y }, duration: 0.75, ease: "power2.inOut" },
             );
+            gsap.to(target, { opacity: 0, duration: 0.25, delay: 0.75 });
+          }
         } else if (event === "lost") {
           const [a, b] = view.endpoints;
           const target = scope.current?.querySelector("[data-relay-loss]");
@@ -52,7 +56,7 @@ export function useMapRelayAnimations(
                 attr: { transform: `translate(${(a.x + b.x) / 2} ${(a.y + b.y) / 2})` },
                 opacity: 1,
               },
-              { opacity: 0, duration: 0.7, ease: "power2.in" },
+              { opacity: 0, duration: 0.6, delay: 0.5, ease: "power2.in" },
             );
         } else {
           const target = scope.current?.querySelector("[data-relay-line]");

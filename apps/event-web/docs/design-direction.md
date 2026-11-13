@@ -126,9 +126,9 @@ the reveal's dice:
 - The map's pulse runs about a second and grows its ring by the SVG `r` attribute, so it
   reads from the back of a hall. Several taps in one poll play one pulse each, up to 3, back
   to back and shortened to end before the next poll (FRO-102). With reduced motion it only fades.
-- The map's relay (FRO-170) moves a transfer dot between its two booths over 0.75 s.
-  A missed call fades a cross on the line over 0.7 s; an ending fades the line three times
-  over 0.6 s. With reduced motion none of them play. The count, waiting mark and result
+- The map's relay (FRO-170) moves a solid transfer dot between its two booths over 0.75 s,
+  then fades it over 0.25 s where it arrived. A missed call shows a cross on the line for half
+  a second, then fades it over 0.6 s; an ending fades the line three times over 0.6 s. With reduced motion none of them play. The count, waiting mark and result
   always change at once, and a missed call also has text. The previous relay poll is
   kept only to detect these changes, like the tap pulse's previous poll.
 - On the passport at 1024 px and up, a stamp earned is the one long animation (about a second:

@@ -223,6 +223,24 @@ it("says a transfer was missed even when the next poll already contains a replac
   await screen.findByText("2 of 4");
   request.mockResolvedValue(relayPoll({ waiting_until: "2026-11-17T06:00:40.000Z" }));
   await poll();
-  expect(await screen.findByText("Transfer missed")).toBeInTheDocument();
-  expect(screen.getByText("Waiting at B2")).toBeInTheDocument();
+  expect(await screen.findByText("Missed. Now waiting at B2")).toBeInTheDocument();
+});
+
+it("after a missed call, says which station calls again", async () => {
+  const { request, poll } = setup();
+  await screen.findByText("Waiting at B2");
+  request.mockResolvedValue(
+    relayPoll({ calling_station_id: null, waiting_station_id: null, waiting_until: null }),
+  );
+  await poll();
+  expect(await screen.findByText("Missed. Tap again at B1")).toBeInTheDocument();
+  expect(document.querySelector("[data-relay-waiting]")).not.toBeInTheDocument();
+});
+
+it("after a missed call it didn't see, still says to tap again", async () => {
+  setup(
+    stations,
+    relayPoll({ calling_station_id: null, waiting_station_id: null, waiting_until: null }),
+  );
+  expect(await screen.findByText("Missed. Tap again")).toBeInTheDocument();
 });
