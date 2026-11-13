@@ -92,6 +92,10 @@ Temporary by design, and planned to change after the showcase:
   GeeksHacking organisation, so another event can copy them as a template.
 - **Google Cloud is set up by hand** from the commands in `infra/README.md`, with no
   infrastructure as code yet.
+- **The token writer's uploads** stay off in production until Julian sets the Worker secret
+  `TOKEN_WRITER_KEY_HASH` on `geekykey-service`, after the showcase. It holds only the SHA-256 of
+  the writer's key, and `infra/README.md` says how to make both. Until then the writer still writes
+  and logs every token, and a GeekyKey admin loads its log on the Token kinds screen (HAR-31).
 
 Some steps can only be run from Adam's laptop, which holds the production database logins.
 [Operations](docs/operations.md#who-can-do-what) lists them.
