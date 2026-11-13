@@ -2705,3 +2705,11 @@
     The map's connection web reads in the light theme: the lines and the rings round each node
     take the darker yellow the screens use for text, so they no longer disappear on the white
     card. The dark theme keeps its yellow.
+
+- id: agreement-0-14
+  date: 2026-11-14
+  area: backend
+  change: >-
+    Version 0.14 of the API agreement describes participant groups, team duels, the phrase and
+    the relay as they were built, in one version for the screens' owner to read. Until now the
+    groups' routes were only in a draft spec.
