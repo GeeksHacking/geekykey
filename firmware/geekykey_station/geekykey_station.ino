@@ -53,7 +53,8 @@
   with mDNS because a phone hotspot hands out a new one on every restart.
 
   The backend contract for POST /api/v1/taps is in apps/API-AGREEMENT.md, section 6.1,
-  and for POST /api/v1/stations/heartbeat in section 6.2.
+  for POST /api/v1/stations/heartbeat in section 6.2, and for the optional
+  WebSocket in section 6.3.
 
   The heartbeat goes at boot and every 60 seconds, with any saved taps sent
   just before it, held back a few seconds while a tap is being answered. Its
@@ -63,6 +64,8 @@
 
   A live tap's answer can start a countdown, which loop() redraws once a
   second without holding up the reader (station_screen.h has its rules).
+  Station messages use the same screen model. Their WebSocket has its own
+  clients and task on core 0, so reconnecting never holds up the reader.
 */
 
 #include <SPI.h>
@@ -80,6 +83,7 @@
 #include "ca_roots.h"
 #include "tap_timing.h"
 #include "station_screen.h"
+#include "station_socket_task.h"
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Ticker.h>
@@ -118,7 +122,7 @@
 
 // Sent with each heartbeat and shown to organizers on the station board.
 // Change it whenever a new build goes onto the stations.
-#define FIRMWARE_VERSION "2026-11-13"
+#define FIRMWARE_VERSION "2026-11-14"
 
 // How often the station sends a heartbeat, with any saved taps just before it.
 #define HEARTBEAT_INTERVAL_MS 60000UL
@@ -220,6 +224,8 @@ struct Result {
   int ledPin = NO_LED;
   int sound = SOUND_NONE;
   bool countsDown = false;  // it started the countdown, so its screen ticks
+  bool isMessage = false;   // no tap status or LED, including its ending
+  bool isSetupError = false;
   bool isEnding = false;    // a countdown's ending, which no token's tap caused
 };
 
@@ -227,6 +233,9 @@ struct Result {
 // redraws it once a second (tickScreen), and a new one replaces it. Another
 // result covers it for its usual time, and the count goes on underneath.
 Countdown countdown;
+bool countdownFromMessage = false;
+StationMessages stationMessages;
+bool socketKeyRejected = false;
 
 // The idle screen from the latest heartbeat's answer (6.2).
 IdleLines idleLines;
@@ -380,6 +389,10 @@ void setup() {
   // The station runs on mains power, so keep the radio awake: WiFi's power
   // saving adds 100-300 ms to every answer from the backend.
   WiFi.setSleep(false);
+  WiFi.onEvent([](arduino_event_id_t event, arduino_event_info_t) {
+    if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) stationSocketWifi(true);
+    if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) stationSocketWifi(false);
+  });
   beginWifi();
   Serial.print("Connecting to WiFi");
   showScreen("Connecting", "to WiFi...");
@@ -413,10 +426,14 @@ void setup() {
   // station key, and sets the clock before anyone taps.
   const int heartbeatCode = heartbeatTick();
 
+  stationSocketWifi(WiFi.status() == WL_CONNECTED);
+  if (!startStationSocket(server.host, server.port, server.isHttps, server.hostIsLocal, stationKey, CA_ROOTS))
+    Serial.println("Socket: could not start task; taps and heartbeats carry on");
+
   Serial.println("Ready. Tap an NTAG213 tag...");
   // The setup error is a result. Once loop() ends it, the idle screen shows.
   if (heartbeatCode == 401) {
-    showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
+    showSetupError();
   } else {
     showReady();
   }
@@ -424,6 +441,7 @@ void setup() {
 
 void loop() {
   pollSerial();
+  tickSocket();
   tickResult();
   tickScreen();
   if (heartbeatMayStart()) heartbeatTick();
@@ -438,9 +456,9 @@ void loop() {
 
   Serial.println("UID: " + uid);
 
-  // A countdown's ending isn't the last token's result, so it doesn't keep
-  // that token from being answered.
-  const bool tokenResultShowing = resultShowing && !shownResult.isEnding;
+  // A countdown's ending and a station message aren't the last token's
+  // result, so neither keeps that token from being answered.
+  const bool tokenResultShowing = resultShowing && !shownResult.isEnding && !shownResult.isMessage;
   switch (answerToken(lastToken, uid.c_str(), readAt, tokenResultShowing)) {
     case KEEP_RESULT:
       // A token that slipped off and back and one tapped again on purpose look
@@ -549,7 +567,7 @@ bool handleTap(const String &uid) {
   } else if (attempt.newTapDropped) {
     showResult("DROPPED", "Bad tap request", LED_PIN_RED, SOUND_ERROR);
   } else if (attempt.httpCode == 401) {
-    showResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
+    showSetupError();
   } else {
     // The tap is saved and will be sent again, so this is not an error.
     showResult("QUEUED", "Will send later", NO_LED, SOUND_NONE);
@@ -867,6 +885,7 @@ void showTapAnswer(const QueueAttempt &attempt) {
   // so the same token tapped again never shows this result's old seconds.
   if (attempt.newTapCountsDown && (status == "accepted" || status == "cooldown")) {
     countdown = attempt.newTapCountdown;
+    countdownFromMessage = false;
     countdownScreen(result.line1, result.line2);
     result.countsDown = true;
     Serial.println("Countdown: " + String(countdown.seconds) + " s");
@@ -884,6 +903,14 @@ Result makeResult(const char *line1, const char *line2, int ledPin, int sound) {
   return result;
 }
 
+// What 6.1 shows for a 401, from a tap, a heartbeat or the socket. Its kind
+// is marked here, so screen priority never depends on its wording.
+void showSetupError() {
+  Result result = makeResult("SETUP ERROR", "Tell organizer", LED_PIN_RED, SOUND_ERROR);
+  result.isSetupError = true;
+  showResult(result);
+}
+
 // Shows the last token's result with its LED on and its sound starting, and
 // returns at once. tickResult() plays the sound and ends it after
 // RESULT_SHOW_MS, and tickScreen() then shows the countdown or the idle screen.
@@ -897,6 +924,12 @@ void showResult(const char *line1, const char *line2, int ledPin, int sound) {
 void showResult(const Result &result) {
   const Result shown = result;
   lastResult = shown;
+  // A local answer replaces a message, including the message's countdown.
+  if (countdownFromMessage) {
+    countdown.running = false;
+    countdownFromMessage = false;
+  }
+  stationMessages.tapAnswered(millis());
   displayResult(shown);
 }
 
@@ -922,7 +955,8 @@ void tickResult() {
     endResult();
     return;
   }
-  digitalWrite(BUZZER_PIN, soundIsOn(shownResult.sound, elapsed) || clickOn ? HIGH : LOW);
+  const bool messageHidden = shownResult.isMessage && messageOwnScreen();
+  digitalWrite(BUZZER_PIN, (!messageHidden && soundIsOn(shownResult.sound, elapsed)) || clickOn ? HIGH : LOW);
   if (shownResult.ledPin != NO_LED) {
     digitalWrite(shownResult.ledPin, resultLedIsOn(shownResult.sound, elapsed) ? HIGH : LOW);
   }
@@ -942,8 +976,12 @@ void endResult() {
 // (screenNow in station_screen.h). It draws only what changed, so calling it
 // on every pass costs nothing.
 void tickScreen() {
-  switch (screenNow(resultShowing, shownResult.countsDown, countdown, millis(), readerOk)) {
+  const bool fromMessage = (resultShowing && shownResult.isMessage) || (!resultShowing && countdownFromMessage);
+  switch (screenNow(resultShowing, shownResult.countsDown, countdown, millis(), readerOk,
+                    WiFi.status() == WL_CONNECTED, socketKeyRejected, fromMessage)) {
     case SCREEN_RESULT:
+      // An own screen may have covered a message since it was drawn.
+      if (shownResult.isMessage) drawScreen(shownResult.line1, shownResult.line2);
       return;
     case SCREEN_COUNTDOWN: {
       char line1[LINE_CHARS + 1];
@@ -955,7 +993,9 @@ void tickScreen() {
     case SCREEN_ENDING: {
       countdown.running = false;
       Serial.println("Countdown: ended");
-      Result ending = makeResult(countdown.ending[0], countdown.ending[1], NO_LED, SOUND_ENDING);
+      Result ending = makeResult(countdown.ending[0], countdown.ending[1], NO_LED,
+                                 countdownFromMessage ? SOUND_NONE : SOUND_ENDING);
+      ending.isMessage = countdownFromMessage;
       ending.isEnding = true;
       displayResult(ending);
       return;
@@ -964,6 +1004,51 @@ void tickScreen() {
       showReady();
       return;
   }
+}
+
+// Own screens cover socket messages without stopping a countdown's clock.
+bool messageOwnScreen() {
+  return ownScreenFirst(readerOk, WiFi.status() == WL_CONNECTED,
+                        socketKeyRejected || (resultShowing && shownResult.isSetupError));
+}
+
+// The task never draws or plays a sound. A zero-wait queue read hands only
+// its newest message to the existing result/countdown screen model.
+void tickSocket() {
+  const int status = takeSocketStatus();
+  if (status == 401) {
+    socketKeyRejected = true;
+    showSetupError();
+  } else if (status == 101) {
+    socketKeyRejected = false;
+  }
+  StationMessage message;
+  if (takeSocketMessage(message)) stationMessages.receive(message);
+  // Messages wait while a heartbeat is overdue, so a stream of them can't
+  // keep a result showing and hold the heartbeat back past its 30 s (6.2).
+  if (!stationMessages.take(millis(), RESULT_SHOW_MS, messageOwnScreen() || heartbeatOverdue(), message))
+    return;
+  Serial.println(String("Message: ") + message.lines[0] + " / " + message.lines[1] +
+                 (message.countdown.running ? ", counts down " + String(message.countdown.seconds) + " s" : "") +
+                 (message.beep ? ", beep" : ""));
+  countdown = message.countdown;
+  countdownFromMessage = countdown.running;
+  Result result = makeResult(message.lines[0], message.lines[1], NO_LED,
+                             message.beep ? SOUND_ATTENTION : SOUND_NONE);
+  result.isMessage = true;
+  if (countdown.running) {
+    if (countdownSecondsLeft(countdown, millis()) == 0) {
+      // A short countdown may have ended while it waited for a tap's result.
+      copyLine(result.line1, countdown.ending[0]);
+      copyLine(result.line2, countdown.ending[1]);
+      countdown.running = false;
+      result.isEnding = true;
+    } else {
+      countdownScreen(result.line1, result.line2);
+      result.countsDown = true;
+    }
+  }
+  displayResult(result);
 }
 
 // The countdown's lines with the seconds left in them now.
@@ -1208,7 +1293,13 @@ bool heartbeatMayStart() {
   if ((long)(now - nextHeartbeatAt) < 0) return false;
   if (resultShowing) return false;
   if (!countdown.running && now - resultEndedAt >= HEARTBEAT_QUIET_MS) return true;
-  return now - nextHeartbeatAt >= HEARTBEAT_MAX_DELAY_MS;
+  return heartbeatOverdue();
+}
+
+// A heartbeat held back as long as 6.2 allows.
+bool heartbeatOverdue() {
+  const unsigned long now = millis();
+  return (long)(now - nextHeartbeatAt) >= 0 && now - nextHeartbeatAt >= HEARTBEAT_MAX_DELAY_MS;
 }
 
 // Every 60 seconds and at boot: checks the reader, sends any saved taps, then
@@ -1311,6 +1402,7 @@ bool setClockFrom(const char *iso) {
   now.tv_usec = millisecond * 1000;
   if (settimeofday(&now, nullptr) != 0) return false;
   clockSet = true;
+  stationSocketClockSet();
   return true;
 }
 
@@ -1496,6 +1588,7 @@ void printSetupHelp() {
 // Never returns: the station restarts to leave it, so every setting takes
 // effect through the same start-up as always.
 void runSetupMode() {
+  pauseStationSocket();
   endResult();
   showScreen("Setup mode", "Use USB serial");
   digitalWrite(LED_PIN_BLUE, LOW);

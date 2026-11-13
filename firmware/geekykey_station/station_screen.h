@@ -80,6 +80,42 @@ inline bool startCountdown(Countdown &countdown, long seconds, uint32_t now) {
   return true;
 }
 
+// A socket message has no tap status, LED or game rules. Its countdown uses
+// the same model as a tap's, and starts when the socket receives it.
+struct StationMessage {
+  char lines[2][LINE_CHARS + 1] = {"", ""};
+  Countdown countdown;
+  bool beep = false;
+  uint32_t arrivedAt = 0;
+};
+
+// Only loop() owns this waiting message. The socket task has a separate
+// one-slot queue, so loop() never waits for a network operation or a lock.
+struct StationMessages {
+  StationMessage newest;
+  bool waiting = false;
+  bool tapHasAnswer = false;
+  uint32_t tapAnsweredAt = 0;
+
+  void tapAnswered(uint32_t now) { tapHasAnswer = true; tapAnsweredAt = now; }
+  void receive(const StationMessage &message) { newest = message; waiting = true; }
+  // `hold` keeps the newest message waiting: behind the station's own
+  // screens, or while a heartbeat that is overdue goes first.
+  bool take(uint32_t now, uint32_t resultShowMs, bool hold, StationMessage &out) {
+    if (!waiting || hold) return false;
+    if (tapHasAnswer && uint32_t(now - tapAnsweredAt) < resultShowMs) return false;
+    out = newest;
+    waiting = false;
+    return true;
+  }
+};
+
+// The station's own screens, which come before a station message (6.3):
+// no WiFi, a setup error or a reader error.
+inline bool ownScreenFirst(bool readerOk, bool wifiConnected, bool setupError) {
+  return !readerOk || !wifiConnected || setupError;
+}
+
 // What the screen shows now.
 enum Screen {
   SCREEN_RESULT,     // a result other than the countdown's own: leave it as it is
@@ -93,7 +129,8 @@ enum Screen {
 // doesn't answer covers the countdown with the idle screen's reader error, and
 // the count goes on underneath.
 inline Screen screenNow(bool resultShowing, bool resultCountsDown, const Countdown &countdown, uint32_t now,
-                        bool readerOk) {
+                        bool readerOk, bool wifiConnected = true, bool setupError = false, bool fromMessage = false) {
+  if (fromMessage && ownScreenFirst(readerOk, wifiConnected, setupError)) return SCREEN_IDLE;
   if (resultShowing && !resultCountsDown) return SCREEN_RESULT;
   if (countdown.running) {
     if (countdownSecondsLeft(countdown, now) == 0) return SCREEN_ENDING;
