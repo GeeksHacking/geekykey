@@ -48,6 +48,22 @@ if (typeof document !== "undefined" && typeof document.elementsFromPoint !== "fu
   });
 }
 
+// jsdom has no scrollIntoView, which Radix's Select calls when it opens.
+if (typeof Element !== "undefined" && typeof Element.prototype.scrollIntoView !== "function") {
+  Element.prototype.scrollIntoView = () => {};
+}
+
+// jsdom has no pointer capture, which Radix's Select asks for on pointer down.
+if (typeof Element !== "undefined" && typeof Element.prototype.hasPointerCapture !== "function") {
+  Element.prototype.hasPointerCapture = () => false;
+}
+if (
+  typeof Element !== "undefined" &&
+  typeof Element.prototype.releasePointerCapture !== "function"
+) {
+  Element.prototype.releasePointerCapture = () => {};
+}
+
 // jsdom has no canvas and warns on every getContext. With none, the avatar takes the path a
 // phone without WebGL takes: the flat picture, never three.js (FRO-105).
 if (typeof HTMLCanvasElement !== "undefined") {
