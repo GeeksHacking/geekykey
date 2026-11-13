@@ -2630,3 +2630,11 @@
   change: >-
     A guest who came to My tokens from the event can sign out there, and their tokens are
     released, so the next person on a shared phone can claim them.
+- id: station-messages
+  date: 2026-11-13
+  area: backend
+  change: >-
+    The Event Service can now send a station new lines for its screen with no tap, down a
+    connection the station holds open to the GeekyKey Service in a Durable Object that keeps no
+    data (ADR 0009). A station with no connection open misses the message and its game carries on,
+    and the relay will use it to tell the waiting station that a transfer is coming.
