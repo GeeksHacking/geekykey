@@ -34,6 +34,18 @@ const SENTENCE: Record<MeetingStatus, string> = {
   unavailable: "Couldn't connect. Tap their token again.",
 };
 
+/**
+ * What the event's button opens, under the result sentence and above the button. Section 13
+ * gives these for `waiting`, `connected` and `already_connected` (FRO-169, for the next
+ * version). `answers_needed` and `no_group` already say what the button does, so they keep
+ * their sentences and take no line.
+ */
+const NEXT_STEP: Partial<Record<MeetingStatus, string>> = {
+  waiting: "Open the event to see your connection once they accept.",
+  connected: "Open the event to play your challenge.",
+  already_connected: "Open the event to see your connection.",
+};
+
 /** Never colour alone: how the tap went, as a shape, for someone reading fast at arm's length. */
 const STATE: Record<MeetingStatus, { icon: Icon; className: string }> = {
   waiting: { icon: HourglassMedium, className: "text-primary-text" },
@@ -76,7 +88,8 @@ export function MeetingNotice({
  * Section 13 gives the pair's own event button to `waiting`, `connected`, `already_connected`,
  * `answers_needed` and `no_group`, because that button opens the dashboard through a login link
  * (8.6). There the reveal comes, setup is finished, or, on `no_group`, the participant joins and
- * a latecomer is placed. Every other answer has nothing to open yet.
+ * a latecomer is placed. For `waiting`, `connected` and `already_connected`, a line under the
+ * sentence says what the button opens (FRO-169). Every other answer has nothing to open yet.
  */
 function MeetingLine({
   meeting,
@@ -95,12 +108,16 @@ function MeetingLine({
     meeting.status === "no_group";
   const event = events.find((item) => item.id === meeting.event_id);
   const { icon: StatusIcon, className } = STATE[meeting.status];
+  const nextStep = NEXT_STEP[meeting.status];
 
   return (
     <div className="flex animate-in flex-col items-start gap-3 rounded-lg border bg-card p-4 duration-200 fade-in-0">
       <div className="flex items-start gap-3">
         <StatusIcon weight="fill" className={`mt-0.5 h-5 w-5 shrink-0 ${className}`} aria-hidden />
-        <p className="type-item">{SENTENCE[meeting.status]}</p>
+        <div className="flex flex-col gap-2">
+          <p className="type-item">{SENTENCE[meeting.status]}</p>
+          {nextStep ? <p className="text-sm text-muted-foreground">{nextStep}</p> : null}
+        </div>
       </div>
       {offersEvent && event ? <EventButtons events={[event]} uid={uid} /> : null}
     </div>

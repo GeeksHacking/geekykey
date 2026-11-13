@@ -369,6 +369,13 @@ describe("TokenPage", () => {
     };
     const STATUSES = Object.keys(SENTENCES) as MeetingStatus[];
 
+    /** Section 13's line for what the event's button opens (FRO-169). */
+    const NEXT_STEPS: Partial<Record<MeetingStatus, string>> = {
+      waiting: "Open the event to see your connection once they accept.",
+      connected: "Open the event to play your challenge.",
+      already_connected: "Open the event to see your connection.",
+    };
+
     it("sends the half by itself, with the token's normalised UID", async () => {
       // Agreement 8.8: no button and no press. The lookup answering someone_else is the
       // signal.
@@ -406,6 +413,36 @@ describe("TokenPage", () => {
         ).toBeInTheDocument();
       },
     );
+
+    it.each(["waiting", "connected", "already_connected"] as const)(
+      "says what the event's button opens on %s",
+      async (status) => {
+        // Section 13 (FRO-169): the line names the next step, so nobody has to be told to press.
+        api.mock.setSession(SEEDED_PARTICIPANT_ID);
+        api.mock.setMeetingStatus(status);
+        renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+        expect(await screen.findByText(NEXT_STEPS[status]!)).toBeInTheDocument();
+      },
+    );
+
+    it.each([
+      "answers_needed",
+      "no_group",
+      "same_kind",
+      "no_kind",
+      "same_group",
+      "unavailable",
+    ] as const)("adds no next-step line on %s", async (status) => {
+      api.mock.setSession(SEEDED_PARTICIPANT_ID);
+      api.mock.setMeetingStatus(status);
+      renderAs(api, OWNED_BY_SOMEONE_ELSE);
+
+      await screen.findByText(SENTENCES[status]);
+      for (const line of Object.values(NEXT_STEPS)) {
+        expect(screen.queryByText(line)).not.toBeInTheDocument();
+      }
+    });
 
     it("opens the event through a login link on no_group, so the tapper can join", async () => {
       // Section 13: the button opens the event's screens through a login link (8.6), which

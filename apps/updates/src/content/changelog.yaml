@@ -2638,3 +2638,9 @@
     connection the station holds open to the GeekyKey Service in a Durable Object that keeps no
     data (ADR 0009). A station with no connection open misses the message and its game carries on,
     and the relay will use it to tell the waiting station that a transfer is coming.
+- id: token-page-next-step
+  date: 2026-11-13
+  area: frontend
+  change: >-
+    After a connection, the token page says what the event's button opens, so a participant
+    can find the challenge without being told where to press.
