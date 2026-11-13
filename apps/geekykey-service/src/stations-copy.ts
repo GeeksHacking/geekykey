@@ -107,6 +107,26 @@ export class StationsCopy<S extends StationsSource> {
     return this.#missing().length === 0 ? { result: "unknown" } : { result: "unavailable" };
   }
 
+  /** Checks only the sender's list, with the same refresh and deadline as a key lookup. */
+  async findForEventService(
+    eventServiceId: string,
+    stationId: string,
+    { signal, waitUntil }: { signal: AbortSignal; waitUntil: WaitUntil },
+  ): Promise<KeyCheck<S>> {
+    const service = this.#eventServices.find(({ id }) => id === eventServiceId);
+    if (service === undefined) return { result: "unavailable" };
+    if (this.#due(service.id)) await this.#wait([service], signal, waitUntil);
+    if (signal.aborted || !this.#lists.has(service.id)) return { result: "unavailable" };
+    const station = this.#lists
+      .get(service.id)!
+      .find((station) => station.station_id === stationId);
+    // Use the key index too, so a duplicate ID or hash is refused for messages as for taps.
+    const hit = station === undefined ? undefined : this.#byKeyHash.get(station.key_hash);
+    return hit?.eventService.id === service.id && hit.stationId === stationId
+      ? { result: "found", ...hit }
+      : { result: "unknown" };
+  }
+
   /**
    * The station with `keyHash` on the lists already in hand, without asking
    * any Event Service for one: who a request is from before its key is

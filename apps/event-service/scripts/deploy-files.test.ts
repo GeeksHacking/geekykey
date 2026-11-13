@@ -89,10 +89,19 @@ for (const [target, { service }] of Object.entries(TARGETS)) {
       assert.deepEqual(Object.keys(settings).sort(), [
         "DEV_AUTH_ENABLED",
         "FIREBASE_PROJECT_ID",
+        ...(target === "production" ? ["GEEKYKEY_SERVICE_URL"] : []),
         "MAP_SCREENS",
         "ORGANIZERS",
         "TAP_COOLDOWN_SECONDS",
       ]);
+    });
+
+    test("station messages use production's GeekyKey Service and stay off on staging for now", () => {
+      const config = loadConfig(unpackAppSecrets({ ...settings, APP_SECRETS: STAND_IN_SECRETS }));
+      assert.equal(
+        config.geekykeyServiceUrl,
+        target === "production" ? "https://key-api.geekshacking.com" : undefined,
+      );
     });
 
     test("the server's secrets come as one, APP_SECRETS, so each costs one stored version", () => {

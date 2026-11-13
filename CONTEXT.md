@@ -38,7 +38,7 @@ _Avoid_: trigger, forward
 
 **Event Service key**:
 The secret one Event Service shares with the GeekyKey Service, which the GeekyKey Service sends with
-everything it asks of that Event Service.
+everything it asks of that Event Service. The Event Service sends it with each station message.
 _Avoid_: API key
 
 ### Users, tokens and stations
@@ -169,6 +169,13 @@ A result screen that counts down to a moment the game sets, then shows an ending
 counts it down itself from a number of seconds, so the screen moves without hearing from the
 server again. Team duels counts down to a round's start.
 _Avoid_: timer
+
+**Station message**:
+Text an Event Service sends to a station's screen with no tap: one or two lines, an optional
+countdown, and one attention beep if it asks for one. The GeekyKey Service passes it down the
+connection the station holds open. A station with no connection open misses it, and the game
+carries on without it.
+_Avoid_: push, notification
 
 ### Events
 

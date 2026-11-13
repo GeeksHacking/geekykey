@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "delivered": {
+      "type": "boolean",
+      "description": "False when the station had no socket open, so the message was dropped"
+    }
+  },
+  "required": [
+    "delivered"
+  ],
+  "title": "The answer to a station message: POST /api/v1/station-messages"
+}

@@ -126,21 +126,36 @@ winning over the one before:
 In production, `infra/production/settings.env` sets the settings and Secret Manager holds the
 secrets ([docs/operations.md](../../docs/operations.md#secrets)).
 
-| Setting                                                      | What it is                                                                                                                                 |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DATABASE_URL`                                               | The database's `mysql://` address. Required. It connects over TLS, checking the certificate and name, unless the host is on your laptop    |
-| `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY` | Required unless dev sign-in is on, which gives them built-in values. Each key is 64 hex characters                                         |
-| `FIREBASE_PROJECT_ID`                                        | The Firebase project whose ID tokens `POST /auth/firebase` accepts: `geekykey-b035a`. Always required                                      |
-| `DEV_AUTH_ENABLED`                                           | `true` adds `POST /auth/dev-login`, which signs in a seeded user without a real login. Never on in production                              |
-| `ORGANIZERS`                                                 | User IDs who are organizers, separated by commas. Everyone else is a participant. With dev sign-in on, unset means `dev-organizer-1`       |
-| `MAP_SCREENS`                                                | User IDs that may read the map and nothing else an organizer can, for the screen at the booth                                              |
-| `TAP_COOLDOWN_SECONDS`                                       | `300`. Set it to `0` so repeat taps count while you test                                                                                   |
-| `PORT`                                                       | `8001` in `dev.env`, since the GeekyKey Service holds 8000. The Event screens' dev server and the GeekyKey Service's `dev.env` expect 8001 |
+| Setting                                                      | What it is                                                                                                                                                                                                           |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                               | The database's `mysql://` address. Required. It connects over TLS, checking the certificate and name, unless the host is on your laptop                                                                              |
+| `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY` | Required unless dev sign-in is on, which gives them built-in values. Each key is 64 hex characters                                                                                                                   |
+| `FIREBASE_PROJECT_ID`                                        | The Firebase project whose ID tokens `POST /auth/firebase` accepts: `geekykey-b035a`. Always required                                                                                                                |
+| `GEEKYKEY_SERVICE_URL`                                       | The GeekyKey Service's address for station messages. Optional: unset or empty turns messages off. Use `https://`, or `http://` to this machine. Trailing slashes are removed. Local runs use `http://localhost:8000` |
+| `DEV_AUTH_ENABLED`                                           | `true` adds `POST /auth/dev-login`, which signs in a seeded user without a real login. Never on in production                                                                                                        |
+| `ORGANIZERS`                                                 | User IDs who are organizers, separated by commas. Everyone else is a participant. With dev sign-in on, unset means `dev-organizer-1`                                                                                 |
+| `MAP_SCREENS`                                                | User IDs that may read the map and nothing else an organizer can, for the screen at the booth                                                                                                                        |
+| `TAP_COOLDOWN_SECONDS`                                       | `300`. Set it to `0` so repeat taps count while you test                                                                                                                                                             |
+| `PORT`                                                       | `8001` in `dev.env`, since the GeekyKey Service holds 8000. The Event screens' dev server and the GeekyKey Service's `dev.env` expect 8001                                                                           |
 
 The server reads `ORGANIZERS` and `MAP_SCREENS` at start-up, so a change takes a restart, or a
 deploy in production. Locally the server listens on your whole network, not only `localhost`, so
 anyone on the same Wi-Fi can reach it, dev sign-in included. Stations don't call it: point a
 station at the GeekyKey Service on port 8000.
+
+## Station messages
+
+A station message changes a station's screen without a tap: one or two lines, an optional
+countdown and an optional attention beep. The sender in `src/event/station-messages.ts` asks
+the GeekyKey Service to pass it down the station's open socket, with the Event Service key.
+A message for a station with no socket is dropped. Games must work when messages are dropped,
+fail or are off.
+
+`createApp` builds one sender. Its optional `games` factory receives it as `stationMessages`,
+so a game can take it when constructed. No game sends messages yet; the relay uses it in BAC-184.
+`send(stationId, message)` resolves to `"delivered"`, `"dropped"`, `"failed"` or `"off"` and never
+throws. A request times out after two seconds and never follows a redirect. The caller decides
+whether to await it.
 
 ## How it behaves in production
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { sql } from "drizzle-orm";
 import { onTestFinished, test, vi } from "vitest";
-import { testApp } from "./test-helpers.ts";
+import { setupFixture, TEST_EVENT_SERVICE_KEY, testApp } from "./test-helpers.ts";
 
 const app = testApp();
 
@@ -89,4 +89,50 @@ test("an unexpected error answers internal_error, and logs one line without its 
   });
   // Where it was thrown, so the line still points at the code.
   assert.match(stack[0]!, /^at .*app\.test\.ts:\d+:\d+/);
+});
+
+test("a game sends a station message to the GeekyKey Service while it judges a hand-off's tap", async () => {
+  const { stationId, userId } = await setupFixture();
+  const requests: Request[] = [];
+  const sent: string[] = [];
+  const app = testApp(
+    { GEEKYKEY_SERVICE_URL: "https://key-api.geekshacking.com/" },
+    {
+      send: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json({ delivered: true });
+      },
+      // A game of its own, as the relay will be (BAC-184): each tap here tells another station.
+      games: ({ stationMessages }) => [
+        {
+          stations: "all",
+          game: {
+            id: "messenger",
+            async judge(taps) {
+              sent.push(await stationMessages.send("station-2", { lines: ["Your turn"] }));
+              return taps.map(() => "accepted" as const);
+            },
+          },
+        },
+      ],
+    },
+  );
+  const res = await app.request("/geekykey/v1/taps", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}`,
+    },
+    body: JSON.stringify({
+      station_id: stationId,
+      taps: [{ client_tap_id: "t1", user_id: userId, tapped_at: null }],
+    }),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(sent, ["delivered"]);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]!.url, "https://key-api.geekshacking.com/api/v1/station-messages");
+  assert.equal(requests[0]!.headers.get("Authorization"), `Bearer ${TEST_EVENT_SERVICE_KEY}`);
+  assert.equal(requests[0]!.redirect, "manual");
+  assert.deepEqual(await requests[0]!.json(), { station_id: "station-2", lines: ["Your turn"] });
 });

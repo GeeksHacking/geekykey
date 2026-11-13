@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "station_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One of this Event Service's registered stations"
+    },
+    "lines": {
+      "minItems": 1,
+      "maxItems": 2,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[\\x20-\\x7E]{0,16}$",
+        "description": "One row of the station's 16x2 screen"
+      },
+      "description": "1 or 2 lines for the station's screen, with a tap's lines' rules (6.1)"
+    },
+    "countdown": {
+      "description": "A screen that counts down, with a tap's countdown's rules (6.1)",
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99,
+          "description": "Seconds to count down, from when the answer was made"
+        },
+        "lines": {
+          "minItems": 1,
+          "maxItems": 2,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?:(?!.*\\{s\\})[\\x20-\\x7E]{0,16}|(?=.*\\{s\\})(?!.*\\{s\\}.*\\{s\\})[\\x20-\\x7E]{3,17})$",
+            "description": "One row of the station's 16x2 screen, where {s} is the seconds left"
+          },
+          "description": "What the station shows while it counts. {s} may appear once across them"
+        },
+        "ending": {
+          "minItems": 1,
+          "maxItems": 2,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[\\x20-\\x7E]{0,16}$",
+            "description": "One row of the station's 16x2 screen"
+          },
+          "description": "What the station shows once the count reaches zero"
+        }
+      },
+      "required": [
+        "seconds",
+        "lines",
+        "ending"
+      ]
+    },
+    "beep": {
+      "description": "True for one attention beep as the message arrives. Left out means false",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "station_id",
+    "lines"
+  ],
+  "title": "A station message: POST /api/v1/station-messages on the GeekyKey Service",
+  "description": "Also: {s} at most once across a countdown's lines."
+}

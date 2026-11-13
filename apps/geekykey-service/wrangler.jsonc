@@ -61,7 +61,7 @@
   // above that's nearly always the one near Singapore, wherever the request
   // was answered. Locally, Wrangler simulates them.
   "ratelimits": [
-    // Each station's requests, taps and heartbeats together, by the SHA-256
+    // Each station's taps, heartbeats and socket upgrades, by the SHA-256
     // of the key it sent, counted before the key is checked.
     {
       "name": "STATION_LIMIT",
@@ -84,6 +84,14 @@
       "simple": { "limit": 20, "period": 60 },
     },
   ],
+
+  // Each station holds its socket in its own object. It writes no storage,
+  // but the free plan requires classes backed by SQLite (BAC-182).
+  "durable_objects": {
+    "bindings": [{ "name": "STATION_SOCKETS", "class_name": "StationSockets" }],
+  },
+  // Creates the class on the first deploy, in production and staging separately.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["StationSockets"] }],
 
   // Where stations already point. Every network interface, not only
   // localhost, because real stations call this laptop by name, such as
@@ -143,5 +151,72 @@
     "FIREBASE_PROJECT_ID": "geekykey-b035a",
     // No DEV_AUTH_ENABLED, which adds POST /auth/dev-login: unset is off.
     // Locally `pnpm dev` turns it on with `wrangler dev --var`.
+  },
+  // Staging is deployed by hand before production, with its own objects and
+  // secrets. Bindings and vars aren't inherited by Wrangler, so repeat them.
+  "env": {
+    "staging": {
+      "name": "geekykey-service-staging",
+      "workers_dev": true,
+      // Override production's custom domain, so staging can't take key-api.
+      "routes": [],
+      "placement": { "region": "gcp:asia-southeast1" },
+      // Set these on the staging Worker too, using staging's shared keys.
+      "secrets": {
+        "required": ["SESSION_SECRET", "CLAIMS_STAND_IN_KEY", "EVENT_SERVICE_KEY_SHOWCASE"],
+      },
+      // Keep the same limits and socket binding as production.
+      "ratelimits": [
+        // Each station's taps, heartbeats and socket upgrades, by the SHA-256
+        // of the key it sent, counted before the key is checked.
+        {
+          "name": "STATION_LIMIT",
+          "namespace_id": "7101",
+          "simple": { "limit": 60, "period": 60 },
+        },
+        // Each user's requests to the API, by user ID: every /api/v1 request
+        // with a session, but not /auth/*, which has no user ID yet.
+        {
+          "name": "USER_LIMIT",
+          "namespace_id": "7102",
+          "simple": { "limit": 60, "period": 60 },
+        },
+        // Each user's token lookups and claims, by user ID, so nobody can work
+        // through UIDs to see which are claimed. They count toward USER_LIMIT
+        // as well.
+        {
+          "name": "TOKEN_LIMIT",
+          "namespace_id": "7103",
+          "simple": { "limit": 20, "period": 60 },
+        },
+      ],
+      "durable_objects": {
+        "bindings": [{ "name": "STATION_SOCKETS", "class_name": "StationSockets" }],
+      },
+      // Staging uses the same settings, with its own Event Service and
+      // claims stand-in. No public_url, since there are no staging screens.
+      "vars": {
+        "EVENT_SERVICES": [
+          {
+            "id": "showcase",
+            "name": "Capstone Showcase",
+            "url": "https://event-service-staging-468223998400.asia-southeast1.run.app",
+            "meetings": true,
+            "login_links_to_geekykey": true,
+          },
+        ],
+        "CLAIMS_STAND_IN_URL": "https://event-service-staging-468223998400.asia-southeast1.run.app/claims-stand-in/v1",
+        "GEEKYKEY_ADMINS": ["qxcUTVjDfgaK7FL1R3UAJmPW9Up2"],
+        "TOKEN_KIND_VIEWERS": [
+          "qxcUTVjDfgaK7FL1R3UAJmPW9Up2",
+          "wUKbD58Hj3QvLE0N06zAiATPDVB2",
+          "JbtJGr42oJb8iCjN58azQl1HMMB2",
+        ],
+        "MAX_TOKENS_PER_USER": 3,
+        "MAX_TAPS_PER_REQUEST": 500,
+        "TAP_DEADLINE_MS": 4000,
+        "FIREBASE_PROJECT_ID": "geekykey-b035a",
+      },
+    },
   },
 }

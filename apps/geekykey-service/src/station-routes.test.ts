@@ -1,3 +1,4 @@
+import { fakeStationSockets } from "../test-support/fake-station-sockets.ts";
 import assert from "node:assert/strict";
 import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
 import { onTestFinished, test, vi } from "vitest";
@@ -44,6 +45,7 @@ async function harness(
   fake.owners.set(UID, USER_ID);
   const app = createApp(config, {
     send: fake.send,
+    stationSockets: fakeStationSockets(),
     stationLimit,
     userLimit: fakeLimiter(60),
     tokenLimit: fakeLimiter(20),
