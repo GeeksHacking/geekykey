@@ -192,7 +192,9 @@ What's inside each `app-secrets`:
 
 The Event Service checks each key. The GeekyKey Service sends them from a Worker, which
 keeps its own copy of production's two as Workers secrets, named
-`EVENT_SERVICE_KEY_SHOWCASE` and `CLAIMS_STAND_IN_KEY` there.
+`EVENT_SERVICE_KEY_SHOWCASE` and `CLAIMS_STAND_IN_KEY` there. The optional Worker-only
+`TOKEN_WRITER_KEY_HASH` authenticates token writer uploads (section 12); it is not part of
+the Event Service's four secrets.
 
 The four live in one secret because Secret Manager bills each stored version, after the
 first 6 on the billing account, and one secret for each made ten (13 Oct 2026, BAC-30, at
@@ -653,11 +655,23 @@ Variables and Secrets. Julian adds each as the Secret type, not as text:
 | `EVENT_SERVICE_KEY_SHOWCASE` | The `EVENT_SERVICE_KEY` in production's `app-secrets`, at the version `infra/production/deploy.env` pins. Julian copies it across himself, so it never passes through a chat |
 | `CLAIMS_STAND_IN_KEY` | The `CLAIMS_STAND_IN_KEY` in the same version |
 | `SESSION_SECRET` | A new random value of at least 32 characters, from a password generator, which nobody keeps |
+| `TOKEN_WRITER_KEY_HASH` | Optional. SHA-256 of the token writer key, as 64 lower-case hex characters. Uploads answer 401 until a valid hash is set; deploying without it still works |
 
 They go under Variables and Secrets only. The Builds page has its own Variables and secrets
 box, for the build variables below, and a secret put there exists only while the build runs.
 The deploy can't see it, so it fails with "The following required secrets have not been
 set", as the first build did on 19 Oct 2026.
+
+For the writer, make a key and its hash locally:
+
+```bash
+KEY="gk_wri_$(openssl rand -hex 32)"
+printf %s "$KEY" | shasum -a 256
+```
+
+Julian puts only the hash in the Worker's `TOKEN_WRITER_KEY_HASH` secret. The key goes in the
+token writer's `secrets.h`. Neither is committed. Set the optional hash separately on the
+staging Worker too. It is absent from `secrets.required`, so a deploy can precede this setup.
 
 **Then the build.** On the same Worker, Settings, then Builds, then Connect, with this
 repo. The form saves whatever is typed without checking it: a stray `/*`, comma or new line

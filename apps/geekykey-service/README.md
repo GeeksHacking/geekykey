@@ -127,27 +127,56 @@ because Cloudflare's free plan requires SQLite-backed classes even when they sto
 `wrangler.jsonc` holds the settings, and Cloudflare holds the secrets. A deploy overwrites anything
 changed in the Cloudflare dashboard, so change settings in a pull request.
 
-| Setting                                                                        | What it is                                                                                                                                                           |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EVENT_SERVICES`                                                               | The Event Services: each one's ID, name, address, public address for the screens' buttons, and whether it runs connections                                           |
-| `GEEKYKEY_ADMINS`                                                              | User IDs who can release others' tokens and load token kinds                                                                                                         |
-| `TOKEN_KIND_VIEWERS`                                                           | User IDs who can read the count of each kind. It is the Worker's own list, because it can't read an Event Service's `ORGANIZERS`                                     |
-| `FIREBASE_PROJECT_ID`                                                          | `geekykey-b035a`, the same as the Event Service's                                                                                                                    |
-| `CLAIMS_STAND_IN_URL`                                                          | The claims stand-in's address, on the Event Service                                                                                                                  |
-| `TAP_DEADLINE_MS`, `MAX_TAPS_PER_REQUEST`                                      | 4 seconds for a station's request, and 500 taps in one                                                                                                               |
-| `MAX_TOKENS_PER_USER`                                                          | How many tokens one user may claim: 3                                                                                                                                |
-| `STATION_SOCKETS`                                                              | The Durable Object namespace holding each station's WebSocket                                                                                                        |
-| `STATION_LIMIT`, `USER_LIMIT`, `TOKEN_LIMIT`                                   | Rate limits, a minute each: 60 requests per station, 60 per user, and 20 token lookups, claims and meetings per user. A request over a limit gets `429 rate_limited` |
-| Secrets: `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY_SHOWCASE` | Required. The Worker stops at start-up, naming the setting, if one is missing or malformed                                                                           |
+| Setting                                                                        | What it is                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EVENT_SERVICES`                                                               | The Event Services: each one's ID, name, address, public address for the screens' buttons, and whether it runs connections                                                                          |
+| `GEEKYKEY_ADMINS`                                                              | User IDs who can release others' tokens and load token kinds                                                                                                                                        |
+| `TOKEN_KIND_VIEWERS`                                                           | User IDs who can read the count of each kind. It is the Worker's own list, because it can't read an Event Service's `ORGANIZERS`                                                                    |
+| `FIREBASE_PROJECT_ID`                                                          | `geekykey-b035a`, the same as the Event Service's                                                                                                                                                   |
+| `CLAIMS_STAND_IN_URL`                                                          | The claims stand-in's address, on the Event Service                                                                                                                                                 |
+| `TAP_DEADLINE_MS`, `MAX_TAPS_PER_REQUEST`                                      | 4 seconds for a station's request, and 500 taps in one                                                                                                                                              |
+| `MAX_TOKENS_PER_USER`                                                          | How many tokens one user may claim: 3                                                                                                                                                               |
+| `STATION_SOCKETS`                                                              | The Durable Object namespace holding each station's WebSocket                                                                                                                                       |
+| `STATION_LIMIT`, `USER_LIMIT`, `TOKEN_LIMIT`, `TOKEN_WRITER_LIMIT`             | Rate limits, a minute each: 60 requests per station, 60 per user, and 20 token lookups, claims and meetings per user, and 60 uploads per writer key. A request over a limit gets `429 rate_limited` |
+| Secrets: `SESSION_SECRET`, `CLAIMS_STAND_IN_KEY`, `EVENT_SERVICE_KEY_SHOWCASE` | Required. The Worker stops at start-up, naming the setting, if one is missing or malformed                                                                                                          |
 
-Locally, `mise run dev:geekykey-service` runs
-`wrangler dev --env-file dev.env --var DEV_AUTH_ENABLED:true`. The committed `dev.env` holds no real
-secret. It points `EVENT_SERVICES` at the Event Service on `localhost:8001` and the Event screens on
+Locally, `mise run dev:geekykey-service` runs the package's `dev` command, which passes
+`dev.env`, `DEV_AUTH_ENABLED:true` and the dev writer hash to `wrangler dev`. The committed
+`dev.env` holds no real secret. It points `EVENT_SERVICES` at the Event Service on `localhost:8001` and the Event screens on
 `localhost:5173`, and uses the keys the Event Service's dev sign-in uses. `DEV_AUTH_ENABLED` adds
 `POST /auth/dev-login`, which accepts any user ID, and drops `Secure` from the cookie. It never
 appears in `wrangler.jsonc`, so it is off in production. A setting in your shell wins over
 `dev.env` for one run: `TAP_DEADLINE_MS=1000 mise run dev:geekykey-service`. `wrangler dev` reads no
 `.dev.vars`, and takes only the settings `wrangler.jsonc` names.
+
+## Token writer uploads
+
+The writer sends `POST /api/v1/token-writer/tokens` with its own bearer key (agreement 10.4).
+It can only add to the token kinds list. A later write replaces an earlier one even if the
+earlier upload arrives last. Admin paste loads still work and keep the writer's write time.
+
+`TOKEN_WRITER_KEY_HASH` is an optional Worker secret, the key's SHA-256 as 64 lower-case hex
+characters. An unset or malformed hash disables writer uploads with `401 unauthenticated`;
+it never stops the Worker starting. It is deliberately absent from `secrets.required`.
+Make a key and its hash locally:
+
+```bash
+KEY="gk_wri_$(openssl rand -hex 32)"
+printf %s "$KEY" | shasum -a 256
+```
+
+Only the hash goes to the Worker as `TOKEN_WRITER_KEY_HASH`. The key goes in the writer's
+`secrets.h`. Neither belongs in the repo. Set the optional secret on staging separately too.
+
+Local `pnpm dev` accepts `gk_wri_` followed by 64 zeroes:
+`gk_wri_0000000000000000000000000000000000000000000000000000000000000000`.
+This public dev key must never be used in production.
+The dev command passes its hash with `--var`, because Wrangler ignores optional names in
+`dev.env`. Set `TOKEN_WRITER_KEY_HASH` in your shell to override that dev hash.
+
+Deploying either service first keeps paste loads working: an old stand-in strips the unknown
+`written_at` field and omits `outdated`, which the new client reads as 0. An old client ignores
+the new stand-in's extra count. Writer ordering takes effect only after the stand-in is updated.
 
 ## Commands
 

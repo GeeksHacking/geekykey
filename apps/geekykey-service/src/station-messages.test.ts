@@ -22,6 +22,7 @@ async function harness(settings: Record<string, unknown> = {}, stationLimit = fa
     stationSockets: sockets,
     stationLimit,
     userLimit: fakeLimiter(60),
+    writerLimit: env.TOKEN_WRITER_LIMIT,
     tokenLimit: fakeLimiter(20),
   });
   const request = async (path: string, init: RequestInit) => {

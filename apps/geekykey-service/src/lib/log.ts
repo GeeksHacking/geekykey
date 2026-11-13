@@ -15,6 +15,7 @@ const LOG_LINES = {
   token_released: "INFO",
   // A GeekyKey admin loaded tokens onto the list of token kinds, with who did it and the counts.
   token_kinds_loaded: "INFO",
+  token_kinds_uploaded: "INFO",
   token_kind_removed: "INFO",
   // A station's or a user's request failed because the claims stand-in didn't answer properly in time.
   claims_unavailable: "ERROR",

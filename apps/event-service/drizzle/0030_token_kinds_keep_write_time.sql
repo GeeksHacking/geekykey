@@ -1,0 +1,1 @@
+ALTER TABLE `token_kinds` ADD `written_at` varchar(24);

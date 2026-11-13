@@ -39,6 +39,8 @@ export interface Claims {
    * Removes nothing, so a token not named keeps its kind.
    */
   loadKinds(tokens: TokenKind[], signal: AbortSignal): Promise<KindsLoaded>;
+  /** Uploads writes with their UTC write times, keeping a later write already on the list. */
+  uploadKinds(tokens: WrittenTokenKind[], signal: AbortSignal): Promise<KindsUploaded>;
 }
 
 /** Who owns a token, and the token's kind (ADR 0006): null for a token with none. */
@@ -57,6 +59,14 @@ export interface ClaimedToken {
 export interface TokenKind {
   uid: string;
   kind: string;
+}
+
+export interface WrittenTokenKind extends TokenKind {
+  written_at: string;
+}
+
+export interface KindsUploaded extends KindsLoaded {
+  outdated: number;
 }
 
 /** The admin list (agreement 10.2): claims without kinds are included. */
@@ -127,6 +137,11 @@ const kindsLoadedAnswer = z.object({
   new: z.number(),
   changed: z.number(),
   unchanged: z.number(),
+});
+
+const kindsUploadedAnswer = kindsLoadedAnswer.extend({
+  // An older stand-in strips written_at and omits this count. Paste loads work in either order.
+  outdated: z.number().optional().default(0),
 });
 
 /**
@@ -200,6 +215,10 @@ export class StandInClaims implements Claims {
 
   async loadKinds(tokens: TokenKind[], signal: AbortSignal) {
     return await this.#call("POST", "/token-kinds", { tokens }, kindsLoadedAnswer, signal);
+  }
+
+  async uploadKinds(tokens: WrittenTokenKind[], signal: AbortSignal) {
+    return await this.#call("POST", "/token-kinds", { tokens }, kindsUploadedAnswer, signal);
   }
 
   /**

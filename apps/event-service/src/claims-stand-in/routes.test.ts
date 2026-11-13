@@ -258,9 +258,11 @@ test("a load adds new tokens, changes kinds, and says how many of each", async (
     ],
   });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { new: 2, changed: 1, unchanged: 1 });
+  assert.deepEqual(await res.json(), { new: 2, changed: 1, unchanged: 1, outdated: 0 });
 
-  const rows = await testDb().select().from(tokenKinds);
+  const rows = await testDb()
+    .select({ uid: tokenKinds.uid, kind: tokenKinds.kind })
+    .from(tokenKinds);
   assert.deepEqual(
     rows.sort((a, b) => a.uid.localeCompare(b.uid)),
     [
@@ -280,7 +282,9 @@ test("a load removes nothing: a token not in it keeps its kind", async () => {
   });
   assert.equal(res.status, 200);
 
-  const rows = await testDb().select().from(tokenKinds);
+  const rows = await testDb()
+    .select({ uid: tokenKinds.uid, kind: tokenKinds.kind })
+    .from(tokenKinds);
   assert.deepEqual(
     rows.sort((a, b) => a.uid.localeCompare(b.uid)),
     [
@@ -298,10 +302,11 @@ test("a load naming a UID twice takes the later kind, and counts the token once"
     ],
   });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { new: 1, changed: 0, unchanged: 0 });
-  assert.deepEqual(await testDb().select().from(tokenKinds), [
-    { uid: "04A1B2C3D4E5F6", kind: "B" },
-  ]);
+  assert.deepEqual(await res.json(), { new: 1, changed: 0, unchanged: 0, outdated: 0 });
+  assert.deepEqual(
+    await testDb().select({ uid: tokenKinds.uid, kind: tokenKinds.kind }).from(tokenKinds),
+    [{ uid: "04A1B2C3D4E5F6", kind: "B" }],
+  );
 });
 
 test("up to 500 tokens can be loaded at once, and no more", async () => {
@@ -313,7 +318,7 @@ test("up to 500 tokens can be loaded at once, and no more", async () => {
 
   const res = await standIn("POST", "/token-kinds", { tokens: tokens(500) });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { new: 500, changed: 0, unchanged: 0 });
+  assert.deepEqual(await res.json(), { new: 500, changed: 0, unchanged: 0, outdated: 0 });
 
   const tooMany = await standIn("POST", "/token-kinds", { tokens: tokens(501) });
   assert.equal(tooMany.status, 400);
@@ -329,7 +334,10 @@ test("a load is refused for a UID or a kind that isn't one", async () => {
     const res = await standIn("POST", "/token-kinds", { tokens: [token] });
     assert.equal(res.status, 400);
   }
-  assert.deepEqual(await testDb().select().from(tokenKinds), []);
+  assert.deepEqual(
+    await testDb().select({ uid: tokenKinds.uid, kind: tokenKinds.kind }).from(tokenKinds),
+    [],
+  );
 });
 
 test("the token kinds' routes refuse a request without the stand-in's key", async () => {
@@ -379,7 +387,7 @@ test("removal refuses a claim, then removes only the kind after release and allo
   assert.deepEqual(await (await standIn("DELETE", `/token-kinds/${uid}`)).json(), {
     result: "not_found",
   });
-  assert.deepEqual(await (await load()).json(), { new: 1, changed: 0, unchanged: 0 });
+  assert.deepEqual(await (await load()).json(), { new: 1, changed: 0, unchanged: 0, outdated: 0 });
 });
 
 test("the list returns 500 tokens without truncating or duplicating claims", async () => {
@@ -416,5 +424,128 @@ test("a claim concurrent with removal either keeps its kind or starts after remo
     assert.equal(token?.owner_id, "user-1");
     assert.ok(result.result === "claimed" || result.result === "removed");
     assert.equal(token?.kind, result.result === "claimed" ? "E" : null);
+  }
+});
+
+test("writer writes keep the later kind, count stale and equal writes as outdated, and update totals", async () => {
+  const upload = (kind: string, written_at: string) =>
+    standIn("POST", "/token-kinds", { tokens: [{ uid: "04E45150324189", kind, written_at }] });
+  assert.deepEqual(await (await upload("E", "2026-11-13T01:00:00.123Z")).json(), {
+    new: 1,
+    changed: 0,
+    unchanged: 0,
+    outdated: 0,
+  });
+  assert.deepEqual(await (await upload("B", "2026-11-13T01:00:00.124Z")).json(), {
+    new: 0,
+    changed: 1,
+    unchanged: 0,
+    outdated: 0,
+  });
+  for (const time of ["2026-11-13T01:00:00.123Z", "2026-11-13T01:00:00.124Z"]) {
+    assert.deepEqual(await (await upload("H", time)).json(), {
+      new: 0,
+      changed: 0,
+      unchanged: 0,
+      outdated: 1,
+    });
+  }
+  assert.deepEqual(await (await standIn("GET", "/token-kinds")).json(), {
+    kinds: [{ kind: "B", tokens: 1 }],
+  });
+});
+
+test("paste loads preserve write time and a writer can supersede a paste-only row", async () => {
+  const uid = "DEADBEEF";
+  const load = async (kind: string, written_at?: string) =>
+    (
+      await standIn("POST", "/token-kinds", {
+        tokens: [{ uid, kind, ...(written_at ? { written_at } : {}) }],
+      })
+    ).json();
+  assert.deepEqual(await load("A"), { new: 1, changed: 0, unchanged: 0, outdated: 0 });
+  assert.deepEqual(await load("B", "2026-11-13T01:00:00.100Z"), {
+    new: 0,
+    changed: 1,
+    unchanged: 0,
+    outdated: 0,
+  });
+  assert.deepEqual(await load("C"), { new: 0, changed: 1, unchanged: 0, outdated: 0 });
+  assert.deepEqual(await load("D", "2026-11-13T01:00:00.099Z"), {
+    new: 0,
+    changed: 0,
+    unchanged: 0,
+    outdated: 1,
+  });
+  assert.deepEqual(await (await standIn("GET", "/token-kinds")).json(), {
+    kinds: [{ kind: "C", tokens: 1 }],
+  });
+  assert.deepEqual(await load("C", "2026-11-13T01:00:00.200Z"), {
+    new: 0,
+    changed: 0,
+    unchanged: 1,
+    outdated: 0,
+  });
+  assert.deepEqual(await load("D", "2026-11-13T01:00:00.150Z"), {
+    new: 0,
+    changed: 0,
+    unchanged: 0,
+    outdated: 1,
+  });
+});
+
+test("duplicate writer UIDs keep the latest time and the later entry on a tie", async () => {
+  const res = await standIn("POST", "/token-kinds", {
+    tokens: [
+      { uid: "DEADBEEF", kind: "A", written_at: "2026-11-13T01:00:00.200Z" },
+      { uid: "DEADBEEF", kind: "B", written_at: "2026-11-13T01:00:00.100Z" },
+      { uid: "DEADBEEF", kind: "C", written_at: "2026-11-13T01:00:00.200Z" },
+    ],
+  });
+  assert.deepEqual(await res.json(), { new: 1, changed: 0, unchanged: 0, outdated: 0 });
+  assert.deepEqual(await (await standIn("GET", "/token-kinds")).json(), {
+    kinds: [{ kind: "C", tokens: 1 }],
+  });
+});
+
+test("bad write times reject a whole load and unknown fields still allow older clients", async () => {
+  for (const written_at of ["bad", "2026-11-13T01:00:00Z", "2026-11-13T01:00:00.123+01:00", null]) {
+    const res = await standIn("POST", "/token-kinds", {
+      tokens: [
+        { uid: "DEADBEEF", kind: "E" },
+        { uid: "CAFEBABE", kind: "B", written_at },
+      ],
+    });
+    assert.equal(res.status, 400);
+    assert.deepEqual(await (await standIn("GET", "/token-kinds")).json(), { kinds: [] });
+  }
+  const res = await standIn("POST", "/token-kinds", {
+    unknown: true,
+    tokens: [{ uid: "DEADBEEF", kind: "E", unknown: true }],
+  });
+  assert.equal(res.status, 200);
+});
+
+test("concurrent uploads of new and existing UIDs keep the newest write in both batch orders", async () => {
+  for (const existing of [false, true]) {
+    const uids = existing ? ["DEADBEEF", "CAFEBABE"] : ["04E45150324189", "04A1B2C3D4E5F6"];
+    if (existing)
+      await standIn("POST", "/token-kinds", { tokens: uids.map((uid) => ({ uid, kind: "A" })) });
+    const responses = await Promise.all([
+      standIn("POST", "/token-kinds", {
+        tokens: uids.map((uid) => ({ uid, kind: "B", written_at: "2026-11-13T01:00:00.200Z" })),
+      }),
+      standIn("POST", "/token-kinds", {
+        tokens: [...uids]
+          .reverse()
+          .map((uid) => ({ uid, kind: "C", written_at: "2026-11-13T01:00:00.100Z" })),
+      }),
+    ]);
+    for (const res of responses) assert.equal(res.status, 200);
+    const listed = (await (await standIn("GET", "/token-kinds/tokens")).json()) as {
+      tokens: { uid: string; kind: string }[];
+    };
+    for (const uid of uids)
+      assert.equal(listed.tokens.find((token) => token.uid === uid)?.kind, "B");
   }
 });

@@ -38,6 +38,8 @@ export interface EventServiceEntry {
 }
 
 export interface Config {
+  /** Optional writer key SHA-256. An absent or malformed value disables uploads only. */
+  tokenWriterKeyHash: string | null;
   /** The Event Services whose stations this Worker takes taps from, and hands them to. */
   eventServices: EventServiceEntry[];
   /** Who owns each token, until the switch to the Portal's tag APIs. */
@@ -232,9 +234,9 @@ function firebaseProjectIdFromEnv(env: Env): string {
 }
 
 /**
- * Every setting, read once as the Worker starts. A missing or malformed one
- * throws ConfigError, which stops it starting rather than failing every
- * request. `settings` is the Worker's `env`.
+ * Every setting, read once as the Worker starts. A missing or malformed required
+ * setting throws ConfigError, which stops it starting. The optional writer hash
+ * disables uploads only. `settings` is the Worker's `env`.
  */
 export function loadConfig(settings: object): Config {
   const env = settings as Env;
@@ -254,6 +256,11 @@ export function loadConfig(settings: object): Config {
   }));
   return {
     eventServices,
+    tokenWriterKeyHash:
+      typeof env.TOKEN_WRITER_KEY_HASH === "string" &&
+      /^[0-9a-f]{64}$/.test(env.TOKEN_WRITER_KEY_HASH)
+        ? env.TOKEN_WRITER_KEY_HASH
+        : null,
     claimsStandIn: {
       url: checkedSetting("CLAIMS_STAND_IN_URL", address, required(env, "CLAIMS_STAND_IN_URL")),
       key: keyFromEnv(env, "CLAIMS_STAND_IN_KEY"),

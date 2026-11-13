@@ -34,6 +34,7 @@ async function harness() {
     stationSockets: stationConnections(env.STATION_SOCKETS),
     stationLimit: fakeLimiter(60),
     userLimit: fakeLimiter(60),
+    writerLimit: env.TOKEN_WRITER_LIMIT,
     tokenLimit: fakeLimiter(20),
   });
   const request = async (path: string, init: RequestInit) => {

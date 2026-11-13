@@ -3,9 +3,9 @@
  * `geekykey-service` at key-api.geekshacking.com in production.
  *
  * It reads its settings once, here, as the Worker starts: from wrangler.jsonc
- * and the Worker's secrets, or dev.env locally. A missing or malformed one
- * throws ConfigError, which stops it starting, and names the setting but
- * never its value.
+ * and the Worker's secrets, or dev.env locally. A missing or malformed required
+ * setting throws ConfigError, naming the setting but never its value. The
+ * optional TOKEN_WRITER_KEY_HASH disables uploads only.
  */
 import { env } from "cloudflare:workers";
 import { createApp } from "./app.ts";
@@ -21,4 +21,5 @@ export default createApp(loadConfig(env), {
   stationLimit: env.STATION_LIMIT,
   userLimit: env.USER_LIMIT,
   tokenLimit: env.TOKEN_LIMIT,
+  writerLimit: env.TOKEN_WRITER_LIMIT,
 });
