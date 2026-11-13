@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { EventStationBoardStation, StationResponse } from "@/api/types";
+import type { EventGame, EventStationBoardStation, StationResponse } from "@/api/types";
 import { StationBoard } from "@/features/stations/station-board";
 import {
   openStationActions,
@@ -20,7 +20,7 @@ import { createTestProviders } from "@/test/providers";
 function renderBoard(
   stations: EventStationBoardStation[],
   api = createMockClient({ latencyMs: [0, 0], storage: null }),
-  games?: { id: string; name: string }[],
+  games?: EventGame[],
 ) {
   const { Providers } = createTestProviders(api);
   const result = render(

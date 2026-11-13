@@ -1,7 +1,7 @@
 import { useSetStationGame } from "@/features/stations/use-set-station-game";
 
 import { describeError } from "@/api/errors";
-import type { EventStationBoardStation } from "@/api/types";
+import type { EventGame, EventStationBoardStation } from "@/api/types";
 import {
   Select,
   SelectContent,
@@ -20,7 +20,7 @@ export function StationGameSelect({
   games,
 }: {
   station: EventStationBoardStation;
-  games: { id: string; name: string }[];
+  games: EventGame[];
 }) {
   const write = useSetStationGame(station.id);
   return (

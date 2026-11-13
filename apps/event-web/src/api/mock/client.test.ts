@@ -555,7 +555,7 @@ describe("station board", () => {
 
   // Agreement 9.2 and 0.7: the board names the game each station runs, its game_fixed, and
   // the booth the map draws it at (9.10, 9.11, 9.12).
-  it("gives every station its game, an always-false game_fixed and booth", async () => {
+  it("gives every station its game, game_fixed as false and booth", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);
     const board = await api.listStationBoard();
