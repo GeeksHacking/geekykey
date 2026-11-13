@@ -2759,6 +2759,9 @@ Organisers can open it for totals only.
   `connected`, `already_connected` or `answers_needed`, it offers the event's button, which opens
   the dashboard through a login link (8.6), where the reveal comes or setup is finished. `no_group`
   offers it too, because opening the event joins the participant, and a latecomer is placed at once.
+  Under `waiting`, `connected` and `already_connected`, it says what that button opens:
+  **"Open the event to see your connection once they accept."**, **"Open the event to play your
+  challenge."**, and **"Open the event to see your connection."** (FRO-169, for the next version).
 - When a poll of `GET /api/v1/me` shows a new stamp whose `link` isn't `null`, the passport
   shows the stamp's `name` with a button, **"Open their page?"**, which opens `link` in a new
   tab. It never opens the page by itself, since a browser opens one only after a press. A stamp
