@@ -155,7 +155,7 @@ static IdleLines idleLinesOf(const char *line1, const char *line2) {
 
 // Without idle lines from a heartbeat, the idle screen is Ready / Tap a tag.
 static void theIdleScreenIsReadyWithoutIdleLines() {
-  const ScreenLines shown = idleScreen(IdleLines{}, true);
+  const ScreenLines shown = idleScreen(IdleLines{}, true, true);
   CHECK(strcmp(shown.line1, "Ready") == 0);
   CHECK(strcmp(shown.line2, "Tap a tag") == 0);
 }
@@ -163,16 +163,70 @@ static void theIdleScreenIsReadyWithoutIdleLines() {
 // The heartbeat's idle lines name the station's game in their place.
 static void theIdleScreenShowsTheHeartbeatsLines() {
   const IdleLines idle = idleLinesOf("Team duels", "Tap to join");
-  const ScreenLines shown = idleScreen(idle, true);
+  const ScreenLines shown = idleScreen(idle, true, true);
   CHECK(strcmp(shown.line1, "Team duels") == 0);
   CHECK(strcmp(shown.line2, "Tap to join") == 0);
 }
 
 // A reader that doesn't answer keeps its own screen, which matters more.
 static void aReaderErrorComesFirst() {
-  const ScreenLines shown = idleScreen(idleLinesOf("Team duels", "Tap to join"), false);
+  const ScreenLines shown = idleScreen(idleLinesOf("Team duels", "Tap to join"), false, true);
   CHECK(strcmp(shown.line1, "Reader error") == 0);
   CHECK(strcmp(shown.line2, "Tell organizer") == 0);
+}
+
+// Without WiFi or a game's idle lines, the station says it is saving taps.
+static void withoutWifiTheIdleScreenSaysItIsSaving() {
+  const ScreenLines shown = idleScreen(IdleLines{}, true, false);
+  CHECK(strcmp(shown.line1, "Ready") == 0);
+  CHECK(strcmp(shown.line2, "No WiFi: saving") == 0);
+}
+
+// Without WiFi, the game's first line stays so people know where they are.
+static void withoutWifiTheGamesFirstLineStays() {
+  const IdleLines idle = idleLinesOf("Team duels", "Tap to join");
+  const ScreenLines shown = idleScreen(idle, true, false);
+  CHECK(strcmp(shown.line1, "Team duels") == 0);
+  CHECK(strcmp(shown.line2, "No WiFi: saving") == 0);
+}
+
+// A game with one idle line still leaves room for the WiFi warning.
+static void withoutWifiOneIdleLineStillShowsTheWarning() {
+  const IdleLines idle = idleLinesOf("Team duels", "");
+  const ScreenLines shown = idleScreen(idle, true, false);
+  CHECK(strcmp(shown.line1, "Team duels") == 0);
+  CHECK(strcmp(shown.line2, "No WiFi: saving") == 0);
+}
+
+// A reader that doesn't answer matters more than WiFi, with or without a game.
+static void aReaderErrorComesBeforeNoWifi() {
+  const ScreenLines withoutGame = idleScreen(IdleLines{}, false, false);
+  CHECK(strcmp(withoutGame.line1, "Reader error") == 0);
+  CHECK(strcmp(withoutGame.line2, "Tell organizer") == 0);
+  const ScreenLines withGame = idleScreen(idleLinesOf("Team duels", "Tap to join"), false, false);
+  CHECK(strcmp(withGame.line1, "Reader error") == 0);
+  CHECK(strcmp(withGame.line2, "Tell organizer") == 0);
+}
+
+// WiFi returning restores the second line, without needing another heartbeat.
+static void wifiReturningRestoresTheIdleLines() {
+  struct Case {
+    IdleLines idle;
+    ScreenLines online;
+  };
+  const Case cases[] = {
+      {IdleLines{}, {"Ready", "Tap a tag"}},
+      {idleLinesOf("Team duels", "Tap to join"), {"Team duels", "Tap to join"}},
+      {idleLinesOf("Team duels", ""), {"Team duels", ""}},
+  };
+  for (const Case &c : cases) {
+    const ScreenLines offline = idleScreen(c.idle, true, false);
+    CHECK(strcmp(offline.line1, c.online.line1) == 0);
+    CHECK(strcmp(offline.line2, "No WiFi: saving") == 0);
+    const ScreenLines online = idleScreen(c.idle, true, true);
+    CHECK(strcmp(online.line1, c.online.line1) == 0);
+    CHECK(strcmp(online.line2, c.online.line2) == 0);
+  }
 }
 
 int main() {
@@ -189,6 +243,11 @@ int main() {
   theIdleScreenIsReadyWithoutIdleLines();
   theIdleScreenShowsTheHeartbeatsLines();
   aReaderErrorComesFirst();
+  withoutWifiTheIdleScreenSaysItIsSaving();
+  withoutWifiTheGamesFirstLineStays();
+  withoutWifiOneIdleLineStillShowsTheWarning();
+  aReaderErrorComesBeforeNoWifi();
+  wifiReturningRestoresTheIdleLines();
   if (failures > 0) {
     std::printf("%d failed\n", failures);
     return 1;

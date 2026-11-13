@@ -1,9 +1,9 @@
 /*
   What the station's screen shows between and after taps, apart from the
   sketch so it can be tested on a laptop (test/station_screen_test.cpp): a
-  countdown a tap's answer starts, and the idle screen a heartbeat's answer
-  gives (API agreement 6.1 and 6.2). Nothing here touches a pin or the screen:
-  the sketch asks, and draws what the answer says.
+  countdown a tap's answer starts, and the idle screen from a heartbeat's
+  answer and the WiFi state (API agreement 6.1 and 6.2). Nothing here touches
+  a pin or the screen: the sketch asks, and draws what the answer says.
 */
 
 #pragma once
@@ -116,10 +116,12 @@ struct ScreenLines {
 };
 
 // The idle screen, between taps: the heartbeat's idle lines, or Ready / Tap
-// a tag without them. A reader that doesn't answer shows its own screen
-// instead, since the station can't take taps.
-inline ScreenLines idleScreen(const IdleLines &idle, bool readerOk) {
+// a tag without them. Without WiFi, only the second line becomes No WiFi:
+// saving. A reader that doesn't answer shows its own screen instead, since
+// the station can't take taps.
+inline ScreenLines idleScreen(const IdleLines &idle, bool readerOk, bool wifiConnected) {
   if (!readerOk) return ScreenLines{"Reader error", "Tell organizer"};
+  if (!wifiConnected) return ScreenLines{idle.given ? idle.lines[0] : "Ready", "No WiFi: saving"};
   if (!idle.given) return ScreenLines{"Ready", "Tap a tag"};
   return ScreenLines{idle.lines[0], idle.lines[1]};
 }
