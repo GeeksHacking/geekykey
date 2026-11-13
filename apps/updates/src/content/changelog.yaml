@@ -2651,3 +2651,10 @@
     The dashboard avatar says when it is loading in 3D, fades into the 3D figure when the first
     frame is ready, and explains when 3D is unavailable or could not load, keeping the flat
     picture in both cases.
+- id: relay-on-two-stations
+  date: 2026-11-13
+  area: backend
+  change: >-
+    Two stations can run the relay, where a tap at one names a group that must tap at the other
+    within 20 seconds, until a game of 3 or 4 transfers is done. The waiting station gets a message
+    with each call, and the map can read the game's progress every second, without names.
