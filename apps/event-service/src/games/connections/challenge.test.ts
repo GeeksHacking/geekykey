@@ -10,7 +10,7 @@ import {
 } from "../../test-helpers.ts";
 import { connectionsGame, type GameKind } from "./connections.ts";
 
-// Which challenge a new connection plays (BAC-161, draft for the API agreement's next version):
+// Which challenge a new connection plays (BAC-161, agreement 0.14):
 // organizers choose on the Groups screen between Random, as it has always been, Dice and
 // Reaction. The choice applies to connections made after it.
 

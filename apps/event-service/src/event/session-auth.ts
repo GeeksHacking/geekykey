@@ -159,7 +159,7 @@ async function loadSessionUser(
  * a cookie that fails its signature or has expired, isn't counted, since
  * there's no user ID to count it by. /auth/* never mounts this, so it isn't
  * counted either. A route with a limit of its own, such as the relay's map
- * poll (the API agreement's 9.13 draft), passes it as `limit`, and its
+ * poll (the API agreement's 9.13), passes it as `limit`, and its
  * requests count there instead.
  */
 export function requireSession(

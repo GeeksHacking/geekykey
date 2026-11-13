@@ -1064,7 +1064,7 @@ describe("disable and enable stations", () => {
   });
 });
 
-describe("the mock's groups (draft for agreement 0.14)", () => {
+describe("the mock's groups (agreement 0.14)", () => {
   it("joins a participant once, and refuses an organizer", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);
@@ -1592,7 +1592,7 @@ describe("mock groups export", () => {
   });
 });
 
-describe("connection requests (BAC-149, a draft for the agreement's next version)", () => {
+describe("connection requests (BAC-149, agreement 0.14)", () => {
   it("gives the seeded participant one, so it shows in pnpm dev", async () => {
     const api = client();
     api.mock.setSession(SEEDED_PARTICIPANT_ID);

@@ -132,8 +132,8 @@ placed (FRO-146). The mock answers it for now: BAC-120 builds 8.8 in the service
 `src/features/token/use-meeting.ts`, and the sentences are in
 `src/features/token/meeting-notice.tsx`.
 When the answer gives the owner's name, the page names them and asks whoever is carrying the token
-to swap it back, so people notice swapped tokens (BAC-143, wording approved for the agreement's next version). When it
-gives the owner's bio, the page shows it under the name (BAC-151, for the agreement's next version). The mock
+to swap it back, so people notice swapped tokens (BAC-143, agreement 0.14). When it
+gives the owner's bio, the page shows it under the name (BAC-151, agreement 0.14). The mock
 gives no name unless a test calls `setMeetingOwnerName`, and no bio unless a test calls `setMeetingOwnerBio`.
 The one GeekyKey admin screen is Token kinds, at `/admin/token-kinds` (BAC-139), in
 `src/features/token-kinds/`. A GeekyKey admin pastes the token writer's log there, and the browser

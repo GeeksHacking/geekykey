@@ -5,8 +5,8 @@ import { CornerBrackets } from "@/components/look/corner-brackets";
 import { cn } from "@/lib/utils";
 
 /**
- * The phrase a participant in a group completes (BAC-169, draft for the agreement's next
- * version): every word in order, with a blank for each they don't have yet. Their own word is
+ * The phrase a participant in a group completes (BAC-169, agreement 0.14):
+ * every word in order, with a blank for each they don't have yet. Their own word is
  * filled in yellow and named in the line under it, so it isn't marked by colour alone. With every
  * word it says so, and that is all finishing does: no points and no avatar piece.
  */

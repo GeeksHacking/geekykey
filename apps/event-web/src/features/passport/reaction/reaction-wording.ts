@@ -1,7 +1,7 @@
 import type { Reaction, ReactionPlay } from "@/api/types";
 
 /*
-  The reaction test's sentences, from section 13's draft for the agreement's next version
+  The reaction test's sentences, from section 13 of agreement 0.14
   (BAC-156). The reveal and the list say the same once the result comes.
 */
 

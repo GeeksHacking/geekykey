@@ -88,7 +88,7 @@ function pairTeams(a: string[], b: string[], group: (id: string) => string) {
   return best;
 }
 
-/** Screen wording follows the BAC-155 draft for the API agreement's section 13. */
+/** Screen wording follows the BAC-155 for the API agreement's section 13. */
 function joinedLine(status: GameStatus, name: string | undefined) {
   if (status === "cooldown") return "Already in";
   if (name) return `${name.slice(0, LINE_LENGTH - 7)} joined`;
@@ -97,8 +97,8 @@ function joinedLine(status: GameStatus, name: string | undefined) {
 
 /**
  * The station's countdown to a round's start, for a tap while it's open, with
- * `players` in and `seconds` left (BAC-181). The wording follows the BAC-181
- * draft for the API agreement's 6.1 and can change. With more players than
+ * `players` in and `seconds` left (BAC-181). The wording follows the
+ * API agreement's 6.1 and can change. With more players than
  * the line holds, it shows only the seconds.
  */
 function roundCountdown(players: number, seconds: number): Countdown {
@@ -129,7 +129,7 @@ function allocateTeams(joined: Player[], group: (id: string) => string, shuffle:
   return { a, b };
 }
 
-/** Equal scores win for both only when a duel was won (BAC-155 draft, agreement 8.1). */
+/** Equal scores win for both only when a duel was won (BAC-155, agreement 8.1). */
 function wonRound(team: Player["team"], score: ReturnType<typeof scores>) {
   if (team === null) return false;
   const your = team === "a" ? score.a : score.b;
@@ -165,7 +165,7 @@ async function settle(tx: Tx, round: StoredRound, now: Date) {
   return { ...round, endedAt };
 }
 
-/** A station game with independent duels, never connections (BAC-155 draft, sections 4 and 8.1). */
+/** A station game with independent duels, never connections (BAC-155, sections 4 and 8.1). */
 export function teamDuelsGame({
   shuffle = shuffleAtRandom,
   rollDie = () => randomInt(1, 7),
@@ -175,7 +175,7 @@ export function teamDuelsGame({
   rollDie?: () => number;
   pickGame?: () => "dice" | "reaction";
 } = {}): TeamDuelsGame {
-  /** Form lazily on ingest or /me, since no worker runs at closes_at (BAC-155, agreement 8.1 draft).
+  /** Form lazily on ingest or /me, since no worker runs at closes_at (BAC-155, agreement 8.1).
    * The round lock makes concurrent phones roll each die only once.
    */
   async function form(tx: Tx, id: string, now: Date) {
@@ -346,7 +346,7 @@ export function teamDuelsGame({
         const old = atStation.find(
           (r) => r.openedAt <= tap.effectiveAt && tap.effectiveAt < r.closesAt,
         );
-        // Saved taps cannot join after their opening window (BAC-155, agreement 4 draft).
+        // Saved taps cannot join after their opening window (BAC-155, agreement section 4).
         if (
           (old && now.toISOString() >= old.closesAt) ||
           (!old && now.getTime() - Date.parse(tap.effectiveAt) >= OPEN_MS)

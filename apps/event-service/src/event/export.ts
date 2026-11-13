@@ -17,7 +17,7 @@ const TAP_COLUMNS = [
   "received_at",
 ] as const;
 
-/** The groups export's columns (draft for the API agreement's 0.14). */
+/** The groups export's columns (agreement 0.14). */
 const GROUP_COLUMNS = [
   "user_id",
   "display_name",
@@ -72,7 +72,7 @@ function tapRow(tap: LoggedTap): string[] {
 
 /**
  * Everyone who has joined the groups as CSV, oldest join first, for the report's
- * time to group (draft for the API agreement's 0.14). Someone still waiting has
+ * time to group (agreement 0.14). Someone still waiting has
  * an empty group, placed time and how.
  */
 export async function exportGroupsCsv(db: Db): Promise<string> {

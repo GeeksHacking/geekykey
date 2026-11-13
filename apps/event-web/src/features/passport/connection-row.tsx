@@ -35,7 +35,7 @@ interface ConnectionRowProps {
 }
 
 /**
- * One connection (BAC-136 and BAC-147, approved for the agreement's next version). Every row has
+ * One connection (BAC-136 and BAC-147, agreement 0.14). Every row has
  * the same shape whatever it holds: the person with their match beside them, the dice, then a
  * footer with the time. `shared` arrives a couple of minutes after the connection, and its button
  * takes a place the footer already has, so the row doesn't move when it comes.

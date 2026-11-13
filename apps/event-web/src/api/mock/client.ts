@@ -836,7 +836,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         takeConnectionRequest(currentUser(), requestId);
       }),
 
-    // BAC-157, for the agreement's next version, 8.12. The mock has no Event Service key to sign
+    // BAC-157, agreement 0.14, 8.12. The mock has no Event Service key to sign
     // with, so it answers `mock`, the one link the GeekyKey screens' mock accepts.
     createGeekykeyLoginLink: () =>
       call((): GeekykeyLoginLinkResponse => {
@@ -844,7 +844,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return { login_link: "mock", expires_at: new Date(Date.now() + 60_000).toISOString() };
       }),
 
-    // BAC-156, for the agreement's next version, 8.11.
+    // BAC-156, agreement 0.14, 8.11.
     playDuelReaction: (id, play) =>
       call(() => {
         currentUser();
@@ -1266,7 +1266,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return mockMapRelay(data.stations, relayStarted, at);
       }),
 
-    // The groups, from the spec's draft for agreement 0.14.
+    // The groups, from the spec's agreement 0.14.
     myGroup: () => call(() => toMyGroup(currentUser().id)),
 
     joinGroups: () =>
@@ -1422,7 +1422,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return { challenge: data.challenge };
       }),
 
-    // BAC-169, draft for the agreement's next version. A phrase that differs from the one set
+    // BAC-169, agreement 0.14. A phrase that differs from the one set
     // deals every word again, and the same one changes nothing.
     setPhrase: (input: SetPhraseRequest) =>
       call(() => {

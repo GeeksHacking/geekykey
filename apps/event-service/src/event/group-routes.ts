@@ -34,7 +34,7 @@ import {
   type SessionOptions,
 } from "./session-auth.ts";
 
-/** What a user's own group answers (draft for the API agreement's 0.14). */
+/** What a user's own group answers (agreement 0.14). */
 function myGroupBody({
   status,
   allocationStarted,
@@ -49,13 +49,13 @@ function myGroupBody({
       tags: group.tags,
       location: group.location,
       members: group.members.map((member) => ({ display_name: member.displayName })),
-      // Names only, never members (BAC-167, draft for the API agreement's next version).
+      // Names only, never members (BAC-167, agreement 0.14).
       other_groups: group.otherGroups,
     },
   };
 }
 
-/** A group as the organizers' board lists it (draft for the API agreement's 0.14). */
+/** A group as the organizers' board lists it (agreement 0.14). */
 function eventGroupBody(group: EventGroup) {
   return {
     id: group.id,
@@ -70,20 +70,20 @@ function eventGroupBody(group: EventGroup) {
       placed_at: member.placedAt,
       how: member.how,
     })),
-    // The other groups it has reached, in the board's order (BAC-167, draft for the next version).
+    // The other groups it has reached, in the board's order (BAC-167, agreement 0.14).
     reached_group_ids: group.reachedGroupIds,
   };
 }
 
-/** The organizers' board (draft for the API agreement's 0.14). */
+/** The organizers' board (agreement 0.14). */
 function groupBoardBody(board: Awaited<ReturnType<typeof loadGroupBoard>>) {
   return {
     allocation_started_at: board.startedAt,
-    // The Groups screen's switch (BAC-140, draft for the API agreement's next version).
+    // The Groups screen's switch (BAC-140, agreement 0.14).
     connect_across: board.connectAcross,
-    // The Groups screen's choice of challenge (BAC-161, draft for the API agreement's next version).
+    // The Groups screen's choice of challenge (BAC-161, agreement 0.14).
     challenge: board.challenge,
-    // The phrase and how many have completed it, or null for none (BAC-169, draft for the next version).
+    // The phrase and how many have completed it, or null for none (BAC-169, agreement 0.14).
     phrase: board.phrase && {
       text: board.phrase.text,
       completed_count: board.phrase.completedCount,
@@ -129,12 +129,12 @@ export function myGroupRoutes({
   return app;
 }
 
-/** The most tags a group can have (the spec's draft for the API agreement's 0.14). */
+/** The most tags a group can have (the spec's agreement 0.14). */
 const TAGS_MAX = 5;
 
 /**
  * A group's fields: its name, up to 5 tags, where its members go, and the most people it has
- * room for, or none for any number (draft for the API agreement's 0.14). A missing field is
+ * room for, or none for any number (agreement 0.14). A missing field is
  * none, so a PUT sets them all.
  */
 const groupFieldsSchema = z.object({
@@ -145,8 +145,8 @@ const groupFieldsSchema = z.object({
 });
 
 /**
- * The Groups screen's one-step form (BAC-138, BAC-141, BAC-146, draft for the API agreement's
- * 0.14): exactly one of the people per group, which is each group's capacity and from which the
+ * The Groups screen's one-step form (BAC-138, BAC-141, BAC-146, agreement 0.14):
+ * exactly one of the people per group, which is each group's capacity and from which the
  * service works out how many groups, and the number of groups, which have no capacity. Then a
  * location for each group, in order. Locations follow a group's location rule, a missing one is
  * none, and any past the last group are ignored.
@@ -168,7 +168,7 @@ const splitSchema = z
   );
 
 /**
- * The Groups screen's phrase (BAC-169, draft for the API agreement's next version): 2 to 12 words
+ * The Groups screen's phrase (BAC-169, agreement 0.14): 2 to 12 words
  * of at most 20 characters each, or null or blank text for none.
  */
 const setPhraseSchema = z.object({ phrase: phraseSchema });

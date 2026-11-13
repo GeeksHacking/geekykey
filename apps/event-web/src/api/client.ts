@@ -49,8 +49,8 @@ export interface ApiClient {
   updateMe(input: UpdateMeRequest): Promise<UpdateMeResponse>;
 
   /**
-   * POST /api/v1/me/connection-requests/{id}/accept (BAC-149, draft for the agreement's next
-   * version). The request goes whatever it answers, and only `connected` connects the two.
+   * POST /api/v1/me/connection-requests/{id}/accept (BAC-149, agreement 0.14).
+   * The request goes whatever it answers, and only `connected` connects the two.
    * `not_found` means it no longer waits for this user.
    */
   acceptConnectionRequest(requestId: string): Promise<AcceptConnectionRequestResponse>;
@@ -59,7 +59,7 @@ export interface ApiClient {
   declineConnectionRequest(requestId: string): Promise<void>;
 
   /**
-   * POST /api/v1/me/connections/{id}/reaction (BAC-156, for the agreement's next version, 8.11).
+   * POST /api/v1/me/connections/{id}/reaction (BAC-156, agreement 0.14, 8.11).
    * The user's one play in a connection's reaction test. A second play answers `already_played`,
    * and one after `play_by` answers `too_late`.
    */
@@ -86,7 +86,7 @@ export interface ApiClient {
   loginLink(link: string): Promise<void>;
 
   /**
-   * POST /api/v1/login-links (agreement 8.12, BAC-157, for the next version). A login link to
+   * POST /api/v1/login-links (agreement 8.12, BAC-157, agreement 0.14). A login link to
    * the GeekyKey screens for the signed-in user, which My tokens opens there so the same user
    * is logged in, a guest included. It works once and expires after 60 seconds.
    */
@@ -156,28 +156,28 @@ export interface ApiClient {
   mapRelay(): Promise<MapRelayResponse>;
 
   /**
-   * GET /api/v1/me/group (draft for agreement 0.14). Whether the current user has joined, and
+   * GET /api/v1/me/group (agreement 0.14). Whether the current user has joined, and
    * their own group with its members' names. An organizer reads `not_joined`.
    */
   myGroup(): Promise<MyGroupResponse>;
 
   /**
-   * POST /api/v1/me/group (draft for agreement 0.14). Joins the current user, and answers as
+   * POST /api/v1/me/group (agreement 0.14). Joins the current user, and answers as
    * `myGroup` does. Joining twice changes nothing, and an organizer gets `forbidden`.
    */
   joinGroups(): Promise<MyGroupResponse>;
 
-  /** GET /api/v1/admin/groups (draft for agreement 0.14). */
+  /** GET /api/v1/admin/groups (agreement 0.14). */
   groupBoard(): Promise<GroupBoardResponse>;
 
-  /** POST /api/v1/admin/groups (draft for agreement 0.14), or `name_taken`. */
+  /** POST /api/v1/admin/groups (agreement 0.14), or `name_taken`. */
   createGroup(input: CreateGroupRequest): Promise<EventGroup>;
 
-  /** POST /api/v1/admin/groups/allocate (draft for agreement 0.14). Answers with the board. */
+  /** POST /api/v1/admin/groups/allocate (agreement 0.14). Answers with the board. */
   allocateGroups(): Promise<GroupBoardResponse>;
 
   /**
-   * POST /api/v1/admin/groups/split (BAC-138, BAC-141, BAC-146, draft for agreement 0.14). Takes
+   * POST /api/v1/admin/groups/split (BAC-138, BAC-141, BAC-146, agreement 0.14). Takes
    * exactly one of the people per group, from which it works out the number of groups, and the
    * number of groups. It makes them and allocates everyone, in one step, and answers with the
    * board. Groups with nobody in them are replaced. It makes nothing on a refusal: `groups_exist`
@@ -186,56 +186,56 @@ export interface ApiClient {
   splitGroups(input: SplitGroupsRequest): Promise<GroupBoardResponse>;
 
   /**
-   * POST /api/v1/admin/groups/reset (draft for agreement 0.14). Everyone leaves their group and
+   * POST /api/v1/admin/groups/reset (agreement 0.14). Everyone leaves their group and
    * the waiting list, and allocation goes back to not started. The groups stay. Answers with the
    * board.
    */
   resetGroups(): Promise<GroupBoardResponse>;
 
-  /** GET /api/v1/admin/groups/export.csv (draft for agreement 0.14) as a file the browser can save. */
+  /** GET /api/v1/admin/groups/export.csv (agreement 0.14) as a file the browser can save. */
   exportGroupsCsv(): Promise<Blob>;
 
   /**
-   * PUT /api/v1/admin/groups/{id} (draft for agreement 0.14). Sets every field and moves nobody,
+   * PUT /api/v1/admin/groups/{id} (agreement 0.14). Sets every field and moves nobody,
    * even below a lower capacity. `not_found` or `name_taken`.
    */
   updateGroup(groupId: string, input: UpdateGroupRequest): Promise<EventGroup>;
 
   /**
-   * DELETE /api/v1/admin/groups/{id} (draft for agreement 0.14). Its members go back to waiting.
+   * DELETE /api/v1/admin/groups/{id} (agreement 0.14). Its members go back to waiting.
    * `not_found`.
    */
   deleteGroup(groupId: string): Promise<void>;
 
   /**
-   * PUT /api/v1/admin/groups/members/{user_id} (draft for agreement 0.14). Puts the user in the
+   * PUT /api/v1/admin/groups/members/{user_id} (agreement 0.14). Puts the user in the
    * group, past its capacity if need be, or back to waiting with null, joining them first if
    * they haven't. Answers with the board. `not_found`, or `forbidden` for an organizer account.
    */
   placeGroupMember(userId: string, groupId: string | null): Promise<GroupBoardResponse>;
 
   /**
-   * DELETE /api/v1/admin/groups/members/{user_id} (draft for agreement 0.14). They can join
+   * DELETE /api/v1/admin/groups/members/{user_id} (agreement 0.14). They can join
    * again. `not_found` when they haven't joined.
    */
   removeGroupMember(userId: string): Promise<void>;
 
   /**
-   * PUT /api/v1/admin/connections/rule (BAC-140, draft for the agreement's next version). Sets
+   * PUT /api/v1/admin/connections/rule (BAC-140, agreement 0.14). Sets
    * whether a connection needs two token kinds or two groups, from the next tap on, and answers
    * with the setting. Connections already made stay.
    */
   setConnectionRule(input: ConnectionRule): Promise<ConnectionRule>;
 
   /**
-   * PUT /api/v1/admin/connections/challenge (BAC-161, draft for the agreement's next version).
+   * PUT /api/v1/admin/connections/challenge (BAC-161, agreement 0.14).
    * Sets which challenge a new connection plays, at random or always one of them, from the next
    * connection on, and answers with the setting. Connections already made keep theirs.
    */
   setConnectionChallenge(input: ConnectionChallenge): Promise<ConnectionChallenge>;
 
   /**
-   * PUT /api/v1/admin/groups/phrase (BAC-169, draft for the agreement's next version). Sets the
+   * PUT /api/v1/admin/groups/phrase (BAC-169, agreement 0.14). Sets the
    * phrase participants complete, 2 to 12 words of at most 20 characters each, or turns the
    * activity off with null or blank text. A phrase that differs from the one set deals every word
    * again. Answers with the board. `validation_failed` for a phrase outside the limits.

@@ -26,7 +26,7 @@ interface PhraseSettingProps {
 }
 
 /**
- * The phrase participants complete (BAC-169, draft for the agreement's next version). An
+ * The phrase participants complete (BAC-169, agreement 0.14). An
  * organiser types it, and the Event Service gives each person in a group one of its words. Saving
  * a blank field, or Turn off, ends the activity. The field holds what was typed until it is
  * saved, so a poll in between doesn't put the board's phrase back over it.

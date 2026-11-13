@@ -12,7 +12,7 @@ import {
 } from "../../test-helpers.ts";
 import { passportStations, users } from "../../event/schema.ts";
 
-// A station's game changes at any time (BAC-183, a draft for the API agreement's next version),
+// A station's game changes at any time (BAC-183, agreement 0.14),
 // since each tap records the game that counted it or held it back. Through the routes a client
 // calls: the hand-off (11.2), the game's change (9.11) and the participant's /me (8.1).
 

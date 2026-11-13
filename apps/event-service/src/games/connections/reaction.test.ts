@@ -12,7 +12,7 @@ import { answersGame } from "./answers.ts";
 import { connectionsGame, type GameKind } from "./connections.ts";
 
 /*
-  The reaction test (BAC-156, for the agreement's next version, 8.1 and 8.11). Alex taps Bea's
+  The reaction test (BAC-156, agreement 0.14, 8.1 and 8.11). Alex taps Bea's
   token and Bea taps back, so each test starts with one connection made at 08:00.
 */
 

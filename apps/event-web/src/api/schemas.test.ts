@@ -802,7 +802,7 @@ describe("the rules each field carries", () => {
   });
 });
 
-describe("team duels draft contract", () => {
+describe("team duels contract", () => {
   it("keeps a round and its wins and accepts an older answer without them", () => {
     const round = {
       id: "11111111-1111-4111-8111-111111111111",

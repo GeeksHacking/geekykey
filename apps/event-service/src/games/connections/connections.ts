@@ -415,7 +415,7 @@ export function connectionsGame(
               : {
                   yourRoll,
                   theirRoll,
-                  // Equal rolls win for both (the API agreement's 8.1, BAC-150, approved for the next version).
+                  // Equal rolls win for both (the API agreement's 8.1, BAC-150, agreement 0.14).
                   result: yourRoll >= theirRoll ? "win" : "loss",
                 },
           reaction: row.game === "reaction" ? reactionFrom(row.connectedAt, you, them, now) : null,

@@ -10,8 +10,8 @@ import {
 } from "../../test-helpers.ts";
 import { connectionsGame } from "./connections.ts";
 
-// Each participant holds one word of a phrase, and connections complete it (BAC-169, draft for
-// the API agreement's next version). An organizer types the phrase on the Groups screen. Everyone
+// Each participant holds one word of a phrase, and connections complete it (BAC-169, agreement 0.14).
+// An organizer types the phrase on the Groups screen. Everyone
 // placed in a group holds one of its words, and has their own plus the word of each person they
 // have a connection with. /me shows the phrase with a blank for each word still to find.
 

@@ -278,7 +278,7 @@ export type Shuffle = <T>(items: T[]) => T[];
 /** The fewest joined participants Allocate takes for each group, so nobody is put in one alone. */
 export const MIN_PER_GROUP = 2;
 
-/** Why Allocate placed nobody, as its 409 answers (draft for the API agreement's 0.14). */
+/** Why Allocate placed nobody, as its 409 answers (agreement 0.14). */
 export type AllocateRefusal =
   | { error: "no_groups" }
   | { error: "too_few_participants"; needed: number };

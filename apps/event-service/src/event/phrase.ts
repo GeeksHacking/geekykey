@@ -6,7 +6,7 @@ import type { Tx } from "./games.ts";
 import { groupMembers, participantGroups, phraseWords } from "./schema.ts";
 
 /*
-  The phrase (BAC-169, draft for the API agreement's next version): an organizer
+  The phrase (BAC-169, agreement 0.14): an organizer
   types one phrase on the Groups screen, and each participant placed in a group
   holds one of its words. A participant has their own word and the word of
   everyone they have a connection with, and with every word they see the whole

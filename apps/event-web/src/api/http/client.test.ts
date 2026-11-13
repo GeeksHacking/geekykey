@@ -29,7 +29,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("the groups' calls (draft for agreement 0.14)", () => {
+describe("the groups' calls (agreement 0.14)", () => {
   const myGroup = { status: "waiting", allocation_started: false, group: null };
   const group = {
     id: "g1",

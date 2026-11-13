@@ -2,7 +2,7 @@ import type { Db } from "../db/pool.ts";
 import type { Reaction, ReactionPlayResult } from "./connections.ts";
 import type { Game } from "./games.ts";
 
-/** BAC-155, draft additions to agreement 8.1 and 8.11. No other user's ID leaves /me. */
+/** BAC-155, agreement 8.1 and 8.11. No other user's ID leaves /me. */
 export interface Round {
   id: string;
   state: "opening" | "playing" | "ended";

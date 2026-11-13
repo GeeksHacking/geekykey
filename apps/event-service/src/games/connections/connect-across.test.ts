@@ -11,7 +11,7 @@ import {
 } from "../../test-helpers.ts";
 import { connectionsGame } from "./connections.ts";
 
-// Who may connect (BAC-140, draft for the API agreement's next version): organizers choose
+// Who may connect (BAC-140, agreement 0.14): organizers choose
 // on the Groups screen whether a connection needs two people of different token kinds, as it
 // always has, or two people placed in different groups, whatever their tokens' kinds.
 

@@ -11,7 +11,7 @@ interface ConnectionWordLineProps {
 
 /**
  * The word of the phrase a connection gave, as the reveal and the list both show it (BAC-169,
- * draft for the agreement's next version). It says when they had the word already, and when the
+ * agreement 0.14). It says when they had the word already, and when the
  * other person holds none. With no phrase to see it takes no line.
  */
 export function ConnectionWordLine({ word, className }: ConnectionWordLineProps) {
