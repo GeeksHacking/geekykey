@@ -2676,5 +2676,5 @@
   area: firmware
   change: >-
     A station keeps a WebSocket open to the GeekyKey Service and shows the messages its Event Service
-    sends it, with no tap. In the relay, a tap at one station makes the other say which group it
-    needs, with a beep. Taps and heartbeats still go over HTTP and work while the socket is down.
+    sends it with no tap, so in the relay a tap at one station makes the other say which group it
+    needs. Taps and heartbeats still go over HTTP and work while the socket is down.
