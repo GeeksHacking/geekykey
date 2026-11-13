@@ -2678,3 +2678,9 @@
     A station keeps a WebSocket open to the GeekyKey Service and shows the messages its Event Service
     sends it with no tap, so in the relay a tap at one station makes the other say which group it
     needs. Taps and heartbeats still go over HTTP and work while the socket is down.
+- id: token-writer-uploads-kinds
+  date: 2026-11-13
+  area: backend
+  change: >-
+    The token writer can upload each token's kind straight to GeekyKey, so it counts in the
+    Token kinds screen without a pasted log. A later write wins even if an earlier upload arrives last.
