@@ -118,6 +118,23 @@ describe("sessions and roles", () => {
     await expectApiError(api.listStationBoard(), "forbidden", 403);
   });
 
+  // FRO-172. 9.2's games list is what 9.11 accepts, and the Event Service lists the relay
+  // as the third game (BAC-184).
+  it("offers the relay as a station's game and refuses one that isn't listed", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    expect((await api.listStationBoard()).games).toEqual([
+      { id: "passport", name: "Passport" },
+      { id: "team_duels", name: "Team duels" },
+      { id: "relay", name: "Relay" },
+    ]);
+
+    const { station } = await api.createStation({ label: "Relay station" });
+    expect((await api.setStationGame(station.id, "relay")).station.game).toBe("relay");
+    await expectApiError(api.setStationGame(station.id, "bingo"), "validation_failed", 400);
+  });
+
   it("returns a stamp slot for each passport station, in the order settings were added", async () => {
     const api = client();
     await api.devLogin(SEEDED_PARTICIPANT_ID);

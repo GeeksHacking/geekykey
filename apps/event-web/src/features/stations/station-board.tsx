@@ -63,6 +63,10 @@ export function StationBoard({
           // "Not in the passport" is already the subtitle line below, so it is not
           // repeated here. Every problem is still named in words, never colour alone.
           const listed = problems.filter((problem) => problem !== "notInPassport");
+          // 9.2 flags the missing settings only on a station that runs the passport, or no
+          // game at all. One running another game keeps its settings and is not at fault
+          // (FRO-172), so the line and its colour both come from the problem list.
+          const notInPassport = problems.includes("notInPassport");
 
           return (
             <TableRow
@@ -80,16 +84,16 @@ export function StationBoard({
                 </p>
                 <p
                   className={
-                    station.passport || station.game === "team_duels"
-                      ? "text-xs text-muted-foreground"
-                      : "text-xs font-medium text-destructive-text"
+                    notInPassport
+                      ? "text-xs font-medium text-destructive-text"
+                      : "text-xs text-muted-foreground"
                   }
                 >
-                  {station.game === "team_duels"
-                    ? null
+                  {notInPassport
+                    ? STATION_PROBLEMS.notInPassport
                     : station.passport
                       ? (station.passport.location ?? "No location")
-                      : "Not in the passport"}
+                      : null}
                 </p>
                 {games ? <StationGameSelect station={station} games={games} /> : null}
                 {listed.length > 0 ? (
