@@ -121,6 +121,30 @@ const healthyStation = station({
   },
 });
 
+/** FRO-172. The relay is the third game (BAC-184), and this one has no passport settings. */
+const relayStation = station({
+  id: "relay-station",
+  label: "Station 8",
+  game: "relay",
+  passport: null,
+});
+
+/** Team duels is the other game that isn't the passport, and the relay must match it. */
+const duelsStation = station({
+  id: "duels-station",
+  label: "Station 9",
+  game: "team_duels",
+  passport: null,
+});
+
+/** No game at all, so 9.2 still flags the missing passport settings. */
+const noGameStation = station({
+  id: "no-game-station",
+  label: "Station 10",
+  game: null,
+  passport: null,
+});
+
 describe("StationBoard", () => {
   it("shows passport, not-in-passport, and last-tap states", () => {
     renderBoard([offlineBuffered, deadReader]);
@@ -255,6 +279,29 @@ describe("StationBoard", () => {
     renderBoard([deadReader]);
 
     expect(screen.getAllByText("Not in the passport")).toHaveLength(1);
+  });
+
+  // FRO-172. 9.2 flags the missing settings only on a station that runs the passport, or no
+  // game, so a station set to the relay or team duels is not at fault.
+  it("leaves a station running another game unflagged for missing passport settings", () => {
+    renderBoard([relayStation, duelsStation]);
+
+    expect(screen.queryByText("Not in the passport")).not.toBeInTheDocument();
+  });
+
+  it("still flags a station running no game, or the passport without settings", () => {
+    renderBoard([noGameStation, deadReader]);
+
+    expect(screen.getAllByText("Not in the passport")).toHaveLength(2);
+  });
+
+  // 9.11 changes the game and keeps the settings, so the row still says where the station
+  // stands. Only the fault line goes.
+  it("keeps the location of a station that has passport settings, whatever game it runs", () => {
+    renderBoard([station({ id: "relay-settings", game: "relay" })]);
+
+    expect(screen.getByText("Hall B")).toBeInTheDocument();
+    expect(screen.queryByText("Not in the passport")).not.toBeInTheDocument();
   });
 
   // Agreement 9.2 and 9.12: the row shows the booth the map draws it at, or says there is

@@ -2665,3 +2665,9 @@
     Between taps, a station that has dropped off WiFi says "No WiFi: saving" on its screen while
     it saves taps to send later. When WiFi returns, the screen goes back to its usual second line
     by itself.
+- id: station-board-offers-relay
+  date: 2026-11-13
+  area: frontend
+  change: >-
+    The station board now offers Relay, and a station running the relay or team duels no longer
+    reads "Not in the passport" in red when it has no passport settings.
