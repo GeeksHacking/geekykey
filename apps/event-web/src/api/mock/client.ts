@@ -299,7 +299,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
   /**
    * The taps at a station that a game judged: `accepted` or `cooldown`, never `no_game`.
-   * 9.11 fixes a station's game on one, and 9.10 counts them for the map.
+   * 9.10 counts them for the map, whichever game the station ran then.
    */
   const countedTapsAt = (station: MockStation) =>
     data.taps.filter((tap) => tap.station_id === station.id && tap.status !== "no_game");
@@ -325,9 +325,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   }
 
   /**
-   * The game a station runs (9.2). The mock has no game picker, so a station with passport
-   * settings runs the passport, as the migration to 0.7 gave every such station, and the
-   * rest run none.
+   * The game a station runs (9.2). A station with no explicit game runs the passport when it
+   * has passport settings, as the migration to 0.7 gave every such station; the rest run none.
    */
   const gameOf = (station: MockStation) =>
     station.game === undefined ? (station.passport ? "passport" : null) : station.game;

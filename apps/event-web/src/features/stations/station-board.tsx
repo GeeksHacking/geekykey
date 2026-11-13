@@ -2,7 +2,7 @@ import { StationGameSelect } from "@/features/stations/station-game-select";
 import { WarningCircle } from "@phosphor-icons/react";
 import { useState } from "react";
 
-import type { EventStationBoardStation } from "@/api/types";
+import type { EventGame, EventStationBoardStation } from "@/api/types";
 import { OnlineStatus } from "@/components/online-status";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,7 +32,7 @@ export function StationBoard({
   games,
 }: {
   stations: EventStationBoardStation[];
-  games?: { id: string; name: string }[];
+  games?: EventGame[];
 }) {
   // The row order the organiser was looking at when they opened a row's menu, or null with no
   // menu open. A poll that sorts the stations again would otherwise move the row out from

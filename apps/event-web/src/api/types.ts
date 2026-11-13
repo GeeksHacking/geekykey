@@ -332,8 +332,14 @@ export interface EventStationBoardStation {
   last_tap_at: string | null;
 }
 
+/** One game a station can run, from 9.2's `games` list. */
+export interface EventGame {
+  id: string;
+  name: string;
+}
+
 export interface EventStationBoardResponse {
-  games?: { id: string; name: string }[];
+  games?: EventGame[];
   stations: EventStationBoardStation[];
 }
 
