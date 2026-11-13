@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 
 import type { MapStation } from "@/api/types";
 import type { FloorPlan } from "@/features/map/floor-plan";
@@ -18,10 +18,12 @@ export function MapPlan({
   plan,
   placed,
   stations,
+  children,
 }: {
   plan: FloorPlan;
   placed: readonly PlacedStation[];
   stations: readonly MapStation[];
+  children?: ReactNode;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   useMapPulses(svg, stations);
@@ -35,6 +37,7 @@ export function MapPlan({
       className="h-auto w-full font-sans lg:h-full lg:w-auto"
     >
       <FloorPlanDrawing plan={plan} />
+      {children}
       <g aria-hidden>
         {placed.map((item) => (
           <StationMarker key={item.station.station_id} placed={item} />

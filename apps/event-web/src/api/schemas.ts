@@ -13,6 +13,7 @@ import type {
   GroupBoardResponse,
   ListTapsResponse,
   MapResponse,
+  MapRelayResponse,
   MeResponse,
   MyGroupResponse,
   PlayReactionResponse,
@@ -203,6 +204,27 @@ const mapResponseSchema: z.ZodMiniType<MapResponse> = z.object({
     z.object({
       count,
       links: z.array(z.tuple([z.int(), z.int()])),
+    }),
+  ),
+});
+
+/** Agreement 9.13. Unknown fields are stripped, including any accidental names. */
+export const mapRelayResponseSchema: z.ZodMiniType<MapRelayResponse> = z.object({
+  relay: z.nullable(
+    z.object({
+      stations: z.array(z.string()),
+      game: z.nullable(
+        z.object({
+          started_at: isoTimestamp,
+          transfers: count,
+          transfers_needed: z.union([z.literal(3), z.literal(4)]),
+          calling_station_id: z.nullable(z.string()),
+          waiting_station_id: z.nullable(z.string()),
+          waiting_until: z.nullable(isoTimestamp),
+          ended_at: z.nullable(isoTimestamp),
+          complete: z.boolean(),
+        }),
+      ),
     }),
   ),
 });
@@ -470,3 +492,6 @@ export const parseGeekykeyLoginLinkResponse = (input: unknown) =>
 
 export const parsePlayReactionResponse = (input: unknown) =>
   parseOrganizerResponse(playReactionResponseSchema, input);
+
+export const parseMapRelayResponse = (input: unknown) =>
+  parseOrganizerResponse(mapRelayResponseSchema, input);

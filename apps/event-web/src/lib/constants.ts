@@ -3,6 +3,8 @@ export const POLL_STATIONS_MS = 12_000;
 export const POLL_TAPS_MS = 5_000;
 /** The map on the big screen (agreement 9.10): 30 of the user's 60 requests a minute. */
 export const POLL_MAP_MS = 2_000;
+/** The relay has its own 90 requests/minute budget (agreement 9.13). */
+export const POLL_MAP_RELAY_MS = 1_000;
 /** The participant's own stamps and points. Not in the agreement's table; chosen so a tap shows up within one poll. */
 export const POLL_ME_MS = 10_000;
 /** Mounted active round: 20 /me + at most 12 /me/group = 32 of 60 requests/minute. */

@@ -16,6 +16,7 @@ export const queryKeys = {
     ["taps", filters, "older", cursor] as const,
   stats: ["stats"] as const,
   map: ["map"] as const,
+  mapRelay: ["mapRelay"] as const,
   myGroup: ["myGroup"] as const,
   groupBoard: ["groupBoard"] as const,
 };
