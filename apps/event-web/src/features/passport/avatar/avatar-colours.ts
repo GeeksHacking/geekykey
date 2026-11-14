@@ -1,3 +1,4 @@
+import type { AvatarLook } from "@/api/types";
 import {
   CHARACTERS,
   type Art,
@@ -194,6 +195,23 @@ export function parseColours(raw: string | null): AvatarColours {
   } catch {
     // A broken value reads as nothing saved.
   }
+  return coloursFrom(saved);
+}
+
+/**
+ * A look the service kept, as colours to draw (BAC-191). A missing look draws the default, and a
+ * part the screens don't know draws that part's default, as `parseColours` does for a saved one.
+ */
+export function lookFrom(look: AvatarLook | null | undefined): AvatarColours {
+  return look ? coloursFrom({ ...look }) : DEFAULT_COLOURS;
+}
+
+/** Whether two choices draw the same avatar, so a poll that changed nothing writes nothing. */
+export function sameColours(a: AvatarColours, b: AvatarColours): boolean {
+  return a.character === b.character && a.skin === b.skin && a.hair === b.hair && a.suit === b.suit;
+}
+
+function coloursFrom(saved: Record<string, unknown>): AvatarColours {
   const character = pick(CHARACTER_CHOICES, saved.character, DEFAULT_COLOURS.character);
   const drawn = DRAWN[character];
   return {

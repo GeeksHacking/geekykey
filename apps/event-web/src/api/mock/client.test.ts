@@ -312,6 +312,7 @@ describe("the name the event shows (agreement 8.7)", () => {
         answers: {},
         bio: null,
         contact_line: null,
+        avatar: null,
       },
     });
     await expect(api.me()).resolves.toMatchObject({ user: answer.user });
@@ -381,6 +382,7 @@ describe("the answers game (agreement 0.13)", () => {
     display_name: "Mei Lin",
     bio: null,
     contact_line: null,
+    avatar: null,
     kind: "B",
     match: 60,
     shared: null,
@@ -438,7 +440,8 @@ describe("the answers game (agreement 0.13)", () => {
     expect((error as ApiError).issues).toEqual([
       {
         path: [],
-        message: "A request needs at least one of display_name, answers, bio and contact_line",
+        message:
+          "A request needs at least one of display_name, answers, bio, contact_line and avatar",
       },
     ]);
   });
@@ -1656,5 +1659,45 @@ describe("connection requests (BAC-149, agreement 0.14)", () => {
     api.mock.setSession(SEEDED_PARTICIPANT_ID);
     await expectApiError(api.acceptConnectionRequest("gone"), "not_found", 404);
     await expectApiError(api.declineConnectionRequest("gone"), "not_found", 404);
+  });
+});
+
+describe("the avatar look (BAC-191)", () => {
+  const look = { character: "dress", skin: "deep", hair: "black", suit: "emerald" };
+
+  it("saves a look, clears it, and refuses a part the service doesn't keep", async () => {
+    const api = client();
+    await api.loginLink("guest");
+
+    await expect(api.updateMe({ avatar: look })).resolves.toMatchObject({ user: { avatar: look } });
+    await expect(api.me()).resolves.toMatchObject({ user: { avatar: look } });
+
+    await expect(api.updateMe({ avatar: null })).resolves.toMatchObject({ user: { avatar: null } });
+    await expectApiError(
+      api.updateMe({ avatar: { ...look, skin: "Deep" } }),
+      "validation_failed",
+      400,
+    );
+  });
+
+  it("gives each connection and request the other person's look, or none", async () => {
+    const api = client();
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+
+    const me = await api.me();
+
+    expect(me.connections[0]?.avatar).toEqual({
+      character: "suit",
+      skin: "brown",
+      hair: "black",
+      suit: "navy",
+    });
+    expect(me.connections[1]?.avatar).toBeNull();
+    expect(me.connection_requests[0]?.avatar).toEqual({
+      character: "dress",
+      skin: "light",
+      hair: "black",
+      suit: "burgundy",
+    });
   });
 });

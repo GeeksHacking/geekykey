@@ -29,6 +29,12 @@ function read(userId: string): string | null {
   }
 }
 
+/** The choice this browser saved, or null when it saved none (BAC-191, FRO-181). */
+export function savedColours(userId: string): AvatarColours | null {
+  const raw = read(userId);
+  return raw === null ? null : parseColours(raw);
+}
+
 // One object per saved string, so React sees the same choice until it changes.
 let cached: { raw: string | null; colours: AvatarColours } | undefined;
 

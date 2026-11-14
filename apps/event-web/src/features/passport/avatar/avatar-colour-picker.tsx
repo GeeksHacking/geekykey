@@ -13,6 +13,7 @@ import {
 } from "@/features/passport/avatar/avatar-colours";
 import { toDataUrl } from "@/features/passport/avatar/layers";
 import { useAvatarColours } from "@/features/passport/avatar/use-avatar-colours";
+import { useUpdateMe } from "@/features/passport/use-update-me";
 import { cn } from "@/lib/utils";
 
 interface Swatch {
@@ -122,17 +123,24 @@ function CharacterRow({
 
 /**
  * The guest's character, skin tone, hair colour and suit colour (FRO-105). A pick applies at
- * once and stays in this browser. Picking a character starts from that character's colours.
- * It sits beside "What should we call you?" and under the avatar.
+ * once and saves to the Event Service, and this browser keeps a copy for the first paint (FRO-181).
+ * Picking a character starts from that character's colours. It sits beside "What should we call
+ * you?" and under the avatar.
  */
 export function AvatarColourPicker({ userId }: { userId: string }) {
   const { colours, setColours } = useAvatarColours(userId);
-  const set = (change: Partial<AvatarColours>) => setColours({ ...colours, ...change });
+  const updateMe = useUpdateMe();
+  // The service's copy is the one that counts, so a pick shows at once and saves (FRO-181).
+  const choose = (next: AvatarColours) => {
+    setColours(next);
+    updateMe.mutate({ avatar: next });
+  };
+  const set = (change: Partial<AvatarColours>) => choose({ ...colours, ...change });
   return (
     <div className="space-y-4">
       <CharacterRow
         value={colours.character}
-        onChange={(character) => setColours(coloursFor(character))}
+        onChange={(character) => choose(coloursFor(character))}
       />
       <SwatchRow
         label="Skin tone"

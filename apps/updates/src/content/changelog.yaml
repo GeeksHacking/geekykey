@@ -2751,3 +2751,10 @@
     begin a conversation with someone outside your team. The trade-offs we accept: a taken seat only
     sends a connection request, so it makes no connection, and no session with people will test it
     before the showcase.
+- id: avatar-look-on-the-screens
+  date: 2026-11-14
+  area: frontend
+  change: >-
+    A person's avatar look saves to the event, so the Connections tab, a person's profile and the
+    Profile tab's "How others see you" draw it, and a colour changed on one phone reaches another at
+    its next poll. A phone that saved colours before this sends them once.

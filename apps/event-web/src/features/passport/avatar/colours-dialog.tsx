@@ -23,7 +23,8 @@ export function ColoursDialog({ userId }: { userId: string }) {
         <DialogHeader>
           <DialogTitle>Your look</DialogTitle>
           <DialogDescription>
-            Your avatar changes as you pick. Only this device remembers it.
+            Your avatar changes as you pick. Anyone who taps your token, or whose token you tap,
+            sees it.
           </DialogDescription>
         </DialogHeader>
         <AvatarColourPicker userId={userId} />

@@ -70,6 +70,7 @@ import {
   GROUP_COUNT_MIN,
 } from "@/lib/group-fields";
 import { phraseProblem, phraseWords } from "@/lib/phrase";
+import { AVATAR_PART_MAX, AVATAR_PARTS, avatarPartFits } from "@/lib/avatar-look";
 import { BIO_MAX, CONTACT_LINE_MAX, fitsLimit } from "@/lib/profile";
 
 /**
@@ -310,6 +311,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     answers: user.answers ?? {},
     bio: user.bio ?? null,
     contact_line: user.contact_line ?? null,
+    avatar: user.avatar ?? null,
   });
 
   const stationById = (id: string) => data.stations.find((s) => s.id === id);
@@ -731,6 +733,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             ...connection,
             ...(phrase && { word: phrase.given.get(user.connections![index]!) ?? null }),
             id: connection.id ?? null,
+            avatar: connection.avatar ?? null,
             dice: connection.dice ?? null,
             reaction: connection.reaction ? reactionNow(connection.reaction, their_ms) : null,
             shared:
@@ -764,7 +767,13 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           stamps,
           recent_taps,
           connection_requests: (user.connection_requests ?? []).map(
-            ({ id, display_name, bio, requested_at }) => ({ id, display_name, bio, requested_at }),
+            ({ id, display_name, bio, avatar, requested_at }) => ({
+              id,
+              display_name,
+              bio,
+              avatar: avatar ?? null,
+              requested_at,
+            }),
           ),
           connections,
           ...(phrase && {
@@ -801,6 +810,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               display_name: request.display_name,
               bio: request.bio,
               contact_line: null,
+              avatar: request.avatar ?? null,
               kind: "B",
               match: 40,
               dice: reaction
@@ -912,7 +922,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             {
               path: [],
               message:
-                "A request needs at least one of display_name, answers, bio and contact_line",
+                "A request needs at least one of display_name, answers, bio, contact_line and avatar",
             },
           ]);
         }
@@ -925,6 +935,17 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
             path: ["contact_line"],
             message: `contact_line must be at most ${CONTACT_LINE_MAX} characters`,
           });
+        }
+        if (input.avatar) {
+          // 8.7: the service checks the shape, not the keys, so a new colour needs no deploy.
+          for (const part of AVATAR_PARTS) {
+            if (!avatarPartFits(input.avatar[part])) {
+              issues.push({
+                path: ["avatar", part],
+                message: `${part} must be 1 to ${AVATAR_PART_MAX} lowercase letters, digits or hyphens`,
+              });
+            }
+          }
         }
 
         if (name !== undefined && !isDisplayName(name)) {
@@ -983,6 +1004,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         }
         if (input.bio !== undefined) user.bio = bio || null;
         if (input.contact_line !== undefined) user.contact_line = contactLine || null;
+        if (input.avatar !== undefined) user.avatar = input.avatar ? { ...input.avatar } : null;
         return { user: toUser(user) };
       }),
 

@@ -5,8 +5,10 @@ import {
   coloursFor,
   DEFAULT_COLOURS,
   HAIR_COLOURS,
+  lookFrom,
   parseColours,
   recolour,
+  sameColours,
   SKIN_TONES,
   SUIT_COLOURS,
 } from "@/features/passport/avatar/avatar-colours";
@@ -95,5 +97,44 @@ describe("parseColours", () => {
     const saved = JSON.stringify({ character: "dress", skin: "medium", hair: "green", suit: 4 });
 
     expect(parseColours(saved)).toEqual({ ...coloursFor("dress"), skin: "medium" });
+  });
+});
+
+describe("a look the service kept (BAC-191)", () => {
+  it("draws the character and colours it names", () => {
+    expect(lookFrom({ character: "dress", skin: "deep", hair: "blonde", suit: "navy" })).toEqual({
+      character: "dress",
+      skin: "deep",
+      hair: "blonde",
+      suit: "navy",
+    });
+  });
+
+  it("draws the default for a null or missing look", () => {
+    expect(lookFrom(null)).toEqual(DEFAULT_COLOURS);
+    expect(lookFrom(undefined)).toEqual(DEFAULT_COLOURS);
+  });
+
+  it("draws each part's default for a value it doesn't know", () => {
+    expect(lookFrom({ character: "dress", skin: "purple", hair: "black", suit: "tartan" })).toEqual(
+      { character: "dress", skin: "light", hair: "black", suit: "emerald" },
+    );
+  });
+
+  it("draws the suit character for a character it doesn't know", () => {
+    expect(lookFrom({ character: "wizard", skin: "deep", hair: "grey", suit: "ivory" })).toEqual({
+      character: "suit",
+      skin: "deep",
+      hair: "grey",
+      suit: "ivory",
+    });
+  });
+});
+
+describe("sameColours", () => {
+  it("tells a choice from the same choice, and from another", () => {
+    expect(sameColours(DEFAULT_COLOURS, coloursFor("suit"))).toBe(true);
+    expect(sameColours(DEFAULT_COLOURS, coloursFor("dress"))).toBe(false);
+    expect(sameColours(DEFAULT_COLOURS, { ...DEFAULT_COLOURS, skin: "deep" })).toBe(false);
   });
 });

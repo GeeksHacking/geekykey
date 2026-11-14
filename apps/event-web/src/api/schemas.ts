@@ -36,6 +36,14 @@ const role = z.enum(["participant", "organizer"]);
 const tapStatus = z.enum(["accepted", "cooldown", "no_game"]);
 const tapSource = z.enum(["nfc", "qr_fallback"]);
 
+// BAC-191. The service checks the shape, not the keys, so a new colour on the screens needs no deploy.
+const avatarLookSchema = z.object({
+  character: z.string(),
+  skin: z.string(),
+  hair: z.string(),
+  suit: z.string(),
+});
+
 const userSchema = z.object({
   id: z.string(),
   display_name: z.nullable(z.string()),
@@ -45,6 +53,7 @@ const userSchema = z.object({
   // BAC-147. A missing value reads as none, so the screens work with a service from before it.
   bio: z.prefault(z.nullable(z.string()), null),
   contact_line: z.prefault(z.nullable(z.string()), null),
+  avatar: z.prefault(z.nullable(avatarLookSchema), null),
 });
 
 const questionSchema = z.object({
@@ -74,6 +83,7 @@ const connectionSchema = z.object({
   display_name: z.prefault(z.nullable(z.string()), null),
   bio: z.prefault(z.nullable(z.string()), null),
   contact_line: z.prefault(z.nullable(z.string()), null),
+  avatar: z.prefault(z.nullable(avatarLookSchema), null),
   kind: z.nullable(z.string()),
   match: z.nullable(z.int().check(z.gte(0), z.lte(100))),
   // BAC-150, approved for the next agreement version, section 8.1. A previous service sends no dice.
@@ -99,6 +109,7 @@ const connectionRequestSchema = z.object({
   display_name: z.string(),
   // BAC-151. A missing bio reads as none, so the screens work with a service from before it.
   bio: z.prefault(z.nullable(z.string()), null),
+  avatar: z.prefault(z.nullable(avatarLookSchema), null),
   requested_at: isoTimestamp,
 });
 

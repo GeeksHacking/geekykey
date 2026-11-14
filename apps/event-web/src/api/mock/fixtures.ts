@@ -1,5 +1,6 @@
 import type {
   AcceptConnectionRequestStatus,
+  AvatarLook,
   Challenge,
   ConnectAcross,
   Connection,
@@ -47,6 +48,8 @@ export interface MockUser {
   /** Absent reads as none, as it does for `contact_line` (BAC-147). */
   bio?: string | null;
   contact_line?: string | null;
+  /** The saved look, or absent for none (BAC-191). */
+  avatar?: AvatarLook | null;
   /** Waiting for this user to accept or decline, newest first (BAC-149). Absent reads as none. */
   connection_requests?: MockConnectionRequest[];
   /**
@@ -244,6 +247,8 @@ export function createFixtures(now: number = Date.now()): MockData {
       has_name: true,
       bio: "Second-year CS. Building a robot arm that can pour teh tarik.",
       contact_line: "@alextan on Telegram",
+      // The service keeps the look, so another phone draws this one (BAC-191).
+      avatar: { character: "suit", skin: "warm", hair: "auburn", suit: "emerald" },
       answers: {
         team_role: "ideas",
         learning: "trying",
@@ -258,6 +263,7 @@ export function createFixtures(now: number = Date.now()): MockData {
           accept_game: "reaction",
           display_name: "Mei Lin Koh",
           bio: "Into robotics and good coffee. Looking for someone to build with.",
+          avatar: { character: "dress", skin: "light", hair: "black", suit: "burgundy" },
           requested_at: new Date(now - 38_000).toISOString(),
         },
       ],
@@ -269,6 +275,7 @@ export function createFixtures(now: number = Date.now()): MockData {
           // The two with an ID open a profile; the third, from a service before BAC-156, doesn't.
           id: "c_weilin",
           display_name: "Wei Lin Chong",
+          avatar: { character: "suit", skin: "brown", hair: "black", suit: "navy" },
           dice: { your_roll: 5, their_roll: 2, result: "win" },
           bio: "Looking for a hardware teammate. Ask me about sensors and sourdough.",
           contact_line: "@weilin_c on Telegram",
