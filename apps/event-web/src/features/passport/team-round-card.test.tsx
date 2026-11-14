@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
 import { mockDuelRound } from "@/api/mock/duel-round";
+import type { OpenSeat } from "@/api/types";
 import { TeamRoundCard } from "@/features/passport/team-round-card";
 import { piecesEarned, wornPieces } from "@/features/passport/avatar/pieces";
 import { mePollInterval } from "@/lib/me-poll-interval";
@@ -104,6 +105,35 @@ it("budgets faster polling only for live rounds and awards one piece per round w
   expect(piecesEarned([])).toBe(0);
   expect(piecesEarned([], 3)).toBe(3);
   expect(wornPieces([], 9)).toBe(4);
+});
+
+it("budgets faster polling while the sitter's seat is open", async () => {
+  const api = createMockClient({ storage: null, latencyMs: [0, 0] });
+  api.mock.setSession("dev-user-1");
+  const me = await api.me();
+  const seat: OpenSeat = {
+    status: "open",
+    role: "sitter",
+    station_id: "st_seat",
+    booth: "A3",
+    opened_at: "2026-11-17T08:00:00.000Z",
+    closes_at: "2026-11-17T08:01:00.000Z",
+    taken_at: null,
+    other_display_name: null,
+    prompt: null,
+  };
+
+  expect(mePollInterval({ ...me, open_seat: seat }, false, true)).toBe(3_000);
+  expect(mePollInterval({ ...me, open_seat: seat }, false, false)).toBe(10_000);
+  expect(mePollInterval({ ...me, open_seat: { ...seat, status: "taken" } }, false, true)).toBe(
+    10_000,
+  );
+  expect(
+    mePollInterval({ ...me, open_seat: { ...seat, status: "taken", role: "taker" } }, false, true),
+  ).toBe(10_000);
+  expect(mePollInterval({ ...me, open_seat: { ...seat, status: "closed" } }, false, true)).toBe(
+    10_000,
+  );
 });
 
 it.each(["mixed", "team-win"] as const)(

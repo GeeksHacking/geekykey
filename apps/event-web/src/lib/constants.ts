@@ -7,8 +7,8 @@ export const POLL_MAP_MS = 2_000;
 export const POLL_MAP_RELAY_MS = 1_000;
 /** The participant's own stamps and points. Not in the agreement's table; chosen so a tap shows up within one poll. */
 export const POLL_ME_MS = 10_000;
-/** Mounted active round: 20 /me + at most 12 /me/group = 32 of 60 requests/minute. */
-export const POLL_ME_ROUND_MS = 3_000;
+/** Mounted live round or open seat: 20 /me + at most 12 /me/group = 32 of 60 requests/minute. */
+export const POLL_ME_FAST_MS = 3_000;
 /** The participant's group card: often while they wait, less once they know where to go (spec: participant groups). */
 export const POLL_MY_GROUP_WAITING_MS = 5_000;
 export const POLL_MY_GROUP_PLACED_MS = 15_000;

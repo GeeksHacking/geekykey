@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
-import type { Connection, MeResponse, Stamp } from "@/api/types";
+import type { Connection, ConnectionRequest, MeResponse, OpenSeat, Stamp } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { makeMe } from "@/test/make-me";
@@ -49,6 +49,7 @@ const answersGame: MeResponse["questions"] = [
 
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
 });
 
 function renderDashboard() {
@@ -65,6 +66,34 @@ function renderDashboard() {
 }
 
 describe("DashboardScreen", () => {
+  it("shows the open seat card, and the taker's request only there (FRO-179)", () => {
+    const seat: OpenSeat = {
+      status: "taken",
+      role: "sitter",
+      station_id: "st_seat",
+      booth: "A3",
+      opened_at: "2026-11-17T08:00:00.000Z",
+      closes_at: "2026-11-17T08:01:00.000Z",
+      taken_at: "2026-11-17T08:00:12.000Z",
+      other_display_name: "Mei Lin Koh",
+      prompt: "What are you building?",
+    };
+    const request: ConnectionRequest = {
+      id: "cr_seat",
+      display_name: "Mei Lin Koh",
+      bio: "Sensors and sourdough",
+      avatar: null,
+      requested_at: "2026-11-17T08:00:12.000Z",
+    };
+    state.me = makeMe({ open_seat: seat, connection_requests: [request] });
+    renderDashboard();
+
+    const card = screen.getByRole("region", { name: "Open seat" });
+    expect(within(card).getByText("Mei Lin Koh took your seat.")).toBeInTheDocument();
+    expect(within(card).getByText("Mei Lin Koh wants to connect.")).toBeInTheDocument();
+    expect(screen.getAllByText("Mei Lin Koh wants to connect.")).toHaveLength(1);
+  });
+
   it("gives a participant the group card, and an organiser none", async () => {
     state.me = baseMe;
     const { unmount } = renderDashboard();

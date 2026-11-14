@@ -108,6 +108,27 @@ describe("me response contract", () => {
     expect(() => bioOf({ bio: 7 })).toThrow(NetworkError);
   });
 
+  it("reads the user's open seat, and treats a missing one as none (BAC-190)", () => {
+    const seat = {
+      status: "taken" as const,
+      role: "sitter" as const,
+      station_id: "station-1",
+      booth: "A3",
+      opened_at: "2026-11-17T08:00:00.000Z",
+      closes_at: "2026-11-17T08:01:00.000Z",
+      taken_at: "2026-11-17T08:00:12.000Z",
+      other_display_name: "Ben Tan",
+      prompt: "What are you building?",
+    };
+
+    expect(parseMeResponse({ ...makeMe(), open_seat: seat }).open_seat).toEqual(seat);
+    expect(parseMeResponse({ ...makeMe(), open_seat: null }).open_seat).toBeNull();
+    expect(parseMeResponse(makeMe()).open_seat).toBeUndefined();
+    expect(() =>
+      parseMeResponse({ ...makeMe(), open_seat: { ...seat, status: "waiting" } }),
+    ).toThrow(NetworkError);
+  });
+
   it("reads a bio and a contact line, and treats missing ones as none (BAC-147)", () => {
     const connection = {
       connected_at: "2026-11-12T08:12:30.000Z",

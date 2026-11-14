@@ -776,6 +776,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
               requested_at,
             }),
           ),
+          open_seat: user.open_seat ?? null,
           connections,
           ...(phrase && {
             phrase: {

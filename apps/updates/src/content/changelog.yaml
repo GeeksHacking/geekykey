@@ -2781,3 +2781,10 @@
     stations beep and say where it is, and someone from another group taps the same station to take
     it. The station then shows both first names and a question for the two to ask each other, and
     the person who opened the seat gets a connection request to accept or decline.
+
+- id: open-seat-card
+  date: 2026-11-14
+  area: frontend
+  change: >-
+    The dashboard shows your open seat: the countdown while it is open, who took it, the prompt to
+    ask each other, and the taker's request with Accept and Decline.

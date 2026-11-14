@@ -113,6 +113,19 @@ const connectionRequestSchema = z.object({
   requested_at: isoTimestamp,
 });
 
+// BAC-190, for the agreement version after 0.14. Missing when the event has no open seat.
+const openSeatSchema = z.object({
+  status: z.enum(["open", "taken", "closed"]),
+  role: z.enum(["sitter", "taker"]),
+  station_id: z.string(),
+  booth: z.nullable(z.string()),
+  opened_at: isoTimestamp,
+  closes_at: isoTimestamp,
+  taken_at: z.nullable(isoTimestamp),
+  other_display_name: z.nullable(z.string()),
+  prompt: z.nullable(z.string()),
+});
+
 const stampSchema = z.object({
   station_id: z.string(),
   name: z.string(),
@@ -327,6 +340,8 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
       // Their own word is always one they have, which the card names.
       .check(z.refine(({ words, your_word }) => typeof words[your_word] === "string")),
   ),
+  // BAC-190, for the agreement version after 0.14. Missing when the event has no open seat.
+  open_seat: z.optional(z.nullable(openSeatSchema)),
 });
 
 /** Accepting a connection request's answer (BAC-149, agreement 0.14). */
