@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MPH_EXAMPLE_PLAN } from "@/features/map/floor-plan";
 import { placeStations } from "@/features/map/place-stations";
 import { markerWidth } from "@/features/map/marker-size";
+import type { SeatMark } from "@/features/map/seat-marks";
 import { mapStation } from "@/features/map/test-stations";
 
 describe("placeStations", () => {
@@ -61,5 +62,25 @@ describe("placeStations", () => {
       const room = (markerWidth(left.station) + markerWidth(right.station)) / 2;
       expect(right.x - left.x).toBeGreaterThanOrEqual(room);
     }
+  });
+
+  it("spaces a shared booth by the open seat label while it is shown", () => {
+    const open = mapStation({
+      station_id: "open",
+      booth: "C5",
+      open_seat_until: "2026-11-17T08:01:00.000Z",
+    });
+    const quiet = mapStation({ station_id: "quiet", booth: "C5" });
+    const marks = new Map<string, SeatMark>([["open", { state: "open", seconds: 42 }]]);
+    const { placed } = placeStations([open, quiet], MPH_EXAMPLE_PLAN, marks);
+    const [left, right] = placed;
+    if (!left || !right) throw new Error("missing marker");
+
+    const room =
+      (markerWidth(left.station, marks.get(left.station.station_id)) +
+        markerWidth(right.station, marks.get(right.station.station_id))) /
+      2;
+    expect(right.x - left.x).toBeGreaterThanOrEqual(room);
+    expect(markerWidth(open, marks.get("open"))).toBeGreaterThan(markerWidth(open));
   });
 });

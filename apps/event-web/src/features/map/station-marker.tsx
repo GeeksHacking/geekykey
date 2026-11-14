@@ -1,16 +1,19 @@
 import { PILL_FONT, pillText, pillWidth, SPOT_RADIUS } from "@/features/map/marker-size";
 import type { PlacedStation } from "@/features/map/place-stations";
+import { seatText, type SeatMark } from "@/features/map/seat-marks";
 import { cn } from "@/lib/utils";
 
 /**
- * One station on the plan: a yellow spot with its booth's code, and under it how many people
- * have tapped there. A disabled station is grey, dashed and says so in words, never by colour
- * alone. The ring is what the pulse animates.
+ * One station on the plan: a yellow spot with its booth's code, under it how many people have
+ * tapped there, and, while it has one, its open seat. A disabled station is grey, dashed and says
+ * so in words, never by colour alone. The ring is what the pulse animates.
  */
-export function StationMarker({ placed }: { placed: PlacedStation }) {
+export function StationMarker({ placed, seat }: { placed: PlacedStation; seat?: SeatMark }) {
   const { station, booth, x, y } = placed;
   const pill = pillText(station);
   const width = pillWidth(pill);
+  const seatLabel = seat ? seatText(seat) : null;
+  const seatLabelWidth = seatLabel ? pillWidth(seatLabel) : 0;
 
   return (
     <g transform={`translate(${x} ${y})`} data-station={station.station_id}>
@@ -63,6 +66,31 @@ export function StationMarker({ placed }: { placed: PlacedStation }) {
           {pill}
         </text>
       </g>
+      {seat && seatLabel ? (
+        <g data-open-seat={seat.state} transform={`translate(0 ${SPOT_RADIUS + 38})`}>
+          <rect
+            x={-seatLabelWidth / 2}
+            width={seatLabelWidth}
+            height="22"
+            rx="6"
+            className={
+              seat.state === "open"
+                ? "fill-primary stroke-primary-edge"
+                : "fill-muted stroke-border"
+            }
+          />
+          <text
+            x="0"
+            y="16"
+            textAnchor="middle"
+            fontSize={PILL_FONT}
+            fontWeight="600"
+            className={seat.state === "open" ? "fill-primary-foreground" : "fill-muted-foreground"}
+          >
+            {seatLabel}
+          </text>
+        </g>
+      ) : null}
     </g>
   );
 }

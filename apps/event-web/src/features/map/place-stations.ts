@@ -1,6 +1,7 @@
 import type { MapStation } from "@/api/types";
 import type { Booth, FloorPlan } from "@/features/map/floor-plan";
 import { markerWidth } from "@/features/map/marker-size";
+import type { SeatMark } from "@/features/map/seat-marks";
 
 export interface PlacedStation {
   station: MapStation;
@@ -24,7 +25,11 @@ const SHARED_BOOTH_GAP = 8;
  * an organizer types it. Agreement 9.10 has the screen treat a booth its plan doesn't name the
  * same as none, so both kinds go to `unplaced` rather than off the map.
  */
-export function placeStations(stations: readonly MapStation[], plan: FloorPlan): Placement {
+export function placeStations(
+  stations: readonly MapStation[],
+  plan: FloorPlan,
+  seatMarks?: ReadonlyMap<string, SeatMark>,
+): Placement {
   const booths = new Map(plan.booths.map((booth) => [booth.name.toUpperCase(), booth]));
   const atBooth = new Map<Booth, MapStation[]>();
   const unplaced: MapStation[] = [];
@@ -39,9 +44,11 @@ export function placeStations(stations: readonly MapStation[], plan: FloorPlan):
   }
 
   // Stations sharing a booth sit in a row centred on it, each as wide as its marker, so their
-  // rings and counts never overlap.
+  // rings, counts and open seat labels never overlap.
   const placed = [...atBooth].flatMap(([booth, sharing]) => {
-    const widths = sharing.map((station) => markerWidth(station) + SHARED_BOOTH_GAP);
+    const widths = sharing.map(
+      (station) => markerWidth(station, seatMarks?.get(station.station_id)) + SHARED_BOOTH_GAP,
+    );
     let left = booth.x - widths.reduce((sum, width) => sum + width, 0) / 2;
     return sharing.map((station, index) => {
       const width = widths[index] ?? 0;

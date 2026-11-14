@@ -482,6 +482,7 @@ describe("organizer response contract", () => {
           taps: 57,
           unique_participants: 41,
           last_tap_at: "2026-10-10T08:58:12.004Z",
+          open_seat_until: "2026-11-17T08:00:42.000Z",
         },
         {
           station_id: "s2",
@@ -492,6 +493,7 @@ describe("organizer response contract", () => {
           taps: 0,
           unique_participants: 0,
           last_tap_at: null,
+          open_seat_until: null,
         },
       ],
     };
@@ -500,6 +502,9 @@ describe("organizer response contract", () => {
     expect(() => parseMapResponse({ stations: [{ ...map.stations[0], taps: -1 }] })).toThrow(
       NetworkError,
     );
+    expect(() =>
+      parseMapResponse({ stations: [{ ...map.stations[0], open_seat_until: "soon" }] }),
+    ).toThrow(NetworkError);
 
     const withConnections = {
       ...map,

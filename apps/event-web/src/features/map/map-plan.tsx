@@ -4,6 +4,7 @@ import type { MapStation } from "@/api/types";
 import type { FloorPlan } from "@/features/map/floor-plan";
 import { FloorPlanDrawing } from "@/features/map/floor-plan-drawing";
 import type { PlacedStation } from "@/features/map/place-stations";
+import type { SeatMark } from "@/features/map/seat-marks";
 import { StationMarker } from "@/features/map/station-marker";
 import { useMapPulses } from "@/features/map/use-map-pulses";
 import { cn } from "@/lib/utils";
@@ -19,12 +20,14 @@ export function MapPlan({
   plan,
   placed,
   stations,
+  seatMarks,
   className,
   children,
 }: {
   plan: FloorPlan;
   placed: readonly PlacedStation[];
   stations: readonly MapStation[];
+  seatMarks?: ReadonlyMap<string, SeatMark>;
   className?: string;
   children?: ReactNode;
 }) {
@@ -43,7 +46,11 @@ export function MapPlan({
       {children}
       <g aria-hidden>
         {placed.map((item) => (
-          <StationMarker key={item.station.station_id} placed={item} />
+          <StationMarker
+            key={item.station.station_id}
+            placed={item}
+            seat={seatMarks?.get(item.station.station_id)}
+          />
         ))}
       </g>
     </svg>

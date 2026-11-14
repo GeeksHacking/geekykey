@@ -1,4 +1,5 @@
 import { isApiErrorCode } from "@/api/errors";
+import type { MapStation } from "@/api/types";
 import { DataSourceNotice } from "@/components/layout/data-source-notice";
 import { ErrorState } from "@/components/layout/error-state";
 import { InlineQueryError } from "@/components/layout/inline-query-error";
@@ -13,11 +14,15 @@ import { MapPlan } from "@/features/map/map-plan";
 import { placeStations } from "@/features/map/place-stations";
 import { StationList } from "@/features/map/station-list";
 import { useMap } from "@/features/map/use-map";
+import { useOpenSeatMarks } from "@/features/map/use-open-seat-marks";
 import { formatTimeWithSeconds } from "@/lib/format";
 import { showStaleNote } from "@/lib/rate-limit";
 import { useSignOut } from "@/lib/use-sign-out";
 
 const plan = MPH_EXAMPLE_PLAN;
+
+/** A stable empty list for the loading and error states, so the seat hook sees one array. */
+const EMPTY_STATIONS: readonly MapStation[] = [];
 
 /**
  * On a big screen the plan takes the full height left under the header and the list sits
@@ -32,6 +37,8 @@ const LAYOUT =
 export function MapScreen() {
   const map = useMap();
   const signOut = useSignOut("/map");
+  const stations = map.data?.stations ?? EMPTY_STATIONS;
+  const seatMarks = useOpenSeatMarks(stations, map.dataUpdatedAt);
 
   // A forbidden answer replaces the map even after it has loaded: polling stops on it, so
   // a frozen map with no way to log out would be all that's left.
@@ -62,7 +69,7 @@ export function MapScreen() {
     );
   } else {
     const data = map.data;
-    const { placed, unplaced } = placeStations(data.stations, plan);
+    const { placed, unplaced } = placeStations(data.stations, plan, seatMarks);
     body = (
       <MapRelay stations={data.stations} placed={placed}>
         {({ layer, status }) => (
@@ -74,6 +81,7 @@ export function MapScreen() {
               plan={plan}
               placed={placed}
               stations={data.stations}
+              seatMarks={seatMarks}
               className="lg:col-start-1 lg:row-span-2 lg:row-start-1"
             >
               {layer}
@@ -95,7 +103,7 @@ export function MapScreen() {
                   board and gives it a booth.
                 </p>
               ) : (
-                <StationList placed={placed} unplaced={unplaced} />
+                <StationList placed={placed} unplaced={unplaced} seatMarks={seatMarks} />
               )}
             </div>
           </div>

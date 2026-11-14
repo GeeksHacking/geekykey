@@ -243,6 +243,134 @@ describe("MapScreen", () => {
     await screen.findByRole("region", { name: "On the map" });
     expect(screen.queryByRole("region", { name: "Connections" })).not.toBeInTheDocument();
   });
+
+  it("marks an open seat on the plan and in the list", async () => {
+    const until = new Date(Date.now() + 42_000).toISOString();
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValue({
+        stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: until })],
+      });
+    });
+
+    const onMap = within(await screen.findByRole("region", { name: "On the map" }));
+    expect(onMap.getByText(/Open seat \d+s/)).toBeInTheDocument();
+    const mark = document.querySelector('[data-open-seat="open"]');
+    expect(mark?.textContent).toMatch(/Open seat \d+s/);
+  });
+
+  it("shows Taken for one poll when the seat goes before its closing time", async () => {
+    const open = {
+      stations: [
+        mapStation({
+          station_id: "s1",
+          booth: "B1",
+          open_seat_until: new Date(Date.now() + 60_000).toISOString(),
+        }),
+      ],
+    };
+    const gone = {
+      stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: null })],
+    };
+    const { poll } = setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map")
+        .mockResolvedValueOnce(open)
+        .mockResolvedValueOnce(gone)
+        .mockImplementation(async () => ({
+          stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: null })],
+        }));
+    });
+
+    const onMap = within(await screen.findByRole("region", { name: "On the map" }));
+    await poll();
+    await waitFor(() => expect(onMap.getByText("Taken")).toBeInTheDocument());
+    expect(document.querySelector('[data-open-seat="taken"]')).not.toBeNull();
+
+    await poll();
+    await waitFor(() => expect(onMap.queryByText("Taken")).not.toBeInTheDocument());
+  });
+
+  it("clears a seat that closed at its closing time without Taken", async () => {
+    const closed = {
+      stations: [
+        mapStation({
+          station_id: "s1",
+          booth: "B1",
+          open_seat_until: new Date(Date.now() - 1_000).toISOString(),
+        }),
+      ],
+    };
+    const gone = {
+      stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: null })],
+    };
+    const { poll } = setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValueOnce(closed).mockResolvedValue(gone);
+    });
+
+    const onMap = within(await screen.findByRole("region", { name: "On the map" }));
+    expect(onMap.getAllByText("Open seat").length).toBeGreaterThan(0);
+    await poll();
+    await waitFor(() => expect(onMap.queryByText("Open seat")).not.toBeInTheDocument());
+    expect(screen.queryByText("Taken")).not.toBeInTheDocument();
+  });
+
+  it("shows the open seat in the list for a station with no booth", async () => {
+    const until = new Date(Date.now() + 42_000).toISOString();
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValue({
+        stations: [mapStation({ station_id: "s1", booth: null, open_seat_until: until })],
+      });
+    });
+
+    const offMap = within(await screen.findByRole("region", { name: "Not on the map" }));
+    const row = offMap.getByText("3D Printing Booth").closest("li");
+    if (!row) throw new Error("missing station row");
+    expect(row).toHaveTextContent(/Open seat \d+s/);
+  });
+
+  it("adds no poll for the open seat", async () => {
+    let calls = 0;
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      const map = api.map.bind(api);
+      vi.spyOn(api, "map").mockImplementation(async () => {
+        calls += 1;
+        return map();
+      });
+    });
+
+    await screen.findByRole("region", { name: "On the map" });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 1_200)));
+    expect(calls).toBe(1);
+  });
+
+  it("keeps the relay drawing and the open seat mark together", async () => {
+    const until = new Date(Date.now() + 42_000).toISOString();
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValue({
+        stations: [
+          mapStation({ station_id: "s1", game: "relay", name: null, booth: "B1" }),
+          mapStation({ station_id: "s2", game: "relay", name: null, booth: "B2" }),
+          mapStation({
+            station_id: "seat",
+            game: "open_seat",
+            name: "Open Seat Station",
+            booth: "B4",
+            open_seat_until: until,
+          }),
+        ],
+        connections: { count: 1, links: [[1, 2]] },
+      });
+      vi.spyOn(api, "mapRelay").mockResolvedValue(relayPoll());
+    });
+
+    await screen.findByRole("region", { name: "Reactor Relay" });
+    const onMap = within(screen.getByRole("region", { name: "On the map" }));
+    const row = onMap.getByText("Open Seat Station").closest("li");
+    if (!row) throw new Error("missing station row");
+    expect(row).toHaveTextContent(/Open seat \d+s/);
+    const plan = screen.getByRole("img", { name: /MPH/ });
+    expect(plan.querySelector("[data-relay-line]")).not.toBeNull();
+    expect(plan.querySelector('[data-open-seat="open"]')).not.toBeNull();
+  });
 });
 
 it("adds the relay to the plan and side column without replacing the connection web", async () => {

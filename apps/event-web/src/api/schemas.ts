@@ -222,6 +222,8 @@ const mapResponseSchema: z.ZodMiniType<MapResponse> = z.object({
       taps: count,
       unique_participants: count,
       last_tap_at: z.nullable(isoTimestamp),
+      // BAC-190, for the agreement version after 0.14. Missing when the event has no open seat.
+      open_seat_until: z.optional(z.nullable(isoTimestamp)),
     }),
   ),
   connections: z.optional(
