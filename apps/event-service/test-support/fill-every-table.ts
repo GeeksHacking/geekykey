@@ -20,6 +20,7 @@ import { setupFixture } from "../src/test-helpers.ts";
 import { duelRounds, duelRoundPlayers, duels } from "../src/games/team-duels/schema.ts";
 
 import { relayGames, relayLock, relayTransfers } from "../src/games/relay/schema.ts";
+import { openSeatLock, openSeats } from "../src/games/open-seat/schema.ts";
 
 const AT = "2026-11-12T12:00:00.000Z";
 
@@ -83,6 +84,17 @@ export async function fillEveryTable() {
     toGroupId: "group-2",
     calledAt: AT,
     closesAt: AT,
+  });
+  await db.insert(openSeatLock).values({ id: 1 });
+  await db.insert(openSeats).values({
+    id: crypto.randomUUID(),
+    stationId,
+    sitterId: userId,
+    openedAt: AT,
+    closesAt: AT,
+    takerId: other,
+    takenAt: AT,
+    prompt: ["What are you", "building?"],
   });
   return fixture;
 }

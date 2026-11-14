@@ -142,13 +142,14 @@ const MOCK_LOGIN_LINKS: Record<string, string> = {
 };
 
 /**
- * 9.2's `games`, in the order to show them. The Event Service's showcase lists these three
- * (BAC-184), and 9.11 refuses any id that isn't here.
+ * 9.2's `games`, in the order to show them. The Event Service's showcase lists these four
+ * (BAC-184, BAC-190), and 9.11 refuses any id that isn't here.
  */
 const STATION_GAMES: EventGame[] = [
   { id: "passport", name: "Passport" },
   { id: "team_duels", name: "Team duels" },
   { id: "relay", name: "Relay" },
+  { id: "open_seat", name: "Open seat" },
 ];
 
 const HTTP_STATUS: Record<ErrorCode, number> = {

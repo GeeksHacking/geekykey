@@ -134,9 +134,53 @@ export interface ConnectionsWeb {
 /** The base checks event names, answers and organizer roles; the game decides when to check. */
 export type ReadyToConnect = (db: Db | Tx, userId: string) => Promise<boolean>;
 
+/** A request another game sent, as its rule sees it (the API agreement's section 4, "Connections", BAC-190). */
+export interface RuledRequest {
+  requestId: string;
+  /** Who sent it. */
+  fromId: string;
+  /** Who it waits for. */
+  toId: string;
+}
+
+/**
+ * Another game's own rule for the requests it sends, such as a taken open seat's (BAC-190),
+ * which judges them in place of the Groups screen's connection rule when they are accepted
+ * (the API agreement's section 4, "Connections", and 8.10).
+ */
+export interface RequestRule {
+  /**
+   * Null when the request isn't one of this game's. Otherwise, whether its rule refuses the two
+   * now, by `same_group`, or lets them connect, by null. Called in the accept's transaction
+   * before any lock, so it reads without locking.
+   */
+  judge(tx: Tx, request: RuledRequest): Promise<{ refusal: "same_group" | null } | null>;
+  /** In the transaction that connects the two through the request, for the game's record. */
+  connected(tx: Tx, requestId: string, now: Date): Promise<void>;
+}
+
+/**
+ * What a request another game sends gives: it waits, it made the connection at once because
+ * the other person's request already waited for the sender, or the two are connected already.
+ */
+export type GameRequestResult =
+  | { status: "waiting" | "connected"; requestId: string }
+  | { status: "already_connected" };
+
 export interface ConnectionsGame {
   /** What each connection adds to a user's points, the same whatever the match. */
   readonly pointsEach: number;
+  /**
+   * Sends `fromId`'s request to `toId` for another game, inside that game's transaction, with
+   * the game's own rule already passed, so neither the kinds, the groups nor setup are judged
+   * here (BAC-190). A request of `fromId`'s that already waits is kept, and one of `toId`'s
+   * waiting for `fromId` is accepted, as a half back does.
+   */
+  requestFor(
+    tx: Tx,
+    request: { fromId: string; toId: string },
+    now: Date,
+  ): Promise<GameRequestResult>;
   /** Takes one half, at `now`, and gives the meeting hand-off's status. */
   meet(db: Db, meeting: Meeting, now: Date, isReady: ReadyToConnect): Promise<MeetingStatus>;
   /** The requests waiting for the user, newest first. */

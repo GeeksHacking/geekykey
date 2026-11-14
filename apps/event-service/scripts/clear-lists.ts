@@ -19,6 +19,8 @@ import { duelRounds, duelRoundPlayers, duels } from "../src/games/team-duels/sch
 
 import { relayGames, relayLock, relayTransfers } from "../src/games/relay/schema.ts";
 
+import { openSeatLock, openSeats } from "../src/games/open-seat/schema.ts";
+
 /*
   Which tables the event clear empties, and which it keeps (spec, checkpoint
   8: `db:clear-test-data`, in event-clear.ts). clear-lists.test.ts fails while
@@ -32,6 +34,8 @@ export const clearedTables: readonly MySqlTable[] = [
   relayTransfers,
   relayGames,
   relayLock,
+  openSeats,
+  openSeatLock,
   duels,
   duelRoundPlayers,
   duelRounds,

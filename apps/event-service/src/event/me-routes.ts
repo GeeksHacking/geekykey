@@ -18,6 +18,7 @@ import { avatarSchema, bioSchema, contactLineSchema, setProfile } from "./profil
 import type { AppEnv } from "../app.ts";
 
 import type { TeamDuelsGame } from "./team-duels.ts";
+import type { MySeat, OpenSeatGame } from "./open-seat.ts";
 
 export interface MeRouteDeps {
   session: SessionOptions;
@@ -26,6 +27,8 @@ export interface MeRouteDeps {
   /** The event's connections game, from its settings, or null for none. */
   connections: ConnectionsGame | null;
   teamDuels?: TeamDuelsGame | null;
+  /** The event's open seat, or null for an event without it, whose /me has no `open_seat`. */
+  openSeat?: OpenSeatGame | null;
   /** The clock that says when what a pair share is shown, and when one connects. Tests pin it. */
   now?: () => Date;
 }
@@ -87,6 +90,21 @@ function reactionBody(reaction: Reaction) {
   };
 }
 
+/** The user's latest seat, as /me gives it (8.1, BAC-190). */
+function seatBody(seat: MySeat) {
+  return {
+    status: seat.status,
+    role: seat.role,
+    station_id: seat.stationId,
+    booth: seat.booth,
+    opened_at: seat.openedAt,
+    closes_at: seat.closesAt,
+    taken_at: seat.takenAt,
+    other_display_name: seat.otherDisplayName,
+    prompt: seat.prompt,
+  };
+}
+
 /** A request waiting for the user, as /me lists it (8.1). */
 function connectionRequestBody(request: ConnectionRequest) {
   return {
@@ -128,6 +146,7 @@ export function meRoutes({
   answers: game,
   connections: connectionsGame,
   teamDuels,
+  openSeat = null,
   now = () => new Date(),
 }: MeRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
@@ -159,6 +178,7 @@ export function meRoutes({
       ? await teamDuels.roundsOf(c.var.db, user.id, now())
       : { round: null, round_wins: 0 };
     const phrase = await loadMyPhrase(c.var.db, user.id, session.organizers, connections);
+    const seat = openSeat ? await openSeat.seatOf(c.var.db, user.id, now()) : null;
     return c.json({
       round_wins: rounds.round_wins,
       round:
@@ -206,6 +226,8 @@ export function meRoutes({
       // Only for a participant in a group while a phrase is set (BAC-169, agreement 0.14).
       // Anyone else's answer is as it was before the phrase.
       ...(phrase && { phrase: { words: phrase.words, your_word: phrase.yourWord } }),
+      // For the next version, after 0.14 (BAC-190): only when the event runs the open seat.
+      ...(openSeat && { open_seat: seat === null ? null : seatBody(seat) }),
     });
   });
 

@@ -10,14 +10,16 @@ import { adminRoutes } from "./event/admin-routes.ts";
 import { authRoutes } from "./event/auth-routes.ts";
 import { myGroupRoutes } from "./event/group-routes.ts";
 import type { Shuffle } from "./event/groups.ts";
-import type { GameOnStations } from "./event/games.ts";
+import type { GameDeps, GameOnStations } from "./event/games.ts";
 import { handoffRoutes } from "./event/handoff-routes.ts";
 import { loginLinkRoutes } from "./event/login-link-routes.ts";
 import { isRelayGame } from "./event/relay.ts";
 import { mapRoutes } from "./event/map-routes.ts";
 import { meRoutes } from "./event/me-routes.ts";
 import type { SessionOptions } from "./event/session-auth.ts";
-import { stationMessages, type StationMessages } from "./event/station-messages.ts";
+import { stationMessages } from "./event/station-messages.ts";
+import { participantIsReady } from "./event/participant-setup.ts";
+import { isOpenSeatGame } from "./event/open-seat.ts";
 import { RELAY_POLLS_PER_MINUTE, userLimit } from "./event/user-limit.ts";
 import type { TeamDuelsGame } from "./event/team-duels.ts";
 import { showcaseTeamDuels, showcaseGames } from "./showcase/games.ts";
@@ -33,8 +35,8 @@ export interface AppDeps {
   googleKeys: GoogleSigningKeys;
   /** The HTTP call to the GeekyKey Service for station messages. Tests fake it. */
   send?: typeof fetch;
-  /** A game takes the shared sender when constructed, before any taps arrive (BAC-184). */
-  games?: (deps: { stationMessages: StationMessages }) => readonly GameOnStations[];
+  /** A game takes what it needs when constructed, before any taps arrive (BAC-184, BAC-190). */
+  games?: (deps: GameDeps) => readonly GameOnStations[];
   /**
    * The clock the station board tells online stations by, and the user limit
    * counts minutes by. Tests pin it.
@@ -102,7 +104,13 @@ export function createApp(
   };
 
   const messages = stationMessages(config, { send });
-  const games = gamesForEvent({ stationMessages: messages }).flatMap((entry) =>
+  const games = gamesForEvent({
+    stationMessages: messages,
+    connections,
+    // As the meeting hand-off judges setup (handoff-routes.ts): organizers need none.
+    isReady: async (tx, id) =>
+      config.organizers.includes(id) || (await participantIsReady(tx, id, answers)),
+  }).flatMap((entry) =>
     entry.game.id !== "team_duels" ? [entry] : teamDuels ? [{ ...entry, game: teamDuels }] : [],
   );
 
@@ -135,7 +143,8 @@ export function createApp(
       links: loginLinks(config.eventServiceKey, { to: "geekykey" }),
     }),
   );
-  app.route("/api/v1/me", meRoutes({ session, answers, connections, teamDuels, now }));
+  const openSeat = games.map((entry) => entry.game).find(isOpenSeatGame) ?? null;
+  app.route("/api/v1/me", meRoutes({ session, answers, connections, teamDuels, openSeat, now }));
   app.route("/api/v1/me/group", myGroupRoutes({ session, connections, now }));
   app.route("/api/v1/admin", adminRoutes({ session, games, connections, now, shuffle }));
   app.route(
@@ -145,6 +154,7 @@ export function createApp(
       connections,
       relay: games.map((entry) => entry.game).find(isRelayGame) ?? null,
       relayLimit: userLimit(now, RELAY_POLLS_PER_MINUTE),
+      openSeat,
       now,
     }),
   );
