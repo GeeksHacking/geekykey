@@ -266,6 +266,8 @@ export function createFixtures(now: number = Date.now()): MockData {
       // here, and only here: the Event Service's `connected_at` doesn't move.
       connections: [
         connection(47_000, {
+          // The two with an ID open a profile; the third, from a service before BAC-156, doesn't.
+          id: "c_weilin",
           display_name: "Wei Lin Chong",
           dice: { your_roll: 5, their_roll: 2, result: "win" },
           bio: "Looking for a hardware teammate. Ask me about sensors and sourdough.",
@@ -277,6 +279,7 @@ export function createFixtures(now: number = Date.now()): MockData {
           gives_word: 3,
         }),
         connection(minutes(26), {
+          id: "c_farhan",
           display_name: "Farhan Iskandar",
           dice: { your_roll: 3, their_roll: 6, result: "loss" },
           bio: null,
