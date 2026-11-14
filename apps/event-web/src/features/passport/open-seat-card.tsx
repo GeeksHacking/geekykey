@@ -11,6 +11,7 @@ import {
   useAcceptConnectionRequest,
   useDeclineConnectionRequest,
 } from "@/features/passport/use-answer-connection-request";
+import { useSeatCountdown } from "@/features/passport/use-seat-countdown";
 import { SeatPollingContext } from "@/lib/seat-polling";
 
 /**
@@ -39,21 +40,15 @@ export function OpenSeatCard({
   const setSeatCardMounted = useContext(SeatPollingContext);
   const key = `gk-open-seat-dismissed:${userId}:${seat.opened_at}`;
   const [dismissed, setDismissed] = useState(() => readDismissed(key) === "1");
-  const [expired, setExpired] = useState(() => Date.now() >= Date.parse(seat.closes_at));
+  const { seconds, closed } = useSeatCountdown(
+    seat.closes_at,
+    seat.status === "open" && seat.role === "sitter",
+  );
 
   useEffect(() => {
     setSeatCardMounted?.(true);
     return () => setSeatCardMounted?.(false);
   }, [setSeatCardMounted]);
-
-  useEffect(() => {
-    if (seat.status !== "open") return;
-    const left = Date.parse(seat.closes_at) - Date.now();
-    // The initial state already covers a seat that was closed when it mounted.
-    if (left <= 0) return;
-    const timer = setTimeout(() => setExpired(true), left);
-    return () => clearTimeout(timer);
-  }, [seat.status, seat.closes_at]);
 
   function dismiss() {
     try {
@@ -70,9 +65,9 @@ export function OpenSeatCard({
   }
 
   const other = seat.other_display_name;
-  const sitterOpen = seat.status === "open" && seat.role === "sitter" && !expired;
+  const sitterOpen = seat.status === "open" && seat.role === "sitter" && !closed;
   const sitterClosed =
-    seat.role === "sitter" && (seat.status === "closed" || (seat.status === "open" && expired));
+    seat.role === "sitter" && (seat.status === "closed" || (seat.status === "open" && closed));
   const sitterTaken = seat.status === "taken" && seat.role === "sitter";
   const takerTaken = seat.status === "taken" && seat.role === "taker";
   const connectedWithOther =
@@ -86,7 +81,7 @@ export function OpenSeatCard({
   let body: ReactNode;
   if (sitterOpen) {
     status = seat.booth ? `Your seat is open at booth ${seat.booth}.` : "Your seat is open.";
-    body = <SeatCountdown closesAt={seat.closes_at} />;
+    body = <SeatCountdown seconds={seconds} />;
   } else if (sitterClosed) {
     status = "Your seat closed with no one taking it.";
     body = (
@@ -161,7 +156,7 @@ export function OpenSeatCard({
     <section aria-label="Open seat" className="relative rounded-lg border bg-card p-4 sm:p-5">
       <CornerBrackets />
       <p className="look-label text-muted-foreground">Open seat</p>
-      <p role="status" aria-live="polite" className="type-item mt-2">
+      <p role="status" aria-live="polite" className="type-lead mt-2">
         {status}
       </p>
       {body}

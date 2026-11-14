@@ -128,6 +128,30 @@ describe("the open seat card (FRO-179)", () => {
     expect(screen.getByText("Your seat closed with no one taking it.")).toBeInTheDocument();
   });
 
+  it("announces the taker when the seat is taken", () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_PARTICIPANT_ID);
+    const { Providers } = createTestProviders(api);
+    const view = render(
+      <Providers>
+        <OpenSeatCard seat={OPEN} userId={SEEDED_PARTICIPANT_ID} connections={[]} />
+      </Providers>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Your seat is open at booth A3.");
+
+    view.rerender(
+      <Providers>
+        <OpenSeatCard
+          seat={TAKEN}
+          userId={SEEDED_PARTICIPANT_ID}
+          request={request()}
+          connections={[]}
+        />
+      </Providers>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Mei Lin Koh took your seat.");
+  });
+
   it("remembers the closed seat's Dismiss for that seat only", async () => {
     const { user } = renderCard({ seat: { ...OPEN, status: "closed" } });
     const card = screen.getByRole("region", { name: "Open seat" });
