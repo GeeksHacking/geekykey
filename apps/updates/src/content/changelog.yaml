@@ -2806,3 +2806,10 @@
     The trade-offs we accept: the Event Service clears a request's time once it is accepted,
     declined or refused, so only requests still waiting are counted, and answering has a count but
     no time.
+
+- id: map-station-game-name
+  date: 2026-11-14
+  area: frontend
+  change: >-
+    The map names a station by its game, "Relay" or "Team duels", instead of "Runs relay" or
+    "Runs team_duels".
