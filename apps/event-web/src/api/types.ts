@@ -176,6 +176,27 @@ export interface ConnectionRequest {
   requested_at: string;
 }
 
+/**
+ * The user's latest open seat, as its sitter or its taker (BAC-190, agreement 8.1, for the
+ * version after 0.14). An event without the open seat leaves it out.
+ */
+export interface OpenSeat {
+  /** `open` until someone takes the seat or `closes_at` passes, then `taken` or `closed`. */
+  status: "open" | "taken" | "closed";
+  /** Whether this user opened the seat or took it. */
+  role: "sitter" | "taker";
+  station_id: string;
+  /** The station's booth, or null for none. */
+  booth: string | null;
+  opened_at: string;
+  closes_at: string;
+  taken_at: string | null;
+  /** The other person's current name once the seat is taken, or null. */
+  other_display_name: string | null;
+  /** What the station asked the two to ask each other, once taken, or null. */
+  prompt: string | null;
+}
+
 /** What accepting a connection request answers (BAC-149). One list, for the union and the schema. */
 export const ACCEPT_CONNECTION_REQUEST_STATUSES = [
   "answers_needed",
@@ -291,6 +312,11 @@ export interface MeResponse {
    * Missing for anyone else.
    */
   phrase?: MyPhrase;
+  /**
+   * The user's latest open seat, as its sitter or its taker, or null (BAC-190, agreement 8.1,
+   * for the version after 0.14). Missing when the event has no open seat.
+   */
+  open_seat?: OpenSeat | null;
 }
 
 export interface EventStationPassport {

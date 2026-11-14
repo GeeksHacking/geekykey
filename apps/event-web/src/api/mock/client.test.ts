@@ -297,6 +297,40 @@ describe("connections in /me (agreement 0.13 draft, 8.1)", () => {
   });
 });
 
+describe("the open seat in /me (BAC-190, 8.1)", () => {
+  async function meOfParticipant() {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    await api.devLogin(SEEDED_PARTICIPANT_ID);
+    return { api, me: await api.me() };
+  }
+
+  it("gives no seat by default", async () => {
+    const { me } = await meOfParticipant();
+
+    expect(me.open_seat).toBeNull();
+  });
+
+  it("gives the user's latest seat, as its sitter or its taker", async () => {
+    const { api } = await meOfParticipant();
+    const participant = api.mock.data.users.find((user) => user.id === SEEDED_PARTICIPANT_ID);
+    if (!participant) throw new Error("The fixtures have no participant");
+    const seat = {
+      status: "open" as const,
+      role: "sitter" as const,
+      station_id: "station-1",
+      booth: "A3",
+      opened_at: "2026-11-17T08:00:00.000Z",
+      closes_at: "2026-11-17T08:01:00.000Z",
+      taken_at: null,
+      other_display_name: null,
+      prompt: null,
+    };
+    participant.open_seat = seat;
+
+    expect((await api.me()).open_seat).toEqual(seat);
+  });
+});
+
 describe("the name the event shows (agreement 8.7)", () => {
   it("saves the trimmed name, answers the user, and counts it as their own", async () => {
     const api = client();

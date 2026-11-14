@@ -6,6 +6,7 @@ import type {
   Connection,
   ConnectionRequest,
   GroupPlacedHow,
+  OpenSeat,
   Question,
   Role,
   TapSource,
@@ -57,6 +58,8 @@ export interface MockUser {
    * until `shared_at`, as the Event Service does.
    */
   connections?: MockConnection[];
+  /** The latest open seat, or absent for none (BAC-190). */
+  open_seat?: OpenSeat | null;
 }
 
 /**
@@ -221,6 +224,62 @@ function createRandom(seed: number): () => number {
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
+/**
+ * The mock's demo seat for the screenshot script: `?seat=open`, `taken`, `taker` or `closed`.
+ * The query string only exists in the browser, so tests and the default demo get no seat.
+ */
+function demoSeat(now: number): OpenSeat | undefined {
+  if (typeof location === "undefined") return undefined;
+  const state = new URLSearchParams(location.search).get("seat");
+  const base = {
+    station_id: "st_seat",
+    booth: "A3",
+    opened_at: new Date(now - 5_000).toISOString(),
+    closes_at: new Date(now + 55_000).toISOString(),
+  };
+  switch (state) {
+    case "open":
+      return {
+        ...base,
+        status: "open",
+        role: "sitter",
+        taken_at: null,
+        other_display_name: null,
+        prompt: null,
+      };
+    case "taken":
+      return {
+        ...base,
+        status: "taken",
+        role: "sitter",
+        taken_at: new Date(now - 3_000).toISOString(),
+        other_display_name: "Mei Lin Koh",
+        prompt: "What are you building?",
+      };
+    case "taker":
+      return {
+        ...base,
+        status: "taken",
+        role: "taker",
+        taken_at: new Date(now - 3_000).toISOString(),
+        other_display_name: "Mei Lin Koh",
+        prompt: "What are you building?",
+      };
+    case "closed":
+      return {
+        ...base,
+        status: "closed",
+        role: "sitter",
+        taken_at: null,
+        other_display_name: null,
+        prompt: null,
+        closes_at: new Date(now - 5_000).toISOString(),
+      };
+    default:
+      return undefined;
+  }
+}
+
 export const SEEDED_PARTICIPANT_ID = "dev-user-1";
 export const SEEDED_ORGANIZER_ID = "dev-organizer-1";
 /** A guest who has not set a name yet, so the passport asks for one (agreement 8.1). */
@@ -306,6 +365,7 @@ export function createFixtures(now: number = Date.now()): MockData {
           shared: [],
         }),
       ],
+      open_seat: demoSeat(now),
     },
     {
       id: SEEDED_ORGANIZER_ID,
