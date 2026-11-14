@@ -7,17 +7,9 @@ import { ConnectionDice } from "@/features/passport/connection-dice";
 import { ConnectionReaction } from "@/features/passport/connection-reaction";
 import { ConnectionWordLine } from "@/features/passport/connection-word-line";
 import { ReactionTest } from "@/features/passport/reaction/reaction-test";
+import { sharedAnswers } from "@/features/passport/shared-answers";
 import { formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-/** Each question the two share, with the choice both picked. One no longer on the list drops out. */
-function sharedAnswers(shared: string[], me: MeResponse) {
-  return shared.flatMap((id) => {
-    const question = me.questions?.find((candidate) => candidate.id === id);
-    const choice = question?.choices.find((candidate) => candidate.id === me.user.answers[id]);
-    return question && choice ? [{ id, question: question.text, choice: choice.text }] : [];
-  });
-}
 
 interface ConnectionDetailsProps {
   connection: Connection;

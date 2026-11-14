@@ -2727,3 +2727,10 @@
     Connections has its own tab, with every person you met as a card: their name, bio and contact
     line, with the requests still to answer at the top. The tab bar counts the requests there now,
     and Home keeps the newest three with a link to the tab for the rest.
+- id: connection-profile
+  date: 2026-11-14
+  area: frontend
+  change: >-
+    Pressing a person on the Connections tab opens their profile: their bio, their contact line
+    with a Copy button, the answers you share, the dice or reaction result and when you connected.
+    A connection from an older service, with no ID, still lists but does not open.

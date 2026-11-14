@@ -25,6 +25,7 @@ import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
 import { Route as AdminStationsRouteImport } from './routes/admin/stations'
 import { Route as AdminSummaryRouteImport } from './routes/admin/summary'
 import { Route as AdminTapsRouteImport } from './routes/admin/taps'
+import { Route as AppConnectionsIdRouteImport } from './routes/_app/connections_.$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -105,6 +106,11 @@ const AdminTapsRoute = AdminTapsRouteImport.update({
   path: '/taps',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AppConnectionsIdRoute = AppConnectionsIdRouteImport.update({
+  id: '/connections_/$id',
+  path: '/connections/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/admin/summary': typeof AdminSummaryRoute
   '/admin/taps': typeof AdminTapsRoute
   '/admin/': typeof AdminIndexRoute
+  '/connections/$id': typeof AppConnectionsIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/admin/taps': typeof AdminTapsRoute
   '/': typeof AppIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/connections/$id': typeof AppConnectionsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/admin/taps': typeof AdminTapsRoute
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/_app/connections_/$id': typeof AppConnectionsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/admin/summary'
     | '/admin/taps'
     | '/admin/'
+    | '/connections/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/admin/taps'
     | '/'
     | '/admin'
+    | '/connections/$id'
   id:
     | '__root__'
     | '/admin'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/admin/taps'
     | '/_app/'
     | '/admin/'
+    | '/_app/connections_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -335,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTapsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_app/connections_/$id': {
+      id: '/_app/connections_/$id'
+      path: '/connections/$id'
+      fullPath: '/connections/$id'
+      preLoaderRoute: typeof AppConnectionsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -365,6 +384,7 @@ interface AppRouteChildren {
   AppConnectionsRoute: typeof AppConnectionsRoute
   AppPassportRoute: typeof AppPassportRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppConnectionsIdRoute: typeof AppConnectionsIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -372,6 +392,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConnectionsRoute: AppConnectionsRoute,
   AppPassportRoute: AppPassportRoute,
   AppIndexRoute: AppIndexRoute,
+  AppConnectionsIdRoute: AppConnectionsIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

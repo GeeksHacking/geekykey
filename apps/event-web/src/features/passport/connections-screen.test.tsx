@@ -89,8 +89,13 @@ function renderScreen(api: MockApiClient, screen: ReactNode = <ConnectionsScreen
     path: "/connections",
     component: () => <p>Connections tab</p>,
   });
+  const profile = createRoute({
+    getParentRoute: () => root,
+    path: "/connections/$id",
+    component: () => <p>Person's profile</p>,
+  });
   const router = createRouter({
-    routeTree: root.addChildren([home, tab]),
+    routeTree: root.addChildren([home, tab, profile]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   render(
@@ -179,6 +184,24 @@ describe("the Connections tab (FRO-182)", () => {
 
     await screen.findByRole("heading", { name: "Connections" });
     expect(screen.queryByText(/No connections yet/)).not.toBeInTheDocument();
+  });
+
+  it("opens a person's profile from their card", async () => {
+    const { user } = renderScreen(
+      setUp([connection(3, { id: "connection-1", display_name: "Mei Lin" })]),
+    );
+
+    const list = await screen.findByRole("list", { name: "Connections" });
+    await user.click(within(list).getByRole("link", { name: "Mei Lin" }));
+
+    expect(await screen.findByText("Person's profile")).toBeInTheDocument();
+  });
+
+  it("doesn't open a connection from a service that gives no ID", async () => {
+    renderScreen(setUp([connection(3, { display_name: "Mei Lin" })]));
+
+    const list = await screen.findByRole("list", { name: "Connections" });
+    expect(within(list).queryByRole("link", { name: "Mei Lin" })).not.toBeInTheDocument();
   });
 });
 
