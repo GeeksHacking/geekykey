@@ -40,7 +40,7 @@ test("the participant tabs fit, read and mark the current one at 360 px", async 
   const nav = page.locator('nav[aria-label="Sections"]:visible');
   await expect(nav).toBeVisible();
 
-  for (const name of ["Home", "Passport", "Activity"]) {
+  for (const name of ["Home", "Connections", "Passport", "Profile"]) {
     await expect(nav.getByRole("link", { name })).toBeVisible();
   }
 
