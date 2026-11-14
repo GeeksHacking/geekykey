@@ -101,11 +101,31 @@ describe("MapScreen", () => {
     });
 
     const onMap = within(await screen.findByRole("region", { name: "On the map" }));
-    expect(onMap.getByText("Runs gatsby")).toBeInTheDocument();
+    expect(onMap.getByText("gatsby")).toBeInTheDocument();
     const offMap = within(screen.getByRole("region", { name: "Not on the map" }));
     const line = offMap.getByText(`Booth ${booth} isn't on this plan`);
     expect(line).toHaveClass("truncate");
     expect(line).toHaveAttribute("title", booth);
+  });
+
+  it("names a station without a passport name by its game's name", async () => {
+    setup(SEEDED_ORGANIZER_ID, (api) => {
+      vi.spyOn(api, "map").mockResolvedValue({
+        stations: [
+          mapStation({ station_id: "passport", game: "passport", name: null, booth: "B1" }),
+          mapStation({ station_id: "duels", game: "team_duels", name: null, booth: "B2" }),
+          mapStation({ station_id: "relay", game: "relay", name: null, booth: "B3" }),
+          mapStation({ station_id: "seat", game: "open_seat", name: null, booth: "B4" }),
+        ],
+      });
+    });
+
+    const onMap = within(await screen.findByRole("region", { name: "On the map" }));
+    expect(onMap.getByText("Passport")).toBeInTheDocument();
+    expect(onMap.getByText("Team duels")).toBeInTheDocument();
+    expect(onMap.getByText("Relay")).toBeInTheDocument();
+    expect(onMap.getByText("Open seat")).toBeInTheDocument();
+    expect(onMap.queryByText(/Runs /)).not.toBeInTheDocument();
   });
 
   it("shows no participant's name", async () => {

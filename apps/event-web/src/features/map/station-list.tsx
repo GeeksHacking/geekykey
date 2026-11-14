@@ -136,12 +136,20 @@ function StationRow({
   );
 }
 
+/** 9.2's game names, as the map screen can't read the board's list. An unknown id shows as itself. */
+const GAME_NAMES: Record<string, string> = {
+  passport: "Passport",
+  team_duels: "Team duels",
+  relay: "Relay",
+  open_seat: "Open seat",
+};
+
 /**
- * A stamp slot has its passport name. Any other station is named by its game. Agreement 9.10
- * says that name comes from 9.2's `games`, but a map screen can't read 9.2, so until the
- * agreement settles it (BAC-109) the map shows the game's `id`.
+ * A stamp slot has its passport name. Any other station is named by its game's name from 9.2;
+ * an id the map doesn't know shows as itself, and no game says "No game yet".
  */
 function stationTitle(station: MapStation): string {
   if (station.name) return station.name;
-  return station.game === null ? "No game yet" : `Runs ${station.game}`;
+  if (station.game === null) return "No game yet";
+  return GAME_NAMES[station.game] ?? station.game;
 }
