@@ -1,10 +1,10 @@
 import type { MeResponse } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
-import { ConnectionPerson } from "@/features/passport/connection-person";
 import { ConnectionWordLine } from "@/features/passport/connection-word-line";
 import { DiceRoll } from "@/features/passport/dice/dice-roll";
 import { markDiceShown, useDiceWaiting } from "@/features/passport/dice/dice-shown";
+import { PersonCard } from "@/features/passport/person-card";
 import { ReactionTest } from "@/features/passport/reaction/reaction-test";
 import { useConnectionReveal } from "@/features/passport/use-connection-reveal";
 import { cn } from "@/lib/utils";
@@ -52,7 +52,12 @@ export function ConnectionReveal({ me }: { me: MeResponse }) {
             {connection.match === null ? "You're connected!" : `${connection.match}% match!`}
           </p>
           <div className="mt-2">
-            <ConnectionPerson connection={connection} />
+            <PersonCard
+              name={connection.display_name ?? "Guest"}
+              bio={connection.bio}
+              contactLine={connection.contact_line}
+              look={connection.avatar}
+            />
           </div>
           <ConnectionWordLine word={connection.word} className="mt-2" />
           {connection.match === null ? null : (

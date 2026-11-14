@@ -210,17 +210,31 @@ describe("the reveal (agreement 0.13 draft, section 13)", () => {
     expect(screen.queryByText(TALK)).not.toBeInTheDocument();
   });
 
-  it("shows the other person's name, bio and contact line", async () => {
+  it("shows the other person's avatar, name, bio and contact line", async () => {
     renderScreen(
       setUp([
-        connection(0, { display_name: "Wei Lin", bio: "Robot arms", contact_line: "@weilin" }),
+        connection(0, {
+          display_name: "Wei Lin",
+          bio: "Robot arms",
+          contact_line: "@weilin",
+          avatar: { character: "dress", skin: "warm", hair: "auburn", suit: "emerald" },
+        }),
       ]),
     );
 
     const reveal = await screen.findByRole("status", { name: "New connection" });
+    expect(reveal.querySelector("img")).not.toBeNull();
     expect(within(reveal).getByText("Wei Lin")).toBeInTheDocument();
-    expect(within(reveal).getByText("Robot arms")).toBeInTheDocument();
+    // FRO-185: the bio is body size in the normal text colour, not the muted line.
+    expect(within(reveal).getByText("Robot arms")).not.toHaveClass("text-muted-foreground");
     expect(within(reveal).getByText("Contact: @weilin")).toBeInTheDocument();
+  });
+
+  it.each([null, undefined])("draws the default avatar for a look of %s", async (avatar) => {
+    renderScreen(setUp([connection(0, { avatar })]));
+
+    const reveal = await screen.findByRole("status", { name: "New connection" });
+    expect(reveal.querySelector("img")).not.toBeNull();
   });
 
   it("shows only the name of someone with neither field, and Guest for no name", async () => {
