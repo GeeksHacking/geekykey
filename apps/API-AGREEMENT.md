@@ -845,10 +845,10 @@ sitter's and the taker's first names.
 
 | The tap | Status | `lines` | `countdown` |
 |---|---|---|---|
-| Opens a seat, when none is open | `accepted` | `Seat open` / `Wait nearby` | `Seat open` / `{s}s left`, ending `Open seat` / `Tap to sit` |
+| Opens a seat, when none is open | `accepted` | `Seat open` / `Wait here` | `Seat open` / `Wait here {s}s`, ending `Open seat` / `Tap to sit` |
 | Takes the seat at its station | `accepted` | `Seat taken!` / `Ana & Ben` | none |
-| By the sitter at the seat's station | `cooldown` | `Seat open` / `Wait nearby` | as the seat's |
-| At another station while a seat is open, by anyone | `cooldown` | `Seat is at A` / `Go there` | `Seat is at A` / `{s}s left`, ending `Open seat` / `Tap to sit` |
+| By the sitter at the seat's station | `cooldown` | `Seat open` / `Wait here` | as the seat's |
+| At another station while a seat is open, by anyone | `cooldown` | `Open seat at A` / `Tap there` | `Open seat at A` / `Tap there {s}s`, ending `Open seat` / `Tap to sit` |
 | By someone in the sitter's group | `cooldown` | `Same team` / `Find another` | none |
 | By someone already connected with the sitter | `cooldown` | `Already met` / `Find another` | none |
 | By someone without a name and every answer, opening or taking | `cooldown` | `Finish setup` / `on your phone` | none |
@@ -858,9 +858,12 @@ sitter's and the taker's first names.
   a closed seat leaves no message on any station. `seconds` is what the seat has left, rounded
   up.
 - Opening a seat sends every other enabled open seat station a station message (6.3, 11.12):
-  `Open seat at A` / `Go and sit`, counting down `Open seat at A` / `{s}s left` to the idle
+  `Open seat at A` / `Tap there`, counting down `Open seat at A` / `Tap there {s}s` to the idle
   screen, with `beep`. A place too long for the line becomes `Seat at` and as much of it as
   fits.
+- A station that knows countdowns shows one in place of `lines` (above), so each countdown
+  carries its instruction, `Wait here` or `Tap there`, and `lines` say the same for a station
+  that doesn't.
 - Taking it sends the seat's own station the prompt as a station message, with a countdown of 20
   seconds, no `{s}` and no `beep`, which shows once the tap's answer has had its 2 seconds
   (6.3), and then the idle screen. The other stations get `Seat taken`, with no countdown, so
