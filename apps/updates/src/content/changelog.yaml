@@ -2758,3 +2758,11 @@
     A person's avatar look saves to the event, so the Connections tab, a person's profile and the
     Profile tab's "How others see you" draw it, and a colour changed on one phone reaches another at
     its next poll. A phone that saved colours before this sends them once.
+
+- id: setup-asks-for-a-bio
+  date: 2026-11-14
+  area: frontend
+  change: >-
+    Setup now asks for a bio and a contact line after the name and the answers. A participant with
+    neither sees the step once, can save one of the two or skip it, and the skip lasts in that
+    browser.

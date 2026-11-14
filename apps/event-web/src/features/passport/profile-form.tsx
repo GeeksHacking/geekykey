@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod/mini";
 
@@ -29,6 +29,9 @@ const RULES = {
 const WHO_SEES_BIO = "Anyone who taps your token or whose token you tap sees this.";
 const WHO_SEES_CONTACT_LINE = "People you connect with see this.";
 
+/** The setup step's rule, which the profile dialog doesn't have (FRO-186). */
+const ADD_ONE = "Add a bio or a contact line to save.";
+
 const schema = z.object({
   bio: z.string().check(z.refine((text) => fitsLimit(text, BIO_MAX), RULES.bio)),
   contact_line: z
@@ -46,15 +49,28 @@ function fieldsRefusedBy(error: unknown): (keyof ProfileValues)[] {
   );
 }
 
-/** The bio and the contact line (agreement 8.7, BAC-147). Leaving one blank clears it. */
+/**
+ * The bio and the contact line (agreement 8.7, BAC-147). Leaving one blank clears it. The setup
+ * step (FRO-186) needs one of the two and offers Skip beside Save; the profile dialog can clear
+ * both.
+ */
 export function ProfileForm({
   bio,
   contactLine,
   onSaved,
+  secondaryAction,
+  requireOne = false,
+  contactLineHint = WHO_SEES_CONTACT_LINE,
 }: {
   bio: string | null;
   contactLine: string | null;
-  onSaved: () => void;
+  onSaved?: () => void;
+  /** A button beside Save, such as the setup step's Skip. */
+  secondaryAction?: ReactNode;
+  /** The setup step needs one of the two; the profile dialog can clear both. */
+  requireOne?: boolean;
+  /** The setup step says "Only people you connect with see this." (FRO-186). */
+  contactLineHint?: string;
 }) {
   const updateMe = useUpdateMe();
   const form = useForm<ProfileValues>({
@@ -65,12 +81,16 @@ export function ProfileForm({
 
   async function onSubmit(values: ProfileValues) {
     setFormError(null);
+    if (requireOne && !values.bio.trim() && !values.contact_line.trim()) {
+      setFormError(ADD_ONE);
+      return;
+    }
     try {
       await updateMe.mutateAsync({
         bio: values.bio.trim(),
         contact_line: values.contact_line.trim(),
       });
-      onSaved();
+      onSaved?.();
     } catch (error) {
       // The service has the last word on the rules, and section 13 words its answer.
       const refused = fieldsRefusedBy(error);
@@ -107,7 +127,7 @@ export function ProfileForm({
               <FormControl>
                 <Input {...field} autoComplete="off" placeholder="@yourhandle on Telegram" />
               </FormControl>
-              <FormDescription>{WHO_SEES_CONTACT_LINE}</FormDescription>
+              <FormDescription>{contactLineHint}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -117,9 +137,12 @@ export function ProfileForm({
             {formError}
           </p>
         ) : null}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Saving" : "Save"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Saving" : "Save"}
+          </Button>
+          {secondaryAction}
+        </div>
       </form>
     </Form>
   );
