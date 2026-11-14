@@ -1,4 +1,4 @@
-import { ClockCounterClockwise, House, Stamp } from "@phosphor-icons/react";
+import { ClockCounterClockwise, House, Stamp, UsersThree } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -12,6 +12,7 @@ import { Wordmark } from "@/components/layout/wordmark";
 
 const NAV = [
   { to: "/", label: "Home", icon: House, exact: true },
+  { to: "/connections", label: "Connections", icon: UsersThree, exact: false },
   { to: "/passport", label: "Passport", icon: Stamp, exact: false },
   { to: "/activity", label: "Activity", icon: ClockCounterClockwise, exact: false },
 ] as const;
@@ -21,7 +22,7 @@ interface ParticipantShellProps {
   onSignOut: () => void;
   children: ReactNode;
   showNavigation?: boolean;
-  /** Connection requests waiting on the dashboard, so another tab still says they're there. */
+  /** Connection requests waiting on the Connections tab, so another tab still says they're there. */
   connectionRequests?: number;
 }
 
@@ -35,7 +36,7 @@ export function ParticipantShell({
 }: ParticipantShellProps) {
   useRouteHeadingFocus();
   const countFor = (to: string) =>
-    to === "/"
+    to === "/connections"
       ? {
           value: connectionRequests,
           label: connectionRequests === 1 ? "connection request" : "connection requests",

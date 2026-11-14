@@ -17,6 +17,7 @@ import { Route as SignOutRouteImport } from './routes/sign-out'
 import { Route as WhatStaysRouteImport } from './routes/what-stays'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
+import { Route as AppConnectionsRouteImport } from './routes/_app/connections'
 import { Route as AppPassportRouteImport } from './routes/_app/passport'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminFallbackRouteImport } from './routes/admin/fallback'
@@ -64,6 +65,11 @@ const AppActivityRoute = AppActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppConnectionsRoute = AppConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPassportRoute = AppPassportRouteImport.update({
   id: '/passport',
   path: '/passport',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/sign-out': typeof SignOutRoute
   '/what-stays': typeof WhatStaysRoute
   '/activity': typeof AppActivityRoute
+  '/connections': typeof AppConnectionsRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/groups': typeof AdminGroupsRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/sign-out': typeof SignOutRoute
   '/what-stays': typeof WhatStaysRoute
   '/activity': typeof AppActivityRoute
+  '/connections': typeof AppConnectionsRoute
   '/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/groups': typeof AdminGroupsRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/sign-out': typeof SignOutRoute
   '/what-stays': typeof WhatStaysRoute
   '/_app/activity': typeof AppActivityRoute
+  '/_app/connections': typeof AppConnectionsRoute
   '/_app/passport': typeof AppPassportRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/groups': typeof AdminGroupsRoute
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/sign-out'
     | '/what-stays'
     | '/activity'
+    | '/connections'
     | '/passport'
     | '/admin/fallback'
     | '/admin/groups'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/sign-out'
     | '/what-stays'
     | '/activity'
+    | '/connections'
     | '/passport'
     | '/admin/fallback'
     | '/admin/groups'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/sign-out'
     | '/what-stays'
     | '/_app/activity'
+    | '/_app/connections'
     | '/_app/passport'
     | '/admin/fallback'
     | '/admin/groups'
@@ -265,6 +277,13 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof AppActivityRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/connections': {
+      id: '/_app/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof AppConnectionsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/passport': {
@@ -343,12 +362,14 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
+  AppConnectionsRoute: typeof AppConnectionsRoute
   AppPassportRoute: typeof AppPassportRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRoute,
+  AppConnectionsRoute: AppConnectionsRoute,
   AppPassportRoute: AppPassportRoute,
   AppIndexRoute: AppIndexRoute,
 }

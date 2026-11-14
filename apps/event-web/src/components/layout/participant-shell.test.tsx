@@ -4,7 +4,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
@@ -46,21 +46,35 @@ async function renderShell(connectionRequests: number, showNavigation = true) {
   await screen.findByText("Screen");
 }
 
-describe("the Home tab", () => {
+describe("the Connections tab", () => {
   it("says how many connection requests wait, from any screen", async () => {
     await renderShell(2);
     // The header's tabs and the phone's bar, which CSS shows one at a time.
-    expect(screen.getAllByRole("link", { name: "Home, 2 connection requests" })).toHaveLength(2);
+    expect(
+      screen.getAllByRole("link", { name: "Connections, 2 connection requests" }),
+    ).toHaveLength(2);
   });
 
   it("uses the singular for one request", async () => {
     await renderShell(1);
-    expect(screen.getAllByRole("link", { name: "Home, 1 connection request" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Connections, 1 connection request" })).toHaveLength(
+      2,
+    );
   });
 
-  it("is plain Home while none wait", async () => {
+  it("is plain Connections while none wait", async () => {
     await renderShell(0);
-    expect(screen.getAllByRole("link", { name: "Home" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Connections" })).toHaveLength(2);
+  });
+
+  it("sits between Home and Passport", async () => {
+    await renderShell(0);
+    const [header] = screen.getAllByRole("navigation", { name: "Sections" });
+    if (!header) throw new Error("No sections navigation");
+    const labels = within(header)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(labels).toEqual(["Home", "Connections", "Passport", "Activity"]);
   });
 });
 
