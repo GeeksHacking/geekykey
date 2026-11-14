@@ -208,6 +208,40 @@ On an event day Ethan reads the command before it runs (rule 8). To try it first
 file. With no options it restores into `geekykey_dev`. Checkpoint 8 needs one try on production
 before the showcase, while the data is still test data: back up, restore, compare the counts.
 
+### How far the showcase's users got
+
+`db:count-showcase-steps` reads a copy and prints how many users created at the showcase reached
+each step, and the median time from one step to the next, for the report's C3 (BAC-198). It reads
+only the file and connects to no database. It prints counts and times, never a name or a user ID.
+
+On Tue 17 Nov, take a copy of production in the evening, before any clear and before anyone resets
+the groups, then run:
+
+```bash
+mise exec -- pnpm db:count-showcase-steps ~/.config/geekykey/copies/<file>.json \
+  --leave-out "<team member's display name>" --leave-out "<another>"
+```
+
+It counts users created on Tue 17 Nov, Singapore time. `--from` and `--to` narrow that to the
+showcase's hours, as times with their offset, such as `--from 2026-11-17T09:00+08:00`. Users that
+team members made before the window don't count. `--leave-out` leaves out any made during it, by
+display name, ignoring case. A guest with the same name as a team member is left out too.
+
+The steps are created, named, answered at least one question, joined a group, and connected. Each
+count is the users who reached that step, whether or not they reached the ones before it. Answers
+keep no time, so "joined a group" is timed from "named". The copy can't give these:
+
+- **Who sent a request.** The Event Service clears a request's time when it's accepted, declined
+  or refused, so the copy only shows requests still waiting. The command prints those on a line
+  of their own.
+- **When answers were saved.** `answers.fixed_at` is the first connection's time, not the end of
+  setup, so the command doesn't use it.
+- **Who left a group.** Leaving deletes the user's row, and the organizers' reset deletes every
+  row, so "joined a group" counts the users in a group or on the waiting list when the copy was
+  taken.
+- **When a user first named themself.** `name_set_at` moves with each rename, so a rename makes
+  the time from created to named look longer.
+
 ## Secrets
 
 Secrets live in Google's Secret Manager and in Cloudflare's Worker secrets. None is ever committed,
