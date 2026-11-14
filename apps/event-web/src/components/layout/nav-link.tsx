@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 export type NavTarget =
   | "/"
+  | "/connections"
   | "/passport"
   | "/activity"
   | "/admin/stations"

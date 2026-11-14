@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createMockClient } from "@/api/mock/client";
@@ -18,6 +19,12 @@ const state = vi.hoisted(() => ({ me: null as MeResponse | null }));
 vi.mock("@/lib/session", () => ({
   useMe: () => ({ me: state.me, refresh: async () => {} }),
   useSession: () => ({ consumeLoginLinkArrival: () => false }),
+}));
+
+/* Home's "See all" is a router link, and these tests render the screen without a router (FRO-182). */
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
 }));
 
 const printing: Stamp = {
