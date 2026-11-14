@@ -2773,3 +2773,11 @@
   change: >-
     The reveal of a new connection and each connection request show the other person's avatar
     beside their name, with the bio at body size.
+- id: open-seat-built
+  date: 2026-11-14
+  area: backend
+  change: >-
+    Any station can run the open seat, where a tap opens a seat for 60 seconds, the other open seat
+    stations beep and say where it is, and someone from another group taps the same station to take
+    it. The station then shows both first names and a question for the two to ask each other, and
+    the person who opened the seat gets a connection request to accept or decline.

@@ -29,9 +29,11 @@ export function MapRelay({
   // Expire even if subsequent polls fail or keep returning the identical ended game.
   useEffect(() => {
     if (!endedAt) return;
-    const remaining = Date.parse(endedAt) + RELAY_RESULT_MS - Date.now();
+    const expiresAt = Date.parse(endedAt) + RELAY_RESULT_MS;
+    const remaining = expiresAt - Date.now();
     if (remaining <= 0) return;
-    const timer = setTimeout(() => setNow(Date.now()), remaining);
+    // A timer can fire a millisecond before Date.now() reaches expiresAt, and nothing else re-renders.
+    const timer = setTimeout(() => setNow(Math.max(Date.now(), expiresAt)), remaining);
     return () => clearTimeout(timer);
   }, [endedAt]);
   const view = deriveRelay(observed.previous, data, placed, Math.max(now, dataUpdatedAt));

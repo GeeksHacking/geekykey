@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import type { ConnectionsGame } from "./connections.ts";
 import type { RelayGame } from "./relay.ts";
+import type { OpenSeatGame } from "./open-seat.ts";
 import type { UserLimit } from "./user-limit.ts";
 import { loadMap, type MapStation } from "./map.ts";
 import {
@@ -16,6 +17,8 @@ export interface MapRouteDeps {
   relay: RelayGame | null;
   /** The relay poll's own count, apart from the user's 60 a minute (9.13). */
   relayLimit: UserLimit;
+  /** The event's open seat, or null for an event without it, whose stations have no `open_seat_until`. */
+  openSeat?: OpenSeatGame | null;
   now?: () => Date;
   /** The event's connections game, whose web the map draws, or null for none. */
   connections: ConnectionsGame | null;
@@ -46,6 +49,7 @@ export function mapRoutes({
   connections,
   relay,
   relayLimit,
+  openSeat = null,
   now = () => new Date(),
 }: MapRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
@@ -60,12 +64,23 @@ export function mapRoutes({
   );
 
   app.get("/", requireSession(session), requireMapReader(session), async (c) => {
-    const [stations, web] = await Promise.all([
+    const [stations, web, seat] = await Promise.all([
       loadMap(c.var.db),
       connections ? connections.web(c.var.db) : null,
+      openSeat ? openSeat.openNow(c.var.db, now()) : null,
     ]);
     // With no connections game, the answer leaves `connections` out, and the screen draws no web.
-    return c.json({ stations: stations.map(stationBody), ...(web && { connections: web }) });
+    return c.json({
+      stations: stations.map((station) => ({
+        ...stationBody(station),
+        // 9.10, for the next version, after 0.14 (BAC-190): when the station's open seat closes, with
+        // no user, name or group, and only when the event runs the open seat.
+        ...(openSeat && {
+          open_seat_until: seat?.stationId === station.stationId ? seat.closesAt : null,
+        }),
+      })),
+      ...(web && { connections: web }),
+    });
   });
 
   return app;

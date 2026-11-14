@@ -372,6 +372,7 @@ test("the station board offers team duels and an organizer can choose it", async
     { id: "passport", name: "Passport" },
     { id: "team_duels", name: "Team duels" },
     { id: "relay", name: "Relay" },
+    { id: "open_seat", name: "Open seat" },
   ]);
   const set = await h.app.request(`/api/v1/admin/stations/${h.stationId}/game`, {
     method: "PUT",

@@ -441,6 +441,15 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 - Team duels runs on any station set to it. A tap opens a round or joins the open one, and the
   players' phones show the rest ([Team duels](#team-duels)). Its `id` is `team_duels` and its
   `name` is "Team duels" (BAC-155).
+- For the next version, after 0.14 (BAC-190), the **open seat** runs on any station set to it. A
+  tap opens a seat for 60 seconds, and the other open seat stations say where it is, with no
+  name. Someone from another group, or with no group, takes it by tapping the same station.
+  Taking it sends the person who opened it, the **sitter**, a connection request from the
+  **taker** ([Connections](#connections)), and the station gives the two a prompt to ask each
+  other. One seat is open at a time across the event, and a new one can open as soon as the last
+  is taken or closed. It gives no points and no stamp. Its lines are in 6.1, `/me` gives the
+  sitter and the taker their seat (8.1), and the map marks the station with an open seat (9.10).
+  Its `id` is `open_seat` and its `name` is "Open seat".
 - Stations created before version 0.7 with passport settings run the passport.
 
 ### Connections
@@ -491,6 +500,18 @@ game's own record. The rules, from CONTEXT.md:
   answer is the rule's usual status.
 - A connection point, where two tokens are tapped at one station, stays out of scope until its
   own change (section 12).
+- For the next version, after 0.14 (BAC-190), a taken open seat ([Games](#games)) also sends a
+  request, from the taker to the sitter, and the sitter answers it as any other (8.10). The open
+  seat's rule judges it, in place of the Groups screen's choice: the two must not be
+  placed in the same group, someone with no group may connect with anyone, and kinds aren't
+  checked.
+  The rule runs when the seat is taken, and again on Accept, or on a tap of the sitter's phone on
+  the taker's token, which accepts it as for any request. A refusal on Accept answers
+  `same_group`. A pair already connected can't take each other's seat. A request of the taker's
+  already waiting for the sitter becomes the seat's request, so the seat's rule judges it from
+  then on, and one of the sitter's waiting for the taker connects the two at once, as a half back
+  does. Setup still applies: someone without a name and
+  every answer can neither open nor take a seat.
 - **The match.** When an event has the answers game (8.1), a connection keeps the pair's
   `match`: of the questions both answered, the share where they picked the same choice, as a
   whole percent, rounded. It is `null` when no question was answered by both, as in an older
@@ -815,6 +836,46 @@ In the table, `Blue` is a group's name and `B` a station's booth.
   `{s}s left` to `Missed it`, with `beep`. The game's last transfer sends the other station
   `Relay done!` / `4 of 4`, with `beep`. A dropped message changes nothing, since each tap's own
   answer says what to do.
+- The wording can change.
+
+**The open seat's lines** (for the next version, after 0.14, BAC-190). The open seat runs on every
+station whose game is `open_seat`, and each one's idle screen is `Open seat` / `Tap to sit`. In
+the table, `A` is the station's booth, or its label when it has none, and `Ana` and `Ben` are the
+sitter's and the taker's first names.
+
+| The tap | Status | `lines` | `countdown` |
+|---|---|---|---|
+| Opens a seat, when none is open | `accepted` | `Seat open` / `Wait here` | `Seat open` / `Wait here {s}s`, ending `Open seat` / `Tap to sit` |
+| Takes the seat at its station | `accepted` | `Seat taken!` / `Ana & Ben` | none |
+| By the sitter at the seat's station | `cooldown` | `Seat open` / `Wait here` | as the seat's |
+| At another station while a seat is open, by anyone | `cooldown` | `Open seat at A` / `Tap there` | `Open seat at A` / `Tap there {s}s`, ending `Open seat` / `Tap to sit` |
+| By someone in the sitter's group | `cooldown` | `Same team` / `Find another` | none |
+| By someone already connected with the sitter | `cooldown` | `Already met` / `Find another` | none |
+| By someone without a name and every answer, opening or taking | `cooldown` | `Finish setup` / `on your phone` | none |
+
+- A refused tap leaves the seat open for someone else, with its countdown unchanged.
+- A seat nobody takes closes 60 seconds after it opened. The countdowns end on the idle screen, so
+  a closed seat leaves no message on any station. `seconds` is what the seat has left, rounded
+  up.
+- Opening a seat sends every other enabled open seat station a station message (6.3, 11.12):
+  `Open seat at A` / `Tap there`, counting down `Open seat at A` / `Tap there {s}s` to the idle
+  screen, with `beep`. A place too long for the line becomes `Seat at` and as much of it as
+  fits.
+- A station that knows countdowns shows one in place of `lines` (above), so each countdown
+  carries its instruction, `Wait here` or `Tap there`, and `lines` say the same for a station
+  that doesn't.
+- Taking it sends the seat's own station the prompt as a station message, with a countdown of 20
+  seconds, no `{s}` and no `beep`, which shows once the tap's answer has had its 2 seconds
+  (6.3), and then the idle screen. The other stations get `Seat taken`, with no countdown, so
+  their countdowns stop. The prompts are a short list in the Event Service's code, such as
+  `What are you` / `building?`, each fitting the screen, and none comes from anyone's answers.
+- A dropped message changes nothing: the seat can still be taken at its station, and `/me` gives
+  the sitter and the taker the prompt.
+- First names go through the screen's rules (6.1's names), and both are cut to fit the line.
+  Someone whose name the screen can't show is `Guest`.
+- The open seat judges a tap by when the Event Service received it, never earlier than the last
+  seat it judged. A saved tap made more than 10 seconds before it arrived gets `no_game`, so a
+  seat that closed meanwhile isn't opened or taken.
 - The wording can change.
 
 **How a tap is answered, from checkpoint 3**
@@ -1434,6 +1495,32 @@ group who holds a word also gets `phrase`, and each of their connections gets `w
   first. It is `null` when the other person holds no word.
 - For anyone else, and with no phrase set, the answer has no `phrase` and no connection has a
   `word`, as before 0.14.
+
+**The open seat (for the next version, after 0.14, BAC-190).** When the event runs the open seat
+([Games](#games)), the answer has `open_seat`: the user's latest seat, as its sitter or its
+taker, or `null` when they have opened or taken none.
+
+```json
+"open_seat": {
+  "status": "taken",            // "open" | "taken" | "closed"
+  "role": "sitter",             // "sitter" | "taker"
+  "station_id": "…",
+  "booth": "A3",                // or null
+  "opened_at": "2026-11-17T08:00:00.000Z",
+  "closes_at": "2026-11-17T08:01:00.000Z",
+  "taken_at": "2026-11-17T08:00:12.000Z",   // or null
+  "other_display_name": "Ben Tan",          // or null until taken
+  "prompt": "What are you building?"        // or null until taken
+}
+```
+
+- `status` is `open` until someone takes the seat or `closes_at` passes, then `taken` or
+  `closed`.
+- `other_display_name` is the other person's current name once the seat is taken, or `Guest` for
+  someone who has never logged in. Nobody else is ever named, so a seat that is open names nobody.
+- `prompt` is the station's prompt as one sentence.
+- The sitter's request from the taker is in `connection_requests` as any other.
+- An event without the open seat leaves `open_seat` out.
 
 **Errors:** `unauthenticated`, and `rate_limited` ([Rate limits](#rate-limits)).
 
@@ -2344,6 +2431,10 @@ session gets `unauthenticated`. It isn't under `/admin`, because a map screen is
   connection are new, the one with the smaller user ID gets the lower number. The numbers aren't
   user IDs, and nothing here links one to a user. The screen doesn't mark which link is new.
   Without a connections game, the answer leaves `connections` out, and the screen draws no web.
+- For the next version, after 0.14 (BAC-190), when the event runs the open seat
+  ([Games](#games)), each station also has `open_seat_until`: when the seat open at that station
+  closes, or `null` for a station with none. At most one station has one. It names no user,
+  name or group. An event without the open seat leaves the field out.
 
 Poll this every 2 seconds while the map is shown. That uses 30 of the user's 60 requests a minute
 ([Rate limits](#rate-limits)).
@@ -3233,7 +3324,9 @@ Not exposed by the API before the showcase. Listed so nobody builds UI against t
 - Moving a station between Event Services. A reader moved to another event becomes a new station
   there.
 - Connections at a connection point, where two tokens are tapped at one station. Connections by
-  phone are in scope ([Connections](#connections)).
+  phone are in scope ([Connections](#connections)). For the next version, after 0.14 (BAC-190),
+  so is the open seat, where two people tap one station one after the other: the second tap sends
+  the first person a connection request, never a connection ([Games](#games)).
 - Leaderboards.
 - WebSocket or server-sent events. Poll the endpoints above.
 - Reading a station key back. Replacing one is in scope, for organizers.
@@ -3761,3 +3854,4 @@ Closed on 2026-10-10:
 | 2026-11-14 | Version 0.14, a draft for Ethan to read (BAC-137). It gathers every row above marked "for the next version", from 5 to 13 November, into one version and drops those labels from the text. It also writes down what was built with no text here until now. **Participant groups** (BAC-125): section 4's "Groups", `GET` and `POST /api/v1/me/group` (8.13), the board `GET /api/v1/admin/groups` (9.14), the group and member writes (9.15 and 9.16), Allocate, the split and Reset (9.17), and the groups CSV (9.18). **New errors:** `409 no_groups`, `409 too_few_participants`, which carries `needed`, and `409 groups_exist`; `name_taken` now has its row in section 2 and also covers a group's name. **The Groups screen's settings:** `PUT /api/v1/admin/connections/rule` and `/challenge` (9.19, BAC-140 and BAC-161) and the phrase, `PUT /api/v1/admin/groups/phrase` (9.20, BAC-169), with `phrase` and `connections[].word` in 8.1. **Groups reached** (BAC-167): `other_groups` in 8.13 and `reached_group_ids` in 9.14. **Team duels** (BAC-155): section 4's "Team duels", `round_wins` and `round` in 8.1, and `POST /api/v1/me/duels/{id}/reaction` (8.14). **Changed, from the firmware as built:** during a countdown, another result shows for 2 seconds and the countdown then comes back, where 6.1 said a new tap ended it (HAR-50). A station message that arrives during a tap's first 2 seconds waits, its beep plays when it shows, and the station reopens a socket whose `pong` is 15 seconds late (6.3, HAR-51). **Section 13:** the Groups screen, the group card, the phrase card and the team duels card, compared with the screens' code, the dashboard's first-tap hint (FRO-138), the station board's game select, and the CSV rule now names the Groups screen. 8.6 says the account menu's link carries no kind (FRO-151). No field or route is removed. The one code removed since 0.13 is `409 station_has_taps`, in the 12 November row (BAC-183). `game_fixed` in 9.2 stays for this version and is always `false`. |
 | 2026-11-14 | Added to 0.14, still a draft: section 13 has the three lines under the dashboard's avatar, for loading and for when 3D can't run or load (FRO-164). The code comments that called 0.14's shapes drafts now name the version. No endpoint or shape changes (BAC-137). |
 | 2026-11-14 | For the next version, after 0.14: the Event Service keeps each person's avatar look per event (BAC-191). New fields are `user.avatar`, `connections[].avatar` and `connection_requests[].avatar` in 8.1, `avatar` in 8.7's request and `user.avatar` in its answer, and `owner_avatar` in 8.8 and 11.10 for every status. The look has `character`, `skin`, `hair` and `suit`, or is `null` for none. 8.7 sets the shape and value rules, with `400 validation_failed` under `["avatar"]` or one of its keys, accepts `null` to clear it, and lets `avatar` be the only PATCH field. The look goes to the same people as the bio, without earned pieces, and the evening-before clear removes it with the user. The organizers' screens, the export and the map get none. Screens read missing fields as `null` and draw their default for an unknown value. The GeekyKey Service stores no looks, drops unknown keys inside a look, and reads a missing or unreadable `owner_avatar` as `null` without making the meeting unavailable. An `unavailable` item has `owner_avatar: null`. Deploy both services before screens that send `avatar`, since an older Event Service refuses a PATCH with only that field. No field or route is removed, and section 13 is unchanged. |
+| 2026-11-14 | For the next version, after 0.14: the open seat, a station game (BAC-190). A tap at an open seat station opens a seat for 60 seconds, the other open seat stations say where it is with no name, and someone from another group, or with none, takes it at the same station, which sends the sitter a connection request judged by the seat's rule. New: the game `open_seat` in section 4 and 9.2's `games`, its lines and station messages in 6.1, a paragraph on its requests in [Connections](#connections), `open_seat` in 8.1, `open_seat_until` on 9.10's stations, and section 12's line on connection points. A refusal on accepting a seat's request answers `same_group` (8.10). |

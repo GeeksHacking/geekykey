@@ -1,6 +1,7 @@
 import type { Question } from "../event/answers.ts";
 import { answersGame } from "../games/connections/answers.ts";
 import { connectionsGame } from "../games/connections/connections.ts";
+import { openSeatRequests } from "../games/open-seat/open-seat.ts";
 
 /**
  * The showcase's questions in the answers game (spec section 6, "The answers
@@ -65,5 +66,10 @@ export const showcaseQuestions: readonly Question[] = [
 /** The showcase's answers game, which src/app.ts hands the base. */
 export const showcaseAnswers = answersGame(showcaseQuestions);
 
-/** The showcase's connections game, whose match compares the answers above. */
-export const showcaseConnections = connectionsGame(showcaseAnswers);
+/**
+ * The showcase's connections game, whose match compares the answers above. A taken open seat's
+ * request is judged by the open seat's rule (BAC-190).
+ */
+export const showcaseConnections = connectionsGame(showcaseAnswers, {
+  requestRules: [openSeatRequests],
+});

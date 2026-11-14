@@ -128,6 +128,7 @@ describe("sessions and roles", () => {
       { id: "passport", name: "Passport" },
       { id: "team_duels", name: "Team duels" },
       { id: "relay", name: "Relay" },
+      { id: "open_seat", name: "Open seat" },
     ]);
 
     const { station } = await api.createStation({ label: "Relay station" });

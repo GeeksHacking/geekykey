@@ -225,6 +225,13 @@
       "when": 1794626371828,
       "tag": "0031_users_keep_an_avatar_look",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1794634774957,
+      "tag": "0032_a_tap_opens_a_seat_at_a_station",
+      "breakpoints": true
     }
   ]
 }

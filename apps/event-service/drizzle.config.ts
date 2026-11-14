@@ -9,6 +9,7 @@ export default defineConfig({
     "./src/games/connections/schema.ts",
     "./src/games/team-duels/schema.ts",
     "./src/games/relay/schema.ts",
+    "./src/games/open-seat/schema.ts",
     "./src/claims-stand-in/schema.ts",
   ],
   out: "./drizzle",

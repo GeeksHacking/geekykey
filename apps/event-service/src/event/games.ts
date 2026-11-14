@@ -1,5 +1,7 @@
 import type { Countdown } from "@geekykey/handoff";
 import type { Db } from "../db/pool.ts";
+import type { ConnectionsGame, ReadyToConnect } from "./connections.ts";
+import type { StationMessages } from "./station-messages.ts";
 
 /**
  * The interface every game is behind. The base stores the taps, and runs no
@@ -109,6 +111,19 @@ export interface Game {
    * BAC-181). Optional: a station whose game has none keeps its own.
    */
   idleLines?: readonly string[];
+}
+
+/**
+ * What a game may be built with, before any taps arrive: the shared sender of station messages
+ * (BAC-184), and the event's connections game, with its setup check, for a game whose taps send
+ * connection requests, as the open seat's do (BAC-190).
+ */
+export interface GameDeps {
+  stationMessages: StationMessages;
+  /** The event's connections game, or null for an event without one. */
+  connections: ConnectionsGame | null;
+  /** Whether a user has finished setup (the API agreement's 11.10), as the meetings judge it. */
+  isReady: ReadyToConnect;
 }
 
 /**

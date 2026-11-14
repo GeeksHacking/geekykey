@@ -138,6 +138,7 @@ test("lists each stamp slot in slot order, counting accepted and cooldown taps, 
       taps: 3,
       unique_participants: 2,
       last_tap_at: "2026-10-10T09:00:04.000Z",
+      open_seat_until: null,
     },
     {
       station_id: "station-b",
@@ -148,6 +149,7 @@ test("lists each stamp slot in slot order, counting accepted and cooldown taps, 
       taps: 1,
       unique_participants: 1,
       last_tap_at: "2026-10-10T09:00:03.000Z",
+      open_seat_until: null,
     },
     {
       station_id: "station-quiet",
@@ -158,6 +160,7 @@ test("lists each stamp slot in slot order, counting accepted and cooldown taps, 
       taps: 0,
       unique_participants: 0,
       last_tap_at: null,
+      open_seat_until: null,
     },
     // Its no_game tap isn't counted.
     {
@@ -169,6 +172,7 @@ test("lists each stamp slot in slot order, counting accepted and cooldown taps, 
       taps: 0,
       unique_participants: 0,
       last_tap_at: null,
+      open_seat_until: null,
     },
   ]);
 });
@@ -192,6 +196,7 @@ test("a station running another game is listed with its game and booth, but no p
     taps: 2,
     unique_participants: 1,
     last_tap_at: "2026-10-10T09:00:02.000Z",
+    open_seat_until: null,
   });
 });
 

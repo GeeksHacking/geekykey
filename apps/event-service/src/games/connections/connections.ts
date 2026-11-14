@@ -11,6 +11,8 @@ import type {
   ConnectionsGame,
   ConnectionsWeb,
   RequestAnswer,
+  RequestRule,
+  RuledRequest,
 } from "../../event/connections.ts";
 import { DEFAULT_DISPLAY_NAME } from "../../event/display-names.ts";
 import type { Tx } from "../../event/games.ts";
@@ -90,7 +92,8 @@ type Refusal = Extract<MeetingStatus, "same_kind" | "no_kind" | "same_group" | "
  * lockAllocation).
  *
  * Every lock here and in lockHalves() is taken in one order: each user's kind, by
- * ID, then the pair's row, then each user's answers, by ID. So no two transactions,
+ * ID, then the pair's row, then each user's answers, by ID, then, through a request rule's
+ * `connected`, the other game's own record of the request, such as the open seat's. So no two transactions,
  * of one pair or of two that share someone, can each hold a lock the other waits for.
  */
 async function judge(tx: Tx, { userA, userB }: Pair, given: ReadonlyMap<string, string | null>) {
@@ -107,6 +110,28 @@ async function judge(tx: Tx, { userA, userB }: Pair, given: ReadonlyMap<string, 
   } else if (kindA === null || kindB === null) refusal = "no_kind";
   else if (kindA === kindB) refusal = "same_kind";
   return { kindA, kindB, refusal };
+}
+
+/**
+ * As judge(), unless `requestId` names a request another game sent: then that game's rule
+ * judges the two, in place of the connection rule (BAC-190), and the kinds are only locked, in
+ * the same order, since connect() keeps them.
+ */
+async function judgeRequest(
+  tx: Tx,
+  pair: Pair,
+  given: ReadonlyMap<string, string | null>,
+  request: RuledRequest | null,
+  rules: readonly RequestRule[],
+) {
+  for (const rule of request ? rules : []) {
+    const ruled = await rule.judge(tx, request!);
+    if (ruled === null) continue;
+    const kindA = await lockKind(tx, pair.userA, given.get(pair.userA) ?? null);
+    const kindB = await lockKind(tx, pair.userB, given.get(pair.userB) ?? null);
+    return { kindA, kindB, refusal: ruled.refusal satisfies Refusal | null };
+  }
+  return judge(tx, pair, given);
 }
 
 /**
@@ -192,18 +217,26 @@ export function connectionsGame(
     rollDie = () => randomInt(1, 7),
     // Random's coin: half the pairs get each challenge (BAC-156).
     pickGame = () => (randomInt(2) === 0 ? "dice" : "reaction"),
-  }: { rollDie?: () => number; pickGame?: () => GameKind } = {},
+    requestRules = [],
+  }: {
+    rollDie?: () => number;
+    pickGame?: () => GameKind;
+    /** Other games' rules for the requests they send, such as the open seat's (BAC-190). */
+    requestRules?: readonly RequestRule[];
+  } = {},
 ): ConnectionsGame {
   /**
    * The one place a connection is made. Both people's answers are fixed here, in the
    * same transaction, and the match is worked out from them and kept, so a later
-   * change can't alter it. The caller holds the pair's row.
+   * change can't alter it. The caller holds the pair's row. `requestId` is the request it
+   * answers, which the game that sent it, if another did, records (BAC-190).
    */
   async function connect(
     tx: Tx,
     { userA, userB, where }: Pair,
     { kindA, kindB }: { kindA: string | null; kindB: string | null },
     now: Date,
+    requestId: string | null,
   ) {
     // Fixed in ID order too. The match comes from what fixing gives, under the lock.
     const answersA = answers ? await answers.fixAnswers(tx, userA) : {};
@@ -226,7 +259,19 @@ export function connectionsGame(
       shared,
     });
     await tx.update(meetingHalves).set(NO_REQUEST).where(where);
+    if (requestId !== null) {
+      for (const rule of requestRules) await rule.connected(tx, requestId, now);
+    }
     return "connected" as const;
+  }
+
+  /** The request waiting for `userId` from the other person in `pair`, read before any lock. */
+  async function requestWaitingFor(tx: Tx, pair: Pair, userId: string) {
+    const [row] = await tx
+      .select({ requestId: meetingHalves.requestId })
+      .from(meetingHalves)
+      .where(and(pair.where, requestsWaitingFor(userId)));
+    return row?.requestId ?? null;
   }
 
   return {
@@ -242,7 +287,15 @@ export function connectionsGame(
           [userId, userKind],
           [ownerId, ownerKind],
         ]);
-        const { refusal, kindA, kindB } = await judge(tx, pair, given);
+        // A half back to a request another game sent is judged by that game's rule (BAC-190).
+        const waiting = requestRules.length > 0 ? await requestWaitingFor(tx, pair, userId) : null;
+        const { refusal, kindA, kindB } = await judgeRequest(
+          tx,
+          pair,
+          given,
+          waiting === null ? null : { requestId: waiting, fromId: ownerId, toId: userId },
+          requestRules,
+        );
         if (refusal) {
           // A half back counts as accepting, and an accept the rule refuses takes the request.
           await tx
@@ -261,7 +314,7 @@ export function connectionsGame(
         if (halves.requestId !== null && theirs !== null) {
           // A request sent before BAC-144 may come from someone who skipped setup.
           if (!(await isReady(tx, ownerId))) return "answers_needed";
-          return connect(tx, pair, { kindA, kindB }, now);
+          return connect(tx, pair, { kindA, kindB }, now, halves.requestId);
         }
         // A half again while this person's request waits changes nothing.
         if (halves.requestId === null || mine === null) {
@@ -285,8 +338,15 @@ export function connectionsGame(
 
       const status = await db.transaction(async (tx): Promise<AcceptStatus | "not_found"> => {
         if (!(await isReady(tx, answer.userId))) return "answers_needed";
-        // The kinds a half gave are the users' own by now, so an accept brings none.
-        const { refusal, kindA, kindB } = await judge(tx, pair, new Map());
+        // The kinds a half gave are the users' own by now, so an accept brings none. A request
+        // another game sent is judged by that game's rule (BAC-190).
+        const { refusal, kindA, kindB } = await judgeRequest(
+          tx,
+          pair,
+          new Map(),
+          { requestId: answer.requestId, fromId, toId: answer.userId },
+          requestRules,
+        );
         if (refusal) {
           await tx
             .update(meetingHalves)
@@ -299,9 +359,37 @@ export function connectionsGame(
         if (connected) return "already_connected";
         if (halves.requestId !== answer.requestId) return "not_found";
         if (!(await isReady(tx, fromId))) return "answers_needed";
-        return connect(tx, pair, { kindA, kindB }, now);
+        return connect(tx, pair, { kindA, kindB }, now, answer.requestId);
       }, READ_LATEST);
       return status === "not_found" ? { status } : { status, fromId };
+    },
+
+    async requestFor(tx, { fromId, toId }, now) {
+      const pair = pairOf(fromId, toId);
+      // The same lock order as a half's: each kind, by ID, then the pair's row, then the answers.
+      const kindA = await lockKind(tx, pair.userA, null);
+      const kindB = await lockKind(tx, pair.userB, null);
+      const { halves, connected } = await lockHalves(tx, pair);
+      if (connected) return { status: "already_connected" };
+      const senderIsA = fromId === pair.userA;
+      const [mine, theirs] = senderIsA
+        ? [halves.aMetAt, halves.bMetAt]
+        : [halves.bMetAt, halves.aMetAt];
+      if (halves.requestId !== null && theirs !== null) {
+        const requestId = halves.requestId;
+        await connect(tx, pair, { kindA, kindB }, now, requestId);
+        return { status: "connected", requestId };
+      }
+      if (halves.requestId !== null && mine !== null) {
+        return { status: "waiting", requestId: halves.requestId };
+      }
+      const at = now.toISOString();
+      const requestId = crypto.randomUUID();
+      await tx
+        .update(meetingHalves)
+        .set({ requestId, aMetAt: senderIsA ? at : null, bMetAt: senderIsA ? null : at })
+        .where(pair.where);
+      return { status: "waiting", requestId };
     },
 
     async decline(db, answer) {
