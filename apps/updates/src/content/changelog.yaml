@@ -2788,3 +2788,14 @@
   change: >-
     The dashboard shows your open seat: the countdown while it is open, who took it, the prompt to
     ask each other, and the taker's request with Accept and Decline.
+
+- id: showcase-steps-from-own-database
+  date: 2026-11-14
+  area: backend
+  change: >-
+    A new command counts how far the showcase's users got from a copy of our own database, so
+    PostHog stays out. It prints how many were created, named themselves, answered, joined a group
+    and connected, with the median time between steps and never a name or an ID.
+    The trade-offs we accept: the Event Service clears a request's time once it is accepted,
+    declined or refused, so only requests still waiting are counted, and answering has a count but
+    no time.

@@ -22,6 +22,7 @@
     "db:clear-test-data": "node scripts/clear-test-data.ts",
     "db:backup": "node scripts/backup.ts",
     "db:restore": "node scripts/restore.ts",
+    "db:count-showcase-steps": "node scripts/count-showcase-steps.ts",
     "seed": "node scripts/seed.ts"
   },
   "dependencies": {
