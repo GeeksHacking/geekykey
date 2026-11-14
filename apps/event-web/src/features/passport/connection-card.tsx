@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import type { Connection, MeResponse } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionDetails } from "@/features/passport/connection-details";
-import { ConnectionPerson } from "@/features/passport/connection-person";
+import { PersonCard } from "@/features/passport/person-card";
 
 interface ConnectionCardProps {
   connection: Connection;
@@ -21,16 +21,11 @@ interface ConnectionCardProps {
  */
 export function ConnectionCard({ connection, me, showDice, canPlay }: ConnectionCardProps) {
   const person = (
-    <>
-      {/*
-        The avatar's place, kept at the size the shared component will draw it, so the card
-        doesn't move when FRO-181 lands.
-      */}
-      <div aria-hidden className="size-14 shrink-0 rounded-md bg-muted" />
-      <div className="min-w-0 flex-1">
-        <ConnectionPerson connection={connection} bio="lead" />
-      </div>
-    </>
+    <PersonCard
+      name={connection.display_name ?? "Guest"}
+      bio={connection.bio}
+      contactLine={connection.contact_line}
+    />
   );
   return (
     <li className="px-3 py-4">

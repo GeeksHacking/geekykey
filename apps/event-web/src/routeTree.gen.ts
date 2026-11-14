@@ -19,6 +19,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
 import { Route as AppConnectionsRouteImport } from './routes/_app/connections'
 import { Route as AppPassportRouteImport } from './routes/_app/passport'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminFallbackRouteImport } from './routes/admin/fallback'
 import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
@@ -76,6 +77,11 @@ const AppPassportRoute = AppPassportRouteImport.update({
   path: '/passport',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/activity': typeof AppActivityRoute
   '/connections': typeof AppConnectionsRoute
   '/passport': typeof AppPassportRoute
+  '/profile': typeof AppProfileRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/stations': typeof AdminStationsRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/activity': typeof AppActivityRoute
   '/connections': typeof AppConnectionsRoute
   '/passport': typeof AppPassportRoute
+  '/profile': typeof AppProfileRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/stations': typeof AdminStationsRoute
@@ -158,6 +166,7 @@ export interface FileRoutesById {
   '/_app/activity': typeof AppActivityRoute
   '/_app/connections': typeof AppConnectionsRoute
   '/_app/passport': typeof AppPassportRoute
+  '/_app/profile': typeof AppProfileRoute
   '/admin/fallback': typeof AdminFallbackRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/stations': typeof AdminStationsRoute
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/connections'
     | '/passport'
+    | '/profile'
     | '/admin/fallback'
     | '/admin/groups'
     | '/admin/stations'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/connections'
     | '/passport'
+    | '/profile'
     | '/admin/fallback'
     | '/admin/groups'
     | '/admin/stations'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/_app/activity'
     | '/_app/connections'
     | '/_app/passport'
+    | '/_app/profile'
     | '/admin/fallback'
     | '/admin/groups'
     | '/admin/stations'
@@ -305,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPassportRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -383,6 +402,7 @@ interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
   AppConnectionsRoute: typeof AppConnectionsRoute
   AppPassportRoute: typeof AppPassportRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppIndexRoute: typeof AppIndexRoute
   AppConnectionsIdRoute: typeof AppConnectionsIdRoute
 }
@@ -391,6 +411,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppActivityRoute: AppActivityRoute,
   AppConnectionsRoute: AppConnectionsRoute,
   AppPassportRoute: AppPassportRoute,
+  AppProfileRoute: AppProfileRoute,
   AppIndexRoute: AppIndexRoute,
   AppConnectionsIdRoute: AppConnectionsIdRoute,
 }

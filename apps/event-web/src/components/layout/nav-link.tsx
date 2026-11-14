@@ -7,7 +7,7 @@ export type NavTarget =
   | "/"
   | "/connections"
   | "/passport"
-  | "/activity"
+  | "/profile"
   | "/admin/stations"
   | "/admin/groups"
   | "/admin/taps"
