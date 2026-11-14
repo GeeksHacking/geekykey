@@ -36,6 +36,9 @@ export function useUpdateMe() {
         if (input.contact_line !== undefined) {
           next.contact_line = user.contact_line;
         }
+        if (input.avatar !== undefined) {
+          next.avatar = user.avatar;
+        }
         return { ...me, user: next };
       });
       // The group card lists every member's name, so a new name leaves that answer out of date.

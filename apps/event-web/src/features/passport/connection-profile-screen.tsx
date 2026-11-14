@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/layout/page-heading";
 import { SectionHeading } from "@/components/layout/section-heading";
+import { PersonAvatar } from "@/features/passport/avatar/person-avatar";
 import { ConnectionDice } from "@/features/passport/connection-dice";
 import { ConnectionReaction } from "@/features/passport/connection-reaction";
 import { ConnectionWordLine } from "@/features/passport/connection-word-line";
@@ -82,8 +83,7 @@ export function ConnectionProfileScreen({ id }: { id: string }) {
     <div className="space-y-6">
       <BackToConnections />
       <div className="flex items-start gap-4">
-        {/* The avatar's place, kept at its size so the screen doesn't move when FRO-181 lands. */}
-        <div aria-hidden className="size-24 shrink-0 rounded-lg bg-muted" />
+        <PersonAvatar look={connection.avatar} className="size-24 rounded-lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
             <PageHeading>{connection.display_name ?? "Guest"}</PageHeading>

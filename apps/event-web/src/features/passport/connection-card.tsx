@@ -25,6 +25,7 @@ export function ConnectionCard({ connection, me, showDice, canPlay }: Connection
       name={connection.display_name ?? "Guest"}
       bio={connection.bio}
       contactLine={connection.contact_line}
+      look={connection.avatar}
     />
   );
   return (

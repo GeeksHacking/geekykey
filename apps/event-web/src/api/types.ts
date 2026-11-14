@@ -11,6 +11,19 @@ export type TapStatus = "accepted" | "cooldown" | "no_game";
 
 export type TapSource = "nfc" | "qr_fallback";
 
+/**
+ * A person's avatar look (BAC-191, for the agreement version after 0.14, sections 8.1 and 8.7):
+ * the character and the colours of its skin, hair and suit. Each part is a short lowercase key.
+ * The service keeps no list of keys, so a screen draws its own default for one it doesn't know.
+ * Another person's look never carries the pieces they have earned.
+ */
+export interface AvatarLook {
+  character: string;
+  skin: string;
+  hair: string;
+  suit: string;
+}
+
 export interface User {
   id: string;
   display_name: string | null;
@@ -30,6 +43,8 @@ export interface User {
   bio: string | null;
   /** How to reach the user, which only people they connect with see, or null (BAC-147). */
   contact_line: string | null;
+  /** The user's saved look, or null for none (BAC-191). Missing from a service before it reads as null. */
+  avatar?: AvatarLook | null;
 }
 
 export interface QuestionChoice {
@@ -65,6 +80,8 @@ export interface Connection {
   bio: string | null;
   /** The other person's current contact line, or null for none (BAC-147). */
   contact_line: string | null;
+  /** The other person's saved look, or null for none (BAC-191). Missing reads as null. */
+  avatar?: AvatarLook | null;
   /**
    * The other person's kind, or null for none, which only a connection across groups has
    * (BAC-140, agreement 0.14).
@@ -154,6 +171,8 @@ export interface ConnectionRequest {
    * (BAC-151, agreement 0.14). Their contact line stays hidden until the two connect.
    */
   bio: string | null;
+  /** The person asking's saved look, or null for none (BAC-191). Missing reads as null. */
+  avatar?: AvatarLook | null;
   requested_at: string;
 }
 
@@ -222,6 +241,8 @@ export interface UpdateMeRequest {
   answers?: Record<string, string>;
   bio?: string | null;
   contact_line?: string | null;
+  /** The whole look, or null to clear it (BAC-191, agreement 8.7). */
+  avatar?: AvatarLook | null;
 }
 
 /** Agreement 8.7 answers with the `user` object from 8.1. */

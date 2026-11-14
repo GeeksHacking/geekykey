@@ -474,6 +474,7 @@ describe("HTTP client transport", () => {
       answers: {},
       bio: null,
       contact_line: null,
+      avatar: null,
     };
     fetchMock.mockResolvedValue(response({ user }));
 
@@ -500,6 +501,7 @@ describe("HTTP client transport", () => {
       answers: { drink: "tea" },
       bio: null,
       contact_line: null,
+      avatar: null,
     };
     fetchMock.mockResolvedValue(response({ user }));
 

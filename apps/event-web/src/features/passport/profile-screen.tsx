@@ -33,7 +33,11 @@ export function ProfileScreen() {
       <section>
         <SectionHeading title="How others see you" />
         <div className="rounded-lg border bg-card px-3 py-4">
-          <PersonCard name={me.user.display_name ?? "Guest"} bio={me.user.bio} />
+          <PersonCard
+            name={me.user.display_name ?? "Guest"}
+            bio={me.user.bio}
+            look={me.user.avatar}
+          />
         </div>
       </section>
       {me.user.role === "participant" && me.questions ? (

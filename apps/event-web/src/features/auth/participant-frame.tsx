@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ParticipantShell } from "@/components/layout/participant-shell";
 import { SessionErrorBanner } from "@/components/layout/session-error-banner";
 import { LoginLinkNotice } from "@/features/auth/login-link-notice";
+import { useAvatarLook } from "@/features/passport/avatar/use-avatar-look";
 import { TeamRoundNotice } from "@/features/passport/team-round-notice";
 import { NamePrompt } from "@/features/passport/name-prompt";
 import { QuestionsPrompt } from "@/features/passport/questions-prompt";
@@ -13,6 +14,7 @@ import { useSignOut } from "@/lib/use-sign-out";
 /** Joins the session to the participant shell. Route files stay one line. */
 export function ParticipantFrame({ children }: { children: ReactNode }) {
   const { me } = useMe();
+  useAvatarLook(me);
   const session = useSession();
   const signOut = useSignOut();
   const needsName = !me.user.has_name;

@@ -51,6 +51,7 @@ describe("me response contract", () => {
             display_name: "Mei Lin",
             bio: null,
             contact_line: null,
+            avatar: null,
             kind: "B",
             match: 60,
             shared: null,
@@ -77,6 +78,7 @@ describe("me response contract", () => {
       id: "cr_3f1a",
       display_name: "Mei Lin Koh",
       bio: null,
+      avatar: null,
       requested_at: "2026-11-12T08:00:00.000Z",
     };
     expect(parseMeResponse(makeMe({ connection_requests: [request] })).connection_requests).toEqual(
@@ -607,6 +609,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
       answers: { drink: "tea" },
       bio: "Robot arms",
       contact_line: "@alex",
+      avatar: null,
     },
     questions: [
       {
@@ -629,6 +632,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
         display_name: "Mei Lin",
         bio: null,
         contact_line: null,
+        avatar: null,
         kind: "B",
         match: 50,
         dice: { your_roll: 5, their_roll: 2, result: "win" },
@@ -642,6 +646,7 @@ describe("the answers game and connections in /me (agreement 0.13 draft, 8.1)", 
         display_name: null,
         bio: null,
         contact_line: null,
+        avatar: null,
         kind: "G",
         match: null,
         shared: [],
@@ -829,5 +834,21 @@ describe("team duels contract", () => {
     expect(
       meResponseSchema.safeParse({ ...makeMe(), round: { ...round, team: "c" } }).success,
     ).toBe(false);
+  });
+});
+
+describe("an avatar look (BAC-191)", () => {
+  const look = { character: "dress", skin: "warm", hair: "auburn", suit: "emerald" };
+
+  it("reads a look on the user, and treats a missing one as none", () => {
+    const base = makeMe();
+
+    expect(parseMeResponse({ ...base, user: { ...base.user, avatar: look } }).user.avatar).toEqual(
+      look,
+    );
+    expect(parseMeResponse(base).user.avatar).toBeNull();
+    expect(() =>
+      parseMeResponse({ ...base, user: { ...base.user, avatar: { ...look, skin: 7 } } }),
+    ).toThrow(NetworkError);
   });
 });
