@@ -2741,3 +2741,13 @@
     Profile has its own tab, gathering the avatar, the name, the bio and contact line, a card
     showing how others see you, the answers and the user ID. Home keeps the avatar and the newest
     of what happened, and Activity left the tab bar for a See all link under Recent activity.
+- id: open-seat-planned
+  date: 2026-11-14
+  area: research
+  change: >-
+    The open seat is the last game planned before the showcase: a tap at a station holds a seat for
+    60 seconds, the other stations say a seat is open without naming anyone, and someone from
+    another group, or with no group, takes it at the same station. It makes it easier to invite and
+    begin a conversation with someone outside your team. The trade-offs we accept: a taken seat only
+    sends a connection request, so it makes no connection, and no session with people will test it
+    before the showcase.
