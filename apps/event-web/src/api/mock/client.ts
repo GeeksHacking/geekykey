@@ -34,7 +34,6 @@ import {
   type CreateStationRequest,
   type StationKeyResponse,
   type ErrorCode,
-  type EventGame,
   type EventGroup,
   type EventStationBoardResponse,
   type EventStationBoardStation,
@@ -60,6 +59,7 @@ import {
 import { BOOTH_MAX, isBooth } from "@/lib/booth";
 import { MOCK_LATENCY_MS, STATION_ONLINE_WINDOW_MS } from "@/lib/constants";
 import { isDisplayName } from "@/lib/display-name";
+import { GAMES } from "@/lib/games";
 import { isGroupLink } from "@/lib/group-link";
 import {
   GROUP_TAGS_MAX,
@@ -140,17 +140,6 @@ const MOCK_LOGIN_LINKS: Record<string, string> = {
   mock: SEEDED_PARTICIPANT_ID,
   guest: SEEDED_GUEST_ID,
 };
-
-/**
- * 9.2's `games`, in the order to show them. The Event Service's showcase lists these four
- * (BAC-184, BAC-190), and 9.11 refuses any id that isn't here.
- */
-const STATION_GAMES: EventGame[] = [
-  { id: "passport", name: "Passport" },
-  { id: "team_duels", name: "Team duels" },
-  { id: "relay", name: "Relay" },
-  { id: "open_seat", name: "Open seat" },
-];
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   name_taken: 409,
@@ -883,8 +872,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const station = stationById(id);
         if (!station) fail("not_found");
         // 9.11: one of 9.2's games, or none.
-        if (game !== null && !STATION_GAMES.some((one) => one.id === game))
-          fail("validation_failed");
+        if (game !== null && !GAMES.some((one) => one.id === game)) fail("validation_failed");
         station.game = game;
         return { station: toStationBoardStation(station) };
       }),
@@ -1045,7 +1033,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         return {
           stations: data.stations.map(toStationBoardStation),
           // A copy, so a caller that sorts or edits the list can't change the next answer.
-          games: STATION_GAMES.map((game) => ({ ...game })),
+          games: GAMES.map((game) => ({ ...game })),
         };
       }),
 

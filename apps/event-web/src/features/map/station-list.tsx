@@ -4,6 +4,7 @@ import type { MapStation } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import type { PlacedStation } from "@/features/map/place-stations";
 import { seatText, type SeatMark } from "@/features/map/seat-marks";
+import { gameName } from "@/lib/games";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -136,14 +137,6 @@ function StationRow({
   );
 }
 
-/** 9.2's game names, as the map screen can't read the board's list. An unknown id shows as itself. */
-const GAME_NAMES: Record<string, string> = {
-  passport: "Passport",
-  team_duels: "Team duels",
-  relay: "Relay",
-  open_seat: "Open seat",
-};
-
 /**
  * A stamp slot has its passport name. Any other station is named by its game's name from 9.2;
  * an id the map doesn't know shows as itself, and no game says "No game yet".
@@ -151,5 +144,5 @@ const GAME_NAMES: Record<string, string> = {
 function stationTitle(station: MapStation): string {
   if (station.name) return station.name;
   if (station.game === null) return "No game yet";
-  return GAME_NAMES[station.game] ?? station.game;
+  return gameName(station.game);
 }
