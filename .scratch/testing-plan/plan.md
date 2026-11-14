@@ -118,10 +118,10 @@ Coverage says a line ran, not that a test would fail if the line were wrong. A t
 | 1 | Agree this plan, including the CI decision | Team | Sat 14 Nov |
 | 2 | Set up the results sheet, and run J11 (HAR-42) | Joshua, Zi Tao | Sun 15 Nov |
 | 3 | J1 to J12 at the rehearsal, recorded in the sheet | Adam, Zi Tao, Ethan | Mon 16 Nov |
-| 4 | Backup, then the visitor funnel query | Adam | Tue 17 Nov evening |
-| 5 | Coverage in CI (the decision above), merged after the showcase. Its first run on `main` is the new baseline for the report | Adam | Wed 18 Nov |
+| 4 | Backup, then the visitor funnel query (BAC-198) | Adam | Tue 17 Nov evening |
+| 5 | Coverage in CI (the decision above, FRO-188), merged after the showcase. Its first run on `main` is the new baseline for the report | Adam | Wed 18 Nov |
 | 6 | Report text: B4.3, B4.4 and Component C (below) | Joshua, with Adam's drafts | Thu 19 Nov |
-| 7 | Tickets for the next team: the cross-service tests, the firmware CI job, the unit gaps, the Stryker trial | Adam | Thu 19 Nov |
+| 7 | For the next team, filed on 14 Nov: the cross-service tests (BAC-192 to BAC-195), the firmware CI job (HAR-54), the unit gaps (FRO-189, BAC-196) and the Stryker trial (BAC-197) | Hackomania 2027 team | After the report |
 
 Nothing here changes app code before the showcase. Steps 5 and 7 change CI and tests only, after it.
 
