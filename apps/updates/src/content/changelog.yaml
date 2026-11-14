@@ -2766,3 +2766,10 @@
     Setup now asks for a bio and a contact line after the name and the answers. A participant with
     neither sees the step once, can save one of the two or skip it, and the skip lasts in that
     browser.
+
+- id: reveal-and-request-avatar
+  date: 2026-11-14
+  area: frontend
+  change: >-
+    The reveal of a new connection and each connection request show the other person's avatar
+    beside their name, with the bio at body size.
