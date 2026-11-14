@@ -1,4 +1,4 @@
-import { TOKEN_KIND_MAX } from "@geekykey/handoff";
+import { type AvatarLook, TOKEN_KIND_MAX } from "@geekykey/handoff";
 import {
   boolean,
   index,
@@ -35,6 +35,11 @@ export const users = mysqlTable("users", {
   bio: text("bio"),
   /** How to reach the user, which only the people they connect with see, or null for none. */
   contactLine: text("contact_line"),
+  /**
+   * The user's avatar look in this event, or null for none saved (the API agreement's 8.7,
+   * BAC-191). Only its shape is checked, so it can hold a colour the screens added later.
+   */
+  avatar: json("avatar").$type<AvatarLook>(),
   createdAt: isoTimestamp("created_at").notNull().$defaultFn(isoNow),
 });
 

@@ -199,6 +199,7 @@ test("one request sets the name and answers together", async () => {
       answers: { drink: "tea" },
       bio: null,
       contact_line: null,
+      avatar: null,
     },
   });
   const { user } = await meAs(userId);

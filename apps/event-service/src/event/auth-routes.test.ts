@@ -147,6 +147,7 @@ async function me(login: Response) {
         kind: string | null;
         bio: string | null;
         contact_line: string | null;
+        avatar: unknown;
       };
     }
   ).user;
@@ -169,6 +170,7 @@ test("a new user's good token logs them in as its sub, with the token's name", a
     kind: null,
     bio: null,
     contact_line: null,
+    avatar: null,
     answers: {},
   });
 });
@@ -209,6 +211,7 @@ test("a token with no name gives a new user the name Guest, and no name of their
     kind: null,
     bio: null,
     contact_line: null,
+    avatar: null,
     answers: {},
   });
 });
@@ -224,6 +227,7 @@ test("a later login with a name replaces the default name", async () => {
     kind: null,
     bio: null,
     contact_line: null,
+    avatar: null,
     answers: {},
   });
 });
@@ -240,6 +244,7 @@ test("a guest who sets their name has one", async () => {
     kind: null,
     bio: null,
     contact_line: null,
+    avatar: null,
     answers: {},
   });
 });
@@ -262,6 +267,7 @@ test("a guest's token logs them in as its sub, like any other with no name", asy
     kind: null,
     bio: null,
     contact_line: null,
+    avatar: null,
     answers: {},
   });
 });
@@ -371,6 +377,7 @@ test("a login link logs its user in, with the name their login had", async () =>
     kind: null,
     bio: null,
     contact_line: null,
+    avatar: null,
     answers: {},
   });
 });
@@ -386,6 +393,7 @@ test("a guest's login link logs them in as Guest, with no name of their own", as
     kind: null,
     bio: null,
     contact_line: null,
+    avatar: null,
     answers: {},
   });
 });

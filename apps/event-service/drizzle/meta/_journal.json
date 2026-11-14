@@ -218,6 +218,13 @@
       "when": 1794560477064,
       "tag": "0030_token_kinds_keep_write_time",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1794626371828,
+      "tag": "0031_users_keep_an_avatar_look",
+      "breakpoints": true
     }
   ]
 }

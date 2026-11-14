@@ -10,6 +10,7 @@
 export * from "./taps.ts";
 export * from "./stations.ts";
 export * from "./heartbeats.ts";
+export * from "./avatar.ts";
 export * from "./meetings.ts";
 export * from "./used-login-links.ts";
 export * from "./station-messages.ts";

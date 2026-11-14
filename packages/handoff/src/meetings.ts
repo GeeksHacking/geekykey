@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { avatarLook } from "./avatar.ts";
 import { tokenKind } from "./taps.ts";
 
 /** A user ID, as the hand-off's taps carry one (the agreement's 11.2). */
@@ -76,6 +77,13 @@ export const meetingsAnswer = z.object({
       "The owner's current bio, which the token page shows under their name, or null when they " +
         "have none or this Event Service has never seen them",
     ),
+  // The agreement's sections 1 and 11.10: a previous Event Service sends none. An unreadable
+  // look reads as null too, so it never turns the whole meeting into `unavailable`.
+  owner_avatar: avatarLook
+    .nullable()
+    .default(null)
+    .catch(null)
+    .describe("The owner's current avatar look, or null when none is available"),
 });
 
 export type MeetingsRequest = z.infer<typeof meetingsRequest>;

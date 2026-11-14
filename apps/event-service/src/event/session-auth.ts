@@ -1,3 +1,4 @@
+import type { AvatarLook } from "@geekykey/handoff";
 import { eq } from "drizzle-orm";
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
@@ -29,6 +30,8 @@ export interface SessionUser {
   bio: string | null;
   /** How to reach the user (profiles.ts), or null for none. */
   contactLine: string | null;
+  /** The user's avatar look (profiles.ts), or null for none saved. */
+  avatar: AvatarLook | null;
 }
 
 /** Reads the request's `db`, and sets `user` for the handlers after it. */
@@ -126,6 +129,7 @@ async function loadSessionUser(
       nameSetAt: users.nameSetAt,
       bio: users.bio,
       contactLine: users.contactLine,
+      avatar: users.avatar,
       kind: userKinds.kind,
     })
     .from(users)
@@ -142,6 +146,7 @@ async function loadSessionUser(
     kind: user.kind,
     bio: user.bio,
     contactLine: user.contactLine,
+    avatar: user.avatar,
   };
 }
 

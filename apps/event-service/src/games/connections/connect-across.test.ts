@@ -195,6 +195,7 @@ test("across groups, two people in different groups connect whatever their kinds
       display_name: "bea",
       bio: null,
       contact_line: null,
+      avatar: null,
       kind: null,
       match: null,
       dice: { your_roll: 4, their_roll: 4, result: "win" },
@@ -253,11 +254,13 @@ test("across groups, a tap the rule refuses still answers the owner's name", asy
     status: "same_group",
     owner_name: "bea",
     owner_bio: null,
+    owner_avatar: null,
   });
   assert.deepEqual(await meetAnswer("alex", "E", "chen", "B"), {
     status: "no_group",
     owner_name: "chen",
     owner_bio: null,
+    owner_avatar: null,
   });
 });
 

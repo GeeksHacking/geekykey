@@ -23,6 +23,7 @@ interface RequestBody {
   id: string;
   display_name: string;
   bio: string | null;
+  avatar?: unknown;
   requested_at: string;
 }
 
@@ -151,7 +152,13 @@ test("a request gives the tapper's current bio, and no contact line, user ID or 
   assert.equal(await tap("alex", "E", "bea", "B"), "waiting");
 
   const [request] = (await meOf("bea")).connection_requests;
-  assert.deepEqual(Object.keys(request!).sort(), ["bio", "display_name", "id", "requested_at"]);
+  assert.deepEqual(Object.keys(request!).sort(), [
+    "avatar",
+    "bio",
+    "display_name",
+    "id",
+    "requested_at",
+  ]);
   assert.equal(request!.bio, "Building a robot arm");
   assert.equal(JSON.stringify(request).includes("@alex"), false);
 
@@ -160,6 +167,23 @@ test("a request gives the tapper's current bio, and no contact line, user ID or 
   assert.equal((await meOf("bea")).connection_requests[0]!.bio, "Sensors now");
   await testDb().update(users).set({ bio: null }).where(eq(users.id, "alex"));
   assert.equal((await meOf("bea")).connection_requests[0]!.bio, null);
+});
+
+test("a request gives the tapper's current avatar look, or null for none", async () => {
+  const { tap, meOf } = harness();
+  const look = { character: "dress", skin: "warm", hair: "auburn", suit: "emerald" };
+  await testDb().insert(users).values({ id: "alex", displayName: "Alex Tan", avatar: look });
+  await named("cal", "Cal Lim");
+  await tap("alex", "E", "bea", "B");
+  await tap("cal", "E", "bea", "B");
+
+  const byName = async () =>
+    new Map((await meOf("bea")).connection_requests.map((r) => [r.display_name, r.avatar]));
+  assert.deepEqual((await byName()).get("Alex Tan"), look);
+  assert.equal((await byName()).get("Cal Lim"), null);
+
+  await testDb().update(users).set({ avatar: null }).where(eq(users.id, "alex"));
+  assert.equal((await byName()).get("Alex Tan"), null);
 });
 
 test("a request from someone with no bio gives null", async () => {

@@ -88,6 +88,19 @@ test("the meeting hand-off's JSON Schemas keep the agreement's rules", () => {
     "same_group",
     "no_group",
   ]);
+  const avatar = answer.properties.owner_avatar;
+  assert.equal(avatar.default, null);
+  assert.deepEqual(answer.required, ["status"]);
+  const [look, none] = avatar.anyOf;
+  assert.equal(look.type, "object");
+  assert.deepEqual(look.required, ["character", "skin", "hair", "suit"]);
+  for (const part of ["character", "skin", "hair", "suit"]) {
+    assert.equal(look.properties[part].type, "string");
+    assert.equal(look.properties[part].minLength, 1);
+    assert.equal(look.properties[part].maxLength, 24);
+    assert.equal(look.properties[part].pattern, "^[a-z0-9-]+$");
+  }
+  assert.deepEqual(none, { type: "null" });
 });
 
 test("a field added later doesn't break a team checking with an older JSON Schema", () => {

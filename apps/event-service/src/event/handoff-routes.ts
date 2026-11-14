@@ -173,6 +173,8 @@ export function handoffRoutes({
       status,
       owner_name: owner.name,
       owner_bio: owner.bio,
+      // The agreement's 11.10, in its next version after 0.14 (BAC-191).
+      owner_avatar: owner.avatar,
     } satisfies MeetingsAnswer);
   });
 }
