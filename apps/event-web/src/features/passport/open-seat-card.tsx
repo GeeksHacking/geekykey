@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 
 import type { Connection, ConnectionRequest, OpenSeat } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
@@ -11,6 +11,7 @@ import {
   useAcceptConnectionRequest,
   useDeclineConnectionRequest,
 } from "@/features/passport/use-answer-connection-request";
+import { SeatPollingContext } from "@/lib/seat-polling";
 
 /**
  * The user's latest open seat (BAC-190, FRO-179): the sitter's countdown, who took it, the prompt
@@ -35,9 +36,15 @@ export function OpenSeatCard({
   const answering = accept.isPending || decline.isPending;
   const refused = accept.data ? REFUSED[accept.data.status] : null;
   const failure = failureOf(accept.error) ?? failureOf(decline.error);
+  const setSeatCardMounted = useContext(SeatPollingContext);
   const key = `gk-open-seat-dismissed:${userId}:${seat.opened_at}`;
   const [dismissed, setDismissed] = useState(() => readDismissed(key) === "1");
   const [expired, setExpired] = useState(() => Date.now() >= Date.parse(seat.closes_at));
+
+  useEffect(() => {
+    setSeatCardMounted?.(true);
+    return () => setSeatCardMounted?.(false);
+  }, [setSeatCardMounted]);
 
   useEffect(() => {
     if (seat.status !== "open") return;

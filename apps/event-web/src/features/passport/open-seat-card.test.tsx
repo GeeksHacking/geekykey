@@ -6,6 +6,7 @@ import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
 import type { Connection, ConnectionRequest, OpenSeat } from "@/api/types";
 import { OpenSeatCard } from "@/features/passport/open-seat-card";
+import { SeatPollingContext } from "@/lib/seat-polling";
 import { createTestProviders } from "@/test/providers";
 
 const OPEN: OpenSeat = {
@@ -206,5 +207,22 @@ describe("the open seat card (FRO-179)", () => {
     expect(
       within(card).queryByText("You're in the same group. Find someone from another group."),
     ).not.toBeInTheDocument();
+  });
+
+  it("registers fast polling only for the lifetime of the card", () => {
+    const setSeatCardMounted = vi.fn();
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    const { Providers } = createTestProviders(api);
+    const view = render(
+      <Providers>
+        <SeatPollingContext value={setSeatCardMounted}>
+          <OpenSeatCard seat={OPEN} userId={SEEDED_PARTICIPANT_ID} connections={[]} />
+        </SeatPollingContext>
+      </Providers>,
+    );
+
+    expect(setSeatCardMounted).toHaveBeenLastCalledWith(true);
+    view.unmount();
+    expect(setSeatCardMounted).toHaveBeenLastCalledWith(false);
   });
 });
