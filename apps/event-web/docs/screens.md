@@ -47,8 +47,11 @@ the sidebar footer.
 Endpoint statuses (`Implemented`, `Sprint 1`, `MVP`) are in the agreement. Screens
 against `MVP` endpoints are still built now, against mocks.
 
-Participants share a setup check in `ParticipantFrame` (BAC-144, agreement sections 8.1 and 13).
-Until `user.has_name` and every question has an answer, the layout mounts only the current setup
-step and hides section navigation and the place switch. Browser skip keys are ignored. With no questions only the name
-is needed. Organizers keep their current screens. An older connection with incomplete locked
-answers can fill the missing ones, while already answered questions and past matches stay fixed.
+Participants share a setup check in `ParticipantFrame` (BAC-144, FRO-186, agreement sections 8.1
+and 13). Until `user.has_name` and every question has an answer, and a participant with no bio and
+no contact line has saved or skipped the bio step, the layout mounts only the current setup step and
+hides section navigation and the place switch. The name and answers steps ignore browser skip keys;
+the bio step's Skip is remembered in this browser, per user ID. With no questions the name is
+followed by the bio step. Organizers keep their current screens. An older connection with incomplete
+locked answers can fill the missing ones, while already answered questions and past matches stay
+fixed.
