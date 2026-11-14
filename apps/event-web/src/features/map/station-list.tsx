@@ -3,6 +3,7 @@ import { MapPinSimpleArea, Prohibit } from "@phosphor-icons/react";
 import type { MapStation } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import type { PlacedStation } from "@/features/map/place-stations";
+import { seatText, type SeatMark } from "@/features/map/seat-marks";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +15,11 @@ import { cn } from "@/lib/utils";
 export function StationList({
   placed,
   unplaced,
+  seatMarks,
 }: {
   placed: readonly PlacedStation[];
   unplaced: readonly MapStation[];
+  seatMarks?: ReadonlyMap<string, SeatMark>;
 }) {
   return (
     <div className="space-y-8">
@@ -37,7 +40,12 @@ export function StationList({
             <CornerBrackets />
             <ul className="divide-y divide-border rounded-lg border border-border bg-card">
               {placed.map(({ station, booth }) => (
-                <StationRow key={station.station_id} station={station} code={booth.name} />
+                <StationRow
+                  key={station.station_id}
+                  station={station}
+                  code={booth.name}
+                  seat={seatMarks?.get(station.station_id)}
+                />
               ))}
             </ul>
           </div>
@@ -57,7 +65,12 @@ export function StationList({
           </div>
           <ul className="divide-y divide-border rounded-lg border border-status-cooldown/40 bg-card">
             {unplaced.map((station) => (
-              <StationRow key={station.station_id} station={station} code={null} />
+              <StationRow
+                key={station.station_id}
+                station={station}
+                code={null}
+                seat={seatMarks?.get(station.station_id)}
+              />
             ))}
           </ul>
         </section>
@@ -66,7 +79,15 @@ export function StationList({
   );
 }
 
-function StationRow({ station, code }: { station: MapStation; code: string | null }) {
+function StationRow({
+  station,
+  code,
+  seat,
+}: {
+  station: MapStation;
+  code: string | null;
+  seat?: SeatMark;
+}) {
   return (
     <li className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
       <span
@@ -83,6 +104,16 @@ function StationRow({ station, code }: { station: MapStation; code: string | nul
       </span>
       <span className="min-w-0">
         <span className="block truncate text-base font-medium">{stationTitle(station)}</span>
+        {seat ? (
+          <span
+            className={cn(
+              "mt-0.5 block text-lg font-semibold",
+              seat.state === "open" ? "text-primary-text" : "text-muted-foreground",
+            )}
+          >
+            {seatText(seat)}
+          </span>
+        ) : null}
         {code === null ? (
           <span
             className="mt-0.5 block truncate text-sm text-muted-foreground"
