@@ -2777,7 +2777,7 @@
   date: 2026-11-14
   area: backend
   change: >-
-    Any station can run the open seat. A tap opens a seat for 60 seconds, the other open seat
+    Any station can run the open seat, where a tap opens a seat for 60 seconds, the other open seat
     stations beep and say where it is, and someone from another group taps the same station to take
     it. The station then shows both first names and a question for the two to ask each other, and
     the person who opened the seat gets a connection request to accept or decline.
