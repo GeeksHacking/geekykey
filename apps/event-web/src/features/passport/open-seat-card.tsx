@@ -4,9 +4,9 @@ import type { Connection, ConnectionRequest, OpenSeat } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
 import { REFUSED, failureOf } from "@/features/passport/connection-request-answer";
-import { ConnectionRequestRow } from "@/features/passport/connection-request-row";
 import { readDismissed } from "@/features/passport/round-dismissal";
 import { SeatCountdown } from "@/features/passport/seat-countdown";
+import { SeatRequest } from "@/features/passport/seat-request";
 import {
   useAcceptConnectionRequest,
   useDeclineConnectionRequest,
@@ -99,37 +99,25 @@ export function OpenSeatCard({
     body = (
       <>
         {seat.prompt ? <p className="mt-1 text-sm">Ask each other: {seat.prompt}</p> : null}
-        {request ? (
-          <ul className="mt-2 divide-y">
-            <ConnectionRequestRow
-              request={request}
-              answering={answering}
-              accepting={accept.isPending && accept.variables === request.id}
-              declining={decline.isPending && decline.variables === request.id}
-              onAccept={() => {
-                decline.reset();
-                accept.mutate(request.id);
-              }}
-              onDecline={() => {
-                accept.reset();
-                decline.mutate(request.id);
-              }}
-            />
-          </ul>
-        ) : null}
-        {refused ? (
-          <div className="mt-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p role="status">{refused}</p>
-            <Button type="button" variant="ghost" onClick={dismissRefusal}>
-              Dismiss
-            </Button>
-          </div>
-        ) : null}
-        {failure ? (
-          <p role="alert" className="mt-2 text-sm text-destructive-text">
-            {failure}
-          </p>
-        ) : null}
+        <SeatRequest
+          request={request}
+          answering={answering}
+          accepting={request ? accept.isPending && accept.variables === request.id : false}
+          declining={request ? decline.isPending && decline.variables === request.id : false}
+          refused={refused}
+          failure={failure}
+          onAccept={() => {
+            if (!request) return;
+            decline.reset();
+            accept.mutate(request.id);
+          }}
+          onDecline={() => {
+            if (!request) return;
+            accept.reset();
+            decline.mutate(request.id);
+          }}
+          onDismiss={dismissRefusal}
+        />
       </>
     );
   } else if (takerTaken) {
