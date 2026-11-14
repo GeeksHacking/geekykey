@@ -1,9 +1,63 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { meetingsAnswer, meetingsRequest } from "./index.ts";
+import { MEETING_STATUSES, meetingsAnswer, meetingsRequest } from "./index.ts";
 
 // The examples in the API agreement, 11.10.
 const request = { user_id: "user-1", user_kind: "E", owner_id: "user-2", owner_kind: "B" };
+
+test("the owner's avatar look passes whole for every meeting status", () => {
+  for (const status of MEETING_STATUSES) {
+    const answer = {
+      status,
+      owner_name: "Sam",
+      owner_bio: null,
+      owner_avatar: { character: "suit", skin: "warm", hair: "auburn", suit: "emerald" },
+    };
+    assert.deepEqual(meetingsAnswer.parse(answer), answer);
+  }
+});
+
+test("a null owner avatar stays null for every meeting status", () => {
+  for (const status of MEETING_STATUSES) {
+    assert.equal(meetingsAnswer.parse({ status, owner_avatar: null }).owner_avatar, null);
+  }
+});
+
+test("an answer from an Event Service without owner_avatar reads as null", () => {
+  for (const status of MEETING_STATUSES) {
+    assert.equal(meetingsAnswer.parse({ status }).owner_avatar, null);
+  }
+});
+
+test("extra keys in the owner's avatar look are dropped", () => {
+  const owner_avatar = { character: "suit", skin: "warm", hair: "auburn", suit: "emerald" };
+  assert.deepEqual(
+    meetingsAnswer.parse({ status: "waiting", owner_avatar: { ...owner_avatar, hat: "cap" } })
+      .owner_avatar,
+    owner_avatar,
+  );
+});
+
+test("an unreadable owner avatar reads as null and the meeting status stays", () => {
+  for (const owner_avatar of [
+    {},
+    { character: "suit", skin: "warm", hair: "auburn" },
+    { character: "suit", skin: "warm", hair: "auburn", suit: "e".repeat(25) },
+    { character: "suit", skin: "warm", hair: "auburn", suit: "Emerald" },
+    { character: "suit", skin: "warm", hair: "auburn", suit: "" },
+    { character: "suit", skin: "warm", hair: "auburn", suit: 7 },
+    "emerald",
+    7,
+    [],
+  ]) {
+    assert.deepEqual(meetingsAnswer.parse({ status: "connected", owner_avatar }), {
+      status: "connected",
+      owner_name: null,
+      owner_bio: null,
+      owner_avatar: null,
+    });
+  }
+});
 
 test("the agreement's meeting hand-off and its answer pass", () => {
   assert.deepEqual(meetingsRequest.parse(request), request);
@@ -22,13 +76,13 @@ test("the agreement's meeting hand-off and its answer pass", () => {
     "same_group",
     "no_group",
   ]) {
-    const answer = { status, owner_name: "Sam", owner_bio: null };
+    const answer = { status, owner_name: "Sam", owner_bio: null, owner_avatar: null };
     assert.deepEqual(meetingsAnswer.parse(answer), answer);
   }
 });
 
 test("an owner with no name answers null", () => {
-  const answer = { status: "waiting", owner_name: null, owner_bio: null };
+  const answer = { status: "waiting", owner_name: null, owner_bio: null, owner_avatar: null };
   assert.deepEqual(meetingsAnswer.parse(answer), answer);
 });
 
@@ -37,12 +91,13 @@ test("an answer from an Event Service without owner_name reads as null", () => {
     status: "waiting",
     owner_name: null,
     owner_bio: null,
+    owner_avatar: null,
   });
 });
 
 test("an answer with the owner's bio keeps it, and a null one stays null", () => {
   for (const owner_bio of ["Building a robot arm", null]) {
-    const answer = { status: "waiting", owner_name: "Sam", owner_bio };
+    const answer = { status: "waiting", owner_name: "Sam", owner_bio, owner_avatar: null };
     assert.deepEqual(meetingsAnswer.parse(answer), answer);
   }
 });
@@ -53,7 +108,7 @@ test("an answer from an Event Service without owner_bio reads as null", () => {
 
 test("a name the owner set in any script, or a long login name, passes whole", () => {
   for (const owner_name of ["陈小明", "A".repeat(100)]) {
-    const answer = { status: "connected", owner_name, owner_bio: null };
+    const answer = { status: "connected", owner_name, owner_bio: null, owner_avatar: null };
     assert.deepEqual(meetingsAnswer.parse(answer), answer);
   }
 });

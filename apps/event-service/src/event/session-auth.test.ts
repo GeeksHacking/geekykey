@@ -80,6 +80,7 @@ test("puts the signed-in user on the context", async () => {
       kind: null,
       bio: null,
       contactLine: null,
+      avatar: null,
     },
   });
 });

@@ -1,4 +1,4 @@
-import type { MeetingStatus } from "@geekykey/handoff";
+import type { AvatarLook, MeetingStatus } from "@geekykey/handoff";
 import type { Tx } from "./games.ts";
 import type { Db } from "../db/pool.ts";
 
@@ -29,6 +29,8 @@ export interface ConnectionRequest {
   displayName: string;
   /** Their current bio, or null for none. It never comes with their contact line (8.1). */
   bio: string | null;
+  /** Their current avatar look, or null for none, as the bio comes (8.1, BAC-191). */
+  avatar: AvatarLook | null;
   requestedAt: string;
 }
 
@@ -94,6 +96,8 @@ export interface Connection {
   displayName: string | null;
   /** The other person's current bio, or null for none. It can change as the name can. */
   bio: string | null;
+  /** The other person's current avatar look, or null for none (8.1, BAC-191). It can change too. */
+  avatar: AvatarLook | null;
   /**
    * The other person's current contact line, or null for none. It can change as the name can.
    * This is the only answer that gives anyone else's (the API agreement's 8.1).

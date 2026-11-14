@@ -2713,3 +2713,10 @@
     Version 0.14 of the API agreement describes participant groups, team duels, the phrase and
     the relay as they were built, in one version for the screens' owner to read. Until now the
     groups' routes were only in a draft spec.
+- id: avatar-look-shared
+  date: 2026-11-14
+  area: backend
+  change: >-
+    The Event Service keeps each person's avatar look and gives it with their connections, their
+    connection requests and a tap on their token, so other phones can draw it. It checks only the
+    shape, so a new colour on the screens needs no Event Service deploy.

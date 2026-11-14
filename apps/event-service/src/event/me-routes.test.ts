@@ -20,6 +20,7 @@ interface MeBody {
     answers: Record<string, string>;
     bio: string | null;
     contact_line: string | null;
+    avatar?: unknown;
   };
   questions: unknown[] | null;
   points: number;
@@ -156,6 +157,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
       answers: {},
       bio: null,
       contact_line: null,
+      avatar: null,
     },
     questions: null,
     round: null,
@@ -470,6 +472,7 @@ test("an organizer on the list gets the same view of their own account", async (
       answers: {},
       bio: null,
       contact_line: null,
+      avatar: null,
     },
     questions: null,
     round: null,
@@ -524,6 +527,7 @@ test("a participant sets the name the event shows, and /me shows it", async () =
       answers: {},
       bio: null,
       contact_line: null,
+      avatar: null,
     },
   });
   assert.equal((await meAs(userId)).user.display_name, "Ally");
@@ -705,6 +709,7 @@ test("a participant writes a bio and a contact line, and /me shows both", async 
       answers: {},
       bio: "Building a robot arm",
       contact_line: "@alex on Telegram",
+      avatar: null,
     },
   });
   const { user } = await meAs(userId);
@@ -769,4 +774,73 @@ test("a value over its limit is refused under its own path, and a refused reques
   assert.equal(user.bio, "Kept");
   assert.equal(user.contact_line, "@kept");
   assert.equal(user.display_name, "Alex");
+});
+
+const LOOK = { character: "dress", skin: "warm", hair: "auburn", suit: "emerald" };
+
+test("a participant saves an avatar look, and /me gives it back", async () => {
+  const { signIn, patchMe, meAs, userId } = await nameHarness();
+  const res = await patchMe({ avatar: LOOK }, await signIn(userId));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  screensSchemas.setDisplayNameResponseSchema.parse(body);
+  assert.deepEqual((body as { user: { avatar: unknown } }).user.avatar, LOOK);
+  assert.deepEqual((await meAs(userId)).user.avatar, LOOK);
+});
+
+test("someone who has saved no look has a null avatar", async () => {
+  const { signIn, meAs, userId } = await nameHarness();
+  await signIn(userId);
+  assert.equal((await meAs(userId)).user.avatar, null);
+});
+
+test("a colour the service has never heard of is kept, so a new one needs no deploy", async () => {
+  const { signIn, patchMe, meAs, userId } = await nameHarness();
+  const look = { character: "robot-2", skin: "teal", hair: "rainbow", suit: "glitter-gold" };
+  assert.equal((await patchMe({ avatar: look }, await signIn(userId))).status, 200);
+  assert.deepEqual((await meAs(userId)).user.avatar, look);
+});
+
+test("null clears the look, and leaving avatar out keeps it", async () => {
+  const { signIn, patchMe, meAs, userId } = await nameHarness();
+  const cookie = await signIn(userId);
+  await patchMe({ avatar: LOOK }, cookie);
+  await patchMe({ bio: "Something" }, cookie);
+  assert.deepEqual((await meAs(userId)).user.avatar, LOOK);
+  const res = await patchMe({ avatar: null }, cookie);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  screensSchemas.setDisplayNameResponseSchema.parse(body);
+  assert.equal((body as { user: { avatar: unknown } }).user.avatar, null);
+  assert.equal((await meAs(userId)).user.avatar, null);
+});
+
+test("a look of the wrong shape is refused under avatar, and changes nothing", async () => {
+  const { signIn, patchMe, meAs, userId } = await nameHarness();
+  const cookie = await signIn(userId);
+  await patchMe({ avatar: LOOK, bio: "Kept" }, cookie);
+  const { suit: _, ...noSuit } = LOOK;
+  for (const avatar of [
+    noSuit,
+    { ...LOOK, hat: "black" },
+    { ...LOOK, skin: "Warm" },
+    { ...LOOK, hair: "" },
+    { ...LOOK, hair: "x".repeat(25) },
+    { ...LOOK, suit: "navy blue" },
+    { ...LOOK, suit: 7 },
+    "dress",
+    [],
+  ]) {
+    const paths = await issuePaths(await patchMe({ avatar, bio: "Changed" }, cookie));
+    assert.ok(paths.length > 0, JSON.stringify(avatar));
+    for (const path of paths) assert.equal(path[0], "avatar", JSON.stringify(avatar));
+  }
+  const { user } = await meAs(userId);
+  assert.deepEqual(user.avatar, LOOK);
+  assert.equal(user.bio, "Kept");
+});
+
+test("a request with only a look is enough", async () => {
+  const { signIn, patchMe, userId } = await nameHarness();
+  assert.equal((await patchMe({ avatar: null }, await signIn(userId))).status, 200);
 });

@@ -324,7 +324,12 @@ export function connectionsGame(
         requestedAt: (row.userA === userId ? row.bMetAt : row.aMetAt)!,
       }));
       const people = await db
-        .select({ id: users.id, displayName: users.displayName, bio: users.bio })
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          bio: users.bio,
+          avatar: users.avatar,
+        })
         .from(users)
         .where(
           inArray(
@@ -342,6 +347,7 @@ export function connectionsGame(
             id,
             displayName: person?.displayName ?? DEFAULT_DISPLAY_NAME,
             bio: person?.bio ?? null,
+            avatar: person?.avatar ?? null,
             requestedAt,
           };
         });
@@ -389,13 +395,14 @@ export function connectionsGame(
           displayName: users.displayName,
           bio: users.bio,
           contactLine: users.contactLine,
+          avatar: users.avatar,
         })
         .from(connections)
         // A left join, since a meeting's user may never have logged in here, so may have no row.
         .leftJoin(users, eq(users.id, otherId))
         .where(or(eq(connections.userA, userId), eq(connections.userB, userId)))
         .orderBy(desc(connections.connectedAt), desc(connections.userA), desc(connections.userB));
-      return rows.map(({ row, displayName, bio, contactLine }): Connection => {
+      return rows.map(({ row, displayName, bio, contactLine, avatar }): Connection => {
         const sharedAt = new Date(Date.parse(row.connectedAt) + SHARED_AFTER_MS).toISOString();
         const [yourRoll, theirRoll] =
           row.userA === userId ? [row.rollA, row.rollB] : [row.rollB, row.rollA];
@@ -407,6 +414,7 @@ export function connectionsGame(
           displayName,
           bio,
           contactLine,
+          avatar,
           kind: row.userA === userId ? row.kindB : row.kindA,
           match: row.matchPercent,
           dice:

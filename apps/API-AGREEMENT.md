@@ -1240,7 +1240,7 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
 
 ```json
 {
-  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "R", "answers": { "drink": "tea", "hours": "night_owl" }, "bio": "Building a robot arm", "contact_line": "@alex on Telegram" },
+  "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "R", "answers": { "drink": "tea", "hours": "night_owl" }, "bio": "Building a robot arm", "avatar": { "character": "dress", "skin": "warm", "hair": "auburn", "suit": "emerald" }, "contact_line": "@alex on Telegram" },
   "questions": [
     { "id": "drink", "text": "Tea or coffee?", "choices": [ { "id": "tea", "text": "Tea" }, { "id": "coffee", "text": "Coffee" } ] },
     { "id": "hours", "text": "Night owl or early bird?", "choices": [ { "id": "night_owl", "text": "Night owl" }, { "id": "early_bird", "text": "Early bird" } ] }
@@ -1255,10 +1255,10 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   ],
   "next_stop": { "station_id": "…", "name": "Cloud Sponsor", "booth": "B3" },
   "connection_requests": [
-    { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "requested_at": "2026-11-12T08:12:00.000Z" }
+    { "id": "6f1c2a9e-5b7d-4c11-9a3e-2d8f0b4e7a15", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "avatar": { "character": "dress", "skin": "warm", "hair": "auburn", "suit": "emerald" }, "requested_at": "2026-11-12T08:12:00.000Z" }
   ],
   "connections": [
-    { "id": "0b7e4d2c-1f9a-4c3e-8a5d-6e2f1b9c7d40", "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "contact_line": "@meilin on Telegram", "kind": "B", "match": 50, "shared": null, "shared_at": "2026-11-12T08:14:30.000Z" }
+    { "id": "0b7e4d2c-1f9a-4c3e-8a5d-6e2f1b9c7d40", "connected_at": "2026-11-12T08:12:30.000Z", "display_name": "Mei Lin", "bio": "Sensors and sourdough", "avatar": { "character": "dress", "skin": "warm", "hair": "auburn", "suit": "emerald" }, "contact_line": "@meilin on Telegram", "kind": "B", "match": 50, "shared": null, "shared_at": "2026-11-12T08:14:30.000Z" }
   ],
   "round_wins": 0,
   "round": null
@@ -1321,6 +1321,12 @@ Organizers keep their current flow. No skip remembered by the browser bypasses t
   works with an Event Service from before it.
 - `user.bio` and `user.contact_line` are what the user wrote (8.7), or `null` for none (BAC-147). A screen reads a missing one as `null`, so it works with an Event
   Service from before them.
+- For the next version, after 0.14 (BAC-191), `user.avatar` is the user's saved look (8.7),
+  or `null` when they have saved none. Each item in `connections` and `connection_requests`
+  gives the other person's current `avatar`, or `null` for none, so edits and clears show at
+  the next poll. A screen reads a missing `avatar` as `null`, so it works with an Event Service
+  from before it. For a value it doesn't know, a screen draws its default for that part.
+  Another person's avatar shows their look without earned pieces (8.7).
 - `connections` lists the user's connections ([Connections](#connections)), newest first. Each
   gives when it was made and the other person's `kind`, and never their user ID or answers.
   `kind` is `null` when they had none, which only a connection across groups allows.
@@ -1596,15 +1602,18 @@ sets the user's bio and contact line (BAC-147). Participant setup asks for the n
 later. Anyone can set it, not only a guest. A Google user may not want their full Google name
 shown.
 
+For the next version, after 0.14, it also sets the user's avatar look (BAC-191).
+
 **Auth:** `event_session`, any role.
 
 **Request**
 
 ```json
-{ "display_name": "Alex", "answers": { "drink": "tea" }, "bio": "Building a robot arm", "contact_line": "@alex on Telegram" }
+{ "display_name": "Alex", "answers": { "drink": "tea" }, "bio": "Building a robot arm", "avatar": { "character": "dress", "skin": "warm", "hair": "auburn", "suit": "emerald" }, "contact_line": "@alex on Telegram" }
 ```
 
-Every field is optional, and a request needs at least one.
+Every field is optional, and a request needs at least one of `display_name`, `answers`, `bio`,
+`contact_line` or `avatar` (BAC-191).
 
 `display_name` is trimmed, then must be 1 to 30 characters, counted as Unicode code points. Any
 script is allowed. A name that breaks the rule gets `validation_failed`, with its issue under the
@@ -1632,6 +1641,16 @@ code points for `bio` and 80 for `contact_line`, with its issue under `["bio"]` 
 `["contact_line"]`. A blank string or `null` clears it, and `GET` then gives `null`. The contact
 line is free text, such as a Telegram handle (BAC-147).
 
+`avatar` is the whole look, an object with exactly four keys: `character`, `skin`, `hair` and
+`suit`. Each value is a string of 1 to 24 characters, made of lowercase letters `a` to `z`,
+digits `0` to `9` and hyphens. A wrong shape, an extra or missing key, or a value that breaks
+the rule gets `400 validation_failed`, with its issue under `["avatar"]`, or under the key for
+one value, such as `["avatar", "skin"]`. `null` clears the look, and `GET` then gives `null`.
+The Event Service checks no list of colours, so a new colour needs no Event Service deploy. A screen that meets a value it doesn't know draws its default for that part (BAC-191).
+
+The Event Service keeps the look per event. The evening-before clear removes it with the user,
+as it does the bio (BAC-191).
+
 BAC-144 keeps that lock on existing answers. A user
 whose older connection fixed incomplete answers can fill a missing question, including a question
 added later, but cannot change an answer already on the current list. A mixed request that also
@@ -1643,7 +1662,7 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
 **Response `200`**, with the `user` object from 8.1:
 
 ```json
-{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "R", "answers": { "drink": "tea", "hours": "night_owl" }, "bio": "Building a robot arm", "contact_line": "@alex on Telegram" } }
+{ "user": { "id": "dev-user-1", "display_name": "Alex", "role": "participant", "has_name": true, "kind": "R", "answers": { "drink": "tea", "hours": "night_owl" }, "bio": "Building a robot arm", "avatar": { "character": "dress", "skin": "warm", "hair": "auburn", "suit": "emerald" }, "contact_line": "@alex on Telegram" } }
 ```
 
 - From now on, logging in (7.2) and login links (7.4) no longer change the name.
@@ -1658,6 +1677,13 @@ A request where any field breaks its rule, or whose name is taken, changes nothi
   also to anyone who taps the user's token, before the two connect (8.8), and to anyone whose token
   the user taps, in a connection request (8.1), because viewing a profile needs no accepting. The
   organizers' screens, the export, the map and the memory card never show either one (BAC-147, and BAC-151).
+- `user.avatar` is the saved look after the change, or `null` when cleared. An avatar shows to
+  the same people as a bio. The organizers' screens, the export and the map get none. Another
+  person's avatar shows their look without earned pieces. Only the screens count the connections
+  and wins that earn pieces today (BAC-191).
+
+An Event Service from before `avatar` refuses a PATCH whose only field is `avatar` with
+`400 validation_failed`. Deploy both services before the screens that send it (BAC-191).
 
 **Errors:** `unauthenticated`, `validation_failed`, `answers_fixed`, `name_taken` (BAC-145), and `rate_limited`
 ([Rate limits](#rate-limits)).
@@ -1678,7 +1704,7 @@ shows only the sentence that the token belongs to someone else.
 **Response `200`**
 
 ```json
-{ "meetings": [ { "event_id": "showcase", "status": "waiting", "owner_name": "Sam", "owner_bio": "Building a robot arm" } ] }
+{ "meetings": [ { "event_id": "showcase", "status": "waiting", "owner_name": "Sam", "owner_bio": "Building a robot arm", "owner_avatar": { "character": "dress", "skin": "warm", "hair": "auburn", "suit": "emerald" } } ] }
 ```
 
 - The GeekyKey Service asks the claims stand-in for the user's tokens, then for who owns the
@@ -1698,9 +1724,16 @@ shows only the sentence that the token belongs to someone else.
 - `owner_bio` comes the same way: the owner's current bio from the same answer (11.10), or `null`.
   The GeekyKey Service passes it on and stores no bios. The answer never gives a contact line. A
   screen that gets no `owner_bio` reads it as `null` (BAC-151).
+- For the next version, after 0.14 (BAC-191), `owner_avatar` is the owner's current saved look
+  from the same answer (11.10), for every status, or `null` when they have saved none. The
+  GeekyKey Service passes it on and stores no looks. A screen that gets no `owner_avatar` reads
+  it as `null`, and draws its default for any part whose value it doesn't know. A look the
+  GeekyKey Service can't read becomes `null` under 11.10's rules, without making the meeting
+  `unavailable`.
 - An Event Service that doesn't answer in time, or answers wrongly, gets the status
-  `unavailable` in its item, with `owner_name` and `owner_bio` `null`, and the GeekyKey Service logs `meeting_handoff_failed`. The other items are unaffected. Nothing is retried. Tapping the token again
-  sends the half again, which does no harm.
+  `unavailable` in its item, with `owner_name`, `owner_bio` and `owner_avatar` `null`, and the
+  GeekyKey Service logs `meeting_handoff_failed`. The other items are unaffected. Nothing is
+  retried. Tapping the token again sends the half again, which does no harm.
 - An Event Service that answers `404`, as one from before 0.12 does, doesn't take meetings, and
   is left out of `meetings`.
 
@@ -3049,7 +3082,7 @@ entry in `EVENT_SERVICES` says `"meetings": true`, and an entry that leaves it o
 **Response `200`**
 
 ```json
-{ "status": "waiting", "owner_name": "Sam", "owner_bio": "Building a robot arm" }
+{ "status": "waiting", "owner_name": "Sam", "owner_bio": "Building a robot arm", "owner_avatar": { "character": "dress", "skin": "warm", "hair": "auburn", "suit": "emerald" } }
 ```
 
 `owner_name` is the owner's current name, a string of at least 1 character, for every `status`. It
@@ -3061,6 +3094,10 @@ other's tokens (BAC-143).
 It is `null` when they have none or this Event Service has never seen them. It doesn't depend on
 `owner_name`, so an owner with no name of their own can still have one. The token page shows it
 under their name, and the answer never gives a contact line (BAC-151).
+
+For the next version, after 0.14 (BAC-191), `owner_avatar` is the owner's current saved look
+(8.7), for every `status`. It is `null` when they have saved none or this Event Service has
+never seen them. The GeekyKey Service passes it on and stores no looks.
 
 | `status` | Meaning |
 |---|---|
@@ -3088,6 +3125,10 @@ under their name, and the answer never gives a contact line (BAC-151).
   rather than a half that expires. A GeekyKey Service from before `owner_name` ignores the field.
   A GeekyKey Service that knows the field reads an answer without it as `null`. `owner_bio` works
   the same way (BAC-151).
+  A GeekyKey Service from before `owner_avatar` ignores it. One that knows it reads a missing
+  field as `null`. It drops unknown keys inside the look before checking its four required
+  values against 8.7's rules. A wrong shape or value then reads as `null` too, so a bad look
+  never makes a meeting `unavailable` (BAC-191).
   A GeekyKey Service from before `answers_needed` treats that unknown status as a malformed
   answer and gives `unavailable`, with no half kept by the Event Service. An older Event Service
   still gives its existing statuses, which the new GeekyKey Service accepts (BAC-144).
@@ -3719,3 +3760,4 @@ Closed on 2026-10-10:
 | 2026-11-13 | For the next version: two stations run the relay, where people from different groups pass a transfer between them (BAC-184). A tap at either relay station starts a game and names a group for the other station; that group's tap there within 20 seconds completes a transfer and calls the next group back. A game is 3 transfers with two groups, or 4 with three or more, and ends at its last transfer or after 2 minutes with no tap. **New:** the relay in section 4 and in 9.2's `games`, as `relay`; its lines, countdowns and station messages in 6.1; its idle text in 6.2; and `GET /api/v1/map/relay` (9.13), which the map polls every second, with a limit of its own of 90 a minute rather than a share of the user's 60. The relay gives no points, stamps or connections. No field or route is removed. |
 | 2026-11-14 | Version 0.14, a draft for Ethan to read (BAC-137). It gathers every row above marked "for the next version", from 5 to 13 November, into one version and drops those labels from the text. It also writes down what was built with no text here until now. **Participant groups** (BAC-125): section 4's "Groups", `GET` and `POST /api/v1/me/group` (8.13), the board `GET /api/v1/admin/groups` (9.14), the group and member writes (9.15 and 9.16), Allocate, the split and Reset (9.17), and the groups CSV (9.18). **New errors:** `409 no_groups`, `409 too_few_participants`, which carries `needed`, and `409 groups_exist`; `name_taken` now has its row in section 2 and also covers a group's name. **The Groups screen's settings:** `PUT /api/v1/admin/connections/rule` and `/challenge` (9.19, BAC-140 and BAC-161) and the phrase, `PUT /api/v1/admin/groups/phrase` (9.20, BAC-169), with `phrase` and `connections[].word` in 8.1. **Groups reached** (BAC-167): `other_groups` in 8.13 and `reached_group_ids` in 9.14. **Team duels** (BAC-155): section 4's "Team duels", `round_wins` and `round` in 8.1, and `POST /api/v1/me/duels/{id}/reaction` (8.14). **Changed, from the firmware as built:** during a countdown, another result shows for 2 seconds and the countdown then comes back, where 6.1 said a new tap ended it (HAR-50). A station message that arrives during a tap's first 2 seconds waits, its beep plays when it shows, and the station reopens a socket whose `pong` is 15 seconds late (6.3, HAR-51). **Section 13:** the Groups screen, the group card, the phrase card and the team duels card, compared with the screens' code, the dashboard's first-tap hint (FRO-138), the station board's game select, and the CSV rule now names the Groups screen. 8.6 says the account menu's link carries no kind (FRO-151). No field or route is removed. The one code removed since 0.13 is `409 station_has_taps`, in the 12 November row (BAC-183). `game_fixed` in 9.2 stays for this version and is always `false`. |
 | 2026-11-14 | Added to 0.14, still a draft: section 13 has the three lines under the dashboard's avatar, for loading and for when 3D can't run or load (FRO-164). The code comments that called 0.14's shapes drafts now name the version. No endpoint or shape changes (BAC-137). |
+| 2026-11-14 | For the next version, after 0.14: the Event Service keeps each person's avatar look per event (BAC-191). New fields are `user.avatar`, `connections[].avatar` and `connection_requests[].avatar` in 8.1, `avatar` in 8.7's request and `user.avatar` in its answer, and `owner_avatar` in 8.8 and 11.10 for every status. The look has `character`, `skin`, `hair` and `suit`, or is `null` for none. 8.7 sets the shape and value rules, with `400 validation_failed` under `["avatar"]` or one of its keys, accepts `null` to clear it, and lets `avatar` be the only PATCH field. The look goes to the same people as the bio, without earned pieces, and the evening-before clear removes it with the user. The organizers' screens, the export and the map get none. Screens read missing fields as `null` and draw their default for an unknown value. The GeekyKey Service stores no looks, drops unknown keys inside a look, and reads a missing or unreadable `owner_avatar` as `null` without making the meeting unavailable. An `unavailable` item has `owner_avatar: null`. Deploy both services before screens that send `avatar`, since an older Event Service refuses a PATCH with only that field. No field or route is removed, and section 13 is unchanged. |

@@ -14,7 +14,7 @@ import {
 import { participantIsReady } from "./participant-setup.ts";
 import { loadMyPhrase, type MyPhrase } from "./phrase.ts";
 import { loadMe } from "./me.ts";
-import { bioSchema, contactLineSchema, setProfile } from "./profiles.ts";
+import { avatarSchema, bioSchema, contactLineSchema, setProfile } from "./profiles.ts";
 import type { AppEnv } from "../app.ts";
 
 import type { TeamDuelsGame } from "./team-duels.ts";
@@ -58,6 +58,7 @@ function connectionBody(connection: Connection, phrase: MyPhrase | null) {
     display_name: connection.displayName,
     bio: connection.bio,
     contact_line: connection.contactLine,
+    avatar: connection.avatar,
     kind: connection.kind,
     match: connection.match,
     dice:
@@ -92,6 +93,7 @@ function connectionRequestBody(request: ConnectionRequest) {
     id: request.id,
     display_name: request.displayName,
     bio: request.bio,
+    avatar: request.avatar,
     requested_at: request.requestedAt,
   };
 }
@@ -107,6 +109,8 @@ function userBody(user: SessionUser, answers: Answers) {
     answers,
     bio: user.bio,
     contact_line: user.contactLine,
+    // The agreement's 8.1 and 8.7, in its next version after 0.14 (BAC-191).
+    avatar: user.avatar,
   };
 }
 
@@ -116,8 +120,8 @@ function userBody(user: SessionUser, answers: Answers) {
  *
  * GET / is everything the participant dashboard and passport need in one
  * call. PATCH / sets any of the name the event shows (display-names.ts), some
- * answers in the event's answers game (answers.ts), the bio and the contact
- * line (profiles.ts).
+ * answers in the event's answers game (answers.ts), the bio, the contact
+ * line and the avatar look (profiles.ts).
  */
 export function meRoutes({
   session,
@@ -135,10 +139,11 @@ export function meRoutes({
       answers: answersSchema(game).optional(),
       bio: bioSchema.optional(),
       contact_line: contactLineSchema.optional(),
+      avatar: avatarSchema.optional(),
     })
     .refine(
       (body) => Object.values(body).some((field) => field !== undefined),
-      "A request needs at least one of display_name, answers, bio and contact_line",
+      "A request needs at least one of display_name, answers, bio, contact_line and avatar",
     );
 
   app.get("/", requireSession(session), async (c) => {
@@ -205,7 +210,13 @@ export function meRoutes({
   });
 
   app.patch("/", requireSession(session), jsonBody(setMeSchema), async (c) => {
-    const { display_name, answers: given, bio, contact_line: contactLine } = c.req.valid("json");
+    const {
+      display_name,
+      answers: given,
+      bio,
+      contact_line: contactLine,
+      avatar,
+    } = c.req.valid("json");
     const { db, user } = c.var;
     // One transaction, so a request whose answers or name is refused changes nothing else. The
     // answers come first: a name locks every user's row, and holding those while waiting for a
@@ -223,7 +234,7 @@ export function meRoutes({
             const refusal = await setOwnName(tx, user.id, display_name);
             if (refusal !== null) throw new NameTaken();
           }
-          await setProfile(tx, user.id, { bio, contactLine });
+          await setProfile(tx, user.id, { bio, contactLine, avatar });
         }
         return result;
       })
@@ -238,6 +249,7 @@ export function meRoutes({
       ...(display_name !== undefined && { displayName: display_name, hasName: true }),
       ...(bio !== undefined && { bio }),
       ...(contactLine !== undefined && { contactLine }),
+      ...(avatar !== undefined && { avatar }),
     };
     return c.json({ user: userBody(updated, saved) });
   });

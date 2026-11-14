@@ -41,6 +41,54 @@
           "type": "null"
         }
       ]
+    },
+    "owner_avatar": {
+      "default": null,
+      "description": "The owner's current avatar look, or null when none is available",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "character": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 24,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "Which character, such as suit or dress"
+            },
+            "skin": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 24,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "The skin tone, such as warm"
+            },
+            "hair": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 24,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "The hair colour, such as auburn"
+            },
+            "suit": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 24,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "The colour of the suit or dress, such as emerald"
+            }
+          },
+          "required": [
+            "character",
+            "skin",
+            "hair",
+            "suit"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [

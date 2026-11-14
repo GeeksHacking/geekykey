@@ -61,6 +61,7 @@ interface ConnectionBody {
   display_name: string | null;
   bio: string | null;
   contact_line: string | null;
+  avatar?: unknown;
   kind: string;
   match: number | null;
   shared: string[] | null;
@@ -159,14 +160,18 @@ function harness({ withGame = true } = {}) {
     assert.equal(res.status, 200);
   };
 
-  /** Sets the user's bio or contact line through PATCH /api/v1/me. */
-  const setMe = async (userId: string, fields: { bio?: string; contact_line?: string }) => {
+  /** Sets the user's bio, contact line or avatar look through PATCH /api/v1/me. */
+  const setMe = async (
+    userId: string,
+    fields: { bio?: string; contact_line?: string; avatar?: Record<string, string> | null },
+  ) => {
     const res = await app.request("/api/v1/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: await signIn(userId) },
       body: JSON.stringify(fields),
     });
     assert.equal(res.status, 200);
+    screensSchemas.setDisplayNameResponseSchema.parse(await res.json());
   };
 
   return { app, clock, meet, statusOf, meOf, answer, setMe, signIn };
@@ -308,21 +313,25 @@ test("a half answers the owner's name with its status, whatever the status", asy
     status: "waiting",
     owner_name: "bea",
     owner_bio: null,
+    owner_avatar: null,
   });
   assert.deepEqual(await answerOf(meet("bea", "B", "alex", "E")), {
     status: "connected",
     owner_name: "alex",
     owner_bio: null,
+    owner_avatar: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
     status: "already_connected",
     owner_name: "bea",
     owner_bio: null,
+    owner_avatar: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "cal", "E")), {
     status: "same_kind",
     owner_name: "cal",
     owner_bio: null,
+    owner_avatar: null,
   });
 });
 
@@ -348,6 +357,7 @@ test("a name the owner changed before the tap is the name a half answers", async
     status: "waiting",
     owner_name: "Mei Lin",
     owner_bio: null,
+    owner_avatar: null,
   });
 });
 
@@ -358,11 +368,13 @@ test("a half answers no name for an owner with only the default name, or who nev
     status: "waiting",
     owner_name: null,
     owner_bio: null,
+    owner_avatar: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "never-seen", "B")), {
     status: "waiting",
     owner_name: null,
     owner_bio: null,
+    owner_avatar: null,
   });
 });
 
@@ -374,6 +386,7 @@ test("a half answers Guest for an owner who chose it as their name", async () =>
     status: "waiting",
     owner_name: "Guest",
     owner_bio: null,
+    owner_avatar: null,
   });
 });
 
@@ -408,21 +421,25 @@ test("a half answers the owner's bio and never their contact line, whatever the 
     status: "waiting",
     owner_name: "bea",
     owner_bio: "Sensors and sourdough",
+    owner_avatar: null,
   });
   assert.deepEqual(await answerOf(meet("bea", "B", "alex", "E")), {
     status: "connected",
     owner_name: "alex",
     owner_bio: null,
+    owner_avatar: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "bea", "B")), {
     status: "already_connected",
     owner_name: "bea",
     owner_bio: "Sensors and sourdough",
+    owner_avatar: null,
   });
   assert.deepEqual(await answerOf(meet("alex", "E", "cal", "E")), {
     status: "same_kind",
     owner_name: "cal",
     owner_bio: "Robot arms",
+    owner_avatar: null,
   });
 });
 
@@ -441,12 +458,30 @@ test("a half answers the bio as it is now, so a changed or cleared one shows", a
   assert.equal(await bioAnswered(), null);
 });
 
+test("a half answers the owner's current avatar look whatever the status, or null for none", async () => {
+  const { meet, signIn, setMe } = harness();
+  const look = { character: "dress", skin: "light", hair: "blonde", suit: "ivory" };
+  const lookAnswered = async (half: Promise<Response>) =>
+    ((await answerOf(half)) as { owner_avatar: unknown }).owner_avatar;
+  await signIn("alex");
+  await setMe("bea", { avatar: look });
+
+  assert.deepEqual(await lookAnswered(meet("alex", "E", "bea", "B")), look);
+  assert.equal(await lookAnswered(meet("bea", "B", "alex", "E")), null);
+  assert.deepEqual(await lookAnswered(meet("alex", "E", "bea", "B")), look);
+  assert.equal(await lookAnswered(meet("alex", "E", "never-seen", "B")), null);
+
+  await setMe("bea", { avatar: null });
+  assert.equal(await lookAnswered(meet("alex", "E", "bea", "B")), null);
+});
+
 test("a half answers no bio for an owner this Event Service has never seen", async () => {
   const { meet } = harness();
   assert.deepEqual(await answerOf(meet("alex", "E", "never-seen", "B")), {
     status: "waiting",
     owner_name: null,
     owner_bio: null,
+    owner_avatar: null,
   });
 });
 
@@ -458,6 +493,7 @@ test("a half answers the bio of an owner with no name of their own", async () =>
     status: "waiting",
     owner_name: null,
     owner_bio: "Robot arms",
+    owner_avatar: null,
   });
 });
 
@@ -537,6 +573,7 @@ test("what the two share shows 2 minutes after they connect, and not before", as
     display_name: "alex",
     bio: null,
     contact_line: null,
+    avatar: null,
     kind: "E",
     match: 67,
     dice: { your_roll: 4, their_roll: 4, result: "win" },
@@ -598,6 +635,7 @@ test("each connection gives the other person's name, and not their ID or answers
       display_name: "Mei Lin",
       bio: null,
       contact_line: null,
+      avatar: null,
       kind: "B",
       match: 67,
       dice: { your_roll: 4, their_roll: 4, result: "win" },
@@ -647,6 +685,24 @@ test("each person sees the other's bio and contact line once they connect", asyn
   const [toAlex] = (await meOf("bea")).connections;
   assert.equal(toAlex!.bio, "Robot arms");
   assert.equal(toAlex!.contact_line, "@alex");
+});
+
+test("each connection gives the other person's current avatar look, or null for none", async () => {
+  const { meet, meOf, setMe } = harness();
+  const look = { character: "suit", skin: "deep", hair: "grey", suit: "navy" };
+  const setLook = (avatar: Record<string, string> | null) => setMe("bea", { avatar });
+  await setLook(look);
+  await meet("alex", "E", "bea", "B");
+  await meet("bea", "B", "alex", "E");
+
+  assert.deepEqual((await meOf("alex")).connections[0]!.avatar, look);
+  assert.equal((await meOf("bea")).connections[0]!.avatar, null);
+
+  const changed = { ...look, suit: "burgundy" };
+  await setLook(changed);
+  assert.deepEqual((await meOf("alex")).connections[0]!.avatar, changed);
+  await setLook(null);
+  assert.equal((await meOf("alex")).connections[0]!.avatar, null);
 });
 
 test("an edit after connecting shows at the next /me, clearing hides it, and the match stays", async () => {
