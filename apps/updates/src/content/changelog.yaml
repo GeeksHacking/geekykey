@@ -2795,6 +2795,7 @@
   change: >-
     The map marks the station with an open seat, with the seconds left, and says Taken for a
     moment after the seat goes. It adds no poll and names nobody.
+
 - id: showcase-steps-from-own-database
   date: 2026-11-14
   area: backend
