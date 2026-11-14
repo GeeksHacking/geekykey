@@ -11,6 +11,7 @@ import { ConnectionReveal } from "@/features/passport/connection-reveal";
 import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
+import { OpenSeatCard } from "@/features/passport/open-seat-card";
 import { PhraseCard } from "@/features/passport/phrase-card";
 import { TeamRoundCard } from "@/features/passport/team-round-card";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
@@ -24,13 +25,32 @@ export function DashboardScreen() {
     .filter((stamp) => stamp.earned_at !== null)
     .sort((a, b) => (b.earned_at ?? "").localeCompare(a.earned_at ?? ""))
     .slice(0, 3);
+  const seat = me.open_seat;
+  /** The taker's request, while the sitter's seat waits for an answer (FRO-179). */
+  const seatRequest =
+    seat?.status === "taken" && seat.role === "sitter"
+      ? me.connection_requests.find(({ display_name }) => display_name === seat.other_display_name)
+      : undefined;
+  /** The card carries the seat's request, so the list below doesn't repeat it. */
+  const otherRequests = seatRequest
+    ? me.connection_requests.filter((request) => request !== seatRequest)
+    : me.connection_requests;
 
   return (
     <div ref={scope} className="space-y-8">
       <TeamRoundCard key={`round:${me.user.id}`} userId={me.user.id} round={me.round} />
+      {seat ? (
+        <OpenSeatCard
+          key={seat.opened_at}
+          seat={seat}
+          userId={me.user.id}
+          request={seatRequest}
+          connections={me.connections}
+        />
+      ) : null}
       {/* First, because the token page's login link lands on this screen (agreement 8.6). */}
       <ConnectionReveal me={me} />
-      <ConnectionRequests requests={me.connection_requests} />
+      <ConnectionRequests requests={otherRequests} />
       {/* An organizer sees this screen too, and is kept out of allocation. */}
       {me.user.role === "participant" ? <GroupCard /> : null}
       {/* Only someone in a group, while a phrase is set, has one to complete (BAC-169). */}

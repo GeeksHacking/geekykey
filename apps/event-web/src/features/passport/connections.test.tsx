@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "@/api/keys";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID, SEEDED_PARTICIPANT_ID } from "@/api/mock/fixtures";
-import type { Connection } from "@/api/types";
+import type { Connection, OpenSeat } from "@/api/types";
 import { DashboardScreen } from "@/features/passport/dashboard-screen";
 import { loadDiceStage } from "@/features/passport/dice/load-dice-stage";
 import { PassportScreen } from "@/features/passport/passport-screen";
@@ -671,5 +671,74 @@ describe("the dice roll in 3D when tapped (FRO-133)", () => {
 
     expect(within(list).queryByText(ROLLED)).not.toBeInTheDocument();
     expect(within(list).getByText("You rolled 3. They rolled 6.")).toBeInTheDocument();
+  });
+});
+
+describe("the open seat card (FRO-179)", () => {
+  function takenSeat(role: "sitter" | "taker"): OpenSeat {
+    return {
+      status: "taken",
+      role,
+      station_id: "st_seat",
+      booth: "A3",
+      opened_at: new Date(Date.now() - 5_000).toISOString(),
+      closes_at: new Date(Date.now() + 55_000).toISOString(),
+      taken_at: new Date(Date.now() - 3_000).toISOString(),
+      other_display_name: "Mei Lin Koh",
+      prompt: "What are you building?",
+    };
+  }
+
+  it("shows the taker's request on the card, and the reveal after Accept", async () => {
+    const api = setUp([]);
+    const guest = guestOf(api);
+    guest.open_seat = takenSeat("sitter");
+    guest.connection_requests = [
+      {
+        id: "cr_seat",
+        display_name: "Mei Lin Koh",
+        bio: "Sensors and sourdough",
+        avatar: null,
+        requested_at: new Date().toISOString(),
+      },
+    ];
+    const { user } = renderScreen(api);
+
+    const card = await screen.findByRole("region", { name: "Open seat" });
+    expect(within(card).getByText("Mei Lin Koh took your seat.")).toBeInTheDocument();
+    expect(within(card).getByText("Ask each other: What are you building?")).toBeInTheDocument();
+    expect(within(card).getByText("Mei Lin Koh wants to connect.")).toBeInTheDocument();
+    expect(screen.getAllByText("Mei Lin Koh wants to connect.")).toHaveLength(1);
+
+    await user.click(within(card).getByRole("button", { name: "Accept" }));
+
+    expect(await screen.findByRole("status", { name: "New connection" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Open seat" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the refusal on the card, and Dismiss takes it away", async () => {
+    const api = setUp([]);
+    const guest = guestOf(api);
+    guest.open_seat = takenSeat("sitter");
+    guest.connection_requests = [
+      {
+        id: "cr_seat",
+        accept_answer: "same_group",
+        display_name: "Mei Lin Koh",
+        bio: null,
+        avatar: null,
+        requested_at: new Date().toISOString(),
+      },
+    ];
+    const { user } = renderScreen(api);
+
+    const card = await screen.findByRole("region", { name: "Open seat" });
+    await user.click(within(card).getByRole("button", { name: "Accept" }));
+
+    expect(
+      await within(card).findByText("You're in the same group. Find someone from another group."),
+    ).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByRole("region", { name: "Open seat" })).not.toBeInTheDocument();
   });
 });
