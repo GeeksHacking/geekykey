@@ -17,6 +17,12 @@ import type { DiceStageProps } from "@/features/passport/dice/dice-stage";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
 
+/* Home's "See all" is a router link, and these tests render the screen without a router (FRO-184). */
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
+}));
+
 /*
   jsdom has no WebGL, so the reveal shows the plain numbers unless a test turns it on. The 3D
   dice are a download, replaced here by a stage that lands as soon as it is told to roll.

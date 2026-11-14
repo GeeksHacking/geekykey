@@ -1,4 +1,4 @@
-import { ClockCounterClockwise, House, Stamp, UsersThree } from "@phosphor-icons/react";
+import { House, Stamp, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -14,7 +14,7 @@ const NAV = [
   { to: "/", label: "Home", icon: House, exact: true },
   { to: "/connections", label: "Connections", icon: UsersThree, exact: false },
   { to: "/passport", label: "Passport", icon: Stamp, exact: false },
-  { to: "/activity", label: "Activity", icon: ClockCounterClockwise, exact: false },
+  { to: "/profile", label: "Profile", icon: UserCircle, exact: false },
 ] as const;
 
 interface ParticipantShellProps {

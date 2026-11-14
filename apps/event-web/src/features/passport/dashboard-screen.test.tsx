@@ -125,17 +125,17 @@ describe("DashboardScreen", () => {
     expect(screen.queryByRole("link", { name: "My tokens" })).not.toBeInTheDocument();
   });
 
-  it("leaves the way to the passport and the activity list to the tabs", () => {
+  it("leaves the passport to its tab, and links to the full activity list", () => {
     state.me = { ...baseMe, recent_taps: [firstTap] };
     renderDashboard();
 
     expect(screen.getByRole("heading", { name: "Latest stamps" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recent activity" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Open passport" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "All activity" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See all" })).toHaveAttribute("href", "/activity");
   });
 
-  it("keeps the user ID but removes the hint after the first tap", () => {
+  it("removes the hint after the first tap, and leaves the user ID to the Profile tab", () => {
     state.me = { ...baseMe, recent_taps: [firstTap] };
     renderDashboard();
 
@@ -144,7 +144,17 @@ describe("DashboardScreen", () => {
         name: "Tap your token at any station to start collecting stamps",
       }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("user-1")).toBeInTheDocument();
+    expect(screen.queryByText("user-1")).not.toBeInTheDocument();
+  });
+
+  it("keeps the avatar but drops the profile, the answers and the details", () => {
+    state.me = makeMe({ questions: answersGame, user: { bio: "Robot arm" } });
+    renderDashboard();
+
+    expect(screen.getByRole("region", { name: "Your avatar" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Your profile" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Your answers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Your details" })).not.toBeInTheDocument();
   });
 
   it("keeps the connect hint after a connection when there have been no station taps", () => {

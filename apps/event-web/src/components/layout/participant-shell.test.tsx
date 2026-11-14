@@ -67,14 +67,14 @@ describe("the Connections tab", () => {
     expect(screen.getAllByRole("link", { name: "Connections" })).toHaveLength(2);
   });
 
-  it("sits between Home and Passport", async () => {
+  it("runs Home, Connections, Passport and Profile", async () => {
     await renderShell(0);
     const [header] = screen.getAllByRole("navigation", { name: "Sections" });
     if (!header) throw new Error("No sections navigation");
     const labels = within(header)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(labels).toEqual(["Home", "Connections", "Passport", "Activity"]);
+    expect(labels).toEqual(["Home", "Connections", "Passport", "Profile"]);
   });
 });
 

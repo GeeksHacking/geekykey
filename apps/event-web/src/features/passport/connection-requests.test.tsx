@@ -14,6 +14,12 @@ import { createTestProviders } from "@/test/providers";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
 
+/* Home's "See all" is a router link, and these tests render the screen without a router (FRO-184). */
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
+}));
+
 const SAME_GROUP = "You're in the same group. Find someone from another group.";
 const NO_GROUP = "You both need to be in a group to connect. Ask an organiser.";
 

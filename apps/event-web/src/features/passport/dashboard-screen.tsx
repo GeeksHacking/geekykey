@@ -1,25 +1,23 @@
-import { TeamRoundCard } from "@/features/passport/team-round-card";
+import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
 
 import { SectionHeading } from "@/components/layout/section-heading";
 import { ParticipantTapList } from "@/components/participant-tap-list";
+import { Button } from "@/components/ui/button";
 import { AvatarHero } from "@/features/passport/avatar/avatar-hero";
 import { ConnectionList } from "@/features/passport/connection-list";
 import { ConnectionRequests } from "@/features/passport/connection-requests";
 import { ConnectionReveal } from "@/features/passport/connection-reveal";
-import { DisplayNameRow } from "@/features/passport/display-name-row";
 import { DashboardTapHelp } from "@/features/passport/dashboard-tap-help";
 import { GroupCard } from "@/features/passport/group-card";
 import { LatestStampRow } from "@/features/passport/latest-stamp-row";
 import { PhraseCard } from "@/features/passport/phrase-card";
-import { ProfileSection } from "@/features/passport/profile-section";
-import { QuestionsPrompt } from "@/features/passport/questions-prompt";
+import { TeamRoundCard } from "@/features/passport/team-round-card";
 import { usePassportChanges } from "@/features/passport/use-passport-changes";
-import { UserIdRow } from "@/features/passport/user-id-row";
 import { useMe } from "@/lib/session";
 
 export function DashboardScreen() {
-  const { me, refresh } = useMe();
+  const { me } = useMe();
   const scope = useRef<HTMLDivElement>(null);
   const changes = usePassportChanges(scope, me);
   const latest = me.stamps
@@ -37,7 +35,9 @@ export function DashboardScreen() {
       {me.user.role === "participant" ? <GroupCard /> : null}
       {/* Only someone in a group, while a phrase is set, has one to complete (BAC-169). */}
       {me.phrase ? <PhraseCard phrase={me.phrase} /> : null}
-      {/* The dashboard leads with the avatar (FRO-105). */}
+      {/* The dashboard leads with the avatar (FRO-105). It stays here because a new connection's
+          piece arrives on this screen, while the rest of the profile moved to its own tab
+          (FRO-184). */}
       <AvatarHero me={me} changes={changes} />
 
       {me.recent_taps.length === 0 ? (
@@ -68,32 +68,13 @@ export function DashboardScreen() {
         ) : (
           <p className="text-sm text-muted-foreground">Nothing yet. Your taps will show up here.</p>
         )}
-      </section>
-
-      <ProfileSection me={me} />
-
-      {me.user.role === "participant" && me.questions ? (
-        <QuestionsPrompt
-          key={me.user.id}
-          questions={me.questions}
-          answers={me.user.answers}
-          answersFixed={me.connections.length > 0}
-          onAnswersFixed={() => void refresh()}
-        />
-      ) : null}
-
-      <section>
-        <SectionHeading title="Your details" />
-        <ul className="divide-y rounded-lg border bg-card">
-          {me.user.role === "participant" ? (
-            <li className="px-3 py-3">
-              <DisplayNameRow displayName={me.user.display_name} />
-            </li>
-          ) : null}
-          <li className="px-3 py-3">
-            <UserIdRow userId={me.user.id} />
-          </li>
-        </ul>
+        {/* Activity left the tab bar for the Profile tab, so Home is how its screen is reached
+            (FRO-184). */}
+        <div className="mt-2 flex justify-end">
+          <Button asChild variant="link" size="sm">
+            <Link to="/activity">See all</Link>
+          </Button>
+        </div>
       </section>
     </div>
   );

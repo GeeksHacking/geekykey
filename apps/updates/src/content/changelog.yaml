@@ -2734,6 +2734,13 @@
     Pressing a person on the Connections tab opens their profile: their bio, their contact line
     with a Copy button, the answers you share, the dice or reaction result and when you connected.
     A connection from an older service, with no ID, still lists but does not open.
+- id: profile-tab
+  date: 2026-11-14
+  area: frontend
+  change: >-
+    Profile has its own tab, gathering the avatar, the name, the bio and contact line, a card
+    showing how others see you, the answers and the user ID. Home keeps the avatar and the newest
+    of what happened, and Activity left the tab bar for a See all link under Recent activity.
 - id: open-seat-planned
   date: 2026-11-14
   area: research

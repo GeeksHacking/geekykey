@@ -6,12 +6,18 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { createMockClient, type MockApiClient } from "@/api/mock/client";
 import { SEEDED_GUEST_ID } from "@/api/mock/fixtures";
-import { DashboardScreen } from "@/features/passport/dashboard-screen";
+import { ProfileScreen } from "@/features/passport/profile-screen";
 import { useSession } from "@/lib/session";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { createTestProviders } from "@/test/providers";
 
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
+
+/* Home's "See all" is a router link, and these tests render the screen without a router (FRO-184). */
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
+}));
 
 const WHO_SEES_BIO = "Anyone who taps your token or whose token you tap sees this.";
 const WHO_SEES_CONTACT_LINE = "People you connect with see this.";
@@ -27,8 +33,8 @@ function guestOf(api: MockApiClient) {
   return guest;
 }
 
-/** The dashboard, for a guest after `arrange` has changed the mock's data. */
-function renderDashboard(arrange: (api: MockApiClient) => void = () => {}) {
+/** The Profile tab, for a guest after `arrange` has changed the mock's data. */
+function renderProfile(arrange: (api: MockApiClient) => void = () => {}) {
   const api = createMockClient({ latencyMs: [0, 0], storage: null });
   api.mock.setSession(SEEDED_GUEST_ID);
   arrange(api);
@@ -37,7 +43,7 @@ function renderDashboard(arrange: (api: MockApiClient) => void = () => {}) {
     <Providers>
       <ThemeProvider>
         <SignedIn>
-          <DashboardScreen />
+          <ProfileScreen />
         </SignedIn>
       </ThemeProvider>
     </Providers>,
@@ -49,14 +55,21 @@ function renderDashboard(arrange: (api: MockApiClient) => void = () => {}) {
 const withProfile = (api: MockApiClient) =>
   Object.assign(guestOf(api), { bio: "Old bio", contact_line: "@old" });
 
+/** The "Your profile" section, since "How others see you" shows the bio too. */
+function profileSection() {
+  const section = screen.getByRole("heading", { name: "Your profile" }).closest("section");
+  if (!section) throw new Error("No profile section");
+  return section;
+}
+
 async function openForm(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Change profile" }));
   return screen.findByRole("dialog", { name: "Change profile" });
 }
 
-describe("the profile on the dashboard (BAC-147)", () => {
+describe("the profile on the Profile tab (BAC-147, FRO-184)", () => {
   it("says so when there's no bio or contact line", async () => {
-    renderDashboard();
+    renderProfile();
 
     expect(
       await screen.findByText(
@@ -66,7 +79,7 @@ describe("the profile on the dashboard (BAC-147)", () => {
   });
 
   it("adds both, and shows them without another read", async () => {
-    const { api, user } = renderDashboard();
+    const { api, user } = renderProfile();
     const dialog = await openForm(user);
 
     // BAC-151: the bio shows before the two connect, and the contact line never does.
@@ -76,15 +89,15 @@ describe("the profile on the dashboard (BAC-147)", () => {
     await user.type(within(dialog).getByLabelText("Contact line"), "@alex on Telegram");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Building a robot arm")).toBeInTheDocument();
-    expect(screen.getByText("Contact: @alex on Telegram")).toBeInTheDocument();
+    expect(await within(profileSection()).findByText("Building a robot arm")).toBeInTheDocument();
+    expect(within(profileSection()).getByText("Contact: @alex on Telegram")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(guestOf(api).bio).toBe("Building a robot arm");
     expect(guestOf(api).contact_line).toBe("@alex on Telegram");
   });
 
   it("starts the form from what's saved, and edits it", async () => {
-    const { api, user } = renderDashboard(withProfile);
+    const { api, user } = renderProfile(withProfile);
     const dialog = await openForm(user);
     const bio = within(dialog).getByLabelText("Bio");
     expect(bio).toHaveValue("Old bio");
@@ -94,12 +107,12 @@ describe("the profile on the dashboard (BAC-147)", () => {
     await user.type(bio, "New bio");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("New bio")).toBeInTheDocument();
+    expect(await within(profileSection()).findByText("New bio")).toBeInTheDocument();
     expect(guestOf(api).contact_line).toBe("@old");
   });
 
   it("clears both, and goes back to saying there's none", async () => {
-    const { api, user } = renderDashboard(withProfile);
+    const { api, user } = renderProfile(withProfile);
     const dialog = await openForm(user);
     await user.clear(within(dialog).getByLabelText("Bio"));
     await user.clear(within(dialog).getByLabelText("Contact line"));
@@ -115,7 +128,7 @@ describe("the profile on the dashboard (BAC-147)", () => {
   });
 
   it("says why a value over its limit is refused, counting code points, and saves nothing", async () => {
-    const { api, user } = renderDashboard();
+    const { api, user } = renderProfile();
     const dialog = await openForm(user);
     const bio = within(dialog).getByLabelText("Bio");
     const contact = within(dialog).getByLabelText("Contact line");
@@ -134,11 +147,11 @@ describe("the profile on the dashboard (BAC-147)", () => {
     await user.paste("😀".repeat(160));
     await user.clear(contact);
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
-    await screen.findByText("😀".repeat(160));
+    await within(profileSection()).findByText("😀".repeat(160));
   });
 
   it("puts the service's refusal under the field it names", async () => {
-    const { api, user } = renderDashboard();
+    const { api, user } = renderProfile();
     const dialog = await openForm(user);
     vi.spyOn(api, "updateMe").mockRejectedValueOnce(
       new ApiError(400, "validation_failed", [{ path: ["contact_line"], message: "Too long" }]),
@@ -150,7 +163,7 @@ describe("the profile on the dashboard (BAC-147)", () => {
   });
 
   it("says what went wrong when the save fails for another reason", async () => {
-    const { api, user } = renderDashboard();
+    const { api, user } = renderProfile();
     const dialog = await openForm(user);
     api.mock.failNext("network");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -160,11 +173,11 @@ describe("the profile on the dashboard (BAC-147)", () => {
   });
 
   it("isn't there for an event with no connections game", async () => {
-    renderDashboard((api) => {
+    renderProfile((api) => {
       api.mock.data.questions = null;
     });
 
-    await screen.findByRole("heading", { name: "Latest stamps" });
+    await screen.findByRole("heading", { name: "How others see you" });
     expect(screen.queryByRole("button", { name: "Change profile" })).not.toBeInTheDocument();
   });
 });

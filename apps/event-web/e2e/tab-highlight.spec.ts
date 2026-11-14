@@ -61,7 +61,7 @@ test("the participant header lights one tab at a time", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(`${nav} a[data-status="active"]`)).toHaveText(/^Home/);
 
-  for (const tab of ["Passport", "Activity", "Home"]) {
+  for (const tab of ["Passport", "Profile", "Home"]) {
     await watchHighlights(page, nav);
     await page.locator(nav).getByRole("link", { name: tab }).click();
     expect(Math.max(...(await highlightCounts(page)))).toBe(1);
@@ -93,8 +93,8 @@ test("hover lights another tab and leaves the current one yellow", async ({ page
     nav.getByRole("link", { name }).evaluate((link) => getComputedStyle(link).backgroundColor);
   const current = await fill("Passport");
 
-  await nav.getByRole("link", { name: "Activity" }).hover();
-  const hovered = await fill("Activity");
+  await nav.getByRole("link", { name: "Profile" }).hover();
+  const hovered = await fill("Profile");
   expect(hovered).not.toBe("rgba(0, 0, 0, 0)");
   expect(hovered).not.toBe(current);
 

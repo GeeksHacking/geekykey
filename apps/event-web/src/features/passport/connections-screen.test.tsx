@@ -94,8 +94,13 @@ function renderScreen(api: MockApiClient, screen: ReactNode = <ConnectionsScreen
     path: "/connections/$id",
     component: () => <p>Person's profile</p>,
   });
+  const activity = createRoute({
+    getParentRoute: () => root,
+    path: "/activity",
+    component: () => <p>Activity list</p>,
+  });
   const router = createRouter({
-    routeTree: root.addChildren([home, tab, profile]),
+    routeTree: root.addChildren([home, tab, profile, activity]),
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   render(
@@ -222,7 +227,9 @@ describe("Home's list after the tab (FRO-182)", () => {
     expect(rows[2]).toHaveTextContent("Third");
     expect(list).not.toHaveTextContent("Fourth");
 
-    const seeAll = screen.getByRole("link", { name: "See all" });
+    const section = list.closest("section");
+    if (!section) throw new Error("No connections section");
+    const seeAll = within(section).getByRole("link", { name: "See all" });
     expect(seeAll).toHaveAttribute("href", "/connections");
     await user.click(seeAll);
     expect(await screen.findByText("Connections tab")).toBeInTheDocument();
@@ -231,7 +238,9 @@ describe("Home's list after the tab (FRO-182)", () => {
   it("has no See all while three or fewer are there", async () => {
     renderScreen(setUp([connection(1), connection(2), connection(3)]), <DashboardScreen />);
 
-    await screen.findByRole("list", { name: "Connections" });
-    expect(screen.queryByRole("link", { name: "See all" })).not.toBeInTheDocument();
+    const list = await screen.findByRole("list", { name: "Connections" });
+    const section = list.closest("section");
+    if (!section) throw new Error("No connections section");
+    expect(within(section).queryByRole("link", { name: "See all" })).not.toBeInTheDocument();
   });
 });
