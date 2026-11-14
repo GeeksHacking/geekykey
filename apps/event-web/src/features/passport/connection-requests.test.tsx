@@ -111,13 +111,34 @@ describe("connection requests on the dashboard (BAC-149)", () => {
     expect(row.getByRole("button", { name: "Decline" })).toBeInTheDocument();
   });
 
-  it("shows the tapper's bio under their name, so the user sees who's asking (BAC-151)", async () => {
-    renderScreen(setUp([request("r-1", "Mei Lin", { bio: "Sensors and sourdough" })]));
+  it("shows the tapper's avatar and bio under their name, so the user sees who's asking (BAC-151, FRO-185)", async () => {
+    renderScreen(
+      setUp([
+        request("r-1", "Mei Lin", {
+          bio: "Sensors and sourdough",
+          avatar: { character: "dress", skin: "warm", hair: "auburn", suit: "emerald" },
+        }),
+      ]),
+    );
 
     const row = await rowFor("Mei Lin");
-    expect(row.getByText("Sensors and sourdough")).toBeInTheDocument();
+    const bio = row.getByText("Sensors and sourdough");
+    expect(bio).not.toHaveClass("text-muted-foreground");
+    expect(bio.closest("li")?.querySelector("img")).not.toBeNull();
     expect(row.getByRole("button", { name: "Accept" })).toBeInTheDocument();
   });
+
+  it.each([null, undefined])(
+    "draws the default avatar for a request with a look of %s",
+    async (avatar) => {
+      renderScreen(setUp([request("r-1", "Mei Lin", { avatar })]));
+
+      const row = await rowFor("Mei Lin");
+      expect(
+        row.getByText("Mei Lin wants to connect.").closest("li")?.querySelector("img"),
+      ).not.toBeNull();
+    },
+  );
 
   it("shows only the name for someone with no bio, with no empty line (BAC-151)", async () => {
     renderScreen(setUp([request("r-1", "Mei Lin")]));

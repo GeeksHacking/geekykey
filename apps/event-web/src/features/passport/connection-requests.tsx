@@ -4,6 +4,7 @@ import { describeError, isApiErrorCode } from "@/api/errors";
 import type { AcceptConnectionRequestStatus, ConnectionRequest } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import { Button } from "@/components/ui/button";
+import { PersonAvatar } from "@/features/passport/avatar/person-avatar";
 import {
   useAcceptConnectionRequest,
   useDeclineConnectionRequest,
@@ -62,11 +63,12 @@ export function ConnectionRequests({ requests }: { requests: ConnectionRequest[]
               key={request.id}
               className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0 space-y-0.5">
-                <p className="type-item break-words">{request.display_name} wants to connect.</p>
-                {request.bio ? (
-                  <p className="text-sm break-words text-muted-foreground">{request.bio}</p>
-                ) : null}
+              <div className="flex items-start gap-3">
+                <PersonAvatar look={request.avatar} className="size-14" />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="type-item break-words">{request.display_name} wants to connect.</p>
+                  {request.bio ? <p className="text-sm break-words">{request.bio}</p> : null}
+                </div>
               </div>
               {/* The two share the phone's width, so neither is a small target for a thumb. */}
               <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
