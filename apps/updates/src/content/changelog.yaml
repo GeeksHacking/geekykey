@@ -2734,3 +2734,13 @@
     Pressing a person on the Connections tab opens their profile: their bio, their contact line
     with a Copy button, the answers you share, the dice or reaction result and when you connected.
     A connection from an older service, with no ID, still lists but does not open.
+- id: open-seat-planned
+  date: 2026-11-14
+  area: research
+  change: >-
+    The open seat is the last game planned before the showcase: a tap at a station holds a seat for
+    60 seconds, the other stations say a seat is open without naming anyone, and someone from
+    another group, or with no group, takes it at the same station. It makes it easier to invite and
+    begin a conversation with someone outside your team. The trade-offs we accept: a taken seat only
+    sends a connection request, so it makes no connection, and no session with people will test it
+    before the showcase.

@@ -254,6 +254,32 @@ One completed pass in the relay: a tap at one station, answered by the needed gr
 other. A call that nobody from the needed group answers in time is lost, and doesn't count.
 _Avoid_: route, which suggests a fixed order, as under Next stop
 
+**Open seat**:
+A station game where one person taps to say they are free to meet someone. The station holds their
+seat for 60 seconds, and the event's other open seat stations beep and say where a seat is open,
+with no name. Someone else takes it by tapping the same station. One seat is open at a time across
+the event, and a seat nobody takes closes with no message. It gives no points or stamps (BAC-190).
+_Avoid_: meetup; booking
+
+**Sitter**:
+The person whose tap opened a seat. Tapping again keeps their seat and its countdown. Once someone
+takes the seat, the sitter gets a connection request from them.
+_Avoid_: host; owner, which means a token's owner
+
+**Taker**:
+The person whose tap takes an open seat. They can't be in the sitter's group or already connected
+with them, and either of the two may be in no group. Their tap sends the sitter a connection
+request, the same kind a half sends. A taken seat is not a connection. The connection is still made
+only when the sitter accepts, and the seat's rule, not the connection rule, judges it.
+_Avoid_: stranger, because people in different groups may already know each other; guest, which is
+a way to log in
+
+**Prompt**:
+What the station gives the sitter and the taker to ask each other once the seat is taken. It comes
+from a short list in the event's code, never from anyone's answers, so it gives away nothing before
+the answers game shows what two people share, 2 minutes after they connect.
+_Avoid_: question, which means one of the answers game's questions; icebreaker
+
 **Challenge**:
 What a new connection or a team duels round plays: the dice or the reaction test. The connection
 keeps its result, and a win or a tie can earn a reward. Organizers choose on the Groups screen whether each new connection
@@ -276,7 +302,8 @@ shows only to the people they have connected with, beside their bio, and always 
 What two participants need to connect, which organizers switch on the Groups screen during an
 event: different token kinds, which a new event starts on, or different groups, whatever their
 tokens. The Event Service judges each tap and each accept by the rule and the groups at that
-moment. Across groups, someone not placed in a group connects with nobody.
+moment. Across groups, someone not placed in a group connects with nobody. A request from an open
+seat is the exception: the seat's own rule judges it, when it is sent and again when accepted.
 _Avoid_: mode, game type
 
 **Half**:
@@ -287,8 +314,8 @@ _Avoid_: pending connection
 **Connection request**:
 What a half asks of the token's owner, who sees it on their dashboard with the tapper's name and
 bio and accepts or declines it. It has no time limit, so it stays until they answer or the event is
-cleared. Declining is silent, and tapping again sends a new one (BAC-149). Viewing someone's profile
-needs no request.
+cleared. Declining is silent, and tapping again sends a new one (BAC-149). Taking an open seat
+sends one too. Viewing someone's profile needs no request.
 _Avoid_: invitation, friend request
 
 **Connection point**:
