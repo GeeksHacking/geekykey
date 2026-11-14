@@ -692,7 +692,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
   /**
    * Agreement 9.10, drawing the same game 9.2 gives the board.
    */
-  function toMapStation(station: MockStation): MapStation {
+  function toMapStation(station: MockStation, openSeatUntil?: string | null): MapStation {
     const counted = countedTapsAt(station);
     const accepted = counted.filter((tap) => tap.status === "accepted");
     const newest = counted.map((tap) => tap.received_at).sort((a, b) => b.localeCompare(a))[0];
@@ -705,6 +705,8 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       taps: counted.length,
       unique_participants: new Set(accepted.map((tap) => tap.user_id)).size,
       last_tap_at: newest ?? null,
+      open_seat_until:
+        openSeatUntil === undefined ? (station.open_seat_until ?? null) : openSeatUntil,
     };
   }
 
@@ -1268,6 +1270,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     map: () =>
       call((): MapResponse => {
         currentOrganizer();
+        const demo =
+          typeof location === "undefined" ? null : new URLSearchParams(location.search).get("seat");
+        const hideSeat = demo === "taken" && mapReads > 0;
         const shown = Math.min(MAP_LINKS_AT_FIRST_READ + mapReads, MAP_CONNECTIONS.length);
         mapReads += 1;
         const links = MAP_CONNECTIONS.slice(0, shown);
@@ -1278,7 +1283,9 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           .filter((station) => !station.passport)
           .sort((a, b) => a.created_at.localeCompare(b.created_at));
         return {
-          stations: [...slots, ...others].map(toMapStation),
+          stations: [...slots, ...others].map((station) =>
+            toMapStation(station, hideSeat ? null : undefined),
+          ),
           connections: { count: links.length, links },
         };
       }),

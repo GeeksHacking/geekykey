@@ -489,6 +489,11 @@ export interface MapStation {
   taps: number;
   unique_participants: number;
   last_tap_at: string | null;
+  /**
+   * When the seat open at this station closes, or null (BAC-190, agreement 9.10). At most one
+   * station has one. Missing before the open seat.
+   */
+  open_seat_until?: string | null;
 }
 
 /**

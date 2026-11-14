@@ -177,6 +177,23 @@ describe("sessions and roles", () => {
     expect(stations.slice(5).every((s) => s.game === null)).toBe(true);
   });
 
+  it("gives a station's open seat until, and null for the others (BAC-190, 9.10)", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+    const printing = api.mock.data.stations.find(
+      (station) => station.passport?.name === "3D Printing Booth",
+    );
+    if (!printing) throw new Error("The fixtures have no printing booth");
+    printing.open_seat_until = "2026-11-17T08:00:42.000Z";
+
+    const { stations } = await api.map();
+
+    expect(stations.find((s) => s.name === "3D Printing Booth")?.open_seat_until).toBe(
+      "2026-11-17T08:00:42.000Z",
+    );
+    expect(stations.filter((s) => s.open_seat_until !== null)).toHaveLength(1);
+  });
+
   it("grows the map's web over a few polls", async () => {
     const api = client();
     await api.devLogin(SEEDED_ORGANIZER_ID);

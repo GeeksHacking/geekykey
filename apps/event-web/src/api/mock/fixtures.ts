@@ -87,6 +87,8 @@ export interface MockStation {
    * fixtures use the example plan's codes, plus one the plan doesn't name.
    */
   booth: string | null;
+  /** The open seat's closing time, for the map (BAC-190, FRO-180). Missing when there is none. */
+  open_seat_until?: string | null;
   /** Set by every hand-off, so a station created by 9.7 and not yet heard from has none. */
   last_seen_at: string | null;
   /** Set by a heartbeat's hand-off. */
@@ -280,6 +282,17 @@ function demoSeat(now: number): OpenSeat | undefined {
   }
 }
 
+/**
+ * The map's demo seat for the screenshot script: `?seat=open` keeps one station's seat open, and
+ * `taken` opens one that the mock's map takes away after its first read. The query string only
+ * exists in the browser, so tests and the default demo get no seat.
+ */
+function demoSeatUntil(now: number): string | undefined {
+  if (typeof location === "undefined") return undefined;
+  const state = new URLSearchParams(location.search).get("seat");
+  return state === "open" || state === "taken" ? new Date(now + 60_000).toISOString() : undefined;
+}
+
 export const SEEDED_PARTICIPANT_ID = "dev-user-1";
 export const SEEDED_ORGANIZER_ID = "dev-organizer-1";
 /** A guest who has not set a name yet, so the passport asks for one (agreement 8.1). */
@@ -406,6 +419,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         added_at: iso(eventStart - minutes(60)),
       },
       booth: "B1",
+      open_seat_until: demoSeatUntil(now),
       last_seen_at: iso(now - 4_000),
       firmware_version: "0.3.1",
       buffered_taps: 0,

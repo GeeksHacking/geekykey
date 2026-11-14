@@ -10,6 +10,7 @@ export function mapStation(overrides: Partial<MapStation> & { station_id: string
     taps: 0,
     unique_participants: 0,
     last_tap_at: null,
+    open_seat_until: null,
     ...overrides,
   };
 }
