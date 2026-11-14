@@ -177,20 +177,20 @@ test("a tap opens a seat with a countdown, and the other stations say where it i
   const h = await harness();
   const answer = await h.tap("A", "ana");
   assert.equal(answer.status, "accepted");
-  assert.deepEqual(answer.lines, ["Seat open", "Wait nearby"]);
+  assert.deepEqual(answer.lines, ["Seat open", "Wait here"]);
   assert.deepEqual(answer.countdown, {
     seconds: 60,
-    lines: ["Seat open", "{s}s left"],
+    lines: ["Seat open", "Wait here {s}s"],
     ending: ["Open seat", "Tap to sit"],
   });
   assert.deepEqual(
     h.messages.sort((a, b) => a.station_id.localeCompare(b.station_id)),
     ["B", "C"].map((station_id) => ({
       station_id,
-      lines: ["Open seat at A", "Go and sit"],
+      lines: ["Open seat at A", "Tap there"],
       countdown: {
         seconds: 60,
-        lines: ["Open seat at A", "{s}s left"],
+        lines: ["Open seat at A", "Tap there {s}s"],
         ending: ["Open seat", "Tap to sit"],
       },
       beep: true,
@@ -278,10 +278,10 @@ test("the sitter tapping again keeps their seat and its countdown", async () => 
   h.clock.advanceSeconds(25);
   const again = await h.tap("A", "ana");
   assert.equal(again.status, "cooldown");
-  assert.deepEqual(again.lines, ["Seat open", "Wait nearby"]);
+  assert.deepEqual(again.lines, ["Seat open", "Wait here"]);
   assert.deepEqual(again.countdown, {
     seconds: 35,
-    lines: ["Seat open", "{s}s left"],
+    lines: ["Seat open", "Wait here {s}s"],
     ending: ["Open seat", "Tap to sit"],
   });
   h.clock.advanceSeconds(30);
@@ -295,10 +295,10 @@ test("one seat is open at a time: a tap at another station says where it is", as
   for (const user of ["ben", "ana"]) {
     const elsewhere = await h.tap("B", user);
     assert.equal(elsewhere.status, "cooldown");
-    assert.deepEqual(elsewhere.lines, ["Seat is at A", "Go there"]);
+    assert.deepEqual(elsewhere.lines, ["Open seat at A", "Tap there"]);
     assert.deepEqual(elsewhere.countdown, {
       seconds: 40,
-      lines: ["Seat is at A", "{s}s left"],
+      lines: ["Open seat at A", "Tap there {s}s"],
       ending: ["Open seat", "Tap to sit"],
     });
   }
@@ -310,7 +310,7 @@ test("a new seat can open as soon as the last is taken", async () => {
   await h.tap("A", "ben");
   h.messages.length = 0;
   const next = await h.tap("B", "cal");
-  assert.deepEqual(next.lines, ["Seat open", "Wait nearby"]);
+  assert.deepEqual(next.lines, ["Seat open", "Wait here"]);
   assert.deepEqual(h.messages.map((m) => m.station_id).sort(), ["A", "C"]);
 });
 
@@ -321,7 +321,7 @@ test("a seat nobody takes closes after 60 seconds, and a tap then opens a new on
   h.clock.advanceSeconds(60);
   const late = await h.tap("A", "ben");
   assert.equal(late.status, "accepted");
-  assert.deepEqual(late.lines, ["Seat open", "Wait nearby"]);
+  assert.deepEqual(late.lines, ["Seat open", "Wait here"]);
   assert.deepEqual((await h.me("ana")).connection_requests, []);
 });
 
@@ -541,14 +541,14 @@ test("a station with a long booth name, or none, still says where the seat is", 
   await h.tap("A", "ana");
   assert.deepEqual(
     h.messages.find((m) => m.station_id === "B")?.countdown?.lines,
-    ["Seat at Robotics C", "{s}s left"].map((line) => line.slice(0, 16)),
+    ["Seat at Robotics C", "Tap there {s}s"].map((line) => line.slice(0, 16)),
   );
-  assert.deepEqual((await h.tap("B", "ben")).lines, ["Seat is at Robot", "Go there"]);
+  assert.deepEqual((await h.tap("B", "ben")).lines, ["Seat at Robotics", "Tap there"]);
   h.clock.advanceSeconds(60);
   h.messages.length = 0;
   await h.tap("B", "ben");
   assert.deepEqual(
     h.messages.find((m) => m.station_id === "A")?.lines,
-    ["Seat at Station B", "Go and sit"].map((line) => line.slice(0, 16)),
+    ["Seat at Station B", "Tap there"].map((line) => line.slice(0, 16)),
   );
 });

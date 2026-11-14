@@ -37,6 +37,15 @@ export const PROMPTS: readonly (readonly string[])[] = [
 
 const IDLE_LINES = ["Open seat", "Tap to sit"];
 
+/**
+ * A station that knows countdowns shows one in place of the lines (agreement 6.1), so each
+ * countdown carries the instruction itself, and the lines say the same for one that doesn't.
+ */
+const SITTER_LINES = ["Seat open", "Wait here"];
+const SITTER_COUNTDOWN = ["Seat open", `Wait here ${SECONDS_LEFT}s`];
+const GO_THERE = "Tap there";
+const GO_THERE_COUNTDOWN = `Tap there ${SECONDS_LEFT}s`;
+
 type Seat = typeof openSeats.$inferSelect;
 type Station = typeof stations.$inferSelect;
 
@@ -207,16 +216,16 @@ export function openSeatGame({
           await tx.insert(openSeats).values(opened);
           statuses[index] = "accepted";
           texts.set(tap.clientTapId, {
-            lines: ["Seat open", "Wait nearby"],
+            lines: SITTER_LINES,
             complete: false,
-            countdown: seatCountdown(opened, ["Seat open", `${SECONDS_LEFT}s left`], openedAt),
+            countdown: seatCountdown(opened, SITTER_COUNTDOWN, openedAt),
           });
           const here = openSeatAt(placeOf(seatStations.find((s) => s.id === stationId)));
-          const countdown = seatCountdown(opened, [here, `${SECONDS_LEFT}s left`], openedAt);
+          const countdown = seatCountdown(opened, [here, GO_THERE_COUNTDOWN], openedAt);
           for (const other of others) {
             context.afterCommit(() =>
               stationMessages.send(other.id, {
-                lines: [here, "Go and sit"],
+                lines: [here, GO_THERE],
                 countdown,
                 beep: true,
               }),
@@ -226,16 +235,13 @@ export function openSeatGame({
         }
 
         if (open.stationId !== stationId) {
-          const there = placeOf(seatStations.find((s) => s.id === open.stationId));
-          const where = `Seat is at ${there}`.slice(0, LINE_LENGTH);
-          hold([where, "Go there"], seatCountdown(open, [where, `${SECONDS_LEFT}s left`], at));
+          // The same words the seat's announcement gave this station.
+          const there = openSeatAt(placeOf(seatStations.find((s) => s.id === open.stationId)));
+          hold([there, GO_THERE], seatCountdown(open, [there, GO_THERE_COUNTDOWN], at));
           continue;
         }
         if (open.sitterId === tap.userId) {
-          hold(
-            ["Seat open", "Wait nearby"],
-            seatCountdown(open, ["Seat open", `${SECONDS_LEFT}s left`], at),
-          );
+          hold(SITTER_LINES, seatCountdown(open, SITTER_COUNTDOWN, at));
           continue;
         }
         if (!(await isReady(tx, tap.userId))) {
