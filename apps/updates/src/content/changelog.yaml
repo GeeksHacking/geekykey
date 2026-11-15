@@ -2822,3 +2822,11 @@
     run. The Event Service's application code and its scripts get a figure each, and CI keeps the
     full report for 30 days. The trade-offs we accept: no figure is a pass mark, so a drop never
     fails CI, and a reviewer has to compare it with the last run on main.
+
+- id: avatar-starting-look
+  date: 2026-11-15
+  area: frontend
+  change: >-
+    A new guest's avatar starts from their answers, so not every guest begins with the same
+    look. A guest who already chose colours keeps them, and an event without questions draws
+    the default.
