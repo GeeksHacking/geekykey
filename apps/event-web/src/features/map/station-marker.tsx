@@ -4,12 +4,12 @@ import { seatText, type SeatMark } from "@/features/map/seat-marks";
 import { cn } from "@/lib/utils";
 
 /**
- * One station on the plan: a yellow spot with its booth's code, under it how many people have
- * tapped there, and, while it has one, its open seat. A disabled station is grey, dashed and says
- * so in words, never by colour alone. The ring is what the pulse animates.
+ * Booth names belong to the booth plan so shared stations do not repeat or squeeze them into rings.
+ * Counts and open seats sit below each marker. A disabled station says so in words; only an
+ * enabled station pulses.
  */
 export function StationMarker({ placed, seat }: { placed: PlacedStation; seat?: SeatMark }) {
-  const { station, booth, x, y } = placed;
+  const { station, x, y } = placed;
   const pill = pillText(station);
   const width = pillWidth(pill);
   const seatLabel = seat ? seatText(seat) : null;
@@ -38,23 +38,11 @@ export function StationMarker({ placed, seat }: { placed: PlacedStation; seat?: 
             : "fill-primary stroke-primary-edge"
         }
       />
-      <text
-        y="5"
-        textAnchor="middle"
-        fontSize="14"
-        fontWeight="700"
-        className={cn(
-          "font-mono",
-          station.disabled ? "fill-muted-foreground" : "fill-primary-foreground",
-        )}
-      >
-        {booth.name}
-      </text>
-      <g transform={`translate(0 ${SPOT_RADIUS + 12})`}>
-        <rect x={-width / 2} width={width} height="22" rx="6" className="fill-card stroke-border" />
+      <g transform={`translate(0 ${SPOT_RADIUS + 24})`}>
+        <rect x={-width / 2} width={width} height="32" rx="6" className="fill-card stroke-border" />
         <text
           x="0"
-          y="16"
+          y="24"
           textAnchor="middle"
           fontSize={PILL_FONT}
           fontWeight="600"
@@ -67,11 +55,11 @@ export function StationMarker({ placed, seat }: { placed: PlacedStation; seat?: 
         </text>
       </g>
       {seat && seatLabel ? (
-        <g data-open-seat={seat.state} transform={`translate(0 ${SPOT_RADIUS + 38})`}>
+        <g data-open-seat={seat.state} transform={`translate(0 ${SPOT_RADIUS + 62})`}>
           <rect
             x={-seatLabelWidth / 2}
             width={seatLabelWidth}
-            height="22"
+            height="32"
             rx="6"
             className={
               seat.state === "open"
@@ -81,7 +69,7 @@ export function StationMarker({ placed, seat }: { placed: PlacedStation; seat?: 
           />
           <text
             x="0"
-            y="16"
+            y="24"
             textAnchor="middle"
             fontSize={PILL_FONT}
             fontWeight="600"

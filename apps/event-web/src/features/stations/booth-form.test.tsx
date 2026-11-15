@@ -21,7 +21,7 @@ function renderBoard() {
   return api;
 }
 
-/** The first fixture station, whose booth the example plan names (agreement 9.12). */
+/** The first fixture station, whose booth the booth plan names (agreement 9.12). */
 const WITH_BOOTH = "3D Printing Booth";
 /** A fixture station with no passport settings and no booth. */
 const NO_BOOTH = "Station 6";
@@ -42,19 +42,18 @@ describe("the booth on the station board (agreement 9.12)", () => {
 
     await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
-    expect(await screen.findByLabelText("Booth")).toHaveValue("B1");
+    expect(await screen.findByLabelText("Booth")).toHaveValue("Booth 1");
   });
 
-  it("names the example plan's codes in the hint", async () => {
+  it("names the booth plan's booths in the hint", async () => {
     const user = userEvent.setup();
     renderBoard();
 
     await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
-    const hint = await screen.findByText(/The example plan names/);
-    expect(hint).toHaveTextContent("A1 to A3");
-    expect(hint).toHaveTextContent("B1 to B6");
-    expect(hint).toHaveTextContent("C1 to C5");
+    const hint = await screen.findByText(/The plan names Booth 1 and Booth 2/);
+    expect(hint).toHaveTextContent("Another name still saves");
+    expect(screen.getByLabelText("Booth")).toHaveAttribute("placeholder", "Booth 1");
   });
 
   it("saves a booth and shows it on the board", async () => {
@@ -65,10 +64,10 @@ describe("the booth on the station board (agreement 9.12)", () => {
 
     const booth = await screen.findByLabelText("Booth");
     await user.clear(booth);
-    await user.type(booth, "C4");
+    await user.type(booth, "Booth 2");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await row(WITH_BOOTH)).toHaveTextContent("C4");
+    expect(await row(WITH_BOOTH)).toHaveTextContent("Booth 2");
   });
 
   it("shows No booth on a station without one, and sets one", async () => {

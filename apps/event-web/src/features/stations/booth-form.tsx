@@ -27,13 +27,9 @@ const schema = z.object({
 
 type BoothValues = z.infer<typeof schema>;
 
-/**
- * The example layout's booth codes, from `.scratch/mph/`, so an organiser knows what the
- * map's own floor plan understands (`features/map/floor-plan.ts`). A code it doesn't name
- * still saves, and 9.10 has the map list that station beside the plan.
- */
+/** A name outside the map's own plan still saves, so the organiser can place it later. */
 const HINT =
-  "The example plan names A1 to A3, B1 to B6 and C1 to C5. Another code still saves, and the map lists the station beside the plan. Blank means no booth.";
+  "The plan names Booth 1 and Booth 2. Another name still saves, and the map lists the station beside the plan. Blank means no booth.";
 
 /**
  * Agreement 9.12. One field, because a booth is free text the map matches to its own floor
@@ -89,7 +85,12 @@ export function BoothForm({
             <FormItem>
               <FormLabel className="look-label">Booth</FormLabel>
               <FormControl>
-                <Input {...field} autoComplete="off" placeholder="A3" className="w-32 font-mono" />
+                <Input
+                  {...field}
+                  autoComplete="off"
+                  placeholder="Booth 1"
+                  className="w-32 font-mono"
+                />
               </FormControl>
               <FormDescription>{HINT}</FormDescription>
               <FormMessage />

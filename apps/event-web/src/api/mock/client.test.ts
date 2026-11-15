@@ -172,7 +172,7 @@ describe("sessions and roles", () => {
     ]);
     expect(stations.find((s) => s.name === "Info Desk")).toMatchObject({
       disabled: true,
-      booth: "C1",
+      booth: "Booth 2",
     });
     expect(stations.slice(5).every((s) => s.game === null)).toBe(true);
   });
@@ -642,9 +642,9 @@ describe("station board", () => {
     // station's game can change at any time.
     expect(board.stations.every((station) => station.game_fixed === false)).toBe(true);
 
-    // The fixtures name booths from the example plan plus one it doesn't name, and leave one
+    // The fixtures name booths from the booth plan plus one it doesn't name, and leave one
     // station without a booth.
-    expect(board.stations.some((station) => station.booth === "B1")).toBe(true);
+    expect(board.stations.some((station) => station.booth === "Booth 1")).toBe(true);
     expect(board.stations.some((station) => station.booth === null)).toBe(true);
   });
 

@@ -2838,3 +2838,10 @@
     A full open seat passed on our two real stations on production. Seats opened and were taken at
     both, a tap from the sitter's own group was refused, the sitter accepted the request on their
     phone and the two played the challenge, so the open seat stays in the showcase's hands-on part.
+
+- id: geekykey-booth-map # FRO-147
+  date: 2026-11-15
+  area: frontend
+  change: >-
+    The map shows our table with Booth 1 and Booth 2, and gives the anonymous connection web most
+    of the big screen. Relay calls and open seats stay visible beside it.

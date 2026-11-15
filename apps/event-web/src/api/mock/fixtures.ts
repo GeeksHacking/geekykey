@@ -84,7 +84,7 @@ export interface MockStation {
   } | null;
   /**
    * The booth it stands at (agreement 9.12), free text the map matches to its floor plan. The
-   * fixtures use the example plan's codes, plus one the plan doesn't name.
+   * fixtures use the booth plan's names, plus one the plan doesn't name.
    */
   booth: string | null;
   /** The open seat's closing time, for the map (BAC-190, FRO-180). Missing when there is none. */
@@ -235,7 +235,7 @@ function demoSeat(now: number): OpenSeat | undefined {
   const state = new URLSearchParams(location.search).get("seat");
   const base = {
     station_id: "st_seat",
-    booth: "A3",
+    booth: "Booth 1",
     opened_at: new Date(now - 5_000).toISOString(),
     closes_at: new Date(now + 55_000).toISOString(),
   };
@@ -418,7 +418,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: "https://example.com/3d-printing",
         added_at: iso(eventStart - minutes(60)),
       },
-      booth: "B1",
+      booth: "Booth 1",
       open_seat_until: demoSeatUntil(now),
       last_seen_at: iso(now - 4_000),
       firmware_version: "0.3.1",
@@ -438,7 +438,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: null,
         added_at: iso(eventStart - minutes(70)),
       },
-      booth: "B4",
+      booth: "Booth 2",
       last_seen_at: iso(now - 11_000),
       firmware_version: "0.3.1",
       buffered_taps: 0,
@@ -453,7 +453,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(85)),
       disabled_at: null,
       passport: null,
-      booth: "C3",
+      booth: "Booth 1",
       last_seen_at: iso(now - minutes(14)),
       firmware_version: "0.2.9",
       buffered_taps: 0,
@@ -472,7 +472,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: null,
         added_at: iso(eventStart - minutes(55)),
       },
-      booth: "A2",
+      booth: "Booth 2",
       last_seen_at: iso(now - 27_000),
       firmware_version: "0.3.0",
       buffered_taps: 0,
@@ -482,7 +482,7 @@ export function createFixtures(now: number = Date.now()): MockData {
     {
       // Holding saved taps. The old shape's "no longer linked" fixture is gone with
       // `linked`: a station always feeds the Event Service that registered it. Its booth is
-      // one the example floor plan doesn't name, so the map lists it beside the plan.
+      // one the floor plan doesn't name, so the map lists it beside the plan.
       id: "2d6b8f04-9e1a-4c3d-a7f2-5e4b0c9d1a86",
       label: "Station 5",
       created_at: iso(eventStart - minutes(70)),
@@ -531,7 +531,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: null,
         added_at: iso(eventStart - minutes(40)),
       },
-      booth: "C1",
+      booth: "Booth 2",
       last_seen_at: iso(now - minutes(6)),
       firmware_version: "0.3.1",
       buffered_taps: 0,

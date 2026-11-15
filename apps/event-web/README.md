@@ -8,7 +8,7 @@ Event Service (`apps/event-service`) and nothing else. They have two audiences:
   points, and `/activity` lists their taps.
 - **Organizers**, on a laptop, under `/admin`: the station board, groups and the connection rule,
   the scan log, the QR fallback for logging a tap by hand, and the summary with its export. `/map`
-  is the map of the hall for the screen at the booth.
+  holds the booth plan of our table for the map screen.
 
 The stack is React 19, Vite, TanStack Router and Query, Tailwind 4 and shadcn/ui. GSAP and three.js
 animate the map and the avatar. Pragmatic drag and drop moves people on the Groups screen with a mouse.
@@ -55,12 +55,12 @@ On the station board, add a station, then choose Team duels in its game menu. A 
 counted taps keeps its game fixed.
 
 To try Reactor Relay, run `pnpm dev:mock`, sign in as Priya Raman and open `/map`. The simulated
-client adds relay stations at A3 and C4. The first relay read starts the timeline: no game for 3 s,
+client adds relay stations at Booth 1 and Booth 2. The first relay read starts the timeline: no game for 3 s,
 a call at 3 s, completed transfers at 9 s and 15 s, a missed call at 35 s (its full 20 seconds),
 another call at 39 s, a transfer at 45 s and completion at 51 s. The result stays until 56 s, then
 the plain map returns until the next call at 73 s. This second game completes one transfer at 79 s,
 misses its call at 99 s, then ends incomplete at 199 s, two minutes after its last tap. That result
-clears at 204 s. The whole timeline repeats every 210 s. Reload to restart. The map shows only
+clears at 204 s. The whole timeline repeats every 210 s. Reload to restart. Add `?seat=open` to show an open seat alongside the relay. The map shows only
 booths and counts, never a person or group. Tests can enable the same devices without random tap
 simulation with `relayDemo: true` on `createMockClient`. The timeline runs when exactly two enabled
 stations have game `relay`.

@@ -2,25 +2,16 @@ import { X } from "@phosphor-icons/react";
 import { useRef } from "react";
 
 import type { MapRelayResponse } from "@/api/types";
+import { WAITING_SIZE, WAITING_STROKE } from "@/features/map/marker-size";
 import { useMapRelayAnimations } from "@/features/map/use-map-relay-animations";
 import type { RelayView } from "@/features/map/relay";
 
-/** How far "Tap here" sits from the waiting station's centre, beside its square, in plan units. */
-const LABEL_GAP = 46;
-
-/**
- * Lines sit below station markers; a square and text distinguish the waiting station. "Tap here"
- * sits beside the square, on the side facing the other relay station, so it stays inside the plan
- * and clear of the booths above and below. Its halo, in the card's colour, keeps the line from
- * cutting through the letters.
- */
+/** The call follows the waiting square, above its ring and clear of the booth name and pills. */
 export function MapRelayDrawing({ view, data }: { view: RelayView; data?: MapRelayResponse }) {
   const scope = useRef<SVGGElement>(null);
   useMapRelayAnimations(scope, view, data);
   const [from, to] = view.endpoints;
   const waiting = view.waiting;
-  const other = view.endpoints.find((item) => item !== waiting);
-  const labelRight = !waiting || !other || other.x >= waiting.x;
   return (
     <g ref={scope} aria-hidden data-relay>
       <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} strokeWidth="11" className="stroke-card" />
@@ -34,8 +25,11 @@ export function MapRelayDrawing({ view, data }: { view: RelayView; data?: MapRel
         strokeDasharray={view.state === "running" ? "12 7" : undefined}
         className="stroke-primary-text"
       />
+      {/* GSAP needs starting coordinates when it restores the transfer after an animation. */}
       <circle
         data-relay-transfer
+        cx="0"
+        cy="0"
         r="14"
         opacity="0"
         strokeWidth="3"
@@ -48,20 +42,22 @@ export function MapRelayDrawing({ view, data }: { view: RelayView; data?: MapRel
       {waiting ? (
         <g data-relay-waiting transform={`translate(${waiting.x} ${waiting.y})`}>
           <rect
-            x="-36"
-            y="-36"
-            width="72"
-            height="72"
+            x={-WAITING_SIZE / 2}
+            y={-WAITING_SIZE / 2}
+            width={WAITING_SIZE}
+            height={WAITING_SIZE}
             rx="5"
             fill="none"
-            strokeWidth="5"
+            strokeWidth={WAITING_STROKE}
             className="stroke-primary-text"
           />
           <text
-            x={labelRight ? LABEL_GAP : -LABEL_GAP}
-            y="8"
-            textAnchor={labelRight ? "start" : "end"}
-            fontSize="24"
+            x={waiting.x > waiting.booth.x ? 36 : waiting.x < waiting.booth.x ? -36 : 0}
+            y="-48"
+            textAnchor={
+              waiting.x > waiting.booth.x ? "end" : waiting.x < waiting.booth.x ? "start" : "middle"
+            }
+            fontSize="34"
             fontWeight="700"
             strokeWidth="6"
             paintOrder="stroke"

@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 
 import { relayPoll } from "@/features/map/test-relay";
-import { MPH_EXAMPLE_PLAN } from "@/features/map/floor-plan";
+import { BOOTH_PLAN } from "@/features/map/floor-plan";
 import { placeStations } from "@/features/map/place-stations";
 import { deriveRelay } from "@/features/map/relay";
 import { mapStation } from "@/features/map/test-stations";
@@ -9,17 +9,17 @@ import { mapStation } from "@/features/map/test-stations";
 const now = Date.parse("2026-11-17T06:00:12.000Z");
 const placed = placeStations(
   [
-    mapStation({ station_id: "s1", game: "relay", booth: "B1" }),
-    mapStation({ station_id: "s2", game: "relay", booth: "B2" }),
+    mapStation({ station_id: "s1", game: "relay", booth: "Booth 1" }),
+    mapStation({ station_id: "s2", game: "relay", booth: "Booth 2" }),
   ],
-  MPH_EXAMPLE_PLAN,
+  BOOTH_PLAN,
 ).placed;
 
 it("draws the two booths, waiting station and counts on the first poll without animation", () => {
   expect(deriveRelay(undefined, relayPoll(), placed, now)).toMatchObject({
     endpoints: [
-      { x: 254, y: 106 },
-      { x: 254, y: 197 },
+      { x: 140, y: 120 },
+      { x: 460, y: 120 },
     ],
     waiting: { station: { station_id: "s2" } },
     progress: "2 of 4",
@@ -134,7 +134,10 @@ it("draws nothing when the map still has a third placed relay station", () => {
       relayPoll(),
       [
         ...placed,
-        { ...placed[0]!, station: mapStation({ station_id: "s3", game: "relay", booth: "B3" }) },
+        {
+          ...placed[0]!,
+          station: mapStation({ station_id: "s3", game: "relay", booth: "Booth 1" }),
+        },
       ],
       now,
     ),

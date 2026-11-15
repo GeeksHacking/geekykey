@@ -9,7 +9,7 @@ import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Beside the plan: every station by name, since the plan itself shows only booth codes. The
+ * Beside the booth plan: every station by name, since the booth plan itself shows only booth names. The
  * stations it couldn't place come last, under their own heading, so an organizer sees which
  * ones need a booth.
  */
@@ -33,7 +33,7 @@ export function StationList({
         </div>
         {placed.length === 0 ? (
           <p className="text-muted-foreground">
-            No station has a booth on this plan yet. Give one a booth such as A1 and it appears
+            No station has a booth on this plan yet. Give one a booth such as Booth 1 and it appears
             here.
           </p>
         ) : (
@@ -44,7 +44,7 @@ export function StationList({
                 <StationRow
                   key={station.station_id}
                   station={station}
-                  code={booth.name}
+                  booth={booth.name}
                   seat={seatMarks?.get(station.station_id)}
                 />
               ))}
@@ -69,7 +69,7 @@ export function StationList({
               <StationRow
                 key={station.station_id}
                 station={station}
-                code={null}
+                booth={null}
                 seat={seatMarks?.get(station.station_id)}
               />
             ))}
@@ -82,26 +82,26 @@ export function StationList({
 
 function StationRow({
   station,
-  code,
+  booth,
   seat,
 }: {
   station: MapStation;
-  code: string | null;
+  booth: string | null;
   seat?: SeatMark;
 }) {
   return (
-    <li className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
+    <li className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
       <span
         className={cn(
-          "grid h-9 w-9 place-items-center rounded-full border font-mono text-sm font-bold",
-          code === null
+          "grid h-9 place-items-center whitespace-nowrap rounded-md border font-mono text-sm font-bold",
+          booth === null
             ? "border-dashed border-muted-foreground text-muted-foreground"
             : station.disabled
               ? "border-dashed border-muted-foreground bg-muted text-muted-foreground"
               : "border-primary-edge bg-primary text-primary-foreground",
         )}
       >
-        {code ?? <MapPinSimpleArea className="h-4 w-4" aria-hidden />}
+        {booth ?? <MapPinSimpleArea className="h-4 w-4" aria-hidden />}
       </span>
       <span className="min-w-0">
         <span className="block truncate text-base font-medium">{stationTitle(station)}</span>
@@ -115,7 +115,7 @@ function StationRow({
             {seatText(seat)}
           </span>
         ) : null}
-        {code === null ? (
+        {booth === null ? (
           <span
             className="mt-0.5 block truncate text-sm text-muted-foreground"
             title={station.booth ?? undefined}
