@@ -23,5 +23,17 @@ export default defineConfig({
     // One file at a time: they share one TiDB, and a file emptying the tables
     // mustn't pull the rows out from under another.
     fileParallelism: false,
+    // `pnpm test:coverage`, which CI runs. Reported, never a threshold
+    // (FRO-188). CI's job summary gives src/ and scripts/ a row each, since
+    // the scripts are run by hand against a database and would hide the
+    // application code's figure inside one total.
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts", "scripts/**/*.ts"],
+      // The tests' own helpers, which only the tests run.
+      exclude: ["src/test-helpers.ts"],
+      // `json-summary` is what scripts/coverage-summary.ts reads for CI's job summary.
+      reporter: ["text-summary", "json-summary", "html"],
+    },
   },
 });

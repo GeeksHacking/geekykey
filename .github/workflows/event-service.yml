@@ -71,8 +71,25 @@ jobs:
       - name: Start TiDB
         run: pnpm db:up
 
+      # With coverage, which is reported and never gates the run (FRO-188):
+      # no threshold, so a drop shows in the summary for a reviewer to ask
+      # about, and doesn't fail CI. src/ and scripts/ get a row each, since
+      # the scripts are run by hand and would pull the total down.
       - name: Test
-        run: pnpm test:event-service
+        run: pnpm test:event-service:coverage
+
+      - name: Coverage summary
+        run: node scripts/coverage-summary.ts "Event Service" apps/event-service/coverage/coverage-summary.json src/ scripts/
+
+      # The HTML report, to download from the run's page. `overwrite` lets a
+      # re-run of a failed job replace the report its first attempt uploaded.
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-event-service
+          path: apps/event-service/coverage/
+          retention-days: 30
+          overwrite: true
 
       # Builds the image Cloud Run runs, without pushing it anywhere. This is
       # what proves the bundle and the image build: the tests load the code a

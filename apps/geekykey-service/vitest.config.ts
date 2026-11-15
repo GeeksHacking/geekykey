@@ -34,5 +34,13 @@ export default defineConfig({
     isolate: false,
     maxWorkers: 1,
     include: ["src/**/*.test.ts"],
+    // `pnpm test:coverage`, which CI runs. V8 coverage works inside workerd
+    // with this plugin, so no istanbul. Reported, never a threshold (FRO-188).
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      // `json-summary` is what scripts/coverage-summary.ts reads for CI's job summary.
+      reporter: ["text-summary", "json-summary", "html"],
+    },
   },
 });

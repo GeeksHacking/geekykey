@@ -2813,3 +2813,12 @@
   change: >-
     The map names a station by its game, "Relay" or "Team duels", instead of "Runs relay" or
     "Runs team_duels".
+
+- id: coverage-in-ci
+  date: 2026-11-15
+  area: tooling
+  change: >-
+    Every pull request shows how much of each service's and each set of screens' code the tests
+    run. The Event Service's application code and its scripts get a figure each, and CI keeps the
+    full report for 30 days. The trade-offs we accept: no figure is a pass mark, so a drop never
+    fails CI, and a reviewer has to compare it with the last run on main.
