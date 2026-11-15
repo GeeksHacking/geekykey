@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/api/errors";
 import { createMockClient } from "@/api/mock/client";
 import { SEEDED_ORGANIZER_ID } from "@/api/mock/fixtures";
 import { FallbackForm } from "@/features/fallback/fallback-form";
@@ -84,6 +85,60 @@ describe("FallbackForm", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Some of the details are not valid. Check the form and try again.",
+    );
+  });
+
+  it("does not mark an online station as offline", () => {
+    setup([{ ...station, online: true }]);
+    const select = document.querySelector("select");
+    expect(select).not.toBeNull();
+    expect(within(select!).getByText("Print Lab")).toBeInTheDocument();
+    expect(within(select!).queryByText("Print Lab (offline)")).not.toBeInTheDocument();
+  });
+
+  it("puts each validation issue under its field, and the rest above the form", async () => {
+    const { api, user } = setup();
+    vi.spyOn(api, "createFallbackTap").mockRejectedValueOnce(
+      new ApiError(400, "validation_failed", [
+        { path: ["user_id"], message: "That user ID is not valid." },
+        { path: ["station_id"], message: "That station is not valid." },
+        { path: ["other"], message: "Something else is wrong." },
+      ]),
+    );
+    chooseStation();
+    await user.type(screen.getByLabelText("User ID"), "dev-user-1");
+    await user.click(screen.getByRole("button", { name: "Log tap" }));
+
+    expect(await screen.findByText("That user ID is not valid.")).toBeInTheDocument();
+    expect(screen.getByText("That station is not valid.")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Something else is wrong.");
+  });
+
+  it("falls back to the generic sentence for an issue it cannot place", async () => {
+    const { api, user } = setup();
+    vi.spyOn(api, "createFallbackTap").mockRejectedValueOnce(
+      new ApiError(400, "validation_failed", [
+        { path: "user_id" as unknown as string[], message: "bad" },
+      ]),
+    );
+    chooseStation();
+    await user.type(screen.getByLabelText("User ID"), "dev-user-1");
+    await user.click(screen.getByRole("button", { name: "Log tap" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Some of the details are not valid. Check the form and try again.",
+    );
+  });
+
+  it("says what went wrong for a failure that is not about the form", async () => {
+    const { api, user } = setup();
+    vi.spyOn(api, "createFallbackTap").mockRejectedValueOnce(new ApiError(500, "internal_error"));
+    chooseStation();
+    await user.type(screen.getByLabelText("User ID"), "dev-user-1");
+    await user.click(screen.getByRole("button", { name: "Log tap" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Something went wrong on the server. Try again in a moment.",
     );
   });
 });

@@ -340,6 +340,96 @@ describe("geekykey-web http client", () => {
   });
 });
 
+describe("the error statuses and bodies", () => {
+  it("gives each status the code the agreement names when the body says nothing", async () => {
+    const cases: [number, ErrorCode][] = [
+      [400, "validation_failed"],
+      [422, "validation_failed"],
+      [401, "unauthenticated"],
+      [403, "forbidden"],
+      [404, "not_found"],
+      [409, "token_taken"],
+      [429, "rate_limited"],
+      [503, "claims_unavailable"],
+      [500, "internal_error"],
+    ];
+
+    for (const [status, code] of cases) {
+      stubFetch(() => new Response("not json", { status }));
+      await expect(createHttpClient().me()).rejects.toMatchObject({ status, code });
+    }
+  });
+
+  it("keeps the code and issues a readable body gives", async () => {
+    stubFetch(() =>
+      json({ error: "validation_failed", issues: [{ path: ["uid"], message: "bad" }] }, 403),
+    );
+
+    const error = (await createHttpClient()
+      .me()
+      .catch((reason: unknown) => reason)) as ApiError;
+
+    expect(error.code).toBe("validation_failed");
+    expect(error.issues).toEqual([{ path: ["uid"], message: "bad" }]);
+  });
+
+  it("ignores an error code the agreement does not list", async () => {
+    stubFetch(() => json({ error: "not_a_code" }, 403));
+
+    await expect(createHttpClient().me()).rejects.toMatchObject({
+      status: 403,
+      code: "forbidden",
+      issues: [],
+    });
+  });
+
+  it("treats a JSON string body as no error body", async () => {
+    stubFetch(() => json("not an object", 400));
+
+    await expect(createHttpClient().me()).rejects.toMatchObject({
+      status: 400,
+      code: "validation_failed",
+      issues: [],
+    });
+  });
+
+  it("drops issues the agreement's shape does not allow", async () => {
+    stubFetch(() =>
+      json(
+        {
+          error: "validation_failed",
+          issues: [
+            null,
+            7,
+            { path: "uid", message: "bad" },
+            { path: ["uid"], message: 7 },
+            { path: ["uid", 3, true], message: "bad" },
+          ],
+        },
+        400,
+      ),
+    );
+
+    const error = (await createHttpClient()
+      .me()
+      .catch((reason: unknown) => reason)) as ApiError;
+
+    expect(error.issues).toEqual([{ path: ["uid", 3], message: "bad" }]);
+  });
+
+  it("posts the login link to the auth route", async () => {
+    const { calls } = stubFetch(() => new Response(null, { status: 204 }));
+
+    await createHttpClient().loginLink("https://event.geekshacking.com/#login=abc");
+
+    expect(calls[0]?.url).toBe("/auth/login-link");
+    expect(calls[0]?.init?.method).toBe("POST");
+    expect(calls[0]?.init?.body).toBe(
+      JSON.stringify({ login_link: "https://event.geekshacking.com/#login=abc" }),
+    );
+  });
+});
+
 /** The codes the agreement's status table defines for the endpoints this app calls. */
 const statusFor: Record<ErrorCode, number> = {
   validation_failed: 400,

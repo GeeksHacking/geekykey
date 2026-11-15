@@ -5,6 +5,7 @@ import type { ErrorCode } from "@/api/types";
 
 /** Every code in the union, so a new one cannot be added without a message. */
 const CODES: ErrorCode[] = [
+  "token_claimed",
   "validation_failed",
   "unauthenticated",
   "invalid_token",
@@ -16,6 +17,8 @@ const CODES: ErrorCode[] = [
   "claims_unavailable",
   "login_unavailable",
   "service_unavailable",
+  "invalid_login_link",
+  "event_service_unavailable",
   "internal_error",
 ];
 
@@ -57,6 +60,18 @@ describe("describeError", () => {
     expect(describeError(new ApiError(409, "token_limit_reached"))).toBe(
       "You already have 3 tokens. Release one on My tokens first.",
     );
+  });
+
+  it("uses the agreement's wording for token_claimed", () => {
+    expect(describeError(new ApiError(409, "token_claimed"))).toBe(
+      "This token is claimed. Release it first, then remove it from the kinds list.",
+    );
+  });
+
+  it("uses the agreement's wording for a login link that was used or is unusable", () => {
+    const text = "That link has expired. Open My tokens from the event again.";
+    expect(describeError(new ApiError(401, "invalid_login_link"))).toBe(text);
+    expect(describeError(new ApiError(503, "event_service_unavailable"))).toBe(text);
   });
 
   it("says a required service is unavailable for the Worker's service_unavailable", () => {

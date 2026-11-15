@@ -674,6 +674,17 @@ describe("HTTP client transport", () => {
     }
   });
 
+  it("leaves an unset tap filter out of the query", async () => {
+    fetchMock.mockResolvedValueOnce(response({ taps: [], next_before_id: null }));
+
+    await createHttpClient().listTaps({ status: "accepted", station_id: undefined });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/admin/taps?status=accepted",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
   it("aborts a request that exceeds the configured timeout", async () => {
     fetchMock.mockImplementation(
       (_url: string, init?: RequestInit) =>
