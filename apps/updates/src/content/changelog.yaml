@@ -2830,3 +2830,11 @@
     A new guest's avatar starts from their answers, so not every guest begins with the same
     look. A guest who already chose colours keeps them, and an event without questions draws
     the default.
+
+- id: open-seat-on-two-stations
+  date: 2026-11-15
+  area: hardware
+  change: >-
+    A full open seat passed on our two real stations on production. Seats opened and were taken at
+    both, a tap from the sitter's own group was refused, the sitter accepted the request on their
+    phone and the two played the challenge, so the open seat stays in the showcase's hands-on part.
