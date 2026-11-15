@@ -1,9 +1,11 @@
+import { BOOTH_NAMES } from "@/lib/booth";
+
 import type { MockStation } from "@/api/mock/fixtures";
 import type { MapRelayResponse } from "@/api/types";
 
 /** Extra demo devices leave the seeded passport stations and their tests intact. */
 export function relayDemoStations(now: number): MockStation[] {
-  return ["Booth 1", "Booth 2"].map((booth, index) => ({
+  return BOOTH_NAMES.map((booth, index) => ({
     id: `demo-relay-${index + 1}`,
     label: `Relay ${index + 1}`,
     game: "relay",

@@ -1,3 +1,5 @@
+import { BOOTH_NAMES } from "@/lib/booth";
+
 /*
   The booth plan of our table at the GeekyKey booth. The Event Service stores each
   station's booth as free text; these two names say where the screen places it.
@@ -25,7 +27,7 @@ export const BOOTH_PLAN: FloorPlan = {
   width: 600,
   height: 244,
   booths: [
-    { name: "Booth 1", x: 140, y: 120 },
-    { name: "Booth 2", x: 460, y: 120 },
+    { name: BOOTH_NAMES[0], x: 140, y: 120 },
+    { name: BOOTH_NAMES[1], x: 460, y: 120 },
   ],
 };

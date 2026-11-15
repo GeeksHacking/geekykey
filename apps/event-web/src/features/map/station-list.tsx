@@ -4,6 +4,7 @@ import type { MapStation } from "@/api/types";
 import { CornerBrackets } from "@/components/look/corner-brackets";
 import type { PlacedStation } from "@/features/map/place-stations";
 import { seatText, type SeatMark } from "@/features/map/seat-marks";
+import { BOOTH_NAMES } from "@/lib/booth";
 import { gameName } from "@/lib/games";
 import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -33,8 +34,8 @@ export function StationList({
         </div>
         {placed.length === 0 ? (
           <p className="text-muted-foreground">
-            No station has a booth on this plan yet. Give one a booth such as Booth 1 and it appears
-            here.
+            No station has a booth on this plan yet. Give one a booth such as {BOOTH_NAMES[0]} and
+            it appears here.
           </p>
         ) : (
           <div className="relative">

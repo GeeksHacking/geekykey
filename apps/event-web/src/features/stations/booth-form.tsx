@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Check } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod/mini";
@@ -18,8 +19,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useSetStationBooth } from "@/features/stations/use-set-station-booth";
-import { isBooth } from "@/lib/booth";
+import { BOOTH_NAMES, isBooth } from "@/lib/booth";
 import { applyApiIssues } from "@/lib/form-errors";
+import { cn } from "@/lib/utils";
 
 const schema = z.object({
   booth: z.string().check(z.trim(), z.refine(isBooth, "Keep it under 80 characters.")),
@@ -29,7 +31,7 @@ type BoothValues = z.infer<typeof schema>;
 
 /** A name outside the map's own plan still saves, so the organiser can place it later. */
 const HINT =
-  "The plan names Booth 1 and Booth 2. Another name still saves, and the map lists the station beside the plan. Blank means no booth.";
+  "Another name still saves, and the map lists the station beside the plan. Blank means no booth.";
 
 /**
  * Agreement 9.12. One field, because a booth is free text the map matches to its own floor
@@ -88,10 +90,31 @@ export function BoothForm({
                 <Input
                   {...field}
                   autoComplete="off"
-                  placeholder="Booth 1"
+                  placeholder={BOOTH_NAMES[0]}
                   className="w-32 font-mono"
                 />
               </FormControl>
+              <div className="flex flex-wrap gap-2">
+                {BOOTH_NAMES.map((booth) => {
+                  const selected = field.value.trim().toLowerCase() === booth.toLowerCase();
+                  return (
+                    <Button
+                      key={booth}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-pressed={selected}
+                      className={cn(selected && "border-primary-edge bg-accent")}
+                      onClick={() =>
+                        form.setValue("booth", booth, { shouldDirty: true, shouldValidate: true })
+                      }
+                    >
+                      {booth}
+                      {selected ? <Check aria-hidden /> : null}
+                    </Button>
+                  );
+                })}
+              </div>
               <FormDescription>{HINT}</FormDescription>
               <FormMessage />
             </FormItem>

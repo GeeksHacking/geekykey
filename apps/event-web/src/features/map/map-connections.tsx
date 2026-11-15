@@ -40,12 +40,22 @@ export function MapConnections({ connections }: { connections: MapConnectionsDat
       <div className="relative flex min-h-0 flex-1 flex-col">
         <CornerBrackets />
         <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-card px-4 py-3">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-mono text-4xl font-semibold tabular-nums text-foreground lg:text-5xl">
-              {formatCount(connections.count)}
-            </span>{" "}
-            {label}
-          </p>
+          <div className="flex flex-wrap gap-x-12 gap-y-2">
+            <p aria-hidden={web.nodes.length > 0} className="text-sm text-muted-foreground">
+              <span className="block font-mono text-4xl font-semibold tabular-nums text-foreground lg:text-5xl">
+                {formatCount(connections.count)}
+              </span>{" "}
+              {label}
+            </p>
+            {web.nodes.length > 0 ? (
+              <p aria-hidden="true" className="text-sm text-muted-foreground">
+                <span className="block font-mono text-4xl font-semibold tabular-nums text-foreground lg:text-5xl">
+                  {formatCount(web.nodes.length)}
+                </span>{" "}
+                {participantWord} connected
+              </p>
+            ) : null}
+          </div>
           {web.nodes.length === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">
               No connections yet. Participants connect by tapping each other's tokens.

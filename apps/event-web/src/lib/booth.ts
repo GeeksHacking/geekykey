@@ -1,3 +1,6 @@
+/** The two booths on our table, shared by the map, booth picker and mock data. */
+export const BOOTH_NAMES = ["Booth 1", "Booth 2"] as const;
+
 /**
  * The rule for a station's booth (agreement 9.12): trimmed, then at most 80 characters,
  * counted as Unicode code points, as 9.1 counts a name and a location. A blank booth is
