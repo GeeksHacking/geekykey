@@ -16,7 +16,7 @@ import { relayPoll } from "@/features/map/test-relay";
 import { mapStation } from "@/features/map/test-stations";
 import { createTestProviders } from "@/test/providers";
 
-/** Station 1 in the fixtures, the 3D Printing Booth at B1. */
+/** Station 1 in the fixtures, the 3D Printing Booth at Booth 1. */
 const PRINTING_ID = "ca939e19-8216-4b95-8375-5b54e543c5f6";
 
 function setup(
@@ -64,13 +64,27 @@ afterEach(() => {
 });
 
 describe("MapScreen", () => {
+  it("shows only the two booths on our table", async () => {
+    setup();
+
+    const plan = await screen.findByRole("img", { name: /GeekyKey booth/ });
+    expect(screen.getByText("GeekyKey booth")).toBeInTheDocument();
+    const labels = [...plan.querySelectorAll("text")].map((text) => text.textContent);
+    expect(labels.filter((text) => !/^\d+$|Disabled|Open seat/.test(text ?? ""))).toEqual([
+      "Booth 1",
+      "Booth 2",
+    ]);
+    expect(plan.querySelector("pattern, path")).toBeNull();
+    expect(document.body).not.toHaveTextContent(/guest|MPH|grad tea/i);
+  });
+
   it("lists each station at its booth, by name, with how many people tapped there", async () => {
     setup();
 
     const onMap = within(await screen.findByRole("region", { name: "On the map" }));
     const printing = onMap.getByText("3D Printing Booth").closest("li");
-    expect(printing).toHaveTextContent("B1");
-    expect(onMap.getByText("Mentor Lounge").closest("li")).toHaveTextContent("A2");
+    expect(printing).toHaveTextContent("Booth 1");
+    expect(onMap.getByText("Mentor Lounge").closest("li")).toHaveTextContent("Booth 2");
     expect(ringOf(PRINTING_ID)).toBeInTheDocument();
   });
 
@@ -94,7 +108,7 @@ describe("MapScreen", () => {
     setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map").mockResolvedValue({
         stations: [
-          mapStation({ station_id: "gatsby", game: "gatsby", name: null, booth: "C2" }),
+          mapStation({ station_id: "gatsby", game: "gatsby", name: null, booth: "Booth 1" }),
           mapStation({ station_id: "desk", game: null, name: null, booth }),
         ],
       });
@@ -112,10 +126,10 @@ describe("MapScreen", () => {
     setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map").mockResolvedValue({
         stations: [
-          mapStation({ station_id: "passport", game: "passport", name: null, booth: "B1" }),
-          mapStation({ station_id: "duels", game: "team_duels", name: null, booth: "B2" }),
-          mapStation({ station_id: "relay", game: "relay", name: null, booth: "B3" }),
-          mapStation({ station_id: "seat", game: "open_seat", name: null, booth: "B4" }),
+          mapStation({ station_id: "passport", game: "passport", name: null, booth: "Booth 1" }),
+          mapStation({ station_id: "duels", game: "team_duels", name: null, booth: "Booth 2" }),
+          mapStation({ station_id: "relay", game: "relay", name: null, booth: "Booth 1" }),
+          mapStation({ station_id: "seat", game: "open_seat", name: null, booth: "Booth 2" }),
         ],
       });
     });
@@ -221,7 +235,9 @@ describe("MapScreen", () => {
 
     const panel = await screen.findByRole("region", { name: "Connections" });
     expect(panel).toHaveTextContent(/\d+ connections/);
-    expect(within(panel).getByRole("img")).toHaveAccessibleName(/A web of \d+ connections/);
+    expect(within(panel).getByRole("img")).toHaveAccessibleName(
+      /A web of \d+ connections between \d+ participants\. No names are shown\./,
+    );
     expect(document.querySelector("[data-web-node='1']")).toBeInTheDocument();
   });
 
@@ -242,21 +258,24 @@ describe("MapScreen", () => {
   it("says when there are no connections yet", async () => {
     setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map").mockResolvedValue({
-        stations: [mapStation({ station_id: "s1", booth: "B1" })],
+        stations: [mapStation({ station_id: "s1", booth: "Booth 1" })],
         connections: { count: 0, links: [] },
       });
     });
 
     expect(
-      await screen.findByText("No connections yet. Guests connect by tapping each other's tokens."),
+      await screen.findByText(
+        "No connections yet. Participants connect by tapping each other's tokens.",
+      ),
     ).toBeInTheDocument();
     expect(document.querySelector("[data-web-node]")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/guest|MPH|grad tea/i);
   });
 
   it("draws no web when connections is left out", async () => {
     setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map").mockResolvedValue({
-        stations: [mapStation({ station_id: "s1", booth: "B1" })],
+        stations: [mapStation({ station_id: "s1", booth: "Booth 1" })],
       });
     });
 
@@ -268,7 +287,7 @@ describe("MapScreen", () => {
     const until = new Date(Date.now() + 42_000).toISOString();
     setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map").mockResolvedValue({
-        stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: until })],
+        stations: [mapStation({ station_id: "s1", booth: "Booth 1", open_seat_until: until })],
       });
     });
 
@@ -283,20 +302,20 @@ describe("MapScreen", () => {
       stations: [
         mapStation({
           station_id: "s1",
-          booth: "B1",
+          booth: "Booth 1",
           open_seat_until: new Date(Date.now() + 60_000).toISOString(),
         }),
       ],
     };
     const gone = {
-      stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: null })],
+      stations: [mapStation({ station_id: "s1", booth: "Booth 1", open_seat_until: null })],
     };
     const { poll } = setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map")
         .mockResolvedValueOnce(open)
         .mockResolvedValueOnce(gone)
         .mockImplementation(async () => ({
-          stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: null })],
+          stations: [mapStation({ station_id: "s1", booth: "Booth 1", open_seat_until: null })],
         }));
     });
 
@@ -314,13 +333,13 @@ describe("MapScreen", () => {
       stations: [
         mapStation({
           station_id: "s1",
-          booth: "B1",
+          booth: "Booth 1",
           open_seat_until: new Date(Date.now() - 1_000).toISOString(),
         }),
       ],
     };
     const gone = {
-      stations: [mapStation({ station_id: "s1", booth: "B1", open_seat_until: null })],
+      stations: [mapStation({ station_id: "s1", booth: "Booth 1", open_seat_until: null })],
     };
     const { poll } = setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map").mockResolvedValueOnce(closed).mockResolvedValue(gone);
@@ -367,13 +386,13 @@ describe("MapScreen", () => {
     setup(SEEDED_ORGANIZER_ID, (api) => {
       vi.spyOn(api, "map").mockResolvedValue({
         stations: [
-          mapStation({ station_id: "s1", game: "relay", name: null, booth: "B1" }),
-          mapStation({ station_id: "s2", game: "relay", name: null, booth: "B2" }),
+          mapStation({ station_id: "s1", game: "relay", name: null, booth: "Booth 1" }),
+          mapStation({ station_id: "s2", game: "relay", name: null, booth: "Booth 2" }),
           mapStation({
             station_id: "seat",
             game: "open_seat",
             name: "Open Seat Station",
-            booth: "B4",
+            booth: "Booth 2",
             open_seat_until: until,
           }),
         ],
@@ -387,9 +406,14 @@ describe("MapScreen", () => {
     const row = onMap.getByText("Open Seat Station").closest("li");
     if (!row) throw new Error("missing station row");
     expect(row).toHaveTextContent(/Open seat \d+s/);
-    const plan = screen.getByRole("img", { name: /MPH/ });
+    const plan = screen.getByRole("img", { name: /GeekyKey booth/ });
     expect(plan.querySelector("[data-relay-line]")).not.toBeNull();
     expect(plan.querySelector('[data-open-seat="open"]')).not.toBeNull();
+    const tapLabel = [...plan.querySelectorAll("text")].find(
+      (text) => text.textContent === "Tap here",
+    );
+    expect(plan.querySelector("[data-relay-waiting]")).toContainElement(tapLabel ?? null);
+    expect(tapLabel).toHaveAttribute("y", "-48");
   });
 });
 
@@ -397,8 +421,8 @@ it("adds the relay to the plan and side column without replacing the connection 
   const { api } = setup(SEEDED_ORGANIZER_ID, (api) => {
     vi.spyOn(api, "map").mockResolvedValue({
       stations: [
-        mapStation({ station_id: "s1", game: "relay", booth: "B1", name: null }),
-        mapStation({ station_id: "s2", game: "relay", booth: "B2", name: null }),
+        mapStation({ station_id: "s1", game: "relay", booth: "Booth 1", name: null }),
+        mapStation({ station_id: "s2", game: "relay", booth: "Booth 2", name: null }),
       ],
       connections: { count: 1, links: [[1, 2]] },
     });
@@ -406,9 +430,14 @@ it("adds the relay to the plan and side column without replacing the connection 
   });
   const relay = await screen.findByRole("region", { name: "Reactor Relay" });
   expect(relay).toHaveTextContent("2 of 4");
+  const web = screen.getByRole("region", { name: "Connections" });
+  const plan = screen.getByRole("img", { name: /GeekyKey booth/ });
+  expect(web).toHaveClass("lg:col-start-1", "lg:row-span-3");
+  expect(plan).toHaveClass("lg:col-start-2", "lg:row-start-2");
+  expect(relay.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByRole("region", { name: "Connections" })).toHaveTextContent("1 connection");
   expect(
-    screen.getByRole("img", { name: /MPH/ }).querySelector("[data-relay-line]"),
+    screen.getByRole("img", { name: /GeekyKey booth/ }).querySelector("[data-relay-line]"),
   ).toBeInTheDocument();
   for (const user of api.mock.data.users)
     if (user.display_name) expect(document.body).not.toHaveTextContent(user.display_name);
@@ -428,8 +457,8 @@ it("keeps the map and web without an error notice when the relay request fails",
   const { api, pollRelay } = setup(SEEDED_ORGANIZER_ID, (api) => {
     vi.spyOn(api, "map").mockResolvedValue({
       stations: [
-        mapStation({ station_id: "s1", game: "relay", booth: "B1" }),
-        mapStation({ station_id: "s2", game: "relay", booth: "B2" }),
+        mapStation({ station_id: "s1", game: "relay", booth: "Booth 1" }),
+        mapStation({ station_id: "s2", game: "relay", booth: "Booth 2" }),
       ],
       connections: { count: 1, links: [[1, 2]] },
     });
@@ -442,6 +471,6 @@ it("keeps the map and web without an error notice when the relay request fails",
     expect(screen.queryByRole("region", { name: "Reactor Relay" })).not.toBeInTheDocument(),
   );
   expect(screen.getByRole("region", { name: "Connections" })).toHaveTextContent("1 connection");
-  expect(screen.getByRole("img", { name: /MPH/ })).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: /GeekyKey booth/ })).toBeInTheDocument();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });

@@ -7,7 +7,7 @@ describe("placeWeb", () => {
     expect(placeWeb([])).toEqual({ nodes: [], edges: [] });
   });
 
-  it("puts each numbered guest on the web once, with its links", () => {
+  it("puts each numbered participant on the web once, with its links", () => {
     const web = placeWeb([
       [1, 2],
       [1, 3],
@@ -53,7 +53,7 @@ describe("placeWeb", () => {
     );
   });
 
-  it("draws a pair once, whichever way round it arrives, and skips a guest alone", () => {
+  it("draws a pair once, whichever way round it arrives, and skips a participant alone", () => {
     const web = placeWeb([
       [1, 2],
       [2, 1],

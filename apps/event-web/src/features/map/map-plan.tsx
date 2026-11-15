@@ -9,11 +9,11 @@ import { StationMarker } from "@/features/map/station-marker";
 import { useMapPulses } from "@/features/map/use-map-pulses";
 import { cn } from "@/lib/utils";
 
-/** Room around the hall for the markers' rings and counts, in plan units. */
+/** Room around the table for the markers' rings and counts, in plan units. */
 const MARGIN = 24;
 
 /**
- * The plan with each placed station on it. The list beside it carries the same stations as
+ * The booth plan with each placed station on it. The list beside it carries the same stations as
  * text, so the drawing is one labelled image to a screen reader.
  */
 export function MapPlan({
@@ -31,6 +31,8 @@ export function MapPlan({
   className?: string;
   children?: ReactNode;
 }) {
+  // Only crowded shared booths need extra rows. Keep the real two-station table compact.
+  const drawing = { ...plan, height: Math.max(plan.height, ...placed.map((item) => item.y + 124)) };
   const svg = useRef<SVGSVGElement>(null);
   useMapPulses(svg, stations);
 
@@ -39,10 +41,10 @@ export function MapPlan({
       ref={svg}
       role="img"
       aria-label={`${plan.name}, with ${placed.length} ${placed.length === 1 ? "station" : "stations"} at their booths`}
-      viewBox={`${-MARGIN} ${-MARGIN} ${plan.width + MARGIN * 2} ${plan.height + MARGIN * 2}`}
-      className={cn("h-auto w-full font-sans lg:h-full lg:w-auto", className)}
+      viewBox={`${-MARGIN} ${-MARGIN} ${plan.width + MARGIN * 2} ${drawing.height + MARGIN * 2}`}
+      className={cn("h-auto w-full font-sans lg:h-full lg:min-h-0", className)}
     >
-      <FloorPlanDrawing plan={plan} />
+      <FloorPlanDrawing plan={drawing} />
       {children}
       <g aria-hidden>
         {placed.map((item) => (

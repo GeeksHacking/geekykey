@@ -25,7 +25,7 @@ it("demonstrates calls, completed transfers, a missed call, the result and the n
   api.mock.setSession(SEEDED_ORGANIZER_ID);
   const stations = (await api.map()).stations.filter((station) => station.game === "relay");
   expect(stations).toHaveLength(2);
-  expect(stations.map((station) => station.booth)).toEqual(["A3", "C4"]);
+  expect(stations.map((station) => station.booth)).toEqual(["Booth 1", "Booth 2"]);
   expect((await api.mapRelay()).relay?.game).toBeNull();
   for (const [seconds, transfers, waitingIndex] of [
     [3, 0, 1],

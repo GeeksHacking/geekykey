@@ -6,7 +6,7 @@ import type { MapRelayResponse } from "@/api/types";
 import { ApiError } from "@/api/errors";
 import { queryKeys } from "@/api/keys";
 import { createMockClient } from "@/api/mock/client";
-import { MPH_EXAMPLE_PLAN } from "@/features/map/floor-plan";
+import { BOOTH_PLAN } from "@/features/map/floor-plan";
 import { MapRelay } from "@/features/map/map-relay";
 import { placeStations } from "@/features/map/place-stations";
 import { mapStation } from "@/features/map/test-stations";
@@ -14,8 +14,8 @@ import { relayPoll } from "@/features/map/test-relay";
 import { createTestProviders } from "@/test/providers";
 
 const stations = [
-  mapStation({ station_id: "s1", game: "relay", booth: "B1", name: null }),
-  mapStation({ station_id: "s2", game: "relay", booth: "B2", name: null }),
+  mapStation({ station_id: "s1", game: "relay", booth: "Booth 1", name: null }),
+  mapStation({ station_id: "s2", game: "relay", booth: "Booth 2", name: null }),
 ];
 
 function setup(initial = stations, first: MapRelayResponse | Error = relayPoll()) {
@@ -27,7 +27,7 @@ function setup(initial = stations, first: MapRelayResponse | Error = relayPoll()
   function View({ items = initial }: { items?: typeof stations }) {
     return (
       <Providers>
-        <MapRelay stations={items} placed={placeStations(items, MPH_EXAMPLE_PLAN).placed}>
+        <MapRelay stations={items} placed={placeStations(items, BOOTH_PLAN).placed}>
           {({ layer, status }) => (
             <>
               <svg>{layer}</svg>
@@ -68,14 +68,18 @@ it("shows the relay line, marked waiting booth and a live count without names or
   setup();
   const panel = await screen.findByRole("region", { name: "Reactor Relay" });
   expect(panel).toHaveTextContent("2 of 4");
-  expect(panel).toHaveTextContent("Waiting at B2");
+  expect(panel).toHaveTextContent("Waiting at Booth 2");
   expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
-  expect(document.querySelector("[data-relay-line]")).toHaveAttribute("x1", "254");
+  expect(document.querySelector("[data-relay-line]")).toHaveAttribute("x1", "140");
   expect(document.querySelector("[data-relay-waiting]")).toHaveAttribute(
     "transform",
-    "translate(254 197)",
+    "translate(460 120)",
   );
   expect(panel).not.toHaveTextContent(/group|Alex|Priya/i);
+  expect(document.querySelector("[data-relay-waiting]")).toContainElement(
+    screen.getByText("Tap here"),
+  );
+  expect(screen.getByText("Tap here")).toHaveAttribute("y", "-48");
 });
 
 it("polls relay after a second and moves the mark and count without a map request", async () => {
@@ -85,7 +89,14 @@ it("polls relay after a second and moves the mark and count without a map reques
     relayPoll({ transfers: 3, calling_station_id: "s2", waiting_station_id: "s1" }),
   );
   await waitFor(() => expect(screen.getByText("3 of 4")).toBeInTheDocument(), { timeout: 1600 });
-  expect(screen.getByText("Waiting at B1")).toBeInTheDocument();
+  expect(screen.getByText("Waiting at Booth 1")).toBeInTheDocument();
+  expect(document.querySelector("[data-relay-waiting]")).toHaveAttribute(
+    "transform",
+    "translate(140 120)",
+  );
+  expect(document.querySelector("[data-relay-waiting]")).toContainElement(
+    screen.getByText("Tap here"),
+  );
   rerender(stations.map((station) => ({ ...station, game: null })));
   expect(screen.queryByRole("region", { name: "Reactor Relay" })).not.toBeInTheDocument();
   const calls = request.mock.calls.length;
@@ -211,7 +222,7 @@ it("updates the count and mark with reduced motion, playing no animation", async
   );
   await poll();
   expect(await screen.findByText("3 of 4")).toBeInTheDocument();
-  expect(screen.getByText("Waiting at B1")).toBeInTheDocument();
+  expect(screen.getByText("Waiting at Booth 1")).toBeInTheDocument();
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
@@ -223,17 +234,17 @@ it("says a transfer was missed even when the next poll already contains a replac
   await screen.findByText("2 of 4");
   request.mockResolvedValue(relayPoll({ waiting_until: "2026-11-17T06:00:40.000Z" }));
   await poll();
-  expect(await screen.findByText("Missed. Now waiting at B2")).toBeInTheDocument();
+  expect(await screen.findByText("Missed. Now waiting at Booth 2")).toBeInTheDocument();
 });
 
 it("after a missed call, says which station calls again", async () => {
   const { request, poll } = setup();
-  await screen.findByText("Waiting at B2");
+  await screen.findByText("Waiting at Booth 2");
   request.mockResolvedValue(
     relayPoll({ calling_station_id: null, waiting_station_id: null, waiting_until: null }),
   );
   await poll();
-  expect(await screen.findByText("Missed. Tap again at B1")).toBeInTheDocument();
+  expect(await screen.findByText("Missed. Tap again at Booth 1")).toBeInTheDocument();
   expect(document.querySelector("[data-relay-waiting]")).not.toBeInTheDocument();
 });
 

@@ -43,18 +43,36 @@ export function placeStations(
     atBooth.set(booth, [...(atBooth.get(booth) ?? []), station]);
   }
 
-  // Stations sharing a booth sit in a row centred on it, each as wide as its marker, so their
-  // rings, counts and open seat labels never overlap.
+  // Each booth gets the space halfway to its neighbours. Wrap crowded booths so pills and
+  // the waiting square stay inside the table; leave single stations at their original spot.
   const placed = [...atBooth].flatMap(([booth, sharing]) => {
-    const widths = sharing.map(
-      (station) => markerWidth(station, seatMarks?.get(station.station_id)) + SHARED_BOOTH_GAP,
-    );
-    let left = booth.x - widths.reduce((sum, width) => sum + width, 0) / 2;
-    return sharing.map((station, index) => {
-      const width = widths[index] ?? 0;
-      const x = left + width / 2;
-      left += width;
-      return { station, booth, x, y: booth.y };
+    const before = plan.booths.filter((other) => other.x < booth.x);
+    const after = plan.booths.filter((other) => other.x > booth.x);
+    const min = before.length ? (Math.max(...before.map((other) => other.x)) + booth.x) / 2 + 4 : 4;
+    const max = after.length
+      ? (Math.min(...after.map((other) => other.x)) + booth.x) / 2 - 4
+      : plan.width - 4;
+    const rows: { station: MapStation; width: number }[][] = [[]];
+    let used = 0;
+    for (const station of sharing) {
+      const width = markerWidth(station, seatMarks?.get(station.station_id));
+      if (used && used + SHARED_BOOTH_GAP + width > max - min) {
+        rows.push([]);
+        used = 0;
+      }
+      rows[rows.length - 1]?.push({ station, width });
+      used += (used ? SHARED_BOOTH_GAP : 0) + width;
+    }
+    return rows.flatMap((row, rowIndex) => {
+      const width =
+        row.reduce((sum, item) => sum + item.width, 0) + (row.length - 1) * SHARED_BOOTH_GAP;
+      let left = Math.max(min, Math.min(booth.x - width / 2, max - width));
+      return row.map(({ station, width }) => {
+        const x = left + width / 2;
+        left += width + SHARED_BOOTH_GAP;
+        // A row includes the call above its square and both pills below it.
+        return { station, booth, x, y: booth.y + rowIndex * 210 };
+      });
     });
   });
   return { placed, unplaced };

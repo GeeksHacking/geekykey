@@ -1,8 +1,8 @@
 /*
   The anonymous web's layout. A node's place is a pure function of its number, so a poll that
-  adds a link cannot move a node that is already there: the server numbers guests in the order
+  adds a link cannot move a node that is already there: the server numbers participants in the order
   they first connect (agreement 9.10), and this turns that number into a point on a spiral.
-  The numbers stand for guests; the layout never sees a user ID or a name.
+  The numbers stand for participants; the layout never sees a user ID or a name.
 */
 
 /** The angle between one node and the next, so the spiral fills the space evenly. */
@@ -12,7 +12,7 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const NODE_SPACING = 24;
 
 export interface WebNode {
-  /** The anonymous number the server gave this guest. */
+  /** The anonymous number the server gave this participant. */
   id: number;
   x: number;
   y: number;
@@ -28,7 +28,7 @@ export interface PlacedWeb {
   edges: WebEdge[];
 }
 
-/** A guest's place, by number alone, so growing the web never moves them. */
+/** A participant's place, by number alone, so growing the web never moves them. */
 function position(id: number): { x: number; y: number } {
   const angle = id * GOLDEN_ANGLE;
   const radius = NODE_SPACING * Math.sqrt(Math.max(id - 1, 0));
@@ -36,8 +36,8 @@ function position(id: number): { x: number; y: number } {
 }
 
 /**
- * The web from 9.10's `links`. Each pair is one connection between two numbered guests. A
- * repeated pair is drawn once, whichever way round it arrives, and a guest who is not in any
+ * The web from 9.10's `links`. Each pair is one connection between two numbered participants. A
+ * repeated pair is drawn once, whichever way round it arrives, and a participant who is not in any
  * link is not on the web.
  */
 export function placeWeb(links: readonly (readonly [number, number])[]): PlacedWeb {
