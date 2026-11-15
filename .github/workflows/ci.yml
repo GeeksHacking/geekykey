@@ -62,8 +62,24 @@ jobs:
       - name: Format
         run: pnpm --filter @geekykey/event-web format:check
 
+      # With coverage, which is reported and never gates the run (FRO-188):
+      # no threshold, so a drop shows in the summary for a reviewer to ask
+      # about, and doesn't fail CI.
       - name: Test
-        run: pnpm test:event-web
+        run: pnpm test:event-web:coverage
+
+      - name: Coverage summary
+        run: node scripts/coverage-summary.ts "Event web" apps/event-web/coverage/coverage-summary.json
+
+      # The HTML report, to download from the run's page. `overwrite` lets a
+      # re-run of a failed job replace the report its first attempt uploaded.
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-event-web
+          path: apps/event-web/coverage/
+          retention-days: 30
+          overwrite: true
 
       # `build` runs the typecheck first.
       - name: Build
@@ -117,8 +133,24 @@ jobs:
       - name: Format
         run: pnpm --filter @geekykey/geekykey-web format:check
 
+      # With coverage, which is reported and never gates the run (FRO-188):
+      # no threshold, so a drop shows in the summary for a reviewer to ask
+      # about, and doesn't fail CI.
       - name: Test
-        run: pnpm test:geekykey-web
+        run: pnpm test:geekykey-web:coverage
+
+      - name: Coverage summary
+        run: node scripts/coverage-summary.ts "GeekyKey web" apps/geekykey-web/coverage/coverage-summary.json
+
+      # The HTML report, to download from the run's page. `overwrite` lets a
+      # re-run of a failed job replace the report its first attempt uploaded.
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-geekykey-web
+          path: apps/geekykey-web/coverage/
+          retention-days: 30
+          overwrite: true
 
       - name: Build
         run: pnpm build:geekykey-web
@@ -201,9 +233,25 @@ jobs:
         run: pnpm --filter @geekykey/geekykey-service typecheck
 
       # Inside workerd, with the Event Service and the claims stand-in faked,
-      # so no database is needed.
+      # so no database is needed. With V8 coverage, which works in workerd,
+      # and which is reported and never gates the run (FRO-188): no
+      # threshold, so a drop shows in the summary for a reviewer to ask
+      # about, and doesn't fail CI.
       - name: Test
-        run: pnpm test:geekykey-service
+        run: pnpm test:geekykey-service:coverage
+
+      - name: Coverage summary
+        run: node scripts/coverage-summary.ts "GeekyKey Service" apps/geekykey-service/coverage/coverage-summary.json
+
+      # The HTML report, to download from the run's page. `overwrite` lets a
+      # re-run of a failed job replace the report its first attempt uploaded.
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-geekykey-service
+          path: apps/geekykey-service/coverage/
+          retention-days: 30
+          overwrite: true
 
       # Bundles the Worker and checks wrangler.jsonc as a deploy would,
       # without deploying: what Workers Builds runs, short of uploading.
@@ -260,6 +308,11 @@ jobs:
 
       - name: Docs have no banned dashes
         run: node scripts/check-dashes.ts
+
+      # The repo's own scripts in scripts/, such as the coverage summary the
+      # app jobs write. Node's own test runner, so nothing to install.
+      - name: Repo scripts' tests
+        run: node --test 'scripts/*.test.ts'
 
       - name: Install
         run: pnpm install --frozen-lockfile
