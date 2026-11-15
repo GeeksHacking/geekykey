@@ -52,7 +52,7 @@ export function MapRelayStatus({ view }: { view: RelayView }) {
                   "h-2 flex-1 rounded-sm border",
                   index < view.transfers.done
                     ? "border-primary-edge bg-primary"
-                    : "border-border bg-muted",
+                    : "border-input bg-transparent",
                 )}
               />
             ))}

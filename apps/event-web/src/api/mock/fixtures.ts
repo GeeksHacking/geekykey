@@ -1,3 +1,5 @@
+import { BOOTH_NAMES } from "@/lib/booth";
+
 import type {
   AcceptConnectionRequestStatus,
   AvatarLook,
@@ -235,7 +237,7 @@ function demoSeat(now: number): OpenSeat | undefined {
   const state = new URLSearchParams(location.search).get("seat");
   const base = {
     station_id: "st_seat",
-    booth: "Booth 1",
+    booth: BOOTH_NAMES[0],
     opened_at: new Date(now - 5_000).toISOString(),
     closes_at: new Date(now + 55_000).toISOString(),
   };
@@ -418,7 +420,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: "https://example.com/3d-printing",
         added_at: iso(eventStart - minutes(60)),
       },
-      booth: "Booth 1",
+      booth: BOOTH_NAMES[0],
       open_seat_until: demoSeatUntil(now),
       last_seen_at: iso(now - 4_000),
       firmware_version: "0.3.1",
@@ -438,7 +440,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: null,
         added_at: iso(eventStart - minutes(70)),
       },
-      booth: "Booth 2",
+      booth: BOOTH_NAMES[1],
       last_seen_at: iso(now - 11_000),
       firmware_version: "0.3.1",
       buffered_taps: 0,
@@ -453,7 +455,7 @@ export function createFixtures(now: number = Date.now()): MockData {
       created_at: iso(eventStart - minutes(85)),
       disabled_at: null,
       passport: null,
-      booth: "Booth 1",
+      booth: BOOTH_NAMES[0],
       last_seen_at: iso(now - minutes(14)),
       firmware_version: "0.2.9",
       buffered_taps: 0,
@@ -472,7 +474,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: null,
         added_at: iso(eventStart - minutes(55)),
       },
-      booth: "Booth 2",
+      booth: BOOTH_NAMES[1],
       last_seen_at: iso(now - 27_000),
       firmware_version: "0.3.0",
       buffered_taps: 0,
@@ -531,7 +533,7 @@ export function createFixtures(now: number = Date.now()): MockData {
         link: null,
         added_at: iso(eventStart - minutes(40)),
       },
-      booth: "Booth 2",
+      booth: BOOTH_NAMES[1],
       last_seen_at: iso(now - minutes(6)),
       firmware_version: "0.3.1",
       buffered_taps: 0,

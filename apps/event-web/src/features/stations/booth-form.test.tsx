@@ -45,15 +45,54 @@ describe("the booth on the station board (agreement 9.12)", () => {
     expect(await screen.findByLabelText("Booth")).toHaveValue("Booth 1");
   });
 
-  it("names the booth plan's booths in the hint", async () => {
+  it("picks a planned booth without submitting, then saves it", async () => {
     const user = userEvent.setup();
     renderBoard();
 
     await pickStationAction(user, WITH_BOOTH, "Change booth…");
 
-    const hint = await screen.findByText(/The plan names Booth 1 and Booth 2/);
-    expect(hint).toHaveTextContent("Another name still saves");
-    expect(screen.getByLabelText("Booth")).toHaveAttribute("placeholder", "Booth 1");
+    const booth = await screen.findByLabelText("Booth");
+    expect(screen.getByRole("button", { name: "Booth 1", pressed: true })).toBeInTheDocument();
+    const pick = screen.getByRole("button", { name: "Booth 2", pressed: false });
+    await user.click(pick);
+
+    expect(booth).toHaveValue("Booth 2");
+    expect(pick).toHaveAttribute("aria-pressed", "true");
+    expect(pick).toHaveFocus();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(booth).toHaveAccessibleDescription(
+      "Another name still saves, and the map lists the station beside the plan. Blank means no booth.",
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await row(WITH_BOOTH)).toHaveTextContent("Booth 2");
+  });
+
+  it("matches typed booth names without case or outer spaces and validates a keyboard pick", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    await pickStationAction(user, WITH_BOOTH, "Change booth…");
+
+    const booth = await screen.findByLabelText("Booth");
+    await user.clear(booth);
+    await user.type(booth, "  bOoTh 2  ");
+    expect(screen.getByRole("button", { name: "Booth 2", pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Booth 1", pressed: false })).toBeInTheDocument();
+    await user.clear(booth);
+    expect(screen.getAllByRole("button", { pressed: false })).toHaveLength(2);
+    await user.type(booth, "x".repeat(81));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Keep it under 80 characters.")).toBeInTheDocument();
+
+    await user.click(booth);
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Booth 1" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(booth).toHaveValue("Booth 1");
+    expect(screen.queryByText("Keep it under 80 characters.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Booth 1", pressed: true })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await row(WITH_BOOTH)).toHaveTextContent("Booth 1");
   });
 
   it("saves a booth and shows it on the board", async () => {

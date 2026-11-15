@@ -2844,4 +2844,5 @@
   area: frontend
   change: >-
     The map shows our table with Booth 1 and Booth 2, and gives the anonymous connection web most
-    of the big screen. Relay calls and open seats stay visible beside it.
+    of the big screen, with a count of participants connected. Relay calls and open seats stay visible
+    beside it.
