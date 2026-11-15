@@ -4,7 +4,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 
@@ -190,6 +190,20 @@ it("a new participant gets the bio step after their last answer", async () => {
 
   expect(await screen.findByRole("heading", { name: "Your bio" })).toBeInTheDocument();
   expect(screen.queryByText("Dashboard and group card")).not.toBeInTheDocument();
+});
+
+it("a new participant's answers give their avatar a starting look", async () => {
+  const { api, user } = renderEvent(false, false, withBio);
+  await finishNameAndAnswers(user);
+
+  await waitFor(() =>
+    expect(guestOf(api).avatar).toEqual({
+      character: "suit",
+      skin: "light",
+      hair: "black",
+      suit: "navy",
+    }),
+  );
 });
 
 it("a new participant saves a bio, which opens the event", async () => {
