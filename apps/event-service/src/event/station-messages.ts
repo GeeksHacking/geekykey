@@ -1,4 +1,6 @@
 import {
+  stationWakeRequest,
+  stationWakeAnswer,
   stationMessageAnswer,
   stationMessageRequest,
   type StationMessageRequest,
@@ -14,6 +16,7 @@ export type StationMessage = Omit<StationMessageRequest, "station_id">;
  * 11.12). A message may be dropped, so games must work without it.
  */
 export interface StationMessages {
+  wake(stationId: string, at: Date): Promise<"scheduled" | "failed" | "off">;
   send(stationId: string, message: StationMessage): Promise<StationMessageResult>;
 }
 
@@ -29,6 +32,47 @@ export function stationMessages(
   { send = fetch }: { send?: typeof fetch } = {},
 ): StationMessages {
   return {
+    async wake(stationId, at) {
+      if (!config.geekykeyServiceUrl) return "off";
+      const controller = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const request = stationWakeRequest.parse({ station_id: stationId, at: at.toISOString() });
+        const deadline = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error("Station wake timed out"));
+          }, TIMEOUT_MS);
+        });
+        const response = await Promise.race([
+          send(`${config.geekykeyServiceUrl}/api/v1/station-wakes`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${config.eventServiceKey}`,
+              "Content-Type": "application/json",
+            },
+            redirect: "manual",
+            body: JSON.stringify(request),
+            signal: controller.signal,
+          }),
+          deadline,
+        ]);
+        if (!response.ok) {
+          log("station_wake_failed", { station_id: stationId, status: response.status });
+          return "failed";
+        }
+        stationWakeAnswer.parse(await Promise.race([response.json(), deadline]));
+        return "scheduled";
+      } catch {
+        log("station_wake_failed", {
+          station_id: stationId,
+          reason: controller.signal.aborted ? "timeout" : "request_failed",
+        });
+        return "failed";
+      } finally {
+        clearTimeout(timer);
+      }
+    },
     async send(stationId, message) {
       if (!config.geekykeyServiceUrl) return "off";
       const controller = new AbortController();

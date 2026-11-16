@@ -23,6 +23,7 @@ const LOG_LINES = {
   // An organizer set the booth a station stands at: who, and which station.
   station_booth_changed: "INFO",
   // A station message failed, or had no open socket. Never its lines or the Event Service key.
+  station_wake_failed: "ERROR",
   station_message_failed: "ERROR",
   // Work scheduled by a game failed after the ingest committed. Never its error or screen text.
   after_commit_failed: "ERROR",

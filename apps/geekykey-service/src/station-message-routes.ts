@@ -1,5 +1,6 @@
 import { stationMessageRequest } from "@geekykey/handoff";
 import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 import type { EventServiceEntry } from "./config.ts";
 import type { EventService } from "./event-service.ts";
 import { bearerKey } from "./lib/bearer-key.ts";
@@ -40,7 +41,27 @@ function hashKey(key: string) {
   return crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
 }
 
-type MessageEnv = { Variables: { sender: EventServiceEntry; deadline: AbortSignal } };
+export type MessageEnv = { Variables: { sender: EventServiceEntry; deadline: AbortSignal } };
+
+/** The sender's shared Event Service key, used for messages and wakes. */
+export function eventServiceAuth(eventServices: EventServiceEntry[], deadlineMs: number) {
+  return createMiddleware<MessageEnv>(async (c, next) => {
+    // Authentication, validation, the stations list and the send share one deadline.
+    c.set("deadline", AbortSignal.timeout(deadlineMs));
+    const key = bearerKey(c.req.header("Authorization"));
+    if (key === null) return c.json({ error: "invalid_event_service_key" }, 401);
+    const given = await hashKey(key);
+    let sender: EventServiceEntry | undefined;
+    // Check every entry, even after a match, so timing does not reveal its position. Each key
+    // is hashed here rather than when the app is built, which a Worker does at global scope.
+    for (const entry of eventServices) {
+      if (crypto.subtle.timingSafeEqual(given, await hashKey(entry.key))) sender = entry;
+    }
+    if (sender === undefined) return c.json({ error: "invalid_event_service_key" }, 401);
+    c.set("sender", sender);
+    return await next();
+  });
+}
 
 export function stationMessageRoutes({
   eventServices,
@@ -50,22 +71,7 @@ export function stationMessageRoutes({
 }: Omit<SocketOptions, "stationLimit"> & { eventServices: EventServiceEntry[] }) {
   return new Hono<MessageEnv>().post(
     "/",
-    async (c, next) => {
-      // Authentication, validation, the stations list and the send share one deadline.
-      c.set("deadline", AbortSignal.timeout(deadlineMs));
-      const key = bearerKey(c.req.header("Authorization"));
-      if (key === null) return c.json({ error: "invalid_event_service_key" }, 401);
-      const given = await hashKey(key);
-      let sender: EventServiceEntry | undefined;
-      // Check every entry, even after a match, so timing does not reveal its position. Each key
-      // is hashed here rather than when the app is built, which a Worker does at global scope.
-      for (const entry of eventServices) {
-        if (crypto.subtle.timingSafeEqual(given, await hashKey(entry.key))) sender = entry;
-      }
-      if (sender === undefined) return c.json({ error: "invalid_event_service_key" }, 401);
-      c.set("sender", sender);
-      return await next();
-    },
+    eventServiceAuth(eventServices, deadlineMs),
     jsonBody(stationMessageRequest),
     async (c) => {
       const { station_id, ...message } = c.req.valid("json");

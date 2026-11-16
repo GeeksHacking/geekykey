@@ -209,3 +209,124 @@ for (const waitingFor of ["headers", "body"]) {
     assert.equal(logged.info.mock.calls.length, 0);
   });
 }
+
+test("a wake sends the station and ISO time with the Event Service key", async () => {
+  const requests: Request[] = [];
+  const messages = stationMessages(
+    { geekykeyServiceUrl: URL, eventServiceKey: KEY },
+    {
+      send: async (input, init) => {
+        requests.push(new Request(input, init));
+        return Response.json({ scheduled: true }, { status: 202 });
+      },
+    },
+  );
+  assert.equal(await messages.wake(STATION_ID, new Date("2026-11-16T08:00:30.000Z")), "scheduled");
+  assert.equal(requests[0]!.url, `${URL}/api/v1/station-wakes`);
+  assert.equal(requests[0]!.method, "POST");
+  assert.equal(requests[0]!.headers.get("Authorization"), `Bearer ${KEY}`);
+  assert.equal(requests[0]!.redirect, "manual");
+  assert.deepEqual(await requests[0]!.json(), {
+    station_id: STATION_ID,
+    at: "2026-11-16T08:00:30.000Z",
+  });
+});
+
+for (const url of [undefined, ""]) {
+  test(`wakes are off when the GeekyKey Service URL is ${url}`, async () => {
+    const logged = captureLogs();
+    const send = vi.fn<typeof fetch>();
+    const messages = stationMessages({ geekykeyServiceUrl: url, eventServiceKey: KEY }, { send });
+    assert.equal(await messages.wake(STATION_ID, new Date()), "off");
+    assert.equal(send.mock.calls.length, 0);
+    assert.equal(logged.error.mock.calls.length, 0);
+  });
+}
+
+for (const status of [401, 503, 307]) {
+  test(`a wake that gets ${status} fails without logging the key or body`, async () => {
+    const logged = captureLogs();
+    const messages = stationMessages(
+      { geekykeyServiceUrl: URL, eventServiceKey: KEY },
+      {
+        send: async () => new Response(KEY, { status }),
+      },
+    );
+    assert.equal(await messages.wake(STATION_ID, new Date()), "failed");
+    assert.deepEqual(
+      logged.error.mock.calls.map(([line]) => JSON.parse(line)),
+      [{ severity: "ERROR", message: "station_wake_failed", station_id: STATION_ID, status }],
+    );
+  });
+}
+
+for (const waitingFor of ["headers", "body"]) {
+  test(`a wake times out after two seconds waiting for ${waitingFor}`, async () => {
+    const logged = captureLogs();
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    let close = () => {};
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          close = () => controller.close();
+        },
+      }),
+    );
+    onTestFinished(() => close());
+    let signal: AbortSignal | undefined;
+    const messages = stationMessages(
+      { geekykeyServiceUrl: URL, eventServiceKey: KEY },
+      {
+        send: async (_input, init) => {
+          signal = init?.signal ?? undefined;
+          return waitingFor === "headers" ? new Promise<Response>(() => {}) : response;
+        },
+      },
+    );
+    const result = messages.wake(STATION_ID, new Date());
+    await vi.advanceTimersByTimeAsync(2000);
+    assert.equal(await result, "failed");
+    assert.equal(signal?.aborted, true);
+    assert.deepEqual(
+      logged.error.mock.calls.map(([line]) => JSON.parse(line)),
+      [
+        {
+          severity: "ERROR",
+          message: "station_wake_failed",
+          station_id: STATION_ID,
+          reason: "timeout",
+        },
+      ],
+    );
+  });
+}
+
+for (const [name, send] of [
+  ["an invalid answer", async () => Response.json({ scheduled: false, key: KEY })],
+  [
+    "a network error",
+    async () => {
+      throw new Error(KEY);
+    },
+  ],
+] satisfies [string, typeof fetch][]) {
+  test(`a wake with ${name} fails without logging secrets`, async () => {
+    const logged = captureLogs();
+    const messages = stationMessages({ geekykeyServiceUrl: URL, eventServiceKey: KEY }, { send });
+    assert.equal(await messages.wake(STATION_ID, new Date()), "failed");
+    assert.deepEqual(
+      logged.error.mock.calls.map(([line]) => JSON.parse(line)),
+      [
+        {
+          severity: "ERROR",
+          message: "station_wake_failed",
+          station_id: STATION_ID,
+          reason: "request_failed",
+        },
+      ],
+    );
+  });
+}

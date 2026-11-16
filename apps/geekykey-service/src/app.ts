@@ -13,6 +13,7 @@ import { meRoutes } from "./me-routes.ts";
 import type { Send } from "./service-request.ts";
 import type { SessionCheck, SessionOptions } from "./session.ts";
 import { heartbeatRoutes, tapsRoutes } from "./station-routes.ts";
+import { stationWakeRoutes } from "./station-wake-routes.ts";
 import { socketRoutes, stationMessageRoutes } from "./station-message-routes.ts";
 import type { StationConnections } from "./station-sockets.ts";
 import { StationsCopy } from "./stations-copy.ts";
@@ -180,6 +181,15 @@ export function createApp(
   app.route(
     "/api/v1/stations/socket",
     socketRoutes({ stationsCopy, stationSockets, deadlineMs, stationLimit }),
+  );
+  app.route(
+    "/api/v1/station-wakes",
+    stationWakeRoutes({
+      eventServices: config.eventServices,
+      stationsCopy,
+      stationSockets,
+      deadlineMs,
+    }),
   );
   app.route(
     "/api/v1/station-messages",

@@ -13,7 +13,12 @@ const questions: Question[] = Array.from({ length: 5 }, (_, i) => ({
   ],
 }));
 import assert from "node:assert/strict";
-import { stationMessageRequest, stationsAnswer, tapsAnswer } from "@geekykey/handoff";
+import {
+  stationMessageRequest,
+  stationWakeRequest,
+  stationsAnswer,
+  tapsAnswer,
+} from "@geekykey/handoff";
 import { test } from "vitest";
 import { stations, users, participantGroups, groupMembers } from "../../event/schema.ts";
 import {
@@ -62,6 +67,7 @@ async function harness(
     questions?: Question[];
     schedule?: Schedule;
     rollback?: boolean;
+    wakeSend?: () => Promise<void>;
   } = {},
 ) {
   const clock = fakeClock("2026-11-16T08:00:00.000Z");
@@ -80,6 +86,7 @@ async function harness(
       .values({ userId: id, groupId: i === 0 ? "g1" : "g2", joinedAt: clock.now().toISOString() });
   }
   const messages: import("@geekykey/handoff").StationMessageRequest[] = [];
+  const wakes: import("@geekykey/handoff").StationWakeRequest[] = [];
   const scheduled: { work: () => Promise<void>; at: number }[] = [];
   const gameAnswers = answersGame(options.questions ?? questions);
   const app = testApp(
@@ -87,7 +94,12 @@ async function harness(
     {
       now: clock.now,
       answers: gameAnswers,
-      send: async (_input, init) => {
+      send: async (input, init) => {
+        if (String(input).endsWith("/station-wakes")) {
+          wakes.push(stationWakeRequest.parse(JSON.parse(String(init?.body))));
+          await options.wakeSend?.();
+          return Response.json({ scheduled: true }, { status: 202 });
+        }
         messages.push(stationMessageRequest.parse(JSON.parse(String(init?.body))));
         return Response.json({ delivered: false });
       },
@@ -159,7 +171,7 @@ async function harness(
   async function joinThree() {
     for (const id of ["player-one", "player-two", "player-three"]) await tap(id);
   }
-  return { clock, db, app, tap, cookie, map, messages, scheduled, answer, joinThree };
+  return { clock, db, app, tap, cookie, map, messages, wakes, scheduled, answer, joinThree };
 }
 
 test("the first tap opens a join window and repeat taps and people without groups are held back", async () => {
@@ -616,6 +628,7 @@ test("a rolled-back ingest leaves no round no message and no scheduled callback"
   assert.equal(response.status, 500);
   assert.deepEqual(await h.map(), { hint_hunt: { rounds: [] } });
   assert.deepEqual(h.scheduled, []);
+  assert.deepEqual(h.wakes, []);
   assert.deepEqual(h.messages, []);
 });
 
@@ -662,4 +675,120 @@ test("a tap at a hint's time leaves its message and beep to the next poll", asyn
   assert.equal(h.messages.length, 2);
   assert.deepEqual(h.messages[1]!.lines, ["Q1A Q2B", "Last! 10s left"]);
   assert.equal(h.messages[1]!.beep, true);
+});
+
+test("each scheduled hint hunt step requests a durable wake for its station", async () => {
+  const h = await harness();
+  await h.answer("player-one", { q1: "a", q2: "a", q3: "a", q4: "a" });
+  await h.joinThree();
+  assert.deepEqual(h.wakes, [{ station_id: "A", at: "2026-11-16T08:00:30.000Z" }]);
+  h.clock.advanceSeconds(30);
+  await h.scheduled[0]!.work();
+  assert.deepEqual(
+    h.wakes,
+    [30, 40, 50, 60, 70].map((seconds) => ({
+      station_id: "A",
+      at: new Date(Date.parse("2026-11-16T08:00:00.000Z") + seconds * 1000).toISOString(),
+    })),
+  );
+});
+
+test("a hand-off wake requires the service key and sends a due message once", async () => {
+  const h = await harness();
+  await h.joinThree();
+  h.clock.advanceSeconds(30);
+  const wake = (key?: string, body: unknown = { station_id: "A" }) =>
+    h.app.request("/geekykey/v1/wake", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  for (const key of [undefined, "wrong"]) {
+    const res = await wake(key);
+    assert.equal(res.status, 401);
+    assert.deepEqual(await res.json(), { error: "invalid_event_service_key" });
+  }
+  assert.deepEqual(h.messages, []);
+  assert.equal((await wake(TEST_EVENT_SERVICE_KEY, {})).status, 400);
+  assert.equal((await wake(TEST_EVENT_SERVICE_KEY, { station_id: "unknown" })).status, 400);
+  assert.equal((await wake(TEST_EVENT_SERVICE_KEY)).status, 204);
+  assert.deepEqual(h.messages, [{ station_id: "A", lines: ["No answers yet", "Round over"] }]);
+  assert.equal((await wake(TEST_EVENT_SERVICE_KEY)).status, 204);
+  assert.equal(h.messages.length, 1);
+});
+
+test("the opening tap keeps CPU until its durable wake is registered after commit", async () => {
+  let started!: () => void;
+  const sending = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  let release!: () => void;
+  const registered = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const h = await harness({
+    wakeSend: async () => {
+      started();
+      await registered;
+    },
+  });
+  let replied = false;
+  const tap = h.tap().then((answer) => {
+    replied = true;
+    return answer;
+  });
+  await sending;
+  await Promise.race([tap, new Promise<void>((resolve) => setTimeout(resolve, 100))]);
+  try {
+    assert.equal(replied, false);
+  } finally {
+    release();
+    await tap;
+  }
+});
+
+test("wake callbacks advance hints once without a poll or local timer", async () => {
+  const h = await harness();
+  await h.answer("player-one", { q1: "a", q2: "a" });
+  await h.joinThree();
+  const wake = () =>
+    h.app.request("/geekykey/v1/wake", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ station_id: "A" }),
+    });
+  for (const seconds of [30, 10, 10]) {
+    h.clock.advanceSeconds(seconds);
+    assert.equal((await wake()).status, 204);
+    const count = h.messages.length;
+    assert.equal((await wake()).status, 204);
+    assert.equal(h.messages.length, count);
+  }
+  assert.deepEqual(
+    h.messages.map((message) => message.lines),
+    [
+      ["Q1A", "Next hint 10s"],
+      ["Q1A Q2A", "Last! 10s left"],
+      ["Time's up", "Round lost"],
+    ],
+  );
+});
+
+test("a failed wake leaves the tap and the existing timer path working", async () => {
+  const h = await harness({
+    wakeSend: async () => {
+      throw new Error("Network failure");
+    },
+  });
+  assert.equal((await h.tap()).status, "accepted");
+  assert.equal(h.scheduled.length, 1);
+  h.clock.advanceSeconds(30);
+  await h.scheduled[0]!.work();
+  assert.deepEqual(h.messages, [{ station_id: "A", lines: ["Need 3 players", "from 2 groups"] }]);
 });

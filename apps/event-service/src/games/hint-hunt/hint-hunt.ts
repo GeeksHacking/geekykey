@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
-import type { GameDeps, GameStatus, StationText, Tx } from "../../event/games.ts";
+import type { GameContext, GameDeps, GameStatus, StationText, Tx } from "../../event/games.ts";
 import type { Db } from "../../db/pool.ts";
 import type { HintHuntGame } from "../../event/hint-hunt.ts";
 import { log } from "../../lib/log.ts";
@@ -25,7 +25,7 @@ export const HINT_HUNT_RULES = {
 };
 
 type Round = typeof rounds.$inferSelect;
-type AfterCommit = (work: () => Promise<unknown>) => void;
+type AfterCommit = GameContext["afterCommit"];
 export type Schedule = (work: () => Promise<void>, delayMs: number) => void;
 
 function scheduleTimeout(work: () => Promise<void>, delayMs: number) {
@@ -167,11 +167,17 @@ export function hintHuntGame({
     }
     return hints;
   }
-  function scheduleAt(at: string, afterCommit: AfterCommit) {
-    afterCommit(async () => {
-      const delay = Date.parse(at) - clock().getTime();
-      if (delay > 0) schedule(() => advance(db, clock()), delay);
-    });
+  function scheduleAt(stationId: string, at: string, afterCommit: AfterCommit) {
+    afterCommit(
+      async () => {
+        const delay = Date.parse(at) - clock().getTime();
+        if (delay > 0) {
+          schedule(() => advance(db, clock()), delay);
+          await stationMessages.wake(stationId, new Date(at));
+        }
+      },
+      { beforeReply: true },
+    );
   }
   async function advanceRound(
     tx: Tx,
@@ -215,8 +221,9 @@ export function hintHuntGame({
         .set({ startedAt, hints })
         .where(and(eq(rounds.id, round.id), isNull(rounds.startedAt), isNull(rounds.endedAt)));
       round = { ...round, startedAt, hints };
-      for (let i = 1; i < hints.length; i++) scheduleAt(hintAt(round, i), afterCommit);
-      scheduleAt(endsAt(round), afterCommit);
+      for (let i = 1; i < hints.length; i++)
+        scheduleAt(round.stationId, hintAt(round, i), afterCommit);
+      scheduleAt(round.stationId, endsAt(round), afterCommit);
     }
     const expiry = endsAt(round);
     if (now.toISOString() >= expiry) return endRound(expiry, "lost_time", HINT_HUNT_LINES.lostTime);
@@ -347,7 +354,7 @@ export function hintHuntGame({
             endedHow: null,
           };
           await tx.insert(rounds).values(round);
-          scheduleAt(round.joiningUntil, afterCommit);
+          scheduleAt(round.stationId, round.joiningUntil, afterCommit);
         }
         const mine = await lockedPlayer(tx, round.id, tap.userId);
         if (!mine) await tx.insert(players).values({ roundId: round.id, userId: tap.userId });
@@ -361,6 +368,7 @@ export function hintHuntGame({
       }
       return statuses;
     },
+    advance,
     async mapState(db, now) {
       await advance(db, now);
       const shown = [];

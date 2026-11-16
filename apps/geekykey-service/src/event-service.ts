@@ -15,6 +15,7 @@ import {
   type TapsAnswer,
   tapsAnswerMatching,
   type TapsRequest,
+  type WakeRequest,
   usedLoginLinksAnswer,
   type UsedLoginLinksRequest,
 } from "@geekykey/handoff";
@@ -105,6 +106,19 @@ export class EventService {
       fail: EventServiceUnavailable,
     });
     return results;
+  }
+
+  /** The station alarm's callback (11.14, next version after 0.14, BAC-206). */
+  async wake(request: WakeRequest, signal: AbortSignal): Promise<void> {
+    await askService(this.#send, {
+      method: "POST",
+      url: `${this.#url}/geekykey/v1/wake`,
+      key: this.#key,
+      body: request,
+      answer: z.unknown(),
+      signal,
+      fail: EventServiceUnavailable,
+    });
   }
 
   /**

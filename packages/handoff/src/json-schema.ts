@@ -1,13 +1,29 @@
 import { z } from "zod";
 import { heartbeatsRequest } from "./heartbeats.ts";
 import { meetingsAnswer, meetingsRequest } from "./meetings.ts";
-import { stationMessageAnswer, stationMessageRequest } from "./station-messages.ts";
+import {
+  stationMessageAnswer,
+  stationMessageRequest,
+  stationWakeRequest,
+  stationWakeAnswer,
+  wakeRequest,
+} from "./station-messages.ts";
 import { stationsAnswer } from "./stations.ts";
 import { tapsAnswer, tapsRequest } from "./taps.ts";
 import { usedLoginLinksAnswer, usedLoginLinksRequest } from "./used-login-links.ts";
 
 /** Each body's schema, by the file its JSON Schema goes in. */
 const SCHEMAS = {
+  "station-wakes-request.schema.json": stationWakeRequest.meta({
+    title: "A station wake: POST /api/v1/station-wakes on the GeekyKey Service",
+  }),
+  "station-wakes-answer.schema.json": stationWakeAnswer.meta({
+    title: "The answer to a station wake: POST /api/v1/station-wakes",
+  }),
+  "wake-request.schema.json": wakeRequest.meta({
+    title: "The station alarm callback: POST /geekykey/v1/wake",
+    description: "Answered 204, with no body.",
+  }),
   "taps-request.schema.json": tapsRequest.meta({
     title: "The hand-off: POST /geekykey/v1/taps",
   }),

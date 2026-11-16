@@ -52,3 +52,20 @@ export const stationMessageFrame = z.object({
 export type StationMessageRequest = z.infer<typeof stationMessageRequest>;
 export type StationMessageAnswer = z.infer<typeof stationMessageAnswer>;
 export type StationMessageFrame = z.infer<typeof stationMessageFrame>;
+
+/** A durable wake request (11.13, next version after 0.14, BAC-206). */
+export const stationWakeRequest = z.object({
+  station_id: z.string().min(1),
+  at: z.iso
+    .datetime({ offset: true })
+    .describe("ISO 8601 time, at most 1 minute past or 10 minutes ahead"),
+});
+
+export const stationWakeAnswer = z.object({ scheduled: z.literal(true) });
+
+/** The alarm's callback to the Event Service (11.14), answered 204. */
+export const wakeRequest = stationWakeRequest.pick({ station_id: true });
+
+export type StationWakeRequest = z.infer<typeof stationWakeRequest>;
+export type StationWakeAnswer = z.infer<typeof stationWakeAnswer>;
+export type WakeRequest = z.infer<typeof wakeRequest>;

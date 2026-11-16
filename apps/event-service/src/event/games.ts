@@ -61,11 +61,12 @@ export interface GameContext {
    */
   cooldown(taps: readonly GameTap[]): Promise<boolean[]>;
   /**
-   * Starts work only after the ingest commits, without awaiting it in the tap answer
-   * (the API agreement's 11.12). A rolled-back ingest runs none of its callbacks.
+   * Starts work only after the ingest commits. Station messages run without awaiting them
+   * in the tap answer (11.12); bounded wake registration uses beforeReply to keep CPU until
+   * it finishes (11.13). A rolled-back ingest runs none of its callbacks.
    * Delivery may fail or be dropped, so a game must not depend on the result.
    */
-  afterCommit(work: () => Promise<unknown>): void;
+  afterCommit(work: () => Promise<unknown>, options?: { beforeReply: boolean }): void;
 }
 
 /** A tap a game counted or held back, with the status it was stored with. */

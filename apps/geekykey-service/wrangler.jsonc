@@ -92,8 +92,8 @@
     },
   ],
 
-  // Each station holds its socket in its own object. It writes no storage,
-  // but the free plan requires classes backed by SQLite (BAC-182).
+  // Each station holds its socket and pending wake times in its own object.
+  // The existing SQLite class also supports alarms (BAC-182, BAC-206).
   "durable_objects": {
     "bindings": [{ "name": "STATION_SOCKETS", "class_name": "StationSockets" }],
   },
