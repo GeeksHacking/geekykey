@@ -3,7 +3,7 @@ import type { MeetingStatus } from "@geekykey/handoff";
 import { and, asc, desc, eq, inArray, isNotNull, or, type SQL, sql } from "drizzle-orm";
 import type { Answers, Question } from "../../event/answers.ts";
 import type { Db } from "../../db/pool.ts";
-import { loadChallenge, loadConnectAcross } from "../../event/event-settings.ts";
+import { loadChallenge, loadConnectAcross, loadShowcase } from "../../event/event-settings.ts";
 import type {
   AcceptStatus,
   Connection,
@@ -96,14 +96,21 @@ type Refusal = Extract<MeetingStatus, "same_kind" | "no_kind" | "same_group" | "
  * `connected`, the other game's own record of the request, such as the open seat's. So no two transactions,
  * of one pair or of two that share someone, can each hold a lock the other waits for.
  */
-async function judge(tx: Tx, { userA, userB }: Pair, given: ReadonlyMap<string, string | null>) {
+async function judge(
+  tx: Tx,
+  { userA, userB }: Pair,
+  given: ReadonlyMap<string, string | null>,
+  showcase: boolean,
+) {
   const across = await loadConnectAcross(tx);
-  const groups = across === "groups" ? await groupsOf(tx, [userA, userB]) : null;
+  const groups = !showcase && across === "groups" ? await groupsOf(tx, [userA, userB]) : null;
   // One user at a time, so a half with no kind for one of them takes the same order.
   const kindA = await lockKind(tx, userA, given.get(userA) ?? null);
   const kindB = await lockKind(tx, userB, given.get(userB) ?? null);
   let refusal: Refusal | null = null;
-  if (groups) {
+  // Showcase mode lets anyone connect with anyone (9.21), so the rule isn't run.
+  if (showcase) refusal = null;
+  else if (groups) {
     const [groupA, groupB] = [groups.get(userA), groups.get(userB)];
     if (groupA === undefined || groupB === undefined) refusal = "no_group";
     else if (groupA === groupB) refusal = "same_group";
@@ -123,6 +130,7 @@ async function judgeRequest(
   given: ReadonlyMap<string, string | null>,
   request: RuledRequest | null,
   rules: readonly RequestRule[],
+  showcase: boolean,
 ) {
   for (const rule of request ? rules : []) {
     const ruled = await rule.judge(tx, request!);
@@ -131,7 +139,7 @@ async function judgeRequest(
     const kindB = await lockKind(tx, pair.userB, given.get(pair.userB) ?? null);
     return { kindA, kindB, refusal: ruled.refusal satisfies Refusal | null };
   }
-  return judge(tx, pair, given);
+  return judge(tx, pair, given, showcase);
 }
 
 /**
@@ -229,7 +237,9 @@ export function connectionsGame(
    * The one place a connection is made. Both people's answers are fixed here, in the
    * same transaction, and the match is worked out from them and kept, so a later
    * change can't alter it. The caller holds the pair's row. `requestId` is the request it
-   * answers, which the game that sent it, if another did, records (BAC-190).
+   * answers, which the game that sent it, if another did, records (BAC-190). `again` is for a
+   * pair already connected, in showcase mode (9.21): their connection is made afresh, so it
+   * takes the place of the one they had, with its challenge and match.
    */
   async function connect(
     tx: Tx,
@@ -237,7 +247,14 @@ export function connectionsGame(
     { kindA, kindB }: { kindA: string | null; kindB: string | null },
     now: Date,
     requestId: string | null,
+    again = false,
   ) {
+    if (again) {
+      // The pair's row is locked, so nothing else changes their connection in between.
+      await tx
+        .delete(connections)
+        .where(and(eq(connections.userA, userA), eq(connections.userB, userB)));
+    }
     // Fixed in ID order too. The match comes from what fixing gives, under the lock.
     const answersA = answers ? await answers.fixAnswers(tx, userA) : {};
     const answersB = answers ? await answers.fixAnswers(tx, userB) : {};
@@ -281,6 +298,8 @@ export function connectionsGame(
       db.transaction(async (tx) => {
         // Setup precedes kinds and groups and keeps no half (agreement 11.10, BAC-144).
         if (!(await isReady(tx, userId))) return "answers_needed";
+        // Read before any lock, as the rule is (9.21).
+        const showcase = await loadShowcase(tx);
         const pair = pairOf(userId, ownerId);
         const tapperIsA = userId === pair.userA;
         const given = new Map([
@@ -295,6 +314,7 @@ export function connectionsGame(
           given,
           waiting === null ? null : { requestId: waiting, fromId: ownerId, toId: userId },
           requestRules,
+          showcase,
         );
         if (refusal) {
           // A half back counts as accepting, and an accept the rule refuses takes the request.
@@ -306,7 +326,8 @@ export function connectionsGame(
         }
 
         const { halves, connected } = await lockHalves(tx, pair);
-        if (connected) return "already_connected";
+        // In showcase mode a pair already connected sends a request as anyone does (9.21).
+        if (connected && !showcase) return "already_connected";
 
         const [mine, theirs] = tapperIsA
           ? [halves.aMetAt, halves.bMetAt]
@@ -314,7 +335,7 @@ export function connectionsGame(
         if (halves.requestId !== null && theirs !== null) {
           // A request sent before BAC-144 may come from someone who skipped setup.
           if (!(await isReady(tx, ownerId))) return "answers_needed";
-          return connect(tx, pair, { kindA, kindB }, now, halves.requestId);
+          return connect(tx, pair, { kindA, kindB }, now, halves.requestId, connected);
         }
         // A half again while this person's request waits changes nothing.
         if (halves.requestId === null || mine === null) {
@@ -338,6 +359,7 @@ export function connectionsGame(
 
       const status = await db.transaction(async (tx): Promise<AcceptStatus | "not_found"> => {
         if (!(await isReady(tx, answer.userId))) return "answers_needed";
+        const showcase = await loadShowcase(tx);
         // The kinds a half gave are the users' own by now, so an accept brings none. A request
         // another game sent is judged by that game's rule (BAC-190).
         const { refusal, kindA, kindB } = await judgeRequest(
@@ -346,6 +368,7 @@ export function connectionsGame(
           new Map(),
           { requestId: answer.requestId, fromId, toId: answer.userId },
           requestRules,
+          showcase,
         );
         if (refusal) {
           await tx
@@ -355,11 +378,13 @@ export function connectionsGame(
           return refusal;
         }
         const { halves, connected } = await lockHalves(tx, pair);
-        // Another accept or a half back got here first, and took the request with it.
-        if (connected) return "already_connected";
+        // Another accept or a half back got here first, and took the request with it. In
+        // showcase mode a request can wait for a pair already connected, and the request says
+        // whether it's still there (9.21).
+        if (connected && !showcase) return "already_connected";
         if (halves.requestId !== answer.requestId) return "not_found";
         if (!(await isReady(tx, fromId))) return "answers_needed";
-        return connect(tx, pair, { kindA, kindB }, now, answer.requestId);
+        return connect(tx, pair, { kindA, kindB }, now, answer.requestId, connected);
       }, READ_LATEST);
       return status === "not_found" ? { status } : { status, fromId };
     },
@@ -476,6 +501,8 @@ export function connectionsGame(
       }),
 
     async connectionsOf(db, userId, now) {
+      // Showcase mode shows what the two share at once, with no wait to talk first (9.21).
+      const sharedAfterMs = (await loadShowcase(db)) ? 0 : SHARED_AFTER_MS;
       const otherId = sql`if(${connections.userA} = ${userId}, ${connections.userB}, ${connections.userA})`;
       const rows = await db
         .select({
@@ -491,7 +518,7 @@ export function connectionsGame(
         .where(or(eq(connections.userA, userId), eq(connections.userB, userId)))
         .orderBy(desc(connections.connectedAt), desc(connections.userA), desc(connections.userB));
       return rows.map(({ row, displayName, bio, contactLine, avatar }): Connection => {
-        const sharedAt = new Date(Date.parse(row.connectedAt) + SHARED_AFTER_MS).toISOString();
+        const sharedAt = new Date(Date.parse(row.connectedAt) + sharedAfterMs).toISOString();
         const [yourRoll, theirRoll] =
           row.userA === userId ? [row.rollA, row.rollB] : [row.rollB, row.rollA];
         const [you, them] = sidesOf(row, userId);

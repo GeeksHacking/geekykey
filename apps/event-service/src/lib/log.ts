@@ -59,6 +59,11 @@ const LOG_LINES = {
   connection_challenge_changed: "INFO",
   // An organizer set or emptied the phrase (BAC-169): who, and how many words, 0 for none.
   phrase_changed: "INFO",
+  // An organizer turned showcase mode on or off (9.21): who, and which.
+  showcase_changed: "INFO",
+  // An organizer reset every participant (9.22): who, and how many participants' accounts went.
+  // A WARNING, since it can't be undone, so it stands out in the logs.
+  participants_reset: "WARNING",
   // Someone accepted a connection request (8.10): who, who sent it, and the status, so with
   // meeting_handled the connections can be rebuilt after a restore, and counted.
   connection_request_accepted: "INFO",

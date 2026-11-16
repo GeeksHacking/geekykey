@@ -275,6 +275,13 @@ export const eventSettings = mysqlTable("event_settings", {
    * activity is off, as in a new event. phrase.ts sets its limits, which fit this column.
    */
   phrase: varchar("phrase", { length: 255 }),
+  /**
+   * Whether showcase mode is on: a pair already connected can connect again, which makes their
+   * connection afresh, anyone connects with anyone, answers stay open and what two people share
+   * shows at once, so a booth can demo connections again and again with the same people. Off in
+   * a new event, and in a row made by a version of the service from before it.
+   */
+  showcase: boolean("showcase").notNull().default(false),
 });
 
 /**

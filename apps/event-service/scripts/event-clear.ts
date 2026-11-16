@@ -7,7 +7,7 @@
 import { getTableName } from "drizzle-orm";
 import type { MySqlTable } from "drizzle-orm/mysql-core";
 import type { Connection, RowDataPacket } from "mysql2/promise";
-import { clearedTables, keptTables } from "./clear-lists.ts";
+import { clearedTables, keptTables } from "../src/event-tables.ts";
 import { tableNames, writeCopy } from "./database-copy.ts";
 import { PRODUCTION } from "./logins.ts";
 
@@ -114,7 +114,7 @@ async function refuseUnlistedTables(connection: Connection): Promise<void> {
   if (onNeither.length + missing.length === 0) return;
   throw new Error(
     "This checkout and the database disagree, so nothing was emptied. " +
-      `On neither list in clear-lists.ts: ${onNeither.join(", ") || "none"}. ` +
+      `On neither list in src/event-tables.ts: ${onNeither.join(", ") || "none"}. ` +
       `Listed but not in the database: ${missing.join(", ") || "none"}.`,
   );
 }

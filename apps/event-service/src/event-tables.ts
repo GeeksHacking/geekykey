@@ -1,5 +1,5 @@
 import type { MySqlTable } from "drizzle-orm/mysql-core";
-import { tokenKinds, tokens } from "../src/claims-stand-in/schema.ts";
+import { tokenKinds, tokens } from "./claims-stand-in/schema.ts";
 import {
   eventSettings,
   groupAllocation,
@@ -12,18 +12,18 @@ import {
   usedLoginLinks,
   userKinds,
   users,
-} from "../src/event/schema.ts";
-import { answers, connections, meetingHalves } from "../src/games/connections/schema.ts";
+} from "./event/schema.ts";
+import { answers, connections, meetingHalves } from "./games/connections/schema.ts";
 
-import { duelRounds, duelRoundPlayers, duels } from "../src/games/team-duels/schema.ts";
+import { duelRounds, duelRoundPlayers, duels } from "./games/team-duels/schema.ts";
 
-import { relayGames, relayLock, relayTransfers } from "../src/games/relay/schema.ts";
+import { relayGames, relayLock, relayTransfers } from "./games/relay/schema.ts";
 
-import { openSeatLock, openSeats } from "../src/games/open-seat/schema.ts";
+import { openSeatLock, openSeats } from "./games/open-seat/schema.ts";
 
 /*
   Which tables the event clear empties, and which it keeps (spec, checkpoint
-  8: `db:clear-test-data`, in event-clear.ts). clear-lists.test.ts fails while
+  8: `db:clear-test-data`, in event-clear.ts). event-tables.test.ts fails while
   a table in the database is on neither list, so a new table, such as a game's,
   gets a place here when it's made. event-clear.test.ts needs a row in it too.
 */

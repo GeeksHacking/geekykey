@@ -5,6 +5,7 @@ import { jsonBody } from "../lib/validate.ts";
 import { type Answers, type AnswersGame, answersSchema } from "./answers.ts";
 import type { Connection, ConnectionRequest, ConnectionsGame, Reaction } from "./connections.ts";
 import { displayNameSchema, setOwnName } from "./display-names.ts";
+import { loadShowcase } from "./event-settings.ts";
 import {
   requireSession,
   type SessionEnv,
@@ -168,11 +169,12 @@ export function meRoutes({
   app.get("/", requireSession(session), async (c) => {
     // The session already loaded the profile, so only the rest is read here.
     const user = c.var.user;
-    const [me, answers, connections, requests] = await Promise.all([
+    const [me, answers, connections, requests, showcase] = await Promise.all([
       loadMe(c.var.db, user.id),
       game ? game.answersOf(c.var.db, user.id) : {},
       connectionsGame ? connectionsGame.connectionsOf(c.var.db, user.id, now()) : [],
       connectionsGame ? connectionsGame.requestsFor(c.var.db, user.id) : [],
+      loadShowcase(c.var.db),
     ]);
     const rounds = teamDuels
       ? await teamDuels.roundsOf(c.var.db, user.id, now())
@@ -228,6 +230,8 @@ export function meRoutes({
       ...(phrase && { phrase: { words: phrase.words, your_word: phrase.yourWord } }),
       // For the next version, after 0.14 (BAC-190): only when the event runs the open seat.
       ...(openSeat && { open_seat: seat === null ? null : seatBody(seat) }),
+      // For the next version: whether showcase mode is on, so the screens keep answers open (9.21).
+      showcase,
     });
   });
 

@@ -1,0 +1,1 @@
+ALTER TABLE `event_settings` ADD `showcase` boolean DEFAULT false NOT NULL;

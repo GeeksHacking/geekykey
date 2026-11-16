@@ -156,6 +156,8 @@ export interface MockData {
   phrase: string[] | null;
   /** The place in the phrase of the word each placed participant holds, from 0, by user ID. */
   phraseWords: Record<string, number>;
+  /** Whether showcase mode is on (agreement 9.21), off unless a fixture sets it. */
+  showcase?: boolean;
 }
 
 /**

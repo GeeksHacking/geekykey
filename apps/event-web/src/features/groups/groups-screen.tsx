@@ -18,6 +18,7 @@ import { PhraseSetting } from "@/features/groups/phrase-setting";
 import { MakeGroupsDialog } from "@/features/groups/make-groups-dialog";
 import { useDragAutoScroll } from "@/features/groups/member-drag";
 import { ResetGroupsDialog } from "@/features/groups/reset-groups-dialog";
+import { ShowcaseSetting } from "@/features/groups/showcase-setting";
 import { useGroupBoard, useGroupBoardChange } from "@/features/groups/use-group-board";
 import { WaitingList } from "@/features/groups/waiting-list";
 import { showStaleNote } from "@/lib/rate-limit";
@@ -94,6 +95,8 @@ export function GroupsScreen() {
             connectAcross={data.connect_across}
           />
         ) : null}
+        {/* An Event Service from before showcase mode has none to turn on. */}
+        {data.showcase !== undefined ? <ShowcaseSetting value={data.showcase} /> : null}
         <ExportGroupsButton />
       </div>
     );

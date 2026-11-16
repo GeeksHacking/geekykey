@@ -5,6 +5,8 @@ import { ACCEPT_CONNECTION_REQUEST_STATUSES, CHALLENGES, CONNECT_ACROSS } from "
 import type {
   AcceptConnectionRequestResponse,
   ConnectionChallenge,
+  ResetParticipantsResponse,
+  ShowcaseSetting,
   ConnectionRule,
   EventGroup,
   EventStationBoardResponse,
@@ -344,6 +346,8 @@ export const meResponseSchema: z.ZodMiniType<MeResponse> = z.object({
   ),
   // BAC-190, for the agreement version after 0.14. Missing when the event has no open seat.
   open_seat: z.optional(z.nullable(openSeatSchema)),
+  // Agreement 9.21, for the next version. An older Event Service leaves it out.
+  showcase: z.optional(z.boolean()),
 });
 
 /** Accepting a connection request's answer (BAC-149, agreement 0.14). */
@@ -408,6 +412,16 @@ export const connectionChallengeSchema: z.ZodMiniType<ConnectionChallenge> = z.o
   challenge: challengeSchema,
 });
 
+/** PUT /api/v1/admin/showcase's answer (agreement 9.21, for the next version). */
+export const showcaseSettingSchema: z.ZodMiniType<ShowcaseSetting> = z.object({
+  showcase: z.boolean(),
+});
+
+/** POST /api/v1/admin/participants/reset's answer (agreement 9.22, for the next version). */
+export const resetParticipantsResponseSchema: z.ZodMiniType<ResetParticipantsResponse> = z.object({
+  participants: z.int().check(z.nonnegative()),
+});
+
 /** A group on the organizers' board, and POST /api/v1/admin/groups's answer. */
 export const eventGroupSchema: z.ZodMiniType<EventGroup> = z.object({
   id: z.string(),
@@ -433,6 +447,8 @@ export const groupBoardResponseSchema: z.ZodMiniType<GroupBoardResponse> = z.obj
   allocation_started_at: z.nullable(isoTimestamp),
   connect_across: connectAcrossSchema,
   challenge: z.optional(challengeSchema),
+  // Agreement 9.21, for the next version; an older Event Service leaves it out.
+  showcase: z.optional(z.boolean()),
   // BAC-169, agreement 0.14; an older Event Service leaves it out.
   phrase: z.optional(
     z.nullable(z.object({ text: z.string(), completed_count: z.int().check(z.nonnegative()) })),
@@ -511,6 +527,12 @@ export const parseConnectionRule = (input: unknown) =>
 
 export const parseConnectionChallenge = (input: unknown) =>
   parseOrganizerResponse(connectionChallengeSchema, input);
+
+export const parseShowcaseSetting = (input: unknown) =>
+  parseOrganizerResponse(showcaseSettingSchema, input);
+
+export const parseResetParticipantsResponse = (input: unknown) =>
+  parseOrganizerResponse(resetParticipantsResponseSchema, input);
 
 export const parseAcceptConnectionRequestResponse = (input: unknown) =>
   parseOrganizerResponse(acceptConnectionRequestResponseSchema, input);

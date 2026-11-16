@@ -1,6 +1,6 @@
 /**
  * Empties one database's event data and keeps its settings (event-clear.ts,
- * and clear-lists.ts for which tables). It takes a copy first, into
+ * and src/event-tables.ts for which tables). It takes a copy first, into
  * ~/.config/geekykey/copies, shows the row counts, and goes on only if you type
  * the database's name. Everyone logs in afresh afterwards, and names are free
  * again.

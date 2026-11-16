@@ -180,6 +180,7 @@ test("a participant who has not tapped yet gets an empty passport, and no tokens
     connections: [],
     // The showcase runs the open seat, and this user has opened or taken none (BAC-190).
     open_seat: null,
+    showcase: false,
   });
 });
 
@@ -497,6 +498,7 @@ test("an organizer on the list gets the same view of their own account", async (
     connections: [],
     // The showcase runs the open seat, and this user has opened or taken none (BAC-190).
     open_seat: null,
+    showcase: false,
   });
   assert.equal((await meAs("dev-user-1")).user.role, "participant");
 });

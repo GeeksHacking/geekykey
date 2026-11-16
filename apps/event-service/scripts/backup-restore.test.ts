@@ -10,7 +10,7 @@ import { stations, taps } from "../src/event/schema.ts";
 import { testDb } from "../src/test-helpers.ts";
 import { fillEveryTable } from "../test-support/fill-every-table.ts";
 import { backUp, type RestoreOptions, restoreTables } from "./backup-restore.ts";
-import { clearedTables, keptTables } from "./clear-lists.ts";
+import { clearedTables, keptTables } from "../src/event-tables.ts";
 import type { Copy } from "./database-copy.ts";
 import { LOCAL_ROOT, localDatabaseUrl } from "./local-tidb.ts";
 

@@ -317,6 +317,11 @@ export interface MeResponse {
    * for the version after 0.14). Missing when the event has no open seat.
    */
   open_seat?: OpenSeat | null;
+  /**
+   * Whether showcase mode is on (agreement 9.21, for the next version): answers stay open after a
+   * connection, so the screens don't lock them. An Event Service from before it leaves it out.
+   */
+  showcase?: boolean;
 }
 
 export interface EventStationPassport {
@@ -617,6 +622,20 @@ export interface ConnectionChallenge {
   challenge: Challenge;
 }
 
+/**
+ * PUT /api/v1/admin/showcase, its request and its answer (agreement 9.21, for the next version).
+ * Showcase mode is for demoing connections at a booth with the same people again and again.
+ */
+export interface ShowcaseSetting {
+  showcase: boolean;
+}
+
+/** POST /api/v1/admin/participants/reset's answer (agreement 9.22, for the next version). */
+export interface ResetParticipantsResponse {
+  /** How many participants' accounts went. */
+  participants: number;
+}
+
 /** GET /api/v1/admin/groups and POST /api/v1/admin/groups/allocate (agreement 0.14). */
 export interface GroupBoardResponse {
   allocation_started_at: string | null;
@@ -627,6 +646,11 @@ export interface GroupBoardResponse {
    * Service from before it leaves it out, and the screen then doesn't offer the choice.
    */
   challenge?: Challenge;
+  /**
+   * Whether showcase mode is on (9.21). An Event Service from before it leaves it out, and the
+   * screen then doesn't offer it.
+   */
+  showcase?: boolean;
   /**
    * The phrase participants complete, or null for none (BAC-169). An Event Service from before
    * it leaves it out, and the screen then doesn't offer it.

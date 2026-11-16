@@ -51,7 +51,7 @@ export function ParticipantFrame({ children }: { children: ReactNode }) {
               questions={me.questions ?? []}
               answers={me.user.answers}
               required
-              answersFixed={me.connections.length > 0}
+              answersFixed={me.connections.length > 0 && !me.showcase}
               onAnswersFixed={() => void session.refresh()}
             />
           ) : (

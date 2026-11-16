@@ -36,6 +36,8 @@ type GroupBoardChange =
   | { type: "remove"; userId: string }
   | { type: "rule"; connectAcross: ConnectAcross }
   | { type: "challenge"; challenge: Challenge }
+  | { type: "showcase"; showcase: boolean }
+  | { type: "resetParticipants" }
   | { type: "phrase"; phrase: string | null };
 
 /** Someone who wasn't placed, and what the service or the connection said. */
@@ -111,6 +113,12 @@ async function sendChange(
       return null;
     case "challenge":
       await api.setConnectionChallenge({ challenge: change.challenge });
+      return null;
+    case "showcase":
+      await api.setShowcase({ showcase: change.showcase });
+      return null;
+    case "resetParticipants":
+      await api.resetParticipants();
       return null;
     case "phrase":
       return api.setPhrase({ phrase: change.phrase });

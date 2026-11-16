@@ -1,7 +1,13 @@
 import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/pool.ts";
 import type { ConnectionsGame } from "./connections.ts";
-import { loadChallenge, loadConnectAcross, loadPhrase, savePhrase } from "./event-settings.ts";
+import {
+  loadChallenge,
+  loadConnectAcross,
+  loadPhrase,
+  loadShowcase,
+  savePhrase,
+} from "./event-settings.ts";
 import type { Tx } from "./games.ts";
 import { countCompleted, dealWords, loadDealtWords, takeWordsBack } from "./phrase.ts";
 import { groupAllocation, groupMembers, participantGroups, users } from "./schema.ts";
@@ -586,11 +592,12 @@ export async function loadGroupBoard(
   organizers: Organizers,
   connections: ConnectionsGame | null,
 ) {
-  const [startedAt, connectAcross, challenge, words, dealt, pairs, groups, members] =
+  const [startedAt, connectAcross, challenge, showcase, words, dealt, pairs, groups, members] =
     await Promise.all([
       allocationStartedAt(db),
       loadConnectAcross(db),
       loadChallenge(db),
+      loadShowcase(db),
       loadPhrase(db),
       loadDealtWords(db, organizers),
       pairsOrNone(db, connections),
@@ -627,6 +634,7 @@ export async function loadGroupBoard(
     startedAt,
     connectAcross,
     challenge,
+    showcase,
     phrase: words && {
       text: words.join(" "),
       completedCount: countCompleted(words.length, holders, dealt, pairs),

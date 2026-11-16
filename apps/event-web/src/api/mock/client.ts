@@ -27,6 +27,7 @@ import {
   CHALLENGES,
   CONNECT_ACROSS,
   type ConnectionChallenge,
+  type ShowcaseSetting,
   type ConnectionWord,
   type ConnectionRule,
   type CreateGroupRequest,
@@ -489,6 +490,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
       allocation_started_at: data.groupAllocationStartedAt,
       connect_across: data.connectAcross,
       challenge: data.challenge,
+      showcase: data.showcase ?? false,
       phrase: data.phrase && {
         text: data.phrase.join(" "),
         completed_count: data.users.filter(
@@ -769,6 +771,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           ),
           open_seat: user.open_seat ?? null,
           connections,
+          showcase: data.showcase ?? false,
           ...(phrase && {
             phrase: {
               words: phrase.words.map((word, place) => (phrase.have.has(place) ? word : null)),
@@ -972,8 +975,10 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
 
         // The first connection fixes existing answers. BAC-144 lets older incomplete
         // answers be filled, while an empty map or an existing question still gets 409.
+        // Showcase mode leaves answers open (agreement 9.21).
         if (
           input.answers !== undefined &&
+          !data.showcase &&
           (user.connections?.length ?? 0) > 0 &&
           (Object.keys(input.answers).length === 0 ||
             Object.keys(input.answers).some((id) => Object.hasOwn(user.answers ?? {}, id)))
@@ -1456,6 +1461,34 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
           dealWords();
         }
         return toGroupBoard();
+      }),
+
+    // Agreement 9.21: the mock keeps the setting, which only /me and the board read.
+    setShowcase: (input: ShowcaseSetting) =>
+      call(() => {
+        currentOrganizer();
+        data.showcase = input.showcase;
+        return { showcase: data.showcase };
+      }),
+
+    // Agreement 9.22: every participant goes, with their taps and places in groups. Organizers
+    // stay, with their connections emptied, as the Event Service empties every connection.
+    resetParticipants: () =>
+      call(() => {
+        currentOrganizer();
+        const participants = data.users.filter((user) => user.role !== "organizer");
+        const gone = new Set(participants.map((user) => user.id));
+        data.users = data.users.filter((user) => !gone.has(user.id));
+        for (const user of data.users) {
+          user.connections = [];
+          user.connection_requests = [];
+        }
+        data.taps = data.taps.filter((tap) => !gone.has(tap.user_id));
+        data.groupMembers = [];
+        data.groupAllocationStartedAt = null;
+        data.connectedPairs = [];
+        data.phraseWords = {};
+        return { participants: participants.length };
       }),
 
     // Everyone has to join again and allocation hasn't started, as before the first trial. The

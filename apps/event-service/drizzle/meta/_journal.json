@@ -232,6 +232,13 @@
       "when": 1794634774957,
       "tag": "0032_a_tap_opens_a_seat_at_a_station",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1794800296986,
+      "tag": "0033_event_settings_keep_showcase_mode",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { getTableName, sql } from "drizzle-orm";
 import { test } from "vitest";
-import { testDb } from "../src/test-helpers.ts";
-import { clearedTables, keptTables } from "./clear-lists.ts";
+import { testDb } from "./test-helpers.ts";
+import { clearedTables, keptTables } from "./event-tables.ts";
 
 test("the clear empties or keeps every table the migrations make, and none twice", async () => {
   const [rows] = (await testDb().execute(sql`SHOW TABLES`)) as unknown as [
