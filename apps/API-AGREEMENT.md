@@ -923,8 +923,10 @@ are the hints shown so far.
   so a dropped message changes nothing.
 - For the next version, after 0.14 (BAC-206), the Event Service also requests a durable wake
   (11.13) for each step after committing it: the end of tapping in, each later hint and the
-  round's end. The station's object calls the Event Service at that time (11.14), so the request
-  gives it CPU even when no screen polls. Whichever comes first of this callback, the poll and
+  round's end, including a step already due by then. The wake's time is the step's time plus
+  250 milliseconds, so a small difference between the two services' clocks can't bring the call
+  before the step. The station's object calls the Event Service at that time (11.14), so the
+  request gives it CPU even when no screen polls. Whichever comes first of this callback, the poll and
   the timer sends the message, once. A failed wake or late alarm only delays the message.
 - A tap at a station whose round has ended opens a new one. Its answer replaces the old round's
   last screen, so the station gets no message about the old round.

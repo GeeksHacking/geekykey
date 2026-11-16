@@ -5,7 +5,11 @@ import type { EventService } from "./event-service.ts";
 import { log } from "./lib/log.ts";
 import { jsonBody } from "./lib/validate.ts";
 import { beforeDeadline } from "./service-request.ts";
-import { eventServiceAuth, type MessageEnv } from "./station-message-routes.ts";
+import {
+  eventServiceAuth,
+  type MessageEnv,
+  refuseUnknownStation,
+} from "./station-message-routes.ts";
 import type { StationConnections } from "./station-sockets.ts";
 import type { StationsCopy } from "./stations-copy.ts";
 
@@ -33,27 +37,17 @@ export function stationWakeRoutes({
           {
             error: "validation_failed",
             issues: [
-              { path: ["at"], message: "at must be at most 1 minute past or 10 minutes ahead" },
+              {
+                code: "custom",
+                path: ["at"],
+                message: "at must be at most 1 minute past or 10 minutes ahead",
+              },
             ],
           },
           400,
         );
-      const check = await stationsCopy.findForEventService(sender.id, station_id, {
-        signal: deadline,
-        waitUntil: (work) => c.executionCtx.waitUntil(work),
-      });
-      if (check.result === "unavailable")
-        return c.json({ error: "event_service_unavailable" }, 503);
-      if (check.result === "unknown")
-        return c.json(
-          {
-            error: "validation_failed",
-            issues: [
-              { path: ["station_id"], message: "Station is not registered by this Event Service" },
-            ],
-          },
-          400,
-        );
+      const refused = await refuseUnknownStation(c, stationsCopy, station_id);
+      if (refused) return refused;
       try {
         if (deadline.aborted) throw new Error("timeout");
         await beforeDeadline(

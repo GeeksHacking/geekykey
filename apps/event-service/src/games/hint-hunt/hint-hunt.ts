@@ -24,6 +24,9 @@ export const HINT_HUNT_RULES = {
   minGroups: 2,
 };
 
+/** How long after a step its station's alarm wakes this service (11.13, BAC-206). */
+export const WAKE_MARGIN_MS = 250;
+
 type Round = typeof rounds.$inferSelect;
 type AfterCommit = GameContext["afterCommit"];
 export type Schedule = (work: () => Promise<void>, delayMs: number) => void;
@@ -171,10 +174,11 @@ export function hintHuntGame({
     afterCommit(
       async () => {
         const delay = Date.parse(at) - clock().getTime();
-        if (delay > 0) {
-          schedule(() => advance(db, clock()), delay);
-          await stationMessages.wake(stationId, new Date(at));
-        }
+        if (delay > 0) schedule(() => advance(db, clock()), delay);
+        // Even a step already due gets its wake, since this request may end before anything
+        // else advances the round. The margin keeps an alarm from arriving just before the step
+        // by this service's clock, when it would do nothing.
+        await stationMessages.wake(stationId, new Date(Date.parse(at) + WAKE_MARGIN_MS));
       },
       { beforeReply: true },
     );

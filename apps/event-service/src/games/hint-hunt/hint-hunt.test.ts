@@ -681,15 +681,31 @@ test("each scheduled hint hunt step requests a durable wake for its station", as
   const h = await harness();
   await h.answer("player-one", { q1: "a", q2: "a", q3: "a", q4: "a" });
   await h.joinThree();
-  assert.deepEqual(h.wakes, [{ station_id: "A", at: "2026-11-16T08:00:30.000Z" }]);
+  assert.deepEqual(h.wakes, [{ station_id: "A", at: "2026-11-16T08:00:30.250Z" }]);
   h.clock.advanceSeconds(30);
   await h.scheduled[0]!.work();
   assert.deepEqual(
     h.wakes,
     [30, 40, 50, 60, 70].map((seconds) => ({
       station_id: "A",
-      at: new Date(Date.parse("2026-11-16T08:00:00.000Z") + seconds * 1000).toISOString(),
+      at: new Date(Date.parse("2026-11-16T08:00:00.250Z") + seconds * 1000).toISOString(),
     })),
+  );
+});
+
+test("a step already due when its round starts late still requests a wake", async () => {
+  const h = await harness();
+  await h.answer("player-one", { q1: "a", q2: "a", q3: "a", q4: "a" });
+  await h.joinThree();
+  // Nothing advanced the round on time: the first poll comes 15 seconds after tapping in ended,
+  // when the second hint is already due.
+  h.clock.advanceSeconds(45);
+  await h.map();
+  assert.deepEqual(
+    h.wakes.map(({ at }) => at),
+    [30, 40, 50, 60, 70].map((seconds) =>
+      new Date(Date.parse("2026-11-16T08:00:00.250Z") + seconds * 1000).toISOString(),
+    ),
   );
 });
 

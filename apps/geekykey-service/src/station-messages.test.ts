@@ -204,7 +204,11 @@ test("each Event Service may send to only its own stations, even when it is the 
     assert.deepEqual(await res.json(), {
       error: "validation_failed",
       issues: [
-        { path: ["station_id"], message: "Station is not registered by this Event Service" },
+        {
+          code: "custom",
+          path: ["station_id"],
+          message: "Station is not registered by this Event Service",
+        },
       ],
     });
   }
