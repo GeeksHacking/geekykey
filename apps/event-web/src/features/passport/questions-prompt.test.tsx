@@ -14,6 +14,8 @@ import { createTestProviders } from "@/test/providers";
 vi.mock("@/lib/firebase", () => ({ signOutOfFirebase: vi.fn() }));
 
 const SENTENCE = "Answer all 5 to get your match when you connect.";
+const HINT_HUNT_NOTICE =
+  "Your answers may be used as hints in the hint hunt, a station game, but only if you tap in to play it.";
 const EDITABLE = "You can change these until your first connection.";
 const READ_ONLY = "You've connected, so your answers are set.";
 const connection = {
@@ -76,7 +78,7 @@ beforeEach(() => {
 });
 
 describe("the answers game's questions (agreement 0.13, section 13)", () => {
-  it("asks them after the name prompt, with the count sentence", async () => {
+  it("asks them after the name prompt, with the count sentence and hint hunt notice", async () => {
     renderPassport(SEEDED_GUEST_ID);
 
     const name = await screen.findByRole("heading", { name: "What should we call you?" });
@@ -84,7 +86,11 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
     // The name prompt comes first in the document, even though neither blocks the other.
     expect(name.compareDocumentPosition(answers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(SENTENCE)).toBeInTheDocument();
+    const sentence = screen.getByText(SENTENCE);
+    const notice = screen.getByText(HINT_HUNT_NOTICE);
+    expect(
+      sentence.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       screen.getByRole("heading", {
         name: "Your team is making something new. Which part would you most enjoy?",
@@ -107,6 +113,7 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
       await screen.findByRole("heading", { name: "How do you prefer to learn something new?" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Question 2 of 5")).toBeInTheDocument();
+    expect(screen.getByText(HINT_HUNT_NOTICE)).toBeInTheDocument();
   });
 
   it("answers all five, one tap each, then lists them with a Change on each", async () => {
@@ -114,6 +121,7 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     await answerAll(user);
 
     expect(screen.getAllByRole("button", { name: /^Change answer to/ })).toHaveLength(5);
+    expect(screen.queryByText(HINT_HUNT_NOTICE)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {
         name: "Your team is making something new. Which part would you most enjoy?",
@@ -364,6 +372,7 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     expect(await screen.findByText(READ_ONLY)).toBeInTheDocument();
     expect(screen.getAllByText("Not answered")).toHaveLength(5);
     expect(screen.queryByText(SENTENCE)).not.toBeInTheDocument();
+    expect(screen.queryByText(HINT_HUNT_NOTICE)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Change answer to/ })).not.toBeInTheDocument();
   });
 
@@ -393,6 +402,7 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
 
     expect(await screen.findByText("0 of 5 answered.")).toBeInTheDocument();
     expect(screen.getByText(SENTENCE)).toBeInTheDocument();
+    expect(screen.getByText(HINT_HUNT_NOTICE)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Answer the rest" }));
 
     expect(
@@ -410,6 +420,7 @@ describe("the answers game's questions (agreement 0.13, section 13)", () => {
     await screen.findByRole("list", { name: "Stamps" });
 
     expect(screen.queryByRole("heading", { name: "Your answers" })).not.toBeInTheDocument();
+    expect(screen.queryByText(HINT_HUNT_NOTICE)).not.toBeInTheDocument();
   });
 
   it("keeps the question and says what happened when the service can't be reached", async () => {

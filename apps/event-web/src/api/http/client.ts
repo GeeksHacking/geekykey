@@ -16,6 +16,7 @@ import {
   parseListTapsResponse,
   parseMapResponse,
   parseMapRelayResponse,
+  parseMapHintHuntResponse,
   parseMeResponse,
   parseMyGroupResponse,
   parseUpdateMeResponse,
@@ -228,6 +229,7 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     // Agreement 9.10. Not under /admin, because a map screen isn't an organizer.
     map: () => sendJson("/api/v1/map").then(parseMapResponse),
     mapRelay: () => sendJson("/api/v1/map/relay").then(parseMapRelayResponse),
+    mapHintHunt: () => sendJson("/api/v1/map/hint-hunt").then(parseMapHintHuntResponse),
 
     // The groups, from the spec's agreement 0.14.
     myGroup: () => sendJson("/api/v1/me/group").then(parseMyGroupResponse),

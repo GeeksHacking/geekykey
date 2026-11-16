@@ -16,6 +16,7 @@ import type {
   ListTapsResponse,
   MapResponse,
   MapRelayResponse,
+  MapHintHuntResponse,
   MeResponse,
   MyGroupResponse,
   PlayReactionResponse,
@@ -251,6 +252,29 @@ export const mapRelayResponseSchema: z.ZodMiniType<MapRelayResponse> = z.object(
           waiting_until: z.nullable(isoTimestamp),
           ended_at: z.nullable(isoTimestamp),
           complete: z.boolean(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/** Agreement 9.22. Strip unknown fields, including any accidental target identity. */
+export const mapHintHuntResponseSchema: z.ZodMiniType<MapHintHuntResponse> = z.object({
+  hint_hunt: z.nullable(
+    z.object({
+      rounds: z.array(
+        z.object({
+          station_id: z.string(),
+          opened_at: isoTimestamp,
+          joining_until: isoTimestamp,
+          players: count,
+          started_at: z.nullable(isoTimestamp),
+          hints: z.array(z.object({ question: z.string(), choice: z.string(), short: z.string() })),
+          tries_left: z.int().check(z.gte(0), z.lte(3)),
+          next_hint_at: z.nullable(isoTimestamp),
+          ends_at: z.nullable(isoTimestamp),
+          ended_at: z.nullable(isoTimestamp),
+          ended_how: z.nullable(z.enum(["won", "lost_tries", "lost_time", "too_few", "no_target"])),
         }),
       ),
     }),
@@ -545,3 +569,6 @@ export const parsePlayReactionResponse = (input: unknown) =>
 
 export const parseMapRelayResponse = (input: unknown) =>
   parseOrganizerResponse(mapRelayResponseSchema, input);
+
+export const parseMapHintHuntResponse = (input: unknown) =>
+  parseOrganizerResponse(mapHintHuntResponseSchema, input);

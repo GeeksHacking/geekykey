@@ -8,6 +8,9 @@ export function answerAllSentence(questionCount: number): string {
   return `Answer all ${questionCount} to get your match when you connect.`;
 }
 
+export const HINT_HUNT_NOTICE =
+  "Your answers may be used as hints in the hint hunt, a station game, but only if you tap in to play it.";
+
 /**
  * The first question in the event's order that the user hasn't answered and hasn't skipped
  * for now, or null when every one left is skipped. The order is the service's, so the

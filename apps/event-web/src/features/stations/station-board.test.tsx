@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EventGame, EventStationBoardStation, StationResponse } from "@/api/types";
 import { StationBoard } from "@/features/stations/station-board";
+import { StationsScreen } from "@/features/stations/stations-screen";
 import {
   openStationActions,
   pickStationAction,
@@ -146,6 +147,30 @@ const noGameStation = station({
 });
 
 describe("StationBoard", () => {
+  it("lets an organiser switch a station to Hint hunt and back to No game", async () => {
+    const api = createMockClient({ latencyMs: [0, 0], storage: null });
+    api.mock.setSession(SEEDED_ORGANIZER_ID);
+    const { Providers } = createTestProviders(api);
+    const user = userEvent.setup();
+    render(
+      <Providers>
+        <StationsScreen />
+      </Providers>,
+    );
+    const picker = await screen.findByRole("combobox", { name: "Game for Station 1" });
+
+    await user.click(picker);
+    await user.click(await screen.findByRole("option", { name: "Hint hunt" }));
+
+    expect(await screen.findByText("Game saved.")).toBeInTheDocument();
+    expect(picker).toHaveTextContent("Hint hunt");
+    await user.click(picker);
+    await user.click(screen.getByRole("option", { name: "No game" }));
+
+    expect(await screen.findByText("Game saved.")).toBeInTheDocument();
+    expect(picker).toHaveTextContent("No game");
+  });
+
   it("shows passport, not-in-passport, and last-tap states", () => {
     renderBoard([offlineBuffered, deadReader]);
 

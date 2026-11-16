@@ -129,11 +129,31 @@ describe("sessions and roles", () => {
       { id: "team_duels", name: "Team duels" },
       { id: "relay", name: "Relay" },
       { id: "open_seat", name: "Open seat" },
+      { id: "hint_hunt", name: "Hint hunt" },
     ]);
 
     const { station } = await api.createStation({ label: "Relay station" });
     expect((await api.setStationGame(station.id, "relay")).station.game).toBe("relay");
     await expectApiError(api.setStationGame(station.id, "bingo"), "validation_failed", 400);
+  });
+
+  it("shows an enabled Hint hunt station at a booth on the board and map", async () => {
+    const api = client();
+    await api.devLogin(SEEDED_ORGANIZER_ID);
+
+    const station = (await api.listStationBoard()).stations.find(
+      (station) => station.game === "hint_hunt",
+    );
+    expect(station).toMatchObject({
+      booth: "Booth 1",
+      disabled_at: null,
+      passport: null,
+    });
+    expect((await api.map()).stations.find((one) => one.station_id === station?.id)).toMatchObject({
+      game: "hint_hunt",
+      booth: "Booth 1",
+      disabled: false,
+    });
   });
 
   it("returns a stamp slot for each passport station, in the order settings were added", async () => {
@@ -169,12 +189,13 @@ describe("sessions and roles", () => {
       "Info Desk",
       null,
       null,
+      null,
     ]);
     expect(stations.find((s) => s.name === "Info Desk")).toMatchObject({
       disabled: true,
       booth: "Booth 2",
     });
-    expect(stations.slice(5).every((s) => s.game === null)).toBe(true);
+    expect(stations.slice(5).map((s) => s.game)).toEqual([null, null, "hint_hunt"]);
   });
 
   it("gives a station's open seat until, and null for the others (BAC-190, 9.10)", async () => {

@@ -542,6 +542,20 @@ export function createFixtures(now: number = Date.now()): MockData {
       reader_ok: true,
       simulate_online: false,
     },
+    {
+      id: "a85c9e12-3f07-4b62-917d-6e20bc84d953",
+      label: "Station 8",
+      created_at: iso(eventStart - minutes(22)),
+      disabled_at: null,
+      game: "hint_hunt",
+      passport: null,
+      booth: BOOTH_NAMES[0],
+      last_seen_at: iso(now - 7_000),
+      firmware_version: "0.9.0",
+      buffered_taps: 0,
+      reader_ok: true,
+      simulate_online: false,
+    },
   ];
 
   const onlineStations = stations.filter((s) => s.simulate_online);

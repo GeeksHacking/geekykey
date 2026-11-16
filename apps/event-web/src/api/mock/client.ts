@@ -1,3 +1,4 @@
+import { mockMapHintHunt } from "@/api/mock/map-hint-hunt";
 import { mockMapRelay, relayDemoStations } from "@/api/mock/map-relay";
 import { mockDuelRound, scoreReactions, type RoundScenario } from "@/api/mock/duel-round";
 import type { ApiClient } from "@/api/client";
@@ -203,6 +204,7 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
     data.stations.push(...relayDemoStations(now()));
   }
   let relayStarted: number | undefined;
+  let hintHuntStarted: number | undefined;
   const latency = options.latencyMs ?? MOCK_LATENCY_MS;
   const storage = options.storage === undefined ? safeSessionStorage() : options.storage;
 
@@ -1288,6 +1290,14 @@ export function createMockClient(options: MockClientOptions = {}): MockApiClient
         const at = now();
         relayStarted ??= at;
         return mockMapRelay(data.stations, relayStarted, at);
+      }),
+
+    mapHintHunt: () =>
+      call(() => {
+        currentOrganizer();
+        const at = now();
+        hintHuntStarted ??= at;
+        return mockMapHintHunt(data.stations, hintHuntStarted, at, data.questions);
       }),
 
     // The groups, from the spec's agreement 0.14.

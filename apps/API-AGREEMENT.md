@@ -3487,7 +3487,7 @@ Organisers can open it for totals only.
 | Organizer Groups screen | `GET /api/v1/admin/groups`, polled every 5 seconds; `POST /api/v1/admin/groups`; `PUT` and `DELETE /api/v1/admin/groups/{id}`; `PUT` and `DELETE /api/v1/admin/groups/members/{user_id}`; `POST /api/v1/admin/groups/allocate`, `/split` and `/reset`; `PUT /api/v1/admin/connections/rule` and `/challenge`; `PUT /api/v1/admin/groups/phrase`; `GET /api/v1/admin/groups/export.csv` |
 | Organizer QR fallback | `POST /api/v1/admin/taps` |
 | Organizer summary | `GET /api/v1/admin/stats`, `GET /api/v1/admin/export.csv` |
-| Map, on the big screen at our booth | `GET /api/v1/map`, polled every 2 seconds, and `GET /api/v1/map/relay`, every second (BAC-184). Logged in as a map screen, or as an organizer |
+| Map, on the big screen at our booth | `GET /api/v1/map`, polled every 2 seconds, and `GET /api/v1/map/relay`, every second (BAC-184). For the next version, after 0.14: `GET /api/v1/map/hint-hunt`, every second while a station runs the hint hunt (BAC-203, FRO-190). Logged in as a map screen, or as an organizer |
 
 - On `429`, screens that poll keep showing their last data. The token page, the claim form and My
   tokens say "Too many tries. Wait a minute and try again."
@@ -3638,6 +3638,23 @@ Organisers can open it for totals only.
   fails to load, **"3D couldn't load. Your avatar is still here."** (FRO-164).
 - The station board's game select is labelled **Game**, lists each of 9.2's `games` by name and
   **No game**, and says **"Game saved."** after a change (9.11).
+- For the next version, after 0.14 (FRO-190), the setup step for the answers game says, under
+  **"Answer all {total} to get your match when you connect."**: **"Your answers may be used as
+  hints in the hint hunt, a station game, but only if you tap in to play it."**
+- For the next version, after 0.14 (FRO-190), the map gives each station that runs the hint hunt
+  a card headed **Hint hunt**, with the station's booth, from 9.22's latest round:
+  - With no round, or 60 seconds after its round ended: **"Tap the station to start a round."**
+    and **"A round needs 3 players from 2 groups."**
+  - While tapping in: **"{players} in"**, **"{s}s left to tap in"** and **"A round needs 3
+    players from 2 groups."**
+  - While a round runs: **"Whoever matches every hint taps the station."**, each hint as its
+    question with the choice under it, oldest first, **"{n} tries left"** (**"1 try left"**), and
+    **"Next hint in {s}s"**, or after the last hint **"Last hint. {s}s left to find them."**
+  - When it ends, by `ended_how`: `won` **"Found! Someone matched every hint."**, `lost_tries`
+    **"Not found. No tries left."**, `lost_time` **"Not found. Time ran out."**, `too_few` **"Not
+    enough players. A round needs 3 from 2 groups."**, and `no_target` **"No round. Nobody who
+    tapped in has made a connection yet."** The hints shown stay under it.
+  - The card never names the target, their group or their avatar.
 - The organiser's CSV download is the file the service sent, unchanged, unless a value needs
   escaping. The summary and the Groups screen say the rule under the Download CSV button: **"A value that a
   spreadsheet could run as a formula gets an apostrophe, so it stays text."** When the file was

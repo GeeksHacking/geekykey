@@ -2867,3 +2867,11 @@
     The trade-offs we accept: the game shows a player's answers before anyone connects, so only a
     player who tapped in can be the target, nobody is told who it was, and it joins the showcase
     only once it passes on a real station (HAR-55).
+
+- id: hint-hunt-on-the-screens # FRO-190
+  date: 2026-11-16
+  area: frontend
+  change: >-
+    Organisers can set a station to the hint hunt, and the map shows each hint in full with the
+    tries left, a countdown and whether someone was found, never who. The answers step now says
+    that answers may become hints, and only for someone who taps in to play.
