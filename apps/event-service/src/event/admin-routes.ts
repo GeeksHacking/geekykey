@@ -5,7 +5,7 @@ import type { AppEnv } from "../app.ts";
 import type { Db } from "../db/pool.ts";
 import { log } from "../lib/log.ts";
 import { jsonBody, queryParams } from "../lib/validate.ts";
-import { setChallenge, setConnectAcross } from "./event-settings.ts";
+import { setChallenge, setConnectAcross, setShowcase } from "./event-settings.ts";
 import type { ConnectionsGame } from "./connections.ts";
 import type { GameOnStations } from "./games.ts";
 import {
@@ -44,6 +44,11 @@ export interface AdminRouteDeps {
   now?: () => Date;
   /** For the groups' Allocate, at random unless given. */
   shuffle?: Shuffle;
+  /**
+   * Resets every participant, keeping the users given (9.22). src/app.ts hands it in, since it
+   * empties every game's tables, which the base doesn't import.
+   */
+  resetParticipants: (db: Db, keep: ReadonlySet<string>) => Promise<{ participants: number }>;
 }
 
 /** Who may connect (BAC-140, agreement 0.14). */
@@ -51,6 +56,12 @@ const connectionRuleSchema = z.object({ connect_across: z.enum(CONNECT_ACROSS) }
 
 /** Which challenge a new connection plays (BAC-161, agreement 0.14). */
 const connectionChallengeSchema = z.object({ challenge: z.enum(CHALLENGES) });
+
+/** Showcase mode on or off (9.21). */
+const showcaseSchema = z.object({ showcase: z.boolean() });
+
+/** The reset's body (9.22): the confirmation, so a stray request resets nobody. */
+const resetParticipantsSchema = z.object({ confirm: z.literal("reset") });
 
 /** A new station's label, the device's name. */
 const createStationSchema = z.object({ label: organizerText("label") });
@@ -192,6 +203,7 @@ export function adminRoutes({
   connections,
   now = () => new Date(),
   shuffle,
+  resetParticipants,
 }: AdminRouteDeps) {
   const app = new Hono<AppEnv & SessionEnv>();
   app.use(requireSession(session), requireRole("organizer"));
@@ -217,6 +229,26 @@ export function adminRoutes({
     await setChallenge(c.var.db, challenge);
     log("connection_challenge_changed", { user_id: c.var.user.id, challenge });
     return c.json({ challenge });
+  });
+
+  // The Groups screen's showcase mode (9.21), for demoing connections at a booth: a pair already
+  // connected can connect again, anyone connects with anyone, answers stay open and what two
+  // people share shows at once. Connections already made stay when it changes.
+  app.put("/showcase", jsonBody(showcaseSchema), async (c) => {
+    const { showcase } = c.req.valid("json");
+    await setShowcase(c.var.db, showcase);
+    log("showcase_changed", { user_id: c.var.user.id, showcase });
+    return c.json({ showcase });
+  });
+
+  // The Groups screen's reset of every participant (9.22): their accounts, tokens, taps, answers,
+  // connections, requests, places in groups and game records go. The organizers and the map
+  // screens keep their accounts and tokens.
+  app.post("/participants/reset", jsonBody(resetParticipantsSchema), async (c) => {
+    const keep = new Set([...session.organizers, ...session.mapScreens]);
+    const { participants } = await resetParticipants(c.var.db, keep);
+    log("participants_reset", { user_id: c.var.user.id, participants });
+    return c.json({ participants });
   });
 
   /** The games organizers choose a station's from, in the settings' order (9.2). */

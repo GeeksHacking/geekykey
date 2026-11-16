@@ -15,6 +15,11 @@ import { type CHALLENGES, type CONNECT_ACROSS, eventSettings } from "./schema.ts
   - The phrase participants complete (BAC-169), or none, which is the activity
     off. phrase.ts has its rules, and groups.ts sets it, since a new phrase
     deals every word again.
+  - Showcase mode, for demoing connections at a booth with the same people
+    again and again (the API agreement's 9.21): a pair already connected can
+    connect again, which makes their connection afresh, the connection rule
+    is skipped, a connection leaves answers open, and what two people share
+    shows at once.
 
   They're kept in the database, so every instance of the service reads the
   same ones, and a restart keeps them. They're in the base, not the connections
@@ -92,4 +97,21 @@ export async function savePhrase(tx: Tx, words: readonly string[] | null): Promi
     .insert(eventSettings)
     .values({ id: SETTINGS_ROW, connectAcross: CONNECT_ACROSS_DEFAULT, phrase })
     .onDuplicateKeyUpdate({ set: { phrase } });
+}
+
+/** Whether showcase mode is on (9.21). Off in a new event. Read before any lock, as the rule is. */
+export async function loadShowcase(db: Db | Tx): Promise<boolean> {
+  const [row] = await db
+    .select({ showcase: eventSettings.showcase })
+    .from(eventSettings)
+    .where(eq(eventSettings.id, SETTINGS_ROW));
+  return row?.showcase ?? false;
+}
+
+/** Turns showcase mode on or off, from the next tap on. Connections already made stay. */
+export async function setShowcase(db: Db, showcase: boolean): Promise<void> {
+  await db
+    .insert(eventSettings)
+    .values({ id: SETTINGS_ROW, connectAcross: CONNECT_ACROSS_DEFAULT, showcase })
+    .onDuplicateKeyUpdate({ set: { showcase } });
 }

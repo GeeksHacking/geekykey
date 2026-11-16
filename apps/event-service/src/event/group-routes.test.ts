@@ -279,6 +279,7 @@ test("a new group is on the board by its name, with nobody in it", async () => {
     allocation_started_at: null,
     connect_across: "token_kinds",
     challenge: "random",
+    showcase: false,
     joined_count: 0,
     groups: [group],
     phrase: null,
@@ -1398,6 +1399,7 @@ test("reset after Allocate keeps the groups, and nobody has joined", async () =>
     allocation_started_at: null,
     connect_across: "token_kinds",
     challenge: "random",
+    showcase: false,
     joined_count: 0,
     groups: [
       { ...first, members: [] },

@@ -55,6 +55,8 @@ export const screensSchemas = (await import(
   | "eventGroupSchema"
   | "connectionRuleSchema"
   | "connectionChallengeSchema"
+  | "showcaseSettingSchema"
+  | "resetParticipantsResponseSchema"
   | "acceptConnectionRequestResponseSchema"
   | "geekykeyLoginLinkResponseSchema"
   | "playReactionResponseSchema",

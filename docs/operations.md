@@ -153,7 +153,7 @@ exits with an error.
 | Users and their first kinds | The event's settings, such as the connection rule and the challenge |
 | | Used login links, which expire by themselves |
 
-`scripts/clear-lists.ts` holds the two lists. If they disagree with the database's tables, the
+`apps/event-service/src/event-tables.ts` holds the two lists. If they disagree with the database's tables, the
 command stops before changing anything, so run it from an up-to-date `main`.
 
 Afterwards everyone logs in again and claims their tokens again, and any name used before is free.

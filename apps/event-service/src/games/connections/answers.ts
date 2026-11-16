@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { isoNow } from "../../db/columns.ts";
 import type { Db } from "../../db/pool.ts";
 import type { Answers, AnswersGame, Question } from "../../event/answers.ts";
+import { loadShowcase } from "../../event/event-settings.ts";
 import type { Tx } from "../../event/games.ts";
 import { answers } from "./schema.ts";
 
@@ -19,7 +20,8 @@ export interface ConnectionsAnswers extends AnswersGame {
 
 /**
  * The answers game with `questions`, an event's settings (src/showcase/).
- * A participant can change an answer until their first connection.
+ * A participant can change an answer until their first connection, or at any time while
+ * showcase mode is on (the API agreement's 9.21).
  */
 export function answersGame(questions: readonly Question[]): ConnectionsAnswers {
   /**
@@ -50,10 +52,14 @@ export function answersGame(questions: readonly Question[]): ConnectionsAnswers 
 
     async setAnswers(tx, userId, given) {
       const row = await lockAnswers(tx, userId);
+      // Showcase mode leaves answers open, so a demo can show another match (9.21). The next
+      // connection works its match out from them, and a connection already made keeps its own.
+      const open = await loadShowcase(tx);
       // Older connections could fix incomplete answers. Missing answers can be filled, but
       // an already answered question stays fixed (agreement 8.7, BAC-144).
       const current = shown(row.choices);
       if (
+        !open &&
         row.fixedAt !== null &&
         (Object.keys(given).length === 0 ||
           Object.keys(given).some((id) => Object.hasOwn(current, id)))

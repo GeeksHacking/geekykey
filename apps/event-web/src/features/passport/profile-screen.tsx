@@ -45,7 +45,7 @@ export function ProfileScreen() {
           key={me.user.id}
           questions={me.questions}
           answers={me.user.answers}
-          answersFixed={me.connections.length > 0}
+          answersFixed={me.connections.length > 0 && !me.showcase}
           onAnswersFixed={() => void refresh()}
         />
       ) : null}

@@ -1,6 +1,7 @@
 import { type GoogleSigningKeys, googleSigningKeys } from "@geekykey/firebase-login";
 import { loginLinks } from "@geekykey/login-link";
 import { createBaseApp } from "./base-app.ts";
+import { resetParticipants } from "./participant-reset.ts";
 import { claimsStandInRoutes } from "./claims-stand-in/routes.ts";
 import type { Config } from "./config.ts";
 import type { Db } from "./db/pool.ts";
@@ -146,7 +147,10 @@ export function createApp(
   const openSeat = games.map((entry) => entry.game).find(isOpenSeatGame) ?? null;
   app.route("/api/v1/me", meRoutes({ session, answers, connections, teamDuels, openSeat, now }));
   app.route("/api/v1/me/group", myGroupRoutes({ session, connections, now }));
-  app.route("/api/v1/admin", adminRoutes({ session, games, connections, now, shuffle }));
+  app.route(
+    "/api/v1/admin",
+    adminRoutes({ session, games, connections, now, shuffle, resetParticipants }),
+  );
   app.route(
     "/api/v1/map",
     mapRoutes({

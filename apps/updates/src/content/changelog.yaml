@@ -2846,3 +2846,14 @@
     The map shows our table with Booth 1 and Booth 2, and gives the anonymous connection web most
     of the big screen, with a count of participants connected. Relay calls and open seats stay visible
     beside it.
+
+- id: showcase-mode # BAC-202
+  date: 2026-11-16
+  area: backend
+  change: >-
+    Organisers can turn on showcase mode on the Groups screen, where anyone connects with anyone,
+    a pair can connect again for a new challenge, and answers stay open, so the booth can demo with
+    the same phones again and again. A reset beside it removes every participant's account and
+    frees their tokens. The trade-offs we accept: a repeat replaces the pair's connection rather
+    than adding one, and a reset deletes the participants the showcase's step count reads, so we
+    back up the database first.

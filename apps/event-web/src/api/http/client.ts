@@ -9,6 +9,8 @@ import {
   parsePlayReactionResponse,
   parseConnectionChallenge,
   parseConnectionRule,
+  parseResetParticipantsResponse,
+  parseShowcaseSetting,
   parseGroupBoardResponse,
   parseFallbackTapResponse,
   parseListTapsResponse,
@@ -272,6 +274,14 @@ export function createHttpClient(options: HttpClientOptions = {}): ApiClient {
     setConnectionChallenge: (input) =>
       sendJson("/api/v1/admin/connections/challenge", jsonBody(input, "PUT")).then(
         parseConnectionChallenge,
+      ),
+
+    setShowcase: (input) =>
+      sendJson("/api/v1/admin/showcase", jsonBody(input, "PUT")).then(parseShowcaseSetting),
+
+    resetParticipants: () =>
+      sendJson("/api/v1/admin/participants/reset", jsonBody({ confirm: "reset" }, "POST")).then(
+        parseResetParticipantsResponse,
       ),
 
     removeGroupMember: async (userId) => {

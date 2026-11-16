@@ -2275,3 +2275,53 @@ describe("GroupsScreen's groups reached (BAC-167)", () => {
     expect(within(foyer).queryByText(/^Reached/)).not.toBeInTheDocument();
   });
 });
+
+describe("showcase mode (agreement 9.21 and 9.22)", () => {
+  it("starts off, and turning it on sends the setting and keeps it pressed", async () => {
+    const { api, user } = renderScreen();
+    const section = await screen.findByRole("region", { name: "Showcase mode" });
+    expect(within(section).getByRole("radio", { name: "Off" })).toBeChecked();
+
+    await user.click(within(section).getByRole("radio", { name: "On" }));
+
+    await waitFor(() => expect(api.mock.data.showcase).toBe(true));
+    await waitFor(() => expect(within(section).getByRole("radio", { name: "On" })).toBeChecked());
+  });
+
+  it("asks before resetting every participant, then removes them and keeps the organisers and groups", async () => {
+    const { api, user } = renderScreen();
+    const groups = api.mock.data.groups.map(({ name }) => name);
+    const organisers = api.mock.data.users.filter(({ role }) => role === "organizer");
+    const section = await screen.findByRole("region", { name: "Showcase mode" });
+
+    await user.click(within(section).getByRole("button", { name: "Reset all participants" }));
+    const alert = await screen.findByRole("alertdialog");
+    expect(alert).toHaveTextContent("Reset all participants?");
+    await user.click(within(alert).getByRole("button", { name: "Cancel" }));
+    expect(api.mock.data.users.length).toBeGreaterThan(organisers.length);
+
+    await user.click(within(section).getByRole("button", { name: "Reset all participants" }));
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(api.mock.data.users).toEqual(organisers);
+    expect(api.mock.data.groupMembers).toHaveLength(0);
+    expect(api.mock.data.groups.map(({ name }) => name)).toEqual(groups);
+  });
+
+  it("isn't offered by an Event Service from before it", async () => {
+    renderScreen({
+      prepare: (api) => {
+        const board = api.groupBoard.bind(api);
+        api.groupBoard = async () => {
+          const { showcase: _left, ...older } = await board();
+          return older;
+        };
+      },
+    });
+    await screen.findByRole("region", { name: "Connections" });
+    expect(screen.queryByRole("region", { name: "Showcase mode" })).not.toBeInTheDocument();
+  });
+});

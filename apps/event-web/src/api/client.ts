@@ -1,6 +1,8 @@
 import type {
   AcceptConnectionRequestResponse,
   ConnectionChallenge,
+  ResetParticipantsResponse,
+  ShowcaseSetting,
   ConnectionRule,
   CreateGroupRequest,
   CreateStationRequest,
@@ -233,6 +235,18 @@ export interface ApiClient {
    * connection on, and answers with the setting. Connections already made keep theirs.
    */
   setConnectionChallenge(input: ConnectionChallenge): Promise<ConnectionChallenge>;
+
+  /**
+   * PUT /api/v1/admin/showcase (agreement 9.21, for the next version). Turns showcase mode on or
+   * off, from the next tap on, and answers with the setting.
+   */
+  setShowcase(input: ShowcaseSetting): Promise<ShowcaseSetting>;
+
+  /**
+   * POST /api/v1/admin/participants/reset (agreement 9.22, for the next version). Removes every
+   * participant's account, tokens and event data. Organizers and the map screens stay.
+   */
+  resetParticipants(): Promise<ResetParticipantsResponse>;
 
   /**
    * PUT /api/v1/admin/groups/phrase (BAC-169, agreement 0.14). Sets the

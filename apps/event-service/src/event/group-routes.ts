@@ -83,6 +83,8 @@ function groupBoardBody(board: Awaited<ReturnType<typeof loadGroupBoard>>) {
     connect_across: board.connectAcross,
     // The Groups screen's choice of challenge (BAC-161, agreement 0.14).
     challenge: board.challenge,
+    // Showcase mode (9.21), for the next version.
+    showcase: board.showcase,
     // The phrase and how many have completed it, or null for none (BAC-169, agreement 0.14).
     phrase: board.phrase && {
       text: board.phrase.text,

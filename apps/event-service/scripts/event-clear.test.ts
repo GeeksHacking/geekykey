@@ -18,7 +18,7 @@ import { createGroup, placeMember, setPhrase } from "../src/event/groups.ts";
 import { phraseWords, users } from "../src/event/schema.ts";
 import { screensSchemas, TEST_FIREBASE_PROJECT_ID, testApp, testDb } from "../src/test-helpers.ts";
 import { fillEveryTable } from "../test-support/fill-every-table.ts";
-import { clearedTables, keptTables } from "./clear-lists.ts";
+import { clearedTables, keptTables } from "../src/event-tables.ts";
 import { type ClearOptions, clearEvent } from "./event-clear.ts";
 import { LOCAL_ROOT, localDatabaseUrl } from "./local-tidb.ts";
 

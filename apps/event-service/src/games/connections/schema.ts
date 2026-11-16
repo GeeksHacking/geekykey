@@ -13,7 +13,7 @@ import { connectionId, connectionRequestId, isoTimestamp, userId } from "../../d
 /**
  * The connections game's tables (spec section 6, "The answers game"). The
  * event's own data, which the evening-before clear empties
- * (scripts/clear-lists.ts).
+ * (src/event-tables.ts).
  */
 
 /**
