@@ -80,7 +80,7 @@ afterAll(testPool.close);
 
 /** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
 export const showcaseGames = gamesForShowcase({
-  stationMessages: { send: async () => "off" },
+  stationMessages: { send: async () => "off", wake: async () => "off" },
   connections: null,
   answers: null,
   db: testDb(),

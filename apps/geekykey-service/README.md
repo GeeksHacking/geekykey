@@ -119,8 +119,11 @@ queued, and there is no rate limit on this trusted Event Service route.
 `STATION_SOCKETS` binds the `StationSockets` Durable Object class exported by `src/worker.ts`.
 Each station has its own object, named by its Event Service and its ID, so a message never reaches
 another event's station with the same ID. It has a best-effort `apac` location hint. The
-object uses the Hibernation API and never writes storage. Its migration uses `new_sqlite_classes`
-because Cloudflare's free plan requires SQLite-backed classes even when they store nothing.
+object uses the Hibernation API. It stores only the hint hunt's pending wake times, from
+`POST /api/v1/station-wakes`, and sets an alarm for the earliest. When the alarm fires it calls the
+Event Service's `POST /geekykey/v1/wake`, and a failed call is retried by Cloudflare up to six times
+(BAC-206). Messages are never stored. Its migration uses `new_sqlite_classes`, which Cloudflare's
+free plan requires.
 
 ## Settings
 

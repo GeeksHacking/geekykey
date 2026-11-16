@@ -9,6 +9,10 @@ export function fakeStationSockets() {
     openedFor: [] as string[],
     sent: [] as { eventServiceId: string; stationId: string; frame: StationMessageFrame }[],
     delivered: 0,
+    wakes: [] as { eventServiceId: string; stationId: string; at: string }[],
+    wake: (async (eventServiceId: string, stationId: string, at: string) => {
+      fake.wakes.push({ eventServiceId, stationId, at });
+    }) satisfies StationConnections["wake"],
     open: (async (eventServiceId: string, stationId: string): Promise<Response> => {
       fake.opened.push(stationId);
       fake.openedFor.push(eventServiceId);

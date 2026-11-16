@@ -19,6 +19,7 @@ export interface HintHuntMapState {
 }
 
 export interface HintHuntGame extends Game {
+  advance(db: Db, now: Date): Promise<void>;
   mapState(db: Db, now: Date): Promise<HintHuntMapState>;
 }
 

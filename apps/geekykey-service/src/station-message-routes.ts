@@ -1,5 +1,6 @@
 import { stationMessageRequest } from "@geekykey/handoff";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 import type { EventServiceEntry } from "./config.ts";
 import type { EventService } from "./event-service.ts";
 import { bearerKey } from "./lib/bearer-key.ts";
@@ -40,7 +41,60 @@ function hashKey(key: string) {
   return crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
 }
 
-type MessageEnv = { Variables: { sender: EventServiceEntry; deadline: AbortSignal } };
+export type MessageEnv = { Variables: { sender: EventServiceEntry; deadline: AbortSignal } };
+
+/** The sender's shared Event Service key, used for messages and wakes. */
+export function eventServiceAuth(eventServices: EventServiceEntry[], deadlineMs: number) {
+  return createMiddleware<MessageEnv>(async (c, next) => {
+    // Authentication, validation, the stations list and the send share one deadline.
+    c.set("deadline", AbortSignal.timeout(deadlineMs));
+    const key = bearerKey(c.req.header("Authorization"));
+    if (key === null) return c.json({ error: "invalid_event_service_key" }, 401);
+    const given = await hashKey(key);
+    let sender: EventServiceEntry | undefined;
+    // Check every entry, even after a match, so timing does not reveal its position. Each key
+    // is hashed here rather than when the app is built, which a Worker does at global scope.
+    for (const entry of eventServices) {
+      if (crypto.subtle.timingSafeEqual(given, await hashKey(entry.key))) sender = entry;
+    }
+    if (sender === undefined) return c.json({ error: "invalid_event_service_key" }, 401);
+    c.set("sender", sender);
+    return await next();
+  });
+}
+
+/**
+ * Whether the sender registered `stationId`, for messages and wakes alike: a `503` when its
+ * stations can't be read, a `400` in Zod's issue format (section 2) when it isn't one of them,
+ * and null when it is.
+ */
+export async function refuseUnknownStation(
+  c: Context<MessageEnv>,
+  stationsCopy: StationsCopy<EventService>,
+  stationId: string,
+): Promise<Response | null> {
+  const { sender, deadline } = c.var;
+  const check = await stationsCopy.findForEventService(sender.id, stationId, {
+    signal: deadline,
+    waitUntil: (work) => c.executionCtx.waitUntil(work),
+  });
+  if (check.result === "unavailable") return c.json({ error: "event_service_unavailable" }, 503);
+  if (check.result === "unknown")
+    return c.json(
+      {
+        error: "validation_failed",
+        issues: [
+          {
+            code: "custom",
+            path: ["station_id"],
+            message: "Station is not registered by this Event Service",
+          },
+        ],
+      },
+      400,
+    );
+  return null;
+}
 
 export function stationMessageRoutes({
   eventServices,
@@ -50,43 +104,13 @@ export function stationMessageRoutes({
 }: Omit<SocketOptions, "stationLimit"> & { eventServices: EventServiceEntry[] }) {
   return new Hono<MessageEnv>().post(
     "/",
-    async (c, next) => {
-      // Authentication, validation, the stations list and the send share one deadline.
-      c.set("deadline", AbortSignal.timeout(deadlineMs));
-      const key = bearerKey(c.req.header("Authorization"));
-      if (key === null) return c.json({ error: "invalid_event_service_key" }, 401);
-      const given = await hashKey(key);
-      let sender: EventServiceEntry | undefined;
-      // Check every entry, even after a match, so timing does not reveal its position. Each key
-      // is hashed here rather than when the app is built, which a Worker does at global scope.
-      for (const entry of eventServices) {
-        if (crypto.subtle.timingSafeEqual(given, await hashKey(entry.key))) sender = entry;
-      }
-      if (sender === undefined) return c.json({ error: "invalid_event_service_key" }, 401);
-      c.set("sender", sender);
-      return await next();
-    },
+    eventServiceAuth(eventServices, deadlineMs),
     jsonBody(stationMessageRequest),
     async (c) => {
       const { station_id, ...message } = c.req.valid("json");
       const { sender, deadline } = c.var;
-      const check = await stationsCopy.findForEventService(sender.id, station_id, {
-        signal: deadline,
-        waitUntil: (work) => c.executionCtx.waitUntil(work),
-      });
-      if (check.result === "unavailable")
-        return c.json({ error: "event_service_unavailable" }, 503);
-      if (check.result === "unknown") {
-        return c.json(
-          {
-            error: "validation_failed",
-            issues: [
-              { path: ["station_id"], message: "Station is not registered by this Event Service" },
-            ],
-          },
-          400,
-        );
-      }
+      const refused = await refuseUnknownStation(c, stationsCopy, station_id);
+      if (refused) return refused;
       let delivered = false;
       try {
         if (deadline.aborted) throw new Error("timeout");

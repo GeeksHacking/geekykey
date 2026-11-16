@@ -1,4 +1,5 @@
 import {
+  wakeRequest,
   heartbeatsRequest,
   type MeetingsAnswer,
   meetingsRequest,
@@ -16,6 +17,7 @@ import { jsonBody, validationFailed } from "../lib/validate.ts";
 import type { AnswersGame } from "./answers.ts";
 import { participantIsReady } from "./participant-setup.ts";
 import type { ConnectionsGame } from "./connections.ts";
+import { isHintHuntGame } from "./hint-hunt.ts";
 import type { GameOnStations } from "./games.ts";
 import { tokenOwnerOf } from "./profiles.ts";
 import { stations } from "./schema.ts";
@@ -115,6 +117,22 @@ export function handoffRoutes({
           }),
         })),
       });
+    })
+    .post("/wake", jsonBody(wakeRequest), async (c) => {
+      const { station_id } = c.req.valid("json");
+      const [station] = await c.var.db
+        .select({ id: stations.id })
+        .from(stations)
+        .where(eq(stations.id, station_id));
+      if (!station)
+        return validationFailed(
+          c,
+          ["station_id"],
+          "station_id must be one of this Event Service's stations",
+        );
+      const hintHunt = games.map(({ game }) => game).find(isHintHuntGame);
+      await hintHunt?.advance(c.var.db, now());
+      return c.body(null, 204);
     })
     .post("/heartbeats", jsonBody(heartbeatsRequest), async (c) => {
       // The heartbeat hand-off: the station's health, as it sent it (11.3).

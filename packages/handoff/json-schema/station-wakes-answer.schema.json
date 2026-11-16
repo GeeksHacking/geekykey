@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "scheduled": {
+      "type": "boolean",
+      "const": true
+    }
+  },
+  "required": [
+    "scheduled"
+  ],
+  "title": "The answer to a station wake: POST /api/v1/station-wakes"
+}

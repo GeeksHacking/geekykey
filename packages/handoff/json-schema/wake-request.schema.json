@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "station_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "station_id"
+  ],
+  "title": "The station alarm callback: POST /geekykey/v1/wake",
+  "description": "Answered 204, with no body."
+}

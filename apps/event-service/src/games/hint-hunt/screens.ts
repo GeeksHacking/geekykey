@@ -47,7 +47,10 @@ const RESULT_SECONDS = 2;
  * own replaces it, and ends on the result's lines, so no old hint comes back (BAC-208).
  */
 export function resultScreen(lines: string[], complete = false): StationText {
-  return { ...plain(lines, complete), countdown: { seconds: RESULT_SECONDS, lines, ending: lines } };
+  return {
+    ...plain(lines, complete),
+    countdown: { seconds: RESULT_SECONDS, lines, ending: lines },
+  };
 }
 
 export function joiningScreen(players: number, until: string, now: Date, repeat = false) {

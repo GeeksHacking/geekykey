@@ -47,7 +47,19 @@ async function harness(settings: Record<string, unknown> = {}, stationLimit = fa
       },
       body: typeof body === "string" ? body : JSON.stringify(body),
     });
-  return { request, socket, post, fake, sockets, config };
+  const wake = (
+    body: unknown = { station_id: "station-1", at: new Date(Date.now() + 30000).toISOString() },
+    key: string | null = config.eventServices[0]!.key,
+  ) =>
+    request("/api/v1/station-wakes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key === null ? {} : { Authorization: `Bearer ${key}` }),
+      },
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    });
+  return { request, socket, post, wake, fake, sockets, config };
 }
 
 test("a socket request checks the station key before requiring an upgrade", async () => {
@@ -192,7 +204,11 @@ test("each Event Service may send to only its own stations, even when it is the 
     assert.deepEqual(await res.json(), {
       error: "validation_failed",
       issues: [
-        { path: ["station_id"], message: "Station is not registered by this Event Service" },
+        {
+          code: "custom",
+          path: ["station_id"],
+          message: "Station is not registered by this Event Service",
+        },
       ],
     });
   }
@@ -309,4 +325,86 @@ test("a refresh failure keeps the sender's last good list, as for a tap", async 
   assert.equal((await post()).status, 200);
   assert.equal((await post()).status, 200);
   assert.equal(fake.sent.length, 2);
+});
+
+test("a wake authenticates the Event Service before checking the body or station", async () => {
+  const h = await harness();
+  for (const key of [null, "wrong", STATION_KEY]) {
+    const res = await h.wake("{", key);
+    assert.equal(res.status, 401);
+    assert.deepEqual(await res.json(), { error: "invalid_event_service_key" });
+  }
+  assert.deepEqual(h.fake.sent, []);
+});
+
+test("a wake validates the time and the sender's registered station", async () => {
+  const h = await harness();
+  for (const body of [
+    {},
+    { station_id: "station-1", at: "tomorrow" },
+    { station_id: "station-1", at: new Date(Date.now() - 61000).toISOString() },
+    { station_id: "station-1", at: new Date(Date.now() + 601000).toISOString() },
+    { station_id: "another-events-station", at: new Date(Date.now() + 30000).toISOString() },
+  ]) {
+    const res = await h.wake(body);
+    assert.equal(res.status, 400);
+    const answer = (await res.json()) as { error: string; issues: unknown[] };
+    assert.equal(answer.error, "validation_failed");
+    assert.ok(answer.issues.length);
+  }
+  const disabled = await harness();
+  disabled.fake.stations.set("showcase", []);
+  assert.equal((await disabled.wake()).status, 400);
+});
+
+test("a wake is forwarded to its sender's station object", async () => {
+  const h = await harness();
+  const at = new Date(Date.now() + 30000).toISOString();
+  const res = await h.wake({ station_id: "station-1", at });
+  assert.equal(res.status, 202);
+  assert.deepEqual(await res.json(), { scheduled: true });
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(h.sockets.wakes, [{ eventServiceId: "showcase", stationId: "station-1", at }]);
+});
+
+test("a wake returns unavailable when the registered stations cannot be fetched", async () => {
+  const h = await harness();
+  h.fake.answers.stations = async () => new Response(null, { status: 503 });
+  const res = await h.wake();
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), { error: "event_service_unavailable" });
+});
+
+test("a wake uses the authenticated sender and refuses another Event Service's station", async () => {
+  const h = await harness(TWO_EVENTS);
+  h.fake.stations.set("other", [
+    { station_id: "station-2", key_hash: await hashStationKey("other-key") },
+  ]);
+  const at = new Date(Date.now() + 30000).toISOString();
+  assert.equal((await h.wake({ station_id: "station-1", at }, "a".repeat(64))).status, 400);
+  assert.equal((await h.wake({ station_id: "station-2", at }, "a".repeat(64))).status, 202);
+  assert.deepEqual(h.sockets.wakes, [{ eventServiceId: "other", stationId: "station-2", at }]);
+});
+
+test("an object that cannot persist a wake returns unavailable without logging secrets", async () => {
+  const h = await harness();
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  onTestFinished(() => errors.mockRestore());
+  h.sockets.wake = async () => {
+    throw new Error(h.config.eventServices[0]!.key);
+  };
+  const res = await h.wake();
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), { error: "event_service_unavailable" });
+  assert.deepEqual(
+    errors.mock.calls.map(([line]) => JSON.parse(String(line))),
+    [
+      {
+        severity: "ERROR",
+        message: "station_wake_failed",
+        station_id: "station-1",
+        reason: "unreachable",
+      },
+    ],
+  );
 });

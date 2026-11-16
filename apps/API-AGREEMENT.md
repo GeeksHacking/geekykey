@@ -147,7 +147,7 @@ only for `validation_failed` and follows Zod's issue format. `needed` is present
 | `invalid_login_link` | 401 | The login link sent to log in (7.4, or 7.5 on the GeekyKey Service) has expired, has been used already, or was changed. The Event screens say "That link has expired. Tap your token again to get back in.", and the GeekyKey screens "That link has expired. Open My tokens from the event again." (section 13) |
 | `missing_station_key` | 401 | No `Authorization: Bearer` header on a station endpoint |
 | `invalid_station_key` | 401 | Station key on no Event Service's registered stations, which leave out disabled stations |
-| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1`, and on a station message to the GeekyKey Service (11.12, BAC-182) |
+| `invalid_event_service_key` | 401 | Event Service key missing or not recognised, on any request under `/geekykey/v1`, and on a station message to the GeekyKey Service (11.12, BAC-182). For the next version, after 0.14, also on station wakes (11.13, BAC-206) |
 | `forbidden` | 403 | Not on the organizer list, the map screen list or the GeekyKey admin list, as the endpoint needs. Also an organizer who joins the groups (8.13), or is put in one (9.16) |
 | `not_found` | 404 | |
 | `token_claimed` | 409 | A GeekyKey admin tried to remove the kind of a claimed token (10.3) |
@@ -253,7 +253,7 @@ the session cookie by default.
 | Token writer | `Authorization: Bearer gk_wri_…` | The GeekyKey Service, only to add to the list of token kinds (10.4) |
 | Station | `Authorization: Bearer gk_sta_…` | The GeekyKey Service |
 | GeekyKey Service | `Authorization: Bearer` with the Event Service key | Each Event Service, under `/geekykey/v1` |
-| Event Service | `Authorization: Bearer` with its Event Service key | The GeekyKey Service, for station messages (11.12, BAC-182) |
+| Event Service | `Authorization: Bearer` with its Event Service key | The GeekyKey Service, for station messages (11.12, BAC-182), and for the next version, after 0.14, station wakes (11.13, BAC-206) |
 
 - The organizer list, the map screen list and the GeekyKey admin list are settings of their
   service, changed through a reviewed pull request and a deploy. Each is checked on every
@@ -923,6 +923,13 @@ are the hints shown so far.
   whichever comes first of a poll of 9.22 and the Event Service's own timer, and none is sent for
   a round that has ended. Which hints are shown, and when a round is lost, go by the clock alone,
   so a dropped message changes nothing.
+- For the next version, after 0.14 (BAC-206), the Event Service also requests a durable wake
+  (11.13) for each step after committing it: the end of tapping in, each later hint and the
+  round's end, including a step already due by then. The wake's time is the step's time plus
+  250 milliseconds, so a small difference between the two services' clocks can't bring the call
+  before the step. The station's object calls the Event Service at that time (11.14), so the
+  request gives it CPU even when no screen polls. Whichever comes first of this callback, the poll and
+  the timer sends the message, once. A failed wake or late alarm only delays the message.
 - A tap at a station whose round has ended opens a new one. Its answer replaces the old round's
   last screen, so the station gets no message about the old round.
 - Several players may match, and any of them wins. Answers count whether or not a connection has
@@ -3214,6 +3221,9 @@ our services check against them, and a JSON Schema generated from them with `z.t
 for other teams, in `packages/handoff/json-schema/`. The registered stations' answer and the
 hand-off's two are there, and so is the heartbeat hand-off's request. Its answer has no body.
 
+- For the next version, after 0.14 (BAC-206), the wake schemas are
+  `station-wakes-request.schema.json`, `station-wakes-answer.schema.json` (11.13), and
+  `wake-request.schema.json` (11.14, answered 204).
 - A station message's request and answer are there too (11.12): `station-messages-request.schema.json`
   and `station-messages-answer.schema.json` (BAC-182).
 - The files leave other fields allowed, since fields are only ever added (section 1).
@@ -3392,8 +3402,8 @@ database, so the Event Service keeps each link's `jti` until it expires, and a l
 
 ### 11.12 Sending a station message: `POST /api/v1/station-messages` on the GeekyKey Service (`Checkpoint 8`)
 
-Added in 0.14 (BAC-182). The one request an Event Service makes to the GeekyKey
-Service: send one of its own stations a station message, which the station shows with no tap. The
+Added in 0.14 (BAC-182). An Event Service calls the GeekyKey
+Service to send one of its own stations a station message, which the station shows with no tap. The
 GeekyKey Service passes it down the station's socket (6.3), and keeps nothing.
 
 **Auth:** `Authorization: Bearer <Event Service key>`: the sender's own key, which the GeekyKey
@@ -3438,6 +3448,68 @@ Service compares with each Event Service's in constant time. The one it matches 
 
 **Errors:** `validation_failed`; `invalid_event_service_key` (401); `event_service_unavailable`
 (503) while the sender's registered stations can't be fetched to check the station.
+
+### 11.13 Scheduling a station wake: `POST /api/v1/station-wakes` on the GeekyKey Service (for the next version, after 0.14)
+
+Added for BAC-206. An Event Service asks the station's Durable Object to call it at a given time.
+This keeps timed station messages moving when the Event Service has CPU only during requests.
+The object stores wake times, not messages or game state. A station needs no open socket for a wake.
+
+**Auth:** `Authorization: Bearer <Event Service key>`, identifying the sender as in 11.12.
+
+**Request**
+
+```json
+{ "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6", "at": "2026-11-17T06:00:30.000Z" }
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `station_id` | string | One of the sender's registered stations, checked as in 11.12 |
+| `at` | string | ISO 8601 with an offset, no more than 1 minute behind or 10 minutes ahead of the GeekyKey Service's clock |
+
+**Response `202`**
+
+```json
+{ "scheduled": true }
+```
+
+- The wake is persisted in the object named by the sender and station. Its alarm is set to the
+  earliest pending time. Repeated requests for the same station and instant coalesce.
+- A past time within the accepted minute is due immediately. This tolerates clock skew and delay.
+- The Event Service waits at most 2 seconds, logs `station_wake_failed` on failure and carries
+  on. The opening tap waits for this attempt after committing, so Cloud Run still gives it CPU.
+- The alarm calls 11.14 using the URL and key from the Worker's current Event Service settings,
+  with the hand-off's deadline. It keeps failed wakes for Cloudflare's six retries with backoff.
+  At the last failed retry it logs `station_wake_abandoned`, drops the due wakes and schedules
+  the next. It neither retries forever nor changes the game's clock.
+- Neither side logs the key or body. There is no new key, binding or migration.
+
+**Errors:** `validation_failed` (400); `invalid_event_service_key` (401);
+`event_service_unavailable` (503) when the sender's registered stations cannot be checked or the
+object cannot store the wake in time.
+
+### 11.14 Waking the Event Service: `POST /geekykey/v1/wake` (for the next version, after 0.14)
+
+Added for BAC-206. A station's object calls this on the Event Service when a wake is due.
+
+**Auth:** `Authorization: Bearer <Event Service key>`, checked exactly as the tap hand-off (11.2).
+
+**Request**
+
+```json
+{ "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6" }
+```
+
+`station_id` is a nonempty string naming one of this Event Service's stations. An unknown station
+gets `validation_failed`. A station disabled or moved to another game has no due hint hunt step.
+
+**Response `204`**, with no body, after advancing due hint hunt steps and attempting their station
+messages. Ours advances all hint hunt stations in the request. Repeated callbacks are harmless:
+each round's stored announcement count and ending ensure a message is attempted once. Delivery
+still follows 11.12; a dropped message is not retried. The timer and poll paths stay available.
+
+**Errors:** `validation_failed` (400); `invalid_event_service_key` (401).
 
 ---
 
@@ -4002,3 +4074,4 @@ Closed on 2026-10-10:
 | 2026-11-14 | For the next version, after 0.14: the open seat, a station game (BAC-190). A tap at an open seat station opens a seat for 60 seconds, the other open seat stations say where it is with no name, and someone from another group, or with none, takes it at the same station, which sends the sitter a connection request judged by the seat's rule. New: the game `open_seat` in section 4 and 9.2's `games`, its lines and station messages in 6.1, a paragraph on its requests in [Connections](#connections), `open_seat` in 8.1, `open_seat_until` on 9.10's stations, and section 12's line on connection points. A refusal on accepting a seat's request answers `same_group` (8.10). |
 | 2026-11-16 | For the next version, after 0.14: the hint hunt, a station game (BAC-203). A tap at a hint hunt station opens a round for 30 seconds of tapping in, and a round needs 3 players from 2 groups. The Event Service picks the target at random from the players whose answers are fixed, and the station shows one of the target's answers as a hint at the start and every 10 seconds, up to four, sent as station messages. Any player who matches every hint shown wins with a tap, a miss costs one of 3 tries, and nobody winning within 10 seconds of the last hint loses the round. No answer names the target. New: the game `hint_hunt` in section 4 and 9.2's `games`, its idle lines in 6.2, its lines and station messages in 6.1, `GET /api/v1/map/hint-hunt` (9.22) with its own limit of 90 a minute, and its row in section 5. |
 | 2026-11-16 | For the next version, after 0.14: the hint hunt's gaps from the real-station check (BAC-208, HAR-55). The target can be any player who tapped in and has answered a question, whether or not a connection has fixed their answers, and a guess is judged against the player's answers when the tap arrives, so a round whose players haven't connected still plays (section 4 and 6.1). A guess counts from the second hint, or from the only one, and an earlier tap by a player costs no try and shows the hint screen. A win and a third miss each give a 2-second countdown that ends on the result's lines, so a miss's countdown no longer comes back after them. 9.22's `no_target` and section 13's map wording change to match. |
+| 2026-11-16 | For the next version, after 0.14: durable wakes for hint hunt steps (BAC-206). New: `POST /api/v1/station-wakes` on the GeekyKey Service (11.13), with `{ station_id, at }` and `202 { scheduled: true }`, and `POST /geekykey/v1/wake` on the Event Service (11.14), with `{ station_id }` and `204`. Both reuse the Event Service key. Section 6.1 adds alarms beside the timer and map poll, with one message attempt per step. Wake times persist in the station's existing object, failed callbacks use bounded alarm retries, and no firmware or socket frame changes. |
