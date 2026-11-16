@@ -50,11 +50,6 @@ export function answersGame(questions: readonly Question[]): ConnectionsAnswers 
       return shown(row?.choices ?? {});
     },
 
-    async fixedAnswersOf(db, userId) {
-      const [row] = await db.select().from(answers).where(eq(answers.userId, userId));
-      return row?.fixedAt ? shown(row.choices) : null;
-    },
-
     async setAnswers(tx, userId, given) {
       const row = await lockAnswers(tx, userId);
       // Showcase mode leaves answers open, so a demo can show another match (9.21). The next

@@ -67,12 +67,30 @@ it("shows full hints oldest first at the canonical booth, with tries and a polit
   expect(panel).not.toHaveTextContent(/Q3B|Q1B|Alex|Priya|avatar/);
 });
 
+// A guess counts from the second hint, or from the only one (agreement 6.1, BAC-208).
+it.each([
+  ["more hints to come", "2026-11-17T06:00:50.000Z", "Guessing opens with the second hint."],
+  ["the only hint", null, "Whoever matches every hint taps the station."],
+] as const)("with one hint and %s, says when a guess counts", async (_, next_hint_at, message) => {
+  const [first] = hintHuntPoll().hint_hunt!.rounds[0]!.hints;
+  setup(
+    stations,
+    hintHuntPoll({
+      hints: [first!],
+      next_hint_at,
+      ends_at: next_hint_at ? null : "2026-11-17T06:00:50.000Z",
+    }),
+  );
+  const panel = await screen.findByRole("region", { name: "Hint hunt Booth 1" });
+  expect(panel).toHaveTextContent(message);
+});
+
 it.each([
   ["won", "Found! Someone matched every hint."],
   ["lost_tries", "Not found. No tries left."],
   ["lost_time", "Not found. Time ran out."],
   ["too_few", "Not enough players. A round needs 3 from 2 groups."],
-  ["no_target", "No round. Nobody who tapped in has made a connection yet."],
+  ["no_target", "No round. Nobody who tapped in has answered the questions yet."],
 ] as const)("shows %s and keeps the hints beneath the result", async (ended_how, message) => {
   setup(
     stations,

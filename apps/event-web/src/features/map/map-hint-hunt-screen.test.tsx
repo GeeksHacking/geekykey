@@ -72,7 +72,7 @@ it.each([
   ["lost_tries", "Not found. No tries left."],
   ["lost_time", "Not found. Time ran out."],
   ["too_few", "Not enough players. A round needs 3 from 2 groups."],
-  ["no_target", "No round. Nobody who tapped in has made a connection yet."],
+  ["no_target", "No round. Nobody who tapped in has answered the questions yet."],
 ] as const)("shows %s on the map", async (ended_how, message) => {
   setup({ ended_how, ended_at: "2026-11-17T06:00:40.000Z", next_hint_at: null });
   const panel = await screen.findByRole("region", { name: "Hint hunt Booth 1" });

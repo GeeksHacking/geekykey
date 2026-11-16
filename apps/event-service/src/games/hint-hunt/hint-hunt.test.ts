@@ -230,31 +230,30 @@ for (const winner of ["player-one", "player-two"]) {
   test(`a matching ${winner} wins whether or not they were picked`, async () => {
     const h = await harness();
     await h.answer("player-one", { q1: "a", q2: "b" });
-    await h.answer("player-two", { q1: "a", q2: "a" });
+    await h.answer("player-two", { q1: "a", q2: "b" });
     await h.answer("player-three", { q1: "b", q2: "a" });
     await h.joinThree();
-    h.clock.advanceSeconds(30);
+    h.clock.advanceSeconds(40);
     const won = await h.tap(winner);
     assert.equal(won.status, "accepted");
     assert.deepEqual(won.lines, ["Found a match!", "Round won"]);
     assert.equal(won.complete, true);
-    assert.equal(won.countdown, undefined);
     assert.equal((await h.map()).hint_hunt!.rounds[0]!.ended_how, "won");
     h.clock.advanceSeconds(20);
     assert.deepEqual(
       (await h.map()).hint_hunt!.rounds[0]!.hints.map((hint) => hint.short),
-      ["Q1A"],
+      ["Q1A", "Q2B"],
     );
   });
 }
 
 test("three misses use the shared tries and a non-player costs none", async () => {
   const h = await harness();
-  await h.answer("player-one", { q1: "a", q2: "b" });
+  await h.answer("player-one", { q1: "a", q2: "b", q3: "a" });
   await h.answer("player-two", { q1: "b", q2: "a" });
   await h.answer("player-three", { q1: "b", q2: "a" });
   await h.joinThree();
-  h.clock.advanceSeconds(30);
+  h.clock.advanceSeconds(40);
   const outsider = await h.tap("outsider");
   assert.equal(outsider.status, "cooldown");
   assert.deepEqual(outsider.lines, ["Round running", "Join next one"]);
@@ -266,21 +265,70 @@ test("three misses use the shared tries and a non-player costs none", async () =
   ] as const) {
     const miss = await h.tap("player-two");
     assert.equal(miss.status, "cooldown");
-    assert.deepEqual(miss.lines, ["Q1A", secondLine]);
+    assert.deepEqual(miss.lines, ["Q1A Q2B", secondLine]);
     assert.deepEqual(miss.countdown, {
       seconds: 10,
-      lines: ["Q1A", secondLine],
-      ending: ["Q1A", "Next hint..."],
+      lines: ["Q1A Q2B", secondLine],
+      ending: ["Q1A Q2B", "Next hint..."],
     });
     assert.equal((await h.map()).hint_hunt!.rounds[0]!.tries_left, left);
   }
   const lost = await h.tap("player-three");
   assert.deepEqual(lost.lines, ["No match", "Round lost"]);
-  assert.equal(lost.countdown, undefined);
   assert.equal(lost.complete, undefined);
   const round = (await h.map()).hint_hunt!.rounds[0]!;
   assert.equal(round.tries_left, 0);
   assert.equal(round.ended_how, "lost_tries");
+});
+
+// The station drops a countdown from a station message when a tap is answered, never one from an
+// earlier tap. A miss's countdown would come back after the result's 2 seconds, so the result
+// brings its own, ending on its own lines (BAC-208).
+for (const { ending, misses, resultTapper, lines } of [
+  { ending: "a win", misses: 1, resultTapper: "player-one", lines: ["Found a match!", "Round won"] },
+  { ending: "a third miss", misses: 2, resultTapper: "player-three", lines: ["No match", "Round lost"] },
+]) {
+  test(`${ending} straight after a miss replaces the miss's countdown with its own lines`, async () => {
+    const h = await harness();
+    await h.answer("player-one", { q1: "a" });
+    await h.answer("player-two", { q1: "b" });
+    await h.answer("player-three", { q1: "b" });
+    await h.joinThree();
+    h.clock.advanceSeconds(30);
+    for (let i = 0; i < misses; i++) assert.ok((await h.tap("player-two")).countdown);
+    const result = await h.tap(resultTapper);
+    assert.deepEqual(result.lines, lines);
+    assert.deepEqual(result.countdown, { seconds: 2, lines, ending: lines });
+  });
+}
+
+// The first hint is the target's most widely shared answer, so HAR-55's rounds were won by the
+// first tap after it. A guess waits for the second hint, or the only one (BAC-208).
+test("a tap before the second hint shows the hint screen and neither wins nor costs a try", async () => {
+  const h = await harness();
+  await h.answer("player-one", { q1: "a", q2: "b" });
+  await h.answer("player-two", { q1: "a", q2: "b" });
+  await h.answer("player-three", { q1: "b", q2: "a" });
+  await h.joinThree();
+  h.clock.advanceSeconds(30);
+  for (const early of ["player-two", "player-three"]) {
+    const tap = await h.tap(early);
+    assert.equal(tap.status, "cooldown");
+    assert.deepEqual(tap.lines, ["Q1A", "Next hint 10s"]);
+    assert.deepEqual(tap.countdown, {
+      seconds: 10,
+      lines: ["Q1A", "Next hint {s}s"],
+      ending: ["Q1A", "Next hint..."],
+    });
+  }
+  let round = (await h.map()).hint_hunt!.rounds[0]!;
+  assert.equal(round.tries_left, 3);
+  assert.equal(round.ended_how, null);
+  h.clock.advanceSeconds(10);
+  assert.deepEqual((await h.tap("player-three")).lines, ["Q1A Q2B", "No! 2 tries left"]);
+  assert.equal((await h.tap("player-two")).status, "accepted");
+  round = (await h.map()).hint_hunt!.rounds[0]!;
+  assert.equal(round.ended_how, "won");
 });
 
 test("the last hint counts down to a timed loss and the next tap opens another round", async () => {
@@ -321,7 +369,9 @@ test("the map's answer, station screens and station messages contain no player's
   assert.ok(!serialized.includes("Secret name"));
 });
 
-test("only joined players with fixed current answers can be picked and an unfixed guess misses", async () => {
+// A connection fixes answers, and HAR-55's first rounds ended with no target because nobody who
+// tapped in had connected yet. Answers fixed or not now both count (BAC-208).
+test("joined players with current answers can be picked, fixed or not, and outsiders can't", async () => {
   const choices: string[][] = [];
   const h = await harness({
     pickTarget: (ids) => {
@@ -330,7 +380,7 @@ test("only joined players with fixed current answers can be picked and an unfixe
     },
   });
   await h.answer("player-one", { q1: "a" }, false);
-  await h.answer("player-two", { q1: "a" });
+  await h.answer("player-two", { q1: "b" });
   await h.answer("player-three", { retired: "a" });
   await h.answer("outsider", { q1: "b" });
   await h.joinThree();
@@ -338,25 +388,37 @@ test("only joined players with fixed current answers can be picked and an unfixe
   assert.deepEqual((await h.map()).hint_hunt!.rounds[0]!.hints, [
     { question: "Full question 1?", choice: "Full choice A", short: "Q1A" },
   ]);
-  assert.deepEqual(choices, [["player-two"]]);
-  const miss = await h.tap("player-one");
-  assert.deepEqual(miss.lines, ["Q1A", "No! 2 tries left"]);
-  assert.equal(miss.status, "cooldown");
+  assert.deepEqual(choices, [["player-one", "player-two"]]);
 });
 
-for (const fixed of [true, false]) {
-  test(`a round with no eligible target ends even when outsider answers are fixed and joined answers are ${fixed ? "removed" : "unfixed"}`, async () => {
-    const h = await harness();
-    await h.answer("outsider", { q1: "b" });
-    await h.answer("player-one", fixed ? { retired: "a" } : { q1: "a" }, fixed);
-    await h.joinThree();
-    h.clock.advanceSeconds(30);
-    const round = (await h.map()).hint_hunt!.rounds[0]!;
-    assert.equal(round.ended_how, "no_target");
-    assert.deepEqual(round.hints, []);
-    assert.deepEqual(h.messages.at(-1)!.lines, ["No answers yet", "Round over"]);
-  });
-}
+test("a round whose players haven't connected picks a target and an unfixed guess that matches wins", async () => {
+  const h = await harness({ pickTarget: () => "player-three" });
+  await h.answer("player-one", { q1: "a" }, false);
+  await h.answer("player-two", { q1: "b" }, false);
+  await h.answer("player-three", { q1: "a" }, false);
+  await h.joinThree();
+  h.clock.advanceSeconds(30);
+  assert.deepEqual(
+    (await h.map()).hint_hunt!.rounds[0]!.hints.map((hint) => hint.short),
+    ["Q1A"],
+  );
+  assert.deepEqual((await h.tap("player-two")).lines, ["Q1A", "No! 2 tries left"]);
+  const won = await h.tap("player-one");
+  assert.equal(won.status, "accepted");
+  assert.deepEqual(won.lines, ["Found a match!", "Round won"]);
+});
+
+test("a round where no player who tapped in has answered ends with no target", async () => {
+  const h = await harness();
+  await h.answer("outsider", { q1: "b" });
+  await h.answer("player-one", { retired: "a" }, false);
+  await h.joinThree();
+  h.clock.advanceSeconds(30);
+  const round = (await h.map()).hint_hunt!.rounds[0]!;
+  assert.equal(round.ended_how, "no_target");
+  assert.deepEqual(round.hints, []);
+  assert.deepEqual(h.messages.at(-1)!.lines, ["No answers yet", "Round over"]);
+});
 
 test("three players from one group still end with the minimum-player message", async () => {
   const h = await harness();
@@ -508,7 +570,7 @@ test("the map shows only the latest round at each enabled station in station cre
   assert.deepEqual(await h.map(), { hint_hunt: { rounds: [] } });
 });
 
-test("stored hints survive changed answers and a guess uses the player's current fixed answers", async () => {
+test("stored hints survive changed answers and a guess uses the player's current answers", async () => {
   const h = await harness();
   await h.answer("player-one", { q1: "a", q2: "b" });
   await h.answer("player-two", { q1: "a", q2: "b" });
@@ -516,8 +578,8 @@ test("stored hints survive changed answers and a guess uses the player's current
   h.clock.advanceSeconds(30);
   await h.map();
   await h.answer("player-one", { q1: "b", q2: "a" });
-  assert.deepEqual((await h.tap()).lines, ["Q1A", "No! 2 tries left"]);
   h.clock.advanceSeconds(10);
+  assert.deepEqual((await h.tap()).lines, ["Q1A Q2B", "No! 2 tries left"]);
   assert.deepEqual(
     (await h.map()).hint_hunt!.rounds[0]!.hints.map((hint) => hint.short),
     ["Q1A", "Q2B"],
