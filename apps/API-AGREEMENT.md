@@ -180,6 +180,7 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
 | GeekyKey Service | Each user's token lookups, claims and meetings (8.8), which also count toward the 60 | 20 |
 | Event Service | Each user's requests to its API | 60, counted by each server instance |
 | Event Service | Each user's polls of the relay's progress, `GET /api/v1/map/relay` (9.13), which don't count toward the 60 (BAC-184) | 90, counted by each server instance |
+| Event Service | For the next version, after 0.14: each user's polls of the hint hunt, `GET /api/v1/map/hint-hunt` (9.22), which count toward neither the 60 nor the relay's 90 (BAC-203) | 90, counted by each server instance |
 
 - The station limit counts a request by the key it sends, before the key is checked. So a wrong
   key is counted too, and over the limit it gets `429` rather than `401`. A request with no key
@@ -211,6 +212,8 @@ once it is passed answers `429` with `{"error": "rate_limited"}` and `Retry-Afte
   and doesn't count toward the 60 (BAC-184). The map polls it every second,
   which with the map's own 30 would pass the 60. Its count leaves room for those 60 polls, and
   still answers `429` to a screen polling it in a loop.
+- For the next version, after 0.14, the hint hunt's rounds, `GET /api/v1/map/hint-hunt` (9.22),
+  have a count of their own too, 90 a minute, for the same reason (BAC-203).
 - Each Event Service server instance keeps its own count, so a user whose requests reach two
   instances can get up to 120 a minute through.
 
@@ -450,6 +453,16 @@ list of games is in the Event Service's code, so it changes only with a deploy.
   is taken or closed. It gives no points and no stamp. Its lines are in 6.1, `/me` gives the
   sitter and the taker their seat (8.1), and the map marks the station with an open seat (9.10).
   Its `id` is `open_seat` and its `name` is "Open seat".
+- For the next version, after 0.14 (BAC-203), the **hint hunt** runs on any station set to it,
+  one round at a time on each. A tap opens a round for 30 seconds of tapping in, and needs three
+  players from two groups. The Event Service then picks the **target** at random from the players
+  who tapped in and whose answers are fixed, and the station shows a **hint**, one of the target's
+  answers, at the start and every 10 seconds after, up to four. A tap by any player who matches
+  every hint shown wins. A player who doesn't match costs one of three tries, and a round nobody
+  wins within 10 seconds of its last hint is lost. Neither the station nor the map ever says who
+  the target was, and no answer about the game carries a player's user ID, name or token UID. It
+  gives no points, no stamp and no connection. Its lines and station messages are in 6.1, and the
+  map reads each round from 9.22. Its `id` is `hint_hunt` and its `name` is "Hint hunt".
 - Stations created before version 0.7 with passport settings run the passport.
 
 ### Connections
@@ -704,6 +717,7 @@ them.
 | PUT | `/api/v1/admin/groups/phrase` | Organizer | `Checkpoint 7` | Set the phrase, or turn it off |
 | GET | `/api/v1/map` | Organizer, map screen | `Implemented` | Each station's game, booth and counts, for the map |
 | GET | `/api/v1/map/relay` | Organizer, map screen | `Checkpoint 8` | The relay's progress, for the map (BAC-184) |
+| GET | `/api/v1/map/hint-hunt` | Organizer, map screen | Next version, after 0.14 | Each station's hint hunt round, for the map (BAC-203) |
 
 ---
 
@@ -878,6 +892,45 @@ sitter's and the taker's first names.
   seat that closed meanwhile isn't opened or taken.
 - The wording can change.
 
+**The hint hunt's lines** (for the next version, after 0.14, BAC-203). The hint hunt runs on every
+station whose game is `hint_hunt`, one round at a time on each, and each one's idle screen is
+`Hint hunt` / `Tap to join`. In the table, `3` is the number of players in so far, and `Q3B Q1A`
+are the hints shown so far.
+
+| The tap | Status | `lines` | `countdown` |
+|---|---|---|---|
+| Joins, opening a round when none is open | `accepted` | `Hint hunt` / `3 in, 30s left` | `Hint hunt` / `3 in, {s}s left` to the end of tapping in, ending `Hints coming` / blank |
+| By a player already in, while tapping in | `cooldown` | `Already in` / `3 in, 21s left` | as the joining tap's |
+| By someone in no group, opening or joining | `cooldown` | `Join a group` / `on your phone` | none |
+| By someone who isn't a player, while a round runs | `cooldown` | `Round running` / `Join next one` | as the hint screen's |
+| By a player who matches every hint shown | `accepted`, with `complete` | `Found a match!` / `Round won` | none |
+| By a player who doesn't match, with tries left | `cooldown` | `Q3B Q1A` / `No! 2 tries left` | `Q3B Q1A` / `No! 2 tries left` to the next hint, ending as the hint screen's |
+| By a player who doesn't match, on the third try | `cooldown` | `No match` / `Round lost` | none |
+
+- **The hint screen** is a countdown: `Q3B Q1A` / `Next hint {s}s` to the next hint, ending
+  `Q3B Q1A` / `Next hint...`. Once the last hint shows it is `Q3B Q1A Q5A Q2B` /
+  `Last! {s}s left` to the round's end, ending `Time's up` / `Round lost`. `lines` say the same
+  with the seconds written in.
+- A hint's short form is the question's number in the answers game's list and the choice's letter
+  in its question, from `A`. Hints that don't fit the line lose their `Q`s, then the oldest hints.
+- The round starts when tapping in ends, and needs 3 players from 2 groups. Without them it ends,
+  and the station gets `Need 3 players` / `from 2 groups` as a station message (6.3, 11.12). With
+  no player whose answers are fixed, it gets `No answers yet` / `Round over`.
+- Each new hint goes to the station as a station message, with the hint screen's countdown and
+  `beep`, and the round's end on time as `Time's up` / `Round lost`. A message is sent once, by
+  whichever comes first of a poll of 9.22 and the Event Service's own timer, and none is sent for
+  a round that has ended. Which hints are shown, and when a round is lost, go by the clock alone,
+  so a dropped message changes nothing.
+- A tap at a station whose round has ended opens a new one. Its answer replaces the old round's
+  last screen, so the station gets no message about the old round.
+- Several players may match, and any of them wins. A player whose answers aren't fixed yet can
+  tap in, is never the target, and their guess is a miss. Lines never name a player.
+- The hint hunt judges a tap by when the Event Service received it, or by when its round started
+  or ended if a poll or the timer took that step while the tap waited. A tap received before its
+  round started costs no try and shows the hint screen, and one received before its round ended
+  opens the next.
+- The wording can change.
+
 **How a tap is answered, from checkpoint 3**
 
 1. The GeekyKey Service checks the key against its copy of every Event Service's registered
@@ -1013,7 +1066,8 @@ whether the reader works.
   is at most a minute old. So a change of the station's game reaches the idle screen within about
   two minutes: up to one for the copy, and up to one for the next heartbeat. Ours gives
   `Passport` / `Tap your token`, `Team duels` / `Tap to join` and `Relay` / `Tap to start`
-  (BAC-184). The wording can change.
+  (BAC-184), and for the next version, after 0.14, `Open seat` / `Tap to sit` (BAC-190) and
+  `Hint hunt` / `Tap to join` (BAC-203). The wording can change.
 - Every 60 seconds also keeps the HTTPS connection open, since Cloudflare closes an idle one
   after 400 seconds.
 - The GeekyKey Service answers as soon as the key is checked, and passes the other fields to the
@@ -2793,6 +2847,67 @@ Added in 0.14 (BAC-169). Set the phrase, or turn it off ([Groups](#groups)).
 **Errors:** `unauthenticated`, `forbidden`, `validation_failed` for a phrase outside the limits,
 and `rate_limited` ([Rate limits](#rate-limits)).
 
+### 9.22 `GET /api/v1/map/hint-hunt` (for the next version, after 0.14)
+
+Added for BAC-203. 9.21 is showcase mode's (BAC-202). What the map shows of the hint hunt
+([Games](#games)): each station's latest round, with the hints shown so far in full. It's apart
+from 9.10 so the map can ask for it every second, as it asks for the relay's (9.13).
+
+**Auth:** as 9.10's, for a user on the organizer list or the map screen list. It has a limit of
+its own, 90 a minute, and doesn't count toward the user's 60 or the relay's 90
+([Rate limits](#rate-limits)).
+
+**Response `200`**
+
+```json
+{
+  "hint_hunt": {
+    "rounds": [
+      {
+        "station_id": "ca939e19-8216-4b95-8375-5b54e543c5f6",
+        "opened_at": "2026-11-17T06:00:00.000Z",
+        "joining_until": "2026-11-17T06:00:30.000Z",
+        "players": 5,
+        "started_at": "2026-11-17T06:00:30.000Z",
+        "hints": [
+          { "question": "Where do you get your best ideas?", "choice": "In the shower", "short": "Q3B" },
+          { "question": "Coffee or tea?", "choice": "Tea", "short": "Q1B" }
+        ],
+        "tries_left": 2,
+        "next_hint_at": "2026-11-17T06:00:50.000Z",
+        "ends_at": null,
+        "ended_at": null,
+        "ended_how": null
+      }
+    ]
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `hint_hunt` | `null` for an event without the hint hunt |
+| `hint_hunt.rounds` | The latest round, running or ended, of each enabled station whose game is `hint_hunt`, oldest station first. A station with no round yet is left out |
+| `opened_at`, `joining_until` | When the first tap opened the round, and when tapping in ends, 30 seconds later |
+| `players` | How many have tapped in |
+| `started_at` | When the round started, at `joining_until`, or `null` while tapping in or when it ended before starting |
+| `hints` | The hints shown so far, oldest first, each with the question's and the choice's full wording and the station's short form (6.1). Empty until the round starts |
+| `tries_left` | 3 at the start, one fewer for each miss |
+| `next_hint_at` | When the next hint shows, or `null` once the last has shown or the round has ended |
+| `ends_at` | Once the last hint has shown, when the round is lost if nobody wins, 10 seconds later. Otherwise `null` |
+| `ended_at` | When the round ended, or `null` while it runs |
+| `ended_how` | `won`, `lost_tries` after three misses, `lost_time` when nobody won in time, `too_few` without 3 players from 2 groups, `no_target` with no player whose answers are fixed, or `null` while it runs |
+
+- The answer has no user ID, display name, group or token UID, and fields added later won't
+  either. Nothing in it tells which player was the target, and the Event Service doesn't keep
+  who the target was.
+- A poll also sends any station message that is due (6.1), so the stations' hints keep time
+  while the map is shown.
+- Poll this every second while the map is shown.
+
+**Errors:** `unauthenticated` and `forbidden`, as 9.10's, and `rate_limited` past its own 90 a
+minute ([Rate limits](#rate-limits)).
+
 ---
 
 ## 10. GeekyKey admin endpoints
@@ -3855,3 +3970,4 @@ Closed on 2026-10-10:
 | 2026-11-14 | Added to 0.14, still a draft: section 13 has the three lines under the dashboard's avatar, for loading and for when 3D can't run or load (FRO-164). The code comments that called 0.14's shapes drafts now name the version. No endpoint or shape changes (BAC-137). |
 | 2026-11-14 | For the next version, after 0.14: the Event Service keeps each person's avatar look per event (BAC-191). New fields are `user.avatar`, `connections[].avatar` and `connection_requests[].avatar` in 8.1, `avatar` in 8.7's request and `user.avatar` in its answer, and `owner_avatar` in 8.8 and 11.10 for every status. The look has `character`, `skin`, `hair` and `suit`, or is `null` for none. 8.7 sets the shape and value rules, with `400 validation_failed` under `["avatar"]` or one of its keys, accepts `null` to clear it, and lets `avatar` be the only PATCH field. The look goes to the same people as the bio, without earned pieces, and the evening-before clear removes it with the user. The organizers' screens, the export and the map get none. Screens read missing fields as `null` and draw their default for an unknown value. The GeekyKey Service stores no looks, drops unknown keys inside a look, and reads a missing or unreadable `owner_avatar` as `null` without making the meeting unavailable. An `unavailable` item has `owner_avatar: null`. Deploy both services before screens that send `avatar`, since an older Event Service refuses a PATCH with only that field. No field or route is removed, and section 13 is unchanged. |
 | 2026-11-14 | For the next version, after 0.14: the open seat, a station game (BAC-190). A tap at an open seat station opens a seat for 60 seconds, the other open seat stations say where it is with no name, and someone from another group, or with none, takes it at the same station, which sends the sitter a connection request judged by the seat's rule. New: the game `open_seat` in section 4 and 9.2's `games`, its lines and station messages in 6.1, a paragraph on its requests in [Connections](#connections), `open_seat` in 8.1, `open_seat_until` on 9.10's stations, and section 12's line on connection points. A refusal on accepting a seat's request answers `same_group` (8.10). |
+| 2026-11-16 | For the next version, after 0.14: the hint hunt, a station game (BAC-203). A tap at a hint hunt station opens a round for 30 seconds of tapping in, and a round needs 3 players from 2 groups. The Event Service picks the target at random from the players whose answers are fixed, and the station shows one of the target's answers as a hint at the start and every 10 seconds, up to four, sent as station messages. Any player who matches every hint shown wins with a tap, a miss costs one of 3 tries, and nobody winning within 10 seconds of the last hint loses the round. No answer names the target. New: the game `hint_hunt` in section 4 and 9.2's `games`, its idle lines in 6.2, its lines and station messages in 6.1, `GET /api/v1/map/hint-hunt` (9.22) with its own limit of 90 a minute, and its row in section 5. |

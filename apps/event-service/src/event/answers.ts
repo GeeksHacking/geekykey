@@ -33,6 +33,8 @@ export interface AnswersGame {
   readonly questions: readonly Question[];
   /** The user's answers, to the questions and choices still on the list. */
   answersOf(db: Db | Tx, userId: string): Promise<Answers>;
+  /** The user's answers once their first connection has fixed them (8.7), otherwise null. The hint hunt's target needs them (BAC-203). */
+  fixedAnswersOf(db: Db | Tx, userId: string): Promise<Answers | null>;
   /**
    * Sets the answers in `given`, which has passed answersSchema(), keeping the
    * user's others, and gives all their answers after. Once their first

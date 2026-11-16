@@ -1,3 +1,4 @@
+import { hintHuntPlayers, hintHuntRounds } from "../src/games/hint-hunt/schema.ts";
 /**
  * A row in every table the clear's lists name, as after a real session. The
  * clear's tests and the copy tests use it. A table added to a list needs a row
@@ -96,5 +97,15 @@ export async function fillEveryTable() {
     takenAt: AT,
     prompt: ["What are you", "building?"],
   });
+  const hintHuntRoundId = crypto.randomUUID();
+  await db.insert(hintHuntRounds).values({
+    id: hintHuntRoundId,
+    stationId,
+    openedAt: AT,
+    joiningUntil: AT,
+    hints: [{ questionId: "q1", choiceId: "a" }],
+    triesLeft: 3,
+  });
+  await db.insert(hintHuntPlayers).values({ roundId: hintHuntRoundId, userId });
   return fixture;
 }

@@ -391,6 +391,7 @@ test("the showcase offers Relay and its registered stations have the relay idle 
     { id: "team_duels", name: "Team duels" },
     { id: "relay", name: "Relay" },
     { id: "open_seat", name: "Open seat" },
+    { id: "hint_hunt", name: "Hint hunt" },
   ]);
   const registered = await app.request("/geekykey/v1/stations", {
     headers: { Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}` },

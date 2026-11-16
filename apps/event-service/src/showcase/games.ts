@@ -1,3 +1,4 @@
+import { hintHuntGame } from "../games/hint-hunt/hint-hunt.ts";
 import { relayGame } from "../games/relay/relay.ts";
 import { teamDuelsGame } from "../games/team-duels/team-duels.ts";
 import type { GameDeps, GameOnStations } from "../event/games.ts";
@@ -16,4 +17,5 @@ export const showcaseGames = (deps: GameDeps): readonly GameOnStations[] => [
   { game: showcaseTeamDuels, stations: "chosen", name: "Team duels" },
   { game: relayGame(deps), stations: "chosen", name: "Relay" },
   { game: openSeatGame(deps), stations: "chosen", name: "Open seat" },
+  { game: hintHuntGame(deps), stations: "chosen", name: "Hint hunt" },
 ];

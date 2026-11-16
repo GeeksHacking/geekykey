@@ -2857,3 +2857,13 @@
     frees their tokens. The trade-offs we accept: a repeat replaces the pair's connection rather
     than adding one, and a reset deletes the participants the showcase's step count reads, so we
     back up the database first.
+
+- id: hint-hunt-station-game # BAC-203
+  date: 2026-11-16
+  area: backend
+  change: >-
+    A fifth station game, the hint hunt, is built on the Event Service: players tap in, and the
+    station shows hints from one player's answers every 10 seconds until someone who matches taps.
+    The trade-offs we accept: the game shows a player's answers before anyone connects, so only a
+    player who tapped in can be the target, nobody is told who it was, and it joins the showcase
+    only once it passes on a real station (HAR-55).

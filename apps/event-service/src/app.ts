@@ -1,3 +1,4 @@
+import { isHintHuntGame } from "./event/hint-hunt.ts";
 import { type GoogleSigningKeys, googleSigningKeys } from "@geekykey/firebase-login";
 import { loginLinks } from "@geekykey/login-link";
 import { createBaseApp } from "./base-app.ts";
@@ -21,7 +22,11 @@ import type { SessionOptions } from "./event/session-auth.ts";
 import { stationMessages } from "./event/station-messages.ts";
 import { participantIsReady } from "./event/participant-setup.ts";
 import { isOpenSeatGame } from "./event/open-seat.ts";
-import { RELAY_POLLS_PER_MINUTE, userLimit } from "./event/user-limit.ts";
+import {
+  HINT_HUNT_POLLS_PER_MINUTE,
+  RELAY_POLLS_PER_MINUTE,
+  userLimit,
+} from "./event/user-limit.ts";
 import type { TeamDuelsGame } from "./event/team-duels.ts";
 import { showcaseTeamDuels, showcaseGames } from "./showcase/games.ts";
 import { showcaseAnswers, showcaseConnections } from "./showcase/questions.ts";
@@ -106,6 +111,9 @@ export function createApp(
 
   const messages = stationMessages(config, { send });
   const games = gamesForEvent({
+    db,
+    now: now ?? (() => new Date()),
+    answers,
     stationMessages: messages,
     connections,
     // As the meeting hand-off judges setup (handoff-routes.ts): organizers need none.
@@ -158,6 +166,8 @@ export function createApp(
       connections,
       relay: games.map((entry) => entry.game).find(isRelayGame) ?? null,
       relayLimit: userLimit(now, RELAY_POLLS_PER_MINUTE),
+      hintHunt: games.map((entry) => entry.game).find(isHintHuntGame) ?? null,
+      hintHuntLimit: userLimit(now, HINT_HUNT_POLLS_PER_MINUTE),
       openSeat,
       now,
     }),

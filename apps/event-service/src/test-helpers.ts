@@ -19,13 +19,6 @@ import { generateStationKey, hashStationKey } from "./event/station-keys.ts";
 
 import { showcaseGames as gamesForShowcase } from "./showcase/games.ts";
 
-/** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
-export const showcaseGames = gamesForShowcase({
-  stationMessages: { send: async () => "off" },
-  connections: null,
-  isReady: async () => true,
-});
-
 /** One of the Event screens' checks of an answer, from apps/event-web/src/api/schemas.ts. */
 export interface ScreensSchema {
   parse(input: unknown): unknown;
@@ -84,6 +77,16 @@ export const TEST_FIREBASE_PROJECT_ID = "geekykey-test";
 /** One pool to geekykey_test for each test file, closed once its tests are done. */
 const testPool = createDbPool(localDatabaseUrl("geekykey_test"));
 afterAll(testPool.close);
+
+/** The games testApp() runs, for a test of the base that builds its own TapPipeline. */
+export const showcaseGames = gamesForShowcase({
+  stationMessages: { send: async () => "off" },
+  connections: null,
+  answers: null,
+  db: testDb(),
+  now: () => new Date(),
+  isReady: async () => true,
+});
 
 /**
  * Another pool to geekykey_test, with its own connections, as a second

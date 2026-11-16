@@ -519,7 +519,10 @@ test("the showcase offers Open seat, and its stations get the open seat's idle s
   });
   const body = (await board.json()) as { games: { id: string; name: string }[] };
   screensSchemas.eventStationBoardResponseSchema.parse(body);
-  assert.deepEqual(body.games.at(-1), { id: "open_seat", name: "Open seat" });
+  assert.deepEqual(
+    body.games.find((game) => game.id === "open_seat"),
+    { id: "open_seat", name: "Open seat" },
+  );
   const registered = await h.app.request("/geekykey/v1/stations", {
     headers: { Authorization: `Bearer ${TEST_EVENT_SERVICE_KEY}` },
   });
