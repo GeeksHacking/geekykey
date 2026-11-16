@@ -2875,3 +2875,13 @@
     Organisers can set a station to the hint hunt, and the map shows each hint in full with the
     tries left, a countdown and whether someone was found, never who. The answers step now says
     that answers may become hints, and only for someone who taps in to play.
+
+- id: hint-hunt-real-station-gaps # BAC-208
+  date: 2026-11-16
+  area: backend
+  change: >-
+    The hint hunt now picks its target from anyone who tapped in and answered a question, so a round
+    of participants who haven't connected yet plays instead of ending with no target. A guess counts
+    from the second hint, and a win or a final miss no longer lets an old hint come back on the
+    station. The trade-offs we accept: a player could change an answer mid-round to match the
+    hints, which is unlikely in a 40-second round.

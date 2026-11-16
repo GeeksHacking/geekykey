@@ -284,8 +284,8 @@ _Avoid_: question, which means one of the answers game's questions; icebreaker
 A station game where the station shows hints from one player's answers, and people from every group
 ask each other what they picked until someone who matches taps the station. Players tap in during a
 30 second window, and a round needs three players from two groups. The station shows a hint when
-the round starts and another every 10 seconds, up to four. A tap by any player who matches every
-hint shown so far wins. A tap by a player who doesn't match costs one of the round's three tries,
+the round starts and another every 10 seconds, up to four. From the second hint, or from the only
+one, a tap by any player who matches every hint shown so far wins (BAC-208). A tap by a player who doesn't match costs one of the round's three tries,
 and the round is lost after three misses, or when nobody wins within 10 seconds of the last hint.
 It gives no points, stamps or connections (BAC-203).
 It is the one game that shows an answer before two people connect, which the prompt avoids, and it
@@ -295,8 +295,8 @@ _Avoid_: hunt, which was BAC-121's game of one person to find; quiz
 
 **Target**:
 The player whose answers a hint hunt round's hints come from. The Event Service picks one at random
-from the players who tapped in and whose answers are fixed, so nobody who didn't tap in is ever
-the target. Nobody is told who it was, in a win or a loss.
+from the players who tapped in and have answered a question, whether or not a connection has fixed
+their answers, so nobody who didn't tap in is ever the target (BAC-208). Nobody is told who it was, in a win or a loss.
 _Avoid_: seeker, which is the person asking the questions; answer key
 
 **Hint**:
