@@ -1,3 +1,4 @@
+import type { HintHuntGame } from "./hint-hunt.ts";
 import { Hono } from "hono";
 import type { AppEnv } from "../app.ts";
 import type { ConnectionsGame } from "./connections.ts";
@@ -15,6 +16,8 @@ import {
 export interface MapRouteDeps {
   session: SessionOptions;
   relay: RelayGame | null;
+  hintHunt?: HintHuntGame | null;
+  hintHuntLimit?: UserLimit;
   /** The relay poll's own count, apart from the user's 60 a minute (9.13). */
   relayLimit: UserLimit;
   /** The event's open seat, or null for an event without it, whose stations have no `open_seat_until`. */
@@ -49,6 +52,8 @@ export function mapRoutes({
   connections,
   relay,
   relayLimit,
+  hintHunt = null,
+  hintHuntLimit,
   openSeat = null,
   now = () => new Date(),
 }: MapRouteDeps) {
@@ -60,6 +65,16 @@ export function mapRoutes({
     requireMapReader(session),
     async (c) => {
       return c.json({ relay: relay ? await relay.mapState(c.var.db, now()) : null });
+    },
+  );
+
+  // The hint hunt's one-second poll has its own count too (9.22, next version after 0.14).
+  app.get(
+    "/hint-hunt",
+    requireSession(session, { limit: hintHuntLimit }),
+    requireMapReader(session),
+    async (c) => {
+      return c.json({ hint_hunt: hintHunt ? await hintHunt.mapState(c.var.db, now()) : null });
     },
   );
 

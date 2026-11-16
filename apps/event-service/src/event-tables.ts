@@ -1,3 +1,4 @@
+import { hintHuntPlayers, hintHuntRounds } from "./games/hint-hunt/schema.ts";
 import type { MySqlTable } from "drizzle-orm/mysql-core";
 import { tokenKinds, tokens } from "./claims-stand-in/schema.ts";
 import {
@@ -31,6 +32,8 @@ import { openSeatLock, openSeats } from "./games/open-seat/schema.ts";
 /** The event's own data: the taps, every claim, every game's records, and the people. */
 export const clearedTables: readonly MySqlTable[] = [
   taps,
+  hintHuntPlayers,
+  hintHuntRounds,
   relayTransfers,
   relayGames,
   relayLock,

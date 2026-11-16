@@ -239,6 +239,13 @@
       "when": 1794800296986,
       "tag": "0033_event_settings_keep_showcase_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "5",
+      "when": 1794835964853,
+      "tag": "0034_hint_hunt_rounds_keep_hints_and_tries",
+      "breakpoints": true
     }
   ]
 }

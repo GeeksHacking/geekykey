@@ -1,4 +1,5 @@
 import type { Countdown } from "@geekykey/handoff";
+import type { AnswersGame } from "./answers.ts";
 import type { Db } from "../db/pool.ts";
 import type { ConnectionsGame, ReadyToConnect } from "./connections.ts";
 import type { StationMessages } from "./station-messages.ts";
@@ -119,6 +120,9 @@ export interface Game {
  * connection requests, as the open seat's do (BAC-190).
  */
 export interface GameDeps {
+  db: Db;
+  now: () => Date;
+  answers: AnswersGame | null;
   stationMessages: StationMessages;
   /** The event's connections game, or null for an event without one. */
   connections: ConnectionsGame | null;

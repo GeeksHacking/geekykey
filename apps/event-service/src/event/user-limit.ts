@@ -7,6 +7,9 @@ const USER_REQUESTS_PER_MINUTE = 60;
  */
 export const RELAY_POLLS_PER_MINUTE = 90;
 
+/** The hint hunt's map poll, counted apart from the 60 and the relay's (the API agreement's 9.22, BAC-203). */
+export const HINT_HUNT_POLLS_PER_MINUTE = 90;
+
 const MINUTE_MS = 60_000;
 
 /** Counts each user's requests to the API, and says when one is over the limit. */
