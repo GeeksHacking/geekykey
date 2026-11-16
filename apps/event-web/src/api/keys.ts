@@ -17,6 +17,7 @@ export const queryKeys = {
   stats: ["stats"] as const,
   map: ["map"] as const,
   mapRelay: ["mapRelay"] as const,
+  mapHintHunt: ["mapHintHunt"] as const,
   myGroup: ["myGroup"] as const,
   groupBoard: ["groupBoard"] as const,
 };

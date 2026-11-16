@@ -536,6 +536,25 @@ export interface MapRelayResponse {
   };
 }
 
+/** GET /api/v1/map/hint-hunt (agreement 9.22). No player identities. */
+export interface MapHintHuntResponse {
+  hint_hunt: { rounds: HintHuntRound[] } | null;
+}
+
+export interface HintHuntRound {
+  station_id: string;
+  opened_at: string;
+  joining_until: string;
+  players: number;
+  started_at: string | null;
+  hints: { question: string; choice: string; short: string }[];
+  tries_left: number;
+  next_hint_at: string | null;
+  ends_at: string | null;
+  ended_at: string | null;
+  ended_how: "won" | "lost_tries" | "lost_time" | "too_few" | "no_target" | null;
+}
+
 /** How someone came to be in their group (spec: participant groups, agreement 0.14). */
 export type GroupPlacedHow = "allocated" | "latecomer" | "organizer";
 

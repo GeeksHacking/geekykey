@@ -48,6 +48,9 @@ const FIRST_CHOICES = [
   "Something that makes everyday life easier",
 ];
 
+const HINT_HUNT_NOTICE =
+  "Your answers may be used as hints in the hint hunt, a station game, but only if you tap in to play it.";
+
 /** Names the guest and answers every question, so the bio step is next. */
 async function finishNameAndAnswers(user: ReturnType<typeof userEvent.setup>) {
   await user.type(await screen.findByRole("textbox", { name: "Name" }), "Mei Lin");
@@ -114,9 +117,12 @@ it("a participant who skipped before must save a name and every answer before se
   for (const choice of FIRST_CHOICES) {
     expect(screen.queryByText("Dashboard and group card")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /skip/i })).not.toBeInTheDocument();
-    await user.click(await screen.findByRole("button", { name: choice }));
+    const answer = await screen.findByRole("button", { name: choice });
+    expect(screen.getByText(HINT_HUNT_NOTICE)).toBeInTheDocument();
+    await user.click(answer);
   }
   expect(await screen.findByText("Dashboard and group card")).toBeInTheDocument();
+  expect(screen.queryByText(HINT_HUNT_NOTICE)).not.toBeInTheDocument();
 });
 
 // FRO-138. After `answers_needed`, no half is kept, so the guest finishes setup and must

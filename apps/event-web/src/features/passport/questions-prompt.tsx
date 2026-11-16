@@ -5,7 +5,12 @@ import type { Question } from "@/api/types";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { Button } from "@/components/ui/button";
 import { AnswersSummary } from "@/features/passport/answers-summary";
-import { answerAllSentence, nextQuestion, questionPosition } from "@/features/passport/answers";
+import {
+  answerAllSentence,
+  HINT_HUNT_NOTICE,
+  nextQuestion,
+  questionPosition,
+} from "@/features/passport/answers";
 import { QuestionStep } from "@/features/passport/question-step";
 import { useUpdateMe } from "@/features/passport/use-update-me";
 
@@ -129,6 +134,7 @@ export function QuestionsPrompt({
           <p className="mt-1 text-sm text-muted-foreground">
             {answerAllSentence(questions.length)}
           </p>
+          <p className="mt-2 text-sm text-muted-foreground">{HINT_HUNT_NOTICE}</p>
           {current ? (
             <QuestionStep
               question={current}

@@ -15,6 +15,7 @@ import type {
   ListTapsResponse,
   MapResponse,
   MapRelayResponse,
+  MapHintHuntResponse,
   MeResponse,
   MyGroupResponse,
   GeekykeyLoginLinkResponse,
@@ -156,6 +157,9 @@ export interface ApiClient {
 
   /** GET /api/v1/map/relay (9.13), with the same read-only roles as map. */
   mapRelay(): Promise<MapRelayResponse>;
+
+  /** GET /api/v1/map/hint-hunt (9.22), with the same read-only roles as map. */
+  mapHintHunt(): Promise<MapHintHuntResponse>;
 
   /**
    * GET /api/v1/me/group (agreement 0.14). Whether the current user has joined, and

@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BOOTH_PLAN } from "@/features/map/floor-plan";
 import { MapConnections } from "@/features/map/map-connections";
 import { MapForbidden } from "@/features/map/map-forbidden";
+import { hintHuntStations } from "@/features/map/hint-hunt";
+import { MapHintHunt } from "@/features/map/map-hint-hunt";
 import { MapRelay } from "@/features/map/map-relay";
 import { MapPlan } from "@/features/map/map-plan";
 import { placeStations } from "@/features/map/place-stations";
@@ -17,6 +19,7 @@ import { useMap } from "@/features/map/use-map";
 import { useOpenSeatMarks } from "@/features/map/use-open-seat-marks";
 import { formatTimeWithSeconds } from "@/lib/format";
 import { showStaleNote } from "@/lib/rate-limit";
+import { cn } from "@/lib/utils";
 import { useSignOut } from "@/lib/use-sign-out";
 
 const plan = BOOTH_PLAN;
@@ -66,43 +69,56 @@ export function MapScreen() {
   } else {
     const data = map.data;
     const { placed, unplaced } = placeStations(data.stations, plan, seatMarks);
+    // The hint hunt's band takes height from the grid, so the plan keeps a floor and the list,
+    // which also scrolls, gives up some of its room on a short screen.
+    const hasHintHunt = hintHuntStations(data.stations).length > 0;
     body = (
       <MapRelay stations={data.stations} placed={placed}>
         {({ layer, status }) => (
-          <div className={LAYOUT}>
-            {status ? (
-              <div className="lg:col-start-2 lg:row-start-1 lg:px-1.5">{status}</div>
-            ) : null}
-            <MapPlan
-              plan={plan}
-              placed={placed}
-              stations={data.stations}
-              seatMarks={seatMarks}
-              className="lg:col-start-2 lg:row-start-2"
+          <>
+            <MapHintHunt stations={data.stations} placed={placed} />
+            <div
+              className={cn(LAYOUT, hasHintHunt && "lg:grid-rows-[auto_minmax(12rem,1fr)_auto]")}
             >
-              {layer}
-            </MapPlan>
-            {data.connections ? <MapConnections connections={data.connections} /> : null}
-            <div className="min-h-0 space-y-6 lg:col-start-2 lg:row-start-3 lg:max-h-[25dvh] lg:overflow-y-auto lg:px-1.5 lg:pb-1.5">
-              {showStaleNote(map.error, true) ? (
-                <StaleDataNote onRetry={() => void map.refetch()} />
-              ) : map.isError ? (
-                <InlineQueryError
-                  error={map.error}
-                  onRetry={() => void map.refetch()}
-                  title="The map is not updating."
-                />
+              {status ? (
+                <div className="lg:col-start-2 lg:row-start-1 lg:px-1.5">{status}</div>
               ) : null}
-              {data.stations.length === 0 ? (
-                <p className="text-muted-foreground">
-                  No stations yet. Each one appears here once an organiser adds it on the station
-                  board and gives it a booth.
-                </p>
-              ) : (
-                <StationList placed={placed} unplaced={unplaced} seatMarks={seatMarks} />
-              )}
+              <MapPlan
+                plan={plan}
+                placed={placed}
+                stations={data.stations}
+                seatMarks={seatMarks}
+                className="lg:col-start-2 lg:row-start-2"
+              >
+                {layer}
+              </MapPlan>
+              {data.connections ? <MapConnections connections={data.connections} /> : null}
+              <div
+                className={cn(
+                  "min-h-0 space-y-6 lg:col-start-2 lg:row-start-3 lg:max-h-[25dvh] lg:overflow-y-auto lg:px-1.5 lg:pb-1.5",
+                  hasHintHunt && "lg:max-h-[16dvh]",
+                )}
+              >
+                {showStaleNote(map.error, true) ? (
+                  <StaleDataNote onRetry={() => void map.refetch()} />
+                ) : map.isError ? (
+                  <InlineQueryError
+                    error={map.error}
+                    onRetry={() => void map.refetch()}
+                    title="The map is not updating."
+                  />
+                ) : null}
+                {data.stations.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    No stations yet. Each one appears here once an organiser adds it on the station
+                    board and gives it a booth.
+                  </p>
+                ) : (
+                  <StationList placed={placed} unplaced={unplaced} seatMarks={seatMarks} />
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </MapRelay>
     );

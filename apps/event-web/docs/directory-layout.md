@@ -74,7 +74,7 @@ apps/event-web/
       taps/                 # scan log: filters, TanStack table, cursor paging, polling hook
       fallback/             # QR fallback form and result
       stats/                # KPI tiles, per-station breakdown, CSV export
-      map/                  # the big screen's map: floor plan, placing stations, pulses and relay (GSAP); relay.ts derives states and events, use-map-relay.ts owns the separate poll
+      map/                  # the big screen's map: floor plan, placing stations, pulses and relay (GSAP); relay.ts derives states and events, use-map-relay.ts owns the separate poll; hint-hunt.ts derives a hint hunt round's state and wording, use-map-hint-hunt.ts its poll (FRO-190)
       booth/                # the booth visual at /what-stays: what stays, what changes, the passport as a second game, the honest costs
     components/
       ui/                   # shadcn generated and customised. No app logic here.
