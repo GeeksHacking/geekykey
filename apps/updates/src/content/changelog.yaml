@@ -2885,3 +2885,11 @@
     from the second hint, and a win or a final miss no longer lets an old hint come back on the
     station. The trade-offs we accept: a player could change an answer mid-round to match the
     hints, which is unlikely in a 40-second round.
+
+- id: hint-hunt-on-a-real-station # HAR-55
+  date: 2026-11-16
+  area: hardware
+  change: >-
+    The hint hunt played on our Main Station on production, with rounds won and lost on time and
+    every line fitting the screen. With no map open the hints came late or not at all, so each
+    station now wakes the server when a hint is due, which we haven't yet tried on the station.
