@@ -11,7 +11,7 @@ import {
   hintHuntRounds as rounds,
   type StoredHint,
 } from "./schema.ts";
-import { HINT_HUNT_LINES, hintScreen, joiningScreen, plain } from "./screens.ts";
+import { HINT_HUNT_LINES, hintScreen, joiningScreen, plain, resultScreen } from "./screens.ts";
 
 /** BAC-203, the API agreement's section 4, next version after 0.14. */
 export const HINT_HUNT_RULES = {
@@ -20,6 +20,8 @@ export const HINT_HUNT_RULES = {
   maxHints: 4,
   afterLastHintMs: 10_000,
   tries: 3,
+  /** The hint a guess counts from, or the last if there are fewer (6.1, BAC-208). */
+  guessFromHint: 2,
   minPlayers: 3,
   minGroups: 2,
 };
@@ -141,20 +143,20 @@ export function hintHuntGame({
     const all = await Promise.all(
       joined.map(async (player) => ({
         id: player.userId,
-        fixed: (await answers?.fixedAnswersOf(tx, player.userId)) ?? null,
         choices: (await answers?.answersOf(tx, player.userId)) ?? {},
       })),
     );
-    const eligible = all.filter(
-      (player) => player.fixed !== null && Object.keys(player.fixed).length > 0,
-    );
+    // Fixed or not: a connection fixes answers, and a participant may tap in before their first
+    // one. The hints are stored now, so the target changing an answer later changes none (section
+    // 4 and 6.1, BAC-208).
+    const eligible = all.filter((player) => Object.keys(player.choices).length > 0);
     if (!eligible.length) return [];
     const targetId = pickTarget(eligible.map((player) => player.id));
     const target = eligible.find((player) => player.id === targetId);
     if (!target) throw new Error("Invalid hint hunt picker");
     let matching = all.filter((player) => player.id !== target.id);
     const remaining = questions.flatMap((question) => {
-      const choiceId = target.fixed![question.id];
+      const choiceId = target.choices[question.id];
       return choiceId ? [{ questionId: question.id, choiceId }] : [];
     });
     const hints: StoredHint[] = [];
@@ -301,20 +303,26 @@ export function hintHuntGame({
             texts.set(tap.clientTapId, { ...screen(round, now), lines: HINT_HUNT_LINES.running });
             continue;
           }
-          if (received.toISOString() < round.startedAt) {
+          // A tap received before the round started, or before guesses count, has seen too few
+          // hints to guess from, so it shows the hint screen and costs no try (6.1, BAC-208).
+          if (
+            received.toISOString() < round.startedAt ||
+            shownCount(round, now) < Math.min(rules.guessFromHint, round.hints.length)
+          ) {
             statuses.push("cooldown");
             texts.set(tap.clientTapId, screen(round, now));
             continue;
           }
-          const fixed = await answers?.fixedAnswersOf(tx, tap.userId);
+          // The guesser's answers at the time of the tap, fixed or not (6.1, BAC-208).
+          const guess = (await answers?.answersOf(tx, tap.userId)) ?? {};
           const hints = round.hints.slice(0, shownCount(round, now));
-          if (fixed && hints.every((hint) => fixed[hint.questionId] === hint.choiceId)) {
+          if (hints.every((hint) => guess[hint.questionId] === hint.choiceId)) {
             await tx
               .update(rounds)
               .set({ endedAt: now.toISOString(), endedHow: "won" })
               .where(eq(rounds.id, round.id));
             statuses.push("accepted");
-            texts.set(tap.clientTapId, plain(HINT_HUNT_LINES.won, true));
+            texts.set(tap.clientTapId, resultScreen(HINT_HUNT_LINES.won, true));
           } else {
             const triesLeft = Math.max(0, round.triesLeft - 1);
             await tx
@@ -330,7 +338,9 @@ export function hintHuntGame({
             statuses.push("cooldown");
             texts.set(
               tap.clientTapId,
-              triesLeft === 0 ? plain(HINT_HUNT_LINES.lostTries) : screen(round, now, triesLeft),
+              triesLeft === 0
+                ? resultScreen(HINT_HUNT_LINES.lostTries)
+                : screen(round, now, triesLeft),
             );
           }
           continue;

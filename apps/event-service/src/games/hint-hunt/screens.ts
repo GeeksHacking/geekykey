@@ -38,6 +38,21 @@ function ticking(countdown: Countdown, lines = countdown.lines): StationText {
   };
 }
 
+/** How long a round's result counts down: as long as the station shows a result (6.1). */
+const RESULT_SECONDS = 2;
+
+/**
+ * A round's result, from a tap. The station keeps a countdown an earlier tap started, such as a
+ * miss's, and shows it again once a result's 2 seconds are up. A result with a countdown of its
+ * own replaces it, and ends on the result's lines, so no old hint comes back (BAC-208).
+ */
+export function resultScreen(lines: string[], complete = false): StationText {
+  return {
+    ...plain(lines, complete),
+    countdown: { seconds: RESULT_SECONDS, lines, ending: lines },
+  };
+}
+
 export function joiningScreen(players: number, until: string, now: Date, repeat = false) {
   let line = `${players} in, ${SECONDS_LEFT}s left`;
   if (line.replace(SECONDS_LEFT, "99").length > LINE_LENGTH) line = `${SECONDS_LEFT}s left`;

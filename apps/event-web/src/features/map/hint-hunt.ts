@@ -2,6 +2,9 @@ import type { HintHuntRound, MapStation } from "@/api/types";
 
 export const HINT_HUNT_RESULT_MS = 60_000;
 
+/** The hint a guess counts from, or the only one (agreement 6.1, BAC-208). */
+const GUESS_FROM_HINT = 2;
+
 /** The stations the map gives a card and polls for: enabled ones running the hint hunt. */
 export function hintHuntStations(stations: readonly MapStation[]): MapStation[] {
   return stations.filter((station) => station.game === "hint_hunt" && !station.disabled);
@@ -12,7 +15,7 @@ const END_MESSAGES: Record<NonNullable<HintHuntRound["ended_how"]>, string> = {
   lost_tries: "Not found. No tries left.",
   lost_time: "Not found. Time ran out.",
   too_few: "Not enough players. A round needs 3 from 2 groups.",
-  no_target: "No round. Nobody who tapped in has made a connection yet.",
+  no_target: "No round. Nobody who tapped in has answered the questions yet.",
 };
 
 /** Expiry and countdowns use wall time so a delayed poll cannot freeze the display. */
@@ -28,6 +31,8 @@ export function hintHuntMessage(round: HintHuntRound | undefined, now: number) {
   if (!round || state === "idle") return "Tap the station to start a round.";
   if (state === "joining") return `${round.players} in`;
   if (state === "ended") return round.ended_how ? END_MESSAGES[round.ended_how] : "";
+  if (round.hints.length < GUESS_FROM_HINT && round.next_hint_at)
+    return "Guessing opens with the second hint.";
   return "Whoever matches every hint taps the station.";
 }
 

@@ -456,9 +456,10 @@ list of games is in the Event Service's code, so it changes only with a deploy.
 - For the next version, after 0.14 (BAC-203), the **hint hunt** runs on any station set to it,
   one round at a time on each. A tap opens a round for 30 seconds of tapping in, and needs three
   players from two groups. The Event Service then picks the **target** at random from the players
-  who tapped in and whose answers are fixed, and the station shows a **hint**, one of the target's
-  answers, at the start and every 10 seconds after, up to four. A tap by any player who matches
-  every hint shown wins. A player who doesn't match costs one of three tries, and a round nobody
+  who tapped in and have answered a question, whether or not a connection has fixed their answers
+  (BAC-208). The station shows a **hint**, one of the target's answers, at the start and every 10
+  seconds after, up to four. From the second hint, or from the only one, a tap by any player who
+  matches every hint shown wins. A player who doesn't match costs one of three tries, and a round nobody
   wins within 10 seconds of its last hint is lost. Neither the station nor the map ever says who
   the target was, and no answer about the game carries a player's user ID, name or token UID. It
   gives no points, no stamp and no connection. Its lines and station messages are in 6.1, and the
@@ -903,9 +904,10 @@ are the hints shown so far.
 | By a player already in, while tapping in | `cooldown` | `Already in` / `3 in, 21s left` | as the joining tap's |
 | By someone in no group, opening or joining | `cooldown` | `Join a group` / `on your phone` | none |
 | By someone who isn't a player, while a round runs | `cooldown` | `Round running` / `Join next one` | as the hint screen's |
-| By a player who matches every hint shown | `accepted`, with `complete` | `Found a match!` / `Round won` | none |
+| By a player before the second hint shows, while more hints are to come | `cooldown` | `Q3B` / `Next hint 7s` | the hint screen's |
+| By a player who matches every hint shown | `accepted`, with `complete` | `Found a match!` / `Round won` | `Found a match!` / `Round won` for 2 seconds, ending the same |
 | By a player who doesn't match, with tries left | `cooldown` | `Q3B Q1A` / `No! 2 tries left` | `Q3B Q1A` / `No! 2 tries left` to the next hint, ending as the hint screen's |
-| By a player who doesn't match, on the third try | `cooldown` | `No match` / `Round lost` | none |
+| By a player who doesn't match, on the third try | `cooldown` | `No match` / `Round lost` | `No match` / `Round lost` for 2 seconds, ending the same |
 
 - **The hint screen** is a countdown: `Q3B Q1A` / `Next hint {s}s` to the next hint, ending
   `Q3B Q1A` / `Next hint...`. Once the last hint shows it is `Q3B Q1A Q5A Q2B` /
@@ -915,7 +917,7 @@ are the hints shown so far.
   in its question, from `A`. Hints that don't fit the line lose their `Q`s, then the oldest hints.
 - The round starts when tapping in ends, and needs 3 players from 2 groups. Without them it ends,
   and the station gets `Need 3 players` / `from 2 groups` as a station message (6.3, 11.12). With
-  no player whose answers are fixed, it gets `No answers yet` / `Round over`.
+  no player who has answered a question, it gets `No answers yet` / `Round over`.
 - Each new hint goes to the station as a station message, with the hint screen's countdown and
   `beep`, and the round's end on time as `Time's up` / `Round lost`. A message is sent once, by
   whichever comes first of a poll of 9.22 and the Event Service's own timer, and none is sent for
@@ -930,12 +932,21 @@ are the hints shown so far.
   the timer sends the message, once. A failed wake or late alarm only delays the message.
 - A tap at a station whose round has ended opens a new one. Its answer replaces the old round's
   last screen, so the station gets no message about the old round.
-- Several players may match, and any of them wins. A player whose answers aren't fixed yet can
-  tap in, is never the target, and their guess is a miss. Lines never name a player.
+- Several players may match, and any of them wins. Answers count whether or not a connection has
+  fixed them (BAC-208): a player who hasn't connected yet can be the target, and a guess is judged
+  against the player's answers when the tap arrives. The Event Service chooses the hints when the
+  round starts, so the target changing an answer later changes no hint. Lines never name a player.
+- A guess counts from the second hint, or from the only hint when the target answered one
+  question (BAC-208). The first hint is the target's answer that the most other players share, so
+  a guess from it alone would usually win.
+- A won round and a third miss each give a countdown of 2 seconds that shows the result's lines and
+  ends on them (BAC-208). Without it, a countdown that an earlier tap gave, such as a miss's, would
+  come back once the result's 2 seconds were up. Its ending shows the same lines for 2 more
+  seconds with the station's one ending beep, so the result stays about 4 seconds in all.
 - The hint hunt judges a tap by when the Event Service received it, or by when its round started
-  or ended if a poll or the timer took that step while the tap waited. A tap received before its
-  round started costs no try and shows the hint screen, and one received before its round ended
-  opens the next.
+  or ended if a poll or the timer took that step while the tap waited. A player's tap received
+  before its round started, or before guesses count, costs no try and shows the hint screen, and
+  one received before its round ended opens the next.
 - The wording can change.
 
 **How a tap is answered, from checkpoint 3**
@@ -2903,7 +2914,7 @@ its own, 90 a minute, and doesn't count toward the user's 60 or the relay's 90
 | `next_hint_at` | When the next hint shows, or `null` once the last has shown or the round has ended |
 | `ends_at` | Once the last hint has shown, when the round is lost if nobody wins, 10 seconds later. Otherwise `null` |
 | `ended_at` | When the round ended, or `null` while it runs |
-| `ended_how` | `won`, `lost_tries` after three misses, `lost_time` when nobody won in time, `too_few` without 3 players from 2 groups, `no_target` with no player whose answers are fixed, or `null` while it runs |
+| `ended_how` | `won`, `lost_tries` after three misses, `lost_time` when nobody won in time, `too_few` without 3 players from 2 groups, `no_target` with no player who has answered a question, or `null` while it runs |
 
 - The answer has no user ID, display name, group or token UID, and fields added later won't
   either. Nothing in it tells which player was the target, and the Event Service doesn't keep
@@ -3719,13 +3730,15 @@ Organisers can open it for totals only.
     and **"A round needs 3 players from 2 groups."**
   - While tapping in: **"{players} in"**, **"{s}s left to tap in"** and **"A round needs 3
     players from 2 groups."**
-  - While a round runs: **"Whoever matches every hint taps the station."**, each hint as its
-    question with the choice under it, oldest first, **"{n} tries left"** (**"1 try left"**), and
+  - While a round runs: **"Whoever matches every hint taps the station."**, or **"Guessing opens
+    with the second hint."** while one hint shows and `next_hint_at` isn't `null` (BAC-208), each
+    hint as its question with the choice under it, oldest first, **"{n} tries left"** (**"1 try
+    left"**), and
     **"Next hint in {s}s"**, or after the last hint **"Last hint. {s}s left to find them."**
   - When it ends, by `ended_how`: `won` **"Found! Someone matched every hint."**, `lost_tries`
     **"Not found. No tries left."**, `lost_time` **"Not found. Time ran out."**, `too_few` **"Not
     enough players. A round needs 3 from 2 groups."**, and `no_target` **"No round. Nobody who
-    tapped in has made a connection yet."** The hints shown stay under it.
+    tapped in has answered the questions yet."** The hints shown stay under it.
   - The card never names the target, their group or their avatar.
 - The organiser's CSV download is the file the service sent, unchanged, unless a value needs
   escaping. The summary and the Groups screen say the rule under the Download CSV button: **"A value that a
@@ -4060,4 +4073,5 @@ Closed on 2026-10-10:
 | 2026-11-14 | For the next version, after 0.14: the Event Service keeps each person's avatar look per event (BAC-191). New fields are `user.avatar`, `connections[].avatar` and `connection_requests[].avatar` in 8.1, `avatar` in 8.7's request and `user.avatar` in its answer, and `owner_avatar` in 8.8 and 11.10 for every status. The look has `character`, `skin`, `hair` and `suit`, or is `null` for none. 8.7 sets the shape and value rules, with `400 validation_failed` under `["avatar"]` or one of its keys, accepts `null` to clear it, and lets `avatar` be the only PATCH field. The look goes to the same people as the bio, without earned pieces, and the evening-before clear removes it with the user. The organizers' screens, the export and the map get none. Screens read missing fields as `null` and draw their default for an unknown value. The GeekyKey Service stores no looks, drops unknown keys inside a look, and reads a missing or unreadable `owner_avatar` as `null` without making the meeting unavailable. An `unavailable` item has `owner_avatar: null`. Deploy both services before screens that send `avatar`, since an older Event Service refuses a PATCH with only that field. No field or route is removed, and section 13 is unchanged. |
 | 2026-11-14 | For the next version, after 0.14: the open seat, a station game (BAC-190). A tap at an open seat station opens a seat for 60 seconds, the other open seat stations say where it is with no name, and someone from another group, or with none, takes it at the same station, which sends the sitter a connection request judged by the seat's rule. New: the game `open_seat` in section 4 and 9.2's `games`, its lines and station messages in 6.1, a paragraph on its requests in [Connections](#connections), `open_seat` in 8.1, `open_seat_until` on 9.10's stations, and section 12's line on connection points. A refusal on accepting a seat's request answers `same_group` (8.10). |
 | 2026-11-16 | For the next version, after 0.14: the hint hunt, a station game (BAC-203). A tap at a hint hunt station opens a round for 30 seconds of tapping in, and a round needs 3 players from 2 groups. The Event Service picks the target at random from the players whose answers are fixed, and the station shows one of the target's answers as a hint at the start and every 10 seconds, up to four, sent as station messages. Any player who matches every hint shown wins with a tap, a miss costs one of 3 tries, and nobody winning within 10 seconds of the last hint loses the round. No answer names the target. New: the game `hint_hunt` in section 4 and 9.2's `games`, its idle lines in 6.2, its lines and station messages in 6.1, `GET /api/v1/map/hint-hunt` (9.22) with its own limit of 90 a minute, and its row in section 5. |
+| 2026-11-16 | For the next version, after 0.14: the hint hunt's gaps from the real-station check (BAC-208, HAR-55). The target can be any player who tapped in and has answered a question, whether or not a connection has fixed their answers, and a guess is judged against the player's answers when the tap arrives, so a round whose players haven't connected still plays (section 4 and 6.1). A guess counts from the second hint, or from the only one, and an earlier tap by a player costs no try and shows the hint screen. A win and a third miss each give a 2-second countdown that ends on the result's lines, so a miss's countdown no longer comes back after them. 9.22's `no_target` and section 13's map wording change to match. |
 | 2026-11-16 | For the next version, after 0.14: durable wakes for hint hunt steps (BAC-206). New: `POST /api/v1/station-wakes` on the GeekyKey Service (11.13), with `{ station_id, at }` and `202 { scheduled: true }`, and `POST /geekykey/v1/wake` on the Event Service (11.14), with `{ station_id }` and `204`. Both reuse the Event Service key. Section 6.1 adds alarms beside the timer and map poll, with one message attempt per step. Wake times persist in the station's existing object, failed callbacks use bounded alarm retries, and no firmware or socket frame changes. |
