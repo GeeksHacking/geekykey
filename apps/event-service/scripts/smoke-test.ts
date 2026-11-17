@@ -2,9 +2,10 @@
  * The end-to-end smoke test (the migration spec's checkpoint 4, "CI"). It
  * starts the Event Service on Node and the GeekyKey Service in `wrangler dev`,
  * adds a registered station and a claimed token to geekykey_test, and sends a
- * station's requests through the Worker. Each check reads the database itself,
- * not only the answer, since a tap can be answered `accepted` by one side and
- * lost by the other.
+ * station's requests through the Worker. It also connects two people: one meets
+ * the other's token through the Worker, and the other accepts on the Event
+ * Service. Each check reads the database itself, not only the answer, since a
+ * tap can be answered `accepted` by one side and lost by the other.
  *
  *   mise run db:up
  *   mise run test:smoke
@@ -29,10 +30,14 @@ import { join } from "node:path";
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createConnection } from "mysql2/promise";
+import { loginLinks } from "@geekykey/login-link";
+import { tokenKinds } from "../src/claims-stand-in/schema.ts";
+import { setConnectAcross, setShowcase } from "../src/event/event-settings.ts";
 import { stations, taps } from "../src/event/schema.ts";
+import { connections, meetingHalves } from "../src/games/connections/schema.ts";
 import { normaliseUid } from "../src/lib/token-uid.ts";
 import { localDatabaseUrl } from "./local-tidb.ts";
 import { addParticipant, addStation } from "./seed-rows.ts";
@@ -103,8 +108,15 @@ before(async () => {
     SESSION_SECRET: randomKey(),
     CLAIMS_STAND_IN_KEY: claimsStandInKey,
     EVENT_SERVICE_KEY_SHOWCASE: eventServiceKey,
+    // As in wrangler.jsonc: it takes meetings, and its login links log a user in here.
     EVENT_SERVICES: JSON.stringify([
-      { id: "showcase", name: "Capstone Showcase", url: eventServiceUrl },
+      {
+        id: "showcase",
+        name: "Capstone Showcase",
+        url: eventServiceUrl,
+        meetings: true,
+        login_links_to_geekykey: true,
+      },
     ]),
     CLAIMS_STAND_IN_URL: `${eventServiceUrl}/claims-stand-in/v1`,
   };
@@ -217,6 +229,73 @@ test("a heartbeat changes the station's last_seen_at", async () => {
   );
 });
 
+test("a meeting through the Worker and an accept on the Event Service connect two people", async () => {
+  // A new pair each run, with tokens of two kinds, so they may connect under the
+  // default rule, and names nobody else in geekykey_test has.
+  const run = randomBytes(3).toString("hex");
+  const [a, b] = await Promise.all(
+    (["A", "B"] as const).map(async (kind) => {
+      const person = { id: `smoke-${kind.toLowerCase()}-${run}`, uid: randomUid(), kind };
+      await addParticipant(db, { ...person, displayName: `Smoke ${kind} ${run}` });
+      await db.insert(tokenKinds).values({ uid: person.uid, kind });
+      return { ...person, name: `Smoke ${kind} ${run}`, ...(await logIn(person.id)) };
+    }),
+  );
+  // What a new event has, whatever an earlier test left in geekykey_test.
+  await setConnectAcross(db, "token_kinds");
+  await setShowcase(db, false);
+  for (const person of [a, b]) await setUp(person.eventCookie, person.name);
+
+  // A's phone on B's token (8.8): the Worker asks the claims stand-in and hands the half on.
+  const meeting = (await sendJson(`${workerUrl}/api/v1/tokens/${b.uid}/meet`, a.workerCookie)) as {
+    meetings: { event_id: string; status: string; owner_name: string | null }[];
+  };
+  assert.deepEqual(
+    meeting.meetings.map(({ event_id, status, owner_name }) => ({ event_id, status, owner_name })),
+    [{ event_id: "showcase", status: "waiting", owner_name: b.name }],
+  );
+
+  // B sees A's request in /me (8.1) and accepts it (8.10).
+  const me = (await sendJson(`${eventServiceUrl}/api/v1/me`, b.eventCookie, {
+    method: "GET",
+  })) as { connection_requests: { id: string; display_name: string }[] };
+  const request = me.connection_requests.find(({ display_name }) => display_name === a.name);
+  assert.ok(request, `no request from ${a.name} in ${JSON.stringify(me.connection_requests)}`);
+  const accepted = await sendJson(
+    `${eventServiceUrl}/api/v1/me/connection-requests/${request.id}/accept`,
+    b.eventCookie,
+  );
+  assert.deepEqual(accepted, { status: "connected" });
+
+  // One connection between the two, with each one's kind, and no request left waiting.
+  const pair = or(
+    and(eq(connections.userA, a.id), eq(connections.userB, b.id)),
+    and(eq(connections.userA, b.id), eq(connections.userB, a.id)),
+  );
+  const made = await db
+    .select({ userA: connections.userA, kindA: connections.kindA, kindB: connections.kindB })
+    .from(connections)
+    .where(pair);
+  // The smaller user ID is user_a, so A's kind is on either side.
+  const kinds = made.map(({ userA, kindA, kindB }) =>
+    userA === a.id ? [kindA, kindB] : [kindB, kindA],
+  );
+  assert.deepEqual(kinds, [["A", "B"]]);
+  const waiting = await db
+    .select({ requestId: meetingHalves.requestId })
+    .from(meetingHalves)
+    .where(
+      and(
+        isNotNull(meetingHalves.requestId),
+        or(
+          and(eq(meetingHalves.userA, a.id), eq(meetingHalves.userB, b.id)),
+          and(eq(meetingHalves.userA, b.id), eq(meetingHalves.userB, a.id)),
+        ),
+      ),
+    );
+  assert.deepEqual(waiting, []);
+});
+
 /**
  * POSTs `body` to the Worker at `path` with the station's key, and gives back
  * the answer. Anything but a 200 fails the test, with the body as the reason.
@@ -230,6 +309,79 @@ async function postAsStation(path: string, body: unknown): Promise<unknown> {
   const text = await response.text();
   assert.equal(response.status, 200, text);
   return JSON.parse(text);
+}
+
+/**
+ * Logs `userId` in on both services the way a phone does, and gives back the
+ * two session cookies. The first login link is made here, as the GeekyKey
+ * Service makes it (8.6), since the smoke test holds the Event Service key;
+ * the Event Service then makes the link back to the GeekyKey Service (8.12),
+ * which marks it used there (7.5).
+ */
+async function logIn(userId: string): Promise<{ eventCookie: string; workerCookie: string }> {
+  const { link } = await loginLinks(eventServiceKey).make({ userId, name: null });
+  const eventCookie = await sessionCookie(`${eventServiceUrl}/auth/login-link`, {
+    login_link: link,
+  });
+  const { login_link } = (await sendJson(`${eventServiceUrl}/api/v1/login-links`, eventCookie, {
+    status: 201,
+  })) as { login_link: string };
+  const workerCookie = await sessionCookie(`${workerUrl}/auth/login-link`, { login_link });
+  return { eventCookie, workerCookie };
+}
+
+/** POSTs `body` to a login route at `url`, and gives back the session cookie it sets, as `name=value`. */
+async function sessionCookie(url: string, body: unknown): Promise<string> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  assert.equal(response.status, 204, await response.text());
+  const [cookie] = response.headers.getSetCookie();
+  assert.ok(cookie, `${url} set no cookie`);
+  return cookie.split(";")[0] as string;
+}
+
+/** Sets the user's name and answers every question with its first choice (8.7), as participant setup does. */
+async function setUp(eventCookie: string, name: string) {
+  const { questions } = (await sendJson(`${eventServiceUrl}/api/v1/me`, eventCookie, {
+    method: "GET",
+  })) as { questions: { id: string; choices: { id: string }[] }[] | null };
+  const answers = Object.fromEntries(
+    (questions ?? []).map(({ id, choices }) => [id, choices[0]?.id]),
+  );
+  await sendJson(`${eventServiceUrl}/api/v1/me`, eventCookie, {
+    method: "PATCH",
+    body: { display_name: name, answers },
+  });
+}
+
+/**
+ * Sends a request with `cookie` to `url`, a POST with no body unless told
+ * otherwise, and gives back the answer, or null for none. Any status but the
+ * expected one fails the test, with the body as the reason.
+ */
+async function sendJson(
+  url: string,
+  cookie: string,
+  {
+    method = "POST",
+    body,
+    status = 200,
+  }: { method?: string; body?: unknown; status?: number } = {},
+): Promise<unknown> {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Cookie: cookie,
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
+  assert.equal(response.status, status, `${method} ${url}: ${text}`);
+  return text === "" ? null : JSON.parse(text);
 }
 
 /** The station's taps stored under `clientTapId`. */

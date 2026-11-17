@@ -265,9 +265,10 @@ jobs:
 
   # Both services together: the Event Service on Node and the Worker in
   # `wrangler dev`, with a station's tap and heartbeat sent through the
-  # Worker and read back from the database. It runs on every pull request,
-  # whichever app it touches, since a change on either side can break the
-  # hand-off between them. apps/event-service/scripts/smoke-test.ts has the
+  # Worker, and two people connected by a meeting through the Worker and an
+  # accept on the Event Service, each read back from the database. It runs
+  # on every pull request, whichever app it touches, since a change on either
+  # side can break the hand-off between them. apps/event-service/scripts/smoke-test.ts has the
   # checks.
   smoke-test:
     name: End-to-end smoke test
