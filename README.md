@@ -6,7 +6,8 @@ points, and tap their phone on someone else's token to connect with them. Organi
 from the Event screens: stations, groups, the tap log and a map of the hall.
 
 A capstone team built it with GeeksHacking for the Capstone Showcase at Ngee Ann Polytechnic on
-Tue 17 Nov 2026, and is handing it over to the GeeksHacking team.
+Tue 17 Nov 2026, and handed it over to GeeksHacking afterwards. [The handover](docs/handover.md)
+says what runs where, what costs money, what is unfinished and what is still to agree.
 
 ## The pieces
 
@@ -59,6 +60,7 @@ Besides each part's README:
 
 | Read | For |
 |---|---|
+| [docs/handover.md](docs/handover.md) | Taking the project over: accounts, access to remove, costs, known problems, hardware |
 | [docs/getting-started.md](docs/getting-started.md) | Setting up a laptop, running everything locally, sending a tap, the mise tasks |
 | [docs/operations.md](docs/operations.md) | Deploying, staging, rolling back, clearing an event's data, secrets, who can do what |
 | [apps/API-AGREEMENT.md](apps/API-AGREEMENT.md) | The contract between the screens, the services and the stations. It wins over every other document, and over the code |
@@ -78,7 +80,14 @@ Built and running in production since October 2026:
 - the passport: stamps, points, and the next stop, which the station's answer names
 - connections between participants: a connection request, the answers game's match, and a
   challenge (dice or a reaction test)
-- groups: organizers split participants into groups, and latecomers are placed as they join
+- groups: organizers split participants into groups, and the Event Service places latecomers as
+  they join
+- four more station games, each defined in [CONTEXT.md](CONTEXT.md): team duels, the relay on two
+  stations, the open seat, and the hint hunt
+- station messages: the Event Service sends a station new lines, a beep and a countdown through a
+  Durable Object on the GeekyKey Service ([ADR 0009](docs/adr/0009-the-geekykey-service-carries-station-messages-in-a-durable-object.md))
+- showcase mode, which lets a booth demo connections again and again with the same tokens, and a
+  reset of every participant
 - token kinds, loaded by a GeekyKey admin from the token writer's log
 - the map of the hall, and the export of every tap
 
@@ -97,5 +106,7 @@ Temporary by design, and planned to change after the showcase:
   the writer's key, and `infra/README.md` says how to make both. Until then the writer still writes
   and logs every token, and a GeekyKey admin loads its log on the Token kinds screen (HAR-31).
 
-Some steps can only be run from Adam's laptop, which holds the production database logins.
-[Operations](docs/operations.md#who-can-do-what) lists them.
+Some steps need a production database login, such as migrating by hand, copies and restores.
+Julian holds the TiDB root login, which makes new logins with `db:logins`.
+[Operations](docs/operations.md#who-can-do-what) lists the steps, and
+[the handover](docs/handover.md#known-problems) lists what is still broken.

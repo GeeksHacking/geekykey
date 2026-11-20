@@ -36,3 +36,6 @@ docs/report
 # The MiniMax skills, cloned locally for an agent to read. It is a repository of
 # its own, so it never goes to GitHub.
 minimax-skills/
+
+# Wrangler's local state
+.wrangler/
